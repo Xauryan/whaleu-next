@@ -1,3 +1,4 @@
+import { TradingRepository } from './trading/repository.js';
 import { encodeDiscussionCursor, replyCursor } from './discussion/cursor.js';
 import { PollReadService } from './polls/poll-read.service.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -37,6 +38,7 @@ export class CommunitySerializer {
     @Inject(CommunityAccessService)
     private readonly access: CommunityAccessService,
     @Inject(PollReadService) private readonly polls: PollReadService,
+    @Inject(TradingRepository) private readonly trading: TradingRepository,
   ) {}
   async author(
     content: StoredPost | StoredComment,
@@ -164,6 +166,7 @@ export class CommunitySerializer {
       }
     const poll = await this.polls.project(post.id, viewer, authority, tx);
     return {
+      trading: await this.trading.project(post, viewer, authority, tx),
       component: poll ? { kind: 'poll', poll } : { kind: 'none' },
       id: post.id,
       space: { id: space.id, kind: space.kind, name: space.name },

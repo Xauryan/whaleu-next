@@ -76,6 +76,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Community/developer/school-code snapshot `cc3ef8bb3904b7b7b369b0f3110418a9a60cd775`: 88 API tests, 182 native-client tests and 93 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37642626842), including community/privacy native gateway → Nest HTTP → PostgreSQL contracts and school-code migration tooling. The commit signature is verified.
 - Verification-preservation snapshot `6ed0d7e1e306bc9b7a104a2c4d880552afa61b4f`: 93 API tests, 217 native-client tests and 110 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37646773204), including actual native verification-summary contracts and final-clock privacy checks. The commit signature is verified.
 - Poll snapshot `3c10b6c42d963b1595c31b9ab9959bf0b4e2f36b`: 98 API tests, 250 native-client tests and 137 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37649513781), including native poll publication, ballot recovery and privacy contracts. The commit signature is verified.
+- Discussion snapshot `27d2c7cb7a29f80e2bcb2080fffdc8e84a832d2e`: 102 API tests, 291 native-client tests and 159 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37654039425), including native reply, reaction, pin and audited identity contracts. The commit signature is verified.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -138,3 +139,14 @@ separate visible roots, replies and combined discussion. History, moderation,
 feed-post administration, subscriptions, notifications/rewards consumers, media,
 trading and group formation remain required; no outbox record is treated as
 successful external delivery or a paid reward.
+
+Community C2C development checkpoint: named trading listings include thirteen
+subtypes, exact decimal prices, chosen contact disclosures, location, ordinary
+versus urgent distribution, explicit/own listing filters and independently
+recoverable sold/open state. Historical raw price/subtype/location/contact text
+has a separate read projection; new writes remain strictly validated. Contacts
+are fetched only through current authenticated parent visibility. Client-only
+remembered fields do not complete server-backed cross-device publishing
+preferences. Public-profile listing privacy, scoped-manager actions, external
+push delivery, media and full source-data migration remain required. No checkout,
+escrow, payment or delivery service is invented by this listing slice.

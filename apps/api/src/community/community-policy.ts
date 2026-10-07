@@ -14,7 +14,13 @@ export type Decision<T = undefined> =
   | { kind: 'deny'; reason: ApplicationErrorCode }
   | { kind: 'unavailable' };
 export type Action =
-  'publish_post' | 'publish_comment' | 'like' | 'delete' | 'vote' | 'pin';
+  | 'publish_post'
+  | 'publish_comment'
+  | 'like'
+  | 'delete'
+  | 'vote'
+  | 'pin'
+  | 'resolve_trading';
 export interface Authority {
   phoneVerified: boolean;
   studentVerified: boolean;
@@ -60,6 +66,11 @@ export interface ContentPublicationGate {
       text: string;
       images: ApprovedAsset[];
       structuredContent?:
+        | {
+            version: 4;
+            publicationIntentHash: string;
+            trading: import('./trading/contracts.js').TradingInput;
+          }
         | {
             version: 3;
             publicationIntentHash: string;
@@ -139,6 +150,8 @@ export function requirePublication(
   postMode?: AuthorMode,
 ): void {
   requireAction(authority, action);
+  if (action === 'publish_post' && category === 'trading' && mode !== 'named')
+    throw new ApplicationError('AUTHOR_MODE_NOT_ALLOWED');
   if (space.kind === 'global' && category !== 'discussion')
     throw new ApplicationError('COMMUNITY_SCOPE_UNAVAILABLE');
   if (!authority.studentVerified) {

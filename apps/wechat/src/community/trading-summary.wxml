@@ -1,0 +1,7 @@
+<template name="trading-summary">
+  <view class="scope">{{listing.subtype.kind === 'known' ? tradingLabels[listing.subtype.key] : '历史分类：' + listing.subtype.text}} · {{listing.urgency === 'urgent' ? '低价急出' : '普通模式'}} · {{listing.resolution === 'resolved' ? '已售出／已解决' : '未解决'}}</view>
+  <view class="section-title">{{listing.price.kind === 'exact' ? listing.price.amount + ' 元' : '历史价格原文：' + listing.price.text}}</view>
+  <view wx:if="{{listing.price.kind === 'exact' &amp;&amp; listing.price.legacyText !== null}}" class="meta">历史价格原文：{{listing.price.legacyText}}</view>
+  <view wx:if="{{listing.subtype.kind === 'known' &amp;&amp; listing.subtype.legacyText !== null}}" class="meta">历史分类原文：{{listing.subtype.legacyText}}</view>
+  <view class="body">地点：{{listing.location}}</view>
+</template>

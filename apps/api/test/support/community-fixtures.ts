@@ -220,3 +220,6 @@ export async function approveReply(
     ],
   );
 }
+
+/** Trading approval uses the identical full-intent hash boundary. */
+export const approveTrading = approvePoll;

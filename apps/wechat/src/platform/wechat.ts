@@ -12,6 +12,11 @@ export interface WxRequestTask {
   abort(): void;
 }
 export interface WxApi {
+  setClipboardData?(options: {
+    data: string;
+    success(): void;
+    fail(error: unknown): void;
+  }): void;
   getRandomValues?(options: {
     length: number;
     success(result: { randomValues: ArrayBuffer }): void;

@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  tradingInputSchema,
+  tradingSubtypeSchema,
+} from './trading/contracts.js';
+import type { TradingView } from './trading/contracts.js';
 import { textSchema } from './text.js';
 import { postComponentSchema } from './polls/contracts.js';
 import type { PollView } from './polls/contracts.js';
@@ -14,6 +19,7 @@ export const categorySchema = z.enum([
   'dorms',
   'research',
   'deep_sea',
+  'trading',
 ]);
 export type Category = z.infer<typeof categorySchema>;
 export const authorModeSchema = z.enum(['named', 'anonymous']);
@@ -24,16 +30,25 @@ const imagesSchema = (maximum: number) =>
     .max(maximum)
     .refine((ids) => new Set(ids).size === ids.length)
     .default([]);
-export const publishPostSchema = z.strictObject({
-  clientRequestId: z.uuidv4(),
-  spaceId: z.uuid(),
-  category: categorySchema,
-  text: textSchema(2500).refine((value) => value.trim().length > 0),
-  imageAssetIds: imagesSchema(9),
-  authorMode: authorModeSchema,
-  commentsPolicy: z.enum(['open', 'restricted']).default('open'),
-  component: postComponentSchema.optional(),
-});
+export const publishPostSchema = z
+  .strictObject({
+    clientRequestId: z.uuidv4(),
+    spaceId: z.uuid(),
+    category: categorySchema,
+    text: textSchema(2500).refine((value) => value.trim().length > 0),
+    imageAssetIds: imagesSchema(9),
+    authorMode: authorModeSchema,
+    commentsPolicy: z.enum(['open', 'restricted']).default('open'),
+    component: postComponentSchema.optional(),
+    trading: tradingInputSchema.optional(),
+  })
+  .refine((body) =>
+    body.category === 'trading'
+      ? !!body.trading &&
+        body.authorMode === 'named' &&
+        body.component?.kind !== 'poll'
+      : body.trading === undefined,
+  );
 export const publishCommentSchema = z
   .strictObject({
     clientRequestId: z.uuidv4(),
@@ -67,11 +82,19 @@ const pageShape = {
     .transform(Number),
 };
 export const pageQuerySchema = z.strictObject(pageShape);
-export const feedQuerySchema = z.strictObject({
+export const feedQuerySchema = z
+  .strictObject({
+    ...pageShape,
+    spaceId: z.uuid(),
+    category: categorySchema.optional(),
+    tradingSubtype: tradingSubtypeSchema.optional(),
+  })
+  .refine((query) => !query.tradingSubtype || query.category === 'trading');
+export const ownTradingQuerySchema = z.strictObject({
   ...pageShape,
-  spaceId: z.uuid(),
-  category: categorySchema.optional(),
+  tradingSubtype: tradingSubtypeSchema.optional(),
 });
+export type OwnTradingQuery = z.infer<typeof ownTradingQuerySchema>;
 export type PageQuery = z.infer<typeof pageQuerySchema>;
 export type FeedQuery = z.infer<typeof feedQuerySchema>;
 export interface CommunitySpace {
@@ -104,6 +127,7 @@ export type AuthorView =
       isPostAuthor: boolean;
     };
 export interface PostView {
+  trading: TradingView | null;
   component: { kind: 'none' } | { kind: 'poll'; poll: PollView };
   id: string;
   space: Pick<CommunitySpace, 'id' | 'kind' | 'name'>;

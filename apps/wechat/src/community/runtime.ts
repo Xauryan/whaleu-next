@@ -1,3 +1,4 @@
+import { PendingTradingStore } from './trading-pending';
 import { PendingDiscussionStore } from './discussion-pending';
 import {
   HttpIdentityPrivacyGateway,
@@ -24,6 +25,7 @@ export interface CommunityRuntime {
   readonly pending: PendingAttemptStore;
   readonly pendingBallots: PendingBallotStore;
   readonly pendingDiscussion: PendingDiscussionStore;
+  readonly pendingTrading: PendingTradingStore;
   readonly drafts: DraftStore;
   readonly newRequestId: () => Promise<string>;
 }
@@ -46,6 +48,7 @@ export function createCommunityRuntime(
     pending: new PendingAttemptStore(storage, origin),
     pendingBallots: new PendingBallotStore(storage, origin),
     pendingDiscussion: new PendingDiscussionStore(storage, origin),
+    pendingTrading: new PendingTradingStore(storage, origin),
     drafts: new DraftStore(storage, origin),
     newRequestId: () =>
       bounded(

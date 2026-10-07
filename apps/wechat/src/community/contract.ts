@@ -1,3 +1,9 @@
+import {
+  decodeTradingIntent,
+  decodeTradingView,
+  type TradingIntent,
+  type TradingView,
+} from './trading-contract';
 import { decodeReplies, type Replies } from './discussion-contract';
 import { ClientError, isRecord } from '../api/errors';
 import { isUuid } from '../profile/contract';
@@ -18,6 +24,7 @@ export const categories = [
   'dorms',
   'research',
   'deep_sea',
+  'trading',
 ] as const;
 export type Category = (typeof categories)[number];
 export type AuthorMode = 'named' | 'anonymous';
@@ -57,6 +64,7 @@ export type Author =
       readonly isPostAuthor: boolean;
     };
 export interface Post {
+  readonly trading: TradingView | null;
   readonly component: PostComponent;
   readonly id: string;
   readonly space: {
@@ -137,6 +145,7 @@ export interface Capabilities {
   };
 }
 export interface PostIntent {
+  readonly trading?: TradingIntent;
   readonly component?: PollComponent;
   readonly clientRequestId: string;
   readonly spaceId: string;
@@ -364,6 +373,7 @@ export function decodeAuthor(value: unknown): Author {
 }
 export function decodePost(value: unknown): Post {
   exact(value, [
+    'trading',
     'id',
     'space',
     'category',
@@ -401,8 +411,21 @@ export function decodePost(value: unknown): Post {
     (value.viewer.canDelete && !value.viewer.isSelf)
   )
     invalid();
+  const component = decodePostComponent(value.component, value.id),
+    author = decodeAuthor(value.author),
+    trading = value.trading === null ? null : decodeTradingView(value.trading);
+  if (
+    (value.category === 'trading') !== !!trading ||
+    (trading &&
+      (value.space.kind !== 'regional' ||
+        author.kind !== 'named' ||
+        component.kind !== 'none' ||
+        (trading.viewer.canSetResolution && !value.viewer.isSelf)))
+  )
+    invalid();
   return Object.freeze({
-    component: decodePostComponent(value.component, value.id),
+    trading,
+    component,
     id: value.id,
     space: Object.freeze({
       id: value.space.id,
@@ -676,6 +699,7 @@ function assets(value: unknown, max: number): readonly string[] {
 }
 export function decodePostIntent(value: unknown): PostIntent {
   if (!isRecord(value)) invalid();
+  const hasTrading = Object.prototype.hasOwnProperty.call(value, 'trading');
   const hasComponent = Object.prototype.hasOwnProperty.call(value, 'component');
   exact(value, [
     'clientRequestId',
@@ -686,6 +710,7 @@ export function decodePostIntent(value: unknown): PostIntent {
     'authorMode',
     'commentsPolicy',
     ...(hasComponent ? ['component'] : []),
+    ...(hasTrading ? ['trading'] : []),
   ]);
   if (
     !uuid4(value.clientRequestId) ||
@@ -698,10 +723,19 @@ export function decodePostIntent(value: unknown): PostIntent {
     !policy(value.commentsPolicy)
   )
     invalid();
+  const component = hasComponent
+    ? decodePollComponent(value.component)
+    : undefined;
+  if (
+    (value.category === 'trading') !== hasTrading ||
+    (hasTrading &&
+      (value.authorMode !== 'named' ||
+        (component && component.kind !== 'none')))
+  )
+    invalid();
   return Object.freeze({
-    ...(hasComponent
-      ? { component: decodePollComponent(value.component) }
-      : {}),
+    ...(hasTrading ? { trading: decodeTradingIntent(value.trading) } : {}),
+    ...(hasComponent ? { component: component! } : {}),
     clientRequestId: value.clientRequestId,
     spaceId: value.spaceId,
     category: value.category,
@@ -769,5 +803,26 @@ export function decodeCommentCapabilities(value: unknown): CommentCapabilities {
     authorModes: Object.freeze(value.authorModes),
     forcedAuthorMode: value.forcedAuthorMode,
     lastAuthorMode: value.lastAuthorMode,
+  });
+}
+
+export interface TradingList {
+  readonly items: readonly Post[];
+  readonly nextCursor: string | null;
+}
+export function decodeTradingList(value: unknown): TradingList {
+  exact(value, ['items', 'nextCursor']);
+  if (
+    !Array.isArray(value.items) ||
+    value.items.length > 10 ||
+    !cursor(value.nextCursor)
+  )
+    invalid();
+  const items = value.items.map(decodePost);
+  if (items.some((item) => item.category !== 'trading')) invalid();
+  unique(items);
+  return Object.freeze({
+    items: Object.freeze(items),
+    nextCursor: value.nextCursor,
   });
 }

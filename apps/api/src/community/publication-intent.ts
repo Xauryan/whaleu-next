@@ -8,6 +8,7 @@ export function postIntent(body: PublishPost) {
     imageAssetIds: body.imageAssetIds,
     authorMode: body.authorMode,
     commentsPolicy: body.commentsPolicy,
+    ...(body.trading ? { trading: body.trading } : {}),
     ...(body.component?.kind === 'poll' ? { component: body.component } : {}),
   };
 }

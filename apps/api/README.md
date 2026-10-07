@@ -122,3 +122,12 @@ runtime safety ports; only injected synthetic test adapters enable local flows.
 The independent vote gate requires phone proof and current restrictions, not a
 new student/campus credential. See [community API](../../docs/API_COMMUNITY.md)
 for exact DTOs, immutable storage, transaction guarantees and remaining parity.
+
+## Community trading development slice
+
+C2C adds named regional listings with source-grounded subtype/contact/location
+rules, exact decimal text, independent urgency/resolution, explicit legacy-text
+reads, filtered regional/own listings and durable owner status recovery. Chosen
+contacts use a separate authenticated visible-parent endpoint. Ordinary runtime
+safety gates remain unavailable; no real provider, checkout, payment, production
+import or public-profile privacy bypass is added. See [C2C API](../../docs/API_COMMUNITY.md#c2c-trading-listings-development-slice).

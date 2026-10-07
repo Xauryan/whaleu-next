@@ -1,3 +1,7 @@
+import {
+  isTradingSubtype,
+  type TradingSubtype,
+} from '../../community/trading-contract';
 import { ClientError } from '../../api/errors';
 import type { Campus } from '../../profile/contract';
 import {
@@ -20,7 +24,8 @@ export interface FeedView extends CommunityView {
   readonly query: string;
   readonly space: CommunitySpace | null;
   readonly globalSpaces: readonly CommunitySpace[];
-  readonly category: Category;
+  readonly category: Category | 'all';
+  readonly tradingSubtype: TradingSubtype | '';
   readonly posts: readonly Post[];
   readonly continuation: Continuation;
   readonly canLoadMore: boolean;
@@ -34,7 +39,8 @@ export const initialFeedView = (): FeedView => ({
   query: '',
   space: null,
   globalSpaces: [],
-  category: 'discussion',
+  category: 'all',
+  tradingSubtype: '',
   posts: [],
   continuation: 'end',
   canLoadMore: false,
@@ -92,16 +98,14 @@ export class FeedController extends CommunityController<FeedView> {
           campusId: campus?.id ?? '',
           space,
           globalSpaces: spaces?.global.filter((item) => item.isActive) ?? [],
-          category: 'discussion',
+          category: 'all',
+          tradingSubtype: '',
           status: space
             ? '已解析社区地区，正在加载帖子'
             : '尚未解析可用社区地区',
         });
         const feed = space
-          ? await this.runtime.gateway!.feed(
-              { spaceId: space.id, category: 'discussion' },
-              cancel,
-            )
+          ? await this.runtime.gateway!.feed({ spaceId: space.id }, cancel)
           : null;
         return { catalog, campus, spaces, space, feed };
       },
@@ -115,7 +119,8 @@ export class FeedController extends CommunityController<FeedView> {
           globalSpaces:
             result.spaces?.global.filter((item) => item.isActive) ?? [],
           space: result.space,
-          category: 'discussion',
+          category: 'all',
+          tradingSubtype: '',
           posts: result.feed?.items ?? [],
           continuation: result.feed?.continuation ?? 'end',
           canLoadMore: !!this.nextCursor,
@@ -158,7 +163,8 @@ export class FeedController extends CommunityController<FeedView> {
       space: null,
       posts: [],
       globalSpaces: [],
-      category: 'discussion',
+      category: 'all',
+      tradingSubtype: '',
       loaded: false,
       canLoadMore: false,
     });
@@ -178,10 +184,7 @@ export class FeedController extends CommunityController<FeedView> {
             : '尚未解析可用社区地区',
         });
         const feed = space
-          ? await this.runtime.gateway!.feed(
-              { spaceId: space.id, category: 'discussion' },
-              cancel,
-            )
+          ? await this.runtime.gateway!.feed({ spaceId: space.id }, cancel)
           : null;
         return { spaces, space, feed };
       },
@@ -207,22 +210,31 @@ export class FeedController extends CommunityController<FeedView> {
       (item) => item.id === spaceId && item.isActive,
     );
     if (!space) return;
-    this.update({ space, category: 'discussion' });
+    this.update({ space, category: 'discussion', tradingSubtype: '' });
     await this.refresh();
   }
   async chooseRegional(): Promise<void> {
     if (!this.regional?.isActive) return;
-    this.update({ space: this.regional, category: 'discussion' });
+    this.update({ space: this.regional, category: 'all', tradingSubtype: '' });
     await this.refresh();
   }
   async setCategory(category: string): Promise<void> {
     if (
-      !isCategory(category) ||
+      (category !== 'all' && !isCategory(category)) ||
       !this.view.space ||
       (this.view.space.kind === 'global' && category !== 'discussion')
     )
       return;
-    this.update({ category });
+    this.update({ category, tradingSubtype: '' });
+    await this.refresh();
+  }
+  async setTradingSubtype(subtype: string): Promise<void> {
+    if (
+      this.view.category !== 'trading' ||
+      (subtype !== '' && !isTradingSubtype(subtype))
+    )
+      return;
+    this.update({ tradingSubtype: subtype });
     await this.refresh();
   }
   async refresh(): Promise<void> {
@@ -249,7 +261,14 @@ export class FeedController extends CommunityController<FeedView> {
     await this.run(
       (cancel) =>
         this.runtime.gateway!.feed(
-          { spaceId: space.id, category, ...(after ? { cursor: after } : {}) },
+          {
+            spaceId: space.id,
+            ...(category !== 'all' ? { category } : {}),
+            ...(category === 'trading' && this.view.tradingSubtype
+              ? { tradingSubtype: this.view.tradingSubtype }
+              : {}),
+            ...(after ? { cursor: after } : {}),
+          },
           cancel,
         ),
       (result) => {

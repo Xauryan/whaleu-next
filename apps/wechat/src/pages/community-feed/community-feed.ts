@@ -1,4 +1,8 @@
 import {
+  tradingCategories,
+  tradingLabels,
+} from '../../community/trading-contract';
+import {
   IdentityOverlayController,
   initialOverlayView,
 } from '../../identity-privacy/overlay';
@@ -8,8 +12,12 @@ import { FeedController, initialFeedView } from './controller';
 Page({
   data: {
     ...initialFeedView(),
+    tradingCategories,
+    tradingLabels,
     identityOverlay: initialOverlayView(),
     categories: [
+      { key: 'all', label: '全部普通帖子' },
+      { key: 'trading', label: '校园交易' },
       { key: 'discussion', label: '校园日常' },
       { key: 'confession', label: '表白心事' },
       { key: 'companions', label: '找搭子' },
@@ -78,6 +86,9 @@ Page({
   },
   onCategory(event: { currentTarget: { dataset: { key: string } } }) {
     void this.controller?.setCategory(event.currentTarget.dataset.key);
+  },
+  onTradingSubtype(event: { currentTarget: { dataset: { key: string } } }) {
+    void this.controller?.setTradingSubtype(event.currentTarget.dataset.key);
   },
   onRefresh() {
     void this.controller?.refresh();

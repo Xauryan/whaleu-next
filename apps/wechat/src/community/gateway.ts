@@ -1,3 +1,13 @@
+import {
+  decodeTradingContactView,
+  decodeTradingReceipt,
+  isTradingSubtype,
+  isTradingResolution,
+  type TradingContactView,
+  type TradingReceipt,
+  type TradingResolution,
+  type TradingSubtype,
+} from './trading-contract';
 import { ApiClient, type Endpoint } from '../api/client';
 import type { Cancellation } from '../platform/contracts';
 import { isUuid } from '../profile/contract';
@@ -12,6 +22,8 @@ import {
   decodeLike,
   decodeOwnPublications,
   decodePost,
+  decodeTradingList,
+  type TradingList,
   decodePostIntent,
   decodeReceipt,
   decodeSpaces,
@@ -62,11 +74,31 @@ export interface CommentQuery {
   readonly previewLimit?: number;
 }
 export interface FeedQuery {
+  readonly tradingSubtype?: TradingSubtype;
   readonly spaceId: string;
   readonly category?: Category;
   readonly cursor?: string;
 }
 export interface CommunityGateway {
+  ownTrading(
+    after: string | null,
+    cancel: Cancellation,
+    tradingSubtype?: TradingSubtype,
+  ): Promise<TradingList>;
+  tradingContacts(
+    postId: string,
+    cancel: Cancellation,
+  ): Promise<TradingContactView>;
+  setTradingResolution(
+    postId: string,
+    resolution: TradingResolution,
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<TradingReceipt>;
+  tradingReceipt(
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<TradingReceipt>;
   comment(commentId: string, cancel: Cancellation): Promise<Comment>;
   reply(replyId: string, cancel: Cancellation): Promise<Reply>;
   replies(
@@ -169,6 +201,92 @@ const page = (after: string | null) => {
 };
 export class HttpCommunityGateway implements CommunityGateway {
   constructor(private readonly api: ApiClient) {}
+  async ownTrading(
+    after: string | null,
+    cancel: Cancellation,
+    tradingSubtype?: TradingSubtype,
+  ): Promise<TradingList> {
+    if (tradingSubtype !== undefined && !isTradingSubtype(tradingSubtype))
+      invalid();
+    const result = await this.api.request(
+      endpoint('/v1/me/community/trading', decodeTradingList),
+      {
+        query: {
+          ...page(after),
+          ...(tradingSubtype ? { tradingSubtype } : {}),
+        },
+        cancellation: cancel,
+      },
+    );
+    if (
+      result.items.some(
+        (item) =>
+          !item.viewer.isSelf ||
+          (tradingSubtype &&
+            (item.trading?.subtype.kind !== 'known' ||
+              item.trading.subtype.key !== tradingSubtype)),
+      )
+    )
+      invalid();
+    return result;
+  }
+  async tradingContacts(
+    postId: string,
+    cancel: Cancellation,
+  ): Promise<TradingContactView> {
+    const result = await this.api.request(
+      endpoint(
+        `/v1/community/posts/${id(postId)}/trading/contacts`,
+        decodeTradingContactView,
+      ),
+      { cancellation: cancel },
+    );
+    if (result.postId !== postId) invalid();
+    return result;
+  }
+  async setTradingResolution(
+    postId: string,
+    resolution: TradingResolution,
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<TradingReceipt> {
+    if (!uuid4(requestId) || !isTradingResolution(resolution)) invalid();
+    const result = await this.api.request(
+      endpoint(
+        `/v1/community/posts/${id(postId)}/trading/resolution`,
+        decodeTradingReceipt,
+        'required',
+        'POST',
+        201,
+      ),
+      {
+        body: { clientRequestId: requestId, resolution },
+        cancellation: cancel,
+      },
+    );
+    if (
+      result.requestId !== requestId ||
+      (result.outcome === 'applied' &&
+        (result.resourceId !== postId || result.resolution !== resolution))
+    )
+      invalid();
+    return result;
+  }
+  async tradingReceipt(
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<TradingReceipt> {
+    if (!uuid4(requestId)) invalid();
+    const result = await this.api.request(
+      endpoint(
+        `/v1/me/community/trading-requests/${requestId}`,
+        decodeTradingReceipt,
+      ),
+      { cancellation: cancel },
+    );
+    if (result.requestId !== requestId) invalid();
+    return result;
+  }
   async comment(commentId: string, cancel: Cancellation): Promise<Comment> {
     const result = await this.api.request(
       endpoint(`/v1/community/comments/${id(commentId)}`, decodeComment),
@@ -430,6 +548,11 @@ export class HttpCommunityGateway implements CommunityGateway {
   }
   async feed(query: FeedQuery, cancel: Cancellation): Promise<Feed> {
     if (query.category !== undefined && !isCategory(query.category)) invalid();
+    if (
+      query.tradingSubtype !== undefined &&
+      (query.category !== 'trading' || !isTradingSubtype(query.tradingSubtype))
+    )
+      invalid();
     const result = await this.api.request(
       endpoint('/v1/community/posts', decodeFeed, 'optional'),
       {
@@ -437,6 +560,9 @@ export class HttpCommunityGateway implements CommunityGateway {
           spaceId: id(query.spaceId),
           ...page(query.cursor ?? null),
           ...(query.category ? { category: query.category } : {}),
+          ...(query.tradingSubtype
+            ? { tradingSubtype: query.tradingSubtype }
+            : {}),
         },
         cancellation: cancel,
       },
@@ -445,7 +571,11 @@ export class HttpCommunityGateway implements CommunityGateway {
       result.items.some(
         (item) =>
           item.space.id !== query.spaceId ||
-          (query.category && item.category !== query.category),
+          (query.category && item.category !== query.category) ||
+          (query.tradingSubtype &&
+            (item.trading?.subtype.kind !== 'known' ||
+              item.trading.subtype.key !== query.tradingSubtype)) ||
+          (!query.category && item.trading?.urgency === 'urgent'),
       )
     )
       invalid();
@@ -520,12 +650,15 @@ export class HttpCommunityGateway implements CommunityGateway {
     cancel: Cancellation,
   ): Promise<Receipt> {
     const checked = decodePostIntent(intent);
-    const { component, ...base } = checked;
+    const { component, trading, ...base } = checked;
     const result = await this.api.request(
       endpoint('/v1/community/posts', decodeReceipt, 'required', 'POST', 201),
       {
         body: {
           ...base,
+          ...(trading
+            ? { trading: { ...trading, contacts: { ...trading.contacts } } }
+            : {}),
           imageAssetIds: [...checked.imageAssetIds],
           ...(component
             ? {

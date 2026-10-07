@@ -274,6 +274,7 @@ test('media projection rejects malformed expiry, credentials, controls, asset su
       media,
       {} as import('../src/community/community-access.service.js').CommunityAccessService,
       {} as import('../src/community/polls/poll-read.service.js').PollReadService,
+      {} as import('../src/community/trading/repository.js').TradingRepository,
     );
     await assert.rejects(
       serializer.images('post', randomUUID(), {} as import('pg').PoolClient),

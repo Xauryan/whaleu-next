@@ -1,3 +1,11 @@
+import { tradingLabels } from '../../community/trading-contract';
+import {
+  TradingMutationController,
+  TradingContactsController,
+  initialTradingMutationView,
+  initialTradingContactsView,
+} from '../../community/trading-controller';
+import { ClientError } from '../../api/errors';
 import {
   DiscussionMutationController,
   initialDiscussionMutationView,
@@ -18,12 +26,17 @@ import {
 Page({
   data: {
     ...initialDetailView(),
+    tradingLabels,
     identityOverlay: initialOverlayView(),
     pollView: initialPollView(),
     interaction: initialDiscussionMutationView(),
+    tradingMutation: initialTradingMutationView(),
+    tradingContacts: initialTradingContactsView(),
   },
   controller: undefined as DetailController | undefined,
   postId: '',
+  tradingMutations: undefined as TradingMutationController | undefined,
+  tradingContactsController: undefined as TradingContactsController | undefined,
   located: null as { commentId: string } | { replyId: string } | null,
   mutations: undefined as DiscussionMutationController | undefined,
   pollController: undefined as PollController | undefined,
@@ -46,6 +59,8 @@ Page({
   },
   onShow() {
     this.controller?.dispose();
+    this.tradingMutations?.dispose();
+    this.tradingContactsController?.dispose();
     this.mutations?.dispose();
     this.pollController?.dispose();
     this.identityOverlay?.dispose();
@@ -79,11 +94,40 @@ Page({
       },
     );
     this.mutations.load();
+    this.tradingMutations = new TradingMutationController(
+      runtime,
+      (view) => this.setData({ tradingMutation: view }),
+      () => {
+        void this.controller?.load();
+      },
+    );
+    this.tradingMutations.load();
+    this.tradingContactsController = new TradingContactsController(
+      runtime,
+      (view) => this.setData({ tradingContacts: view }),
+      (text) =>
+        new Promise<void>((resolve, reject) => {
+          if (!wx.setClipboardData) {
+            reject(new ClientError('configuration', 'Clipboard unavailable'));
+            return;
+          }
+          wx.setClipboardData({
+            data: text,
+            success: resolve,
+            fail: () =>
+              reject(new ClientError('network', 'Clipboard copy failed')),
+          });
+        }),
+    );
     this.controller = new DetailController(
       runtime,
       this.postId,
       (view) => {
         this.setData({ ...view });
+        if (view.busy || !view.loaded)
+          this.tradingContactsController?.load(null);
+        else if (!this.data.tradingContacts.enabled)
+          this.tradingContactsController?.load(view.post);
         const targets: DisplayTarget[] = view.post
           ? [
               {
@@ -137,10 +181,46 @@ Page({
       },
       (post) => {
         void this.pollController?.load(post);
+        this.tradingContactsController?.load(post);
       },
       this.located,
     );
     void this.controller.load();
+  },
+  onTradingResolution() {
+    const post = this.data.post;
+    if (post?.trading && !this.data.busy && !this.data.needsReload)
+      void this.tradingMutations?.apply(
+        post,
+        post.trading.resolution === 'open' ? 'resolved' : 'open',
+      );
+  },
+  onTradingReceipt() {
+    void this.tradingMutations?.recover();
+  },
+  onTradingRetry() {
+    void this.tradingMutations?.recover(true);
+  },
+  onTradingCancel() {
+    this.tradingMutations?.cancel();
+  },
+  onTradingContacts() {
+    void this.tradingContactsController?.reveal();
+  },
+  onCopyTradingContact(event: {
+    currentTarget: { dataset: { field: string } };
+  }) {
+    void this.tradingContactsController?.copy(
+      event.currentTarget.dataset.field,
+    );
+  },
+  onShareAppMessage() {
+    return this.data.loaded && this.data.post?.trading
+      ? {
+          title: '校园交易信息',
+          path: `/pages/community-detail/community-detail?postId=${this.postId}`,
+        }
+      : { title: '校园社区', path: '/pages/community-feed/community-feed' };
   },
   onMoreReplies(event: { currentTarget: { dataset: { id: string } } }) {
     void this.controller?.moreReplies(event.currentTarget.dataset.id);
@@ -234,7 +314,11 @@ Page({
   },
   onHide() {
     this.controller?.dispose();
+    this.tradingMutations?.dispose();
+    this.tradingContactsController?.dispose();
     this.controller = undefined;
+    this.tradingMutations = undefined;
+    this.tradingContactsController = undefined;
     this.mutations?.dispose();
     this.mutations = undefined;
     this.pollController?.dispose();
@@ -244,7 +328,11 @@ Page({
   },
   onUnload() {
     this.controller?.dispose();
+    this.tradingMutations?.dispose();
+    this.tradingContactsController?.dispose();
     this.controller = undefined;
+    this.tradingMutations = undefined;
+    this.tradingContactsController = undefined;
     this.mutations?.dispose();
     this.mutations = undefined;
     this.pollController?.dispose();

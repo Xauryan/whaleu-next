@@ -1,6 +1,6 @@
-# Community C1 + C2A + C2B API and safety boundary
+# Community C1 + C2A + C2B + C2C API and safety boundary
 
-C1, C2A polls and C2B discussion are **partial development slices**, not production-ready community parity.
+C1, C2A polls, C2B discussion and C2C trading are **partial development slices**, not production-ready community parity.
 It implements explicit operating-region mapping, chronological regional/global
 feeds, detail, text publication, thread-local anonymous personas, root comments,
 desired-state post likes, own deletion, durable publication recovery, poll composition/reads and immutable
@@ -48,8 +48,8 @@ control characters except LF/TAB are rejected. Text only normalizes CRLF to LF;
 it is never silently trimmed, truncated or SQL-filtered.
 
 Category keys: `discussion`, `confession`, `companions`, `pets`, `internships`,
-`scenery`, `dorms`, `research`, `deep_sea`. Global publication accepts discussion
-only. Unsupported trading/group/link modes reject unknown fields. C2A polls use
+`scenery`, `dorms`, `research`, `deep_sea`, `trading`. Global publication accepts discussion
+only. Trading is specified in C2C below; unsupported group/link modes reject unknown fields. C2A polls use
 the strict discriminated component described below.
 
 `MediaView` is output-only:
@@ -73,7 +73,7 @@ expose `isPostAuthor:true`, which would identify the hidden author via the paren
 must have independent server authorization and audit; normal DTOs do not change.
 
 `PostView` (same detail and summary shape):
-`{id,space:{id,kind,name},category,text,images,author,publishedAt,likeCount,commentCount,replyCount,discussionCount,viewer:{isSelf,isLiked,canDelete,canComment},commentsPolicy,component}`.
+`{id,space:{id,kind,name},category,text,images,author,publishedAt,likeCount,commentCount,replyCount,discussionCount,viewer:{isSelf,isLiked,canDelete,canComment},commentsPolicy,component,trading}`.
 Comment count includes currently visible root comments only; replyCount is visible
 replies under visible roots, discussionCount is their sum. No fabricated views,
 subscriptions, notification or reward counts are returned.
@@ -236,8 +236,8 @@ production import or physical-device acceptance.
 `{kind:"poll",question,selectionMode:"single"|"multiple",options:string[]}`.
 Polls supplement required nonblank post text. Publication inherits all C1
 category, region, named/anonymous, configured unverified-category and review
-rules. Group/link/trading fields remain rejected, including conflicting fields
-inside a poll component. New creation accepts no deadline field; deadline is null.
+rules. Group/link fields remain rejected; trading cannot contain a poll, including
+conflicting fields inside a poll component. New creation accepts no deadline field; deadline is null.
 
 - Question and each option require nonblank text and at most 255 Unicode
   codepoints. These are new-write limits, not historical source limits
@@ -559,8 +559,10 @@ related-region sync, cross-region labels, water-post quotas, hot/search feeds,
 public profile privacy, subscriptions, exposures, pins, unread state.
 
 C2 composition: title fidelity, full drafts, remembered contact/location/link
-fields, anonymous DM choices, trading, group formation, linked boards/groups
-and ratings, feedback channels, post status workflows.
+fields, anonymous DM choices, group formation, linked boards/groups
+and ratings, feedback channels and non-trading post status workflows. C2C below
+implements the listing slice; scoped-manager trading status, public-profile
+trading privacy and external trade distribution remain outstanding.
 
 C2 discussion remaining: liked and own/received histories, reaction batch status,
 full report/block/moderation/removal and ban workflows, administrative deletion
@@ -577,3 +579,161 @@ provider retries/cost controls, media cleanup and audit.
 
 Every other master feature-parity group remains in scope. This API does not mark
 full community, school identity, media, native device acceptance or migration done.
+
+## C2C trading listings (development slice)
+
+C2C adds regional named listings, exact money text, chosen contact disclosures,
+subtype filtering, visible own listings and durable author resolution. It remains
+partial: no checkout, escrow, payment, order, fulfillment, production import,
+external group push, real review/media integration or physical-device acceptance.
+Existing runtime authorization, visibility, review and media gates remain
+unavailable. Neither a native category selection nor an environment flag grants
+permission. All successful automated acceptance uses isolated synthetic fixtures.
+
+### Strict publication input and review
+
+The existing `POST /v1/community/posts` accepts category `trading` with a required
+`trading` object. Other categories must omit it. Trading requires `authorMode:named`,
+a regional space, and absent/`none` component; polls, groups and links cannot be
+combined with it. General independent phone/student/category/region authorization
+still applies, including explicitly configured unverified-category exceptions.
+
+```
+trading: {
+  subtype: "qiugou"|"shuma"|"shujia"|"yifu"|"meizhuang"|"yundong"|
+    "riyong"|"shipin"|"kaquan"|"xiangbao"|"zixingche"|"diandongche"|"xianshiqi",
+  price: string,
+  urgency?: "normal"|"urgent",
+  location: string,
+  contacts: {wechat:string,qq:string,phone:string}
+}
+```
+
+These thirteen keys preserve the original wanted, digital, books, clothing,
+beauty, sports, daily necessities, food, vouchers/cards, bags, bicycle, electric
+bicycle and monitor categories. Ordinary sale defaults to urgent; wanted
+(`qiugou`) always canonicalizes to normal, including explicit urgent input.
+
+Price must be plain ASCII decimal text, positive and at most 99,999 yuan. JSON
+numbers, exponent notation, signs, spaces, currency suffixes and trailing decimal
+points reject. The 100-character ASCII envelope follows the source server's
+100-byte raw-price field; it is not a two-decimal constraint. Redundant leading
+integer zeros and trailing fractional zeros normalize exactly. All significant
+fractional digits survive in a string/scale-free PostgreSQL NUMERIC; no binary
+float conversion, cents coercion or rounding is used. Zero/free-price writes
+remain unsupported. Price canonicalization occurs before intent hashing.
+
+Location is required, nonblank and at most 200 UTF-8 bytes. Contacts have exactly
+three string keys, at most 50 UTF-8 bytes each, with at least one nonblank value.
+Empty unused values are allowed. These byte ceilings preserve the original
+server field envelopes while rejecting overlong input instead of byte-truncating
+Unicode. The old native manual-location control used ten characters; it did not
+establish a server-wide ten-character historical limit. Text retains whitespace
+and normalizes only CRLF, with the existing strict Unicode/control checks.
+Contacts are explicitly chosen listing disclosures, not a verification claim.
+No profile, verified-phone or private identity contact is copied into them.
+
+Normalized trading metadata and all contact values join the publication intent
+hash. Version-4 structured review receives that full hash and the complete
+trading object; body-only approval cannot approve or mutate a listing's contact,
+location, subtype, amount or distribution choice. A listing, post, existing
+publication receipt, media references and `post_created` outbox obligation commit
+atomically. Existing no-trading publication hashes remain unchanged.
+
+### Contact-free projections, contacts and historical preservation
+
+Every `PostView` gains `trading:null|TradingView`. Non-trading posts return null.
+The contact-free trading projection is:
+
+```
+{
+  subtype: {kind:"known",key:<subtype>,legacyText:string|null}
+    | {kind:"legacy",text:string},
+  price: {kind:"exact",amount:string,legacyText:string|null}
+    | {kind:"legacy",text:string},
+  urgency: "normal"|"urgent",
+  location: string,
+  resolution: "open"|"resolved",
+  viewer: {canSetResolution:boolean}
+}
+```
+
+Current writes produce known subtype/exact canonical amount with null legacy
+text. A historical amount that cannot be parsed unambiguously has only a legacy
+text projection. Raw price and subtype text are independently retained even
+when an exact/known value also exists. Unknown historical subtype remains a
+legacy display string, never silently mapped to a current category. Historical
+location/contact strings are preserved without current-write length truncation.
+These read-only shapes are tested with synthetic historical rows; they do not
+constitute an importer or evidence of a production schema. Native rendering uses
+plain text and a bounded read envelope, never interprets raw price as a number.
+
+`GET /v1/community/posts/:postId/trading/contacts` requires an active session and
+the identical visible, active parent gate as detail. It returns exactly
+`{postId,contacts:{wechat,qq,phone}}`. Hidden/deleted/blocked/inactive or non-trading
+parents return generic `POST_NOT_FOUND`. No feed, ordinary post detail, own
+recovery list, resolution receipt, public author projection, generic event or log
+contains these contact values. A contact-copy action must recheck this endpoint;
+a previously revealed contact is not a grant after visibility/session changes.
+Publicly selected listing contacts remain distinct from private account data.
+
+### Distribution and owner listings
+
+- Existing feed accepts `tradingSubtype` only together with `category=trading`;
+  the cursor binds it in addition to region, category and page size
+- Explicit trading feed includes normal and urgent listings, within the selected
+  operating region. A general uncategorized feed excludes urgent listings;
+  ordinary sale remains eligible for general regional exposure
+- Urgency is a distribution choice. Fast-trade/general-group external delivery
+  remains unavailable; storing an outbox obligation is not successful delivery
+- `GET /v1/me/community/trading?limit=10&cursor=<optional>&tradingSubtype=<optional>`
+  returns `{items:PostView[],nextCursor}` for the active account's visible listings
+  across active own scopes. It includes urgent listings, uses the same parent
+  safety and visibility gates, and never returns contact values. Hidden, deleted,
+  blocked and inactive-scope rows are skipped; safety-adapter failure fails closed
+- Minimal existing `GET /v1/me/community/posts` recovery keeps urgency independent
+  from `published|hidden|deleted`; urgent is not deletion
+- Other users' public-profile trading lists remain deferred until the owning
+  public-profile/privacy facade enforces hidden-profile-post and other visibility
+  preferences. A public profile UUID alone is not that authorization
+
+### Durable resolution and independent state
+
+`POST /v1/community/posts/:postId/trading/resolution` accepts exactly
+`{clientRequestId:<UUIDv4>,resolution:"open"|"resolved"}` and returns HTTP 201:
+
+- Applied: `{requestId,operation:"set_trading_resolution",outcome:"applied",resourceId,resolution}`
+- Rejected: `{requestId,operation:"set_trading_resolution",outcome:"rejected",code}`
+
+`GET /v1/me/community/trading-requests/:requestId` recovers the same immutable
+receipt (200), scoped to its active original account. Requests use a dedicated
+account+UUID namespace. Equal-key/equal-intent replay returns the original receipt
+before current parent or action eligibility; changed intent is `REQUEST_CONFLICT`.
+A resolve → reopen → old-resolve replay never re-resolves the listing. This is a
+receipt of the earlier intent, not a snapshot of current state. Clients refresh
+detail after settlement and never overwrite newer state using an old receipt.
+
+Only the true owner can mutate in this slice. Phone proof and the independent
+`resolve_trading` restriction are rechecked under lock; student publication
+permission is not reused as a status gate. A generic `canManage` flag cannot
+mutate another account's listing. Scoped manager status remains a separate live
+authorization/audit gate, not an invented grant.
+
+Resolution changes neither urgency nor chosen contacts, amount, category,
+visibility or deletion. Parent then listing locks serialize resolution with
+safety changes and deletion. Only real transitions create a minimal
+`trading_resolution_changed` internal event, with no contact/body data or external
+delivery claim. Receipt, status and event commit atomically. Terminal codes are
+`POST_NOT_FOUND`, `COMMUNITY_SCOPE_UNAVAILABLE`, `PHONE_VERIFICATION_REQUIRED` and
+`COMMUNITY_ACTION_RESTRICTED`; unavailable dependencies, invalid auth/input and
+transaction failures never leave a terminal receipt.
+
+Migration `0010` only adds empty storage and forward constraints. A deferred
+shape guard rejects missing trading children, nonregional/anonymous parents and
+poll coexistence. Listing metadata and approved trading parent ownership/scope/body
+are immutable; separate visibility/deletion and resolution state remain mutable.
+Terminal request receipts cannot change or disappear, and a pending reservation
+cannot commit. Earlier migrations are unchanged. Any eventual import still needs
+complete schema evidence, actor/region crosswalks, raw urgency/deletion provenance
+and reviewed reconciliation; urgent legacy flags must never be interpreted as
+deleted. Student-number backfill and new institutional SSO remain deferred.

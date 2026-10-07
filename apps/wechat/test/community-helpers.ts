@@ -1,4 +1,5 @@
 import { PendingDiscussionStore } from '../src/community/discussion-pending';
+import { PendingTradingStore } from '../src/community/trading-pending';
 import type { Reply } from '../src/community/discussion-contract';
 import { SessionStore } from '../src/auth/session';
 import type { CommunityGateway } from '../src/community/gateway';
@@ -19,6 +20,12 @@ import {
 import type { CommunityRuntime } from '../src/community/runtime';
 import { PendingBallotStore } from '../src/community/poll-pending';
 import type { Poll, BallotReceipt } from '../src/community/poll-contract';
+import type {
+  TradingContacts,
+  TradingIntent,
+  TradingReceipt,
+  TradingView,
+} from '../src/community/trading-contract';
 import { PrivateViewLifecycle } from '../src/identity-privacy/overlay';
 import { MemoryStorage } from './helpers';
 import { wireCredentials } from './identity-helpers';
@@ -47,6 +54,7 @@ export const anonymous = (): Author => ({
   isPostAuthor: true,
 });
 export const post = (overrides: Partial<Post> = {}): Post => ({
+  trading: null,
   component: { kind: 'none' },
   id: postId,
   space: { id: spaceId, kind: 'regional', name: '合成测试地区' },
@@ -142,6 +150,48 @@ export const reply = (overrides: Partial<Reply> = {}): Reply => ({
   ...overrides,
 });
 export class FakeCommunityGateway implements CommunityGateway {
+  ownTradingImpl: CommunityGateway['ownTrading'] = async (
+    _after,
+    _cancel,
+    subtype,
+  ) => ({
+    items: [
+      tradingPost({
+        trading: tradingView({
+          subtype: { kind: 'known', key: subtype ?? 'shuma', legacyText: null },
+        }),
+      }),
+    ],
+    nextCursor: null,
+  });
+  ownTrading(...args: Parameters<CommunityGateway['ownTrading']>) {
+    this.calls.push({ method: 'ownTrading', args });
+    return this.ownTradingImpl(...args);
+  }
+  tradingContactsImpl: CommunityGateway['tradingContacts'] = async (
+    postId,
+  ) => ({ postId, contacts: tradingContacts() });
+  setTradingResolutionImpl: CommunityGateway['setTradingResolution'] = async (
+    resourceId,
+    resolution,
+    requestId,
+  ) => tradingReceipt({ resourceId, resolution, requestId });
+  tradingReceiptImpl: CommunityGateway['tradingReceipt'] = async (requestId) =>
+    tradingReceipt({ requestId });
+  tradingContacts(...args: Parameters<CommunityGateway['tradingContacts']>) {
+    this.calls.push({ method: 'tradingContacts', args });
+    return this.tradingContactsImpl(...args);
+  }
+  setTradingResolution(
+    ...args: Parameters<CommunityGateway['setTradingResolution']>
+  ) {
+    this.calls.push({ method: 'setTradingResolution', args });
+    return this.setTradingResolutionImpl(...args);
+  }
+  tradingReceipt(...args: Parameters<CommunityGateway['tradingReceipt']>) {
+    this.calls.push({ method: 'tradingReceipt', args });
+    return this.tradingReceiptImpl(...args);
+  }
   commentImpl: CommunityGateway['comment'] = async () => comment();
   replyImpl: CommunityGateway['reply'] = async () => reply();
   repliesImpl: CommunityGateway['replies'] = async () => ({
@@ -297,9 +347,20 @@ export class FakeCommunityGateway implements CommunityGateway {
     commentCapabilities();
   feedImpl: CommunityGateway['feed'] = async (query) => ({
     items: [
-      post({
+      (query.category === 'trading' ? tradingPost : post)({
         space: { id: query.spaceId, kind: 'regional', name: '合成测试地区' },
         category: query.category ?? 'discussion',
+        ...(query.category === 'trading'
+          ? {
+              trading: tradingView({
+                subtype: {
+                  kind: 'known',
+                  key: query.tradingSubtype ?? 'shuma',
+                  legacyText: null,
+                },
+              }),
+            }
+          : {}),
       }),
     ],
     nextCursor: null,
@@ -412,6 +473,7 @@ export function setup(loggedIn = true) {
     privateViews: new PrivateViewLifecycle(),
     pendingBallots: new PendingBallotStore(storage, 'synthetic'),
     pendingDiscussion: new PendingDiscussionStore(storage, 'synthetic'),
+    pendingTrading: new PendingTradingStore(storage, 'synthetic'),
     pending: new PendingAttemptStore(storage, 'synthetic'),
     drafts: new DraftStore(storage, 'synthetic'),
     newRequestId: async () => requestId,
@@ -463,5 +525,56 @@ export const ballotReceipt = (
   outcome: 'created',
   resourceId: ballotId,
   createdAt,
+  ...overrides,
+});
+export const tradingContacts = (
+  overrides: Partial<TradingContacts> = {},
+): TradingContacts => ({
+  wechat: 'synthetic-wechat',
+  qq: '',
+  phone: '',
+  ...overrides,
+});
+export const tradingIntent = (
+  overrides: Partial<TradingIntent> = {},
+): TradingIntent => ({
+  subtype: 'shuma',
+  price: '123.456789',
+  urgency: 'normal',
+  location: '合成校区北门',
+  contacts: tradingContacts(),
+  ...overrides,
+});
+export const tradingView = (
+  overrides: Partial<TradingView> = {},
+): TradingView => ({
+  subtype: { kind: 'known', key: 'shuma', legacyText: null },
+  price: { kind: 'exact', amount: '123.456789', legacyText: null },
+  urgency: 'normal',
+  location: '合成校区北门',
+  resolution: 'open',
+  viewer: { canSetResolution: true },
+  ...overrides,
+});
+export const tradingPost = (overrides: Partial<Post> = {}): Post =>
+  post({
+    category: 'trading',
+    trading: tradingView(),
+    author: {
+      kind: 'named',
+      profileId: otherId,
+      displayName: '合成卖家',
+      avatar: null,
+    },
+    ...overrides,
+  });
+export const tradingReceipt = (
+  overrides: Partial<Extract<TradingReceipt, { outcome: 'applied' }>> = {},
+): TradingReceipt => ({
+  requestId,
+  operation: 'set_trading_resolution',
+  outcome: 'applied',
+  resourceId: postId,
+  resolution: 'resolved',
   ...overrides,
 });

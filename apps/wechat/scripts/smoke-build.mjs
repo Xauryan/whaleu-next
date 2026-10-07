@@ -230,6 +230,7 @@ const pollReceipt = {
   createdAt: '2026-10-07T00:00:00.000Z',
 };
 const pollPostWire = () => ({
+  trading: null,
   id: pollPostId,
   space: {
     id: '55555555-5555-4555-8555-555555555555',
@@ -520,6 +521,418 @@ for (let i = 0; i < 30; i++) await Promise.resolve();
 assert.equal(app.community.pending.load(pollAccount), null);
 assert.equal(replyPage.data.resourceRootCommentId, rootId);
 replyPage.onUnload();
+// Trading smoke uses only synthetic in-memory gateways and compiled native handlers.
+// Authorized contacts remain separate from public DTOs, sharing and durable status recovery.
+const flushTrading = async () => {
+  for (let i = 0; i < 60; i++) await Promise.resolve();
+};
+const mountTradingPage = (module, query) => {
+  delete require.cache[require.resolve(module)];
+  require(module);
+  const current = page;
+  current.setData = (data) => {
+    current.data = { ...current.data, ...data };
+  };
+  current.onLoad?.(query);
+  current.onShow();
+  return current;
+};
+let tradingResolution = 'open';
+const tradingPostWire = () => ({
+  ...pollPostWire(),
+  category: 'trading',
+  component: { kind: 'none' },
+  author: {
+    kind: 'named',
+    profileId: '99999999-9999-4999-8999-999999999999',
+    displayName: '合成交易作者',
+    avatar: null,
+  },
+  trading: {
+    subtype: { kind: 'known', key: 'shuma', legacyText: null },
+    price: { kind: 'exact', amount: '12.3456789', legacyText: null },
+    urgency: 'urgent',
+    location: '合成校园北门',
+    resolution: tradingResolution,
+    viewer: { canSetResolution: true },
+  },
+});
+let tradingContactReads = 0,
+  tradingStatusSends = 0,
+  tradingPostReads = 0;
+let finishTradingStatus, tradingStatusCancellation;
+let contactValue = 'synthetic-public-contact';
+const clipboard = [];
+globalThis.wx.setClipboardData = ({ data, success }) => {
+  clipboard.push(data);
+  success();
+};
+const tradingStatusReceipt = {
+  requestId: pollRequestId,
+  operation: 'set_trading_resolution',
+  outcome: 'applied',
+  resourceId: pollPostId,
+  resolution: 'resolved',
+};
+app.community.gateway = {
+  post: async () => {
+    tradingPostReads++;
+    return tradingPostWire();
+  },
+  comments: async () => ({ items: [], nextCursor: null }),
+  tradingContacts: async (postId) => {
+    tradingContactReads++;
+    assert.equal(postId, pollPostId);
+    return { postId, contacts: { wechat: contactValue, qq: '', phone: '' } };
+  },
+  setTradingResolution: async (postId, resolution, requestId, cancel) => {
+    tradingStatusSends++;
+    tradingStatusCancellation = cancel;
+    assert.deepEqual(app.community.pendingTrading.load(pollAccount), {
+      version: 1,
+      accountId: pollAccount,
+      postId,
+      resolution,
+      clientRequestId: requestId,
+    });
+    return new Promise((resolve) => {
+      finishTradingStatus = resolve;
+    });
+  },
+  tradingReceipt: async () => tradingStatusReceipt,
+};
+const tradingPage = mountTradingPage(detailModule, { postId: pollPostId });
+await flushTrading();
+assert.equal(tradingPage.data.loaded, true);
+assert.equal(tradingPage.data.tradingContacts.contacts, null);
+assert.equal(
+  tradingContactReads,
+  0,
+  'public detail does not fetch contacts automatically',
+);
+tradingPage.onTradingContacts();
+await flushTrading();
+assert.equal(tradingContactReads, 1);
+assert.equal(tradingPage.data.tradingContacts.contacts.wechat, contactValue);
+assert.equal(
+  JSON.stringify(tradingPage.data.post).includes(contactValue),
+  false,
+);
+assert.deepEqual(tradingPage.onShareAppMessage(), {
+  title: '校园交易信息',
+  path: `/pages/community-detail/community-detail?postId=${pollPostId}`,
+});
+contactValue = 'synthetic-updated-public-contact';
+tradingPage.onCopyTradingContact({
+  currentTarget: { dataset: { field: 'wechat' } },
+});
+await flushTrading();
+assert.equal(
+  tradingContactReads,
+  2,
+  'copy must recheck current contact permission and value',
+);
+assert.deepEqual(clipboard, [contactValue]);
+assert.equal(
+  JSON.stringify([...storage.values()]).includes(contactValue),
+  false,
+  'revealed contact must not enter storage',
+);
+tradingPage.onTradingResolution();
+await flushTrading();
+tradingPage.onTradingResolution();
+assert.equal(tradingStatusSends, 1);
+assert.equal(tradingPage.data.tradingMutation.frozen, true);
+app.onHide();
+assert.equal(tradingStatusCancellation.isCancelled, true);
+assert.equal(tradingPage.data.post, null);
+assert.equal(tradingPage.data.tradingContacts.contacts, null);
+finishTradingStatus(tradingStatusReceipt);
+await flushTrading();
+assert.ok(app.community.pendingTrading.load(pollAccount));
+tradingPage.onShow();
+await flushTrading();
+assert.equal(tradingPage.data.tradingMutation.frozen, true);
+assert.equal(tradingPage.data.tradingContacts.contacts, null);
+const readsBeforeReceipt = tradingPostReads;
+tradingPage.onTradingReceipt();
+await flushTrading();
+assert.equal(app.community.pendingTrading.load(pollAccount), null);
+assert.equal(tradingPage.data.tradingMutation.frozen, false);
+assert.ok(
+  tradingPostReads > readsBeforeReceipt,
+  'settled immutable receipt must trigger a current listing read',
+);
+assert.equal(
+  tradingPage.data.post.trading.resolution,
+  'open',
+  'historical resolved receipt cannot overwrite a newer reopened listing',
+);
+tradingPage.onUnload();
+assert.equal(tradingPage.data.tradingContacts.contacts, null);
+assert.equal(tradingPage.tradingContactsController, undefined);
+
+// Compose saves an incomplete trading draft, forces named identity and separately
+// confirms contact disclosure before durable publication with exact decimal text.
+let tradingPublicationSends = 0,
+  finishTradingPublication;
+const tradingPublicationReceipt = {
+  ...replyReceipt,
+  operation: 'publish_post',
+  resourceId: pollPostId,
+};
+app.community.profiles = {
+  profile: async () => ({
+    accountId: pollAccount,
+    preferences: { defaultAnonymousEnabled: true },
+  }),
+};
+app.community.gateway = {
+  capabilities: async () => ({
+    publish: { availability: 'allowed', reason: null },
+    authorModes: ['named'],
+    canDisableComments: false,
+    postImageLimit: 9,
+    commentImageLimit: 3,
+    mediaAvailability: 'unavailable',
+    commentRules: {
+      unverifiedRequiresNamed: true,
+      ownAnonymousPostForcesAnonymous: true,
+    },
+  }),
+  publishPost: async (payload) => {
+    tradingPublicationSends++;
+    assert.deepEqual(app.community.pending.load(pollAccount).payload, payload);
+    assert.equal(payload.authorMode, 'named');
+    assert.equal(payload.category, 'trading');
+    assert.equal(payload.trading.price, '12.3456789');
+    assert.deepEqual(payload.trading.contacts, {
+      wechat: 'synthetic-consented-contact',
+      qq: '',
+      phone: '',
+    });
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(payload, 'component'),
+      false,
+    );
+    return new Promise((resolve) => {
+      finishTradingPublication = resolve;
+    });
+  },
+  receipt: async () => tradingPublicationReceipt,
+};
+const tradingCompose = mountTradingPage(composeModule, {
+  spaceId: '55555555-5555-4555-8555-555555555555',
+  category: 'trading',
+});
+await flushTrading();
+assert.equal(tradingCompose.data.isTrading, true);
+assert.equal(tradingCompose.data.authorMode, 'named');
+assert.equal(tradingCompose.data.identityForced, true);
+assert.equal(tradingCompose.data.canAddPoll, false);
+assert.equal(tradingCompose.data.tradingDraft.urgency, 'urgent');
+tradingCompose.onText({ detail: { value: '合成交易发布正文' } });
+tradingCompose.onTradingField({
+  currentTarget: { dataset: { field: 'price' } },
+  detail: { value: '00012.345678900' },
+});
+tradingCompose.onHide();
+tradingCompose.onShow();
+await flushTrading();
+assert.equal(
+  tradingCompose.data.tradingDraft.price,
+  '00012.345678900',
+  'editable draft retains exact unfinished input',
+);
+assert.equal(tradingCompose.data.tradingDraft.contactConsent, false);
+tradingCompose.onTradingSubtype({
+  currentTarget: { dataset: { key: 'qiugou' } },
+});
+assert.equal(tradingCompose.data.tradingDraft.urgency, 'normal');
+tradingCompose.onTradingUrgency({
+  currentTarget: { dataset: { key: 'urgent' } },
+});
+assert.equal(tradingCompose.data.tradingDraft.urgency, 'normal');
+tradingCompose.onTradingSubtype({
+  currentTarget: { dataset: { key: 'shuma' } },
+});
+assert.equal(tradingCompose.data.tradingDraft.urgency, 'urgent');
+for (const [field, value] of [
+  ['location', '合成校区'],
+  ['wechat', 'synthetic-consented-contact'],
+])
+  tradingCompose.onTradingField({
+    currentTarget: { dataset: { field } },
+    detail: { value },
+  });
+assert.equal(tradingCompose.data.canSubmit, false);
+tradingCompose.onSubmit();
+await flushTrading();
+assert.equal(
+  tradingPublicationSends,
+  0,
+  'publishing requires explicit contact disclosure consent',
+);
+tradingCompose.onContactConsent({ detail: { value: true } });
+assert.equal(tradingCompose.data.canSubmit, true);
+tradingCompose.onSubmit();
+await flushTrading();
+tradingCompose.onSubmit();
+assert.equal(tradingPublicationSends, 1);
+assert.equal(tradingCompose.data.frozen, true);
+const frozenTradingPayload = app.community.pending.load(pollAccount).payload;
+tradingCompose.onTradingField({
+  currentTarget: { dataset: { field: 'wechat' } },
+  detail: { value: 'replacement-contact' },
+});
+assert.deepEqual(
+  app.community.pending.load(pollAccount).payload,
+  frozenTradingPayload,
+);
+app.onHide();
+assert.equal(tradingCompose.data.tradingDraft.wechat, '');
+assert.equal(tradingCompose.data.text, '');
+finishTradingPublication(tradingPublicationReceipt);
+await flushTrading();
+assert.ok(app.community.pending.load(pollAccount));
+tradingCompose.onShow();
+await flushTrading();
+assert.equal(tradingCompose.data.frozen, true);
+assert.equal(tradingCompose.data.tradingDraft.price, '12.3456789');
+tradingCompose.onReceipt();
+await flushTrading();
+assert.equal(app.community.pending.load(pollAccount), null);
+assert.equal(tradingCompose.data.resourcePostId, pollPostId);
+assert.equal(tradingCompose.data.tradingDraft.wechat, '');
+tradingCompose.onUnload();
+// Native feed/mine controls exercise ordinary browsing, subtype filters and
+// owner recovery links without loading contacts or treating a campus as identity.
+const tradingCampusId = '33333333-3333-4333-8333-333333333333';
+const tradingSpaceId = '55555555-5555-4555-8555-555555555555';
+const tradingCampus = {
+  id: tradingCampusId,
+  fullName: '合成校园',
+  isActive: true,
+};
+const tradingFeedQueries = [],
+  tradingOwnQueries = [];
+app.community.profiles = {
+  profile: async () => ({
+    accountId: pollAccount,
+    selectedCampus: tradingCampus,
+  }),
+  campuses: async () => ({
+    items: [tradingCampus],
+    page: 1,
+    pageSize: 100,
+    total: 1,
+  }),
+};
+app.community.gateway = {
+  spaces: async () => ({
+    regional: {
+      id: tradingSpaceId,
+      kind: 'regional',
+      name: '合成地区',
+      isActive: true,
+      operatingRegionId: '99999999-9999-4999-8999-999999999999',
+    },
+    global: [],
+  }),
+  feed: async (query) => {
+    tradingFeedQueries.push(query);
+    const listing = tradingPostWire();
+    listing.trading = {
+      ...listing.trading,
+      urgency: query.category === 'trading' ? 'urgent' : 'normal',
+      subtype: {
+        kind: 'known',
+        key: query.tradingSubtype ?? 'shuma',
+        legacyText: null,
+      },
+    };
+    return { items: [listing], nextCursor: null, continuation: 'end' };
+  },
+  mine: async () => ({ items: [], nextCursor: null }),
+  ownTrading: async (after, _cancel, subtype) => {
+    tradingOwnQueries.push({ after, subtype });
+    const listing = tradingPostWire();
+    listing.trading = {
+      ...listing.trading,
+      subtype: { kind: 'known', key: subtype ?? 'shuma', legacyText: null },
+    };
+    return { items: [listing], nextCursor: null };
+  },
+};
+const tradingFeedPage = mountTradingPage(
+  path.join(dist, 'pages/community-feed/community-feed.js'),
+  {},
+);
+await flushTrading();
+assert.deepEqual(tradingFeedQueries[0], { spaceId: tradingSpaceId });
+assert.equal(tradingFeedPage.data.posts[0].trading.urgency, 'normal');
+tradingFeedPage.onCategory({ currentTarget: { dataset: { key: 'trading' } } });
+await flushTrading();
+assert.equal(tradingFeedPage.data.posts[0].trading.urgency, 'urgent');
+tradingFeedPage.onTradingSubtype({
+  currentTarget: { dataset: { key: 'shujia' } },
+});
+await flushTrading();
+assert.deepEqual(tradingFeedQueries[tradingFeedQueries.length - 1], {
+  spaceId: tradingSpaceId,
+  category: 'trading',
+  tradingSubtype: 'shujia',
+});
+assert.equal(tradingFeedPage.data.posts[0].trading.subtype.key, 'shujia');
+tradingFeedPage.onCategory({ currentTarget: { dataset: { key: 'all' } } });
+await flushTrading();
+assert.deepEqual(tradingFeedQueries[tradingFeedQueries.length - 1], {
+  spaceId: tradingSpaceId,
+});
+assert.equal(tradingFeedPage.data.tradingSubtype, '');
+app.onHide();
+assert.deepEqual(tradingFeedPage.data.posts, []);
+tradingFeedPage.onUnload();
+app.community.pendingTrading.freeze({
+  version: 1,
+  accountId: pollAccount,
+  postId: pollPostId,
+  resolution: 'resolved',
+  clientRequestId: pollRequestId,
+});
+const tradingMinePage = mountTradingPage(
+  path.join(dist, 'pages/community-mine/community-mine.js'),
+  {},
+);
+await flushTrading();
+assert.equal(tradingMinePage.data.tradingRecoveryPostId, pollPostId);
+tradingMinePage.onOwnTrading();
+await flushTrading();
+assert.equal(tradingMinePage.data.tradingPosts[0].trading.urgency, 'urgent');
+tradingMinePage.onTradingSubtype({
+  currentTarget: { dataset: { key: 'shuma' } },
+});
+await flushTrading();
+assert.deepEqual(tradingOwnQueries[tradingOwnQueries.length - 1], {
+  after: null,
+  subtype: 'shuma',
+});
+tradingMinePage.onAllPublications();
+await flushTrading();
+assert.deepEqual(tradingMinePage.data.tradingPosts, []);
+assert.equal(
+  tradingContactReads,
+  2,
+  'feed and own listings do not fetch private contacts',
+);
+app.onHide();
+assert.equal(tradingMinePage.data.tradingRecoveryPostId, '');
+assert.deepEqual(tradingMinePage.data.tradingPosts, []);
+tradingMinePage.onUnload();
+app.community.pendingTrading.settle(
+  app.community.pendingTrading.load(pollAccount),
+  tradingStatusReceipt,
+);
 app.community.profiles = originalProfiles;
 app.identity.sessions.logout();
 app.community.gateway = originalCommunityGateway;
@@ -541,5 +954,5 @@ app.onHide();
 assert.equal(privacyCleared, true);
 assert.equal(calls, 0);
 console.log(
-  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification durable-poll, reply-publication and discussion-interaction app-hide clearing/recovery, and configuration gating',
+  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification durable-poll, reply-publication, discussion-interaction, private trading contacts, exact trading publication and immutable trading-resolution app-hide clearing/recovery, and configuration gating',
 );

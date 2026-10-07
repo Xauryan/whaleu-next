@@ -19,6 +19,7 @@ import type {
   PostView,
   CommentView,
   OwnPublication,
+  OwnTradingQuery,
 } from './contracts.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
 @Injectable()
@@ -98,19 +99,22 @@ export class FeedService {
         if (!current.phoneVerified)
           throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
       }
-      const scope = `feed:${space.id}:${query.category ?? '*'}`;
+      const scope =
+        `feed:${space.id}:${query.category ?? '*'}` +
+        (query.tradingSubtype ? `:trading:${query.tradingSubtype}` : '');
       let seek = decodeCursor(query.cursor, scope, query.limit);
       const items: PostView[] = [];
       let scanned = 0;
       // Read candidates in bounded batches; filtering never turns an invisible row into a public cursor.
       while (items.length <= query.limit) {
         const rows = await tx.query<StoredPost>(
-          `SELECT * FROM whaleu_community.posts WHERE space_id=$1 AND ($2::text IS NULL OR category=$2) AND deleted_at IS NULL AND visibility='approved' AND ($3::timestamptz IS NULL OR (published_at,id)<($3::timestamptz,$4::uuid)) ORDER BY published_at DESC,id DESC LIMIT 32 FOR SHARE`,
+          `SELECT * FROM whaleu_community.posts WHERE space_id=$1 AND ($2::text IS NULL OR category=$2) AND deleted_at IS NULL AND visibility='approved' AND ($5::text IS NULL OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=posts.id AND t.subtype=$5)) AND ($2::text IS NOT NULL OR NOT EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=posts.id AND t.urgency='urgent')) AND ($3::timestamptz IS NULL OR (published_at,id)<($3::timestamptz,$4::uuid)) ORDER BY published_at DESC,id DESC LIMIT 32 FOR SHARE`,
           [
             space.id,
             query.category ?? null,
             seek?.at ?? null,
             seek?.id ?? null,
+            query.tradingSubtype ?? null,
           ],
         );
         scanned += rows.rows.length;
@@ -282,6 +286,77 @@ export class FeedService {
           hasMore && last
             ? encodeCursor(
                 { at: last.createdAt, id: last.id },
+                scope,
+                query.limit,
+              )
+            : null,
+      };
+    });
+  }
+  ownTrading(
+    token: string,
+    query: OwnTradingQuery,
+  ): Promise<{ items: PostView[]; nextCursor: string | null }> {
+    return this.repository.database.transaction(async (tx) => {
+      const actor = await this.access.actor(token, tx);
+      const scope = `own-trading:${query.tradingSubtype ?? '*'}`;
+      let seek = decodeCursor(query.cursor, scope, query.limit);
+      const items: PostView[] = [];
+      let scanned = 0;
+      while (items.length <= query.limit) {
+        const rows = await tx.query<StoredPost>(
+          `SELECT p.* FROM whaleu_community.posts p
+          JOIN whaleu_community.trading_listings t ON t.post_id=p.id
+          WHERE p.account_id=$1 AND p.category='trading' AND p.deleted_at IS NULL AND p.visibility='approved'
+          AND ($2::text IS NULL OR t.subtype=$2)
+          AND ($3::timestamptz IS NULL OR (p.published_at,p.id)<($3::timestamptz,$4::uuid))
+          ORDER BY p.published_at DESC,p.id DESC LIMIT 32 FOR SHARE OF p`,
+          [
+            actor,
+            query.tradingSubtype ?? null,
+            seek?.at ?? null,
+            seek?.id ?? null,
+          ],
+        );
+        scanned += rows.rows.length;
+        if (scanned > 1024) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+        if (!rows.rows.length) break;
+        for (const post of rows.rows) {
+          seek = { at: post.published_at.toISOString(), id: post.id };
+          try {
+            const { space } = await this.access.accessiblePost(
+              post.id,
+              actor,
+              tx,
+            );
+            items.push(
+              await this.serializer.post(
+                post,
+                space,
+                actor,
+                await this.access.advisory(actor, space, tx),
+                tx,
+              ),
+            );
+          } catch (error) {
+            if (
+              !(error instanceof ApplicationError) ||
+              error.code !== 'POST_NOT_FOUND'
+            )
+              throw error;
+          }
+          if (items.length > query.limit) break;
+        }
+        if (rows.rows.length < 32) break;
+      }
+      const page = items.slice(0, query.limit),
+        last = page.at(-1);
+      return {
+        items: page,
+        nextCursor:
+          items.length > query.limit && last
+            ? encodeCursor(
+                { at: last.publishedAt, id: last.id },
                 scope,
                 query.limit,
               )

@@ -1,3 +1,9 @@
+import { TradingRepository } from './trading/repository.js';
+import { TradingService } from './trading/service.js';
+import {
+  TradingController,
+  TradingRecoveryController,
+} from './trading/controller.js';
 import {
   DiscussionController,
   DiscussionRecoveryController,
@@ -42,6 +48,7 @@ import {
   feedQuerySchema,
   idSchema,
   pageQuerySchema,
+  ownTradingQuerySchema,
   publishPostSchema,
   publishCommentSchema,
   requestIdSchema,
@@ -50,6 +57,7 @@ import type {
   Category,
   FeedQuery,
   PageQuery,
+  OwnTradingQuery,
   PublishPost,
   PublishComment,
 } from './contracts.js';
@@ -190,6 +198,13 @@ export class CommunityRecoveryController {
   ) {
     return this.publications.receipt(bearerToken(auth), id);
   }
+  @Get('trading') ownTrading(
+    @Headers('authorization') auth: unknown,
+    @Query(new SchemaValidationPipe(ownTradingQuerySchema))
+    query: OwnTradingQuery,
+  ) {
+    return this.feeds.ownTrading(bearerToken(auth), query);
+  }
   @Get('posts') own(
     @Headers('authorization') auth: unknown,
     @Query(new SchemaValidationPipe(pageQuerySchema)) query: PageQuery,
@@ -200,6 +215,8 @@ export class CommunityRecoveryController {
 @Module({
   imports: [DatabaseModule, CampusModule, ProfileModule, IdentityModule],
   controllers: [
+    TradingController,
+    TradingRecoveryController,
     DiscussionController,
     DiscussionRecoveryController,
     PollController,
@@ -211,6 +228,8 @@ export class CommunityRecoveryController {
   ],
   exports: [CommunityContentIdentityService],
   providers: [
+    TradingRepository,
+    TradingService,
     DiscussionReadService,
     DiscussionMutationService,
     ReplyPublicationService,

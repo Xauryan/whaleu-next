@@ -1,4 +1,11 @@
 import {
+  emptyTradingDraft,
+  intentTradingDraft,
+  tradingDraftIntent,
+  type TradingDraft,
+} from '../../community/trading-draft';
+import { isTradingSubtype } from '../../community/trading-contract';
+import {
   checkDiscussionPrivacy,
   decodeReplyIntent,
 } from '../../community/discussion-contract';
@@ -67,6 +74,8 @@ export interface ComposeView extends CommunityView {
   readonly recoveryOperation: string;
   readonly pollDraft: PollDraft;
   readonly canAddPoll: boolean;
+  readonly isTrading: boolean;
+  readonly tradingDraft: TradingDraft;
 }
 export const initialComposeView = (): ComposeView => ({
   ...initialCommunityView(),
@@ -91,6 +100,8 @@ export const initialComposeView = (): ComposeView => ({
   recoveryOperation: '',
   pollDraft: emptyPollDraft(),
   canAddPoll: false,
+  isTrading: false,
+  tradingDraft: emptyTradingDraft(),
 });
 /** An inconsistent imported default must require a choice, never silently reveal a named identity. */
 export function commentIdentity(
@@ -307,6 +318,18 @@ export class ComposeController extends CommunityController<ComposeView> {
           result.commentCapability?.forcedAuthorMode === 'anonymous' ||
           (result.post?.viewer.isSelf === true &&
             result.post.author.kind === 'anonymous');
+        const trading =
+          target.operation === 'publish_post' && target.category === 'trading';
+        const remembered = trading
+          ? this.runtime.drafts.loadTradingPreferences(accountId)
+          : null;
+        const initialTrading = remembered
+          ? {
+              ...emptyTradingDraft(),
+              location: remembered.location,
+              ...remembered.contacts,
+            }
+          : emptyTradingDraft();
         const chosen =
           target.operation !== 'publish_post'
             ? commentIdentity(
@@ -324,19 +347,27 @@ export class ComposeController extends CommunityController<ComposeView> {
                     : 'named'),
                 conflict: false,
               };
+        if (trading) {
+          chosen.mode = 'named';
+          chosen.conflict = false;
+        }
         this.identityConflict = chosen.conflict;
         this.update({
           loaded: true,
+          isTrading: trading,
+          tradingDraft: trading
+            ? (draft?.trading ?? initialTrading)
+            : emptyTradingDraft(),
           replyTargetName: result.replyTargetName,
           text: draft?.text ?? result.copiedText ?? '',
           pollDraft:
-            target.operation === 'publish_post'
+            target.operation === 'publish_post' && !trading
               ? (draft?.poll ?? emptyPollDraft())
               : emptyPollDraft(),
-          canAddPoll: target.operation === 'publish_post',
+          canAddPoll: target.operation === 'publish_post' && !trading,
           authorMode: chosen.mode,
           commentsPolicy: draft?.commentsPolicy ?? 'open',
-          identityForced: forced,
+          identityForced: forced || trading,
           canDisableComments:
             target.operation === 'publish_post' &&
             result.capability?.canDisableComments === true,
@@ -367,11 +398,23 @@ export class ComposeController extends CommunityController<ComposeView> {
       frozen: true,
       canSubmit: false,
       text: pending.payload.text,
+      isTrading:
+        pending.operation === 'publish_post' &&
+        pending.payload.category === 'trading',
+      tradingDraft:
+        pending.operation === 'publish_post' && pending.payload.trading
+          ? intentTradingDraft(pending.payload.trading)
+          : emptyTradingDraft(),
+      identityForced:
+        pending.operation === 'publish_post' &&
+        pending.payload.category === 'trading',
       pollDraft:
         pending.operation === 'publish_post'
           ? componentDraft(pending.payload.component)
           : emptyPollDraft(),
-      canAddPoll: pending.operation === 'publish_post',
+      canAddPoll:
+        pending.operation === 'publish_post' &&
+        pending.payload.category !== 'trading',
       authorMode: pending.payload.authorMode,
       effectiveIdentity:
         pending.payload.authorMode === 'anonymous'
@@ -445,6 +488,47 @@ export class ComposeController extends CommunityController<ComposeView> {
     this.persistDraft();
     this.recompute();
   }
+  setTradingField(field: string, value: string): void {
+    if (
+      !this.editable() ||
+      !this.view.isTrading ||
+      !['price', 'location', 'wechat', 'qq', 'phone'].includes(field)
+    )
+      return;
+    this.editTrading({ [field]: value });
+  }
+  setTradingSubtype(subtype: string): void {
+    if (!isTradingSubtype(subtype)) return;
+    this.editTrading({
+      subtype,
+      urgency:
+        subtype === 'qiugou'
+          ? 'normal'
+          : this.view.tradingDraft.subtype === 'qiugou'
+            ? 'urgent'
+            : this.view.tradingDraft.urgency,
+    });
+  }
+  setTradingUrgency(urgency: string): void {
+    if (
+      (urgency !== 'normal' && urgency !== 'urgent') ||
+      this.view.tradingDraft.subtype === 'qiugou'
+    )
+      return;
+    this.editTrading({ urgency });
+  }
+  setContactConsent(contactConsent: boolean): void {
+    this.editTrading({ contactConsent });
+  }
+  private editTrading(patch: Partial<TradingDraft>): void {
+    if (!this.editable() || !this.view.isTrading) return;
+    this.update({
+      tradingDraft: { ...this.view.tradingDraft, ...patch },
+      error: '',
+    });
+    this.persistDraft();
+    this.recompute();
+  }
   private editPoll(patch: Partial<PollDraft>): void {
     if (!this.editable() || !this.view.canAddPoll) return;
     this.update({ pollDraft: { ...this.view.pollDraft, ...patch }, error: '' });
@@ -513,7 +597,9 @@ export class ComposeController extends CommunityController<ComposeView> {
         authorMode: this.view.authorMode,
         commentsPolicy: this.view.commentsPolicy,
         ...(this.target.operation === 'publish_post'
-          ? { poll: this.view.pollDraft }
+          ? this.view.isTrading
+            ? { trading: this.view.tradingDraft }
+            : { poll: this.view.pollDraft }
           : {}),
       });
       this.draftSaved = true;
@@ -561,6 +647,16 @@ export class ComposeController extends CommunityController<ComposeView> {
           '投票需独立问题及至少两个普通选项；问题和选项各 1–255 字，不可留空或重复，总数不超过五个';
       }
     }
+    if (!blocker && this.view.isTrading) {
+      try {
+        tradingDraftIntent(this.view.tradingDraft);
+      } catch {
+        blocker =
+          '请填写交易分类、大于零且不超过 99999 元的十进制价格、地点（最多 200 UTF-8 字节）及至少一种联系方式（每项最多 50 UTF-8 字节）；不截断、不取整';
+      }
+      if (!blocker && !this.view.tradingDraft.contactConsent)
+        blocker = '请确认愿意将所填联系方式公开给可查看此帖的用户';
+    }
     this.update({
       blocker,
       canSubmit: !blocker && !this.view.frozen && this.view.loaded,
@@ -580,8 +676,12 @@ export class ComposeController extends CommunityController<ComposeView> {
       accountId = this.accountId()!,
       owner = this.runtime.sessions.snapshot();
     const component = pollDraftComponent(this.view.pollDraft);
+    const trading = this.view.isTrading
+      ? tradingDraftIntent(this.view.tradingDraft)
+      : undefined;
     const draft = {
       ...(component.kind === 'poll' ? { component } : {}),
+      ...(trading ? { trading } : {}),
       text: this.view.text.replace(/\r\n/g, '\n'),
       authorMode: this.view.authorMode,
       commentsPolicy: this.view.commentsPolicy,
@@ -714,6 +814,16 @@ export class ComposeController extends CommunityController<ComposeView> {
       receipt.requestId !== attempt.payload.clientRequestId
     )
       throw new ClientError('protocol', 'Receipt mismatch');
+    if (
+      receipt.outcome === 'created' &&
+      attempt.operation === 'publish_post' &&
+      attempt.payload.trading
+    )
+      this.runtime.drafts.rememberTrading(
+        attempt.accountId,
+        attempt.payload.trading.location,
+        attempt.payload.trading.contacts,
+      );
     // Clear a successful draft before dropping recovery protection; failed local writes keep the request frozen.
     if (receipt.outcome === 'created')
       this.runtime.drafts.clear(
@@ -728,6 +838,10 @@ export class ComposeController extends CommunityController<ComposeView> {
       text: receipt.outcome === 'created' ? '' : this.view.text,
       pollDraft:
         receipt.outcome === 'created' ? emptyPollDraft() : this.view.pollDraft,
+      tradingDraft:
+        receipt.outcome === 'created'
+          ? emptyTradingDraft()
+          : this.view.tradingDraft,
       canSubmit: false,
       receiptStatus:
         receipt.outcome === 'created'

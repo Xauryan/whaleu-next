@@ -1,3 +1,4 @@
+import { tradingCategories } from '../../community/trading-contract';
 import type { WhaleuApp } from '../../app';
 import { isCategory } from '../../community/contract';
 import { isUuid } from '../../profile/contract';
@@ -7,7 +8,7 @@ import {
   type ComposeTarget,
 } from './controller';
 Page({
-  data: { ...initialComposeView() },
+  data: { ...initialComposeView(), tradingCategories },
   controller: undefined as ComposeController | undefined,
   target: null as ComposeTarget | null,
   copySource: null as { kind: 'comment' | 'reply'; id: string } | null,
@@ -78,6 +79,24 @@ Page({
       this.copySource,
     );
     void this.controller.load();
+  },
+  onTradingField(event: {
+    detail: { value: string };
+    currentTarget: { dataset: { field: string } };
+  }) {
+    this.controller?.setTradingField(
+      event.currentTarget.dataset.field,
+      event.detail.value,
+    );
+  },
+  onTradingSubtype(event: { currentTarget: { dataset: { key: string } } }) {
+    this.controller?.setTradingSubtype(event.currentTarget.dataset.key);
+  },
+  onTradingUrgency(event: { currentTarget: { dataset: { key: string } } }) {
+    this.controller?.setTradingUrgency(event.currentTarget.dataset.key);
+  },
+  onContactConsent(event: { detail: { value: boolean } }) {
+    this.controller?.setContactConsent(event.detail.value);
   },
   onText(event: { detail: { value: string } }) {
     this.controller?.setText(event.detail.value);

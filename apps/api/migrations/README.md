@@ -63,3 +63,12 @@ operations and audited identity target kinds forward without editing 0001–0008
 Root parent/ownership and reply content/relations are immutable; deferred checks
 reject future/cyclic targets and unfinished receipts. No production import or
 provider activation occurs. See [C2B discussion](../../../docs/API_COMMUNITY.md#c2b-discussion-contract).
+
+`0010_community_trading.sql` adds empty named-regional listing storage, exact
+scale-free NUMERIC amounts, independent raw historical price/subtype fields,
+chosen listing contacts, separate urgency/resolution and immutable owner status
+receipts. Deferred checks bind the parent category/mode/scope and exclude polls.
+Trading body/ownership/scope and listing metadata are immutable while safety
+visibility/deletion and owner resolution remain separate. No contacts enter
+outbox payloads, and no migration grants authority, imports production data or
+activates group delivery/payment. See [C2C trading](../../../docs/API_COMMUNITY.md#c2c-trading-listings-development-slice).

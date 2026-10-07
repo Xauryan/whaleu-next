@@ -1,3 +1,9 @@
+import {
+  decodeTradingContacts,
+  tradingText,
+  type TradingContacts,
+} from './trading-contract';
+import { decodeTradingDraft, type TradingDraft } from './trading-draft';
 import { decodeReplyIntent, type ReplyIntent } from './discussion-contract';
 import { ClientError, isRecord } from '../api/errors';
 import type { Storage } from '../platform/contracts';
@@ -155,11 +161,17 @@ export class PendingAttemptStore {
   }
 }
 export interface Draft {
+  readonly trading?: TradingDraft;
   readonly poll?: PollDraft;
   readonly version: 1;
   readonly text: string;
   readonly authorMode: AuthorMode;
   readonly commentsPolicy: 'open' | 'restricted';
+}
+export interface TradingPreferences {
+  readonly version: 1;
+  readonly location: string;
+  readonly contacts: TradingContacts;
 }
 export class DraftStore {
   constructor(
@@ -174,18 +186,60 @@ export class DraftStore {
       throw storageError();
     return `whaleu.community.draft.v1:${this.namespace}:${accountId}:${target}`;
   }
+  private tradingPreferenceKey(accountId: string): string {
+    if (!isUuid(accountId)) throw storageError();
+    return `whaleu.community.trading.preferences.v1:${this.namespace}:${accountId}`;
+  }
+  loadTradingPreferences(accountId: string): TradingPreferences | null {
+    try {
+      const value = this.storage.get(this.tradingPreferenceKey(accountId));
+      if (value === undefined || value === null || value === '') return null;
+      exact(value, ['version', 'location', 'contacts']);
+      if (value.version !== 1 || !tradingText(value.location, 200))
+        throw storageError();
+      return Object.freeze({
+        version: 1,
+        location: value.location,
+        contacts: decodeTradingContacts(value.contacts),
+      });
+    } catch {
+      throw storageError();
+    }
+  }
+  rememberTrading(
+    accountId: string,
+    location: string,
+    contacts: TradingContacts,
+  ): void {
+    try {
+      if (!tradingText(location, 200)) throw storageError();
+      const value = {
+        version: 1 as const,
+        location,
+        contacts: decodeTradingContacts(contacts),
+      };
+      this.storage.set(this.tradingPreferenceKey(accountId), value);
+      if (!equal(this.loadTradingPreferences(accountId), value))
+        throw storageError();
+    } catch {
+      throw storageError();
+    }
+  }
   load(accountId: string, target: string): Draft | null {
     try {
       const value = this.storage.get(this.key(accountId, target));
       if (value === undefined || value === null || value === '') return null;
       if (!isRecord(value)) throw storageError();
+      const hasTrading = Object.prototype.hasOwnProperty.call(value, 'trading');
       const hasPoll = Object.prototype.hasOwnProperty.call(value, 'poll');
+      if (hasPoll && hasTrading) throw storageError();
       exact(value, [
         'version',
         'text',
         'authorMode',
         'commentsPolicy',
         ...(hasPoll ? ['poll'] : []),
+        ...(hasTrading ? ['trading'] : []),
       ]);
       if (
         value.version !== 1 ||
@@ -200,6 +254,7 @@ export class DraftStore {
       return Object.freeze({
         version: 1,
         ...(hasPoll ? { poll: decodePollDraft(value.poll) } : {}),
+        ...(hasTrading ? { trading: decodeTradingDraft(value.trading) } : {}),
         text: value.text,
         authorMode: value.authorMode as AuthorMode,
         commentsPolicy: value.commentsPolicy as Draft['commentsPolicy'],
@@ -212,9 +267,13 @@ export class DraftStore {
     try {
       if (!boundedText(draft.text.replace(/\r\n/g, '\n'), 0, 10000))
         throw storageError();
+      if (draft.poll && draft.trading) throw storageError();
       const checked: Draft = {
         version: 1,
         ...(draft.poll ? { poll: decodePollDraft(draft.poll) } : {}),
+        ...(draft.trading
+          ? { trading: decodeTradingDraft(draft.trading) }
+          : {}),
         text: draft.text,
         authorMode: draft.authorMode,
         commentsPolicy: draft.commentsPolicy,

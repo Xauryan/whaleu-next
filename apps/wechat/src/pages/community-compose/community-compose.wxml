@@ -1,9 +1,23 @@
-<view class="screen"><view class="eyebrow">WHALEU · 写下此刻</view><view class="title">{{frozen ? '确认原发布结果' : (maxText === 500 ? '写一条评论' : '分享校园里的事')}}</view>
+<view class="screen"><view class="eyebrow">WHALEU · 写下此刻</view><view class="title">{{frozen ? '确认原发布结果' : (isTrading ? '发布校园交易' : maxText === 500 ? '写一条评论' : '分享校园里的事')}}</view>
   <view class="subtitle">本地草稿与已提交内容分别保存。结果未确认前，原请求不会被修改或替换。</view>
   <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
   <view wx:if="{{hasSession}}" class="card"><view wx:if="{{recoveryOperation}}" class="meta">待确认类型：{{recoveryOperation}}</view><view wx:if="{{replyTargetName}}" class="scope">回复：{{replyTargetName}}</view><view class="label">正文 · 最多 {{maxText}} 字</view><textarea value="{{text}}" bindinput="onText" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="说说你想分享的事…" />
     <view class="scope">发送时展示：{{effectiveIdentity || '请等待当前身份权限检查'}}</view><view wx:if="{{!frozen &amp;&amp; !identityForced}}" class="chips"><view class="chip {{authorMode === 'named' ? 'active' : ''}}" data-mode="named" bindtap="onMode">公开身份</view><view class="chip {{authorMode === 'anonymous' ? 'active' : ''}}" data-mode="anonymous" bindtap="onMode">匿名</view></view>
     <view wx:if="{{canDisableComments &amp;&amp; !frozen}}" class="row"><text>限制普通评论</text><switch checked="{{commentsPolicy === 'restricted'}}" bindchange="onRestricted" disabled="{{busy}}" /></view>
+    <view wx:if="{{isTrading}}" class="trading-composer">
+      <view class="section-title">交易信息 · 仅公开身份、地区社区</view>
+      <view class="chips"><button wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingDraft.subtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onTradingSubtype" disabled="{{frozen || busy || !loaded}}">{{item.label}}</button></view>
+      <view class="label">价格（元，大于零且不超过 99999）</view><input type="text" value="{{tradingDraft.price}}" data-field="price" bindinput="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="如 12.345，不会四舍五入" />
+      <view wx:if="{{tradingDraft.subtype !== 'qiugou'}}" class="chips"><button class="chip {{tradingDraft.urgency === 'urgent' ? 'active' : ''}}" data-key="urgent" bindtap="onTradingUrgency" disabled="{{frozen || busy || !loaded}}">低价急出</button><button class="chip {{tradingDraft.urgency === 'normal' ? 'active' : ''}}" data-key="normal" bindtap="onTradingUrgency" disabled="{{frozen || busy || !loaded}}">普通出售</button></view>
+      <view class="notice">{{tradingDraft.subtype === 'qiugou' ? '求购使用普通模式' : '普通出售可进入普通社区浏览；急出在交易分类中浏览。急出群推送尚未接入'}}。售出／解决状态与急出模式互不影响。</view>
+      <view class="label">交易地点／校区（必填）</view><input value="{{tradingDraft.location}}" data-field="location" bindinput="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="手动填写，不使用身份校区代填" />
+      <view class="label">自愿发布的联系方式（至少一项）</view>
+      <input value="{{tradingDraft.wechat}}" data-field="wechat" bindinput="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="微信" />
+      <input value="{{tradingDraft.qq}}" data-field="qq" bindinput="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="QQ" />
+      <input value="{{tradingDraft.phone}}" data-field="phone" bindinput="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="联系电话" />
+      <view class="notice">以上联系方式会供有权查看此帖的用户展示和复制，不表示号码已认证。成功发布后会在本机当前账号下记住你填写的地点与整组联系方式，下次仍需确认公开。请勿填写他人的私密资料。这里不提供付款、担保、配送或交易订单。</view>
+      <view class="row"><text>我愿意公开以上联系方式</text><switch checked="{{tradingDraft.contactConsent}}" bindchange="onContactConsent" disabled="{{frozen || busy || !loaded}}" /></view>
+    </view>
     <view wx:if="{{canAddPoll}}" class="poll-composer">
       <view class="row"><text>添加投票</text><switch checked="{{pollDraft.enabled}}" bindchange="onPollEnabled" disabled="{{frozen || busy || !loaded}}" /></view>
       <view wx:if="{{pollDraft.enabled}}">
