@@ -1,3 +1,4 @@
+import { FormationService } from './formation/service.js';
 import { TradingRepository } from './trading/repository.js';
 import { encodeDiscussionCursor, replyCursor } from './discussion/cursor.js';
 import { PollReadService } from './polls/poll-read.service.js';
@@ -38,6 +39,7 @@ export class CommunitySerializer {
     @Inject(CommunityAccessService)
     private readonly access: CommunityAccessService,
     @Inject(PollReadService) private readonly polls: PollReadService,
+    @Inject(FormationService) private readonly formations: FormationService,
     @Inject(TradingRepository) private readonly trading: TradingRepository,
   ) {}
   async author(
@@ -165,9 +167,19 @@ export class CommunitySerializer {
         if (canComment) break;
       }
     const poll = await this.polls.project(post.id, viewer, authority, tx);
+    const formation = await this.formations.project(
+      post,
+      viewer,
+      authority,
+      tx,
+    );
     return {
       trading: await this.trading.project(post, viewer, authority, tx),
-      component: poll ? { kind: 'poll', poll } : { kind: 'none' },
+      component: poll
+        ? { kind: 'poll', poll }
+        : formation
+          ? { kind: 'formation', formation }
+          : { kind: 'none' },
       id: post.id,
       space: { id: space.id, kind: space.kind, name: space.name },
       category: post.category,

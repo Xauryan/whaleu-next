@@ -1,3 +1,4 @@
+import type { FormationView } from './formation/contracts.js';
 import { z } from 'zod';
 import {
   tradingInputSchema,
@@ -46,7 +47,7 @@ export const publishPostSchema = z
     body.category === 'trading'
       ? !!body.trading &&
         body.authorMode === 'named' &&
-        body.component?.kind !== 'poll'
+        (!body.component || body.component.kind === 'none')
       : body.trading === undefined,
   );
 export const publishCommentSchema = z
@@ -128,7 +129,10 @@ export type AuthorView =
     };
 export interface PostView {
   trading: TradingView | null;
-  component: { kind: 'none' } | { kind: 'poll'; poll: PollView };
+  component:
+    | { kind: 'none' }
+    | { kind: 'poll'; poll: PollView }
+    | { kind: 'formation'; formation: FormationView };
   id: string;
   space: Pick<CommunitySpace, 'id' | 'kind' | 'name'>;
   category: Category;

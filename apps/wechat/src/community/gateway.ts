@@ -1,4 +1,16 @@
 import {
+  decodeFormation,
+  decodeFormationJoinIntent,
+  decodeFormationReceipt,
+  decodeOwnFormationMembership,
+  decodeFormationContactView,
+  type Formation,
+  type FormationJoinIntent,
+  type FormationReceipt,
+  type OwnFormationMembership,
+  type FormationContactView,
+} from './formation-contract';
+import {
   decodeTradingContactView,
   decodeTradingReceipt,
   isTradingSubtype,
@@ -80,6 +92,24 @@ export interface FeedQuery {
   readonly cursor?: string;
 }
 export interface CommunityGateway {
+  formation(postId: string, cancel: Cancellation): Promise<Formation>;
+  joinFormation(
+    postId: string,
+    intent: FormationJoinIntent,
+    cancel: Cancellation,
+  ): Promise<FormationReceipt>;
+  formationReceipt(
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<FormationReceipt>;
+  ownFormationMembership(
+    postId: string,
+    cancel: Cancellation,
+  ): Promise<OwnFormationMembership>;
+  formationContacts(
+    postId: string,
+    cancel: Cancellation,
+  ): Promise<FormationContactView>;
   ownTrading(
     after: string | null,
     cancel: Cancellation,
@@ -201,6 +231,79 @@ const page = (after: string | null) => {
 };
 export class HttpCommunityGateway implements CommunityGateway {
   constructor(private readonly api: ApiClient) {}
+  async formation(postId: string, cancel: Cancellation): Promise<Formation> {
+    const result = await this.api.request(
+      endpoint(`/v1/community/posts/${id(postId)}/formation`, decodeFormation),
+      { cancellation: cancel },
+    );
+    if (result.postId !== postId) invalid();
+    return result;
+  }
+  async joinFormation(
+    postId: string,
+    intent: FormationJoinIntent,
+    cancel: Cancellation,
+  ): Promise<FormationReceipt> {
+    const checked = decodeFormationJoinIntent(intent);
+    const result = await this.api.request(
+      endpoint(
+        `/v1/community/posts/${id(postId)}/formation/memberships`,
+        decodeFormationReceipt,
+        'required',
+        'POST',
+        201,
+      ),
+      {
+        body: { ...checked, contacts: { ...checked.contacts } },
+        cancellation: cancel,
+      },
+    );
+    if (result.requestId !== checked.clientRequestId) invalid();
+    return result;
+  }
+  async formationReceipt(
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<FormationReceipt> {
+    if (!uuid4(requestId)) invalid();
+    const result = await this.api.request(
+      endpoint(
+        `/v1/me/community/formation-requests/${requestId}`,
+        decodeFormationReceipt,
+      ),
+      { cancellation: cancel },
+    );
+    if (result.requestId !== requestId) invalid();
+    return result;
+  }
+  async ownFormationMembership(
+    postId: string,
+    cancel: Cancellation,
+  ): Promise<OwnFormationMembership> {
+    const result = await this.api.request(
+      endpoint(
+        `/v1/me/community/formation-memberships/${id(postId)}`,
+        decodeOwnFormationMembership,
+      ),
+      { cancellation: cancel },
+    );
+    if (result.postId !== postId) invalid();
+    return result;
+  }
+  async formationContacts(
+    postId: string,
+    cancel: Cancellation,
+  ): Promise<FormationContactView> {
+    const result = await this.api.request(
+      endpoint(
+        `/v1/community/posts/${id(postId)}/formation/contacts`,
+        decodeFormationContactView,
+      ),
+      { cancellation: cancel },
+    );
+    if (result.postId !== postId) invalid();
+    return result;
+  }
   async ownTrading(
     after: string | null,
     cancel: Cancellation,
@@ -665,7 +768,9 @@ export class HttpCommunityGateway implements CommunityGateway {
                 component:
                   component.kind === 'poll'
                     ? { ...component, options: [...component.options] }
-                    : { kind: 'none' },
+                    : component.kind === 'formation'
+                      ? { ...component, contacts: { ...component.contacts } }
+                      : { kind: 'none' },
               }
             : {}),
         },

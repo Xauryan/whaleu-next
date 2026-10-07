@@ -20,7 +20,9 @@ export type Action =
   | 'delete'
   | 'vote'
   | 'pin'
-  | 'resolve_trading';
+  | 'resolve_trading'
+  | 'join_formation'
+  | 'read_formation_contacts';
 export interface Authority {
   phoneVerified: boolean;
   studentVerified: boolean;
@@ -66,6 +68,11 @@ export interface ContentPublicationGate {
       text: string;
       images: ApprovedAsset[];
       structuredContent?:
+        | {
+            version: 5;
+            publicationIntentHash: string;
+            component: import('./formation/contracts.js').FormationComponent;
+          }
         | {
             version: 4;
             publicationIntentHash: string;

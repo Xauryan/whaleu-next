@@ -737,3 +737,177 @@ cannot commit. Earlier migrations are unchanged. Any eventual import still needs
 complete schema evidence, actor/region crosswalks, raw urgency/deletion provenance
 and reviewed reconciliation; urgent legacy flags must never be interpreted as
 deleted. Student-number backfill and new institutional SSO remain deferred.
+
+## C2D post group formation development slice
+
+Formation is a component of a non-trading post, separate from organization/group
+directories and group chat. The normal post body remains required. A single
+component is absent/`none`, `poll`, or `formation`; trading cannot attach one.
+Internal links remain a separate unfinished slice. This development flow does not
+activate real safety, approval, media or provider adapters.
+
+### Composition and explicit disclosure
+
+A formation component is:
+
+```json
+{
+  "kind": "formation",
+  "capacity": 4,
+  "theme": "周末爬山",
+  "contacts": { "wechat": "chosen-contact", "qq": "", "phone": "" },
+  "contactSharing": "members_v1"
+}
+```
+
+Capacity is an integer from 1 through 20. Theme is trimmed, nonblank and at most
+12 Unicode codepoints. Creator and joiner contacts use the same source ceilings:
+WeChat 100, QQ 50 and phone 20 UTF-8 **bytes**. New writes trim the supplied fields,
+require at least one nonblank value, reject unsafe Unicode/control characters,
+and reject overlong values without byte truncation. These differ from trading's
+contact bounds. Contact values are freely supplied text, not verified phone proof.
+
+The native composer/join dialog must explicitly obtain `members_v1` consent:
+only the contacts the user supplies will be shared with current authorized
+members. Joining is permanent in this slice. Named joiners use their public
+profile display. Anonymous creators keep the parent post's thread persona in the
+public roster, but their chosen contact data can identify them to authorized
+members. Never promise complete anonymity, prefill verified/profile phone or
+student information, or infer consent from an old source row. Changing submitted
+contacts requires a different intent and cannot edit a committed membership.
+
+Post, formation definition, creator membership, publication receipt and existing
+post-created outbox obligation commit atomically. The creator occupies seat 1;
+capacity 1 is immediately full. Structured content approval version 5 binds the
+entire publication intent, including theme, capacity, chosen contacts and consent.
+C1 absent/explicit-none and earlier poll/trading intent hashes remain unchanged.
+Generic publication receipts and events contain no formation contacts.
+
+### Read, join and recovery contracts
+
+All routes are under `/v1` and use the current bearer token; public feed projection
+can still use the existing guest-first-page policy. Unknown query/body keys are
+rejected on formation routes.
+
+- `GET community/posts/:postId/formation` returns the same formation object used
+  by `post.component = {kind:"formation",formation}`
+- `POST community/posts/:postId/formation/memberships` accepts only
+  `{clientRequestId,contacts,contactSharing:"members_v1"}`
+- `GET community/posts/:postId/formation/contacts` returns
+  `{postId,members:[{membershipId,contacts:{wechat,qq,phone}}]}`
+- `GET me/community/formation-requests/:requestId` recovers the original
+  account's immutable join receipt
+- `GET me/community/formation-memberships/:postId` returns only
+  `{postId,membershipId,joinedAt,isCreator}` for the active original account
+
+Formation read fields are `id`, `postId`, `capacity`, `theme`, `status`
+(`open|full|unavailable`), `memberCount`, `members`, and `viewer`. A public member
+contains only `{id,author,isCreator,joinedAt,viewer:{isSelf}}`; `author` is the
+existing safe named public-profile or anonymous thread-persona DTO. Membership IDs
+are independently generated UUIDs, never actor IDs. The creator is first, then
+joiners by recorded time with a stable seat tie-breaker. Named members hidden by
+current member safety/block policy are omitted from roster and contact lists;
+`memberCount` still reflects every occupied seat, including filtered members.
+There is no public account identifier or embedded contact field.
+
+`viewer` is `{isMember,isCreator,canJoin,reason,canReadContacts}`. These are advisory
+server-owned booleans, not grants. New joins require current active session,
+authoritative phone proof, the independent `join_formation` action, a visible
+active parent/scope, an available definition, capacity, and no prior membership.
+There is no additional student-verification or identity-campus requirement.
+Creator publication retains the ordinary publication rules.
+
+A join receipt is minimal:
+
+```json
+{
+  "requestId": "00000000-0000-4000-8000-000000000001",
+  "operation": "join_formation",
+  "outcome": "created",
+  "resourceId": "00000000-0000-4000-8000-000000000002",
+  "createdAt": "2026-10-07T00:00:00.000Z"
+}
+```
+
+A terminal rejection instead has `outcome:"rejected"` and `code`. Equal key and
+canonical intent replays the stored result before current parent permissions;
+equal key with changed contacts/consent/parent conflicts. A new key cannot defeat
+one membership per formation/account or overwrite contacts. Terminal codes are
+`POST_NOT_FOUND`, `FORMATION_NOT_FOUND`, `FORMATION_FULL`,
+`FORMATION_ALREADY_JOINED`, `FORMATION_UNAVAILABLE`,
+`PHONE_VERIFICATION_REQUIRED`, `COMMUNITY_ACTION_RESTRICTED`, and
+`COMMUNITY_SCOPE_UNAVAILABLE`. Temporary unavailable adapters and infrastructure
+failures roll back without manufacturing a terminal decision. Owner recovery
+survives parent hiding/deletion and permission loss but always requires an active
+original-account session. Neither a missing receipt nor a timeout proves that an
+in-flight request cannot still commit.
+
+### Contacts and transaction privacy
+
+Contacts are separately loaded only for a current member whose own membership
+is visible and who passes active parent/scope visibility, authoritative phone proof, the independent
+`read_formation_contacts` action, current per-member visibility and recorded
+sharing consent. Unjoined readers receive `FORMATION_MEMBERSHIP_REQUIRED`;
+missing own recovery is `FORMATION_MEMBERSHIP_NOT_FOUND`. Hidden/deleted/blocked
+parents use generic `POST_NOT_FOUND`. Contact lists may be empty after visibility
+or historical-consent filtering. No viewer/profile/verification facts are used as
+fallback contact values.
+
+Responses have `Cache-Control: no-store`. Native code fetches contacts afresh on
+open/copy, keeps them only in a short-lived display lease, and clears them on
+close/navigation/account transition. This cannot revoke text already copied by a
+person. Membership never becomes a standing bypass around safety/privacy gates.
+After potentially blocking authority and visibility work, the service rechecks
+the presented token at the current database clock before returning private data.
+Authority and visibility ports must lock local authoritative facts until commit;
+no provider/network call is allowed under these locks.
+
+Lock order is active account/session, account-owned request, parent, scope and
+local authority/visibility, then formation. Parent/formation locking serializes
+joins with capacity and parent removal. Migration `0011` also enforces creator
+ownership/seat, same-transaction parent/definition/creator publication, unique
+formation+account and formation+seat, maximum capacity, component exclusivity,
+immutable membership/contact/definition and approved image attachments, and immutable formation-parent facts
+except independent safety visibility/deletion. Receipt rows cannot commit while
+pending, cannot be overwritten, and permit only typed minimal terminal fields.
+A join, receipt and minimal `formation_member_joined` internal transition commit
+atomically. This transition contains no contacts and does not invent a reward,
+notification or provider-delivery promise.
+
+### Historical and release boundaries
+
+No production import runs in this migration. Future authorized import must keep
+original parent/capacity/theme/count/status, membership IDs/actors/creator flags,
+display snapshots, contact fields and timestamps privately with crosswalks and
+provenance. Canonical rows support private `legacy_raw` metadata and an immutable
+`unreconciled` marker; irregular source rows that cannot satisfy canonical
+capacity/unique-creator invariants require a separate raw staging/reconciliation
+process, not deletion or guessed repairs. Unknown status never becomes an
+invented close/expiry operation. Historical consent is `legacy_unconfirmed`
+unless explicit evidence supports the current sharing contract.
+
+Read validation is separate from new-write limits: safely encoded reconciled
+historical themes/consented contacts remain verbatim, including raw spacing and
+CRLF. The safety envelope is 1 MiB per field and per private contact response,
+with unsafe Unicode/control data withheld and raw provenance preserved. A blank
+or unsafe theme projects a neutral unavailable label and denies joins/contact
+reads using the same eligibility predicate. Unreconciled definitions never grant
+join/contact capability. Historical-unconfirmed contacts are not exposed. This
+is a safe schema/read boundary, not a completed import or reconciliation claim.
+
+There are no leave, kick, contact-edit, transfer, creator-close/reopen or scheduled
+expiry operations. Live authorization/visibility/content/media adapters remain
+fail-closed; injected synthetic fixtures are test-only. PostgreSQL tests cover
+last-seat/duplicate-key races, hidden/deleted/inactive parent, block and permission
+races, rollback, owner recovery, immutable database constraints, safe historical
+reads and final-token expiry. Device acceptance and all remaining full-parity
+work remain explicit release gates.
+
+The existing developer-only audited identity API also accepts
+`{kind:"formation_member",id:<membership UUID>}` for visible roster members.
+The server resolves the actual stored membership and parent, then reapplies
+parent/member visibility. A client cannot attach an arbitrary account or replace
+the parent context. Named and anonymous identity disclosure uses the existing
+separate privilege/audit DTO and unchanged final-clock safeguards. It never adds
+identity fields to the ordinary roster and does not grant formation-contact
+access. No developer role grants are seeded outside synthetic tests.

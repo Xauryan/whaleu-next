@@ -77,6 +77,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Verification-preservation snapshot `6ed0d7e1e306bc9b7a104a2c4d880552afa61b4f`: 93 API tests, 217 native-client tests and 110 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37646773204), including actual native verification-summary contracts and final-clock privacy checks. The commit signature is verified.
 - Poll snapshot `3c10b6c42d963b1595c31b9ab9959bf0b4e2f36b`: 98 API tests, 250 native-client tests and 137 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37649513781), including native poll publication, ballot recovery and privacy contracts. The commit signature is verified.
 - Discussion snapshot `27d2c7cb7a29f80e2bcb2080fffdc8e84a832d2e`: 102 API tests, 291 native-client tests and 159 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37654039425), including native reply, reaction, pin and audited identity contracts. The commit signature is verified.
+- Trading snapshot `699c4f34cf145f5e7b1b0a02131cee50f2747c42`: 106 API tests, 337 native-client tests and 183 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37658218303), including exact prices, private contact access and durable status recovery. The commit signature is verified.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -126,7 +127,7 @@ expiry, durable ballot receipts and native composition/voting/recovery are
 implemented. Poll text participates in publication approval and idempotency.
 Voting does not invent a student-verification requirement. Real gateway → HTTP →
 PostgreSQL tests cover the contract; runtime policy adapters remain fail-closed
-where unavailable. Trading, group formation, subscriptions and the other
+where unavailable. Full trading administration, subscriptions and the other
 community backlog are still required. See [community API](API_COMMUNITY.md).
 
 Community C2B development checkpoint: flat reply threads and safe target
@@ -137,7 +138,7 @@ include replies through the separate audited boundary. Regional unverified
 comment eligibility is independent of the new-post category allowlist. Counts
 separate visible roots, replies and combined discussion. History, moderation,
 feed-post administration, subscriptions, notifications/rewards consumers, media,
-trading and group formation remain required; no outbox record is treated as
+full trading administration and group directories remain required; no outbox record is treated as
 successful external delivery or a paid reward.
 
 Community C2C development checkpoint: named trading listings include thirteen
@@ -150,3 +151,13 @@ remembered fields do not complete server-backed cross-device publishing
 preferences. Public-profile listing privacy, scoped-manager actions, external
 push delivery, media and full source-data migration remain required. No checkout,
 escrow, payment or delivery service is invented by this listing slice.
+
+Community C2D development checkpoint: post-based group formation includes creator
+seats, capacity-one full state, immutable concurrent joins, durable membership
+recovery and public persona-safe rosters. Entered contacts require explicit
+members-only sharing consent and a separate current-access read/copy path.
+Developer roster identity views use the existing audited API and do not grant
+contact access to nonmembers. Historical display/provenance, phone-only joining
+without an invented student gate, and account/hide/expiry clearing are tested.
+This does not implement group directories, official accounts, invented leave/kick/
+close operations, production import, real providers or physical-device acceptance.

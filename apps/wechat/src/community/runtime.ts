@@ -1,3 +1,4 @@
+import { PendingFormationJoinStore } from './formation-pending';
 import { PendingTradingStore } from './trading-pending';
 import { PendingDiscussionStore } from './discussion-pending';
 import {
@@ -23,6 +24,7 @@ export interface CommunityRuntime {
   readonly gateway: CommunityGateway | undefined;
   readonly profiles: ProfileGateway | undefined;
   readonly pending: PendingAttemptStore;
+  readonly pendingFormations: PendingFormationJoinStore;
   readonly pendingBallots: PendingBallotStore;
   readonly pendingDiscussion: PendingDiscussionStore;
   readonly pendingTrading: PendingTradingStore;
@@ -46,6 +48,7 @@ export function createCommunityRuntime(
     gateway: identity.api ? new HttpCommunityGateway(identity.api) : undefined,
     profiles: identity.api ? new HttpProfileGateway(identity.api) : undefined,
     pending: new PendingAttemptStore(storage, origin),
+    pendingFormations: new PendingFormationJoinStore(storage, origin),
     pendingBallots: new PendingBallotStore(storage, origin),
     pendingDiscussion: new PendingDiscussionStore(storage, origin),
     pendingTrading: new PendingTradingStore(storage, origin),

@@ -1,3 +1,9 @@
+import { FormationRepository } from './formation/repository.js';
+import { FormationService } from './formation/service.js';
+import {
+  FormationController,
+  FormationRecoveryController,
+} from './formation/controller.js';
 import { TradingRepository } from './trading/repository.js';
 import { TradingService } from './trading/service.js';
 import {
@@ -215,6 +221,8 @@ export class CommunityRecoveryController {
 @Module({
   imports: [DatabaseModule, CampusModule, ProfileModule, IdentityModule],
   controllers: [
+    FormationController,
+    FormationRecoveryController,
     TradingController,
     TradingRecoveryController,
     DiscussionController,
@@ -228,6 +236,8 @@ export class CommunityRecoveryController {
   ],
   exports: [CommunityContentIdentityService],
   providers: [
+    FormationRepository,
+    FormationService,
     TradingRepository,
     TradingService,
     DiscussionReadService,

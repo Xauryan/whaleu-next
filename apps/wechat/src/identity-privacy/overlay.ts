@@ -11,7 +11,7 @@ import { cancellable } from '../platform/cancellable';
 import { Cancellation, type Clock } from '../platform/contracts';
 import { isUuid } from '../profile/contract';
 export interface IdentityTarget {
-  readonly kind: 'post' | 'comment' | 'reply';
+  readonly kind: 'post' | 'comment' | 'reply' | 'formation_member';
   readonly id: string;
 }
 export interface DisplayTarget extends IdentityTarget {
@@ -81,7 +81,9 @@ export function decodeAuthorization(value: unknown): Authorization {
 function target(value: unknown): IdentityTarget {
   exact(value, ['kind', 'id']);
   if (
-    !['post', 'comment', 'reply'].includes(String(value.kind)) ||
+    !['post', 'comment', 'reply', 'formation_member'].includes(
+      String(value.kind),
+    ) ||
     !isUuid(value.id)
   )
     invalid();
@@ -298,15 +300,37 @@ export class IdentityOverlayController {
         )
           return null;
         const items: IdentityItem[] = [];
+        let expiresAt = Number.POSITIVE_INFINITY;
         for (let offset = 0; offset < targets.length; offset += 20) {
           this.sessions.assertCurrent(owner);
           if (cancel.isCancelled)
             throw new ClientError('cancelled', 'Cancelled');
           const batch = targets.slice(offset, offset + 20);
+          expiresAt = Math.min(
+            expiresAt,
+            this.sessions.snapshot().credentials?.expiresAt ?? 0,
+          );
+          if (expiresAt <= this.clock.now())
+            throw new ClientError(
+              'auth-expired',
+              'Identity request authorization expired',
+            );
           const result = await this.gateway!.identities(
             batch.map((item) => ({ kind: item.kind, id: item.id })),
             cancel,
           );
+          this.sessions.assertCurrent(owner);
+          // A refresh cannot extend the lease of an identity response sent under an older token.
+          if (
+            Math.min(
+              expiresAt,
+              this.sessions.snapshot().credentials?.expiresAt ?? 0,
+            ) <= this.clock.now()
+          )
+            throw new ClientError(
+              'auth-expired',
+              'Identity response authorization expired',
+            );
           for (const item of result) {
             const expected = batch.find(
               (candidate) =>
@@ -322,12 +346,23 @@ export class IdentityOverlayController {
           }
           items.push(...result);
         }
-        return items;
+        return { items, expiresAt };
       };
-      const items = await cancellable(Promise.resolve().then(work), cancel);
+      const result = await cancellable(Promise.resolve().then(work), cancel);
       if (!current()) return;
       this.sessions.assertCurrent(owner);
-      if (!items) return;
+      if (!result) return;
+      const { items, expiresAt } = result;
+      if (
+        Math.min(
+          expiresAt,
+          this.sessions.snapshot().credentials?.expiresAt ?? 0,
+        ) <= this.clock.now()
+      )
+        throw new ClientError(
+          'auth-expired',
+          'Identity display authorization expired',
+        );
       const display: Record<string, PrivateIdentity> = {};
       for (const item of items)
         if (item.status === 'available')
@@ -338,16 +373,19 @@ export class IdentityOverlayController {
         notice:
           '开发者身份视图 · 每次查看由服务端重新授权并审计；敏感资料将在 30 秒后清除',
       });
-      this.expiry = this.clock.schedule(() => {
-        if (current()) {
-          this.clear();
-          this.render({
-            developerEnabled: false,
-            items: {},
-            notice: '敏感身份已自动清除。刷新内容后将重新核验权限',
-          });
-        }
-      }, 30000);
+      this.expiry = this.clock.schedule(
+        () => {
+          if (current()) {
+            this.clear();
+            this.render({
+              developerEnabled: false,
+              items: {},
+              notice: '敏感身份已自动清除。刷新内容后将重新核验权限',
+            });
+          }
+        },
+        Math.min(30000, expiresAt - this.clock.now()),
+      );
     } catch {
       if (current()) {
         this.clear();

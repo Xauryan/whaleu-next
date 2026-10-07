@@ -19,7 +19,7 @@
       <view class="row"><text>我愿意公开以上联系方式</text><switch checked="{{tradingDraft.contactConsent}}" bindchange="onContactConsent" disabled="{{frozen || busy || !loaded}}" /></view>
     </view>
     <view wx:if="{{canAddPoll}}" class="poll-composer">
-      <view class="row"><text>添加投票</text><switch checked="{{pollDraft.enabled}}" bindchange="onPollEnabled" disabled="{{frozen || busy || !loaded}}" /></view>
+      <view class="row"><text>添加投票</text><switch checked="{{pollDraft.enabled}}" bindchange="onPollEnabled" disabled="{{frozen || busy || !loaded || formationDraft.enabled}}" /></view>
       <view wx:if="{{pollDraft.enabled}}">
         <view class="label">独立投票问题 · 最多 255 字</view><input value="{{pollDraft.question}}" bindinput="onPollQuestion" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="你想问大家什么？" />
         <view class="chips"><button class="chip {{pollDraft.selectionMode === 'single' ? 'active' : ''}}" data-mode="single" bindtap="onPollMode" disabled="{{frozen || busy || !loaded}}">单选</button><button class="chip {{pollDraft.selectionMode === 'multiple' ? 'active' : ''}}" data-mode="multiple" bindtap="onPollMode" disabled="{{frozen || busy || !loaded}}">多选</button></view>
@@ -28,7 +28,22 @@
         <view class="row"><text>最后添加吃瓜🍉</text><switch checked="{{pollDraft.finalOption}}" bindchange="onPollFinal" disabled="{{frozen || busy}}" /></view>
         <view class="notice">至少两个普通选项，总共最多五个；吃瓜🍉同样可被选择并占一个名额。单选点选即投，多选需要确认；每人仅可投一次，作者也可参与。本次新建投票不设截止时间。</view>
       </view>
-      <view class="meta">组队与内部链接组件仍待接入；不能与投票同时添加</view>
+      <view class="meta">投票、组队和内部链接只能选一个。请先关闭当前组件再切换，未提交的填写内容会保留。内部链接仍待接入。</view>
+    </view>
+    <view wx:if="{{canAddFormation}}" class="formation-composer">
+      <view class="row"><text>添加组队</text><switch checked="{{formationDraft.enabled}}" bindchange="onFormationEnabled" disabled="{{frozen || busy || !loaded || pollDraft.enabled}}" /></view>
+      <view wx:if="{{formationDraft.enabled}}">
+        <view class="label">活动主题 · 最多 12 字</view><input value="{{formationDraft.theme}}" data-field="theme" bindinput="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="一起做什么？" />
+        <view class="label">总人数 · 1–20 人，包含发起人</view><input type="number" value="{{formationDraft.capacity}}" data-field="capacity" bindinput="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="填写整数人数，不会自动修正" />
+        <view class="notice">发布成功后你会立即加入并占一个名额。{{formationDraft.capacity === '1' ? '人数设为 1，发布时即满员。' : '最后一个名额加入后即满员。'}}</view>
+        <view class="label">提供给组内成员的联系方式 · 至少一项</view>
+        <input value="{{formationDraft.wechat}}" data-field="wechat" bindinput="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="微信（最多 100 UTF-8 字节）" />
+        <input value="{{formationDraft.qq}}" data-field="qq" bindinput="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="QQ（最多 50 UTF-8 字节）" />
+        <input value="{{formationDraft.phone}}" data-field="phone" bindinput="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="联系电话（最多 20 UTF-8 字节）" />
+        <view class="formation-disclosure">以上联系方式仅供有权查看此帖的组内成员查看和复制，不会显示在普通帖子列表、详情或成员名单中。联系方式由你自行填写，不表示号码已认证，也不会从个人资料、认证手机号或交易偏好中代填。</view>
+        <view class="formation-disclosure">匿名发起时，帖子和成员名单公开展示匿名形象；组内成员仍可能通过你填写的联系方式识别你的真实身份。请勿填写他人的私密资料。</view>
+        <view class="row"><text>我已了解并同意以上联系方式向符合权限的组内成员提供</text><switch checked="{{formationDraft.contactConsent}}" bindchange="onFormationConsent" disabled="{{frozen || busy || !loaded}}" /></view>
+      </view>
     </view>
     <view class="notice">{{mediaNotice}}。帖子最多九张、评论最多三张的图片功能保留为待完成项。</view><view wx:if="{{blocker}}" class="notice">{{blocker}}</view>
     <button wx:if="{{!frozen}}" class="primary" bindtap="onSubmit" disabled="{{!canSubmit || busy}}" loading="{{busy}}">确认以上身份并发布</button><button wx:if="{{frozen}}" class="primary" bindtap="onReceipt" disabled="{{busy}}" loading="{{busy}}">查询原请求回执</button><button wx:if="{{frozen}}" class="secondary" bindtap="onRetry" disabled="{{busy}}">重试完全相同的原请求</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待（不撤销发布）</button>

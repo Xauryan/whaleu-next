@@ -1,3 +1,8 @@
+import { PendingFormationJoinStore } from '../src/community/formation-pending';
+import type {
+  Formation,
+  FormationReceipt,
+} from '../src/community/formation-contract';
 import { PendingDiscussionStore } from '../src/community/discussion-pending';
 import { PendingTradingStore } from '../src/community/trading-pending';
 import type { Reply } from '../src/community/discussion-contract';
@@ -150,6 +155,57 @@ export const reply = (overrides: Partial<Reply> = {}): Reply => ({
   ...overrides,
 });
 export class FakeCommunityGateway implements CommunityGateway {
+  formationImpl: CommunityGateway['formation'] = async () => formation();
+  joinFormationImpl: CommunityGateway['joinFormation'] = async (
+    _post,
+    intent,
+  ) => formationReceipt({ requestId: intent.clientRequestId });
+  formationReceiptImpl: CommunityGateway['formationReceipt'] = async (
+    requestId,
+  ) => formationReceipt({ requestId });
+  ownFormationMembershipImpl: CommunityGateway['ownFormationMembership'] =
+    async (postId) => ({
+      postId,
+      membershipId: otherId,
+      joinedAt: createdAt,
+      isCreator: false,
+    });
+  formationContactsImpl: CommunityGateway['formationContacts'] = async (
+    postId,
+  ) => ({
+    postId,
+    members: [
+      {
+        membershipId: otherId,
+        contacts: { wechat: 'synthetic-member', qq: '', phone: '' },
+      },
+    ],
+  });
+  formation(...args: Parameters<CommunityGateway['formation']>) {
+    this.calls.push({ method: 'formation', args });
+    return this.formationImpl(...args);
+  }
+  joinFormation(...args: Parameters<CommunityGateway['joinFormation']>) {
+    this.calls.push({ method: 'joinFormation', args });
+    return this.joinFormationImpl(...args);
+  }
+  formationReceipt(...args: Parameters<CommunityGateway['formationReceipt']>) {
+    this.calls.push({ method: 'formationReceipt', args });
+    return this.formationReceiptImpl(...args);
+  }
+  ownFormationMembership(
+    ...args: Parameters<CommunityGateway['ownFormationMembership']>
+  ) {
+    this.calls.push({ method: 'ownFormationMembership', args });
+    return this.ownFormationMembershipImpl(...args);
+  }
+  formationContacts(
+    ...args: Parameters<CommunityGateway['formationContacts']>
+  ) {
+    this.calls.push({ method: 'formationContacts', args });
+    return this.formationContactsImpl(...args);
+  }
+
   ownTradingImpl: CommunityGateway['ownTrading'] = async (
     _after,
     _cancel,
@@ -471,6 +527,7 @@ export function setup(loggedIn = true) {
     gateway,
     profiles,
     privateViews: new PrivateViewLifecycle(),
+    pendingFormations: new PendingFormationJoinStore(storage, 'synthetic'),
     pendingBallots: new PendingBallotStore(storage, 'synthetic'),
     pendingDiscussion: new PendingDiscussionStore(storage, 'synthetic'),
     pendingTrading: new PendingTradingStore(storage, 'synthetic'),
@@ -576,5 +633,51 @@ export const tradingReceipt = (
   outcome: 'applied',
   resourceId: postId,
   resolution: 'resolved',
+  ...overrides,
+});
+
+export const formation = (overrides: Partial<Formation> = {}): Formation => ({
+  id: pollId,
+  postId,
+  capacity: 2,
+  theme: '合成组队',
+  status: 'open',
+  memberCount: 1,
+  members: [
+    {
+      id: otherId,
+      author: anonymous(),
+      isCreator: true,
+      joinedAt: createdAt,
+      viewer: { isSelf: false },
+    },
+  ],
+  viewer: {
+    isMember: false,
+    isCreator: false,
+    canJoin: true,
+    reason: null,
+    canReadContacts: false,
+  },
+  ...overrides,
+});
+export const formationPost = (value: Formation = formation()): Post =>
+  post({
+    component: { kind: 'formation', formation: value },
+    viewer: {
+      isSelf: false,
+      isLiked: false,
+      canDelete: false,
+      canComment: true,
+    },
+  });
+export const formationReceipt = (
+  overrides: Partial<Extract<FormationReceipt, { outcome: 'created' }>> = {},
+): FormationReceipt => ({
+  requestId,
+  operation: 'join_formation',
+  outcome: 'created',
+  resourceId: ballotId,
+  createdAt,
   ...overrides,
 });

@@ -3,7 +3,7 @@ import type { PoolClient } from 'pg';
 import { IDENTITY_BATCH_LIMIT } from '../authorization/contracts.js';
 
 export const contentIdentityTargetSchema = z.strictObject({
-  kind: z.enum(['post', 'comment', 'reply']),
+  kind: z.enum(['post', 'comment', 'reply', 'formation_member']),
   id: z.uuid(),
 });
 export type ContentIdentityTarget = z.infer<typeof contentIdentityTargetSchema>;

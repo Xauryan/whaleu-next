@@ -72,3 +72,11 @@ Trading body/ownership/scope and listing metadata are immutable while safety
 visibility/deletion and owner resolution remain separate. No contacts enter
 outbox payloads, and no migration grants authority, imports production data or
 activates group delivery/payment. See [C2C trading](../../../docs/API_COMMUNITY.md#c2c-trading-listings-development-slice).
+
+`0011_community_formations.sql` adds empty post-formation definitions, immutable
+creator/member seats and minimal account-owned join receipts. Existing migrations
+are unchanged. Capacity/unique creator, account membership, component/parent
+shape and receipt completion are enforced independently in PostgreSQL. This is
+not a source-data migration. Preserve raw historical statuses/counts/contacts and
+provenance in a separately authorized reconciliation flow; never infer consent,
+truncate data or guess repairs for conflicting creators/duplicate actors/overflow.

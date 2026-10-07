@@ -16,6 +16,7 @@ export interface MineView extends CommunityView {
   readonly tradingSubtype: TradingSubtype | '';
   readonly tradingRecoveryPostId: string;
   readonly publications: readonly OwnPublication[];
+  readonly formationRecoveryPostId: string;
   readonly ballotRecoveryPostId: string;
   readonly discussionRecoveryPostId: string;
   readonly discussionRecoveryRootCommentId: string;
@@ -30,6 +31,7 @@ export const initialMineView = (): MineView => ({
   tradingRecoveryPostId: '',
   publications: [],
   ballotRecoveryPostId: '',
+  formationRecoveryPostId: '',
   discussionRecoveryPostId: '',
   discussionRecoveryRootCommentId: '',
   loaded: false,
@@ -55,6 +57,8 @@ export class MineController extends CommunityController<MineView> {
           this.runtime.pendingTrading.load(this.accountId()!)?.postId ?? '',
         discussionRecoveryPostId: interaction?.postId ?? '',
         discussionRecoveryRootCommentId: interaction?.rootCommentId ?? '',
+        formationRecoveryPostId:
+          this.runtime.pendingFormations.load(this.accountId()!)?.postId ?? '',
         ballotRecoveryPostId:
           this.runtime.pendingBallots.load(this.accountId()!)?.postId ?? '',
       });

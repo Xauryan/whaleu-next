@@ -67,9 +67,12 @@ export function pollDraftComponent(draft: PollDraft): PollComponent {
   });
 }
 export function componentDraft(
-  component: PollComponent | undefined,
+  component:
+    | PollComponent
+    | import('./formation-contract').FormationComponent
+    | undefined,
 ): PollDraft {
-  if (!component || component.kind === 'none') return emptyPollDraft();
+  if (!component || component.kind !== 'poll') return emptyPollDraft();
   const finalOptionEnabled =
     component.options[component.options.length - 1]?.trim() === finalPollOption;
   return Object.freeze({

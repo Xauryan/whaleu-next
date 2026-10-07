@@ -36,6 +36,12 @@ import {
   pollDraftComponent,
   type PollDraft,
 } from '../../community/poll-draft';
+import {
+  componentFormationDraft,
+  emptyFormationDraft,
+  formationDraftComponent,
+  type FormationDraft,
+} from '../../community/formation-draft';
 import type { PendingAttempt } from '../../community/pending-attempt';
 import type { CommunityRuntime } from '../../community/runtime';
 import type { Cancellation } from '../../platform/contracts';
@@ -74,6 +80,8 @@ export interface ComposeView extends CommunityView {
   readonly recoveryOperation: string;
   readonly pollDraft: PollDraft;
   readonly canAddPoll: boolean;
+  readonly formationDraft: FormationDraft;
+  readonly canAddFormation: boolean;
   readonly isTrading: boolean;
   readonly tradingDraft: TradingDraft;
 }
@@ -100,6 +108,8 @@ export const initialComposeView = (): ComposeView => ({
   recoveryOperation: '',
   pollDraft: emptyPollDraft(),
   canAddPoll: false,
+  formationDraft: emptyFormationDraft(),
+  canAddFormation: false,
   isTrading: false,
   tradingDraft: emptyTradingDraft(),
 });
@@ -365,6 +375,11 @@ export class ComposeController extends CommunityController<ComposeView> {
               ? (draft?.poll ?? emptyPollDraft())
               : emptyPollDraft(),
           canAddPoll: target.operation === 'publish_post' && !trading,
+          formationDraft:
+            target.operation === 'publish_post' && !trading
+              ? (draft?.formation ?? emptyFormationDraft())
+              : emptyFormationDraft(),
+          canAddFormation: target.operation === 'publish_post' && !trading,
           authorMode: chosen.mode,
           commentsPolicy: draft?.commentsPolicy ?? 'open',
           identityForced: forced || trading,
@@ -409,10 +424,19 @@ export class ComposeController extends CommunityController<ComposeView> {
         pending.operation === 'publish_post' &&
         pending.payload.category === 'trading',
       pollDraft:
-        pending.operation === 'publish_post'
+        pending.operation === 'publish_post' &&
+        pending.payload.component?.kind === 'poll'
           ? componentDraft(pending.payload.component)
           : emptyPollDraft(),
       canAddPoll:
+        pending.operation === 'publish_post' &&
+        pending.payload.category !== 'trading',
+      formationDraft:
+        pending.operation === 'publish_post' &&
+        pending.payload.component?.kind === 'formation'
+          ? componentFormationDraft(pending.payload.component)
+          : emptyFormationDraft(),
+      canAddFormation:
         pending.operation === 'publish_post' &&
         pending.payload.category !== 'trading',
       authorMode: pending.payload.authorMode,
@@ -478,7 +502,17 @@ export class ComposeController extends CommunityController<ComposeView> {
     )
       return;
     this.identityConflict = false;
-    this.update({ authorMode: mode });
+    this.update({
+      authorMode: mode,
+      ...(mode !== this.view.authorMode
+        ? {
+            formationDraft: {
+              ...this.view.formationDraft,
+              contactConsent: false,
+            },
+          }
+        : {}),
+    });
     this.persistDraft();
     this.recompute();
   }
@@ -536,6 +570,13 @@ export class ComposeController extends CommunityController<ComposeView> {
     this.recompute();
   }
   setPollEnabled(enabled: boolean): void {
+    if (!this.editable() || !this.view.canAddPoll) return;
+    if (enabled && this.view.formationDraft.enabled) {
+      this.update({
+        error: '投票和组队不能同时添加，请先关闭组队；已填内容会保留',
+      });
+      return;
+    }
     this.editPoll({ enabled });
   }
   setPollQuestion(question: string): void {
@@ -587,6 +628,32 @@ export class ComposeController extends CommunityController<ComposeView> {
     }
     this.editPoll({ finalOption: enabled });
   }
+  setFormationEnabled(enabled: boolean): void {
+    if (!this.editable() || !this.view.canAddFormation) return;
+    if (enabled && this.view.pollDraft.enabled) {
+      this.update({
+        error: '组队和投票不能同时添加，请先关闭投票；已填内容会保留',
+      });
+      return;
+    }
+    this.editFormation({ enabled, contactConsent: false });
+  }
+  setFormationField(field: string, value: string): void {
+    if (!['theme', 'capacity', 'wechat', 'qq', 'phone'].includes(field)) return;
+    this.editFormation({ [field]: value, contactConsent: false });
+  }
+  setFormationConsent(contactConsent: boolean): void {
+    this.editFormation({ contactConsent });
+  }
+  private editFormation(patch: Partial<FormationDraft>): void {
+    if (!this.editable() || !this.view.canAddFormation) return;
+    this.update({
+      formationDraft: { ...this.view.formationDraft, ...patch },
+      error: '',
+    });
+    this.persistDraft();
+    this.recompute();
+  }
   private persistDraft(): void {
     const accountId = this.accountId();
     if (!accountId || !this.target) return;
@@ -599,7 +666,18 @@ export class ComposeController extends CommunityController<ComposeView> {
         ...(this.target.operation === 'publish_post'
           ? this.view.isTrading
             ? { trading: this.view.tradingDraft }
-            : { poll: this.view.pollDraft }
+            : {
+                poll: this.view.pollDraft,
+                ...(this.view.formationDraft.enabled ||
+                this.view.formationDraft.theme ||
+                this.view.formationDraft.capacity ||
+                this.view.formationDraft.wechat ||
+                this.view.formationDraft.qq ||
+                this.view.formationDraft.phone ||
+                this.view.formationDraft.contactConsent
+                  ? { formation: this.view.formationDraft }
+                  : {}),
+              }
           : {}),
       });
       this.draftSaved = true;
@@ -647,6 +725,21 @@ export class ComposeController extends CommunityController<ComposeView> {
           '投票需独立问题及至少两个普通选项；问题和选项各 1–255 字，不可留空或重复，总数不超过五个';
       }
     }
+    if (!blocker && this.view.formationDraft.enabled) {
+      if (this.view.pollDraft.enabled || this.view.isTrading)
+        blocker = '组队仅用于非交易帖子，不能与投票或内部链接同时添加';
+      else if (!this.view.formationDraft.contactConsent)
+        blocker =
+          '请阅读并确认：填写的联系方式将向有权查看此帖的组内成员提供，匿名时也可能识别你的身份';
+      else {
+        try {
+          formationDraftComponent(this.view.formationDraft);
+        } catch {
+          blocker =
+            '请填写 1–20 的整数人数、1–12 字的活动主题及至少一种联系方式；微信最多 100、QQ 最多 50、电话最多 20 UTF-8 字节，不会截断或自动修正';
+        }
+      }
+    }
     if (!blocker && this.view.isTrading) {
       try {
         tradingDraftIntent(this.view.tradingDraft);
@@ -664,7 +757,9 @@ export class ComposeController extends CommunityController<ComposeView> {
         this.view.authorMode === 'anonymous'
           ? this.view.identityForced
             ? '匿名楼主（本帖评论必须匿名）'
-            : '匿名身份（不会公开个人资料）'
+            : this.view.formationDraft.enabled
+              ? '匿名身份（公开展示匿名形象；组内联系方式仍可能识别你）'
+              : '匿名身份（不会公开个人资料）'
           : '公开身份（显示昵称与公开资料身份）',
     });
   }
@@ -675,12 +770,14 @@ export class ComposeController extends CommunityController<ComposeView> {
     const target = this.target,
       accountId = this.accountId()!,
       owner = this.runtime.sessions.snapshot();
-    const component = pollDraftComponent(this.view.pollDraft);
+    const component = this.view.formationDraft.enabled
+      ? formationDraftComponent(this.view.formationDraft)
+      : pollDraftComponent(this.view.pollDraft);
     const trading = this.view.isTrading
       ? tradingDraftIntent(this.view.tradingDraft)
       : undefined;
     const draft = {
-      ...(component.kind === 'poll' ? { component } : {}),
+      ...(component.kind !== 'none' ? { component } : {}),
       ...(trading ? { trading } : {}),
       text: this.view.text.replace(/\r\n/g, '\n'),
       authorMode: this.view.authorMode,
@@ -838,6 +935,10 @@ export class ComposeController extends CommunityController<ComposeView> {
       text: receipt.outcome === 'created' ? '' : this.view.text,
       pollDraft:
         receipt.outcome === 'created' ? emptyPollDraft() : this.view.pollDraft,
+      formationDraft:
+        receipt.outcome === 'created'
+          ? emptyFormationDraft()
+          : this.view.formationDraft,
       tradingDraft:
         receipt.outcome === 'created'
           ? emptyTradingDraft()

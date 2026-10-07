@@ -136,6 +136,21 @@ Page({
   onPollFinal(event: { detail: { value: boolean } }) {
     this.controller?.setPollFinal(event.detail.value);
   },
+  onFormationEnabled(event: { detail: { value: boolean } }) {
+    this.controller?.setFormationEnabled(event.detail.value);
+  },
+  onFormationField(event: {
+    detail: { value: string };
+    currentTarget: { dataset: { field: string } };
+  }) {
+    this.controller?.setFormationField(
+      event.currentTarget.dataset.field,
+      event.detail.value,
+    );
+  },
+  onFormationConsent(event: { detail: { value: boolean } }) {
+    this.controller?.setFormationConsent(event.detail.value);
+  },
   onSubmit() {
     void this.controller?.submit();
   },

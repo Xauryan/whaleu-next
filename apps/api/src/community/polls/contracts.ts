@@ -1,3 +1,4 @@
+import { formationComponentSchema } from '../formation/contracts.js';
 import { z } from 'zod';
 import type { ApplicationErrorCode } from '../../http/application-error.js';
 import { textSchema } from '../text.js';
@@ -22,6 +23,7 @@ export const pollComponentSchema = z.strictObject({
 export const postComponentSchema = z.union([
   z.strictObject({ kind: z.literal('none') }),
   pollComponentSchema,
+  formationComponentSchema,
 ]);
 export type PollComponent = z.infer<typeof pollComponentSchema>;
 export const emptyPollQuerySchema = z.strictObject({});

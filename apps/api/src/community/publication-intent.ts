@@ -9,6 +9,8 @@ export function postIntent(body: PublishPost) {
     authorMode: body.authorMode,
     commentsPolicy: body.commentsPolicy,
     ...(body.trading ? { trading: body.trading } : {}),
-    ...(body.component?.kind === 'poll' ? { component: body.component } : {}),
+    ...(body.component?.kind === 'poll' || body.component?.kind === 'formation'
+      ? { component: body.component }
+      : {}),
   };
 }

@@ -9,6 +9,7 @@ import { ClientError, isRecord } from '../api/errors';
 import type { Storage } from '../platform/contracts';
 import { isUuid } from '../profile/contract';
 import { decodePollDraft, type PollDraft } from './poll-draft';
+import { decodeFormationDraft, type FormationDraft } from './formation-draft';
 import {
   boundedText,
   decodeCommentIntent,
@@ -163,6 +164,7 @@ export class PendingAttemptStore {
 export interface Draft {
   readonly trading?: TradingDraft;
   readonly poll?: PollDraft;
+  readonly formation?: FormationDraft;
   readonly version: 1;
   readonly text: string;
   readonly authorMode: AuthorMode;
@@ -232,13 +234,23 @@ export class DraftStore {
       if (!isRecord(value)) throw storageError();
       const hasTrading = Object.prototype.hasOwnProperty.call(value, 'trading');
       const hasPoll = Object.prototype.hasOwnProperty.call(value, 'poll');
-      if (hasPoll && hasTrading) throw storageError();
+      const hasFormation = Object.prototype.hasOwnProperty.call(
+        value,
+        'formation',
+      );
+      if ((hasPoll || hasFormation) && hasTrading) throw storageError();
+      if (
+        hasFormation &&
+        (!target.startsWith('post:') || target.endsWith(':trading'))
+      )
+        throw storageError();
       exact(value, [
         'version',
         'text',
         'authorMode',
         'commentsPolicy',
         ...(hasPoll ? ['poll'] : []),
+        ...(hasFormation ? ['formation'] : []),
         ...(hasTrading ? ['trading'] : []),
       ]);
       if (
@@ -251,9 +263,15 @@ export class DraftStore {
         !['open', 'restricted'].includes(String(value.commentsPolicy))
       )
         throw storageError();
+      const poll = hasPoll ? decodePollDraft(value.poll) : undefined;
+      const formation = hasFormation
+        ? decodeFormationDraft(value.formation)
+        : undefined;
+      if (poll?.enabled && formation?.enabled) throw storageError();
       return Object.freeze({
         version: 1,
-        ...(hasPoll ? { poll: decodePollDraft(value.poll) } : {}),
+        ...(hasPoll ? { poll: poll! } : {}),
+        ...(hasFormation ? { formation: formation! } : {}),
         ...(hasTrading ? { trading: decodeTradingDraft(value.trading) } : {}),
         text: value.text,
         authorMode: value.authorMode as AuthorMode,
@@ -267,10 +285,22 @@ export class DraftStore {
     try {
       if (!boundedText(draft.text.replace(/\r\n/g, '\n'), 0, 10000))
         throw storageError();
-      if (draft.poll && draft.trading) throw storageError();
+      if ((draft.poll || draft.formation) && draft.trading)
+        throw storageError();
+      if (
+        draft.formation &&
+        (!target.startsWith('post:') || target.endsWith(':trading'))
+      )
+        throw storageError();
+      const poll = draft.poll ? decodePollDraft(draft.poll) : undefined;
+      const formation = draft.formation
+        ? decodeFormationDraft(draft.formation)
+        : undefined;
+      if (poll?.enabled && formation?.enabled) throw storageError();
       const checked: Draft = {
         version: 1,
-        ...(draft.poll ? { poll: decodePollDraft(draft.poll) } : {}),
+        ...(poll ? { poll } : {}),
+        ...(formation ? { formation } : {}),
         ...(draft.trading
           ? { trading: decodeTradingDraft(draft.trading) }
           : {}),

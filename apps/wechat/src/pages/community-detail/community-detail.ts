@@ -1,3 +1,9 @@
+import {
+  FormationController,
+  FormationContactsController,
+  initialFormationView,
+  initialFormationContactsView,
+} from '../../community/formation-controller';
 import { tradingLabels } from '../../community/trading-contract';
 import {
   TradingMutationController,
@@ -28,13 +34,19 @@ Page({
     ...initialDetailView(),
     tradingLabels,
     identityOverlay: initialOverlayView(),
+    formationIdentityOverlay: initialOverlayView(),
     pollView: initialPollView(),
+    formationView: initialFormationView(),
+    formationContacts: initialFormationContactsView(),
     interaction: initialDiscussionMutationView(),
     tradingMutation: initialTradingMutationView(),
     tradingContacts: initialTradingContactsView(),
   },
   controller: undefined as DetailController | undefined,
   postId: '',
+  formationController: undefined as FormationController | undefined,
+  formationContactsController: undefined as
+    FormationContactsController | undefined,
   tradingMutations: undefined as TradingMutationController | undefined,
   tradingContactsController: undefined as TradingContactsController | undefined,
   located: null as { commentId: string } | { replyId: string } | null,
@@ -42,6 +54,8 @@ Page({
   pollController: undefined as PollController | undefined,
   identityOverlay: undefined as IdentityOverlayController | undefined,
   overlayTargets: '',
+  formationOverlayTargets: '',
+  formationIdentityOverlay: undefined as IdentityOverlayController | undefined,
   onLoad(
     query: { postId?: string; rootCommentId?: string; replyId?: string } = {},
   ) {
@@ -63,8 +77,12 @@ Page({
     this.tradingContactsController?.dispose();
     this.mutations?.dispose();
     this.pollController?.dispose();
+    this.formationController?.dispose();
+    this.formationContactsController?.dispose();
     this.identityOverlay?.dispose();
+    this.formationIdentityOverlay?.dispose();
     this.overlayTargets = '';
+    this.formationOverlayTargets = '';
     const runtime = getApp<WhaleuApp>().community;
     if (!runtime || !this.postId) {
       this.setData({ error: '帖子地址无效或环境尚未初始化' });
@@ -77,8 +95,81 @@ Page({
       (view) => this.setData({ identityOverlay: view }),
       runtime.privateViews,
     );
+    this.formationIdentityOverlay = new IdentityOverlayController(
+      runtime.sessions,
+      runtime.identityPrivacy,
+      systemClock,
+      (view) => this.setData({ formationIdentityOverlay: view }),
+      runtime.privateViews,
+    );
     this.pollController = new PollController(runtime, this.postId, (view) =>
       this.setData({ pollView: view }),
+    );
+    this.formationContactsController = new FormationContactsController(
+      runtime,
+      (view) => {
+        this.setData({ formationContacts: view });
+        if (view.busy || view.error) {
+          // A fresh contact check may discover parent/permission revocation; clear all older private identity views first.
+          this.formationIdentityOverlay?.clear();
+          this.formationOverlayTargets = '';
+          this.identityOverlay?.clear();
+          this.overlayTargets = '';
+        }
+      },
+      (text) =>
+        new Promise<void>((resolve, reject) => {
+          if (!wx.setClipboardData) {
+            reject(new ClientError('configuration', 'Clipboard unavailable'));
+            return;
+          }
+          wx.setClipboardData({
+            data: text,
+            success: resolve,
+            fail: () =>
+              reject(new ClientError('network', 'Clipboard copy failed')),
+          });
+        }),
+    );
+    this.formationController = new FormationController(
+      runtime,
+      this.postId,
+      (view) => {
+        this.setData({ formationView: view });
+        if (
+          view.busy ||
+          !view.loaded ||
+          view.frozen ||
+          !view.formation ||
+          !this.data.loaded
+        ) {
+          this.formationIdentityOverlay?.clear();
+          this.formationOverlayTargets = '';
+        } else {
+          const targets: DisplayTarget[] = view.formation.members.map(
+            (member) => ({
+              kind: 'formation_member',
+              id: member.id,
+              authorMode: member.author.kind,
+            }),
+          );
+          const key = targets
+            .map((target) => target.id + ':' + target.authorMode)
+            .join(',');
+          if (key !== this.formationOverlayTargets) {
+            this.formationOverlayTargets = key;
+            void this.formationIdentityOverlay?.show(targets);
+          }
+        }
+        // Roster and contact eligibility change only after a current authoritative formation read.
+        if (!view.loaded || !view.formation || !this.data.post)
+          this.formationContactsController?.load(null);
+        else
+          this.formationContactsController?.load({
+            ...this.data.post,
+            component: { kind: 'formation', formation: view.formation },
+          });
+      },
     );
     this.mutations = new DiscussionMutationController(
       runtime,
@@ -181,11 +272,54 @@ Page({
       },
       (post) => {
         void this.pollController?.load(post);
+        void this.formationController?.load(post);
+        this.formationContactsController?.load(null);
         this.tradingContactsController?.load(post);
       },
       this.located,
     );
     void this.controller.load();
+  },
+  onFormationContact(event: {
+    detail: { value: string };
+    currentTarget: { dataset: { field: string } };
+  }) {
+    this.formationController?.setContact(
+      event.currentTarget.dataset.field,
+      event.detail.value,
+    );
+  },
+  onFormationConsent(event: { detail: { value: boolean } }) {
+    this.formationController?.setConsent(event.detail.value);
+  },
+  onFormationJoin() {
+    void this.formationController?.join();
+  },
+  onFormationReceipt() {
+    void this.formationController?.recover();
+  },
+  onFormationRetry() {
+    void this.formationController?.recover(true);
+  },
+  onFormationOwn() {
+    void this.formationController?.inspectOwnMembership();
+  },
+  onFormationCancel() {
+    this.formationController?.cancel();
+  },
+  onFormationContacts() {
+    void this.formationContactsController?.reveal();
+  },
+  onCopyFormationContact(event: {
+    currentTarget: { dataset: { id: string; field: string } };
+  }) {
+    void this.formationContactsController?.copy(
+      event.currentTarget.dataset.id,
+      event.currentTarget.dataset.field,
+    );
+  },
+  onDismissFormationContacts() {
+    this.formationContactsController?.dismiss();
   },
   onTradingResolution() {
     const post = this.data.post;
@@ -322,9 +456,15 @@ Page({
     this.mutations?.dispose();
     this.mutations = undefined;
     this.pollController?.dispose();
+    this.formationController?.dispose();
+    this.formationContactsController?.dispose();
     this.pollController = undefined;
+    this.formationController = undefined;
+    this.formationContactsController = undefined;
     this.identityOverlay?.dispose();
+    this.formationIdentityOverlay?.dispose();
     this.identityOverlay = undefined;
+    this.formationIdentityOverlay = undefined;
   },
   onUnload() {
     this.controller?.dispose();
@@ -336,8 +476,14 @@ Page({
     this.mutations?.dispose();
     this.mutations = undefined;
     this.pollController?.dispose();
+    this.formationController?.dispose();
+    this.formationContactsController?.dispose();
     this.pollController = undefined;
+    this.formationController = undefined;
+    this.formationContactsController = undefined;
     this.identityOverlay?.dispose();
+    this.formationIdentityOverlay?.dispose();
     this.identityOverlay = undefined;
+    this.formationIdentityOverlay = undefined;
   },
 });

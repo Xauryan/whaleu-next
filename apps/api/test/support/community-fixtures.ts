@@ -223,3 +223,6 @@ export async function approveReply(
 
 /** Trading approval uses the identical full-intent hash boundary. */
 export const approveTrading = approvePoll;
+
+/** Formation approval includes chosen contacts and explicit sharing consent. */
+export const approveFormation = approvePoll;

@@ -1,3 +1,4 @@
+import { FormationRepository } from './formation/repository.js';
 import { TradingRepository } from './trading/repository.js';
 import { PollRepository } from './polls/poll.repository.js';
 import { postIntent } from './publication-intent.js';
@@ -37,6 +38,8 @@ export class PublicationService {
     @Inject(PublicationRepository)
     private readonly publications: PublicationRepository,
     @Inject(PollRepository) private readonly polls: PollRepository,
+    @Inject(FormationRepository)
+    private readonly formations: FormationRepository,
     @Inject(TradingRepository) private readonly trading: TradingRepository,
     @Inject(AuthorDisplayService)
     private readonly profiles: AuthorDisplayService,
@@ -117,22 +120,31 @@ export class PublicationService {
           text,
           imageAssetIds,
           tx,
-          body.trading
+          body.component?.kind === 'formation'
             ? {
-                version: 4,
+                version: 5,
                 publicationIntentHash: publicationHash('publish_post', intent),
-                trading: body.trading,
+                component: body.component,
               }
-            : body.component?.kind === 'poll'
+            : body.trading
               ? {
-                  version: 2,
+                  version: 4,
                   publicationIntentHash: publicationHash(
                     'publish_post',
                     intent,
                   ),
-                  component: body.component,
+                  trading: body.trading,
                 }
-              : undefined,
+              : body.component?.kind === 'poll'
+                ? {
+                    version: 2,
+                    publicationIntentHash: publicationHash(
+                      'publish_post',
+                      intent,
+                    ),
+                    component: body.component,
+                  }
+                : undefined,
         );
         if (authorMode === 'named') await this.profiles.prepare(actor, tx);
         const id = randomUUID();
@@ -146,12 +158,17 @@ export class PublicationService {
         if (body.component?.kind === 'poll')
           await this.polls.create(id, body.component, tx);
         if (body.trading) await this.trading.create(id, body.trading, tx);
+        if (body.component?.kind === 'formation') {
+          await this.formations.create(id, actor, body.component, tx);
+        }
         await this.repository.event(
           `post:${id}:created`,
           'post_created',
           id,
           tx,
         );
+        if (body.component?.kind === 'formation')
+          await this.access.actor(token, tx);
         return {
           resourceId: id,
           createdAt: result.rows[0]!.published_at.toISOString(),

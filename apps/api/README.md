@@ -131,3 +131,13 @@ reads, filtered regional/own listings and durable owner status recovery. Chosen
 contacts use a separate authenticated visible-parent endpoint. Ordinary runtime
 safety gates remain unavailable; no real provider, checkout, payment, production
 import or public-profile privacy bypass is added. See [C2C API](../../docs/API_COMMUNITY.md#c2c-trading-listings-development-slice).
+
+## Community post-formation development slice
+
+C2D adds non-trading group-formation composition, creator seating, atomic
+phone-qualified joins, persona-safe public rosters and separately permissioned
+chosen-contact reads. Durable owner receipts/status survive response loss and
+parent deletion without returning contacts or hidden parent content. Normal
+runtime safety adapters remain fail-closed; only synthetic fixtures exercise
+this development slice. See [C2D API](../../docs/API_COMMUNITY.md#c2d-post-group-formation-development-slice)
+for consent, immutable storage, privacy and future import boundaries.

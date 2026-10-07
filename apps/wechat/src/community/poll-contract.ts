@@ -1,3 +1,4 @@
+import { decodeFormation, type Formation } from './formation-contract';
 import { isRecord } from '../api/errors';
 import { isUuid } from '../profile/contract';
 import { boundedText, exact, invalid, timestamp, uuid4 } from './contract';
@@ -34,7 +35,9 @@ export interface Poll {
   };
 }
 export type PostComponent =
-  { readonly kind: 'none' } | { readonly kind: 'poll'; readonly poll: Poll };
+  | { readonly kind: 'none' }
+  | { readonly kind: 'poll'; readonly poll: Poll }
+  | { readonly kind: 'formation'; readonly formation: Formation };
 export interface BallotIntent {
   readonly clientRequestId: string;
   readonly optionIds: readonly string[];
@@ -246,6 +249,12 @@ export function decodePostComponent(
   if (value.kind === 'none') {
     exact(value, ['kind']);
     return Object.freeze({ kind: 'none' });
+  }
+  if (value.kind === 'formation') {
+    exact(value, ['kind', 'formation']);
+    const formation = decodeFormation(value.formation);
+    if (formation.postId !== postId) invalid();
+    return Object.freeze({ kind: 'formation', formation });
   }
   exact(value, ['kind', 'poll']);
   if (value.kind !== 'poll') invalid();

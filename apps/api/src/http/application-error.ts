@@ -52,6 +52,21 @@ const conditions = {
   },
   MEDIA_NOT_READY: { status: 409, message: 'Media is not ready' },
   MEDIA_UNAVAILABLE: { status: 503, message: 'Media is unavailable' },
+  FORMATION_NOT_FOUND: { status: 404, message: 'Formation not found' },
+  FORMATION_FULL: { status: 409, message: 'Formation is full' },
+  FORMATION_ALREADY_JOINED: {
+    status: 409,
+    message: 'Membership already exists',
+  },
+  FORMATION_UNAVAILABLE: { status: 409, message: 'Formation is unavailable' },
+  FORMATION_MEMBERSHIP_REQUIRED: {
+    status: 403,
+    message: 'Membership is required',
+  },
+  FORMATION_MEMBERSHIP_NOT_FOUND: {
+    status: 404,
+    message: 'Membership not found',
+  },
   POLL_NOT_FOUND: { status: 404, message: 'Poll not found' },
   POLL_EXPIRED: { status: 409, message: 'Poll has expired' },
   POLL_ALREADY_VOTED: { status: 409, message: 'A ballot is already recorded' },

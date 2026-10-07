@@ -1,4 +1,9 @@
 import {
+  checkFormationCreator,
+  decodeFormationComponent,
+  type FormationComponent,
+} from './formation-contract';
+import {
   decodeTradingIntent,
   decodeTradingView,
   type TradingIntent,
@@ -146,7 +151,7 @@ export interface Capabilities {
 }
 export interface PostIntent {
   readonly trading?: TradingIntent;
-  readonly component?: PollComponent;
+  readonly component?: PollComponent | FormationComponent;
   readonly clientRequestId: string;
   readonly spaceId: string;
   readonly category: Category;
@@ -423,6 +428,8 @@ export function decodePost(value: unknown): Post {
         (trading.viewer.canSetResolution && !value.viewer.isSelf)))
   )
     invalid();
+  if (component.kind === 'formation')
+    checkFormationCreator(component.formation, author);
   return Object.freeze({
     trading,
     component,
@@ -724,7 +731,9 @@ export function decodePostIntent(value: unknown): PostIntent {
   )
     invalid();
   const component = hasComponent
-    ? decodePollComponent(value.component)
+    ? isRecord(value.component) && value.component.kind === 'formation'
+      ? decodeFormationComponent(value.component)
+      : decodePollComponent(value.component)
     : undefined;
   if (
     (value.category === 'trading') !== hasTrading ||

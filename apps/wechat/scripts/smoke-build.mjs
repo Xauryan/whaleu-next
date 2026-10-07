@@ -933,6 +933,267 @@ app.community.pendingTrading.settle(
   app.community.pendingTrading.load(pollAccount),
   tradingStatusReceipt,
 );
+// Compiled formation composition, durable joining and private contacts share the real page lifecycle.
+const formationMembershipId = 'edededed-eded-4ded-8ded-edededededed';
+const formationCreatorId = 'acacacac-acac-4cac-8cac-acacacacacac';
+let formationJoined = false,
+  formationHidden = false,
+  formationSends = 0,
+  formationContactReads = 0,
+  finishFormationJoin;
+const formationJoinReceipt = {
+  ...pollReceipt,
+  operation: 'join_formation',
+  resourceId: formationMembershipId,
+};
+const formationWire = () => ({
+  id: pollWire.id,
+  postId: pollPostId,
+  capacity: 2,
+  theme: '合成组队',
+  status: formationJoined ? 'full' : 'open',
+  memberCount: formationJoined ? 2 : 1,
+  members: [
+    {
+      id: formationCreatorId,
+      author: pollPostWire().author,
+      isCreator: true,
+      joinedAt: pollReceipt.createdAt,
+      viewer: { isSelf: false },
+    },
+    ...(formationJoined
+      ? [
+          {
+            id: formationMembershipId,
+            author: {
+              kind: 'named',
+              profileId: pollOptionOne,
+              displayName: '合成加入者',
+              avatar: null,
+            },
+            isCreator: false,
+            joinedAt: pollReceipt.createdAt,
+            viewer: { isSelf: true },
+          },
+        ]
+      : []),
+  ],
+  viewer: {
+    isMember: formationJoined,
+    isCreator: false,
+    canJoin: !formationJoined,
+    reason: formationJoined ? 'FORMATION_ALREADY_JOINED' : null,
+    canReadContacts: formationJoined,
+  },
+});
+const formationPostWire = () => ({
+  ...pollPostWire(),
+  component: { kind: 'formation', formation: formationWire() },
+  viewer: { isSelf: false, isLiked: false, canDelete: false, canComment: true },
+});
+app.community.profiles = {
+  profile: async () => ({
+    accountId: pollAccount,
+    preferences: { defaultAnonymousEnabled: true },
+  }),
+};
+app.community.gateway = {
+  capabilities: async () => ({
+    publish: { availability: 'allowed', reason: null },
+    authorModes: ['named', 'anonymous'],
+    canDisableComments: false,
+    postImageLimit: 9,
+    commentImageLimit: 3,
+    mediaAvailability: 'unavailable',
+    commentRules: {
+      unverifiedRequiresNamed: true,
+      ownAnonymousPostForcesAnonymous: true,
+    },
+  }),
+  publishPost: async (payload) => {
+    assert.equal(payload.component.kind, 'formation');
+    assert.equal(payload.component.capacity, 1);
+    assert.equal(payload.component.contactSharing, 'members_v1');
+    assert.equal(payload.component.contacts.wechat, 'synthetic-creator');
+    assert.equal(payload.authorMode, 'anonymous');
+    assert.deepEqual(app.community.pending.load(pollAccount).payload, payload);
+    return tradingPublicationReceipt;
+  },
+  post: async () => {
+    if (formationHidden) throw new Error('Synthetic unavailable parent');
+    return formationPostWire();
+  },
+  comments: async () => ({ items: [], nextCursor: null }),
+  formation: async () => formationWire(),
+  joinFormation: async (_post, payload) => {
+    formationSends++;
+    assert.deepEqual(
+      app.community.pendingFormations.load(pollAccount).payload,
+      payload,
+    );
+    assert.equal(payload.contactSharing, 'members_v1');
+    return new Promise((resolve) => {
+      finishFormationJoin = resolve;
+    });
+  },
+  formationReceipt: async () => formationJoinReceipt,
+  ownFormationMembership: async () => ({
+    postId: pollPostId,
+    membershipId: formationMembershipId,
+    joinedAt: pollReceipt.createdAt,
+    isCreator: false,
+  }),
+  formationContacts: async () => {
+    formationContactReads++;
+    return {
+      postId: pollPostId,
+      members: [
+        {
+          membershipId: formationCreatorId,
+          contacts: {
+            wechat: 'synthetic-received-member-secret',
+            qq: '',
+            phone: '',
+          },
+        },
+      ],
+    };
+  },
+};
+const formationCompose = mountTradingPage(composeModule, {
+  spaceId: tradingSpaceId,
+  category: 'companions',
+});
+await flushTrading();
+assert.equal(formationCompose.data.formationDraft.wechat, '');
+formationCompose.onFormationEnabled({ detail: { value: true } });
+formationCompose.onText({ detail: { value: '合成组队正文' } });
+for (const [field, value] of [
+  ['theme', '一个人的队伍'],
+  ['capacity', '1'],
+  ['wechat', 'synthetic-creator'],
+])
+  formationCompose.onFormationField({
+    currentTarget: { dataset: { field } },
+    detail: { value },
+  });
+assert.equal(formationCompose.data.canSubmit, false);
+formationCompose.onFormationConsent({ detail: { value: true } });
+assert.equal(formationCompose.data.canSubmit, true);
+formationCompose.onSubmit();
+await flushTrading();
+assert.equal(app.community.pending.load(pollAccount), null);
+assert.equal(formationCompose.data.formationDraft.wechat, '');
+formationCompose.onUnload();
+const originalIdentityPrivacy = app.community.identityPrivacy;
+const formationIdentityTargets = [];
+app.community.identityPrivacy = {
+  authorization: async () => ({
+    role: 'developer',
+    management: { global: true, operatingRegionIds: [] },
+    identityView: { allowed: true, maxBatchSize: 20 },
+  }),
+  identities: async (targets) => {
+    assert.ok(targets.length <= 20);
+    formationIdentityTargets.push(...targets);
+    return targets.map((target) => ({
+      target,
+      status: 'available',
+      authorMode: target.id === formationMembershipId ? 'named' : 'anonymous',
+      identity: {
+        accountId: pollAccount,
+        nickname: 'synthetic-developer-overlay-private',
+        avatar: null,
+        studentNumber: null,
+        studentNumberStatus: 'unavailable',
+      },
+    }));
+  },
+};
+const formationPage = mountTradingPage(detailModule, { postId: pollPostId });
+await flushTrading();
+assert.equal(formationPage.data.formationView.canJoin, true);
+assert.equal(
+  formationPage.data.formationIdentityOverlay.developerEnabled,
+  true,
+);
+assert.ok(
+  formationIdentityTargets.some(
+    (target) =>
+      target.kind === 'formation_member' && target.id === formationCreatorId,
+  ),
+);
+assert.equal(
+  formationPage.data.formationIdentityOverlay.items[formationCreatorId]
+    .nickname,
+  'synthetic-developer-overlay-private',
+);
+assert.equal(
+  JSON.stringify([...storage]).includes('synthetic-developer-overlay-private'),
+  false,
+);
+assert.equal(formationPage.data.formationContacts.enabled, false);
+formationPage.onFormationContact({
+  currentTarget: { dataset: { field: 'wechat' } },
+  detail: { value: 'synthetic-join-contact' },
+});
+formationPage.onFormationConsent({ detail: { value: true } });
+formationPage.onFormationJoin();
+formationPage.onFormationJoin();
+await flushTrading();
+assert.equal(formationSends, 1);
+assert.equal(formationPage.data.formationView.frozen, true);
+app.onHide();
+assert.equal(formationPage.data.formationView.formation, null);
+assert.equal(formationPage.data.formationView.contacts.wechat, '');
+formationJoined = true;
+finishFormationJoin(formationJoinReceipt);
+await flushTrading();
+assert.ok(app.community.pendingFormations.load(pollAccount));
+formationHidden = true;
+formationPage.onShow();
+await flushTrading();
+assert.equal(formationPage.data.formationView.frozen, true);
+assert.equal(formationPage.data.formationView.formation, null);
+formationPage.onFormationOwn();
+await flushTrading();
+assert.ok(app.community.pendingFormations.load(pollAccount));
+formationPage.onFormationReceipt();
+await flushTrading();
+assert.equal(app.community.pendingFormations.load(pollAccount), null);
+assert.equal(formationPage.data.formationView.formation, null);
+formationHidden = false;
+formationPage.onReload();
+await flushTrading();
+assert.equal(formationPage.data.formationView.formation.memberCount, 2);
+assert.equal(formationPage.data.formationView.canJoin, false);
+assert.equal(formationPage.data.formationContacts.enabled, true);
+formationPage.onFormationContacts();
+assert.deepEqual(formationPage.data.formationIdentityOverlay.items, {});
+await flushTrading();
+assert.equal(
+  formationPage.data.formationContacts.rows[0].contacts.wechat,
+  'synthetic-received-member-secret',
+);
+assert.equal(
+  JSON.stringify([...storage]).includes('synthetic-received-member-secret'),
+  false,
+);
+formationPage.onCopyFormationContact({
+  currentTarget: { dataset: { id: formationCreatorId, field: 'wechat' } },
+});
+await flushTrading();
+assert.equal(formationContactReads, 2);
+formationHidden = true;
+formationPage.onReload();
+await flushTrading();
+assert.deepEqual(formationPage.data.formationContacts.rows, []);
+assert.equal(formationPage.data.formationContacts.enabled, false);
+app.onHide();
+assert.deepEqual(formationPage.data.formationContacts.rows, []);
+formationPage.onUnload();
+assert.deepEqual(formationPage.data.formationIdentityOverlay.items, {});
+app.community.identityPrivacy = originalIdentityPrivacy;
 app.community.profiles = originalProfiles;
 app.identity.sessions.logout();
 app.community.gateway = originalCommunityGateway;
@@ -954,5 +1215,5 @@ app.onHide();
 assert.equal(privacyCleared, true);
 assert.equal(calls, 0);
 console.log(
-  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification durable-poll, reply-publication, discussion-interaction, private trading contacts, exact trading publication and immutable trading-resolution app-hide clearing/recovery, and configuration gating',
+  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification durable-poll, reply-publication, discussion-interaction, private trading contacts, exact trading publication and immutable trading-resolution app-hide clearing/recovery, formation creation/join/member-contact fresh-copy/hidden-parent recovery/audited roster overlay, and configuration gating',
 );
