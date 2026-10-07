@@ -23,7 +23,11 @@ export function normalizeOrigin(origin: string): string {
   }
   return origin.replace(/\/$/, '').toLowerCase();
 }
-export function endpointUrl(origin: string, path: string): string {
+export function endpointUrl(
+  origin: string,
+  path: string,
+  query?: Readonly<Record<string, string | number>>,
+): string {
   if (
     !/^\/[a-zA-Z0-9/_-]*$/.test(path) ||
     path.startsWith('//') ||
@@ -34,5 +38,18 @@ export function endpointUrl(origin: string, path: string): string {
       'An API path must be a root-relative path without a query or fragment',
     );
   }
-  return `${origin}${path}`;
+  const parameters = Object.entries(query ?? {}).map(([key, value]) => {
+    if (
+      !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(key) ||
+      (typeof value !== 'string' &&
+        (typeof value !== 'number' || !Number.isFinite(value)))
+    )
+      throw new ClientError('configuration', 'Invalid API query');
+    try {
+      return `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`;
+    } catch {
+      throw new ClientError('configuration', 'Invalid API query encoding');
+    }
+  });
+  return `${origin}${path}${parameters.length ? `?${parameters.join('&')}` : ''}`;
 }

@@ -1,0 +1,48 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 我的</view>
+  <view class="title">让校园更懂你</view>
+  <view class="intro">个人资料与偏好仅属于当前登录账号。离开页面会放弃未保存的编辑。</view>
+  <view class="status-panel">
+    <view class="status" aria-role="status">{{status}}</view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+    <view wx:if="{{requestId}}" class="request-id" selectable="true">问题编号：{{requestId}}</view>
+    <button wx:if="{{loading || saving}}" class="secondary" bindtap="onCancelOperation">{{saving ? '停止等待保存结果' : '取消加载'}}</button>
+    <button wx:if="{{!loading &amp;&amp; !saving &amp;&amp; (!loaded || error)}}" class="secondary" bindtap="onReload" disabled="{{!hasSession || !configured}}">{{needsReload || profileDirty || preferencesDirty ? '重新加载并放弃未保存编辑' : '重新加载'}}</button>
+    <navigator wx:if="{{!hasSession}}" class="text-link" url="/pages/login/login" open-type="reLaunch">前往登录</navigator>
+  </view>
+  <block wx:if="{{loaded}}">
+    <view class="card">
+      <view class="card-title">我的校园</view>
+      <view class="campus-name">{{selectedCampusName}}</view>
+      <view class="detail">这里是你选择浏览的校园，不代表已通过学生身份认证，也不会授予管理权限。</view>
+      <navigator wx:if="{{!profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/campus/campus">选择或切换校园 →</navigator>
+      <view wx:else class="hint">切换校园前，请保存或取消当前编辑</view>
+    </view>
+    <view class="card">
+      <view class="card-title">个人资料</view>
+      <label class="field-label" for="nickname">昵称</label>
+      <input id="nickname" class="input" value="{{nickname}}" placeholder="填写你的昵称" maxlength="-1" disabled="{{loading || saving || needsReload}}" bindinput="onNickname" />
+      <view class="hint">1–20 个中文、字母、数字或 _ # &amp; @ . + -</view>
+      <label class="field-label" for="bio">个人简介</label>
+      <textarea id="bio" class="textarea" value="{{bio}}" placeholder="向校园介绍一下自己" maxlength="-1" disabled="{{loading || saving || needsReload}}" bindinput="onBio" />
+      <view class="counter">{{bioLength}} / 100 字 · 最多 5 次换行</view>
+      <view wx:if="{{validationError}}" class="error" aria-role="alert">{{validationError}}</view>
+      <button class="primary" bindtap="onSaveProfile" loading="{{saving}}" disabled="{{!profileDirty || loading || saving || needsReload}}">保存个人资料</button>
+    </view>
+    <view class="card">
+      <view class="card-title">使用偏好</view>
+      <view class="detail">这些设置从服务端读取，点击保存后生效。对应业务页面和消息投递仍在开发中。</view>
+      <view wx:for="{{preferences}}" wx:key="key" class="preference-row">
+        <view class="preference-text">
+          <label class="preference-label" for="{{item.key}}">{{item.label}}</label>
+          <view class="hint">{{item.hint}}</view>
+        </view>
+        <switch id="{{item.key}}" checked="{{item.checked}}" color="#195a93" data-key="{{item.key}}" disabled="{{loading || saving || needsReload}}" bindchange="onPreference" />
+      </view>
+      <button class="primary" bindtap="onSavePreferences" loading="{{saving}}" disabled="{{!preferencesDirty || loading || saving || needsReload}}">保存使用偏好</button>
+    </view>
+    <button wx:if="{{profileDirty || preferencesDirty}}" class="secondary" bindtap="onCancelEdits" disabled="{{loading || saving}}">取消未保存的修改</button>
+  </block>
+  <view class="footnote">头像与媒体上传、手机号与学生认证、公开主页、主题外观及其他业务功能待接入。此开发构建不代表完整功能对齐。</view>
+  <navigator class="text-link" url="/pages/login/login" open-type="reLaunch">返回登录与会话管理</navigator>
+</view>

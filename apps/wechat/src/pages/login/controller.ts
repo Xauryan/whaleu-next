@@ -67,6 +67,7 @@ export class LoginController {
   private view = initialLoginView();
   private generation = 0;
   private disposed = false;
+  private verifiedEpoch: number | undefined;
   private logoutPending = false;
   private cancellation: Cancellation | undefined;
   constructor(
@@ -82,6 +83,22 @@ export class LoginController {
         ? { error: friendlyError(runtime.startupError) }
         : {}),
     });
+  }
+  /** A business page may have invalidated login while this page was hidden. */
+  syncSession(): void {
+    if (this.disposed || this.view.busy) return;
+    const session = this.runtime.sessions.snapshot();
+    const credentials = session.credentials;
+    if (
+      this.view.hasLocalSession !== !!credentials ||
+      (this.view.verified &&
+        (this.verifiedEpoch !== session.epoch ||
+          this.view.accountId !== credentials?.accountId ||
+          this.view.sessionId !== credentials?.sessionId))
+    )
+      this.showChangedSession();
+    else if (this.view.verified && credentials)
+      this.update({ expiresAt: new Date(credentials.expiresAt).toISOString() });
   }
   async login(): Promise<void> {
     if (this.disposed || this.view.busy) return;
@@ -248,6 +265,7 @@ export class LoginController {
         'Session identity does not match credentials',
       );
     }
+    this.verifiedEpoch = epoch;
     this.update({
       verified: true,
       hasLocalSession: true,

@@ -3,6 +3,15 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  CAMPUS_NOT_FOUND: { status: 404, message: 'Campus not found' },
+  CAMPUS_UNAVAILABLE: {
+    status: 409,
+    message: 'Campus is not available for selection',
+  },
+  PROFILE_REVISION_CONFLICT: {
+    status: 409,
+    message: 'Profile changed; reload before saving',
+  },
   AUTH_NOT_CONFIGURED: {
     status: 503,
     message: 'Authentication is not configured',

@@ -18,10 +18,12 @@ export interface Endpoint<T> {
   /** Opt in only after verifying auth rejection precedes side effects (or server idempotency). */
   readonly authReplay: 'once' | 'never';
   readonly decode: Decoder<T>;
+  readonly successStatus?: number;
 }
 export interface RequestOptions {
   readonly body?: Json;
   readonly cancellation?: Cancellation;
+  readonly query?: Readonly<Record<string, string | number>>;
 }
 
 export class ApiClient {
@@ -43,7 +45,7 @@ export class ApiClient {
     const owner = this.sessions.snapshot();
     if (endpoint.authentication === 'required' && !owner.credentials)
       throw new ClientError('auth-required', 'Login is required');
-    const url = endpointUrl(this.origin, endpoint.path);
+    const url = endpointUrl(this.origin, endpoint.path, options.query);
     // Snapshot input before awaiting. Replays must not silently send mutated caller state.
     let body: Json | undefined;
     try {
@@ -101,6 +103,12 @@ export class ApiClient {
         await cancellable(this.auth.refresh(sent), options.cancellation);
         continue;
       }
+      if (
+        !failure &&
+        endpoint.successStatus !== undefined &&
+        response.status !== endpoint.successStatus
+      )
+        throw new ClientError('protocol', 'Unexpected endpoint success status');
       return decodeResponse(response, endpoint.decode);
     }
     throw new ClientError('auth-required', 'Login is required');

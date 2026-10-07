@@ -55,6 +55,10 @@ export function responseError(response: HttpResponse): ClientError | null {
     RATE_LIMITED: 429,
     PHONE_VERIFICATION_REQUIRED: 403,
     CONTENT_REVIEW_REJECTED: 422,
+    BAD_REQUEST: 400,
+    PROFILE_REVISION_CONFLICT: 409,
+    CAMPUS_UNAVAILABLE: 409,
+    CAMPUS_NOT_FOUND: 404,
   };
   if (
     serverCode &&

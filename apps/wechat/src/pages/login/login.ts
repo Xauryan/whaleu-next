@@ -14,6 +14,9 @@ Page({
       this.setData({ ...view }),
     );
   },
+  onShow() {
+    this.controller?.syncSession();
+  },
   onLogin() {
     void this.controller?.login();
   },

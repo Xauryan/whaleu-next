@@ -2,15 +2,15 @@
 
 The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platform-native clients. This is a source-grounded implementation checklist, not a claim that the new application is ready. This is a greenfield implementation: preserve all business capabilities and production data, while redesigning module boundaries, schema and API contracts. Legacy API compatibility and simultaneous old/new production operation are out of scope. Old route declarations are evidence of business behavior, not an API design to copy.
 
-**Status for every capability below: NOT IMPLEMENTED.** Update a row only after code, tests and relevant client flow are verified. A framework scaffold, placeholder screen or endpoint stub is not an implemented feature. Features shown in older source but not proven active remain in scope for clarification rather than silently being discarded.
+**Status meanings:** NOT IMPLEMENTED means the capability is not delivered; PARTIAL means a tested subset exists with explicit remaining work. Check a row only after the whole capability and its relevant native-client flows are verified. A framework scaffold, placeholder screen or endpoint stub is not an implemented feature. Features shown in older source but not proven active remain in scope for clarification rather than silently being discarded.
 
 ## Accounts, schools and personal settings
 
-- [ ] NOT IMPLEMENTED — Login/session: WeChat login, account creation/profile loading, access/refresh lifecycle, retry recovery, account switching, sign-out and session-scoped client state
+- [ ] PARTIAL — Login/session: WeChat login, account creation/profile loading, access/refresh lifecycle, retry recovery, account switching, sign-out and session-scoped client state. The new server login/refresh/session/logout flow and native login controller have passed synthetic and PostgreSQL tests; real provider/device acceptance and complete profile loading remain outstanding
 - [ ] NOT IMPLEMENTED — Identity verification: student application, application detail/status, image submission and review; email verification; institutional sign-in; phone verification/binding; verification guidance
-- [ ] NOT IMPLEMENTED — School identity: school search and district selection; selected school versus verified institution; identity campus; related campuses; global university-city context; permission-sensitive switching
-- [ ] NOT IMPLEMENTED — Public/personal profile: nickname, biography, avatar/default avatar, profile banner, school/UID display, titles, public profile, posts and trading listings, profile-post privacy
-- [ ] NOT IMPLEMENTED — Preferences: system/manual theme, anonymous posting/comment defaults, anonymous-private-message preference, notification controls, guide/button settings, remembered publish contact/location choices
+- [ ] PARTIAL — School identity: school search and district selection; selected school versus verified institution; identity campus; related campuses; global university-city context; permission-sensitive switching
+- [ ] PARTIAL — Public/personal profile: nickname, biography, avatar/default avatar, profile banner, school/UID display, titles, public profile, posts and trading listings, profile-post privacy
+- [ ] PARTIAL — Preferences: system/manual theme, anonymous posting/comment defaults, anonymous-private-message preference, notification controls, guide/button settings, remembered publish contact/location choices
 - [ ] NOT IMPLEMENTED — Experience: daily sign-in, experience records, daily limits/tasks, levels, title/color display, level-up notification, rankings and administrator title maintenance
 
 ## Campus feed and publishing
@@ -68,3 +68,10 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 This initial checklist was derived from the legacy mini-program page/subpackage manifest, frontend modules and the full controller declaration inventory, plus the existing standalone regression suite. It intentionally contains no production identifiers, credentials, private deployment URLs or customer data.
 
 All capabilities still need acceptance cases tied to real implementation commits. External-service availability and apparently incomplete legacy entries require confirmation; they are not grounds for silently reducing the feature set. An errand reward amount does not by itself establish an online payment feature.
+
+## Verified implementation checkpoints
+
+- Foundation and identity snapshot `806a2b00429e12ef4eacc3ab1574746393937edb`: 60 API tests, 96 native-client tests, and 22 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37628632248). This is not full product parity or a production rollout.
+- PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by that checkpoint.
+
+Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Operating-region mapping and actual community feed switching, verified identity/admin scope, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.

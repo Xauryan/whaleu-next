@@ -1,0 +1,28 @@
+import { Controller, Get, Inject, Module, Query } from '@nestjs/common';
+import { DatabaseModule } from '../database/database.js';
+import { SchemaValidationPipe } from '../http/validation.js';
+import { campusQuerySchema } from './contracts.js';
+import type { CampusPage, CampusQuery } from './contracts.js';
+import { CampusRepository } from './campus.repository.js';
+import { CampusService } from './campus.service.js';
+
+@Controller('v1/campuses')
+export class CampusController {
+  constructor(
+    @Inject(CampusService) private readonly campuses: CampusService,
+  ) {}
+  @Get()
+  list(
+    @Query(new SchemaValidationPipe(campusQuerySchema)) query: CampusQuery,
+  ): Promise<CampusPage> {
+    return this.campuses.list(query);
+  }
+}
+
+@Module({
+  imports: [DatabaseModule],
+  controllers: [CampusController],
+  providers: [CampusRepository, CampusService],
+  exports: [CampusService],
+})
+export class CampusModule {}

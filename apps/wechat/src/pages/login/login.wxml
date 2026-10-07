@@ -1,7 +1,7 @@
 <view class="screen">
   <view class="eyebrow">WHALEU · 开发构建</view>
   <view class="title">连接你的鲸鱼校园</view>
-  <view class="intro">原生微信登录与会话管理。完整业务功能仍在开发中，此构建不可作为正式版本发布。</view>
+  <view class="intro">原生微信登录、校园选择与个人资料。完整业务功能仍在开发中，此构建不可作为正式版本发布。</view>
 
   <view class="card">
     <view class="card-title">登录状态</view>
@@ -21,6 +21,8 @@
 
     <button wx:if="{{!hasLocalSession &amp;&amp; !signingIn}}" class="primary" bindtap="onLogin" disabled="{{!configured || busy}}" loading="{{busy}}">使用微信登录</button>
     <button wx:if="{{hasLocalSession}}" class="primary" bindtap="onCheckSession" disabled="{{!configured || busy}}" loading="{{busy}}">验证当前会话</button>
+    <navigator wx:if="{{verified &amp;&amp; !busy}}" class="business-link" url="/pages/profile/profile">我的资料与偏好 →</navigator>
+    <navigator wx:if="{{verified &amp;&amp; !busy}}" class="business-link" url="/pages/campus/campus">选择校园 →</navigator>
     <button wx:if="{{hasLocalSession || signingIn}}" class="secondary" bindtap="onLogout">{{signingIn ? '取消登录' : '退出登录'}}</button>
   </view>
 

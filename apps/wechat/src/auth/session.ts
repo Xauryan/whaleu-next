@@ -16,6 +16,7 @@ export class SessionStore {
   private epoch = 0;
   private revision = 0;
   private credentials: Readonly<Credentials> | null = null;
+  private readonly listeners = new Set<() => void>();
   constructor(
     private readonly storage?: Storage,
     private readonly storageKey = STORAGE_KEY,
@@ -24,6 +25,22 @@ export class SessionStore {
     ) => Credentials = validateCredentials,
   ) {}
 
+  /** Account-bound pages immediately clear private drafts when login ownership changes. */
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+  private notify(): void {
+    for (const listener of this.listeners) {
+      try {
+        listener();
+      } catch {
+        /* Rendering cannot interrupt credential invalidation. */
+      }
+    }
+  }
   snapshot(): SessionTicket {
     return Object.freeze({
       epoch: this.epoch,
@@ -53,6 +70,7 @@ export class SessionStore {
       if (!isRecord(saved) || saved.version !== 1)
         throw new ClientError('protocol', 'Invalid saved session');
       this.credentials = this.validate(saved.credentials);
+      this.notify();
     } catch {
       this.credentials = null;
       try {
@@ -109,6 +127,7 @@ export class SessionStore {
     this.epoch += 1;
     this.revision = 0;
     this.credentials = null;
+    this.notify();
   }
   private save(credentials: Credentials): void {
     try {
@@ -123,5 +142,6 @@ export class SessionStore {
       throw new ClientError('storage', 'Login could not be saved');
     }
     this.credentials = credentials;
+    this.notify();
   }
 }

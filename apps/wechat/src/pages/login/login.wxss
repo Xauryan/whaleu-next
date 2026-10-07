@@ -101,3 +101,10 @@
   line-height: 1.8;
   margin-top: 20rpx;
 }
+
+.business-link {
+  display: block;
+  padding: 24rpx 0 8rpx;
+  color: #195a93;
+  font-size: 28rpx;
+}

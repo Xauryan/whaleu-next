@@ -64,7 +64,34 @@ assert.equal(/accessToken|refreshToken/.test(wxml), false);
 if (!configured) await page.controller.login();
 assert.equal(page.data.verified, false);
 page.onUnload();
+for (const route of ['pages/profile/profile', 'pages/campus/campus']) {
+  require(path.join(dist, `${route}.js`));
+  const current = page;
+  current.setData = (data) => {
+    current.data = { ...current.data, ...data };
+  };
+  current.onShow();
+  assert.equal(current.data.loaded, false);
+  assert.ok(current.data.error);
+  const template = readFileSync(path.join(dist, `${route}.wxml`), 'utf8');
+  for (const match of template.matchAll(
+    /(?:bind|catch)(?:tap|input|change|confirm)="([^"]+)"/g,
+  ))
+    assert.equal(typeof current[match[1]], 'function', `${route}: ${match[1]}`);
+  assert.equal(/accessToken|refreshToken/.test(template), false);
+  for (const match of template.matchAll(/url="\/([^"]+)"/g))
+    assert.ok(
+      config.pages.includes(match[1]),
+      `Unregistered navigation: ${match[1]}`,
+    );
+  current.onHide();
+  assert.equal(current.controller, undefined);
+  assert.equal(current.data.loaded, false);
+  current.onShow();
+  assert.ok(current.controller);
+  current.onUnload();
+}
 assert.equal(calls, 0);
 console.log(
-  'Native build smoke passed: local bootstrap, page handlers, assets, and configuration gating',
+  'Native build smoke passed: local bootstrap, all identity/campus/profile handlers, hide/show cancellation, assets, navigation, and configuration gating',
 );

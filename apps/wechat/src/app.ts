@@ -9,7 +9,7 @@ export interface WhaleuApp {
 App<WhaleuApp>({
   identity: undefined,
   globalData: {
-    implementationStage: 'native-identity-slice',
+    implementationStage: 'native-campus-profile-slice',
     featureParityVerified: false,
   },
   onLaunch() {

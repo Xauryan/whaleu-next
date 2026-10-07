@@ -1,5 +1,10 @@
 {
-  "pages": ["pages/login/login", "pages/status/status"],
+  "pages": [
+    "pages/login/login",
+    "pages/status/status",
+    "pages/profile/profile",
+    "pages/campus/campus"
+  ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",
     "navigationBarBackgroundColor": "#f3f6fb",

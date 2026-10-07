@@ -1,3 +1,5 @@
+import { CampusModule } from './campus/campus.module.js';
+import { ProfileModule } from './profile/profile.module.js';
 import { Module } from '@nestjs/common';
 import type { DynamicModule } from '@nestjs/common';
 import { ConfigurationModule } from './config/config.js';
@@ -16,6 +18,8 @@ export class AppModule {
         ObservabilityModule,
         HealthModule,
         IdentityModule,
+        CampusModule,
+        ProfileModule,
       ],
     };
   }

@@ -459,3 +459,31 @@ test('revoked-session cleanup failure stops loading and warns that stored creden
   assert.match(s.view().status, /设备存储需要处理/);
   assert.match(s.view().error, /清理小程序缓存/);
 });
+test('returning from a business page clears stale verified login UI after terminal auth cleanup', async () => {
+  const s = setup(true);
+  s.transport.reply(wireSession());
+  await s.controller.checkSession();
+  assert.equal(s.view().verified, true);
+  s.sessions.logout();
+  s.controller.syncSession();
+  assert.equal(s.view().verified, false);
+  assert.equal(s.view().hasLocalSession, false);
+  assert.equal(s.view().accountId, '');
+});
+test('returning after a same-session refresh updates expiry, but a newer login epoch must be reverified', async () => {
+  const s = setup(true);
+  s.transport.reply(wireSession());
+  await s.controller.checkSession();
+  const refreshed = {
+    ...wireCredentials('b'),
+    expiresAt: wireCredentials().expiresAt + 60000,
+  };
+  s.sessions.rotate(s.sessions.snapshot(), refreshed);
+  s.controller.syncSession();
+  assert.equal(s.view().verified, true);
+  assert.equal(s.view().expiresAt, new Date(refreshed.expiresAt).toISOString());
+  s.sessions.completeLogin(s.sessions.beginLogin(), wireCredentials('c'));
+  s.controller.syncSession();
+  assert.equal(s.view().verified, false);
+  assert.equal(s.view().expiresAt, '');
+});

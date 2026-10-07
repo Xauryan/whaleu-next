@@ -1,0 +1,54 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 校园</view>
+  <view class="title">找到你的校园</view>
+  <view class="intro">选择浏览校园，与学生身份认证分开。校园列表完全由服务端提供。</view>
+  <view class="card">
+    <view class="field-label">当前选择的校园</view>
+    <view class="campus-name">{{selectedName}}</view>
+    <view class="hint">选择校园不会授予认证身份或管理权限；身份认证功能待接入</view>
+  </view>
+  <view class="card">
+    <label class="field-label" for="campus-search">校园名称</label>
+    <input id="campus-search" class="input" value="{{q}}" placeholder="输入学校或校区名称" maxlength="100" confirm-type="search" bindinput="onQuery" bindconfirm="onSearch" disabled="{{loading || saving}}" />
+    <label class="field-label" for="district-search">地区（选填）</label>
+    <input id="district-search" class="input" value="{{district}}" placeholder="填写地区以缩小范围" maxlength="100" confirm-type="search" bindinput="onDistrict" bindconfirm="onSearch" disabled="{{loading || saving}}" />
+    <button class="primary" bindtap="onSearch" disabled="{{!hasSession || !configured || loading || saving}}" loading="{{loading}}">搜索校园</button>
+  </view>
+  <view class="status-panel">
+    <view class="status" aria-role="status">{{status}}</view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+    <view wx:if="{{requestId}}" class="request-id" selectable="true">问题编号：{{requestId}}</view>
+    <button wx:if="{{loading || saving}}" class="secondary" bindtap="onCancelOperation">{{saving ? '停止等待保存结果' : '取消加载'}}</button>
+    <button wx:if="{{!loading &amp;&amp; !saving &amp;&amp; (!loaded || error)}}" class="secondary" bindtap="onReload" disabled="{{!hasSession || !configured}}">重新加载最新校园与选择</button>
+    <navigator wx:if="{{!hasSession}}" class="text-link" url="/pages/login/login" open-type="reLaunch">前往登录</navigator>
+  </view>
+  <block wx:if="{{loaded}}">
+    <view wx:if="{{!items.length &amp;&amp; !loading}}" class="card empty">
+      <view class="card-title">没有找到校园</view>
+      <view class="detail">试试其他名称或清空地区。如果列表尚未配置，请联系开发者。</view>
+    </view>
+    <view wx:if="{{items.length}}" class="results-heading">共 {{total}} 个校园 · 第 {{page}} 页</view>
+    <view wx:for="{{items}}" wx:key="id" class="card campus-card {{candidateId === item.id ? 'selected-card' : ''}}">
+      <view class="card-title">{{item.fullName}}</view>
+      <view class="detail">{{item.institutionName}} · {{item.district}}</view>
+      <view wx:if="{{item.shortName}}" class="hint">简称：{{item.shortName}}</view>
+      <view wx:if="{{selectedId === item.id}}" class="badge">当前校园</view>
+      <view wx:if="{{!item.isActive}}" class="hint">暂不可选择</view>
+      <button class="secondary" data-id="{{item.id}}" bindtap="onChoose" disabled="{{!item.isActive || loading || saving || needsReload || searchDirty}}">{{candidateId === item.id ? '已选中，等待确认' : '选择此校园'}}</button>
+    </view>
+    <view class="pagination">
+      <button class="secondary" bindtap="onPrevious" disabled="{{!hasPrevious || loading || saving || searchDirty}}">上一页</button>
+      <button class="secondary" bindtap="onNext" disabled="{{!hasNext || loading || saving || searchDirty}}">下一页</button>
+    </view>
+    <view wx:if="{{searchDirty}}" class="hint">搜索条件已修改，请点击搜索更新结果</view>
+    <view wx:if="{{candidateId}}" class="card confirm-card">
+      <view class="field-label">本次准备选择</view>
+      <view class="campus-name">{{candidateName}}</view>
+      <view class="detail">确认后只更新当前账号的浏览校园。此操作不会申请或变更学生认证。</view>
+      <button class="primary" bindtap="onSave" loading="{{saving}}" disabled="{{candidateId === selectedId || loading || saving || needsReload || searchDirty}}">确认并保存校园</button>
+      <button class="secondary" bindtap="onCancelSelection" disabled="{{saving}}">取消本次选择</button>
+    </view>
+  </block>
+  <view class="footnote">当前页面已接入新校园与个人资料 API。校园社区、跨校浏览权限、身份认证及其余原有业务功能仍待实现。</view>
+  <navigator class="text-link" open-type="navigateBack">返回上一页</navigator>
+</view>
