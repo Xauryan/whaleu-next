@@ -40,6 +40,20 @@ export const reasonMessage = (code: string | null): string =>
     BLOCK_REVISION_CONFLICT: '屏蔽状态已变化，请刷新后再操作',
     SAFETY_UNAVAILABLE: '安全设置服务尚未就绪，请稍后重试',
     SAFETY_ACTION_RESTRICTED: '当前账号暂不能修改安全设置',
+    SYSTEM_NOTICES_UNAVAILABLE: '系统通知服务尚未就绪，请稍后重试',
+    REPORT_TARGET_UNAVAILABLE: '此内容当前不可查看，进度不可用',
+    REPORT_SELF_NOT_ALLOWED: '不能举报自己的帖子、评论或回复',
+    REPORT_ALREADY_REPORTED: '你已举报过此内容，每个账号只能举报一次',
+    REPORTING_CLOSED: '此帖已经进入过陪审，不再接受新举报',
+    REPORT_SCOPE_UNAVAILABLE: '当前管理权限的内容范围尚不能确认，举报暂不可用',
+    AFFILIATION_VERIFICATION_REQUIRED:
+      '此操作需要有效的所属机构认证，不要求学号认证',
+    VERIFICATION_UNAVAILABLE: '手机号或所属机构认证状态暂不可用，请稍后重试',
+    AUTHORIZATION_UNAVAILABLE: '当前授权状态暂不可用，请稍后重试',
+    JURY_NOT_FOUND: '此陪审当前不可用，请重新查询进度',
+    JURY_INELIGIBLE: '帖子作者和已举报此帖的人不能参与陪审',
+    JURY_ALREADY_VOTED: '你已提交陪审意见，不能修改或撤回',
+    JURY_CLOSED: '陪审已截止或结束，不能再提交意见',
     RATE_LIMITED: '操作过于频繁，请稍后重试',
     DISCUSSION_RESTART_REQUIRED: '讨论排序已变化，请重新加载，旧分页已清除',
     REPLY_NOT_FOUND: '回复不存在或当前不可查看',
@@ -140,7 +154,7 @@ export abstract class CommunityController<V extends CommunityView> {
           this.update({
             hasSession: !!this.owner.credentials,
             configured: !!runtime.gateway,
-            status: '屏蔽设置已更新，正在重新核验内容',
+            status: '安全状态已更新，正在重新核验内容',
           } as Partial<V>);
         }
         this.onSafetyInvalidated(previous);

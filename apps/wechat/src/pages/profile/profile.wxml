@@ -1,4 +1,4 @@
-<view class="screen">
+<view class="screen"><navigator class="link" url="/pages/report-progress/report-progress">举报与陪审结果恢复 →</navigator><navigator class="link" url="/pages/system-notices/system-notices">我的系统通知 →</navigator>
   <view class="eyebrow">WHALEU · 我的</view>
   <view class="title">让校园更懂你</view>
   <view class="intro">个人资料与偏好仅属于当前登录账号。离开页面会放弃未保存的编辑。</view>

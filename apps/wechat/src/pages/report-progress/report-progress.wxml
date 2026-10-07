@@ -1,0 +1,6 @@
+<import src="../../community/report-recovery.wxml" /><import src="../../community/report-progress.wxml" />
+<view class="screen"><view class="eyebrow">WHALEU · 内容安全</view><view class="title">举报与陪审</view><view wx:if="{{addressError}}" class="error">{{addressError}}</view>
+<template is="report-recovery" data="{{report}}" /><template is="jury-vote-recovery" data="{{juryVote}}" />
+<view class="card"><view class="section-title">本账号原请求</view><view class="notice">举报：{{report.status}}</view><view class="notice">陪审：{{juryVote.status}}</view><button bindtap="onReloadRecovery" disabled="{{report.busy || juryVote.busy}}">重新读取本地恢复记录</button><view class="notice">此入口不需要打开原内容，也不要求重新认证手机号或所属机构；只查询当前账号自己的原回执。</view></view>
+<block wx:if="{{hasTarget}}"><template is="report-progress" data="{{reportProgress,juryVote}}" /><button wx:if="{{reportProgress.loaded &amp;&amp; !reportProgress.progress.isSelf}}" bindtap="onReport" disabled="{{!reportProgress.canReport || report.busy || report.frozen}}">举报此内容</button></block>
+<navigator wx:if="{{!report.hasSession}}" class="link" url="/pages/login/login">登录后继续 →</navigator><navigator class="link" url="/pages/system-notices/system-notices">我的系统通知 →</navigator><navigator class="link" url="/pages/community-feed/community-feed">回到校园社区 →</navigator></view>

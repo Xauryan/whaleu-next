@@ -1,0 +1,23 @@
+<template name="report-progress">
+  <view class="card"><view class="section-title">举报与陪审进度</view><view class="status">{{reportProgress.status}}</view><view wx:if="{{reportProgress.error}}" class="error">{{reportProgress.error}}</view><button bindtap="onReloadReportProgress" disabled="{{reportProgress.busy}}">单独刷新进度</button><button wx:if="{{reportProgress.busy}}" bindtap="onCancelReportProgress">停止查询进度</button>
+    <view wx:if="{{reportProgress.loaded &amp;&amp; reportProgress.progress}}">
+      <view class="meta">已受理 {{reportProgress.progress.reportCount}} 人举报{{reportProgress.progress.hasReported ? ' · 你已举报' : ''}}{{reportProgress.progress.isSelf ? ' · 这是你发布的内容' : ''}}</view>
+      <view wx:if="{{reportProgress.progress.kind === 'post'}}">
+        <view class="meta">累计有效举报权重 {{reportProgress.progress.effectiveWeight}} / 5。人数与权重分别统计，权限及范围由服务端核验。</view>
+        <view wx:if="{{!reportProgress.progress.jury}}" class="notice">当前尚未开启陪审</view>
+        <view wx:else>
+          <view class="section-title">帖子陪审 · {{reportProgress.progress.jury.state === 'kept' ? '已结束：保留' : reportProgress.progress.jury.state === 'settlement_pending' ? '已截止，等待服务端结算' : '进行中'}}</view>
+          <view class="meta">截止：{{reportProgress.progress.jury.deadline}}</view>
+          <view wx:if="{{reportProgress.canVote}}"><button data-vote="keep" bindtap="onJuryChoice" disabled="{{juryVote.busy || juryVote.frozen}}">保留帖子</button><button data-vote="remove" bindtap="onJuryChoice" disabled="{{juryVote.busy || juryVote.frozen}}">删除帖子</button><view class="notice">请先独立作出判断，提交后可查看票数。</view></view>
+          <view wx:if="{{reportProgress.showTallies}}" class="meta">保留 {{reportProgress.progress.jury.keepVotes}} 票 · 删除 {{reportProgress.progress.jury.removeVotes}} 票</view>
+          <view wx:if="{{reportProgress.progress.jury.ownVote}}" class="notice">你的意见：{{reportProgress.progress.jury.ownVote === 'keep' ? '保留' : '删除'}}，不可修改或撤回</view><view wx:if="{{reportProgress.voteReason}}" class="notice">{{reportProgress.voteReason}}</view>
+        </view>
+        <view class="notice">最多 11 人参与，任一方达到 6 票提前结束。24 小时截止时仅删除票多于保留票才删除，平票或零票保留。作者与所有举报人不能投票；结束后不会重开。页面计时只刷新，结算由服务端完成。</view>
+      </view>
+      <view wx:else class="notice">{{reportProgress.progress.review === 'provider_disabled' ? '外部审核服务未启用：已保留待审核记录，尚未审核' : '当前没有举报触发的审核记录'}}。评论和回复不进入陪审，第 10 位不同账号举报时由服务端删除。</view>
+      <view wx:if="{{reportProgress.reportReason}}" class="notice">{{reportProgress.reportReason}}</view>
+    </view>
+    <view wx:else class="notice">未获得有效进度，不能认定为没有举报或没有陪审</view>
+    <view class="notice">查询进度只需当前会话与内容查看权限。举报和陪审需要有效手机号、所属机构认证与安全权限；不要求学号认证。资格提示仅供参考，提交时重新核验。</view>
+  </view>
+</template>

@@ -100,6 +100,21 @@ export class PublicationRepository {
           code: error.code,
         };
       }
+      if (receipt.outcome === 'created')
+        await tx.query(
+          'INSERT INTO whaleu_community.report_origins(kind,target_id,owner_account_id,provenance,source_request_id) VALUES($1,$2,$3,$4,$5)',
+          [
+            operation === 'publish_post'
+              ? 'post'
+              : operation === 'publish_comment'
+                ? 'comment'
+                : 'reply',
+            receipt.resourceId,
+            actor,
+            'native_publication',
+            requestId,
+          ],
+        );
       await tx.query('RELEASE SAVEPOINT publication_work');
       await tx.query(
         'UPDATE whaleu_community.publication_requests SET receipt=$3::jsonb WHERE account_id=$1 AND client_request_id=$2',

@@ -1,3 +1,9 @@
+import {
+  HttpSystemNoticesGateway,
+  type SystemNoticesGateway,
+} from './system-notices-gateway';
+import { HttpReportGateway, type ReportGateway } from './report-gateway';
+import { PendingReportStore } from './report-pending';
 import { SafetyChanges } from './safety-changes';
 import { HttpBlockGateway, type BlockGateway } from './block-gateway';
 import { PendingBlockStore } from './block-pending';
@@ -24,6 +30,10 @@ import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
   readonly sessions: SessionStore;
   readonly safetyChanges?: SafetyChanges;
+  readonly systemNotices?: SystemNoticesGateway;
+  readonly reports?: ReportGateway;
+  readonly pendingReports?: PendingReportStore;
+  readonly pendingJuryVotes?: PendingReportStore;
   readonly blocks?: BlockGateway;
   readonly pendingBlocks?: PendingBlockStore;
   readonly identityPrivacy?: IdentityPrivacyGateway;
@@ -52,6 +62,12 @@ export function createCommunityRuntime(
     sessions: identity.sessions,
     privateViews,
     safetyChanges: new SafetyChanges(privateViews),
+    ...(identity.api
+      ? { systemNotices: new HttpSystemNoticesGateway(identity.api) }
+      : {}),
+    pendingReports: new PendingReportStore(storage, origin, 'report'),
+    pendingJuryVotes: new PendingReportStore(storage, origin, 'vote'),
+    ...(identity.api ? { reports: new HttpReportGateway(identity.api) } : {}),
     pendingBlocks: new PendingBlockStore(storage, origin),
     ...(identity.api ? { blocks: new HttpBlockGateway(identity.api) } : {}),
     ...(identity.api

@@ -1,0 +1,22 @@
+<template name="report-recovery">
+  <view wx:if="{{report.confirmation}}" class="confirm" aria-role="dialog" aria-label="确认举报">
+    <view class="section-title">举报此{{report.confirmation.target.kind === 'post' ? '帖子' : report.confirmation.target.kind === 'comment' ? '评论' : '回复'}}？</view>
+    <view class="notice">每个账号只能举报一次。确认后无法修改或撤回；举报受理不代表内容已经审核或删除。</view>
+    <button class="danger" bindtap="onConfirmReport" disabled="{{report.busy || report.frozen}}">确认举报</button><button bindtap="onDismissReport" disabled="{{report.busy}}">取消</button>
+  </view>
+  <view wx:if="{{report.busy || report.frozen || report.receiptStatus || report.error}}" class="card">
+    <view class="section-title">举报结果恢复</view><view class="status">{{report.status}}</view><view wx:if="{{report.error}}" class="error">{{report.error}}</view><view wx:if="{{report.receiptStatus}}" class="notice">{{report.receiptStatus}}</view>
+    <view wx:if="{{report.frozen}}"><button bindtap="onReportReceipt" disabled="{{report.busy}}">查询原举报回执</button><button bindtap="onReportRetry" disabled="{{report.busy}}">重试完全相同的原举报</button></view>
+    <button wx:if="{{report.busy}}" bindtap="onReportCancel">停止等待（不撤销举报）</button>
+    <view class="notice">关闭、重启和切换账号不清除原账号待确认的请求。内容不可查看后，仍可恢复自己的回执。</view><navigator class="link" url="/pages/report-progress/report-progress">举报与陪审结果恢复 →</navigator>
+  </view>
+</template>
+<template name="jury-vote-recovery">
+  <view wx:if="{{juryVote.confirmation}}" class="confirm" aria-role="dialog" aria-label="确认陪审意见">
+    <view class="section-title">确认{{juryVote.confirmation.vote === 'keep' ? '保留帖子' : '删除帖子'}}？</view><view class="notice">每人只能提交一次陪审意见，不能修改或撤回。</view><button bindtap="onConfirmJuryVote" disabled="{{juryVote.busy || juryVote.frozen}}">确认{{juryVote.confirmation.vote === 'keep' ? '保留' : '删除'}}</button><button bindtap="onDismissJuryVote" disabled="{{juryVote.busy}}">取消</button>
+  </view>
+  <view wx:if="{{juryVote.busy || juryVote.frozen || juryVote.receiptStatus || juryVote.error}}" class="card">
+    <view class="section-title">陪审意见结果恢复</view><view class="status">{{juryVote.status}}</view><view wx:if="{{juryVote.error}}" class="error">{{juryVote.error}}</view><view wx:if="{{juryVote.receiptStatus}}" class="notice">{{juryVote.receiptStatus}}</view>
+    <view wx:if="{{juryVote.frozen}}"><button bindtap="onJuryReceipt" disabled="{{juryVote.busy}}">查询原陪审回执</button><button bindtap="onJuryRetry" disabled="{{juryVote.busy}}">重试完全相同的原陪审意见</button></view><button wx:if="{{juryVote.busy}}" bindtap="onJuryCancel">停止等待（不撤销意见）</button>
+  </view>
+</template>

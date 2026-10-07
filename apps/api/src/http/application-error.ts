@@ -3,6 +3,38 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  REPORT_TARGET_UNAVAILABLE: {
+    status: 404,
+    message: 'Report target is unavailable',
+  },
+  REPORT_SELF_NOT_ALLOWED: {
+    status: 403,
+    message: 'Own content cannot be reported',
+  },
+  REPORT_ALREADY_REPORTED: {
+    status: 409,
+    message: 'A report is already recorded',
+  },
+  REPORTING_CLOSED: { status: 409, message: 'Reporting is closed' },
+  REPORT_SCOPE_UNAVAILABLE: {
+    status: 503,
+    message: 'Report scope is unavailable',
+  },
+  AFFILIATION_VERIFICATION_REQUIRED: {
+    status: 403,
+    message: 'Affiliation verification required',
+  },
+  JURY_NOT_FOUND: { status: 404, message: 'Jury not found' },
+  JURY_INELIGIBLE: { status: 403, message: 'Jury voting is not permitted' },
+  JURY_ALREADY_VOTED: {
+    status: 409,
+    message: 'A jury ballot is already recorded',
+  },
+  JURY_CLOSED: { status: 409, message: 'Jury voting is closed' },
+  SYSTEM_NOTICES_UNAVAILABLE: {
+    status: 503,
+    message: 'System notices are unavailable',
+  },
   SAFETY_UNAVAILABLE: {
     status: 503,
     message: 'Safety controls are unavailable',

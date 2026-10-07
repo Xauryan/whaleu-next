@@ -1,4 +1,10 @@
 import {
+  ReportMutationController,
+  initialReportMutationView,
+  ReportProgressController,
+  initialReportProgressView,
+} from '../../community/report-controller';
+import {
   BlockMutationController,
   initialBlockMutationView,
 } from '../../community/block-controller';
@@ -39,6 +45,9 @@ import {
 } from '../../community/poll-controller';
 Page({
   data: {
+    report: initialReportMutationView(),
+    juryVote: initialReportMutationView('vote'),
+    reportProgress: initialReportProgressView(),
     block: initialBlockMutationView(),
     ...initialDetailView(),
     tradingLabels,
@@ -52,6 +61,9 @@ Page({
     tradingMutation: initialTradingMutationView(),
     tradingContacts: initialTradingContactsView(),
   },
+  reportMutations: undefined as ReportMutationController | undefined,
+  juryVotes: undefined as ReportMutationController | undefined,
+  reportProgressController: undefined as ReportProgressController | undefined,
   blockMutations: undefined as BlockMutationController | undefined,
   blockTargets: '',
   controller: undefined as DetailController | undefined,
@@ -85,6 +97,12 @@ Page({
         : null;
   },
   onShow() {
+    this.reportMutations?.dispose();
+    this.reportMutations = undefined;
+    this.juryVotes?.dispose();
+    this.juryVotes = undefined;
+    this.reportProgressController?.dispose();
+    this.reportProgressController = undefined;
     this.blockMutations?.dispose();
     this.blockMutations = undefined;
     this.blockTargets = '';
@@ -105,6 +123,31 @@ Page({
       this.setData({ error: '帖子地址无效或环境尚未初始化' });
       return;
     }
+    this.reportMutations = new ReportMutationController(
+      runtime,
+      'report',
+      (view) => {
+        this.setData({ report: view });
+        if (view.busy || view.frozen) {
+          this.identityOverlay?.clear();
+          this.overlayTargets = '';
+        }
+      },
+    );
+    this.reportMutations.load();
+    this.juryVotes = new ReportMutationController(runtime, 'vote', (view) =>
+      this.setData({ juryVote: view }),
+    );
+    this.juryVotes.load();
+    this.reportProgressController = new ReportProgressController(
+      runtime,
+      { kind: 'post', id: this.postId },
+      (view) => {
+        this.setData({ reportProgress: view });
+        if (!view.loaded) this.juryVotes?.dismiss();
+      },
+    );
+    void this.reportProgressController.load();
     this.blockMutations = new BlockMutationController(runtime, (view) => {
       this.setData({ block: view });
       if (view.busy || view.frozen) {
@@ -167,6 +210,8 @@ Page({
           view.busy ||
           !view.loaded ||
           view.frozen ||
+          this.data.report.busy ||
+          this.data.report.frozen ||
           this.data.block.busy ||
           this.data.block.frozen ||
           !view.formation ||
@@ -294,12 +339,16 @@ Page({
         const key = targets
           .map((item) => item.kind + ':' + item.id + ':' + item.authorMode)
           .join(',');
-        if (view.busy || !view.loaded || key !== this.blockTargets)
+        if (view.busy || !view.loaded || key !== this.blockTargets) {
+          this.reportMutations?.dismiss();
           this.blockMutations?.dismissBlock();
+        }
         this.blockTargets = key;
         if (
           view.busy ||
           !view.loaded ||
+          this.data.report.busy ||
+          this.data.report.frozen ||
           this.data.block.busy ||
           this.data.block.frozen ||
           this.data.interaction.busy ||
@@ -464,6 +513,78 @@ Page({
   onPollCancel() {
     this.pollController?.cancel();
   },
+  onReportPost() {
+    const post = this.data.post;
+    if (post && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.reportMutations?.requestReport('post', post);
+  },
+  onReportComment(event: { currentTarget: { dataset: { id: string } } }) {
+    const id = event.currentTarget.dataset.id,
+      comment =
+        this.data.comments.find((item) => item.id === id) ??
+        (this.data.locatedComment?.id === id ? this.data.locatedComment : null);
+    if (
+      comment &&
+      this.data.loaded &&
+      !this.data.busy &&
+      !this.data.needsReload
+    )
+      this.reportMutations?.requestReport('comment', comment);
+  },
+  onReportReply(event: { currentTarget: { dataset: { id: string } } }) {
+    const reply = [
+      ...this.data.comments,
+      ...(this.data.locatedComment ? [this.data.locatedComment] : []),
+    ]
+      .flatMap((item) => item.replyPreview.items)
+      .find((item) => item.id === event.currentTarget.dataset.id);
+    if (reply && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.reportMutations?.requestReport('reply', reply);
+  },
+  onConfirmReport() {
+    void this.reportMutations?.confirm();
+  },
+  onDismissReport() {
+    this.reportMutations?.dismiss();
+  },
+  onReportReceipt() {
+    void this.reportMutations?.recover();
+  },
+  onReportRetry() {
+    void this.reportMutations?.recover(true);
+  },
+  onReportCancel() {
+    this.reportMutations?.cancel();
+  },
+  onJuryChoice(event: { currentTarget: { dataset: { vote: string } } }) {
+    const vote = event.currentTarget.dataset.vote;
+    if (
+      (vote === 'keep' || vote === 'remove') &&
+      this.data.reportProgress.progress
+    )
+      this.juryVotes?.requestVote(this.data.reportProgress.progress, vote);
+  },
+  onConfirmJuryVote() {
+    void this.juryVotes?.confirm();
+  },
+  onDismissJuryVote() {
+    this.juryVotes?.dismiss();
+  },
+  onJuryReceipt() {
+    void this.juryVotes?.recover();
+  },
+  onJuryRetry() {
+    void this.juryVotes?.recover(true);
+  },
+  onJuryCancel() {
+    this.juryVotes?.cancel();
+  },
+  onReloadReportProgress() {
+    void this.reportProgressController?.load();
+  },
+  onCancelReportProgress() {
+    this.reportProgressController?.cancel();
+  },
   onBlockPost() {
     const post = this.data.post;
     if (post && this.data.loaded && !this.data.busy && !this.data.needsReload)
@@ -508,6 +629,7 @@ Page({
     this.blockMutations?.cancel();
   },
   onReload() {
+    this.reportMutations?.dismiss();
     this.blockMutations?.dismissBlock();
     void this.controller?.load();
   },
@@ -562,6 +684,12 @@ Page({
     this.savedMutations?.cancel();
   },
   onHide() {
+    this.reportMutations?.dispose();
+    this.reportMutations = undefined;
+    this.juryVotes?.dispose();
+    this.juryVotes = undefined;
+    this.reportProgressController?.dispose();
+    this.reportProgressController = undefined;
     this.blockMutations?.dispose();
     this.blockMutations = undefined;
     this.blockTargets = '';
@@ -587,6 +715,12 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.reportMutations?.dispose();
+    this.reportMutations = undefined;
+    this.juryVotes?.dispose();
+    this.juryVotes = undefined;
+    this.reportProgressController?.dispose();
+    this.reportProgressController = undefined;
     this.blockMutations?.dispose();
     this.blockMutations = undefined;
     this.blockTargets = '';

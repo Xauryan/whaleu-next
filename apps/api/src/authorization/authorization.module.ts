@@ -1,3 +1,4 @@
+import { AuthorizationReportWeightSource } from './report-weight.source.js';
 import {
   Controller,
   Get,
@@ -30,7 +31,11 @@ export class AuthorizationController {
 @Module({
   imports: [DatabaseModule, IdentityModule, CampusModule],
   controllers: [AuthorizationController],
-  providers: [AuthorizationRepository, AuthorizationService],
-  exports: [AuthorizationService],
+  providers: [
+    AuthorizationRepository,
+    AuthorizationService,
+    AuthorizationReportWeightSource,
+  ],
+  exports: [AuthorizationService, AuthorizationReportWeightSource],
 })
 export class AuthorizationModule {}

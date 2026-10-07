@@ -1,3 +1,4 @@
+import type { ReportEligibility } from './report-eligibility.source.js';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import type {
@@ -23,6 +24,9 @@ function unavailable(): VerificationRead {
 
 @Injectable()
 export class VerificationRepository {
+  reportEligibility(accountId: string, tx: PoolClient) {
+    return readReportEligibility(accountId, tx);
+  }
   async phone(
     accountId: string,
     transaction: PoolClient,
@@ -154,4 +158,60 @@ export class VerificationRepository {
           : null,
     };
   }
+}
+
+export async function readReportEligibility(
+  accountId: string,
+  tx: PoolClient,
+): Promise<ReportEligibility> {
+  const missing: ReportEligibility = {
+    phone: { status: 'unavailable' },
+    affiliation: { status: 'unavailable' },
+  };
+  const head = (
+    await tx.query<{ snapshot_id: string | null }>(
+      'SELECT snapshot_id FROM whaleu_verification.account_heads WHERE account_id=$1 FOR SHARE',
+      [accountId],
+    )
+  ).rows[0];
+  if (!head?.snapshot_id) return missing;
+  const snap = (
+    await tx.query<{
+      phone_assertion_id: string | null;
+      affiliation_assertion_id: string | null;
+    }>(
+      'SELECT phone_assertion_id,affiliation_assertion_id FROM whaleu_verification.snapshots WHERE id=$1 AND account_id=$2',
+      [head.snapshot_id, accountId],
+    )
+  ).rows[0];
+  if (!snap) return missing;
+  const rows = (
+    await tx.query<
+      Omit<AssertionRecord, 'origin_region_id' | 'student_number'>
+    >(
+      `SELECT id,account_id,fact_kind,assertion_state,coverage_state,provenance_state,method,source_reference,policy_reference,source_account_id,issuer_institution_id,source_issuer_institution_id,phone_binding_reference,verified_at,expiry_kind,expires_at FROM whaleu_verification.assertions WHERE account_id=$1 AND id=ANY($2::uuid[]) AND fact_kind IN ('phone','affiliation')`,
+      [
+        accountId,
+        [snap.phone_assertion_id, snap.affiliation_assertion_id].filter(
+          Boolean,
+        ),
+      ],
+    )
+  ).rows;
+  const now = (await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now'))
+    .rows[0]!.now;
+  const one = (
+    kind: 'phone' | 'affiliation',
+    id: string | null,
+  ): SafetyPhoneEligibility => {
+    const row = rows.find((x) => x.id === id);
+    const status = assertionStatus(row, accountId, kind, now);
+    return status === 'verified'
+      ? { status, validUntil: row!.expires_at?.getTime() ?? null }
+      : { status: status === 'unavailable' ? 'unavailable' : 'unverified' };
+  };
+  return {
+    phone: one('phone', snap.phone_assertion_id),
+    affiliation: one('affiliation', snap.affiliation_assertion_id),
+  };
 }

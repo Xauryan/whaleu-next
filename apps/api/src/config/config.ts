@@ -35,6 +35,20 @@ const schema = z.object({
     .default('manual_only'),
   COMMUNITY_UPDATES_INTERVAL_MS: positiveInteger(5000, 60000),
   COMMUNITY_UPDATES_BATCH_SIZE: positiveInteger(20, 50),
+  SAFETY_JURY_PROCESSING: z
+    .enum(['disabled', 'manual_only', 'automatic'])
+    .default('disabled'),
+  SAFETY_JURY_INTERVAL_MS: positiveInteger(5000, 60000),
+  SAFETY_JURY_BATCH_SIZE: positiveInteger(20, 50),
+  SAFETY_REPORTS_PER_MINUTE: positiveInteger(30, 1000),
+  SAFETY_VOTES_PER_MINUTE: positiveInteger(30, 1000),
+  SAFETY_REPORT_READS_PER_MINUTE: positiveInteger(120, 10000),
+  SAFETY_TARGET_REQUESTS_PER_MINUTE: z.coerce
+    .number()
+    .int()
+    .min(16)
+    .max(10000)
+    .default(120),
   LOG_LEVEL: z
     .enum(['debug', 'info', 'warn', 'error', 'silent'])
     .default('info'),

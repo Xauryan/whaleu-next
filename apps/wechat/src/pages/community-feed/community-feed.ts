@@ -1,4 +1,12 @@
 import {
+  SystemNoticesBadgeController,
+  initialSystemNoticesBadgeView,
+} from '../system-notices/controller';
+import {
+  ReportMutationController,
+  initialReportMutationView,
+} from '../../community/report-controller';
+import {
   BlockMutationController,
   initialBlockMutationView,
 } from '../../community/block-controller';
@@ -19,8 +27,10 @@ import type { WhaleuApp } from '../../app';
 import { FeedController, initialFeedView } from './controller';
 Page({
   data: {
+    report: initialReportMutationView(),
     block: initialBlockMutationView(),
     ...initialFeedView(),
+    systemNoticesBadge: initialSystemNoticesBadgeView(),
     updatesBadge: initialUpdatesBadgeView(),
     tradingCategories,
     tradingLabels,
@@ -39,16 +49,22 @@ Page({
       { key: 'deep_sea', label: '深海树洞' },
     ],
   },
+  reportMutations: undefined as ReportMutationController | undefined,
   blockMutations: undefined as BlockMutationController | undefined,
   blockTargets: '',
   controller: undefined as FeedController | undefined,
+  systemNoticesBadge: undefined as SystemNoticesBadgeController | undefined,
   updatesBadge: undefined as UpdatesBadgeController | undefined,
   identityOverlay: undefined as IdentityOverlayController | undefined,
   overlayTargets: '',
   onShow() {
+    this.reportMutations?.dispose();
+    this.reportMutations = undefined;
     this.blockMutations?.dispose();
     this.blockMutations = undefined;
     this.blockTargets = '';
+    this.systemNoticesBadge?.dispose();
+    this.systemNoticesBadge = undefined;
     this.updatesBadge?.dispose();
     this.updatesBadge = undefined;
     this.controller?.dispose();
@@ -59,10 +75,27 @@ Page({
       this.setData({ error: '环境未初始化，请重新打开小程序' });
       return;
     }
+    this.systemNoticesBadge = new SystemNoticesBadgeController(
+      runtime,
+      (view) => this.setData({ systemNoticesBadge: view }),
+    );
+    void this.systemNoticesBadge.load();
     this.updatesBadge = new UpdatesBadgeController(runtime, (view) =>
       this.setData({ updatesBadge: view }),
     );
     void this.updatesBadge.load();
+    this.reportMutations = new ReportMutationController(
+      runtime,
+      'report',
+      (view) => {
+        this.setData({ report: view });
+        if (view.busy || view.frozen) {
+          this.identityOverlay?.clear();
+          this.overlayTargets = '';
+        }
+      },
+    );
+    this.reportMutations.load();
     this.blockMutations = new BlockMutationController(runtime, (view) => {
       this.setData({ block: view });
       if (view.busy || view.frozen) {
@@ -83,12 +116,16 @@ Page({
       const key = view.posts
         .map((item) => item.id + ':' + item.author.kind)
         .join(',');
-      if (view.busy || !view.loaded || key !== this.blockTargets)
+      if (view.busy || !view.loaded || key !== this.blockTargets) {
+        this.reportMutations?.dismiss();
         this.blockMutations?.dismissBlock();
+      }
       this.blockTargets = key;
       if (
         view.busy ||
         !view.loaded ||
+        this.data.report.busy ||
+        this.data.report.frozen ||
         this.data.block.busy ||
         this.data.block.frozen
       ) {
@@ -129,8 +166,31 @@ Page({
     void this.controller?.setTradingSubtype(event.currentTarget.dataset.key);
   },
   onRefresh() {
+    void this.systemNoticesBadge?.load();
     void this.updatesBadge?.load();
     void this.controller?.refresh();
+  },
+  onReportPost(event: { currentTarget: { dataset: { id: string } } }) {
+    const post = this.data.posts.find(
+      (item) => item.id === event.currentTarget.dataset.id,
+    );
+    if (post && this.data.loaded && this.data.hasSession && !this.data.busy)
+      this.reportMutations?.requestReport('post', post);
+  },
+  onConfirmReport() {
+    void this.reportMutations?.confirm();
+  },
+  onDismissReport() {
+    this.reportMutations?.dismiss();
+  },
+  onReportReceipt() {
+    void this.reportMutations?.recover();
+  },
+  onReportRetry() {
+    void this.reportMutations?.recover(true);
+  },
+  onReportCancel() {
+    this.reportMutations?.cancel();
   },
   onBlockPost(event: { currentTarget: { dataset: { id: string } } }) {
     const post = this.data.posts.find(
@@ -155,7 +215,9 @@ Page({
     this.blockMutations?.cancel();
   },
   onReload() {
+    this.reportMutations?.dismiss();
     this.blockMutations?.dismissBlock();
+    void this.systemNoticesBadge?.load();
     void this.updatesBadge?.load();
     void this.controller?.load();
   },
@@ -167,9 +229,13 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.reportMutations?.dispose();
+    this.reportMutations = undefined;
     this.blockMutations?.dispose();
     this.blockMutations = undefined;
     this.blockTargets = '';
+    this.systemNoticesBadge?.dispose();
+    this.systemNoticesBadge = undefined;
     this.updatesBadge?.dispose();
     this.updatesBadge = undefined;
     this.controller?.dispose();
@@ -178,9 +244,13 @@ Page({
     this.identityOverlay = undefined;
   },
   onUnload() {
+    this.reportMutations?.dispose();
+    this.reportMutations = undefined;
     this.blockMutations?.dispose();
     this.blockMutations = undefined;
     this.blockTargets = '';
+    this.systemNoticesBadge?.dispose();
+    this.systemNoticesBadge = undefined;
     this.updatesBadge?.dispose();
     this.updatesBadge = undefined;
     this.controller?.dispose();

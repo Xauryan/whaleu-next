@@ -1,3 +1,5 @@
+import { CommunityReportTargetFacade } from './report-target.facade.js';
+import { CommunityModerationRemovalFacade } from './moderation-removal.facade.js';
 import { SafetyPolicyModule } from '../safety/policy.module.js';
 import { NamedBlockVisibility } from '../safety/visibility.js';
 import { CommunityNamedBlockSourceFacade } from './named-block-source.facade.js';
@@ -256,9 +258,13 @@ export class CommunityRecoveryController {
     CommunityContentIdentityService,
     CommunityUpdatesFacade,
     CommunityNamedBlockSourceFacade,
+    CommunityReportTargetFacade,
+    CommunityModerationRemovalFacade,
   ],
   providers: [
     CommunityNamedBlockSourceFacade,
+    CommunityReportTargetFacade,
+    CommunityModerationRemovalFacade,
     CommunityUpdatesFacade,
     SavedRepository,
     SavedReadService,

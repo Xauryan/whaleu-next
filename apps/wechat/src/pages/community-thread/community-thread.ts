@@ -1,4 +1,8 @@
 import {
+  ReportMutationController,
+  initialReportMutationView,
+} from '../../community/report-controller';
+import {
   BlockMutationController,
   initialBlockMutationView,
 } from '../../community/block-controller';
@@ -17,12 +21,14 @@ import {
 import { ThreadController, initialThreadView } from './controller';
 Page({
   data: {
+    report: initialReportMutationView(),
     block: initialBlockMutationView(),
     ...initialThreadView(),
     interaction: initialDiscussionMutationView(),
     identityOverlay: initialOverlayView(),
     requestedReplyId: '',
   },
+  reportMutations: undefined as ReportMutationController | undefined,
   blockMutations: undefined as BlockMutationController | undefined,
   blockTargets: '',
   controller: undefined as ThreadController | undefined,
@@ -45,6 +51,8 @@ Page({
     this.setData({ requestedReplyId: this.replyId ?? '' });
   },
   onShow() {
+    this.reportMutations?.dispose();
+    this.reportMutations = undefined;
     this.blockMutations?.dispose();
     this.blockMutations = undefined;
     this.blockTargets = '';
@@ -57,6 +65,18 @@ Page({
       this.setData({ error: '讨论地址无效或环境尚未初始化' });
       return;
     }
+    this.reportMutations = new ReportMutationController(
+      runtime,
+      'report',
+      (view) => {
+        this.setData({ report: view });
+        if (view.busy || view.frozen) {
+          this.identityOverlay?.clear();
+          this.overlayTargets = '';
+        }
+      },
+    );
+    this.reportMutations.load();
     this.blockMutations = new BlockMutationController(runtime, (view) => {
       this.setData({ block: view });
       if (view.busy || view.frozen) {
@@ -124,12 +144,16 @@ Page({
         const key = targets
           .map((item) => item.kind + ':' + item.id + ':' + item.authorMode)
           .join(',');
-        if (view.busy || !view.loaded || key !== this.blockTargets)
+        if (view.busy || !view.loaded || key !== this.blockTargets) {
+          this.reportMutations?.dismiss();
           this.blockMutations?.dismissBlock();
+        }
         this.blockTargets = key;
         if (
           view.busy ||
           !view.loaded ||
+          this.data.report.busy ||
+          this.data.report.frozen ||
           this.data.block.busy ||
           this.data.block.frozen ||
           this.data.interaction.busy ||
@@ -144,6 +168,41 @@ Page({
       },
     );
     void this.controller.load();
+  },
+  onReportPost() {
+    const post = this.data.post;
+    if (post && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.reportMutations?.requestReport('post', post);
+  },
+  onReportRoot() {
+    const root = this.data.root;
+    if (root && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.reportMutations?.requestReport('comment', root);
+  },
+  onReportReply(event: { currentTarget: { dataset: { id: string } } }) {
+    const id = event.currentTarget.dataset.id,
+      reply =
+        [...this.data.replies, ...this.data.contextReplies].find(
+          (item) => item.id === id,
+        ) ??
+        (this.data.locatedReply?.id === id ? this.data.locatedReply : null);
+    if (reply && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.reportMutations?.requestReport('reply', reply);
+  },
+  onConfirmReport() {
+    void this.reportMutations?.confirm();
+  },
+  onDismissReport() {
+    this.reportMutations?.dismiss();
+  },
+  onReportReceipt() {
+    void this.reportMutations?.recover();
+  },
+  onReportRetry() {
+    void this.reportMutations?.recover(true);
+  },
+  onReportCancel() {
+    this.reportMutations?.cancel();
   },
   onBlockPost() {
     const post = this.data.post;
@@ -181,6 +240,7 @@ Page({
     this.blockMutations?.cancel();
   },
   onReload() {
+    this.reportMutations?.dismiss();
     this.blockMutations?.dismissBlock();
     void this.controller?.load();
   },
@@ -247,6 +307,8 @@ Page({
     this.mutations?.cancel();
   },
   onHide() {
+    this.reportMutations?.dispose();
+    this.reportMutations = undefined;
     this.blockMutations?.dispose();
     this.blockMutations = undefined;
     this.blockTargets = '';

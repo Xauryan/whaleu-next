@@ -1,0 +1,22 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 系统通知</view>
+  <view class="title">我的系统通知</view>
+  <view class="notice">这里仅展示本账号收到的帖子陪审团移除结果。通知只包含处理结果与票数，不包含原帖内容、来源链接或参与者身份。</view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <view wx:if="{{loaded}}" class="section-title">系统通知未读 {{unreadCount}} 条</view>
+  <view wx:if="{{loaded}}" class="meta">这是本账号最新查询的系统通知未读数，独立于社区更新。其他设备的已读操作请刷新确认。</view>
+  <button bindtap="onReload" disabled="{{busy}}" loading="{{busy}}">刷新系统通知</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看自己的系统通知 →</navigator>
+  <view wx:for="{{items}}" wx:key="noticeId" class="card">
+    <view class="meta">{{item.createdAt}} · {{item.readAt ? '已读' : '未读'}}</view>
+    <view class="section-title">帖子已被陪审团移除</view>
+    <view class="body">你的一条帖子经陪审团判定后已移除</view>
+    <view class="meta">保留 {{item.keepVotes}} 票 · 移除 {{item.removeVotes}} 票</view>
+    <button wx:if="{{!item.readAt}}" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy}}">标记此条已读</button>
+  </view>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">暂无系统通知</view>
+  <button wx:if="{{canLoadMore}}" bindtap="onMore" disabled="{{busy}}">加载更多系统通知</button>
+  <view class="notice">浏览列表不会自动标记已读；点选“标记此条已读”仅确认这一条通知。外部推送尚未接入，这里的状态不代表设备送达。</view>
+</view>

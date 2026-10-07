@@ -38,7 +38,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 - [ ] PARTIAL — Notifications: grouped counts and lists, mark read, badges, comment/reply/like/activity/review events, application/group-review details, live updates and session-safe refresh
 - [ ] PARTIAL — Notification preferences/delivery: post-specific settings, mute/subscription status, mini-program subscriptions, official-account templates, reminders/guides, queued delivery and duplicate prevention
 - [ ] PARTIAL — User safety: block/unblock/list/check, reporting posts/comments/replies, report status/count/voting, restricted interactions and consistent anonymous identity protection
-- [ ] NOT IMPLEMENTED — Moderation: post status/category/visibility, pins/read markers, content/image review, profile moderation, bans/unbans, feature restrictions and moderation history
+- [ ] PARTIAL — Moderation: post status/category/visibility, pins/read markers, content/image review, profile moderation, bans/unbans, feature restrictions and moderation history
 - [ ] PARTIAL — School/super administration: scoped user lookup, identity changes, admin appointment/scope, roles and expiry, school changes, UID management, user/post rankings and data overview
 - [ ] NOT IMPLEMENTED — School configuration: community/official-account/admin contact settings, review channels, unverified-post settings, push configuration and authorized test delivery
 - [ ] NOT IMPLEMENTED — Announcements/feedback: announcement list/new checks/popups, school targeting, create/edit/delete, reading layout, feedback submission/viewing and responsible-admin notifications
@@ -81,6 +81,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Formation snapshot `f68c32f35093f97a411cd3070cefc829288c2fa2`: 111 API tests, 377 native-client tests and 216 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37670924060), including concurrent joins, private contact access and audited roster identity. The commit signature is verified.
 - Saved snapshot `88d8a785daf8161e80a295f291a900e7e50f04af`: 115 API tests, 444 native-client tests and 244 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37673805090), including exact Saved visibility, preference independence and durable recovery. The commit signature is verified.
 - Local Updates snapshot `43faae3927ee1c81a42a9b00fa94bc79b866425b`: 125 API tests, 482 native-client tests and 261 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37682737147), including persisted notices, owner read state and durable automatic processing. The commit signature is verified.
+- Named-block snapshot `b3fb9c283f69bc776b4e71fd11e2d8a43769df6d`: 165 API tests, 515 native-client tests and 291 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37688226424), including directional policy, immutable recovery, anonymous isolation and native state invalidation. The commit signature is verified.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -197,3 +198,16 @@ Authorized named-profile direction flags, anonymous conversation blocking,
 reports/juries, restriction issuance and full moderation remain required. Runtime
 base visibility and publication authority remain unavailable where their owned
 sources are not yet implemented. See [named-blocking API](API_SAFETY.md).
+
+Local reporting/jury checkpoint: typed post/root/reply report intake, immutable
+own receipts, current visible-target progress, frozen scoped report weighting and
+post-jury voting are implemented. Five effective reports open one jury; six votes
+close early, otherwise durable default-off local work applies the 24-hour rule.
+Discussion's tenth report removes the target and preserves its first-report
+provider-disabled review obligation. Community-owned removal, pin release, audit
+and jury-removal author system notices commit atomically. System notices remain
+owner-only and readable after deletion. Native report/vote recovery, independent
+progress and system-notice read state are tested. Historical report coverage,
+related/global school-admin scope, external review, post-pin administration,
+ban/restriction issuance, appeals and production/device acceptance remain
+incomplete. See [reporting and jury scope](REPORTING_JURY.md).
