@@ -18,6 +18,30 @@ export interface StoredPreferences {
 }
 @Injectable()
 export class SavedRepository {
+  /** Historical coverage uses authoritative parent-serialized order, never wall time. */
+  async epochsAt(postId: string, sequence: string, tx: PoolClient) {
+    return (
+      await tx.query<{ id: string; account_id: string }>(
+        'SELECT id,account_id FROM whaleu_community.saved_epochs WHERE post_id=$1 AND started_sequence<$2 AND (ended_sequence IS NULL OR ended_sequence>$2) ORDER BY account_id LIMIT 1025 FOR SHARE',
+        [postId, sequence],
+      )
+    ).rows;
+  }
+  async updatesAllowedSince(
+    actor: string,
+    postId: string,
+    sequence: string,
+    tx: PoolClient,
+  ): Promise<boolean> {
+    const rows = await tx.query<{ at_event: boolean; disabled_since: boolean }>(
+      `SELECT coalesce((SELECT enabled FROM whaleu_community.post_update_preference_history
+        WHERE account_id=$1 AND post_id=$2 AND channel='saved' AND revision<=$3 ORDER BY revision DESC LIMIT 1),true) AS at_event,
+        EXISTS(SELECT 1 FROM whaleu_community.post_update_preference_history
+        WHERE account_id=$1 AND post_id=$2 AND channel='saved' AND revision>$3 AND enabled=false) AS disabled_since`,
+      [actor, postId, sequence],
+    );
+    return rows.rows[0]!.at_event && !rows.rows[0]!.disabled_since;
+  }
   async own(
     actor: string,
     postId: string,

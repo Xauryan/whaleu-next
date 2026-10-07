@@ -18,7 +18,8 @@ export interface PostUpdatePreferences {
   readonly revision: string;
   readonly canSetPreference: boolean;
   readonly reason: string | null;
-  readonly inAppCapability: 'unavailable';
+  readonly inAppCapability: 'local' | 'unavailable';
+  readonly inAppProcessing: 'disabled' | 'manual_only' | 'automatic';
   readonly externalCapability: 'unavailable';
 }
 export interface SavedIntent {
@@ -161,6 +162,7 @@ export function decodePostUpdatePreferences(
     'canSetPreference',
     'reason',
     'inAppCapability',
+    'inAppProcessing',
     'externalCapability',
   ]);
   if (
@@ -178,7 +180,13 @@ export function decodePostUpdatePreferences(
       )
     ) ||
     (value.canSetPreference ? value.reason !== null : value.reason === null) ||
-    value.inAppCapability !== 'unavailable' ||
+    (value.inAppCapability !== 'local' &&
+      value.inAppCapability !== 'unavailable') ||
+    !['disabled', 'manual_only', 'automatic'].includes(
+      value.inAppProcessing as string,
+    ) ||
+    (value.inAppCapability === 'unavailable' &&
+      value.inAppProcessing !== 'disabled') ||
     value.externalCapability !== 'unavailable'
   )
     invalid();

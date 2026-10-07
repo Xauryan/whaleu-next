@@ -34,7 +34,8 @@ const preferences = (
   revision: '0',
   canSetPreference: true,
   reason: null,
-  inAppCapability: 'unavailable',
+  inAppCapability: 'local',
+  inAppProcessing: 'manual_only',
   externalCapability: 'unavailable',
   ...overrides,
 });
@@ -178,7 +179,7 @@ test('per-post preference controls stay independent, require current capability 
   await s.controller.setPreference('saved', false);
   assert.equal(s.sent.length, 0);
   await s.controller.load(writablePost());
-  assert.equal(s.view().preferences?.inAppCapability, 'unavailable');
+  assert.equal(s.view().preferences?.inAppCapability, 'local');
   assert.equal(s.view().preferences?.externalCapability, 'unavailable');
   await s.controller.setPreference('saved', true);
   await s.controller.setPreference('other' as 'saved', false);
@@ -529,3 +530,28 @@ for (const channel of ['saved', 'external'] as const) {
     assert.equal(s.settled(), 2);
   });
 }
+
+test('saved preferences distinguish disabled, manual-only and automatic configuration from actual generated records and external delivery', async () => {
+  const s = harness();
+  for (const [inAppProcessing, expected] of [
+    ['disabled', /未启用新站内更新生成/],
+    ['manual_only', /仅手动处理本地事件，不会自动生成/],
+    ['automatic', /配置为自动处理本地新事件；列表仅显示已生成的记录/],
+  ] as const) {
+    s.behavior.preferences = async () => preferences({ inAppProcessing });
+    await s.controller.load(writablePost());
+    assert.match(s.view().status, expected);
+    assert.match(s.view().processingStatus, expected);
+    assert.match(s.view().status, /外部通知尚不可用/);
+    assert.equal(s.view().preferences?.savedUpdatesEnabled, true);
+  }
+  s.behavior.preferences = async () =>
+    preferences({
+      inAppCapability: 'unavailable',
+      inAppProcessing: 'disabled',
+    });
+  await s.controller.load(writablePost());
+  assert.match(s.view().processingStatus, /未启用新站内更新生成/);
+  await s.controller.load(null);
+  assert.equal(s.view().processingStatus, '');
+});

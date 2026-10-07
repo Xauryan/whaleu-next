@@ -23,6 +23,7 @@ export interface SavedMutationView extends CommunityView {
   readonly actionLabel: string;
   readonly receiptStatus: string;
   readonly preferences: PostUpdatePreferences | null;
+  readonly processingStatus: string;
 }
 export const initialSavedMutationView = (): SavedMutationView => ({
   ...initialCommunityView(),
@@ -31,6 +32,7 @@ export const initialSavedMutationView = (): SavedMutationView => ({
   actionLabel: '',
   receiptStatus: '',
   preferences: null,
+  processingStatus: '',
 });
 export class SavedMutationController extends CommunityController<SavedMutationView> {
   private pending: PendingSaved | null = null;
@@ -50,7 +52,12 @@ export class SavedMutationController extends CommunityController<SavedMutationVi
   async load(post: Post | null = null): Promise<void> {
     this.stop();
     this.post = post;
-    this.update({ preferences: null, busy: false, error: '' });
+    this.update({
+      preferences: null,
+      processingStatus: '',
+      busy: false,
+      error: '',
+    });
     if (!this.available()) return;
     try {
       const pending = this.runtime.pendingSaved.load(this.accountId()!);
@@ -73,14 +80,22 @@ export class SavedMutationController extends CommunityController<SavedMutationVi
       (preferences) => {
         if (preferences.postId !== this.post?.id)
           throw new ClientError('protocol', 'Preference target changed');
+        const processingStatus =
+          preferences.inAppCapability === 'unavailable' ||
+          preferences.inAppProcessing === 'disabled'
+            ? '当前未启用新站内更新生成；已存在的记录仍可查看'
+            : preferences.inAppProcessing === 'manual_only'
+              ? '当前仅手动处理本地事件，不会自动生成新站内更新'
+              : '当前配置为自动处理本地新事件；列表仅显示已生成的记录';
         this.update({
           preferences,
+          processingStatus,
           status: this.view.frozen
             ? '原收藏或设置结果待确认'
-            : '已读取当前设置；站内更新与外部通知均尚未接入',
+            : `已读取当前设置；${processingStatus}；外部通知尚不可用`,
         });
       },
-      () => this.update({ preferences: null }),
+      () => this.update({ preferences: null, processingStatus: '' }),
     );
   }
   private show(pending: PendingSaved): void {
@@ -223,6 +238,7 @@ export class SavedMutationController extends CommunityController<SavedMutationVi
       recoveryPostId: '',
       actionLabel: '',
       preferences: null,
+      processingStatus: '',
       receiptStatus:
         settled.outcome === 'applied'
           ? '原请求已确认，正在重新读取当前状态'

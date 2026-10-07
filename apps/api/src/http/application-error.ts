@@ -81,6 +81,7 @@ const conditions = {
     status: 409,
     message: 'Discussion changed; refresh to continue',
   },
+  NOTICE_NOT_FOUND: { status: 404, message: 'Update not found' },
   POST_NOT_FOUND: { status: 404, message: 'Post not found' },
   COMMENT_NOT_FOUND: { status: 404, message: 'Comment not found' },
   POST_DELETED: { status: 410, message: 'Post deleted' },

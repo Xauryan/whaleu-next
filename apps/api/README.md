@@ -150,6 +150,33 @@ minimal durable recovery receipts. Re-save starts a fresh membership epoch while
 preserving mute choices. Explicit active-session-only reduction routes support
 own cleanup after parent access loss. Ordinary writes require dedicated phone/
 action checks without a new publication or student gate. Reward/ranking work is
-persisted as pending obligations; no in-app/external notices or experience grants
-are delivered. External capability remains unavailable and preferences are not
+persisted as pending obligations; save transitions do not invent notifications
+or experience grants. The separate local Updates consumer below handles
+established root/reply notices. External capability remains unavailable and preferences are not
 provider consent. See [C2E API](../../docs/API_COMMUNITY.md#c2e-saved-posts-and-per-post-preferences-increment-1).
+
+## Community local Updates development slice
+
+C2E increment 2 adds persisted community in-app notices, current persona-safe
+previews or generic unavailable rows, exact account-owned unread counts and
+idempotent exact-notice read state. The native Updates page uses authorized
+root/reply locators rather than treating notice IDs as access grants.
+
+Automatic processing is **off by default** (`COMMUNITY_UPDATES_PROCESSING=manual_only`).
+A bounded internal command defaults to an empty dry run:
+
+```sh
+npm run updates:process -w @whaleu/api
+npm run updates:process -w @whaleu/api -- dry-run --event-id=LOCAL_EVENT_UUID
+npm run updates:process -w @whaleu/api -- apply --event-id=LOCAL_EVENT_UUID
+```
+
+The CLI rejects production/non-loopback targets and has no production escape
+flag. There is no public process-events endpoint. An explicitly configured
+`automatic` local dispatcher discovers only events from new publications made
+under automatic configuration; its durable pending queue survives restart. Old
+manual/imported events and terminal unavailable external work are never enrolled
+by a mode change. Existing runtime authority/media adapters remain fail-closed.
+No provider or device delivery, consent/quota, rewards or ranking is activated.
+See [local Updates contract](../../docs/API_UPDATES.md) for configuration,
+transaction/retry/visibility semantics, acceptance evidence and retained work.

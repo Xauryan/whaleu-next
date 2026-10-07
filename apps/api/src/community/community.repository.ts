@@ -1,3 +1,5 @@
+import { APP_CONFIG } from '../config/config.js';
+import type { RuntimeConfig } from '../config/config.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -42,6 +44,7 @@ const spaceProjection =
 @Injectable()
 export class CommunityRepository {
   constructor(
+    @Inject(APP_CONFIG) private readonly config: RuntimeConfig,
     @Inject(DatabaseService) readonly database: DatabaseService,
     @Inject(CampusService) private readonly campuses: CampusService,
   ) {}
@@ -136,9 +139,17 @@ export class CommunityRepository {
     tx: PoolClient,
     context: Record<string, unknown> = {},
   ): Promise<void> {
-    await tx.query(
-      'INSERT INTO whaleu_community.outbox(id,event_key,event_type,resource_id,context) VALUES ($1,$2,$3,$4,$5::jsonb) ON CONFLICT(event_key) DO NOTHING',
+    const inserted = await tx.query<{ id: string }>(
+      'INSERT INTO whaleu_community.outbox(id,event_key,event_type,resource_id,context) VALUES ($1,$2,$3,$4,$5::jsonb) ON CONFLICT(event_key) DO NOTHING RETURNING id',
       [randomUUID(), key, type, resourceId, JSON.stringify(context)],
     );
+    if (inserted.rows[0] && ['comment_created', 'reply_created'].includes(type))
+      await tx.query(
+        "INSERT INTO whaleu_community.local_update_events(event_id,origin,automatic_eligible) VALUES($1,'local_publication',$2)",
+        [
+          inserted.rows[0].id,
+          this.config.COMMUNITY_UPDATES_PROCESSING === 'automatic',
+        ],
+      );
   }
 }

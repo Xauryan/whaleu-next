@@ -915,9 +915,9 @@ access. No developer role grants are seeded outside synthetic tests.
 ## C2E Saved posts and per-post preferences, increment 1
 
 This increment implements account-owned saving and two independent preference
-bits. It does **not** deliver in-app or external updates, settle experience, or
-apply ranking changes. The next bounded increment must materialize and verify
-real local in-app notices before notification UI can claim delivery. All existing
+bits. Save transitions do not deliver notices, settle experience or apply ranking
+changes. The separate [C2E local Updates increment](API_UPDATES.md) now materializes
+root/reply notices with exact read state; external delivery remains unavailable. All existing
 publication/ballot/discussion/trading/formation receipt bytes and intent hashes
 remain unchanged. No real provider, production data, paid API, role grant, student
 number import or institutional authentication is activated.
@@ -953,12 +953,14 @@ remain saveable/readable under the normal parent policy; urgency never means
 hidden/deleted. Existing root/reply/discussion counts retain their meanings.
 
 The preferences DTO is exactly
-`{postId,savedUpdatesEnabled,externalUpdatesEnabled,revision,canSetPreference,reason,inAppCapability,externalCapability}`.
+`{postId,savedUpdatesEnabled,externalUpdatesEnabled,revision,canSetPreference,reason,inAppCapability,inAppProcessing,externalCapability}`.
 `revision` is a nonnegative decimal string, initially `"0"`, and advances only
 when a bit really changes. `canSetPreference` is advisory and its `reason` is
 null, `COMMUNITY_UNAVAILABLE`, `PHONE_VERIFICATION_REQUIRED`, or
-`COMMUNITY_ACTION_RESTRICTED`. Both capability fields are always `"unavailable"`
-in this increment. Preferences are exposed in their own endpoint and batch DTO,
+`COMMUNITY_ACTION_RESTRICTED`. `inAppCapability` is `"local"`, while
+`inAppProcessing` is configured `"disabled"|"manual_only"|"automatic"` (default
+`"manual_only"`). These describe implementation/configuration, not a particular
+delivery. `externalCapability` stays `"unavailable"`. Preferences are exposed in their own endpoint and batch DTO,
 not silently added to unrelated post viewer fields.
 
 Absent preferences logically default to both enabled. The `saved` channel
@@ -1087,12 +1089,11 @@ Save starts/ends and preference changes obtain the shared discussion sequence
 only after locking the parent. New root/reply inserts also acquire this parent
 lock before allocating their authoritative order; existing root/reply sequences
 and old receipts are unchanged. This disambiguates equal wall-clock timestamps.
-The next local-notification increment must require a saved epoch covering the
-root event order and the same still-active epoch at materialization, then recheck
-current visibility/account/preferences. Unsave/re-save cannot qualify an old
-event. Historical imports cannot invent absent epoch history. No-backfill after
-processed suppression remains a requirement for that next consumer, not a claim
-that a worker already delivers notices.
+The [local Updates consumer](API_UPDATES.md) requires a saved epoch covering the
+root event order and the same still-active epoch at materialization, then checks
+current visibility/accounts/preferences. Unsave/re-save and mute/re-enable cannot
+qualify old events. Historical imports cannot invent absent epoch history;
+processed suppression is terminal and never backfilled.
 
 ### Durable obligations and retained release work
 
@@ -1107,10 +1108,10 @@ obligations. No code marks a reward paid or an update delivered. Save transition
 do not invent a “someone saved you” notification.
 
 The experience domain still owns amounts, shared caps, accounting day, grant
-receipts and settlement. Ranking consumers and all notification delivery remain
-pending. Future local notices must implement direct/saved recipient dedupe,
-exact owner unread/read rows, current safe previews, typed root/reply anchors and
-crash-safe materialization. Replies, poll ballots, formation joins and trading
+receipts and settlement. Reward/ranking and external delivery consumers remain
+pending. [Local Updates](API_UPDATES.md) now implements direct/saved recipient
+dedupe, exact owner unread/read rows, current safe previews, typed root/reply
+anchors and crash-safe materialization. Replies, poll ballots, formation joins and trading
 resolution do not gain new saved-recipient fan-out here. External capability stays
 unavailable until separately implemented consent/quota/mapping/current-access
 and ambiguous-send recovery gates have been verified. Stored unavailable work

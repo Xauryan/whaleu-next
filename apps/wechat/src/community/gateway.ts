@@ -1,4 +1,14 @@
 import {
+  decodeUpdatesList,
+  decodeUpdatesUnread,
+  decodeUpdateRead,
+  decodeResolvedUpdateTarget,
+  type UpdatesList,
+  type UpdatesUnread,
+  type UpdateRead,
+  type ResolvedUpdateTarget,
+} from './updates-contract';
+import {
   decodePostUpdatePreferences,
   decodeSavedIntent,
   decodeSavedList,
@@ -105,6 +115,17 @@ export interface FeedQuery {
   readonly cursor?: string;
 }
 export interface CommunityGateway {
+  updates(
+    after: string | null,
+    cancel: Cancellation,
+    limit?: number,
+  ): Promise<UpdatesList>;
+  updatesUnread(cancel: Cancellation): Promise<UpdatesUnread>;
+  readUpdate(noticeId: string, cancel: Cancellation): Promise<UpdateRead>;
+  updateTarget(
+    noticeId: string,
+    cancel: Cancellation,
+  ): Promise<ResolvedUpdateTarget>;
   saved(
     after: string | null,
     cancel: Cancellation,
@@ -259,6 +280,59 @@ const page = (after: string | null) => {
 };
 export class HttpCommunityGateway implements CommunityGateway {
   constructor(private readonly api: ApiClient) {}
+  async updates(
+    after: string | null,
+    cancel: Cancellation,
+    limit = 20,
+  ): Promise<UpdatesList> {
+    if (!cursor(after) || !Number.isInteger(limit) || limit < 1 || limit > 50)
+      invalid();
+    const result = await this.api.request(
+      endpoint('/v1/me/community/updates', decodeUpdatesList),
+      {
+        query: { limit, ...(after ? { cursor: after } : {}) },
+        cancellation: cancel,
+      },
+    );
+    if (result.items.length > limit) invalid();
+    return result;
+  }
+  updatesUnread(cancel: Cancellation): Promise<UpdatesUnread> {
+    return this.api.request(
+      endpoint('/v1/me/community/updates/unread-count', decodeUpdatesUnread),
+      { cancellation: cancel },
+    );
+  }
+  async readUpdate(
+    noticeId: string,
+    cancel: Cancellation,
+  ): Promise<UpdateRead> {
+    const result = await this.api.request(
+      endpoint(
+        `/v1/me/community/updates/${id(noticeId)}/read`,
+        decodeUpdateRead,
+        'required',
+        'PUT',
+      ),
+      { body: {}, cancellation: cancel },
+    );
+    if (result.noticeId !== noticeId) invalid();
+    return result;
+  }
+  async updateTarget(
+    noticeId: string,
+    cancel: Cancellation,
+  ): Promise<ResolvedUpdateTarget> {
+    const result = await this.api.request(
+      endpoint(
+        `/v1/me/community/updates/${id(noticeId)}/target`,
+        decodeResolvedUpdateTarget,
+      ),
+      { cancellation: cancel },
+    );
+    if (result.noticeId !== noticeId) invalid();
+    return result;
+  }
   async saved(
     after: string | null,
     cancel: Cancellation,

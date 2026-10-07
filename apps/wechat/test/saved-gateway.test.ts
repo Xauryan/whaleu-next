@@ -27,7 +27,8 @@ const preferences = (): PostUpdatePreferences => ({
   revision: '0',
   canSetPreference: true,
   reason: null,
-  inAppCapability: 'unavailable',
+  inAppCapability: 'local',
+  inAppProcessing: 'manual_only',
   externalCapability: 'unavailable',
 });
 const intent = (overrides: Partial<SavedIntent> = {}): SavedIntent => ({

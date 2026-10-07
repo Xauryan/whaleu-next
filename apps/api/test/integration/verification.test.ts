@@ -965,6 +965,7 @@ test(
           for (const schema of [
             'whaleu_verification',
             'whaleu_authorization',
+            'whaleu_notifications',
             'whaleu_community',
             'whaleu_profile',
             'whaleu_campus',

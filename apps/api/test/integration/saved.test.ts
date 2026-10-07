@@ -97,6 +97,7 @@ test(
     const authorization = new FixtureAuthorization(),
       visibility = new FixtureVisibility();
     const schemas = [
+      'whaleu_notifications',
       'whaleu_community_test',
       'whaleu_verification',
       'whaleu_authorization',
@@ -405,7 +406,8 @@ test(
             revision: '0',
             canSetPreference: true,
             reason: null,
-            inAppCapability: 'unavailable',
+            inAppCapability: 'local',
+            inAppProcessing: 'manual_only',
             externalCapability: 'unavailable',
           });
           await pref(id, 'external', true);
@@ -977,7 +979,7 @@ test(
           assert.ok(BigInt(epoch.ended_sequence) < BigInt(second.revision));
           assert.equal(
             (await reads.preferences(saver.accessToken, id)).inAppCapability,
-            'unavailable',
+            'local',
           );
         },
       );

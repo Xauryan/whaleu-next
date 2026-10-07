@@ -50,7 +50,8 @@ export interface PostUpdatePreferences {
   revision: string;
   canSetPreference: boolean;
   reason: ApplicationErrorCode | null;
-  inAppCapability: 'unavailable';
+  inAppCapability: 'local';
+  inAppProcessing: 'disabled' | 'manual_only' | 'automatic';
   externalCapability: 'unavailable';
 }
 export interface SavedPage {

@@ -35,7 +35,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 ## Communication and moderation
 
 - [ ] NOT IMPLEMENTED — Private messages: conversation create/list, real/anonymous contexts, history pagination, text/image sending, unread counts, read markers, recall, deletion, blocking and anti-harassment limits
-- [ ] NOT IMPLEMENTED — Notifications: grouped counts and lists, mark read, badges, comment/reply/like/activity/review events, application/group-review details, live updates and session-safe refresh
+- [ ] PARTIAL — Notifications: grouped counts and lists, mark read, badges, comment/reply/like/activity/review events, application/group-review details, live updates and session-safe refresh
 - [ ] PARTIAL — Notification preferences/delivery: post-specific settings, mute/subscription status, mini-program subscriptions, official-account templates, reminders/guides, queued delivery and duplicate prevention
 - [ ] NOT IMPLEMENTED — User safety: block/unblock/list/check, reporting posts/comments/replies, report status/count/voting, restricted interactions and consistent anonymous identity protection
 - [ ] NOT IMPLEMENTED — Moderation: post status/category/visibility, pins/read markers, content/image review, profile moderation, bans/unbans, feature restrictions and moderation history
@@ -51,7 +51,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 - [ ] NOT IMPLEMENTED — Legacy placeholder/link audit: resource upload/download, subject-information entry, book-information integration and old navigation aliases; establish intended behavior without inventing a completed legacy feature
 - [ ] NOT IMPLEMENTED — Media: public uploads, avatars, authenticated/private images, preview/transformation/compression, consistent URLs and retained access restrictions
 - [ ] NOT IMPLEMENTED — Official-account operations: callbacks/follow state, account mappings, materials, article/draft generation, previews, publication and per-school scheduled pushes
-- [ ] NOT IMPLEMENTED — Background operations: notifications, view/exposure persistence, hot-score recalculation, scheduled work, cache refresh/invalidation, report generation and authorized operational diagnostics
+- [ ] PARTIAL — Background operations: notifications, view/exposure persistence, hot-score recalculation, scheduled work, cache refresh/invalidation, report generation and authorized operational diagnostics
 - [ ] NOT IMPLEMENTED — Assisted content capabilities: description generation, moderation assistance, reading-format generation and related queued work; provider implementation and cost policy must be explicitly approved before enabling external model calls
 
 ## Release gates across every feature
@@ -79,6 +79,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Discussion snapshot `27d2c7cb7a29f80e2bcb2080fffdc8e84a832d2e`: 102 API tests, 291 native-client tests and 159 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37654039425), including native reply, reaction, pin and audited identity contracts. The commit signature is verified.
 - Trading snapshot `699c4f34cf145f5e7b1b0a02131cee50f2747c42`: 106 API tests, 337 native-client tests and 183 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37658218303), including exact prices, private contact access and durable status recovery. The commit signature is verified.
 - Formation snapshot `f68c32f35093f97a411cd3070cefc829288c2fa2`: 111 API tests, 377 native-client tests and 216 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37670924060), including concurrent joins, private contact access and audited roster identity. The commit signature is verified.
+- Saved snapshot `88d8a785daf8161e80a295f291a900e7e50f04af`: 115 API tests, 444 native-client tests and 244 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37673805090), including exact Saved visibility, preference independence and durable recovery. The commit signature is verified.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -172,3 +173,23 @@ membership time. Reward/ranking obligations are durable but not settled. No
 in-app notice, external delivery, provider consent, quota or device permission
 is created merely by saving or enabling a preference. Actual community in-app
 updates remain the next separate increment.
+
+Local community Updates checkpoint: actual persisted root/reply/saved notices,
+owner-only list/unread/mark-read, fresh authorized target navigation and transient
+separately audited developer overlays are implemented. Materialization has exact
+recipient/self/overlap rules, saved-epoch and mute-history fences, atomic receipts
+and durable retry/restart behavior. A bounded automatic dispatcher is default off;
+manual tooling is dry-run by default. Configured capability is distinct from an
+actual generated notice. External channels, consent/quota integration, unrelated
+notification categories, reward/ranking settlement and production/device acceptance
+remain unimplemented or unverified. See [local Updates API](API_UPDATES.md).
+
+Community in-app Updates increment 2 checkpoint: local root/reply obligations can
+materialize actual owner-scoped notices with exact unread/read state and fresh
+authorized target navigation. Saved epochs, event-time and later mute fences,
+recipient deduplication, suppression/retry separation and current visibility are
+enforced. An optional default-off dispatcher persists automatic eligibility,
+pending work and retries across restart; manual/imported backlog is not adopted.
+Native capability copy distinguishes disabled/manual/automatic configuration
+from specific generated records. External delivery, other notification domains,
+experience settlement, imports and physical-device acceptance remain incomplete.

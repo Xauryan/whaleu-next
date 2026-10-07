@@ -97,6 +97,17 @@ test(
     const authorization = new FixtureAuthorization(),
       visibility = new FixtureVisibility(),
       content = new FixtureContent();
+    const schemas = [
+      'whaleu_notifications',
+      'whaleu_community_test',
+      'whaleu_verification',
+      'whaleu_authorization',
+      'whaleu_community',
+      'whaleu_profile',
+      'whaleu_campus',
+      'whaleu_identity',
+      'whaleu_meta',
+    ];
     const region = randomUUID(),
       space = randomUUID(),
       global = randomUUID();
@@ -121,7 +132,8 @@ test(
       assert.equal(
         (
           await pool.query(
-            "SELECT 1 FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_community','whaleu_authorization','whaleu_verification','whaleu_community_test')",
+            'SELECT 1 FROM pg_namespace WHERE nspname=ANY($1::text[])',
+            [schemas],
           )
         ).rowCount,
         0,
@@ -906,10 +918,21 @@ test(
     } finally {
       authorization.afterResolve = null;
       await app?.close();
-      if (owns)
-        await pool.query(
-          'DROP SCHEMA IF EXISTS whaleu_community_test,whaleu_verification,whaleu_authorization,whaleu_community,whaleu_profile,whaleu_campus,whaleu_identity,whaleu_meta CASCADE',
+      if (owns) {
+        // Reuse the exact refusal/ownership set, including new module schemas.
+        for (const schema of schemas)
+          await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+        assert.equal(
+          (
+            await pool.query(
+              'SELECT 1 FROM pg_namespace WHERE nspname=ANY($1::text[])',
+              [schemas],
+            )
+          ).rowCount,
+          0,
+          'Owned fixture schemas must not leak to the next suite',
         );
+      }
       if (locked)
         await suite?.query('SELECT pg_advisory_unlock($1,$2)', [
           MIGRATION_LOCK[0],

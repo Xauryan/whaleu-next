@@ -1,3 +1,4 @@
+import { CommunityUpdatesFacade } from './updates.facade.js';
 import { SavedRepository } from './saved/repository.js';
 import { SavedReadService } from './saved/read.service.js';
 import { SavedMutationService } from './saved/mutation.service.js';
@@ -243,8 +244,9 @@ export class CommunityRecoveryController {
     CommunityReactionController,
     CommunityRecoveryController,
   ],
-  exports: [CommunityContentIdentityService],
+  exports: [CommunityContentIdentityService, CommunityUpdatesFacade],
   providers: [
+    CommunityUpdatesFacade,
     SavedRepository,
     SavedReadService,
     SavedMutationService,

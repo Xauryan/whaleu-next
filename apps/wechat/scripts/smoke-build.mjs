@@ -1219,6 +1219,7 @@ let savedActive = false,
 let finishSaved, savedCancellation;
 let savedBits = { savedUpdatesEnabled: true, externalUpdatesEnabled: true };
 let savedRevision = 0;
+let savedProcessing = 'manual_only';
 const savedReceipts = new Map();
 let savedRequestSequence = 10;
 app.community.newRequestId = async () =>
@@ -1242,7 +1243,8 @@ const savedPreferencesWire = () => ({
   revision: String(savedRevision),
   canSetPreference: true,
   reason: null,
-  inAppCapability: 'unavailable',
+  inAppCapability: 'local',
+  inAppProcessing: savedProcessing,
   externalCapability: 'unavailable',
 });
 app.community.gateway = {
@@ -1307,6 +1309,31 @@ assert.equal(
   savedDetail.data.savedMutation.preferences.savedUpdatesEnabled,
   true,
 );
+assert.match(
+  savedDetail.data.savedMutation.processingStatus,
+  /仅手动处理本地事件/,
+);
+savedProcessing = 'disabled';
+savedDetail.onReload();
+await flushTrading();
+assert.match(
+  savedDetail.data.savedMutation.processingStatus,
+  /未启用新站内更新生成/,
+);
+savedProcessing = 'automatic';
+savedDetail.onReload();
+await flushTrading();
+assert.match(
+  savedDetail.data.savedMutation.processingStatus,
+  /配置为自动处理本地新事件/,
+);
+assert.match(
+  savedDetail.data.savedMutation.processingStatus,
+  /仅显示已生成的记录/,
+);
+savedProcessing = 'manual_only';
+savedDetail.onReload();
+await flushTrading();
 savedDetail.onSavedToggle();
 await flushTrading();
 savedDetail.onSavedToggle();
@@ -1435,6 +1462,222 @@ assert.equal(
   ),
   false,
 );
+// Compiled local Updates: ordinary DTOs, separate audited overlay, exact read acknowledgment,
+// fresh root/reply locator, unread badge and lifecycle suppression. No device/provider claim.
+const updatesNoticeId = 'adadadad-adad-4dad-8dad-adadadadadad';
+const unavailableNoticeId = 'bdbdbdbd-bdbd-4dbd-8dbd-bdbdbdbdbdbd';
+const updatesReadAt = '2026-10-07T03:00:00.000Z';
+let updatesRead = false,
+  updatesUnavailable = false,
+  updateReads = 0;
+let finishUpdateRead, updatesReadCancellation;
+const updateRoutes = [],
+  updateLocators = [],
+  updateOverlayTargets = [];
+const updateNotice = () => ({
+  noticeId: updatesNoticeId,
+  createdAt: pollReceipt.createdAt,
+  readAt: updatesRead ? updatesReadAt : null,
+  ...(updatesUnavailable
+    ? { status: 'unavailable' }
+    : {
+        status: 'available',
+        kind: 'reply',
+        reason: 'direct',
+        target: {
+          postId: pollPostId,
+          commentId: rootId,
+          replyId: discussionReplyId,
+        },
+        preview: {
+          text: '合成新回复预览',
+          images: [],
+          author: pollPostWire().author,
+        },
+      }),
+});
+const missingNotice = () => ({
+  noticeId: unavailableNoticeId,
+  createdAt: pollReceipt.createdAt,
+  readAt: null,
+  status: 'unavailable',
+});
+globalThis.wx.navigateTo = ({ url, success }) => {
+  updateRoutes.push(url);
+  success();
+};
+globalThis.wx.requestSubscribeMessage = forbiddenNativeCall;
+globalThis.wx.authorize = forbiddenNativeCall;
+app.community.gateway = {
+  updates: async () => ({
+    items: [updateNotice(), missingNotice()],
+    nextCursor: null,
+    unreadCount: updatesRead ? 8 : 9,
+  }),
+  updatesUnread: async () => ({ unreadCount: updatesRead ? 8 : 9 }),
+  updateTarget: async (noticeId) => ({
+    noticeId,
+    ...(updatesUnavailable
+      ? { status: 'unavailable' }
+      : { status: 'available', target: updateNotice().target }),
+  }),
+  readUpdate: async (noticeId, cancellation) => {
+    updateReads++;
+    updatesReadCancellation = cancellation;
+    return new Promise((resolve) => {
+      finishUpdateRead = () => {
+        updatesRead = true;
+        resolve({ noticeId, readAt: updatesReadAt, unreadCount: 8 });
+      };
+    });
+  },
+  post: async () => ({ ...pollPostWire(), component: { kind: 'none' } }),
+  comment: async () => rootWire(),
+  comments: async () => ({ items: [], nextCursor: null }),
+  replies: async () => ({ items: [], nextCursor: null }),
+  discussionContext: async (_postId, target) => {
+    updateLocators.push(target);
+    return {
+      comment: rootWire(),
+      reply: target.replyId ? replyWire() : null,
+      replies: { items: [], nextCursor: null },
+    };
+  },
+};
+app.community.identityPrivacy = {
+  authorization: async () => ({
+    role: 'developer',
+    management: { global: true, operatingRegionIds: [] },
+    identityView: { allowed: true, maxBatchSize: 20 },
+  }),
+  identities: async (targets) => {
+    updateOverlayTargets.push(...targets);
+    return targets.map((target) => ({
+      target,
+      status: 'available',
+      authorMode: 'anonymous',
+      identity: {
+        accountId: pollAccount,
+        nickname: 'synthetic-updates-private-name',
+        avatar: null,
+        studentNumber: null,
+        studentNumberStatus: 'unavailable',
+      },
+    }));
+  },
+};
+const updatesModule = path.join(
+  dist,
+  'pages/community-updates/community-updates.js',
+);
+const updatesPage = mountTradingPage(updatesModule, {});
+await flushTrading();
+assert.equal(updatesPage.data.items.length, 2);
+assert.equal(updatesPage.data.unreadCount, 9);
+assert.equal(updateReads, 0);
+assert.ok(updatesPage.data.identityOverlay.items[discussionReplyId]);
+assert.deepEqual(updateOverlayTargets, [
+  { kind: 'reply', id: discussionReplyId },
+]);
+assert.equal(
+  JSON.stringify(updatesPage.data.items).includes(
+    'synthetic-updates-private-name',
+  ),
+  false,
+);
+assert.equal(
+  JSON.stringify([...storage]).includes('synthetic-updates-private-name'),
+  false,
+);
+updatesPage.onOpen({ currentTarget: { dataset: { id: updatesNoticeId } } });
+await flushTrading();
+assert.deepEqual(updateRoutes, [
+  `/pages/community-thread/community-thread?postId=${pollPostId}&rootCommentId=${rootId}&replyId=${discussionReplyId}`,
+]);
+assert.deepEqual(updateLocators[0], { replyId: discussionReplyId });
+assert.equal(
+  updateReads,
+  0,
+  'Navigation is separate from explicit acknowledgment',
+);
+const locatedUpdatesThread = mountTradingPage(threadModule, {
+  postId: pollPostId,
+  rootCommentId: rootId,
+  replyId: discussionReplyId,
+});
+await flushTrading();
+assert.equal(locatedUpdatesThread.data.locatedReply.id, discussionReplyId);
+assert.deepEqual(locatedUpdatesThread.data.replies, []);
+locatedUpdatesThread.onUnload();
+updatesPage.onRead({ currentTarget: { dataset: { id: updatesNoticeId } } });
+updatesPage.onRead({ currentTarget: { dataset: { id: updatesNoticeId } } });
+await flushTrading();
+assert.equal(updateReads, 1);
+assert.equal(updatesPage.data.items[0].readAt, null);
+assert.deepEqual(updatesPage.data.identityOverlay.items, {});
+app.onHide();
+assert.equal(updatesReadCancellation.isCancelled, true);
+assert.deepEqual(updatesPage.data.items, []);
+assert.equal(updatesPage.data.unreadCount, 0);
+finishUpdateRead();
+await flushTrading();
+assert.deepEqual(updatesPage.data.items, []);
+assert.equal(updatesPage.data.unreadCount, 0);
+updatesPage.onShow();
+await flushTrading();
+assert.equal(updatesPage.data.items[0].readAt, updatesReadAt);
+assert.equal(updatesPage.data.unreadCount, 8);
+updatesPage.onRead({ currentTarget: { dataset: { id: updatesNoticeId } } });
+await flushTrading();
+assert.equal(updateReads, 1);
+updatesUnavailable = true;
+updatesPage.onOpen({ currentTarget: { dataset: { id: updatesNoticeId } } });
+await flushTrading();
+assert.deepEqual(updatesPage.data.items[0], updateNotice());
+assert.deepEqual(updatesPage.data.identityOverlay.items, {});
+assert.equal(updateRoutes.length, 1);
+// Unavailable placeholders retain owner read state but never regain content/identity on refresh.
+updatesPage.onReload();
+await flushTrading();
+assert.equal(updatesPage.data.items[0].status, 'unavailable');
+assert.deepEqual(updatesPage.data.identityOverlay.items, {});
+updatesPage.onHide();
+assert.equal(updatesPage.controller, undefined);
+updatesPage.onShow();
+await flushTrading();
+const badgePage = mountTradingPage(
+  path.join(dist, 'pages/community-feed/community-feed.js'),
+  {},
+);
+await flushTrading();
+assert.equal(badgePage.data.updatesBadge.loaded, true);
+assert.equal(badgePage.data.updatesBadge.unreadCount, 8);
+app.identity.sessions.completeLogin(app.identity.sessions.beginLogin(), {
+  accountId: savedPrivateId,
+  sessionId: '22345678-1234-4123-8123-123456789abc',
+  accessToken: `wu_a_${'b'.repeat(43)}`,
+  refreshToken: `wu_r_${'b'.repeat(43)}`,
+  expiresAt: 1900000000000,
+  refreshExpiresAt: 1900600000000000,
+});
+assert.equal(badgePage.data.updatesBadge.unreadCount, 0);
+assert.equal(badgePage.data.updatesBadge.loaded, false);
+assert.deepEqual(updatesPage.data.items, []);
+assert.equal(updatesPage.data.unreadCount, 0);
+badgePage.onUnload();
+updatesPage.onUnload();
+const updatesTemplate = readFileSync(
+  path.join(dist, 'pages/community-updates/community-updates.wxml'),
+  'utf8',
+);
+assert.match(updatesTemplate, /标记已读/);
+assert.match(updatesTemplate, /外部通知尚未接入/);
+assert.equal(
+  /requestSubscribeMessage|requestPermission|actorId|studentNumber|contacts/.test(
+    updatesTemplate,
+  ),
+  false,
+);
 app.community.identityPrivacy = originalIdentityPrivacy;
 app.community.profiles = originalProfiles;
 app.identity.sessions.logout();
@@ -1457,5 +1700,5 @@ app.onHide();
 assert.equal(privacyCleared, true);
 assert.equal(calls, 0);
 console.log(
-  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification durable-poll, reply-publication, discussion-interaction, private trading contacts, exact trading publication and immutable trading-resolution app-hide clearing/recovery, formation creation/join/member-contact fresh-copy/hidden-parent recovery/audited roster overlay, Saved list, independent update preferences, original-intent hidden-parent recovery, separate audited Saved overlay, and configuration gating',
+  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification durable-poll, reply-publication, discussion-interaction, private trading contacts, exact trading publication and immutable trading-resolution app-hide clearing/recovery, formation creation/join/member-contact fresh-copy/hidden-parent recovery/audited roster overlay, Saved list, independent update preferences, original-intent hidden-parent recovery, separate audited Saved overlay, local Updates exact read state, authorized off-page reply navigation, unavailable previews, audited Updates overlay, owner badge clearing, and configuration gating',
 );

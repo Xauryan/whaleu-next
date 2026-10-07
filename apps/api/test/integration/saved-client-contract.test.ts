@@ -683,7 +683,8 @@ test(
               revision: '0',
               canSetPreference: true,
               reason: null,
-              inAppCapability: 'unavailable',
+              inAppCapability: 'local',
+              inAppProcessing: 'manual_only',
               externalCapability: 'unavailable',
             });
             initialSaveReceipts.set(
@@ -1866,7 +1867,7 @@ test(
             'No external enrollment or delivery endpoint is invoked',
           );
           const settings = await preferences(other, urgent);
-          assert.equal(settings.inAppCapability, 'unavailable');
+          assert.equal(settings.inAppCapability, 'local');
           assert.equal(settings.externalCapability, 'unavailable');
         },
       );
@@ -1912,6 +1913,7 @@ test(
         try {
           if (ownsSchemas)
             for (const schema of [
+              'whaleu_notifications',
               'whaleu_community_test',
               'whaleu_verification',
               'whaleu_authorization',

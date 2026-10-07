@@ -1,0 +1,26 @@
+<import src="../../identity-privacy/view.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 社区更新</view><view class="title">我的站内更新</view>
+  <view class="notice">仅展示服务端已生成的本地社区新根评论、直接回复与你收藏帖的新根评论记录；当前环境是否生成新记录以帖子设置中的能力说明为准。点赞、投票、组队、私信和其他通知不在此列表中。</view>
+  <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{identityOverlay.notice}}" class="notice">{{identityOverlay.notice}}</view>
+  <view wx:if="{{loaded}}" class="section-title">未读 {{unreadCount}} 条</view>
+  <view wx:if="{{loaded}}" class="meta">这是本账号最新查询的全部社区未读数，包含当前不可查看的更新；不代表外部推送或设备送达。分页不是固定快照，请刷新确认其他设备的变化。</view>
+  <button bindtap="onReload" disabled="{{busy}}" loading="{{busy}}">刷新更新</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看自己的更新 →</navigator>
+  <view wx:for="{{items}}" wx:key="noticeId" class="card">
+    <view class="meta">{{item.createdAt}} · {{item.readAt ? '已读' : '未读'}}</view>
+    <block wx:if="{{item.status === 'available'}}">
+      <view class="section-title">{{item.reason === 'saved' ? '收藏帖的新评论' : item.kind === 'root' ? '你的帖子有新评论' : '与你有关的新回复'}}</view>
+      <view class="author">{{item.preview.author.displayName}}<text class="badge">{{item.preview.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text></view>
+      <view class="body">{{item.preview.text}}</view><template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[item.target.replyId || item.target.commentId]}}" />
+      <view class="image-grid"><image wx:for="{{item.preview.images}}" wx:for-item="media" wx:key="assetId" src="{{media.thumbnailUrl}}" mode="aspectFill" /></view>
+      <button data-id="{{item.noticeId}}" bindtap="onOpen" disabled="{{busy}}">{{item.kind === 'reply' ? '查看这条新回复' : '查看这条新评论'}}</button>
+    </block>
+    <view wx:else class="notice">此条更新的内容当前不可查看</view>
+    <button wx:if="{{!item.readAt}}" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy}}">标记已读</button>
+  </view>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">暂无社区更新</view>
+  <button wx:if="{{canLoadMore}}" bindtap="onMore" disabled="{{busy}}">加载更多更新</button>
+  <view class="notice">打开时会重新校验权限并定位到新评论或新回复。点选“标记已读”仅确认这一条；仅浏览列表不会自动清空未读。外部通知尚未接入，开启偏好不代表订阅同意、模板额度或设备授权。</view>
+  <navigator class="link" url="/pages/community-saved/community-saved">我的收藏 →</navigator><navigator class="link" url="/pages/community-feed/community-feed">回到社区 →</navigator>
+</view>

@@ -12,6 +12,11 @@ export interface WxRequestTask {
   abort(): void;
 }
 export interface WxApi {
+  navigateTo?(options: {
+    url: string;
+    success(): void;
+    fail(error: unknown): void;
+  }): void;
   setClipboardData?(options: {
     data: string;
     success(): void;

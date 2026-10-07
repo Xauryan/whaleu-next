@@ -1663,6 +1663,7 @@ test(
         try {
           if (ownsSchemas)
             for (const schema of [
+              'whaleu_notifications',
               'whaleu_community_test',
               'whaleu_verification',
               'whaleu_authorization',

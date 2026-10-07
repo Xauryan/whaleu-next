@@ -97,6 +97,7 @@ test(
       spaceId = randomUUID(),
       globalId = randomUUID();
     const schemas = [
+      'whaleu_notifications',
       'whaleu_community_test',
       'whaleu_verification',
       'whaleu_authorization',

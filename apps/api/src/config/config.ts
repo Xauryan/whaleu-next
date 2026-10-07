@@ -30,6 +30,11 @@ const schema = z.object({
     .string()
     .regex(/^[a-fA-F0-9]{64}$/)
     .optional(),
+  COMMUNITY_UPDATES_PROCESSING: z
+    .enum(['disabled', 'manual_only', 'automatic'])
+    .default('manual_only'),
+  COMMUNITY_UPDATES_INTERVAL_MS: positiveInteger(5000, 60000),
+  COMMUNITY_UPDATES_BATCH_SIZE: positiveInteger(20, 50),
   LOG_LEVEL: z
     .enum(['debug', 'info', 'warn', 'error', 'silent'])
     .default('info'),

@@ -1,3 +1,5 @@
+import { APP_CONFIG } from '../../config/config.js';
+import type { RuntimeConfig } from '../../config/config.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
@@ -28,6 +30,7 @@ export function preferenceReason(
 @Injectable()
 export class SavedReadService {
   constructor(
+    @Inject(APP_CONFIG) private readonly config: RuntimeConfig,
     @Inject(CommunityRepository)
     private readonly community: CommunityRepository,
     @Inject(CommunityAccessService)
@@ -51,7 +54,8 @@ export class SavedReadService {
       revision: settings?.revision ?? '0',
       canSetPreference: reason === null,
       reason,
-      inAppCapability: 'unavailable',
+      inAppCapability: 'local',
+      inAppProcessing: this.config.COMMUNITY_UPDATES_PROCESSING,
       externalCapability: 'unavailable',
     };
   }

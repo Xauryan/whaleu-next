@@ -1,4 +1,8 @@
 import {
+  UpdatesBadgeController,
+  initialUpdatesBadgeView,
+} from '../community-updates/controller';
+import {
   tradingCategories,
   tradingLabels,
 } from '../../community/trading-contract';
@@ -12,6 +16,7 @@ import { FeedController, initialFeedView } from './controller';
 Page({
   data: {
     ...initialFeedView(),
+    updatesBadge: initialUpdatesBadgeView(),
     tradingCategories,
     tradingLabels,
     identityOverlay: initialOverlayView(),
@@ -30,9 +35,12 @@ Page({
     ],
   },
   controller: undefined as FeedController | undefined,
+  updatesBadge: undefined as UpdatesBadgeController | undefined,
   identityOverlay: undefined as IdentityOverlayController | undefined,
   overlayTargets: '',
   onShow() {
+    this.updatesBadge?.dispose();
+    this.updatesBadge = undefined;
     this.controller?.dispose();
     this.identityOverlay?.dispose();
     this.overlayTargets = '';
@@ -41,6 +49,10 @@ Page({
       this.setData({ error: '环境未初始化，请重新打开小程序' });
       return;
     }
+    this.updatesBadge = new UpdatesBadgeController(runtime, (view) =>
+      this.setData({ updatesBadge: view }),
+    );
+    void this.updatesBadge.load();
     this.identityOverlay = new IdentityOverlayController(
       runtime.sessions,
       runtime.identityPrivacy,
@@ -91,24 +103,31 @@ Page({
     void this.controller?.setTradingSubtype(event.currentTarget.dataset.key);
   },
   onRefresh() {
+    void this.updatesBadge?.load();
     void this.controller?.refresh();
   },
   onReload() {
+    void this.updatesBadge?.load();
     void this.controller?.load();
   },
   onMore() {
     void this.controller?.more();
   },
   onCancel() {
+    this.updatesBadge?.cancel();
     this.controller?.cancel();
   },
   onHide() {
+    this.updatesBadge?.dispose();
+    this.updatesBadge = undefined;
     this.controller?.dispose();
     this.controller = undefined;
     this.identityOverlay?.dispose();
     this.identityOverlay = undefined;
   },
   onUnload() {
+    this.updatesBadge?.dispose();
+    this.updatesBadge = undefined;
     this.controller?.dispose();
     this.controller = undefined;
     this.identityOverlay?.dispose();

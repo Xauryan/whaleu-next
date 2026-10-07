@@ -31,7 +31,8 @@ const preferences = (): PostUpdatePreferences => ({
   revision: '0',
   canSetPreference: true,
   reason: null,
-  inAppCapability: 'unavailable',
+  inAppCapability: 'local',
+  inAppProcessing: 'manual_only',
   externalCapability: 'unavailable',
 });
 const intent = (): SavedIntent => ({
@@ -213,6 +214,16 @@ test('independent per-post preference bits preserve decimal revisions without im
       assert.ok(Object.isFrozen(decodePostUpdatePreferences(raw)));
     }
   }
+  for (const inAppProcessing of [
+    'disabled',
+    'manual_only',
+    'automatic',
+  ] as const)
+    assert.equal(
+      decodePostUpdatePreferences({ ...preferences(), inAppProcessing })
+        .inAppProcessing,
+      inAppProcessing,
+    );
   for (const reason of [
     'POST_NOT_FOUND',
     'COMMUNITY_SCOPE_UNAVAILABLE',
@@ -229,6 +240,14 @@ test('independent per-post preference bits preserve decimal revisions without im
       reason,
     );
   }
+  assert.equal(
+    decodePostUpdatePreferences({
+      ...preferences(),
+      inAppCapability: 'unavailable',
+      inAppProcessing: 'disabled',
+    }).inAppCapability,
+    'unavailable',
+  );
   for (const bad of [
     { ...preferences(), savedUpdatesEnabled: 1 },
     { ...preferences(), externalUpdatesEnabled: 'false' },
@@ -236,6 +255,19 @@ test('independent per-post preference bits preserve decimal revisions without im
     { ...preferences(), canSetPreference: false },
     { ...preferences(), canSetPreference: false, reason: 'REQUEST_NOT_FOUND' },
     { ...preferences(), inAppCapability: 'available' },
+    { ...preferences(), inAppProcessing: undefined },
+    { ...preferences(), inAppProcessing: 'enabled' },
+    { ...preferences(), inAppProcessing: true },
+    {
+      ...preferences(),
+      inAppCapability: 'unavailable',
+      inAppProcessing: 'automatic',
+    },
+    {
+      ...preferences(),
+      inAppCapability: 'unavailable',
+      inAppProcessing: 'manual_only',
+    },
     { ...preferences(), externalCapability: 'delivered' },
     { ...preferences(), notificationsEnabled: true },
     { ...preferences(), providerConsent: true },

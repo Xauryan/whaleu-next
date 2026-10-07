@@ -15,6 +15,9 @@ export class IdentityService {
     @Inject(IDENTITY_PROVIDER) private readonly provider: IdentityProvider,
     @Inject(IdentityRepository) private readonly repository: IdentityRepository,
   ) {}
+  activeAccount(accountId: string, tx: PoolClient): Promise<boolean> {
+    return this.repository.activeAccount(accountId, tx);
+  }
   async login(code: string): Promise<SessionCredentials> {
     const identity = await this.provider.exchange(code);
     const accessToken = mintToken('access');

@@ -32,6 +32,7 @@ export const reasonMessage = (code: string | null): string =>
     CONTENT_REVIEW_UNAVAILABLE: '内容审核服务尚未就绪，暂不能发布',
     MEDIA_NOT_READY: '图片尚未完成上传与审核，暂不能发布',
     MEDIA_UNAVAILABLE: '图片上传与审核服务尚未接入',
+    NOTICE_NOT_FOUND: '此更新不存在或不属于当前账号，请刷新列表',
     POST_NOT_FOUND: '帖子不存在或当前不可查看',
     DISCUSSION_RESTART_REQUIRED: '讨论排序已变化，请重新加载，旧分页已清除',
     REPLY_NOT_FOUND: '回复不存在或当前不可查看',

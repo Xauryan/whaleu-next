@@ -50,6 +50,18 @@ export class IdentityRepository {
     @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
 
+  /** Internal lifecycle facade, deliberately independent of user sessions. */
+  async activeAccount(accountId: string, tx: PoolClient): Promise<boolean> {
+    return (
+      (
+        await tx.query<{ status: string }>(
+          'SELECT status FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE',
+          [accountId],
+        )
+      ).rows[0]?.status === 'active'
+    );
+  }
+
   async createSession(
     identity: ProviderIdentity,
     tokens: TokenHashes,

@@ -174,11 +174,46 @@ export const postUpdatePreferences = (
   revision: '0',
   canSetPreference: true,
   reason: null,
-  inAppCapability: 'unavailable',
+  inAppCapability: 'local',
+  inAppProcessing: 'manual_only',
   externalCapability: 'unavailable',
   ...overrides,
 });
 export class FakeCommunityGateway implements CommunityGateway {
+  updatesImpl: CommunityGateway['updates'] = async () => ({
+    items: [],
+    nextCursor: null,
+    unreadCount: 0,
+  });
+  updatesUnreadImpl: CommunityGateway['updatesUnread'] = async () => ({
+    unreadCount: 0,
+  });
+  readUpdateImpl: CommunityGateway['readUpdate'] = async (noticeId) => ({
+    noticeId,
+    readAt: createdAt,
+    unreadCount: 0,
+  });
+  updateTargetImpl: CommunityGateway['updateTarget'] = async (noticeId) => ({
+    noticeId,
+    status: 'unavailable',
+  });
+  updates(...args: Parameters<CommunityGateway['updates']>) {
+    this.calls.push({ method: 'updates', args });
+    return this.updatesImpl(...args);
+  }
+  updatesUnread(...args: Parameters<CommunityGateway['updatesUnread']>) {
+    this.calls.push({ method: 'updatesUnread', args });
+    return this.updatesUnreadImpl(...args);
+  }
+  readUpdate(...args: Parameters<CommunityGateway['readUpdate']>) {
+    this.calls.push({ method: 'readUpdate', args });
+    return this.readUpdateImpl(...args);
+  }
+  updateTarget(...args: Parameters<CommunityGateway['updateTarget']>) {
+    this.calls.push({ method: 'updateTarget', args });
+    return this.updateTargetImpl(...args);
+  }
+
   savedImpl: CommunityGateway['saved'] = async () => ({
     items: [],
     nextCursor: null,
