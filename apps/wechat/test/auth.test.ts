@@ -3,6 +3,7 @@ import test from 'node:test';
 import { AuthService, type AuthGateway } from '../src/auth/auth-service';
 import { ClientError } from '../src/api/errors';
 import { SessionStore } from '../src/auth/session';
+import { Cancellation } from '../src/platform/contracts';
 import {
   FakeClock,
   MemoryStorage,
@@ -16,7 +17,7 @@ function gateway(
   refresh: AuthGateway['refresh'],
   login: AuthGateway['login'] = async () => credentials(),
 ): AuthGateway {
-  return { refresh, login };
+  return { refresh, login, logout: async () => undefined };
 }
 
 test('parallel expired requests share one refresh and late 401 reuses new revision', async () => {
@@ -49,16 +50,17 @@ test('parallel expired requests share one refresh and late 401 reuses new revisi
   );
   assert.equal(clock.timers, 0);
 });
-test('bounded refresh releases flight after timeout and ignores a late success', async () => {
+test('uncertain refresh timeout forgets consumed credentials and requires fresh login', async () => {
   const sessions = signedIn();
   const clock = new FakeClock();
   const late = deferred<ReturnType<typeof credentials>>();
   let calls = 0;
   const service = new AuthService(
     sessions,
-    gateway(async () =>
-      ++calls === 1 ? late.promise : credentials('12', 'b'),
-    ),
+    gateway(async () => {
+      calls += 1;
+      return late.promise;
+    }),
     { login: async () => 'synthetic-code' },
     clock,
     100,
@@ -68,33 +70,39 @@ test('bounded refresh releases flight after timeout and ignores a late success',
   await flush();
   clock.advance(100);
   await rejection;
-  await service.refresh(sessions.snapshot());
+  assert.equal(sessions.snapshot().credentials, null);
+  await assert.rejects(service.refresh(sessions.snapshot()), {
+    kind: 'auth-required',
+  });
   late.resolve(credentials('12', 'late'));
   await flush();
-  assert.equal(
-    sessions.snapshot().credentials?.accessToken,
-    'synthetic-access-b',
-  );
-  assert.equal(calls, 2);
+  assert.equal(sessions.snapshot().credentials, null);
+  assert.equal(calls, 1);
+  await service.login();
+  assert.equal(sessions.snapshot().credentials?.accountId, '12');
 });
-test('synchronous refresh throw cleans up singleflight without losing login', async () => {
+test('raw refresh failure is sanitized and never permits uncertain token reuse', async () => {
   const sessions = signedIn();
-  const clock = new FakeClock();
   let calls = 0;
   const service = new AuthService(
     sessions,
     gateway(() => {
-      if (++calls === 1) throw new Error('synthetic');
-      return Promise.resolve(credentials('12', 'b'));
+      calls += 1;
+      throw new Error('synthetic-private-sentinel');
     }),
     { login: async () => 'synthetic-code' },
-    clock,
+    new FakeClock(),
   );
-  await assert.rejects(service.refresh(sessions.snapshot()), {
-    kind: 'network',
+  await assert.rejects(service.refresh(sessions.snapshot()), (error) => {
+    assert.equal((error as ClientError).kind, 'network');
+    assert.equal(String(error).includes('private-sentinel'), false);
+    return true;
   });
-  await service.refresh(sessions.snapshot());
-  assert.equal(calls, 2);
+  assert.equal(sessions.snapshot().credentials, null);
+  await assert.rejects(service.refresh(sessions.snapshot()), {
+    kind: 'auth-required',
+  });
+  assert.equal(calls, 1);
 });
 test('refresh success after account switch cannot overwrite the new account', async () => {
   const sessions = signedIn();
@@ -106,6 +114,7 @@ test('refresh success after account switch cannot overwrite the new account', as
     new FakeClock(),
   );
   const pending = service.refresh(sessions.snapshot());
+  await flush();
   sessions.completeLogin(sessions.beginLogin(), credentials('99'));
   late.resolve(credentials('12', 'late'));
   await assert.rejects(pending, { kind: 'stale-session' });
@@ -121,6 +130,7 @@ test('old failed refresh cannot clear a newer same-account login', async () => {
     new FakeClock(),
   );
   const pending = service.refresh(sessions.snapshot());
+  await flush();
   sessions.completeLogin(sessions.beginLogin(), credentials('12', 'new-login'));
   late.reject(new ClientError('auth-required', 'Invalid refresh'));
   await assert.rejects(pending, { kind: 'stale-session' });
@@ -272,5 +282,95 @@ test('refresh storage failure retains its storage category while clearing memory
   await assert.rejects(service.refresh(sessions.snapshot()), {
     kind: 'storage',
   });
+  assert.equal(sessions.snapshot().credentials, null);
+});
+
+test('same-tick logout prevents scheduled refresh gateway dispatch', async () => {
+  const sessions = signedIn();
+  let calls = 0;
+  const service = new AuthService(
+    sessions,
+    gateway(async () => {
+      calls += 1;
+      return credentials();
+    }),
+    { login: async () => 'synthetic' },
+    new FakeClock(),
+  );
+  const pending = service.refresh(sessions.snapshot());
+  sessions.logout();
+  await assert.rejects(pending, { kind: 'stale-session' });
+  assert.equal(calls, 0);
+});
+test('cancelled native login never exchanges a later code', async () => {
+  const sessions = new SessionStore();
+  const code = deferred<string>();
+  let exchanges = 0;
+  const service = new AuthService(
+    sessions,
+    gateway(
+      async () => credentials(),
+      async () => {
+        exchanges += 1;
+        return credentials();
+      },
+    ),
+    { login: () => code.promise },
+    new FakeClock(),
+  );
+  const cancellation = new Cancellation();
+  const pending = service.login(cancellation);
+  await flush();
+  cancellation.cancel();
+  await assert.rejects(pending, { kind: 'cancelled' });
+  code.resolve('late-synthetic');
+  await flush();
+  assert.equal(exchanges, 0);
+  assert.equal(sessions.snapshot().credentials, null);
+});
+test('logout forgets locally before dispatch and late revocation cannot clear a newer login', async () => {
+  const sessions = signedIn();
+  const revoke = deferred<void>();
+  let revokedToken = '';
+  const service = new AuthService(
+    sessions,
+    {
+      ...gateway(async () => credentials()),
+      logout: async (value) => {
+        revokedToken = value.accessToken;
+        await revoke.promise;
+      },
+    },
+    { login: async () => 'synthetic' },
+    new FakeClock(),
+  );
+  const pending = service.logout();
+  assert.equal(sessions.snapshot().credentials, null);
+  sessions.completeLogin(sessions.beginLogin(), credentials('99'));
+  await flush();
+  revoke.resolve();
+  await pending;
+  assert.equal(revokedToken, 'synthetic-access-a');
+  assert.equal(sessions.snapshot().credentials?.accountId, '99');
+});
+test('logout still attempts server revocation when device removal fails', async () => {
+  const storage = new MemoryStorage();
+  const sessions = new SessionStore(storage);
+  sessions.completeLogin(sessions.beginLogin(), credentials());
+  storage.failRemove = true;
+  let revoked = false;
+  const service = new AuthService(
+    sessions,
+    {
+      ...gateway(async () => credentials()),
+      logout: async () => {
+        revoked = true;
+      },
+    },
+    { login: async () => 'synthetic' },
+    new FakeClock(),
+  );
+  await assert.rejects(service.logout(), { kind: 'storage' });
+  assert.equal(revoked, true);
   assert.equal(sessions.snapshot().credentials, null);
 });

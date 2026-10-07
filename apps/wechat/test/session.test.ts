@@ -79,3 +79,19 @@ test('logout clears memory even if removal fails and reports storage failure', (
   assert.throws(() => sessions.logout(), { kind: 'storage' });
   assert.equal(sessions.snapshot().credentials, null);
 });
+
+test('refresh cannot replace the same account with a different session identity', () => {
+  const sessions = signedIn();
+  assert.throws(
+    () =>
+      sessions.rotate(sessions.snapshot(), {
+        ...credentials(),
+        sessionId: 'synthetic-other-session',
+      }),
+    { kind: 'protocol' },
+  );
+  assert.equal(
+    sessions.snapshot().credentials?.sessionId,
+    credentials().sessionId,
+  );
+});

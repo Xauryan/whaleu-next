@@ -1,9 +1,10 @@
 # API foundation
 
 This is the first runnable NestJS modular-monolith foundation, not a completed
-WhaleU rewrite. It implements infrastructure only. No authentication, account,
-content, messaging, marketplace, moderation, payment, or other business endpoints
-are implemented yet. Full feature parity remains required.
+WhaleU rewrite. Infrastructure and the first identity/session vertical slice are
+implemented. Content, messaging, marketplace, moderation, payment and most account
+business features are still pending. Full feature parity remains required.
+See [identity and auth contract](../../docs/API_AUTH.md) for the exact scope.
 
 ## Local development
 
@@ -59,8 +60,8 @@ The new project does not reproduce old route aliases or old response formats.
 The reusable `SchemaValidationPipe` validates Zod schemas. Use strict object DTOs
 and derive the acting user from a verified authenticated principal, never from
 request-body user IDs. Authorization, rate limiting for business endpoints,
-session rotation/revocation, audit events, and production observability remain
-future work. Do not expose this foundation as a production WhaleU service.
+audit events and production observability remain future work. Identity-only
+rate limiting and session rotation/revocation are implemented. Do not expose this foundation as a production WhaleU service.
 
 ## Tests and checks
 
@@ -79,8 +80,9 @@ TEST_DATABASE_URL=postgresql://TEST_USER:TEST_PASSWORD@127.0.0.1:5432/whaleu_tes
 ```
 
 The suite refuses remote hosts, a different database name, or an existing
-`whaleu_meta` schema. It creates and removes its own random fixture schema and
-migration metadata. It does not silently skip when configuration is missing.
+`whaleu_meta` or identity schema. Integration files run serially and create/remove
+only their own fixture schemas and migration metadata. Identity tests cover real
+transaction, locking, expiry and revocation behavior with a synthetic provider. It does not silently skip when configuration is missing.
 Never point it at production or an existing business database.
 
 CI uses a standard public Ubuntu runner, a disposable PostgreSQL service,
@@ -88,6 +90,16 @@ read-only repository permission, and no secrets or AI service calls. Exact packa
 versions and the npm lockfile are checked in. TypeScript 6.0.3 is the newest stable
 version compatible with the pinned TypeScript ESLint peer range (`<6.1.0`);
 TypeScript 7 is intentionally not forced into an unsupported toolchain.
+
+Internal credential-state cleanup is dry-run by default:
+
+```sh
+npm run auth:maintain -w @whaleu/api
+```
+
+It is never scheduled or enabled automatically. Review the [retention and
+operator-safety contract](../../docs/API_AUTH.md#internal-credential-state-maintenance)
+before explicit apply; it never deletes accounts or business data.
 
 See [migration contract](migrations/README.md) and the project feature-parity
 checklist for the remaining production data-migration and business work.

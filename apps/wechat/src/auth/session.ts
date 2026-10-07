@@ -1,49 +1,28 @@
 import { ClientError, isRecord } from '../api/errors';
 import type { Storage } from '../platform/contracts';
 
-export interface Credentials {
-  readonly accountId: string;
-  readonly accessToken: string;
-  readonly refreshToken: string;
-  readonly expiresAt?: number;
-}
+import { validateCredentials, type Credentials } from './session-contract';
+export { validateCredentials, type Credentials } from './session-contract';
+
 export interface SessionTicket {
   readonly epoch: number;
   readonly revision: number;
   readonly credentials: Readonly<Credentials> | null;
 }
 const STORAGE_KEY = 'whaleu.session.v1';
-const validText = (value: unknown): value is string =>
-  typeof value === 'string' &&
-  value.trim().length > 0 &&
-  value.length <= 16_384;
-export function validateCredentials(value: unknown): Credentials {
-  if (
-    !isRecord(value) ||
-    !validText(value.accountId) ||
-    !validText(value.accessToken) ||
-    !validText(value.refreshToken) ||
-    (value.expiresAt !== undefined &&
-      (typeof value.expiresAt !== 'number' ||
-        !Number.isFinite(value.expiresAt) ||
-        value.expiresAt <= 0))
-  ) {
-    throw new ClientError('protocol', 'Invalid session credentials');
-  }
-  return Object.freeze({
-    accountId: value.accountId,
-    accessToken: value.accessToken,
-    refreshToken: value.refreshToken,
-    ...(value.expiresAt === undefined ? {} : { expiresAt: value.expiresAt }),
-  });
-}
 
 /** All credential replacement goes through this store. Login/logout change epoch, refresh changes revision. */
 export class SessionStore {
   private epoch = 0;
   private revision = 0;
   private credentials: Readonly<Credentials> | null = null;
-  constructor(private readonly storage?: Storage) {}
+  constructor(
+    private readonly storage?: Storage,
+    private readonly storageKey = STORAGE_KEY,
+    private readonly validate: (
+      value: unknown,
+    ) => Credentials = validateCredentials,
+  ) {}
 
   snapshot(): SessionTicket {
     return Object.freeze({
@@ -69,15 +48,15 @@ export class SessionStore {
     if (!this.storage) return;
     this.clearMemory();
     try {
-      const saved = this.storage.get(STORAGE_KEY);
+      const saved = this.storage.get(this.storageKey);
       if (saved === undefined || saved === null || saved === '') return;
       if (!isRecord(saved) || saved.version !== 1)
         throw new ClientError('protocol', 'Invalid saved session');
-      this.credentials = validateCredentials(saved.credentials);
+      this.credentials = this.validate(saved.credentials);
     } catch {
       this.credentials = null;
       try {
-        this.storage.remove(STORAGE_KEY);
+        this.storage.remove(this.storageKey);
       } catch {
         /* Memory remains logged out. */
       }
@@ -96,14 +75,20 @@ export class SessionStore {
         'stale-session',
         'This login attempt is no longer current',
       );
-    this.save(validateCredentials(credentials));
+    this.save(this.validate(credentials));
   }
   rotate(ticket: SessionTicket, credentials: Credentials): SessionTicket {
     this.assertCurrent(ticket);
     if (ticket.revision !== this.revision) return this.snapshot();
-    const checked = validateCredentials(credentials);
-    if (checked.accountId !== ticket.credentials?.accountId)
-      throw new ClientError('protocol', 'Refresh cannot change the account');
+    const checked = this.validate(credentials);
+    if (
+      checked.accountId !== ticket.credentials?.accountId ||
+      checked.sessionId !== ticket.credentials?.sessionId
+    )
+      throw new ClientError(
+        'protocol',
+        'Refresh cannot change the account or session',
+      );
     this.save(checked);
     this.revision += 1;
     return this.snapshot();
@@ -111,7 +96,7 @@ export class SessionStore {
   logout(): void {
     this.clearMemory();
     try {
-      this.storage?.remove(STORAGE_KEY);
+      this.storage?.remove(this.storageKey);
     } catch {
       throw new ClientError('storage', 'Saved login could not be removed');
     }
@@ -127,11 +112,11 @@ export class SessionStore {
   }
   private save(credentials: Credentials): void {
     try {
-      this.storage?.set(STORAGE_KEY, { version: 1, credentials });
+      this.storage?.set(this.storageKey, { version: 1, credentials });
     } catch {
       this.clearMemory();
       try {
-        this.storage?.remove(STORAGE_KEY);
+        this.storage?.remove(this.storageKey);
       } catch {
         /* Report storage failure; never retain partial memory credentials. */
       }

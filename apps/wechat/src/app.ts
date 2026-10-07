@@ -1,10 +1,18 @@
-/** Native bootstrap only. Business pages and backend wiring remain explicitly unimplemented. */
-App({
+import { clientConfiguration } from './config';
+import { createIdentityRuntime, type IdentityRuntime } from './auth/runtime';
+import { systemClock } from './platform/clock';
+
+export interface WhaleuApp {
+  identity: IdentityRuntime | undefined;
+  globalData: { implementationStage: string; featureParityVerified: boolean };
+}
+App<WhaleuApp>({
+  identity: undefined,
   globalData: {
-    implementationStage: 'transport-foundation',
+    implementationStage: 'native-identity-slice',
     featureParityVerified: false,
   },
   onLaunch() {
-    // No automatic provider login, production requests, legacy storage import or data mutation.
+    this.identity = createIdentityRuntime(clientConfiguration, wx, systemClock);
   },
 });

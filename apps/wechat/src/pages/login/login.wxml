@@ -1,0 +1,33 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 开发构建</view>
+  <view class="title">连接你的鲸鱼校园</view>
+  <view class="intro">原生微信登录与会话管理。完整业务功能仍在开发中，此构建不可作为正式版本发布。</view>
+
+  <view class="card">
+    <view class="card-title">登录状态</view>
+    <view class="status" aria-role="status">{{status}}</view>
+    <view wx:if="{{!configured}}" class="notice">当前未启用微信登录环境。需由开发者配置已审核的非生产 API 地址、AppID 和请求域名后使用。</view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+    <view wx:if="{{requestId}}" class="request-id" selectable="true">问题编号：{{requestId}}</view>
+
+    <view wx:if="{{verified}}" class="session">
+      <view class="field-label">账号标识（服务端返回）</view>
+      <text class="field-value" selectable="true">{{accountId}}</text>
+      <view class="field-label">本次会话</view>
+      <text class="field-value" selectable="true">{{sessionId}}</text>
+      <view class="field-label">当前访问凭证有效至（UTC）</view>
+      <text class="field-value">{{expiresAt}}</text>
+    </view>
+
+    <button wx:if="{{!hasLocalSession &amp;&amp; !signingIn}}" class="primary" bindtap="onLogin" disabled="{{!configured || busy}}" loading="{{busy}}">使用微信登录</button>
+    <button wx:if="{{hasLocalSession}}" class="primary" bindtap="onCheckSession" disabled="{{!configured || busy}}" loading="{{busy}}">验证当前会话</button>
+    <button wx:if="{{hasLocalSession || signingIn}}" class="secondary" bindtap="onLogout">{{signingIn ? '取消登录' : '退出登录'}}</button>
+  </view>
+
+  <view class="card secondary-card">
+    <view class="card-title">当前能力边界</view>
+    <view class="detail">登录仅建立账号会话，不代表完成手机号验证、学生身份认证或资料审核。</view>
+    <view class="detail">微信隐私授权流程与手机号验证尚未接入。此页面不会请求手机号，也不会展示虚构的个人资料。</view>
+    <view class="detail">业务首页、校园社区及其他原有功能仍在迁移。真实设备和微信开发者工具联调尚待验证。</view>
+  </view>
+</view>

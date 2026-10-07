@@ -1,7 +1,10 @@
 # SQL migration contract
 
-There are no application migrations yet. Production schema mapping is a separate,
-required milestone; table structures must not be guessed from API usage.
+`0001_identity_sessions.sql` creates the new identity/session schema. It contains
+no import or transformation of legacy records. Production schema mapping and all
+legacy-data migration remain separate, required milestones.
+`0002_identity_retention_index.sql` adds the terminal-session lookup index for
+operator-only maintenance; applying it does not delete any records.
 
 - Add immutable UTF-8 files named `0001_descriptive_name.sql`, in increasing order
 - SQL files are trusted repository code and require review before execution

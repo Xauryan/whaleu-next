@@ -29,6 +29,7 @@ function setup(sessions = signedIn()) {
   const auth = new AuthService(
     sessions,
     {
+      logout: async () => undefined,
       login: async () => credentials(),
       refresh: async () => {
         refreshes += 1;
@@ -239,6 +240,7 @@ test('cancellation during shared refresh settles promptly without cancelling pee
   const auth = new AuthService(
     sessions,
     {
+      logout: async () => undefined,
       login: async () => credentials(),
       refresh: async () => {
         refreshes += 1;

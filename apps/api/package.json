@@ -7,11 +7,12 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test test/*.test.ts",
-    "test:integration": "node --import tsx --test test/integration/*.test.ts",
+    "test:integration": "node --import tsx --test --test-concurrency=1 test/integration/*.test.ts",
     "dev": "node --watch --env-file-if-exists=../../.env --import tsx src/main.ts",
     "start": "node --env-file-if-exists=../../.env dist/main.js",
     "db:status": "node --env-file-if-exists=../../.env --import tsx src/database/migrate.ts status",
-    "db:migrate": "node --env-file-if-exists=../../.env --import tsx src/database/migrate.ts up"
+    "db:migrate": "node --env-file-if-exists=../../.env --import tsx src/database/migrate.ts up",
+    "auth:maintain": "node --env-file-if-exists=../../.env --import tsx src/identity/maintain.ts"
   },
   "dependencies": {
     "@nestjs/common": "12.1.2",

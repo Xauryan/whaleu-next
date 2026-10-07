@@ -27,3 +27,7 @@ async function copyAssets(directory, destination) {
   }
 }
 await copyAssets(path.join(root, 'src'), out);
+
+execFileSync(process.execPath, [path.join(root, 'scripts/smoke-build.mjs')], {
+  stdio: 'inherit',
+});

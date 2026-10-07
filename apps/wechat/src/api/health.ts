@@ -10,7 +10,7 @@ function decodeHealth(value: unknown): Health {
   return { status: 'ok' };
 }
 
-/** These are the only implemented backend routes; no auth or business route is invented here. */
+/** Explicit liveness/readiness DTOs, separate from identity and business modules. */
 export const healthLive: Endpoint<Health> = {
   path: '/health/live',
   method: 'GET',

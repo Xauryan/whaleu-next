@@ -2,17 +2,26 @@ import { ClientError } from './errors';
 
 /** Keep credentials on one explicit HTTPS origin; no hardcoded production destination. */
 export function normalizeOrigin(origin: string): string {
+  const match = /^https:\/\/([^/:?#@]+)(?::([0-9]{1,5}))?\/?$/i.exec(origin);
+  const hostname = match?.[1];
+  const port = match?.[2];
   if (
-    !/^https:\/\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::[0-9]{1,5})?\/?$/i.test(
-      origin,
-    )
+    match?.[0] !== origin ||
+    !hostname ||
+    hostname.length > 253 ||
+    !hostname
+      .split('.')
+      .every((label) =>
+        /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label),
+      ) ||
+    (port !== undefined && (Number(port) < 1 || Number(port) > 65535))
   ) {
     throw new ClientError(
       'configuration',
       'An explicit HTTPS API origin is required',
     );
   }
-  return origin.replace(/\/$/, '');
+  return origin.replace(/\/$/, '').toLowerCase();
 }
 export function endpointUrl(origin: string, path: string): string {
   if (

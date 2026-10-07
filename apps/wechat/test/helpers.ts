@@ -22,6 +22,9 @@ export async function flush(): Promise<void> {
 export function credentials(accountId = '12', suffix = 'a'): Credentials {
   return {
     accountId,
+    sessionId: `synthetic-session-${accountId}`,
+    expiresAt: 900_000,
+    refreshExpiresAt: 1_800_000,
     accessToken: `synthetic-access-${suffix}`,
     refreshToken: `synthetic-refresh-${suffix}`,
   };

@@ -16,6 +16,20 @@ const schema = z.object({
   PG_POOL_MAX: positiveInteger(10, 100),
   PG_CONNECTION_TIMEOUT_MS: positiveInteger(5000, 60000),
   PG_STATEMENT_TIMEOUT_MS: positiveInteger(10000, 300000),
+  WECHAT_APP_ID: z
+    .string()
+    .regex(/^wx[a-f0-9]{16}$/)
+    .optional(),
+  WECHAT_APP_SECRET: z
+    .string()
+    .min(32)
+    .max(256)
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .optional(),
+  AUTH_RATE_LIMIT_KEY: z
+    .string()
+    .regex(/^[a-fA-F0-9]{64}$/)
+    .optional(),
   LOG_LEVEL: z
     .enum(['debug', 'info', 'warn', 'error', 'silent'])
     .default('info'),
@@ -34,6 +48,15 @@ export function loadConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     throw new Error(`Invalid configuration fields: ${keys.join(', ')}`);
   }
   const config = result.data;
+  const authFields = [
+    config.WECHAT_APP_ID,
+    config.WECHAT_APP_SECRET,
+    config.AUTH_RATE_LIMIT_KEY,
+  ];
+  if (authFields.some(Boolean) && !authFields.every(Boolean))
+    throw new Error(
+      'WECHAT_APP_ID, WECHAT_APP_SECRET and AUTH_RATE_LIMIT_KEY must be configured together',
+    );
   let url: URL;
   try {
     url = new URL(config.DATABASE_URL);

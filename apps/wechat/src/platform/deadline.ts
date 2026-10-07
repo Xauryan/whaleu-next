@@ -23,7 +23,11 @@ export function bounded<T>(
       reject(new ClientError('timeout', 'The operation timed out'));
     }, timeoutMs);
     Promise.resolve()
-      .then(operation)
+      .then(() => {
+        if (settled)
+          throw new ClientError('timeout', 'The operation timed out');
+        return operation();
+      })
       .then(
         (value) => {
           if (settled) return;
