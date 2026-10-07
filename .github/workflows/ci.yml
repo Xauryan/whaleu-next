@@ -37,6 +37,8 @@ jobs:
         with:
           node-version: 24.19.0
           cache: npm
+      - name: Install pinned package manager
+        run: npm install --global npm@11.9.0 --ignore-scripts --no-audit --no-fund
       - name: Verify package manager
         run: test "$(npm --version)" = "11.9.0"
       - run: npm ci --ignore-scripts
