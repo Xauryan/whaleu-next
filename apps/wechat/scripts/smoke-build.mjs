@@ -82,6 +82,9 @@ for (const route of config.pages.filter(
     postId: '66666666-6666-4666-8666-666666666666',
     spaceId: '55555555-5555-4555-8555-555555555555',
     category: 'discussion',
+    ...(route.endsWith('community-thread')
+      ? { rootCommentId: '88888888-8888-4888-8888-888888888888' }
+      : {}),
   });
   current.onShow();
   assert.equal(current.data.loaded, false);
@@ -246,6 +249,8 @@ const pollPostWire = () => ({
   publishedAt: '2026-10-07T00:00:00.000Z',
   likeCount: 0,
   commentCount: 0,
+  replyCount: 0,
+  discussionCount: 0,
   viewer: { isSelf: true, isLiked: false, canDelete: true, canComment: true },
   commentsPolicy: 'open',
   component: { kind: 'poll', poll: pollWire },
@@ -329,6 +334,193 @@ assert.equal(pollPage.data.pollView.canVote, false);
 app.onHide();
 assert.equal(pollPage.data.pollView.poll, null);
 pollPage.onUnload();
+// Compiled thread + reply composer exercise the real controllers and durable stores.
+const rootId = '88888888-8888-4888-8888-888888888888';
+const discussionReplyId = '12121212-1212-4212-8212-121212121212';
+const rootWire = () => ({
+  id: rootId,
+  postId: pollPostId,
+  text: '合成根评论',
+  images: [],
+  author: pollPostWire().author,
+  createdAt: '2026-10-07T00:00:00.000Z',
+  likeCount: 0,
+  replyCount: 1,
+  isPinned: false,
+  replyPreview: { items: [], nextCursor: null },
+  viewer: { isSelf: true, canDelete: true, isLiked: false, canPin: true },
+});
+const replyWire = () => ({
+  id: discussionReplyId,
+  postId: pollPostId,
+  rootCommentId: rootId,
+  target: {
+    kind: 'comment',
+    id: rootId,
+    status: 'available',
+    author: pollPostWire().author,
+  },
+  text: '合成回复',
+  images: [],
+  author: pollPostWire().author,
+  createdAt: '2026-10-07T00:00:00.000Z',
+  likeCount: 0,
+  viewer: { isSelf: true, canDelete: true, isLiked: false },
+});
+let finishInteraction,
+  interactionSends = 0;
+const interactionReceipt = {
+  requestId: pollRequestId,
+  operation: 'set_reply_like',
+  outcome: 'applied',
+  resourceId: discussionReplyId,
+  desired: true,
+};
+app.community.gateway = {
+  post: async () => ({
+    ...pollPostWire(),
+    component: { kind: 'none' },
+    commentCount: 1,
+    replyCount: 1,
+    discussionCount: 2,
+  }),
+  comment: async () => rootWire(),
+  reply: async () => replyWire(),
+  replies: async () => ({ items: [replyWire()], nextCursor: null }),
+  discussionContext: async () => ({
+    comment: rootWire(),
+    reply: replyWire(),
+    replies: { items: [replyWire()], nextCursor: null },
+  }),
+  discussionLike: async () => {
+    interactionSends++;
+    return new Promise((resolve) => {
+      finishInteraction = resolve;
+    });
+  },
+  discussionReceipt: async () => interactionReceipt,
+};
+const threadModule = path.join(
+  dist,
+  'pages/community-thread/community-thread.js',
+);
+delete require.cache[require.resolve(threadModule)];
+require(threadModule);
+const threadPage = page;
+threadPage.setData = (data) => {
+  threadPage.data = { ...threadPage.data, ...data };
+};
+threadPage.onLoad({
+  postId: pollPostId,
+  rootCommentId: rootId,
+  replyId: discussionReplyId,
+});
+threadPage.onShow();
+for (let i = 0; i < 50; i++) await Promise.resolve();
+assert.equal(threadPage.data.loaded, true);
+assert.equal(threadPage.data.replies.length, 1);
+assert.equal(threadPage.data.contextReplies.length, 0);
+threadPage.onLikeReply({
+  currentTarget: { dataset: { id: discussionReplyId } },
+});
+for (let i = 0; i < 20; i++) await Promise.resolve();
+threadPage.onLikeReply({
+  currentTarget: { dataset: { id: discussionReplyId } },
+});
+assert.equal(interactionSends, 1);
+assert.ok(app.community.pendingDiscussion.load(pollAccount));
+app.onHide();
+assert.equal(threadPage.data.root, null);
+assert.deepEqual(threadPage.data.replies, []);
+finishInteraction(interactionReceipt);
+for (let i = 0; i < 20; i++) await Promise.resolve();
+assert.ok(app.community.pendingDiscussion.load(pollAccount));
+threadPage.onShow();
+for (let i = 0; i < 50; i++) await Promise.resolve();
+assert.equal(threadPage.data.interaction.frozen, true);
+threadPage.onInteractionReceipt();
+for (let i = 0; i < 50; i++) await Promise.resolve();
+assert.equal(app.community.pendingDiscussion.load(pollAccount), null);
+threadPage.onUnload();
+const originalProfiles = app.community.profiles;
+app.community.profiles = {
+  profile: async () => ({
+    accountId: pollAccount,
+    preferences: {
+      defaultCommentAnonymousEnabled: false,
+      defaultCommentNonAnonymousEnabled: false,
+    },
+  }),
+};
+let finishReply,
+  replySends = 0;
+const replyReceipt = {
+  requestId: pollRequestId,
+  operation: 'publish_reply',
+  outcome: 'created',
+  resourceId: discussionReplyId,
+  createdAt: '2026-10-07T00:00:00.000Z',
+};
+app.community.gateway = {
+  ...app.community.gateway,
+  commentCapabilities: async () => ({
+    availability: 'allowed',
+    reason: null,
+    authorModes: ['anonymous'],
+    forcedAuthorMode: 'anonymous',
+    lastAuthorMode: null,
+  }),
+  publishReply: async (root, payload) => {
+    replySends++;
+    assert.equal(root, rootId);
+    assert.deepEqual(app.community.pending.load(pollAccount).payload, payload);
+    return new Promise((resolve) => {
+      finishReply = resolve;
+    });
+  },
+  receipt: async () => replyReceipt,
+};
+const composeModule = path.join(
+  dist,
+  'pages/community-compose/community-compose.js',
+);
+delete require.cache[require.resolve(composeModule)];
+require(composeModule);
+const replyPage = page;
+replyPage.setData = (data) => {
+  replyPage.data = { ...replyPage.data, ...data };
+};
+replyPage.onLoad({
+  postId: pollPostId,
+  rootCommentId: rootId,
+  copyReplyId: discussionReplyId,
+});
+replyPage.onShow();
+for (let i = 0; i < 50; i++) await Promise.resolve();
+assert.equal(replyPage.data.text, '合成回复');
+replyPage.onText({ detail: { value: '合成新回复' } });
+replyPage.onSubmit();
+for (let i = 0; i < 30; i++) await Promise.resolve();
+replyPage.onSubmit();
+assert.equal(replySends, 1);
+assert.equal(
+  app.community.pending.load(pollAccount).operation,
+  'publish_reply',
+);
+app.onHide();
+assert.equal(replyPage.data.text, '');
+finishReply(replyReceipt);
+for (let i = 0; i < 20; i++) await Promise.resolve();
+assert.ok(app.community.pending.load(pollAccount));
+replyPage.onShow();
+for (let i = 0; i < 30; i++) await Promise.resolve();
+assert.equal(replyPage.data.frozen, true);
+replyPage.onReceipt();
+for (let i = 0; i < 30; i++) await Promise.resolve();
+assert.equal(app.community.pending.load(pollAccount), null);
+assert.equal(replyPage.data.resourceRootCommentId, rootId);
+replyPage.onUnload();
+app.community.profiles = originalProfiles;
 app.identity.sessions.logout();
 app.community.gateway = originalCommunityGateway;
 app.community.newRequestId = originalNewRequestId;
@@ -349,5 +541,5 @@ app.onHide();
 assert.equal(privacyCleared, true);
 assert.equal(calls, 0);
 console.log(
-  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification and durable-poll app-hide clearing/recovery, and configuration gating',
+  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification durable-poll, reply-publication and discussion-interaction app-hide clearing/recovery, and configuration gating',
 );

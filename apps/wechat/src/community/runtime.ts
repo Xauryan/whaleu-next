@@ -1,3 +1,4 @@
+import { PendingDiscussionStore } from './discussion-pending';
 import {
   HttpIdentityPrivacyGateway,
   PrivateViewLifecycle,
@@ -22,6 +23,7 @@ export interface CommunityRuntime {
   readonly profiles: ProfileGateway | undefined;
   readonly pending: PendingAttemptStore;
   readonly pendingBallots: PendingBallotStore;
+  readonly pendingDiscussion: PendingDiscussionStore;
   readonly drafts: DraftStore;
   readonly newRequestId: () => Promise<string>;
 }
@@ -43,6 +45,7 @@ export function createCommunityRuntime(
     profiles: identity.api ? new HttpProfileGateway(identity.api) : undefined,
     pending: new PendingAttemptStore(storage, origin),
     pendingBallots: new PendingBallotStore(storage, origin),
+    pendingDiscussion: new PendingDiscussionStore(storage, origin),
     drafts: new DraftStore(storage, origin),
     newRequestId: () =>
       bounded(

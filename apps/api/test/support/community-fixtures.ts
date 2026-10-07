@@ -163,6 +163,7 @@ export function verified(region: string): Authority {
     identityRegionId: region,
     crossRegionAllowed: false,
     unverifiedCategories: [],
+    unverifiedCommentsAllowed: false,
     restrictedActions: [],
     canManage: false,
   };
@@ -193,6 +194,29 @@ export async function approvePoll(
       digest(body.text),
       JSON.stringify(images),
       publicationHash('publish_post', postIntent(body)),
+    ],
+  );
+}
+
+/** Reply approval binds the resolved post/root/target, effective identity and ordered assets. */
+export async function approveReply(
+  pool: Pool,
+  actor: string,
+  postId: string,
+  rootCommentId: string,
+  body: import('../../src/community/discussion/contracts.js').PublishReply,
+  effectiveMode: import('../../src/community/contracts.js').AuthorMode = body.authorMode,
+  images: ApprovedAsset[] = [],
+) {
+  const { replyApprovalHash } =
+    await import('../../src/community/discussion/publication.service.js');
+  await pool.query(
+    "INSERT INTO whaleu_community_test.approvals(account_id,purpose,text_hash,images,intent_hash) VALUES($1,'publish_reply',$2,$3::jsonb,$4)",
+    [
+      actor,
+      digest(body.text),
+      JSON.stringify(images),
+      replyApprovalHash(postId, rootCommentId, body, effectiveMode),
     ],
   );
 }

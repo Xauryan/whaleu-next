@@ -9,6 +9,8 @@ import type { CommunityRuntime } from '../../community/runtime';
 export interface MineView extends CommunityView {
   readonly publications: readonly OwnPublication[];
   readonly ballotRecoveryPostId: string;
+  readonly discussionRecoveryPostId: string;
+  readonly discussionRecoveryRootCommentId: string;
   readonly loaded: boolean;
   readonly canLoadMore: boolean;
 }
@@ -16,6 +18,8 @@ export const initialMineView = (): MineView => ({
   ...initialCommunityView(),
   publications: [],
   ballotRecoveryPostId: '',
+  discussionRecoveryPostId: '',
+  discussionRecoveryRootCommentId: '',
   loaded: false,
   canLoadMore: false,
 });
@@ -31,7 +35,12 @@ export class MineController extends CommunityController<MineView> {
     if (!this.available()) return;
     this.nextCursor = null;
     try {
+      const interaction = this.runtime.pendingDiscussion.load(
+        this.accountId()!,
+      );
       this.update({
+        discussionRecoveryPostId: interaction?.postId ?? '',
+        discussionRecoveryRootCommentId: interaction?.rootCommentId ?? '',
         ballotRecoveryPostId:
           this.runtime.pendingBallots.load(this.accountId()!)?.postId ?? '',
       });

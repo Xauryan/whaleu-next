@@ -9,7 +9,7 @@ import { MemoryStorage } from './helpers';
 import { wireCredentials } from './identity-helpers';
 import { intent, otherId, receipt } from './community-helpers';
 const accountId = wireCredentials().accountId;
-const attempt = (): PendingAttempt => ({
+const attempt = (): Extract<PendingAttempt, { operation: 'publish_post' }> => ({
   version: 1,
   accountId,
   operation: 'publish_post',

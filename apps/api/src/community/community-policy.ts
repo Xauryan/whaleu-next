@@ -14,13 +14,14 @@ export type Decision<T = undefined> =
   | { kind: 'deny'; reason: ApplicationErrorCode }
   | { kind: 'unavailable' };
 export type Action =
-  'publish_post' | 'publish_comment' | 'like' | 'delete' | 'vote';
+  'publish_post' | 'publish_comment' | 'like' | 'delete' | 'vote' | 'pin';
 export interface Authority {
   phoneVerified: boolean;
   studentVerified: boolean;
   identityRegionId: string | null;
   crossRegionAllowed: boolean;
   unverifiedCategories: Category[];
+  unverifiedCommentsAllowed: boolean;
   restrictedActions: Action[];
   canManage: boolean;
 }
@@ -58,11 +59,20 @@ export interface ContentPublicationGate {
       purpose: PublicationOperation;
       text: string;
       images: ApprovedAsset[];
-      structuredContent?: {
-        version: 2;
-        publicationIntentHash: string;
-        component: import('./polls/contracts.js').PollComponent;
-      };
+      structuredContent?:
+        | {
+            version: 3;
+            publicationIntentHash: string;
+            postId: string;
+            rootCommentId: string;
+            targetReplyId: string | null;
+            effectiveAuthorMode: AuthorMode;
+          }
+        | {
+            version: 2;
+            publicationIntentHash: string;
+            component: import('./polls/contracts.js').PollComponent;
+          };
     },
     transaction: PoolClient,
   ): Promise<Decision>;
@@ -134,7 +144,9 @@ export function requirePublication(
   if (!authority.studentVerified) {
     if (
       space.kind !== 'regional' ||
-      !authority.unverifiedCategories.includes(category)
+      !(action === 'publish_comment'
+        ? authority.unverifiedCommentsAllowed
+        : authority.unverifiedCategories.includes(category))
     )
       throw new ApplicationError('STUDENT_VERIFICATION_REQUIRED');
     if (

@@ -5,6 +5,7 @@ import {
   cursor,
   decodeCapabilities,
   decodeCommentCapabilities,
+  decodeComment,
   decodeCommentIntent,
   decodeComments,
   decodeFeed,
@@ -15,12 +16,14 @@ import {
   decodeReceipt,
   decodeSpaces,
   invalid,
+  exact,
   isCategory,
   uuid4,
   type Capabilities,
   type CommentCapabilities,
   type Category,
   type CommentIntent,
+  type Comment,
   type Comments,
   type Feed,
   type Like,
@@ -40,12 +43,67 @@ import {
   type OwnBallot,
   type Poll,
 } from './poll-contract';
+import {
+  decodeReply,
+  decodeReplies,
+  decodeReplyIntent,
+  decodeDiscussionReceipt,
+  decodeDiscussionContext,
+  type Reply,
+  type Replies,
+  type ReplyIntent,
+  type DiscussionReceipt,
+  type DiscussionContext,
+} from './discussion-contract';
+export interface CommentQuery {
+  readonly sort?: 'time' | 'likes';
+  readonly order?: 'asc' | 'desc';
+  readonly limit?: number;
+  readonly previewLimit?: number;
+}
 export interface FeedQuery {
   readonly spaceId: string;
   readonly category?: Category;
   readonly cursor?: string;
 }
 export interface CommunityGateway {
+  comment(commentId: string, cancel: Cancellation): Promise<Comment>;
+  reply(replyId: string, cancel: Cancellation): Promise<Reply>;
+  replies(
+    commentId: string,
+    after: string | null,
+    cancel: Cancellation,
+    limit?: number,
+  ): Promise<Replies>;
+  publishReply(
+    commentId: string,
+    intent: ReplyIntent,
+    cancel: Cancellation,
+  ): Promise<Receipt>;
+  discussionLike(
+    kind: 'comment' | 'reply',
+    targetId: string,
+    liked: boolean,
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<DiscussionReceipt>;
+  pinComment(
+    postId: string,
+    commentId: string,
+    pinned: boolean,
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<DiscussionReceipt>;
+  deleteReply(replyId: string, cancel: Cancellation): Promise<void>;
+  discussionReceipt(
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<DiscussionReceipt>;
+  discussionContext(
+    postId: string,
+    target: { commentId: string } | { replyId: string },
+    cancel: Cancellation,
+  ): Promise<DiscussionContext>;
   poll(postId: string, cancel: Cancellation): Promise<Poll>;
   castBallot(
     postId: string,
@@ -73,6 +131,7 @@ export interface CommunityGateway {
     postId: string,
     after: string | null,
     cancel: Cancellation,
+    query?: CommentQuery,
   ): Promise<Comments>;
   mine(after: string | null, cancel: Cancellation): Promise<OwnPublications>;
   publishPost(intent: PostIntent, cancel: Cancellation): Promise<Receipt>;
@@ -110,6 +169,183 @@ const page = (after: string | null) => {
 };
 export class HttpCommunityGateway implements CommunityGateway {
   constructor(private readonly api: ApiClient) {}
+  async comment(commentId: string, cancel: Cancellation): Promise<Comment> {
+    const result = await this.api.request(
+      endpoint(`/v1/community/comments/${id(commentId)}`, decodeComment),
+      { cancellation: cancel },
+    );
+    if (result.id !== commentId) invalid();
+    return result;
+  }
+  async reply(replyId: string, cancel: Cancellation): Promise<Reply> {
+    const result = await this.api.request(
+      endpoint(`/v1/community/replies/${id(replyId)}`, decodeReply),
+      { cancellation: cancel },
+    );
+    if (result.id !== replyId) invalid();
+    return result;
+  }
+  async replies(
+    commentId: string,
+    after: string | null,
+    cancel: Cancellation,
+    limit = 20,
+  ): Promise<Replies> {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) invalid();
+    const result = await this.api.request(
+      endpoint(
+        `/v1/community/comments/${id(commentId)}/replies`,
+        decodeReplies,
+      ),
+      { query: { ...page(after), limit }, cancellation: cancel },
+    );
+    if (result.items.some((item) => item.rootCommentId !== commentId))
+      invalid();
+    return result;
+  }
+  async publishReply(
+    commentId: string,
+    intent: ReplyIntent,
+    cancel: Cancellation,
+  ): Promise<Receipt> {
+    const checked = decodeReplyIntent(intent);
+    const result = await this.api.request(
+      endpoint(
+        `/v1/community/comments/${id(commentId)}/replies`,
+        decodeReceipt,
+        'required',
+        'POST',
+        201,
+      ),
+      {
+        body: { ...checked, imageAssetIds: [...checked.imageAssetIds] },
+        cancellation: cancel,
+      },
+    );
+    if (
+      result.requestId !== checked.clientRequestId ||
+      result.operation !== 'publish_reply'
+    )
+      invalid();
+    return result;
+  }
+  async discussionLike(
+    kind: 'comment' | 'reply',
+    targetId: string,
+    liked: boolean,
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<DiscussionReceipt> {
+    if (
+      !['comment', 'reply'].includes(kind) ||
+      typeof liked !== 'boolean' ||
+      !uuid4(requestId)
+    )
+      invalid();
+    const result = await this.api.request(
+      endpoint(
+        `/v1/community/${kind === 'comment' ? 'comments' : 'replies'}/${id(targetId)}/like`,
+        decodeDiscussionReceipt,
+        'required',
+        liked ? 'PUT' : 'DELETE',
+      ),
+      { body: { clientRequestId: requestId }, cancellation: cancel },
+    );
+    this.checkDiscussionReceipt(
+      result,
+      requestId,
+      kind === 'comment' ? 'set_comment_like' : 'set_reply_like',
+      targetId,
+      liked,
+    );
+    return result;
+  }
+  async pinComment(
+    postId: string,
+    commentId: string,
+    pinned: boolean,
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<DiscussionReceipt> {
+    id(postId);
+    if (typeof pinned !== 'boolean' || !uuid4(requestId)) invalid();
+    const result = await this.api.request(
+      endpoint(
+        `/v1/community/comments/${id(commentId)}/pin`,
+        decodeDiscussionReceipt,
+        'required',
+        pinned ? 'PUT' : 'DELETE',
+      ),
+      { body: { clientRequestId: requestId }, cancellation: cancel },
+    );
+    this.checkDiscussionReceipt(
+      result,
+      requestId,
+      'set_comment_pin',
+      commentId,
+      pinned,
+    );
+    return result;
+  }
+  private checkDiscussionReceipt(
+    result: DiscussionReceipt,
+    requestId: string,
+    operation: string,
+    targetId: string,
+    desired: boolean,
+  ): void {
+    if (
+      result.requestId !== requestId ||
+      result.operation !== operation ||
+      (result.outcome === 'applied' &&
+        (result.resourceId !== targetId || result.desired !== desired))
+    )
+      invalid();
+  }
+  async discussionReceipt(
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<DiscussionReceipt> {
+    if (!uuid4(requestId)) invalid();
+    const result = await this.api.request(
+      endpoint(
+        `/v1/me/community/discussion-requests/${requestId}`,
+        decodeDiscussionReceipt,
+      ),
+      { cancellation: cancel },
+    );
+    if (result.requestId !== requestId) invalid();
+    return result;
+  }
+  async discussionContext(
+    postId: string,
+    target: { commentId: string } | { replyId: string },
+    cancel: Cancellation,
+  ): Promise<DiscussionContext> {
+    exact(target, 'commentId' in target ? ['commentId'] : ['replyId']);
+    const query =
+      'commentId' in target
+        ? { commentId: id(target.commentId) }
+        : { replyId: id(target.replyId) };
+    const result = await this.api.request(
+      endpoint(
+        `/v1/community/posts/${id(postId)}/discussion-context`,
+        decodeDiscussionContext,
+      ),
+      { query, cancellation: cancel },
+    );
+    if (
+      result.comment.postId !== postId ||
+      ('commentId' in target
+        ? result.comment.id !== target.commentId
+        : result.reply?.id !== target.replyId)
+    )
+      invalid();
+    return result;
+  }
+  deleteReply(replyId: string, cancel: Cancellation): Promise<void> {
+    return this.remove(`/v1/community/replies/${id(replyId)}`, cancel);
+  }
   async poll(postId: string, cancel: Cancellation): Promise<Poll> {
     const result = await this.api.request(
       endpoint(`/v1/community/posts/${id(postId)}/poll`, decodePoll),
@@ -227,13 +463,51 @@ export class HttpCommunityGateway implements CommunityGateway {
     postId: string,
     after: string | null,
     cancel: Cancellation,
+    query?: CommentQuery,
   ): Promise<Comments> {
     const result = await this.api.request(
       endpoint(`/v1/community/posts/${id(postId)}/comments`, decodeComments),
-      { query: page(after), cancellation: cancel },
+      {
+        query: { ...page(after), ...this.commentQuery(query) },
+        cancellation: cancel,
+      },
     );
     if (result.items.some((item) => item.postId !== postId)) invalid();
     return result;
+  }
+  private commentQuery(query: CommentQuery = {}): {
+    sort: 'time' | 'likes';
+    order: 'asc' | 'desc';
+    previewLimit: number;
+    limit: number;
+  } {
+    if (
+      Object.keys(query).some(
+        (key) => !['sort', 'order', 'limit', 'previewLimit'].includes(key),
+      )
+    )
+      invalid();
+    if (query.sort !== undefined && !['time', 'likes'].includes(query.sort))
+      invalid();
+    if (query.order !== undefined && !['asc', 'desc'].includes(query.order))
+      invalid();
+    const limit = query.limit ?? 10,
+      previewLimit = query.previewLimit ?? 2;
+    if (
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > 10 ||
+      !Number.isInteger(previewLimit) ||
+      previewLimit < 1 ||
+      previewLimit > 5
+    )
+      invalid();
+    return {
+      sort: query.sort ?? 'likes',
+      order: query.order ?? 'desc',
+      previewLimit,
+      limit,
+    };
   }
   mine(after: string | null, cancel: Cancellation): Promise<OwnPublications> {
     return this.api.request(

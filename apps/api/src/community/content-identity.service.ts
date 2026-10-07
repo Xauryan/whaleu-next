@@ -14,7 +14,7 @@ export class CommunityContentIdentityService {
     private readonly access: CommunityAccessService,
   ) {}
   async resolve(
-    target: { kind: 'post' | 'comment'; id: string },
+    target: { kind: 'post' | 'comment' | 'reply'; id: string },
     viewerAccountId: string,
     tx: PoolClient,
   ): Promise<{
@@ -33,6 +33,18 @@ export class CommunityContentIdentityService {
           accountId: post.account_id,
           operatingRegionId: space.operatingRegionId,
           authorMode: post.author_mode,
+        };
+      }
+      if (target.kind === 'reply') {
+        const { reply, space } = await this.access.accessibleReply(
+          target.id,
+          viewerAccountId,
+          tx,
+        );
+        return {
+          accountId: reply.account_id,
+          operatingRegionId: space.operatingRegionId,
+          authorMode: reply.author_mode,
         };
       }
       const reference = await this.repository.comment(target.id, tx);
@@ -55,6 +67,7 @@ export class CommunityContentIdentityService {
         [
           'POST_NOT_FOUND',
           'COMMENT_NOT_FOUND',
+          'REPLY_NOT_FOUND',
           'COMMUNITY_SCOPE_UNAVAILABLE',
         ].includes(error.code)
       )

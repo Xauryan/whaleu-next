@@ -114,6 +114,8 @@ export interface PostView {
   publishedAt: string;
   likeCount: number;
   commentCount: number;
+  replyCount: number;
+  discussionCount: number;
   viewer: {
     isSelf: boolean;
     isLiked: boolean;
@@ -129,9 +131,38 @@ export interface CommentView {
   images: MediaView[];
   author: AuthorView;
   createdAt: string;
-  viewer: { isSelf: boolean; canDelete: boolean };
+  likeCount: number;
+  replyCount: number;
+  isPinned: boolean;
+  replyPreview: { items: ReplyView[]; nextCursor: string | null };
+  viewer: {
+    isSelf: boolean;
+    canDelete: boolean;
+    isLiked: boolean;
+    canPin: boolean;
+  };
 }
-export type PublicationOperation = 'publish_post' | 'publish_comment';
+export interface ReplyView {
+  id: string;
+  postId: string;
+  rootCommentId: string;
+  target:
+    | {
+        kind: 'comment' | 'reply';
+        id: string;
+        status: 'available';
+        author: AuthorView;
+      }
+    | { status: 'unavailable' };
+  text: string;
+  images: MediaView[];
+  author: AuthorView;
+  createdAt: string;
+  likeCount: number;
+  viewer: { isSelf: boolean; canDelete: boolean; isLiked: boolean };
+}
+export type PublicationOperation =
+  'publish_post' | 'publish_comment' | 'publish_reply';
 export type PublicationReceipt =
   | {
       requestId: string;
@@ -176,6 +207,7 @@ export interface OwnPublication {
 }
 
 export interface CommentCapabilities {
+  lastAuthorMode: AuthorMode | null;
   availability: 'allowed' | 'denied' | 'unavailable';
   reason: ApplicationErrorCode | null;
   authorModes: AuthorMode[];

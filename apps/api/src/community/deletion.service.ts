@@ -35,15 +35,26 @@ export class DeletionService {
       if (reference.account_id !== actor)
         throw new ApplicationError('COMMENT_NOT_FOUND');
       // All child transitions lock parent first, including deletion; no inverse lock order.
-      const post = await this.repository.post(reference.post_id, tx, true);
+      if (reference.deleted_at) return;
+      const { post, space } = await this.access.accessiblePost(
+        reference.post_id,
+        actor,
+        tx,
+        true,
+      );
+      requireAction(await this.access.authority(actor, space, tx), 'delete');
       const result = await tx.query<StoredComment>(
         'SELECT * FROM whaleu_community.root_comments WHERE id=$1 FOR UPDATE',
         [id],
       );
       const comment = result.rows[0]!;
       if (comment.deleted_at) return;
-      const space = await this.repository.space(post.space_id, tx);
-      requireAction(await this.access.authority(actor, space, tx), 'delete');
+      if (!(await this.access.visible(actor, comment, tx)))
+        throw new ApplicationError('COMMENT_NOT_FOUND');
+      await tx.query(
+        'DELETE FROM whaleu_community.comment_pins WHERE comment_id=$1',
+        [id],
+      );
       await tx.query(
         'UPDATE whaleu_community.root_comments SET deleted_at=clock_timestamp() WHERE id=$1',
         [id],
@@ -53,6 +64,17 @@ export class DeletionService {
         'comment_deleted',
         id,
         tx,
+        {
+          actorAccountId: actor,
+          postId: post.id,
+          rootCommentId: id,
+          obligations: [
+            'own_delete_deduction',
+            'bounded_daily_refund',
+            'discussion_ranking',
+            'media_cleanup',
+          ],
+        },
       );
     });
   }

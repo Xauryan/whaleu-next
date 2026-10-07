@@ -1,3 +1,7 @@
+import {
+  checkDiscussionPrivacy,
+  decodeReplyIntent,
+} from '../../community/discussion-contract';
 import { ClientError } from '../../api/errors';
 import type { Preferences } from '../../profile/contract';
 import {
@@ -34,7 +38,13 @@ export type ComposeTarget =
       readonly spaceId: string;
       readonly category: Category;
     }
-  | { readonly operation: 'publish_comment'; readonly postId: string };
+  | { readonly operation: 'publish_comment'; readonly postId: string }
+  | {
+      readonly operation: 'publish_reply';
+      readonly postId: string;
+      readonly rootCommentId: string;
+      readonly targetReplyId: string | null;
+    };
 export interface ComposeView extends CommunityView {
   readonly loaded: boolean;
   readonly text: string;
@@ -51,6 +61,9 @@ export interface ComposeView extends CommunityView {
   readonly receiptStatus: string;
   readonly resourceId: string;
   readonly resourcePostId: string;
+  readonly resourceRootCommentId: string;
+  readonly resourceReplyId: string;
+  readonly replyTargetName: string;
   readonly recoveryOperation: string;
   readonly pollDraft: PollDraft;
   readonly canAddPoll: boolean;
@@ -72,6 +85,9 @@ export const initialComposeView = (): ComposeView => ({
   receiptStatus: '',
   resourceId: '',
   resourcePostId: '',
+  resourceRootCommentId: '',
+  resourceReplyId: '',
+  replyTargetName: '',
   recoveryOperation: '',
   pollDraft: emptyPollDraft(),
   canAddPoll: false,
@@ -84,23 +100,34 @@ export function commentIdentity(
     Preferences,
     'defaultCommentAnonymousEnabled' | 'defaultCommentNonAnonymousEnabled'
   >,
+  lastMode: AuthorMode | null = null,
+  anonymousParent = false,
 ): { mode: AuthorMode; conflict: boolean } {
   if (forcedAnonymous) return { mode: 'anonymous', conflict: false };
   if (explicit) return { mode: explicit, conflict: false };
+  if (lastMode) return { mode: lastMode, conflict: false };
   if (
     preferences.defaultCommentAnonymousEnabled &&
     preferences.defaultCommentNonAnonymousEnabled
   )
     return { mode: 'anonymous', conflict: true };
   return {
-    mode: preferences.defaultCommentAnonymousEnabled ? 'anonymous' : 'named',
+    mode: preferences.defaultCommentAnonymousEnabled
+      ? 'anonymous'
+      : preferences.defaultCommentNonAnonymousEnabled
+        ? 'named'
+        : anonymousParent
+          ? 'anonymous'
+          : 'named',
     conflict: false,
   };
 }
 const targetKey = (target: ComposeTarget): string =>
   target.operation === 'publish_post'
     ? `post:${target.spaceId}:${target.category}`
-    : `comment:${target.postId}`;
+    : target.operation === 'publish_comment'
+      ? `comment:${target.postId}`
+      : `reply:${target.postId}:${target.rootCommentId}:${target.targetReplyId ?? 'root'}`;
 const attemptTarget = (attempt: PendingAttempt): ComposeTarget =>
   attempt.operation === 'publish_post'
     ? {
@@ -108,7 +135,14 @@ const attemptTarget = (attempt: PendingAttempt): ComposeTarget =>
         spaceId: attempt.payload.spaceId,
         category: attempt.payload.category,
       }
-    : { operation: 'publish_comment', postId: attempt.postId };
+    : attempt.operation === 'publish_comment'
+      ? { operation: 'publish_comment', postId: attempt.postId }
+      : {
+          operation: 'publish_reply',
+          postId: attempt.postId,
+          rootCommentId: attempt.rootCommentId,
+          targetReplyId: attempt.payload.targetReplyId,
+        };
 export class ComposeController extends CommunityController<ComposeView> {
   private capabilities: Capabilities | null = null;
   private commentCapabilities: CommentCapabilities | null = null;
@@ -121,6 +155,10 @@ export class ComposeController extends CommunityController<ComposeView> {
     private readonly target: ComposeTarget | null,
     render: (view: ComposeView) => void,
     private readonly onCreated: (receipt: Receipt) => void = () => undefined,
+    private readonly copySource: {
+      kind: 'comment' | 'reply';
+      id: string;
+    } | null = null,
   ) {
     super(runtime, initialComposeView, render);
   }
@@ -170,7 +208,7 @@ export class ComposeController extends CommunityController<ComposeView> {
       async (cancel) => {
         const [profile, post] = await Promise.all([
           this.runtime.profiles!.profile(cancel),
-          target.operation === 'publish_comment'
+          target.operation !== 'publish_post'
             ? this.runtime.gateway!.post(target.postId, cancel)
             : Promise.resolve(null),
         ]);
@@ -185,13 +223,74 @@ export class ComposeController extends CommunityController<ComposeView> {
               )
             : null;
         const commentCapability =
-          target.operation === 'publish_comment'
+          target.operation !== 'publish_post'
             ? await this.runtime.gateway!.commentCapabilities(
                 target.postId,
                 cancel,
               )
             : null;
-        return { profile, post, capability, commentCapability };
+        let replyTargetName = '';
+        if (target.operation === 'publish_reply') {
+          const root = await this.runtime.gateway!.comment(
+            target.rootCommentId,
+            cancel,
+          );
+          if (!post || root.postId !== post.id)
+            throw new ClientError('protocol', 'Root target mismatch');
+          checkDiscussionPrivacy(post, [root.author]);
+          if (target.targetReplyId) {
+            const reply = await this.runtime.gateway!.reply(
+              target.targetReplyId,
+              cancel,
+            );
+            if (reply.postId !== post.id || reply.rootCommentId !== root.id)
+              throw new ClientError('protocol', 'Reply target mismatch');
+            checkDiscussionPrivacy(post, [
+              reply.author,
+              ...(reply.target.status === 'available'
+                ? [reply.target.author]
+                : []),
+            ]);
+            replyTargetName = reply.author.displayName;
+          } else replyTargetName = root.author.displayName;
+        }
+        let copiedText: string | null = null;
+        if (this.copySource) {
+          if (!post || target.operation === 'publish_post')
+            throw new ClientError('protocol', 'Invalid copy destination');
+          const source =
+            this.copySource.kind === 'comment'
+              ? await this.runtime.gateway!.comment(this.copySource.id, cancel)
+              : await this.runtime.gateway!.reply(this.copySource.id, cancel);
+          if (source.postId !== post.id)
+            throw new ClientError('protocol', 'Copy parent mismatch');
+          checkDiscussionPrivacy(post, [source.author]);
+          if (this.copySource.kind === 'reply') {
+            if (
+              !('target' in source) ||
+              target.operation !== 'publish_reply' ||
+              source.rootCommentId !== target.rootCommentId ||
+              source.target.status !== 'available' ||
+              (source.target.kind === 'reply' ? source.target.id : null) !==
+                target.targetReplyId
+            )
+              throw new ClientError(
+                'protocol',
+                'Original reply target unavailable or changed',
+              );
+            checkDiscussionPrivacy(post, [source.target.author]);
+          } else if (target.operation !== 'publish_comment')
+            throw new ClientError('protocol', 'Root copy must create a root');
+          copiedText = source.text;
+        }
+        return {
+          profile,
+          post,
+          capability,
+          commentCapability,
+          replyTargetName,
+          copiedText,
+        };
       },
       (result) => {
         // Another page may have frozen a request while profile/capabilities were loading.
@@ -209,11 +308,13 @@ export class ComposeController extends CommunityController<ComposeView> {
           (result.post?.viewer.isSelf === true &&
             result.post.author.kind === 'anonymous');
         const chosen =
-          target.operation === 'publish_comment'
+          target.operation !== 'publish_post'
             ? commentIdentity(
                 forced,
                 draft?.authorMode ?? null,
                 result.profile.preferences,
+                result.commentCapability?.lastAuthorMode ?? null,
+                result.post?.author.kind === 'anonymous',
               )
             : {
                 mode:
@@ -226,7 +327,8 @@ export class ComposeController extends CommunityController<ComposeView> {
         this.identityConflict = chosen.conflict;
         this.update({
           loaded: true,
-          text: draft?.text ?? '',
+          replyTargetName: result.replyTargetName,
+          text: draft?.text ?? result.copiedText ?? '',
           pollDraft:
             target.operation === 'publish_post'
               ? (draft?.poll ?? emptyPollDraft())
@@ -240,8 +342,12 @@ export class ComposeController extends CommunityController<ComposeView> {
             result.capability?.canDisableComments === true,
           maxText: target.operation === 'publish_post' ? 2500 : 500,
           status: draft
-            ? '已恢复此账号的本地草稿'
-            : '草稿仅保存在本机当前账号下',
+            ? this.copySource
+              ? '已有草稿已保留，复制文字没有覆盖它'
+              : '已恢复此账号的本地草稿'
+            : this.copySource
+              ? '已复制原文字，请检查目标和身份后确认发布'
+              : '草稿仅保存在本机当前账号下',
         });
         this.persistDraft();
         this.recompute();
@@ -278,7 +384,14 @@ export class ComposeController extends CommunityController<ComposeView> {
       blocker:
         '发布结果尚未确认。内容与请求编号已冻结；只能查询回执或重试完全相同的请求',
       status: '有待确认的发布',
-      recoveryOperation: pending.operation === 'publish_post' ? '帖子' : '评论',
+      recoveryOperation:
+        pending.operation === 'publish_post'
+          ? '帖子'
+          : pending.operation === 'publish_comment'
+            ? '评论'
+            : '回复',
+      replyTargetName:
+        pending.operation === 'publish_reply' ? '原回复对象（目标已冻结）' : '',
       maxText: pending.operation === 'publish_post' ? 2500 : 500,
       error: '',
     });
@@ -411,7 +524,7 @@ export class ComposeController extends CommunityController<ComposeView> {
   }
   private recompute(): void {
     const cap = this.capabilities,
-      isComment = this.target?.operation === 'publish_comment',
+      isComment = !!this.target && this.target.operation !== 'publish_post',
       publication = isComment ? this.commentCapabilities : cap?.publish,
       modes = isComment
         ? this.commentCapabilities?.authorModes
@@ -493,18 +606,33 @@ export class ComposeController extends CommunityController<ComposeView> {
                   imageAssetIds: [],
                 }),
               }
-            : {
-                version: 1,
-                accountId,
-                operation: 'publish_comment',
-                postId: target.postId,
-                payload: decodeCommentIntent({
-                  clientRequestId: requestId,
-                  text: draft.text,
-                  authorMode: draft.authorMode,
-                  imageAssetIds: [],
-                }),
-              };
+            : target.operation === 'publish_reply'
+              ? {
+                  version: 1,
+                  accountId,
+                  operation: 'publish_reply',
+                  postId: target.postId,
+                  rootCommentId: target.rootCommentId,
+                  payload: decodeReplyIntent({
+                    clientRequestId: requestId,
+                    text: draft.text,
+                    authorMode: draft.authorMode,
+                    imageAssetIds: [],
+                    targetReplyId: target.targetReplyId,
+                  }),
+                }
+              : {
+                  version: 1,
+                  accountId,
+                  operation: 'publish_comment',
+                  postId: target.postId,
+                  payload: decodeCommentIntent({
+                    clientRequestId: requestId,
+                    text: draft.text,
+                    authorMode: draft.authorMode,
+                    imageAssetIds: [],
+                  }),
+                };
         const frozen = this.runtime.pending.freeze(attempt);
         this.showPending(frozen);
         return this.dispatch(frozen, cancel);
@@ -532,11 +660,17 @@ export class ComposeController extends CommunityController<ComposeView> {
       throw new ClientError('storage', 'Pending request changed');
     return attempt.operation === 'publish_post'
       ? this.runtime.gateway!.publishPost(attempt.payload, cancel)
-      : this.runtime.gateway!.publishComment(
-          attempt.postId,
-          attempt.payload,
-          cancel,
-        );
+      : attempt.operation === 'publish_reply'
+        ? this.runtime.gateway!.publishReply(
+            attempt.rootCommentId,
+            attempt.payload,
+            cancel,
+          )
+        : this.runtime.gateway!.publishComment(
+            attempt.postId,
+            attempt.payload,
+            cancel,
+          );
   }
   async recover(retry = false): Promise<void> {
     if (this.view.busy || !this.available()) return;
@@ -605,6 +739,18 @@ export class ComposeController extends CommunityController<ComposeView> {
           ? attempt.operation === 'publish_post'
             ? receipt.resourceId
             : attempt.postId
+          : '',
+      resourceRootCommentId:
+        receipt.outcome === 'created'
+          ? attempt.operation === 'publish_reply'
+            ? attempt.rootCommentId
+            : attempt.operation === 'publish_comment'
+              ? receipt.resourceId
+              : ''
+          : '',
+      resourceReplyId:
+        receipt.outcome === 'created' && attempt.operation === 'publish_reply'
+          ? receipt.resourceId
           : '',
       status: receipt.outcome === 'created' ? '发布成功' : '已确认未发布',
       blocker:

@@ -55,3 +55,11 @@ text limits are API-only so reconciled historical raw text/deadlines can be
 preserved at insert. Poll definitions, options, ballots and terminal receipts
 cannot be edited; atomic/deferred integrity checks prevent incomplete commits.
 It is not a production import. See [C2A polls](../../../docs/API_COMMUNITY.md#c2a-poll-contract).
+
+`0009_community_discussion.sql` adds flat replies, constrained same-thread targets,
+shared interaction ordering, reply assets, comment/reply likes, singleton author
+root-pin state and immutable discussion mutation receipts. It extends publication
+operations and audited identity target kinds forward without editing 0001–0008.
+Root parent/ownership and reply content/relations are immutable; deferred checks
+reject future/cyclic targets and unfinished receipts. No production import or
+provider activation occurs. See [C2B discussion](../../../docs/API_COMMUNITY.md#c2b-discussion-contract).

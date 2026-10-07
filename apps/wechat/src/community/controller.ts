@@ -33,6 +33,10 @@ export const reasonMessage = (code: string | null): string =>
     MEDIA_NOT_READY: '图片尚未完成上传与审核，暂不能发布',
     MEDIA_UNAVAILABLE: '图片上传与审核服务尚未接入',
     POST_NOT_FOUND: '帖子不存在或当前不可查看',
+    DISCUSSION_RESTART_REQUIRED: '讨论排序已变化，请重新加载，旧分页已清除',
+    REPLY_NOT_FOUND: '回复不存在或当前不可查看',
+    COMMENT_PIN_CONFLICT: '此帖已有置顶评论，请先取消原置顶后再选择另一条',
+    COMMENT_PIN_FORBIDDEN: '只有帖子作者可以置顶根评论',
     COMMENT_NOT_FOUND: '评论不存在或当前不可查看',
     POST_DELETED: '帖子已删除',
     AUTHENTICATION_REQUIRED: '请先登录后参与投票',
@@ -77,11 +81,15 @@ export abstract class CommunityController<V extends CommunityView> {
   private stopped = false;
   private cancellation: Cancellation | undefined;
   private readonly unsubscribe: () => void;
+  private readonly unsubscribeRootHide: () => void;
   constructor(
     protected readonly runtime: CommunityRuntime,
     private readonly initial: () => V,
     private readonly render: (view: V) => void,
   ) {
+    this.unsubscribeRootHide =
+      runtime.privateViews?.subscribe(() => this.dispose()) ??
+      (() => undefined);
     this.owner = runtime.sessions.snapshot();
     this.view = initial();
     this.unsubscribe = runtime.sessions.subscribe(() => {
@@ -210,6 +218,7 @@ export abstract class CommunityController<V extends CommunityView> {
     if (this.stopped) return;
     this.stop();
     this.unsubscribe();
+    this.unsubscribeRootHide();
     this.resetPrivate();
     this.view = this.initial();
     this.render(this.view);

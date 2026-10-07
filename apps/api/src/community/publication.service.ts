@@ -1,5 +1,4 @@
 import { PollRepository } from './polls/poll.repository.js';
-import type { PollComponent } from './polls/contracts.js';
 import { postIntent } from './publication-intent.js';
 import { publicationHash } from './publication.repository.js';
 import { randomUUID } from 'node:crypto';
@@ -49,11 +48,9 @@ export class PublicationService {
     text: string,
     ids: string[],
     tx: PoolClient,
-    structuredContent?: {
-      version: 2;
-      publicationIntentHash: string;
-      component: PollComponent;
-    },
+    structuredContent?: Parameters<
+      ContentPublicationGate['check']
+    >[0]['structuredContent'],
   ): Promise<ApprovedAsset[]> {
     const images = ids.length
       ? requireDecision(
@@ -208,6 +205,20 @@ export class PublicationService {
           'comment_created',
           id,
           tx,
+          {
+            actorAccountId: actor,
+            postId: post.id,
+            recipientAccountIds:
+              post.account_id === actor ? [] : [post.account_id],
+            obligations: [
+              'post_author_notification',
+              'eligible_saved_subscriber_notification',
+              'comment_actor_reward',
+              'distinct_post_author_reward',
+              'discussion_ranking',
+              'media_audit',
+            ],
+          },
         );
         return {
           resourceId: id,

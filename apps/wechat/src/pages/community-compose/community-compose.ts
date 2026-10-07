@@ -10,7 +10,49 @@ Page({
   data: { ...initialComposeView() },
   controller: undefined as ComposeController | undefined,
   target: null as ComposeTarget | null,
-  onLoad(query: { spaceId?: string; category?: string; postId?: string } = {}) {
+  copySource: null as { kind: 'comment' | 'reply'; id: string } | null,
+  onLoad(
+    query: {
+      spaceId?: string;
+      category?: string;
+      postId?: string;
+      rootCommentId?: string;
+      targetReplyId?: string;
+      copyCommentId?: string;
+      copyReplyId?: string;
+    } = {},
+  ) {
+    this.copySource = isUuid(query.copyReplyId)
+      ? { kind: 'reply', id: query.copyReplyId }
+      : isUuid(query.copyCommentId)
+        ? { kind: 'comment', id: query.copyCommentId }
+        : null;
+    if (
+      (query.copyReplyId !== undefined && !isUuid(query.copyReplyId)) ||
+      (query.copyCommentId !== undefined && !isUuid(query.copyCommentId)) ||
+      (query.copyReplyId !== undefined && query.copyCommentId !== undefined)
+    ) {
+      this.target = null;
+      this.copySource = null;
+      return;
+    }
+    if (
+      query.rootCommentId !== undefined ||
+      query.targetReplyId !== undefined
+    ) {
+      this.target =
+        isUuid(query.postId) &&
+        isUuid(query.rootCommentId) &&
+        (query.targetReplyId === undefined || isUuid(query.targetReplyId))
+          ? {
+              operation: 'publish_reply',
+              postId: query.postId,
+              rootCommentId: query.rootCommentId,
+              targetReplyId: query.targetReplyId ?? null,
+            }
+          : null;
+      return;
+    }
     this.target = isUuid(query.postId)
       ? { operation: 'publish_comment', postId: query.postId }
       : isUuid(query.spaceId) && isCategory(query.category)
@@ -28,8 +70,12 @@ Page({
       this.setData({ error: '环境未初始化，请重新打开小程序' });
       return;
     }
-    this.controller = new ComposeController(runtime, this.target, (view) =>
-      this.setData({ ...view }),
+    this.controller = new ComposeController(
+      runtime,
+      this.target,
+      (view) => this.setData({ ...view }),
+      undefined,
+      this.copySource,
     );
     void this.controller.load();
   },

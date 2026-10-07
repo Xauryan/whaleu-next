@@ -57,6 +57,15 @@ const conditions = {
   POLL_ALREADY_VOTED: { status: 409, message: 'A ballot is already recorded' },
   POLL_OPTIONS_INVALID: { status: 422, message: 'Poll options are invalid' },
   BALLOT_NOT_FOUND: { status: 404, message: 'Ballot not found' },
+  REPLY_NOT_FOUND: { status: 404, message: 'Reply not found' },
+  COMMENT_PIN_CONFLICT: {
+    status: 409,
+    message: 'Unpin the current comment first',
+  },
+  DISCUSSION_RESTART_REQUIRED: {
+    status: 409,
+    message: 'Discussion changed; refresh to continue',
+  },
   POST_NOT_FOUND: { status: 404, message: 'Post not found' },
   COMMENT_NOT_FOUND: { status: 404, message: 'Comment not found' },
   POST_DELETED: { status: 410, message: 'Post deleted' },

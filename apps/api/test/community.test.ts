@@ -177,6 +177,7 @@ test('authority matrix is explicit, independent of browsing preference and rejec
     ...authority,
     studentVerified: false,
     unverifiedCategories: ['discussion' as const],
+    unverifiedCommentsAllowed: true,
   };
   requirePublication(unverified, space, 'discussion', 'named', 'publish_post');
   requireAction(unverified, 'like');

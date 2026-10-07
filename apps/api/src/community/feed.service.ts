@@ -159,7 +159,19 @@ export class FeedService {
     return this.repository.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);
       const { post, space } = await this.access.accessiblePost(id, actor, tx);
+      const lastMode =
+        (
+          await tx.query<{ author_mode: 'named' | 'anonymous' }>(
+            `SELECT author_mode FROM (
+          SELECT author_mode,created_at,interaction_sequence AS sequence FROM whaleu_community.root_comments WHERE post_id=$1 AND account_id=$2 AND deleted_at IS NULL
+          UNION ALL
+          SELECT r.author_mode,r.created_at,r.sequence FROM whaleu_community.replies r JOIN whaleu_community.root_comments c ON c.id=r.root_comment_id WHERE r.post_id=$1 AND r.account_id=$2 AND r.deleted_at IS NULL AND c.deleted_at IS NULL
+        ) modes ORDER BY sequence DESC LIMIT 1`,
+            [post.id, actor],
+          )
+        ).rows[0]?.author_mode ?? null;
       const result: CommentCapabilities = {
+        lastAuthorMode: lastMode,
         availability: 'unavailable',
         reason: 'COMMUNITY_UNAVAILABLE',
         authorModes: [],

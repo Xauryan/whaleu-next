@@ -8,7 +8,8 @@
     "pages/community-feed/community-feed",
     "pages/community-detail/community-detail",
     "pages/community-compose/community-compose",
-    "pages/community-mine/community-mine"
+    "pages/community-mine/community-mine",
+    "pages/community-thread/community-thread"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

@@ -1,3 +1,5 @@
+import { checkDiscussionPrivacy } from '../../community/discussion-contract';
+import type { CommentQuery } from '../../community/gateway';
 import { ClientError } from '../../api/errors';
 import {
   CommunityController,
@@ -8,8 +10,12 @@ import type { Comment, Post } from '../../community/contract';
 import type { CommunityRuntime } from '../../community/runtime';
 export interface DetailView extends CommunityView {
   readonly post: Post | null;
+  readonly locatedComment: Comment | null;
+  readonly locatedReplyId: string;
   readonly comments: readonly Comment[];
   readonly loaded: boolean;
+  readonly sort: 'time' | 'likes';
+  readonly order: 'asc' | 'desc';
   readonly canLoadMore: boolean;
   readonly deleteTarget: {
     readonly kind: 'post' | 'comment';
@@ -20,8 +26,12 @@ export interface DetailView extends CommunityView {
 export const initialDetailView = (): DetailView => ({
   ...initialCommunityView(),
   post: null,
+  locatedComment: null,
+  locatedReplyId: '',
   comments: [],
   loaded: false,
+  sort: 'likes',
+  order: 'desc',
   canLoadMore: false,
   deleteTarget: null,
   needsReload: false,
@@ -33,8 +43,11 @@ export class DetailController extends CommunityController<DetailView> {
     private readonly postId: string,
     render: (view: DetailView) => void,
     private readonly onPost: (post: Post | null) => void = () => undefined,
+    private readonly located:
+      { commentId: string } | { replyId: string } | null = null,
   ) {
     super(runtime, initialDetailView, render);
+    if (this.located) this.update({ sort: 'time' });
   }
   protected override resetPrivate(): void {
     this.nextCursor = null;
@@ -45,6 +58,8 @@ export class DetailController extends CommunityController<DetailView> {
     this.onPost(null);
     this.update({
       post: null,
+      locatedComment: null,
+      locatedReplyId: '',
       comments: [],
       loaded: false,
       canLoadMore: false,
@@ -63,14 +78,34 @@ export class DetailController extends CommunityController<DetailView> {
           this.postId,
           null,
           cancel,
+          { sort: this.view.sort, order: this.view.order },
         );
-        this.checkCommentPrivacy(post, comments.items);
-        return { post, comments };
+        const context = this.located
+          ? await this.runtime.gateway!.discussionContext(
+              post.id,
+              this.located,
+              cancel,
+            )
+          : null;
+        this.checkCommentPrivacy(post, [
+          ...comments.items,
+          ...(context ? [context.comment] : []),
+        ]);
+        if (context?.reply)
+          checkDiscussionPrivacy(post, [
+            context.reply.author,
+            ...(context.reply.target.status === 'available'
+              ? [context.reply.target.author]
+              : []),
+          ]);
+        return { post, comments, context };
       },
       (result) => {
         this.nextCursor = result.comments.nextCursor;
         this.update({
           post: result.post,
+          locatedComment: result.context?.comment ?? null,
+          locatedReplyId: result.context?.reply?.id ?? '',
           comments: result.comments.items,
           canLoadMore: !!this.nextCursor,
           loaded: true,
@@ -92,7 +127,11 @@ export class DetailController extends CommunityController<DetailView> {
       return;
     const after = this.nextCursor;
     await this.run(
-      (cancel) => this.runtime.gateway!.comments(this.postId, after, cancel),
+      (cancel) =>
+        this.runtime.gateway!.comments(this.postId, after, cancel, {
+          sort: this.view.sort,
+          order: this.view.order,
+        }),
       (result) => {
         if (result.nextCursor === after)
           throw new ClientError('protocol', 'Cursor did not advance');
@@ -114,18 +153,74 @@ export class DetailController extends CommunityController<DetailView> {
       () => this.clear(),
     );
   }
-  private checkCommentPrivacy(post: Post, comments: readonly Comment[]): void {
+  async moreReplies(commentId: string): Promise<void> {
+    const root = this.view.comments.find((item) => item.id === commentId),
+      after = root?.replyPreview.nextCursor;
     if (
-      post.author.kind === 'named' &&
-      comments.some(
-        (comment) =>
-          comment.author.kind === 'anonymous' && comment.author.isPostAuthor,
-      )
+      !root ||
+      !after ||
+      this.view.busy ||
+      !this.view.post ||
+      !this.available()
     )
-      throw new ClientError(
-        'protocol',
-        'Anonymous comment cannot reveal a named parent relationship',
-      );
+      return;
+    await this.run(
+      (cancel) => this.runtime.gateway!.replies(root.id, after, cancel),
+      (result) => {
+        if (
+          result.nextCursor === after ||
+          result.items.some((item) => item.postId !== this.postId)
+        )
+          throw new ClientError('protocol', 'Reply continuation mismatch');
+        checkDiscussionPrivacy(
+          this.view.post!,
+          result.items.flatMap((item) => [
+            item.author,
+            ...(item.target.status === 'available' ? [item.target.author] : []),
+          ]),
+        );
+        this.update({
+          comments: this.view.comments.map((item) =>
+            item.id === root.id
+              ? {
+                  ...item,
+                  replyPreview: {
+                    items: [
+                      ...new Map(
+                        [...item.replyPreview.items, ...result.items].map(
+                          (reply) => [reply.id, reply],
+                        ),
+                      ).values(),
+                    ],
+                    nextCursor: result.nextCursor,
+                  },
+                }
+              : item,
+          ),
+        });
+      },
+      () => this.clear(),
+    );
+  }
+  private checkCommentPrivacy(post: Post, comments: readonly Comment[]): void {
+    checkDiscussionPrivacy(
+      post,
+      comments.flatMap((comment) => [
+        comment.author,
+        ...comment.replyPreview.items.flatMap((reply) => [
+          reply.author,
+          ...(reply.target.status === 'available' ? [reply.target.author] : []),
+        ]),
+      ]),
+    );
+  }
+  async setOrdering(query: CommentQuery): Promise<void> {
+    if (this.view.busy) return;
+    this.update({
+      sort: query.sort ?? this.view.sort,
+      order: query.order ?? this.view.order,
+    });
+    await this.load();
   }
   async setLiked(liked: boolean): Promise<void> {
     if (
@@ -180,6 +275,14 @@ export class DetailController extends CommunityController<DetailView> {
           this.update({ needsReload: false, status: '帖子已删除' });
         } else {
           this.update({
+            locatedComment:
+              this.view.locatedComment?.id === target.id
+                ? null
+                : this.view.locatedComment,
+            locatedReplyId:
+              this.view.locatedComment?.id === target.id
+                ? ''
+                : this.view.locatedReplyId,
             comments: this.view.comments.filter(
               (item) => item.id !== target.id,
             ),
@@ -187,6 +290,19 @@ export class DetailController extends CommunityController<DetailView> {
               ? {
                   ...this.view.post,
                   commentCount: Math.max(0, this.view.post.commentCount - 1),
+                  replyCount: Math.max(
+                    0,
+                    this.view.post.replyCount -
+                      (this.view.comments.find((item) => item.id === target.id)
+                        ?.replyCount ?? 0),
+                  ),
+                  discussionCount: Math.max(
+                    0,
+                    this.view.post.discussionCount -
+                      1 -
+                      (this.view.comments.find((item) => item.id === target.id)
+                        ?.replyCount ?? 0),
+                  ),
                 }
               : null,
             deleteTarget: null,

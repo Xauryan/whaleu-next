@@ -28,6 +28,11 @@ export interface StoredComment {
   deleted_at: Date | null;
   created_at: Date;
 }
+export interface StoredReply extends StoredComment {
+  root_comment_id: string;
+  target_reply_id: string | null;
+  sequence: string;
+}
 export interface Seek {
   at: string;
   id: string;
@@ -83,8 +88,16 @@ export class CommunityRepository {
     if (!result.rows[0]) throw new ApplicationError('COMMENT_NOT_FOUND');
     return result.rows[0];
   }
+  async reply(id: string, tx: PoolClient, lock = false): Promise<StoredReply> {
+    const result = await tx.query<StoredReply>(
+      `SELECT * FROM whaleu_community.replies WHERE id=$1 ${lock ? 'FOR SHARE' : ''}`,
+      [id],
+    );
+    if (!result.rows[0]) throw new ApplicationError('REPLY_NOT_FOUND');
+    return result.rows[0];
+  }
   async images(
-    kind: 'post' | 'comment',
+    kind: 'post' | 'comment' | 'reply',
     id: string,
     tx: PoolClient,
   ): Promise<ApprovedAsset[]> {
@@ -95,7 +108,7 @@ export class CommunityRepository {
     return result.rows;
   }
   async attach(
-    kind: 'post' | 'comment',
+    kind: 'post' | 'comment' | 'reply',
     id: string,
     assets: ApprovedAsset[],
     tx: PoolClient,
@@ -121,10 +134,11 @@ export class CommunityRepository {
     type: string,
     resourceId: string,
     tx: PoolClient,
+    context: Record<string, unknown> = {},
   ): Promise<void> {
     await tx.query(
-      'INSERT INTO whaleu_community.outbox(id,event_key,event_type,resource_id) VALUES ($1,$2,$3,$4) ON CONFLICT(event_key) DO NOTHING',
-      [randomUUID(), key, type, resourceId],
+      'INSERT INTO whaleu_community.outbox(id,event_key,event_type,resource_id,context) VALUES ($1,$2,$3,$4,$5::jsonb) ON CONFLICT(event_key) DO NOTHING',
+      [randomUUID(), key, type, resourceId, JSON.stringify(context)],
     );
   }
 }

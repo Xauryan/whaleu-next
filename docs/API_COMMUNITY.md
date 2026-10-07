@@ -1,10 +1,11 @@
-# Community C1 + C2A API and safety boundary
+# Community C1 + C2A + C2B API and safety boundary
 
-C1 and C2A polls are **partial development slices**, not production-ready community parity.
+C1, C2A polls and C2B discussion are **partial development slices**, not production-ready community parity.
 It implements explicit operating-region mapping, chronological regional/global
 feeds, detail, text publication, thread-local anonymous personas, root comments,
 desired-state post likes, own deletion, durable publication recovery, poll composition/reads and immutable
-ballots with owner-only recovery. Normal
+ballots with owner-only recovery, flat replies, discussion ordering/context,
+author root pins and recoverable discussion reactions. Normal
 runtime authorization, visibility, moderation and media adapters are unavailable.
 No environment switch, campus selection or client flag enables them. Synthetic
 fixtures are injected only from test modules.
@@ -48,7 +49,7 @@ it is never silently trimmed, truncated or SQL-filtered.
 
 Category keys: `discussion`, `confession`, `companions`, `pets`, `internships`,
 `scenery`, `dorms`, `research`, `deep_sea`. Global publication accepts discussion
-only. Unsupported trading/group/link/reply modes reject unknown fields. C2A polls use
+only. Unsupported trading/group/link modes reject unknown fields. C2A polls use
 the strict discriminated component described below.
 
 `MediaView` is output-only:
@@ -72,12 +73,13 @@ expose `isPostAuthor:true`, which would identify the hidden author via the paren
 must have independent server authorization and audit; normal DTOs do not change.
 
 `PostView` (same detail and summary shape):
-`{id,space:{id,kind,name},category,text,images,author,publishedAt,likeCount,commentCount,viewer:{isSelf,isLiked,canDelete,canComment},commentsPolicy,component}`.
-Comment count includes currently visible root comments only. No fabricated views,
-pins, subscriptions, notification or reward counts are returned.
+`{id,space:{id,kind,name},category,text,images,author,publishedAt,likeCount,commentCount,replyCount,discussionCount,viewer:{isSelf,isLiked,canDelete,canComment},commentsPolicy,component}`.
+Comment count includes currently visible root comments only; replyCount is visible
+replies under visible roots, discussionCount is their sum. No fabricated views,
+subscriptions, notification or reward counts are returned.
 
 `CommentView`:
-`{id,postId,text,images,author,createdAt,viewer:{isSelf,canDelete}}`.
+`{id,postId,text,images,author,createdAt,likeCount,replyCount,isPinned,replyPreview:{items,nextCursor},viewer:{isSelf,canDelete,isLiked,canPin}}`.
 
 ## Capabilities and current authority
 
@@ -98,7 +100,7 @@ session and returns exactly:
 
 `GET /v1/community/posts/:postId/comment-capabilities` independently evaluates
 comment permission and same-parent visibility. It returns
-`{availability,reason,authorModes,forcedAuthorMode:"anonymous"|null}`. Post publish
+`{availability,reason,authorModes,forcedAuthorMode:"anonymous"|null,lastAuthorMode:"named"|"anonymous"|null}`. Post publish
 restrictions are not accidentally used to disable otherwise allowed comments.
 Capabilities are advisory; every mutation re-evaluates authority under locks.
 
@@ -106,8 +108,10 @@ Authorization requires authoritative phone proof, current student verification,
 identity region, per-action restrictions, explicit unverified category exceptions,
 cross-region policy and scoped management permission. Runtime has no adapter for
 these facts yet. Phone-unverified actors cannot write/like or continue feeds.
-Student-unverified actors can only publish named content in explicitly enabled
-regional categories; their comments additionally require a named parent. Global
+Student-unverified actors can publish named posts in explicitly enabled regional
+categories. Root/reply publication instead uses the independent authoritative
+regional unverifiedCommentsAllowed switch and requires named identity and a named
+parent post; the new-post category allowlist does not govern comments/replies. Global
 publishing has no unverified exception. Student-verified actors need a current
 identity region; cross-region anonymity is denied. Restricted comments require
 scoped management for creation, and permit comments only by the true post author
@@ -147,20 +151,21 @@ ordered assets. Image-only posts reject. Omitted images/policy materialize to
 `POST /v1/community/posts/:postId/comments` accepts
 `{clientRequestId,text,imageAssetIds:[],authorMode}`. At most 500 codepoints and
 three distinct assets; non-whitespace text or at least one asset is required.
-C1 root comments only. Own-anonymous forcing is applied by the server.
+This route publishes roots. C2B replies use their own route below.
+Own-anonymous forcing is applied by the server.
 
 Both POST routes return HTTP 201 for a durable terminal receipt, including a
 terminal rejected receipt; clients must inspect the discriminated outcome:
 
 - Created: `{requestId,operation,outcome:"created",resourceId,createdAt}`
 - Rejected: `{requestId,operation,outcome:"rejected",code}`
-- Operation is `publish_post` or `publish_comment`
+- Operation is `publish_post`, `publish_comment` or C2B `publish_reply`
 
 `GET /v1/me/community/requests/:clientRequestId` returns the same receipt with
 HTTP 200, accessible only to the active original account. Unknown is 404
 `REQUEST_NOT_FOUND`; that is not evidence an in-flight request cannot still commit.
 
-Required UUIDv4 request keys are scoped to the account across BOTH operations.
+Required UUIDv4 request keys are scoped to the account across all THREE publication operations.
 Hash includes operation and every normalized behavior field, including target
 post/space and ordered assets. Equal intent returns one receipt and resource;
 changed intent is 409 `REQUEST_CONFLICT`. A replay checks active session/account
@@ -175,7 +180,8 @@ Terminal rejection codes: `COMMUNITY_SCOPE_UNAVAILABLE`,
 `PHONE_VERIFICATION_REQUIRED`, `STUDENT_VERIFICATION_REQUIRED`,
 `IDENTITY_CAMPUS_REQUIRED`, `COMMUNITY_ACTION_RESTRICTED`,
 `AUTHOR_MODE_NOT_ALLOWED`, `COMMENTS_DISABLED`, `CONTENT_REJECTED`,
-`MEDIA_NOT_READY`, `POST_NOT_FOUND`, `POST_DELETED`.
+`MEDIA_NOT_READY`, `POST_NOT_FOUND`, `POST_DELETED`, `COMMENT_NOT_FOUND`,
+`REPLY_NOT_FOUND`.
 
 Native clients must durably freeze the request before dispatch and preserve it
 through timeout, cancellation, malformed response, auth refresh, page closure and
@@ -370,6 +376,182 @@ coverage is separate from mocked gateway/controller tests. Physical WeChat
 DevTools/device acceptance and production-scale count/query performance remain
 release gates.
 
+## C2B discussion contract
+
+C2B extends the same development-only boundaries. It creates no provider, production
+account, real moderation adapter or media upload. Its normal runtime remains
+fail-closed; synthetic fixtures are injected only by tests. Anonymous subjects
+never carry their underlying account into the visibility adapter. No new student
+verification, campus selection, SSO or student-number backfill is required.
+
+### Flat threads, counts and access
+
+A root belongs to one post. Every reply belongs directly to that root and post,
+and targets either its root or an already committed reply in the same root. There
+are no recursive child reply arrays. Database composite foreign keys enforce this
+relationship; a target-before-reply sequence constraint rejects future/cyclic
+relations. Reply content/ownership/target and root parent/ownership are immutable.
+Historical reply text has no database length cap, permitting reconciled import
+without truncation; new HTTP writes retain the established 500-codepoint limit.
+
+Every child read/action checks active session, parent visibility and active scope,
+then root visibility. Target identity is separately visibility-gated. A deleted
+root suppresses all of its replies. Deleting one reply does not delete later
+siblings: an unavailable target becomes exactly `{status:"unavailable"}` without
+its ID, author, text or media. New replies may not target such an unavailable row.
+
+`ReplyView` is exactly:
+`{id,postId,rootCommentId,target,text,images,author,createdAt,likeCount,viewer:{isSelf,canDelete,isLiked}}`.
+Available target is `{status:"available",kind:"comment"|"reply",id,author}`;
+unavailable target is the status-only variant above. Author uses the existing
+strict named/anonymous union. An anonymous reply on a named post never exposes
+`isPostAuthor:true`, even to its own account. Own anonymous-post authors are forced
+to their existing thread persona. Recovery receipts contain no authors or content.
+
+Comment capabilities also return `lastAuthorMode`, the current account's most
+recent nondeleted root/reply participation under a nondeleted root, or null. A
+shared server-owned sequence determines order under the parent lock, avoiding
+wall-clock ties/rollback. This advisory value carries no author ID or body and
+cannot override forced/allowed modes or a touched draft. Historical source order
+must be explicitly reconciled during import; no production import has occurred.
+
+`commentCount` remains the visible-root count. New `replyCount` counts visible
+replies beneath visible roots, including siblings whose explicit target vanished.
+`discussionCount` is their sum. Root `replyCount` is full visible count, independent
+from its inline preview size. The 1,024 candidate/reply budgets fail with
+`COMMUNITY_UNAVAILABLE` rather than presenting partial counts as exact. Scalable
+query-level authoritative filtering remains a release gate.
+
+### Read, sort, preview and location
+
+- `GET /v1/community/posts/:postId/comments` accepts `limit=1..10`,
+  `sort=time|likes` (default likes), `order=asc|desc` (default desc),
+  `previewLimit=1..5` (default 2), and optional cursor
+- Root order is pinned first. Time follows the selected direction; likes follows
+  the selected direction then newest timestamp and deterministic ID. Each root
+  embeds earliest-first `replyPreview:{items,nextCursor}`
+- Root cursors bind viewer, parent, sort, direction, limits and a fingerprint of
+  the complete visible ordered result. Mutated ordering/counts/visibility or a
+  changed typed scope/size returns `409 DISCUSSION_RESTART_REQUIRED`. Refresh must
+  discard the old traversal. Malformed cursors return 400. The viewer binding is
+  hashed; raw private account identifiers never appear in cursors
+- `GET /v1/community/comments/:commentId` reads one visible root with its preview
+- `GET /v1/community/comments/:commentId/replies` accepts limit 1–50, default 20,
+  and cursor. Replies use a server-owned monotonic sequence, allocated while the
+  parent write lock serializes commits, not random UUID or client-time ordering
+- Preview continuation is bound to the ordinary default page size 20, positioned
+  after the last earliest-preview reply. Changing an explicit reply-page size
+  requires restarting that traversal; cursor ancestry/size mismatches return 400
+- `GET /v1/community/replies/:replyId` reads one visible reply through parent/root
+- `GET /v1/community/posts/:postId/discussion-context` accepts exactly one of
+  `commentId` or `replyId`. It returns `{comment,reply,replies:{items,nextCursor}}`,
+  with `reply:null` for root location, otherwise the target and up to two adjacent
+  replies on each side. This separate located window always has null nextCursor;
+  the root's ordinary earliest-preview cursor is unchanged. Located context never
+  skips normal traversal or adds a second count. Consumers deduplicate by ID
+
+Neither cursor nor receipt is an access grant. Every continuation/location read
+rechecks current visibility. Hidden/blocked/deleted parents and inactive scopes
+produce the existing generic absence. Missing roots/replies use
+`COMMENT_NOT_FOUND`/`REPLY_NOT_FOUND` without identity or body details.
+
+### Reply publication and recovery
+
+`POST /v1/community/comments/:rootCommentId/replies` accepts only
+`{clientRequestId,targetReplyId:null|string,text,imageAssetIds:[],authorMode}`.
+Omitted target becomes null (the root); a UUID targets an existing reply in this
+root. No target person/profile/name, alternate root, scope or claimed role is
+accepted. Text is nonblank or there are 1–3 distinct ordered approved assets;
+image-only intent is supported by the schema but actual media remains gated.
+
+HTTP 201 returns the existing minimal publication receipt with operation
+`publish_reply`. It shares the account-owned publication-key namespace and
+`GET /v1/me/community/requests/:requestId` recovery. Normalized root/target,
+requested mode, body and ordered asset IDs join the request hash. Typed version-3
+content approval additionally binds the resolved post/root/target, effective
+forced mode and approved image digests. A root's parent cannot be reassigned.
+An approval for another target, identity mode or body cannot approve this reply.
+C1 publication hashes and receipts are unchanged.
+
+Request reservation, reply, persona, attachments, frozen terminal receipt and
+outbox obligation commit atomically. Equal concurrent intent yields one resource.
+Changed intent is `REQUEST_CONFLICT`. Terminal missing-root/target rejections are
+frozen; transient auth/validation/DB/approval/media unavailability creates no
+terminal receipt. Recovery and successful replay check active account before
+returning the old receipt, then bypass current publication permissions without
+recreating hidden/deleted content. Unknown receipt never proves no in-flight commit.
+
+### Recoverable desired-state reactions and author root pins
+
+All following routes require active identity and a JSON body
+`{clientRequestId:<UUIDv4>}`, including DELETE:
+
+- `PUT|DELETE /v1/community/comments/:commentId/like`
+- `PUT|DELETE /v1/community/replies/:replyId/like`
+- `PUT|DELETE /v1/community/comments/:commentId/pin`
+
+PUT means true and DELETE false. They use independent phone/action checks for
+`like` or `pin`; student/publication/category gates and restricted-comments policy
+do not prohibit these actions. Only the true post author can pin/unpin. A manager
+who is not the author cannot, nor can a root author merely by owning that root.
+At most one active root is pinned per post. Pinning another returns a frozen
+`COMMENT_PIN_CONFLICT`; explicitly unpin first. Same-root re-pin is a no-op and
+preserves its original time. Unauthorized author pin is generic `COMMENT_NOT_FOUND`.
+
+HTTP 200 returns a frozen receipt:
+`{requestId,operation,outcome:"applied",resourceId,desired}` or
+`{requestId,operation,outcome:"rejected",code}`. Operations are
+`set_comment_like`, `set_reply_like`, `set_comment_pin`.
+`GET /v1/me/community/discussion-requests/:requestId` recovers this separate
+account-owned namespace. Minimal receipts deliberately contain no live counters,
+pin actor or target content. Refetch visible state after resolution.
+
+This receipt design prevents an already-committed old request from reapplying a
+stale like/pin after a newer opposite transition. Clients freeze one unresolved
+mutation before dispatch and resolve it before issuing opposite intent. Different
+independent client requests serialize by database arrival, not an invented global
+wall-clock order of user gestures. No global multi-device last-gesture guarantee
+is claimed. Actual state transitions alone create outbox events; desired-state
+no-ops and receipt replays do not create duplicate obligations.
+
+`DELETE /v1/community/replies/:replyId` is own-only idempotent 204; repeated and
+concurrent same-owner deletion creates one event. Root deletion clears its pin
+atomically and gates descendants without physically deleting them or charging
+all descendant authors. Post authors have no implicit right to delete someone
+else's comment/reply. Administrative removal/reasons/bans remain separate work.
+
+### Integrity, privileged identity and side effects
+
+Migration `0009_community_discussion.sql` adds only empty target-owned discussion
+storage and forward constraints. Migrations 0001–0008 are unchanged. It strengthens
+publication receipts against mutation/pending-only commits without rewriting old
+payloads and adds separately immutable discussion mutation receipts. Parent-first
+locking serializes publication, reactions, pins and deletion. Local authority,
+visibility and approval adapters hold their facts through commit; no network or
+provider work occurs under locks.
+
+The developer-only audited identity endpoint now accepts `kind:"reply"`. It uses
+the same private owner facade, parent/root visibility checks, current developer
+grant and metadata-only audit before disclosure. Reply identity never enriches
+ordinary discussion DTOs. The private route does not reveal a removed target or
+bypass hidden/deleted parents, and nondeveloper managers remain denied.
+
+Outbox context is internal. New roots preserve actor/post references and obligations
+for distinct nonself post-author notification/reward, eligible current saved-post
+subscriber notification, actor reward, ranking and media audit. New replies
+preserve new reply/root/explicit target, actor and deduplicated nonself root/target
+recipients, with reply notification and reward/ranking/media obligations; there is
+no invented saved-subscriber fan-out for replies. Actual likes/unlikes retain
+transition identity/actor/recipient and applicable lifetime-deduplicated
+notification, capped reward or ranking obligations. Unlike does not imply reward
+reversal. Own deletion retains one deduction/refund/ranking/media-cleanup obligation.
+
+Consumers must still implement current eligibility/visibility, self/overlap and
+mute/consent/quota checks, their own idempotent receipts, retries and delivery or
+reward recovery. Persisting an event is not notification delivery, paid experience,
+ranking completion or media cleanup. Full notification/subscription/reward and
+moderation providers remain explicitly unimplemented gates.
+
 ## Retained parity backlog
 
 C2 discovery: category reconciliation, global school filters/aggregation, explicit
@@ -380,9 +562,10 @@ C2 composition: title fidelity, full drafts, remembered contact/location/link
 fields, anonymous DM choices, trading, group formation, linked boards/groups
 and ratings, feedback channels, post status workflows.
 
-C2 discussion: replies and target deep links, reply pagination, comment sorting,
-comment/reply likes/history, pins, complete identity defaults, moderation/removal
-transitions and administrative deletion consequences.
+C2 discussion remaining: liked and own/received histories, reaction batch status,
+full report/block/moderation/removal and ban workflows, administrative deletion
+consequences, full persistent drafts and additional composition conveniences.
+Administrator feed-post pins are separate from implemented author root pins.
 
 Prerequisites: phone/student/email/affiliation verification and expiry, identity
 campus, related-region policy, current restrictions, real administration/review/

@@ -569,6 +569,7 @@ test(
             ...verified(region),
             studentVerified: false,
             unverifiedCategories: ['discussion'],
+            unverifiedCommentsAllowed: true,
           });
           await approve(pool, third.accountId, 'unverified named');
           created(

@@ -75,6 +75,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Campus/profile snapshot `417b1847b14895e46519925709ee96e471897330`: 66 API tests, 130 native-client tests and 43 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37636428025), including native gateway → Nest HTTP → PostgreSQL contracts. The commit signature is verified.
 - Community/developer/school-code snapshot `cc3ef8bb3904b7b7b369b0f3110418a9a60cd775`: 88 API tests, 182 native-client tests and 93 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37642626842), including community/privacy native gateway → Nest HTTP → PostgreSQL contracts and school-code migration tooling. The commit signature is verified.
 - Verification-preservation snapshot `6ed0d7e1e306bc9b7a104a2c4d880552afa61b4f`: 93 API tests, 217 native-client tests and 110 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37646773204), including actual native verification-summary contracts and final-clock privacy checks. The commit signature is verified.
+- Poll snapshot `3c10b6c42d963b1595c31b9ab9959bf0b4e2f36b`: 98 API tests, 250 native-client tests and 137 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37649513781), including native poll publication, ballot recovery and privacy contracts. The commit signature is verified.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -101,8 +102,7 @@ receipts have backend and native-client tests. The developer-only identity overl
 has separate authorization, append-only access auditing and transient client state.
 Normal runtime verification, safety, moderation, visibility and media adapters are
 still fail-closed/unavailable. Student-number data has no authoritative production
-source yet. No real account has received a role grant. Polls, trading, nested replies,
-subscriptions, related-region distribution, hot/search and the other listed business
+source yet. No real account has received a role grant. Trading, subscriptions, related-region distribution, hot/search and the other listed business
 capabilities remain required. See [community scope and gates](API_COMMUNITY.md).
 
 Legacy verification preservation decision: retain overloaded historical identity
@@ -125,5 +125,16 @@ expiry, durable ballot receipts and native composition/voting/recovery are
 implemented. Poll text participates in publication approval and idempotency.
 Voting does not invent a student-verification requirement. Real gateway → HTTP →
 PostgreSQL tests cover the contract; runtime policy adapters remain fail-closed
-where unavailable. Trading, group formation, replies, subscriptions and the other
+where unavailable. Trading, group formation, subscriptions and the other
 community backlog are still required. See [community API](API_COMMUNITY.md).
+
+Community C2B development checkpoint: flat reply threads and safe target
+projections, root/reply reactions, post-author-only root pins, ordered previews,
+snapshot-bound continuation, deep-link context, identity-mode defaults and safe
++1 composition are implemented with durable recovery. Developer identity views
+include replies through the separate audited boundary. Regional unverified
+comment eligibility is independent of the new-post category allowlist. Counts
+separate visible roots, replies and combined discussion. History, moderation,
+feed-post administration, subscriptions, notifications/rewards consumers, media,
+trading and group formation remain required; no outbox record is treated as
+successful external delivery or a paid reward.

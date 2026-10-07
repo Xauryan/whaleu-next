@@ -1,3 +1,4 @@
+import { decodeReplyIntent, type ReplyIntent } from './discussion-contract';
 import { ClientError, isRecord } from '../api/errors';
 import type { Storage } from '../platform/contracts';
 import { isUuid } from '../profile/contract';
@@ -18,6 +19,14 @@ export type PendingAttempt =
   | {
       readonly version: 1;
       readonly accountId: string;
+      readonly operation: 'publish_reply';
+      readonly postId: string;
+      readonly rootCommentId: string;
+      readonly payload: ReplyIntent;
+    }
+  | {
+      readonly version: 1;
+      readonly accountId: string;
       readonly operation: 'publish_post';
       readonly payload: PostIntent;
     }
@@ -30,6 +39,34 @@ export type PendingAttempt =
     };
 function decodeAttempt(value: unknown, accountId: string): PendingAttempt {
   if (!isRecord(value)) invalid();
+  if (value.operation === 'publish_reply') {
+    exact(value, [
+      'version',
+      'accountId',
+      'operation',
+      'postId',
+      'rootCommentId',
+      'payload',
+    ]);
+    if (
+      value.version !== 1 ||
+      value.accountId !== accountId ||
+      !isUuid(accountId) ||
+      !isUuid(value.postId) ||
+      !isUuid(value.rootCommentId)
+    )
+      invalid();
+    const payload = decodeReplyIntent(value.payload);
+    if (payload.targetReplyId === value.rootCommentId) invalid();
+    return Object.freeze({
+      version: 1,
+      accountId,
+      operation: 'publish_reply',
+      postId: value.postId,
+      rootCommentId: value.rootCommentId,
+      payload,
+    });
+  }
   if (value.operation === 'publish_post') {
     exact(value, ['version', 'accountId', 'operation', 'payload']);
     if (
@@ -132,7 +169,7 @@ export class DraftStore {
   private key(accountId: string, target: string): string {
     if (
       !isUuid(accountId) ||
-      !/^(?:post|comment):[a-z0-9_:-]{1,100}$/.test(target)
+      !/^(?:post|comment|reply):[a-z0-9_:-]{1,160}$/.test(target)
     )
       throw storageError();
     return `whaleu.community.draft.v1:${this.namespace}:${accountId}:${target}`;

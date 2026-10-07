@@ -11,7 +11,7 @@ import { cancellable } from '../platform/cancellable';
 import { Cancellation, type Clock } from '../platform/contracts';
 import { isUuid } from '../profile/contract';
 export interface IdentityTarget {
-  readonly kind: 'post' | 'comment';
+  readonly kind: 'post' | 'comment' | 'reply';
   readonly id: string;
 }
 export interface DisplayTarget extends IdentityTarget {
@@ -80,7 +80,10 @@ export function decodeAuthorization(value: unknown): Authorization {
 }
 function target(value: unknown): IdentityTarget {
   exact(value, ['kind', 'id']);
-  if (!['post', 'comment'].includes(String(value.kind)) || !isUuid(value.id))
+  if (
+    !['post', 'comment', 'reply'].includes(String(value.kind)) ||
+    !isUuid(value.id)
+  )
     invalid();
   return Object.freeze({
     kind: value.kind as IdentityTarget['kind'],

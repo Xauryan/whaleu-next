@@ -18,6 +18,8 @@ const terminalCodes = new Set<ApplicationErrorCode>([
   'MEDIA_NOT_READY',
   'POST_NOT_FOUND',
   'POST_DELETED',
+  'COMMENT_NOT_FOUND',
+  'REPLY_NOT_FOUND',
 ]);
 interface RequestRow {
   payload_hash: string;

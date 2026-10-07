@@ -1,4 +1,8 @@
 import {
+  DiscussionMutationController,
+  initialDiscussionMutationView,
+} from '../../community/discussion-controller';
+import {
   IdentityOverlayController,
   initialOverlayView,
   type DisplayTarget,
@@ -16,17 +20,33 @@ Page({
     ...initialDetailView(),
     identityOverlay: initialOverlayView(),
     pollView: initialPollView(),
+    interaction: initialDiscussionMutationView(),
   },
   controller: undefined as DetailController | undefined,
   postId: '',
+  located: null as { commentId: string } | { replyId: string } | null,
+  mutations: undefined as DiscussionMutationController | undefined,
   pollController: undefined as PollController | undefined,
   identityOverlay: undefined as IdentityOverlayController | undefined,
   overlayTargets: '',
-  onLoad(query: { postId?: string } = {}) {
-    this.postId = isUuid(query.postId) ? query.postId : '';
+  onLoad(
+    query: { postId?: string; rootCommentId?: string; replyId?: string } = {},
+  ) {
+    this.postId =
+      isUuid(query.postId) &&
+      (query.rootCommentId === undefined || isUuid(query.rootCommentId)) &&
+      (query.replyId === undefined || isUuid(query.replyId))
+        ? query.postId
+        : '';
+    this.located = isUuid(query.replyId)
+      ? { replyId: query.replyId }
+      : isUuid(query.rootCommentId)
+        ? { commentId: query.rootCommentId }
+        : null;
   },
   onShow() {
     this.controller?.dispose();
+    this.mutations?.dispose();
     this.pollController?.dispose();
     this.identityOverlay?.dispose();
     this.overlayTargets = '';
@@ -45,6 +65,20 @@ Page({
     this.pollController = new PollController(runtime, this.postId, (view) =>
       this.setData({ pollView: view }),
     );
+    this.mutations = new DiscussionMutationController(
+      runtime,
+      (view) => {
+        this.setData({ interaction: view });
+        if (view.busy || view.frozen) {
+          this.identityOverlay?.clear();
+          this.overlayTargets = '';
+        }
+      },
+      () => {
+        void this.controller?.load();
+      },
+    );
+    this.mutations.load();
     this.controller = new DetailController(
       runtime,
       this.postId,
@@ -57,8 +91,29 @@ Page({
                 id: view.post.id,
                 authorMode: view.post.author.kind,
               },
-              ...view.comments.map((item) => ({
+              ...[
+                ...new Map(
+                  [
+                    ...view.comments,
+                    ...(view.locatedComment ? [view.locatedComment] : []),
+                  ].map((item) => [item.id, item]),
+                ).values(),
+              ].map((item) => ({
                 kind: 'comment' as const,
+                id: item.id,
+                authorMode: item.author.kind,
+              })),
+              ...[
+                ...new Map(
+                  [
+                    ...view.comments,
+                    ...(view.locatedComment ? [view.locatedComment] : []),
+                  ]
+                    .flatMap((item) => item.replyPreview.items)
+                    .map((item) => [item.id, item]),
+                ).values(),
+              ].map((item) => ({
+                kind: 'reply' as const,
                 id: item.id,
                 authorMode: item.author.kind,
               })),
@@ -67,7 +122,12 @@ Page({
         const key = targets
           .map((item) => item.kind + ':' + item.id + ':' + item.authorMode)
           .join(',');
-        if (view.busy || !view.loaded) {
+        if (
+          view.busy ||
+          !view.loaded ||
+          this.data.interaction.busy ||
+          this.data.interaction.frozen
+        ) {
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         } else if (key !== this.overlayTargets) {
@@ -78,8 +138,56 @@ Page({
       (post) => {
         void this.pollController?.load(post);
       },
+      this.located,
     );
     void this.controller.load();
+  },
+  onMoreReplies(event: { currentTarget: { dataset: { id: string } } }) {
+    void this.controller?.moreReplies(event.currentTarget.dataset.id);
+  },
+  onOrder(event: {
+    currentTarget: {
+      dataset: { sort: 'time' | 'likes'; order: 'asc' | 'desc' };
+    };
+  }) {
+    void this.controller?.setOrdering(event.currentTarget.dataset);
+  },
+  onLikeComment(event: { currentTarget: { dataset: { id: string } } }) {
+    const id = event.currentTarget.dataset.id,
+      item =
+        this.data.comments.find((item) => item.id === id) ??
+        (this.data.locatedComment?.id === id ? this.data.locatedComment : null);
+    if (item && !this.data.busy)
+      void this.mutations?.apply(
+        'set_comment_like',
+        this.postId,
+        id,
+        id,
+        !item.viewer.isLiked,
+      );
+  },
+  onPinComment(event: { currentTarget: { dataset: { id: string } } }) {
+    const id = event.currentTarget.dataset.id,
+      item =
+        this.data.comments.find((item) => item.id === id) ??
+        (this.data.locatedComment?.id === id ? this.data.locatedComment : null);
+    if (item?.viewer.canPin && !this.data.busy)
+      void this.mutations?.apply(
+        'set_comment_pin',
+        this.postId,
+        id,
+        id,
+        !item.isPinned,
+      );
+  },
+  onInteractionReceipt() {
+    void this.mutations?.recover();
+  },
+  onInteractionRetry() {
+    void this.mutations?.recover(true);
+  },
+  onInteractionCancel() {
+    this.mutations?.cancel();
   },
   onPollOption(event: { currentTarget: { dataset: { id: string } } }) {
     void this.pollController?.select(event.currentTarget.dataset.id);
@@ -127,6 +235,8 @@ Page({
   onHide() {
     this.controller?.dispose();
     this.controller = undefined;
+    this.mutations?.dispose();
+    this.mutations = undefined;
     this.pollController?.dispose();
     this.pollController = undefined;
     this.identityOverlay?.dispose();
@@ -135,6 +245,8 @@ Page({
   onUnload() {
     this.controller?.dispose();
     this.controller = undefined;
+    this.mutations?.dispose();
+    this.mutations = undefined;
     this.pollController?.dispose();
     this.pollController = undefined;
     this.identityOverlay?.dispose();

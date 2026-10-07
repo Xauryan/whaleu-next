@@ -1,3 +1,4 @@
+import { decodeReplies, type Replies } from './discussion-contract';
 import { ClientError, isRecord } from '../api/errors';
 import { isUuid } from '../profile/contract';
 import {
@@ -20,7 +21,7 @@ export const categories = [
 ] as const;
 export type Category = (typeof categories)[number];
 export type AuthorMode = 'named' | 'anonymous';
-export type Operation = 'publish_post' | 'publish_comment';
+export type Operation = 'publish_post' | 'publish_comment' | 'publish_reply';
 export type CommentsPolicy = 'open' | 'restricted';
 export interface CommunitySpace {
   readonly id: string;
@@ -70,6 +71,8 @@ export interface Post {
   readonly publishedAt: string;
   readonly likeCount: number;
   readonly commentCount: number;
+  readonly replyCount: number;
+  readonly discussionCount: number;
   readonly viewer: {
     readonly isSelf: boolean;
     readonly isLiked: boolean;
@@ -85,7 +88,16 @@ export interface Comment {
   readonly images: readonly MediaView[];
   readonly author: Author;
   readonly createdAt: string;
-  readonly viewer: { readonly isSelf: boolean; readonly canDelete: boolean };
+  readonly likeCount: number;
+  readonly replyCount: number;
+  readonly isPinned: boolean;
+  readonly replyPreview: Replies;
+  readonly viewer: {
+    readonly isSelf: boolean;
+    readonly canDelete: boolean;
+    readonly isLiked: boolean;
+    readonly canPin: boolean;
+  };
 }
 export type Continuation =
   'available' | 'end' | 'login_required' | 'phone_verification_required';
@@ -223,6 +235,8 @@ const terminalCodes = [
   'MEDIA_NOT_READY',
   'POST_NOT_FOUND',
   'POST_DELETED',
+  'COMMENT_NOT_FOUND',
+  'REPLY_NOT_FOUND',
 ];
 const code = (value: unknown): value is string =>
   typeof value === 'string' &&
@@ -359,6 +373,8 @@ export function decodePost(value: unknown): Post {
     'publishedAt',
     'likeCount',
     'commentCount',
+    'replyCount',
+    'discussionCount',
     'viewer',
     'commentsPolicy',
     'component',
@@ -377,6 +393,9 @@ export function decodePost(value: unknown): Post {
     !timestamp(value.publishedAt) ||
     !integer(value.likeCount) ||
     !integer(value.commentCount) ||
+    !integer(value.replyCount) ||
+    !integer(value.discussionCount) ||
+    value.discussionCount !== value.commentCount + value.replyCount ||
     !policy(value.commentsPolicy) ||
     Object.values(value.viewer).some((item) => typeof item !== 'boolean') ||
     (value.viewer.canDelete && !value.viewer.isSelf)
@@ -397,9 +416,21 @@ export function decodePost(value: unknown): Post {
     publishedAt: value.publishedAt,
     likeCount: value.likeCount,
     commentCount: value.commentCount,
+    replyCount: value.replyCount,
+    discussionCount: value.discussionCount,
     viewer: Object.freeze(value.viewer) as Post['viewer'],
     commentsPolicy: value.commentsPolicy,
   });
+}
+export function displayDiscussionText(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length <= 1048576 &&
+    [...value].every((character) => {
+      const code = character.codePointAt(0)!;
+      return code < 0xd800 || code > 0xdfff;
+    })
+  );
 }
 export function decodeComment(value: unknown): Comment {
   exact(value, [
@@ -409,16 +440,32 @@ export function decodeComment(value: unknown): Comment {
     'images',
     'author',
     'createdAt',
+    'likeCount',
+    'replyCount',
+    'isPinned',
+    'replyPreview',
     'viewer',
   ]);
-  exact(value.viewer, ['isSelf', 'canDelete']);
+  exact(value.viewer, ['isSelf', 'canDelete', 'isLiked', 'canPin']);
   if (
     !isUuid(value.id) ||
     !isUuid(value.postId) ||
-    !boundedText(value.text, 0, 500) ||
+    !displayDiscussionText(value.text) ||
     !timestamp(value.createdAt) ||
+    !integer(value.likeCount) ||
+    !integer(value.replyCount) ||
+    typeof value.isPinned !== 'boolean' ||
     Object.values(value.viewer).some((item) => typeof item !== 'boolean') ||
     (value.viewer.canDelete && !value.viewer.isSelf)
+  )
+    invalid();
+  const replyPreview = decodeReplies(value.replyPreview);
+  if (
+    replyPreview.items.length > 5 ||
+    replyPreview.items.some(
+      (item) => item.rootCommentId !== value.id || item.postId !== value.postId,
+    ) ||
+    replyPreview.items.length > value.replyCount
   )
     invalid();
   const images = mediaList(value.images, 3);
@@ -430,6 +477,10 @@ export function decodeComment(value: unknown): Comment {
     images,
     author: decodeAuthor(value.author),
     createdAt: value.createdAt,
+    likeCount: value.likeCount,
+    replyCount: value.replyCount,
+    isPinned: value.isPinned,
+    replyPreview,
     viewer: Object.freeze(value.viewer) as Comment['viewer'],
   });
 }
@@ -566,7 +617,9 @@ export function decodeReceipt(value: unknown): Receipt {
     ]);
     if (
       !uuid4(value.requestId) ||
-      !['publish_post', 'publish_comment'].includes(String(value.operation)) ||
+      !['publish_post', 'publish_comment', 'publish_reply'].includes(
+        String(value.operation),
+      ) ||
       !isUuid(value.resourceId) ||
       !timestamp(value.createdAt)
     )
@@ -583,7 +636,9 @@ export function decodeReceipt(value: unknown): Receipt {
   if (
     value.outcome !== 'rejected' ||
     !uuid4(value.requestId) ||
-    !['publish_post', 'publish_comment'].includes(String(value.operation)) ||
+    !['publish_post', 'publish_comment', 'publish_reply'].includes(
+      String(value.operation),
+    ) ||
     !code(value.code) ||
     !terminalCodes.includes(value.code)
   )
@@ -680,9 +735,16 @@ export interface CommentCapabilities {
   readonly reason: string | null;
   readonly authorModes: readonly AuthorMode[];
   readonly forcedAuthorMode: 'anonymous' | null;
+  readonly lastAuthorMode: AuthorMode | null;
 }
 export function decodeCommentCapabilities(value: unknown): CommentCapabilities {
-  exact(value, ['availability', 'reason', 'authorModes', 'forcedAuthorMode']);
+  exact(value, [
+    'availability',
+    'reason',
+    'authorModes',
+    'forcedAuthorMode',
+    'lastAuthorMode',
+  ]);
   if (
     !['allowed', 'denied', 'unavailable'].includes(
       String(value.availability),
@@ -693,6 +755,7 @@ export function decodeCommentCapabilities(value: unknown): CommentCapabilities {
     !value.authorModes.every(mode) ||
     new Set(value.authorModes).size !== value.authorModes.length ||
     (value.availability === 'allowed' && !value.authorModes.length) ||
+    !(value.lastAuthorMode === null || mode(value.lastAuthorMode)) ||
     !(
       value.forcedAuthorMode === null || value.forcedAuthorMode === 'anonymous'
     ) ||
@@ -705,5 +768,6 @@ export function decodeCommentCapabilities(value: unknown): CommentCapabilities {
     reason: value.reason,
     authorModes: Object.freeze(value.authorModes),
     forcedAuthorMode: value.forcedAuthorMode,
+    lastAuthorMode: value.lastAuthorMode,
   });
 }

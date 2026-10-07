@@ -1,3 +1,5 @@
+import { PendingDiscussionStore } from '../src/community/discussion-pending';
+import type { Reply } from '../src/community/discussion-contract';
 import { SessionStore } from '../src/auth/session';
 import type { CommunityGateway } from '../src/community/gateway';
 import type {
@@ -55,6 +57,8 @@ export const post = (overrides: Partial<Post> = {}): Post => ({
   publishedAt: createdAt,
   likeCount: 0,
   commentCount: 1,
+  replyCount: 0,
+  discussionCount: 1,
   viewer: { isSelf: true, isLiked: false, canDelete: true, canComment: true },
   commentsPolicy: 'open',
   ...overrides,
@@ -66,7 +70,11 @@ export const comment = (overrides: Partial<Comment> = {}): Comment => ({
   images: [],
   author: anonymous(),
   createdAt,
-  viewer: { isSelf: true, canDelete: true },
+  likeCount: 0,
+  replyCount: 0,
+  isPinned: false,
+  replyPreview: { items: [], nextCursor: null },
+  viewer: { isSelf: true, canDelete: true, isLiked: false, canPin: true },
   ...overrides,
 });
 export const capabilities = (
@@ -91,6 +99,7 @@ export const commentCapabilities = (
   reason: null,
   authorModes: ['anonymous'],
   forcedAuthorMode: 'anonymous',
+  lastAuthorMode: null,
   ...overrides,
 });
 export const intent = (overrides: Partial<PostIntent> = {}): PostIntent => ({
@@ -113,7 +122,121 @@ export const receipt = (
   createdAt,
   ...overrides,
 });
+export const replyId = '12121212-1212-4212-8212-121212121212';
+export const reply = (overrides: Partial<Reply> = {}): Reply => ({
+  id: replyId,
+  postId,
+  rootCommentId: commentId,
+  target: {
+    kind: 'comment',
+    id: commentId,
+    status: 'available',
+    author: anonymous(),
+  },
+  text: '合成测试回复',
+  images: [],
+  author: anonymous(),
+  createdAt,
+  likeCount: 0,
+  viewer: { isSelf: true, canDelete: true, isLiked: false },
+  ...overrides,
+});
 export class FakeCommunityGateway implements CommunityGateway {
+  commentImpl: CommunityGateway['comment'] = async () => comment();
+  replyImpl: CommunityGateway['reply'] = async () => reply();
+  repliesImpl: CommunityGateway['replies'] = async () => ({
+    items: [reply()],
+    nextCursor: null,
+  });
+  discussionContextImpl: CommunityGateway['discussionContext'] = async (
+    _postId,
+    target,
+  ) => ({
+    comment: comment(),
+    reply: 'replyId' in target ? reply({ id: target.replyId }) : null,
+    replies: { items: [reply()], nextCursor: null },
+  });
+  publishReplyImpl: CommunityGateway['publishReply'] = async (_root, payload) =>
+    receipt({
+      operation: 'publish_reply',
+      resourceId: replyId,
+      requestId: payload.clientRequestId,
+    });
+  discussionLikeImpl: CommunityGateway['discussionLike'] = async (
+    kind,
+    targetId,
+    desired,
+    requestId,
+  ) => ({
+    requestId,
+    operation: kind === 'reply' ? 'set_reply_like' : 'set_comment_like',
+    outcome: 'applied',
+    resourceId: targetId,
+    desired,
+  });
+  pinCommentImpl: CommunityGateway['pinComment'] = async (
+    _post,
+    targetId,
+    desired,
+    requestId,
+  ) => ({
+    requestId,
+    operation: 'set_comment_pin',
+    outcome: 'applied',
+    resourceId: targetId,
+    desired,
+  });
+  discussionReceiptImpl: CommunityGateway['discussionReceipt'] = async (
+    requestId,
+  ) => ({
+    requestId,
+    operation: 'set_comment_like',
+    outcome: 'applied',
+    resourceId: commentId,
+    desired: true,
+  });
+  deleteReplyImpl: CommunityGateway['deleteReply'] = async () => undefined;
+  comment(...args: Parameters<CommunityGateway['comment']>) {
+    this.calls.push({ method: 'comment', args });
+    return this.commentImpl(...args);
+  }
+  reply(...args: Parameters<CommunityGateway['reply']>) {
+    this.calls.push({ method: 'reply', args });
+    return this.replyImpl(...args);
+  }
+  replies(...args: Parameters<CommunityGateway['replies']>) {
+    this.calls.push({ method: 'replies', args });
+    return this.repliesImpl(...args);
+  }
+  discussionContext(
+    ...args: Parameters<CommunityGateway['discussionContext']>
+  ) {
+    this.calls.push({ method: 'discussionContext', args });
+    return this.discussionContextImpl(...args);
+  }
+  publishReply(...args: Parameters<CommunityGateway['publishReply']>) {
+    this.calls.push({ method: 'publishReply', args });
+    return this.publishReplyImpl(...args);
+  }
+  discussionLike(...args: Parameters<CommunityGateway['discussionLike']>) {
+    this.calls.push({ method: 'discussionLike', args });
+    return this.discussionLikeImpl(...args);
+  }
+  pinComment(...args: Parameters<CommunityGateway['pinComment']>) {
+    this.calls.push({ method: 'pinComment', args });
+    return this.pinCommentImpl(...args);
+  }
+  discussionReceipt(
+    ...args: Parameters<CommunityGateway['discussionReceipt']>
+  ) {
+    this.calls.push({ method: 'discussionReceipt', args });
+    return this.discussionReceiptImpl(...args);
+  }
+  deleteReply(...args: Parameters<CommunityGateway['deleteReply']>) {
+    this.calls.push({ method: 'deleteReply', args });
+    return this.deleteReplyImpl(...args);
+  }
+
   calls: { method: string; args: unknown[] }[] = [];
   pollImpl: CommunityGateway['poll'] = async () => poll();
   castBallotImpl: CommunityGateway['castBallot'] = async (
@@ -288,6 +411,7 @@ export function setup(loggedIn = true) {
     profiles,
     privateViews: new PrivateViewLifecycle(),
     pendingBallots: new PendingBallotStore(storage, 'synthetic'),
+    pendingDiscussion: new PendingDiscussionStore(storage, 'synthetic'),
     pending: new PendingAttemptStore(storage, 'synthetic'),
     drafts: new DraftStore(storage, 'synthetic'),
     newRequestId: async () => requestId,

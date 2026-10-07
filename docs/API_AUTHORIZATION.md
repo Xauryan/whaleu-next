@@ -77,7 +77,10 @@ resolves the owner through the internal `CommunityContentIdentityService`, never
 through an account ID supplied by the frontend. A valid developer grant permits
 global identity viewing but does not bypass ordinary content visibility: hidden,
 deleted, blocked, unavailable-scope and missing content return the same unavailable
-item. A comment also requires its parent post to remain readable.
+item. A comment also requires its parent post to remain readable. C2B adds target
+`{kind:"reply",id}` through the same facade: both its parent post and root comment
+must remain readable. Removed explicit reply targets do not reveal target identity.
+Ordinary community DTOs never gain privileged identity fields.
 
 ```json
 {

@@ -21,7 +21,7 @@ App<WhaleuApp>({
   community: undefined,
   verification: undefined,
   globalData: {
-    implementationStage: 'native-community-c2a-polls-partial',
+    implementationStage: 'native-community-c2b-discussion-partial',
     featureParityVerified: false,
   },
   onHide() {

@@ -1,3 +1,12 @@
+import {
+  DiscussionController,
+  DiscussionRecoveryController,
+} from './discussion/controller.js';
+import { DiscussionReadService } from './discussion/read.service.js';
+import { DiscussionMutationService } from './discussion/mutation.service.js';
+import { ReplyPublicationService } from './discussion/publication.service.js';
+import { commentsQuerySchema } from './discussion/contracts.js';
+import type { CommentsQuery } from './discussion/contracts.js';
 import { PollRepository } from './polls/poll.repository.js';
 import { PollReadService } from './polls/poll-read.service.js';
 import { PollVotingService } from './polls/poll-voting.service.js';
@@ -64,7 +73,11 @@ import { ReactionsService } from './reactions.service.js';
 import { DeletionService } from './deletion.service.js';
 @Controller('v1/community')
 export class CommunityReadController {
-  constructor(@Inject(FeedService) private readonly feeds: FeedService) {}
+  constructor(
+    @Inject(FeedService) private readonly feeds: FeedService,
+    @Inject(DiscussionReadService)
+    private readonly discussion: DiscussionReadService,
+  ) {}
   @Get('spaces') spaces(
     @Query(new SchemaValidationPipe(campusSpaceQuerySchema))
     query: {
@@ -108,9 +121,9 @@ export class CommunityReadController {
   @Get('posts/:postId/comments') comments(
     @Headers('authorization') auth: unknown,
     @Param('postId', new SchemaValidationPipe(idSchema)) id: string,
-    @Query(new SchemaValidationPipe(pageQuerySchema)) query: PageQuery,
+    @Query(new SchemaValidationPipe(commentsQuerySchema)) query: CommentsQuery,
   ) {
-    return this.feeds.comments(bearerToken(auth), id, query);
+    return this.discussion.comments(bearerToken(auth), id, query);
   }
 }
 @Controller('v1/community')
@@ -187,6 +200,8 @@ export class CommunityRecoveryController {
 @Module({
   imports: [DatabaseModule, CampusModule, ProfileModule, IdentityModule],
   controllers: [
+    DiscussionController,
+    DiscussionRecoveryController,
     PollController,
     PollRecoveryController,
     CommunityReadController,
@@ -196,6 +211,9 @@ export class CommunityRecoveryController {
   ],
   exports: [CommunityContentIdentityService],
   providers: [
+    DiscussionReadService,
+    DiscussionMutationService,
+    ReplyPublicationService,
     PollRepository,
     PollReadService,
     PollVotingService,
