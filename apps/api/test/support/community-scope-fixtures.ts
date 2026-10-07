@@ -38,13 +38,26 @@ export async function withCommunityScopeWriter<T>(
   operation: (tx: PoolClient) => Promise<T>,
 ): Promise<T> {
   return inTransaction(pool, async (tx) => {
+    // Check the connection this Pool actually opened, not a separately supplied
+    // environment URL. A container's inet_server_addr() may be its bridge IP
+    // even when this client connects through an explicitly loopback-published port.
+    const peer = (
+      tx as PoolClient & {
+        connection?: { stream?: { remoteAddress?: string } };
+      }
+    ).connection?.stream?.remoteAddress;
+    assert.ok(
+      ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(tx.host) &&
+        peer !== undefined &&
+        ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer),
+      'Scope fixtures require an actual loopback TCP connection',
+    );
     const database = (
       await tx.query<{
         database: string;
-        host: string | null;
         version: number;
       }>(
-        `SELECT current_database() AS database,host(inet_server_addr()) AS host,
+        `SELECT current_database() AS database,
          current_setting('server_version_num')::integer AS version`,
       )
     ).rows[0]!;
@@ -52,10 +65,6 @@ export async function withCommunityScopeWriter<T>(
       database.database,
       'whaleu_test',
       'Scope fixtures require the disposable whaleu_test database',
-    );
-    assert.ok(
-      database.host === '127.0.0.1' || database.host === '::1',
-      'Scope fixtures require loopback TCP',
     );
     assert.ok(
       supportedPostgresVersion(database.version),
