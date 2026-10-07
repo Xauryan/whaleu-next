@@ -1,3 +1,4 @@
+import { PollReadService } from './polls/poll-read.service.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -29,6 +30,7 @@ export class CommunitySerializer {
     @Inject(MEDIA_ATTACHMENT) private readonly media: MediaAttachmentPort,
     @Inject(CommunityAccessService)
     private readonly access: CommunityAccessService,
+    @Inject(PollReadService) private readonly polls: PollReadService,
   ) {}
   async author(
     content: StoredPost | StoredComment,
@@ -147,7 +149,9 @@ export class CommunitySerializer {
         }
         if (canComment) break;
       }
+    const poll = await this.polls.project(post.id, viewer, authority, tx);
     return {
+      component: poll ? { kind: 'poll', poll } : { kind: 'none' },
       id: post.id,
       space: { id: space.id, kind: space.kind, name: space.name },
       category: post.category,

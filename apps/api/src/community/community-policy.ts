@@ -13,7 +13,8 @@ export type Decision<T = undefined> =
   | { kind: 'allow'; value: T }
   | { kind: 'deny'; reason: ApplicationErrorCode }
   | { kind: 'unavailable' };
-export type Action = 'publish_post' | 'publish_comment' | 'like' | 'delete';
+export type Action =
+  'publish_post' | 'publish_comment' | 'like' | 'delete' | 'vote';
 export interface Authority {
   phoneVerified: boolean;
   studentVerified: boolean;
@@ -57,6 +58,11 @@ export interface ContentPublicationGate {
       purpose: PublicationOperation;
       text: string;
       images: ApprovedAsset[];
+      structuredContent?: {
+        version: 2;
+        publicationIntentHash: string;
+        component: import('./polls/contracts.js').PollComponent;
+      };
     },
     transaction: PoolClient,
   ): Promise<Decision>;

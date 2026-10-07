@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { textSchema } from './text.js';
+import { postComponentSchema } from './polls/contracts.js';
+import type { PollView } from './polls/contracts.js';
 import type { ApplicationErrorCode } from '../http/application-error.js';
 
 export const categorySchema = z.enum([
@@ -15,24 +18,6 @@ export const categorySchema = z.enum([
 export type Category = z.infer<typeof categorySchema>;
 export const authorModeSchema = z.enum(['named', 'anonymous']);
 export type AuthorMode = z.infer<typeof authorModeSchema>;
-const textSchema = (maximum: number) =>
-  z
-    .string()
-    .transform((value) => value.replaceAll('\r\n', '\n'))
-    .refine(
-      (value) =>
-        [...value].length <= maximum &&
-        [...value].every((character) => {
-          const code = character.codePointAt(0)!;
-          return (
-            code === 9 ||
-            code === 10 ||
-            (code >= 32 &&
-              !(code >= 127 && code <= 159) &&
-              !(code >= 0xd800 && code <= 0xdfff))
-          );
-        }),
-    );
 const imagesSchema = (maximum: number) =>
   z
     .array(z.uuid())
@@ -47,6 +32,7 @@ export const publishPostSchema = z.strictObject({
   imageAssetIds: imagesSchema(9),
   authorMode: authorModeSchema,
   commentsPolicy: z.enum(['open', 'restricted']).default('open'),
+  component: postComponentSchema.optional(),
 });
 export const publishCommentSchema = z
   .strictObject({
@@ -118,6 +104,7 @@ export type AuthorView =
       isPostAuthor: boolean;
     };
 export interface PostView {
+  component: { kind: 'none' } | { kind: 'poll'; poll: PollView };
   id: string;
   space: Pick<CommunitySpace, 'id' | 'kind' | 'name'>;
   category: Category;

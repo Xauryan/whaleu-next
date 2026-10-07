@@ -7,10 +7,19 @@ import { systemClock } from '../../platform/clock';
 import type { WhaleuApp } from '../../app';
 import { isUuid } from '../../profile/contract';
 import { DetailController, initialDetailView } from './controller';
+import {
+  PollController,
+  initialPollView,
+} from '../../community/poll-controller';
 Page({
-  data: { ...initialDetailView(), identityOverlay: initialOverlayView() },
+  data: {
+    ...initialDetailView(),
+    identityOverlay: initialOverlayView(),
+    pollView: initialPollView(),
+  },
   controller: undefined as DetailController | undefined,
   postId: '',
+  pollController: undefined as PollController | undefined,
   identityOverlay: undefined as IdentityOverlayController | undefined,
   overlayTargets: '',
   onLoad(query: { postId?: string } = {}) {
@@ -18,6 +27,7 @@ Page({
   },
   onShow() {
     this.controller?.dispose();
+    this.pollController?.dispose();
     this.identityOverlay?.dispose();
     this.overlayTargets = '';
     const runtime = getApp<WhaleuApp>().community;
@@ -32,34 +42,62 @@ Page({
       (view) => this.setData({ identityOverlay: view }),
       runtime.privateViews,
     );
-    this.controller = new DetailController(runtime, this.postId, (view) => {
-      this.setData({ ...view });
-      const targets: DisplayTarget[] = view.post
-        ? [
-            {
-              kind: 'post',
-              id: view.post.id,
-              authorMode: view.post.author.kind,
-            },
-            ...view.comments.map((item) => ({
-              kind: 'comment' as const,
-              id: item.id,
-              authorMode: item.author.kind,
-            })),
-          ]
-        : [];
-      const key = targets
-        .map((item) => item.kind + ':' + item.id + ':' + item.authorMode)
-        .join(',');
-      if (view.busy || !view.loaded) {
-        this.identityOverlay?.clear();
-        this.overlayTargets = '';
-      } else if (key !== this.overlayTargets) {
-        this.overlayTargets = key;
-        void this.identityOverlay?.show(targets);
-      }
-    });
+    this.pollController = new PollController(runtime, this.postId, (view) =>
+      this.setData({ pollView: view }),
+    );
+    this.controller = new DetailController(
+      runtime,
+      this.postId,
+      (view) => {
+        this.setData({ ...view });
+        const targets: DisplayTarget[] = view.post
+          ? [
+              {
+                kind: 'post',
+                id: view.post.id,
+                authorMode: view.post.author.kind,
+              },
+              ...view.comments.map((item) => ({
+                kind: 'comment' as const,
+                id: item.id,
+                authorMode: item.author.kind,
+              })),
+            ]
+          : [];
+        const key = targets
+          .map((item) => item.kind + ':' + item.id + ':' + item.authorMode)
+          .join(',');
+        if (view.busy || !view.loaded) {
+          this.identityOverlay?.clear();
+          this.overlayTargets = '';
+        } else if (key !== this.overlayTargets) {
+          this.overlayTargets = key;
+          void this.identityOverlay?.show(targets);
+        }
+      },
+      (post) => {
+        void this.pollController?.load(post);
+      },
+    );
     void this.controller.load();
+  },
+  onPollOption(event: { currentTarget: { dataset: { id: string } } }) {
+    void this.pollController?.select(event.currentTarget.dataset.id);
+  },
+  onPollSubmit() {
+    void this.pollController?.submit();
+  },
+  onPollReceipt() {
+    void this.pollController?.recover();
+  },
+  onPollRetry() {
+    void this.pollController?.recover(true);
+  },
+  onPollOwnStatus() {
+    void this.pollController?.inspectOwnBallot();
+  },
+  onPollCancel() {
+    this.pollController?.cancel();
   },
   onReload() {
     void this.controller?.load();
@@ -89,12 +127,16 @@ Page({
   onHide() {
     this.controller?.dispose();
     this.controller = undefined;
+    this.pollController?.dispose();
+    this.pollController = undefined;
     this.identityOverlay?.dispose();
     this.identityOverlay = undefined;
   },
   onUnload() {
     this.controller?.dispose();
     this.controller = undefined;
+    this.pollController?.dispose();
+    this.pollController = undefined;
     this.identityOverlay?.dispose();
     this.identityOverlay = undefined;
   },

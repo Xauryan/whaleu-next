@@ -4,6 +4,18 @@
   <view wx:if="{{hasSession}}" class="card"><view wx:if="{{recoveryOperation}}" class="meta">待确认类型：{{recoveryOperation}}</view><view class="label">正文 · 最多 {{maxText}} 字</view><textarea value="{{text}}" bindinput="onText" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="说说你想分享的事…" />
     <view class="scope">发送时展示：{{effectiveIdentity || '请等待当前身份权限检查'}}</view><view wx:if="{{!frozen &amp;&amp; !identityForced}}" class="chips"><view class="chip {{authorMode === 'named' ? 'active' : ''}}" data-mode="named" bindtap="onMode">公开身份</view><view class="chip {{authorMode === 'anonymous' ? 'active' : ''}}" data-mode="anonymous" bindtap="onMode">匿名</view></view>
     <view wx:if="{{canDisableComments &amp;&amp; !frozen}}" class="row"><text>限制普通评论</text><switch checked="{{commentsPolicy === 'restricted'}}" bindchange="onRestricted" disabled="{{busy}}" /></view>
+    <view wx:if="{{canAddPoll}}" class="poll-composer">
+      <view class="row"><text>添加投票</text><switch checked="{{pollDraft.enabled}}" bindchange="onPollEnabled" disabled="{{frozen || busy || !loaded}}" /></view>
+      <view wx:if="{{pollDraft.enabled}}">
+        <view class="label">独立投票问题 · 最多 255 字</view><input value="{{pollDraft.question}}" bindinput="onPollQuestion" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="你想问大家什么？" />
+        <view class="chips"><button class="chip {{pollDraft.selectionMode === 'single' ? 'active' : ''}}" data-mode="single" bindtap="onPollMode" disabled="{{frozen || busy || !loaded}}">单选</button><button class="chip {{pollDraft.selectionMode === 'multiple' ? 'active' : ''}}" data-mode="multiple" bindtap="onPollMode" disabled="{{frozen || busy || !loaded}}">多选</button></view>
+        <view wx:for="{{pollDraft.options}}" wx:key="index" class="row"><input value="{{item}}" data-index="{{index}}" bindinput="onPollOption" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="选项 {{index + 1}} · 最多 255 字" /><button data-index="{{index}}" bindtap="onRemovePollOption" disabled="{{frozen || busy || pollDraft.options.length &lt;= 2}}">删除</button></view>
+        <button class="secondary" bindtap="onAddPollOption" disabled="{{frozen || busy || pollDraft.options.length + (pollDraft.finalOption ? 1 : 0) >= 5}}">添加普通选项</button>
+        <view class="row"><text>最后添加吃瓜🍉</text><switch checked="{{pollDraft.finalOption}}" bindchange="onPollFinal" disabled="{{frozen || busy}}" /></view>
+        <view class="notice">至少两个普通选项，总共最多五个；吃瓜🍉同样可被选择并占一个名额。单选点选即投，多选需要确认；每人仅可投一次，作者也可参与。本次新建投票不设截止时间。</view>
+      </view>
+      <view class="meta">组队与内部链接组件仍待接入；不能与投票同时添加</view>
+    </view>
     <view class="notice">{{mediaNotice}}。帖子最多九张、评论最多三张的图片功能保留为待完成项。</view><view wx:if="{{blocker}}" class="notice">{{blocker}}</view>
     <button wx:if="{{!frozen}}" class="primary" bindtap="onSubmit" disabled="{{!canSubmit || busy}}" loading="{{busy}}">确认以上身份并发布</button><button wx:if="{{frozen}}" class="primary" bindtap="onReceipt" disabled="{{busy}}" loading="{{busy}}">查询原请求回执</button><button wx:if="{{frozen}}" class="secondary" bindtap="onRetry" disabled="{{busy}}">重试完全相同的原请求</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待（不撤销发布）</button>
     <view wx:if="{{receiptStatus}}" class="status">{{receiptStatus}}</view><navigator wx:if="{{resourcePostId}}" class="link" url="/pages/community-detail/community-detail?postId={{resourcePostId}}">查看已确认的帖子 →</navigator>

@@ -1,5 +1,11 @@
 import { ClientError, isRecord } from '../api/errors';
 import { isUuid } from '../profile/contract';
+import {
+  decodePollComponent,
+  decodePostComponent,
+  type PollComponent,
+  type PostComponent,
+} from './poll-contract';
 
 export const categories = [
   'discussion',
@@ -50,6 +56,7 @@ export type Author =
       readonly isPostAuthor: boolean;
     };
 export interface Post {
+  readonly component: PostComponent;
   readonly id: string;
   readonly space: {
     readonly id: string;
@@ -118,6 +125,7 @@ export interface Capabilities {
   };
 }
 export interface PostIntent {
+  readonly component?: PollComponent;
   readonly clientRequestId: string;
   readonly spaceId: string;
   readonly category: Category;
@@ -353,6 +361,7 @@ export function decodePost(value: unknown): Post {
     'commentCount',
     'viewer',
     'commentsPolicy',
+    'component',
   ]);
   exact(value.space, ['id', 'kind', 'name']);
   exact(value.viewer, ['isSelf', 'isLiked', 'canDelete', 'canComment']);
@@ -374,6 +383,7 @@ export function decodePost(value: unknown): Post {
   )
     invalid();
   return Object.freeze({
+    component: decodePostComponent(value.component, value.id),
     id: value.id,
     space: Object.freeze({
       id: value.space.id,
@@ -610,6 +620,8 @@ function assets(value: unknown, max: number): readonly string[] {
   return Object.freeze([...value]);
 }
 export function decodePostIntent(value: unknown): PostIntent {
+  if (!isRecord(value)) invalid();
+  const hasComponent = Object.prototype.hasOwnProperty.call(value, 'component');
   exact(value, [
     'clientRequestId',
     'spaceId',
@@ -618,6 +630,7 @@ export function decodePostIntent(value: unknown): PostIntent {
     'imageAssetIds',
     'authorMode',
     'commentsPolicy',
+    ...(hasComponent ? ['component'] : []),
   ]);
   if (
     !uuid4(value.clientRequestId) ||
@@ -631,6 +644,9 @@ export function decodePostIntent(value: unknown): PostIntent {
   )
     invalid();
   return Object.freeze({
+    ...(hasComponent
+      ? { component: decodePollComponent(value.component) }
+      : {}),
     clientRequestId: value.clientRequestId,
     spaceId: value.spaceId,
     category: value.category,

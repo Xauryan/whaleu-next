@@ -47,3 +47,11 @@ staging envelopes. It does not import legacy records, infer student numbers,
 create applications, activate providers or grant roles. See
 [verification V1](../../../docs/API_VERIFICATION.md) for authority, preservation,
 expiry, lock ordering and deferred production migration requirements.
+
+`0008_community_polls.sql` adds empty poll definitions/options, immutable ballots/
+selections and an isolated durable ballot-request ledger inside `whaleu_community`.
+It preserves C1 migration checksums and creates no synthetic authority. New-write
+text limits are API-only so reconciled historical raw text/deadlines can be
+preserved at insert. Poll definitions, options, ballots and terminal receipts
+cannot be edited; atomic/deferred integrity checks prevent incomplete commits.
+It is not a production import. See [C2A polls](../../../docs/API_COMMUNITY.md#c2a-poll-contract).

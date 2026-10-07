@@ -1,9 +1,10 @@
-# Community C1 API and safety boundary
+# Community C1 + C2A API and safety boundary
 
-C1 is a **partial development slice**, not production-ready community parity.
+C1 and C2A polls are **partial development slices**, not production-ready community parity.
 It implements explicit operating-region mapping, chronological regional/global
 feeds, detail, text publication, thread-local anonymous personas, root comments,
-desired-state post likes, own deletion and durable publication recovery. Normal
+desired-state post likes, own deletion, durable publication recovery, poll composition/reads and immutable
+ballots with owner-only recovery. Normal
 runtime authorization, visibility, moderation and media adapters are unavailable.
 No environment switch, campus selection or client flag enables them. Synthetic
 fixtures are injected only from test modules.
@@ -47,7 +48,8 @@ it is never silently trimmed, truncated or SQL-filtered.
 
 Category keys: `discussion`, `confession`, `companions`, `pets`, `internships`,
 `scenery`, `dorms`, `research`, `deep_sea`. Global publication accepts discussion
-only. Unsupported polls/trading/replies and other modes reject unknown fields.
+only. Unsupported trading/group/link/reply modes reject unknown fields. C2A polls use
+the strict discriminated component described below.
 
 `MediaView` is output-only:
 `{assetId,width,height,displayUrl,thumbnailUrl,expiresAt}`. Dimensions are positive
@@ -70,9 +72,9 @@ expose `isPostAuthor:true`, which would identify the hidden author via the paren
 must have independent server authorization and audit; normal DTOs do not change.
 
 `PostView` (same detail and summary shape):
-`{id,space:{id,kind,name},category,text,images,author,publishedAt,likeCount,commentCount,viewer:{isSelf,isLiked,canDelete,canComment},commentsPolicy}`.
+`{id,space:{id,kind,name},category,text,images,author,publishedAt,likeCount,commentCount,viewer:{isSelf,isLiked,canDelete,canComment},commentsPolicy,component}`.
 Comment count includes currently visible root comments only. No fabricated views,
-pins, subscriptions, polls, notification or reward counts are returned.
+pins, subscriptions, notification or reward counts are returned.
 
 `CommentView`:
 `{id,postId,text,images,author,createdAt,viewer:{isSelf,canDelete}}`.
@@ -137,7 +139,7 @@ Deletion and likes each have distinct phone/action checks.
 ## Durable post/comment publication
 
 `POST /v1/community/posts` accepts:
-`{clientRequestId,spaceId,category,text,imageAssetIds:[],authorMode,commentsPolicy:"open"}`.
+`{clientRequestId,spaceId,category,text,imageAssetIds:[],authorMode,commentsPolicy:"open",component?:PostComponent}`.
 Text needs non-whitespace and 1–2500 Unicode codepoints; at most nine distinct
 ordered assets. Image-only posts reject. Omitted images/policy materialize to
 `[]`/`open` before hashing. `restricted` policy requires live scoped management.
@@ -217,6 +219,157 @@ comment counting budget per post. Exceeding either fails with
 an invisible row. Query-level authoritative visibility filtering and scalable
 viewer-specific counts remain a production-scale gate.
 
+## C2A poll contract
+
+C2A is an end-to-end development slice with synthetic local approval/authority
+fixtures. Ordinary runtime safety adapters remain unavailable. It does not add a
+provider, student-verification method, institutional SSO, student-number backfill,
+production import or physical-device acceptance.
+
+`PostComponent` is absent, `{kind:"none"}`, or
+`{kind:"poll",question,selectionMode:"single"|"multiple",options:string[]}`.
+Polls supplement required nonblank post text. Publication inherits all C1
+category, region, named/anonymous, configured unverified-category and review
+rules. Group/link/trading fields remain rejected, including conflicting fields
+inside a poll component. New creation accepts no deadline field; deadline is null.
+
+- Question and each option require nonblank text and at most 255 Unicode
+  codepoints. These are new-write limits, not historical source limits
+- Text retains whitespace and normalizes CRLF only. Strict Unicode/control checks
+  match C1. Duplicate labels compare trimmed text without changing stored text
+- There are 2–5 total options with at least two ordinary options. Optional
+  “吃瓜🍉”, matched after trimming, is allowed only last and counts toward five
+- Native composition defaults that final option on. It is an ordinary selectable
+  option, not abstention or a different authorization path
+- Component absence and explicit none omit the component from the canonical
+  publication intent. Previously frozen C1 intent hashes/receipts remain valid
+- Poll question, mode and ordered options join every other normalized publication
+  behavior field in the publication hash. Typed version-2 structured review
+  requires this full intent hash in addition to approved media digests. Approval
+  for the same post body alone cannot approve a poll or altered options
+- Post, poll, options, persona, publication receipt and existing `post_created`
+  outbox obligation commit atomically. Rejection or commit failure leaves none
+  of the attempted content behind
+
+Every `PostView` now has `component:{kind:"none"}|{kind:"poll",poll:PollView}`.
+`GET /v1/community/posts/:postId/poll` requires an active session and the exact
+same visible/active parent gate as post detail. Missing component is
+`404 POLL_NOT_FOUND`; hidden/deleted/blocked/inactive parent stays generic
+`404 POST_NOT_FOUND`. No naked poll route bypasses parent visibility.
+
+`PollView` is exactly:
+
+```
+{
+  id, postId, question, selectionMode: "single"|"multiple",
+  options: [{id,label,position,count}],
+  deadline: string|null, expired: boolean,
+  voterCount: number, selectionCount: number,
+  viewer: {hasVoted,selectedOptionIds,canVote,reason}
+}
+```
+
+Options have server-generated UUIDs and contiguous zero-based positions. Counts
+are actual committed ballots/selections: two voters selecting five options total
+produce `voterCount:2,selectionCount:5`. Eligible readers, including eligible
+preview-feed readers, receive aggregate counts. Native result bars reveal after
+the viewer votes or expiry; that UI is not a secrecy guarantee. Other accounts'
+choices, account IDs, profiles and voter lists are never returned.
+
+Viewer reason precedence is already voted (`POLL_ALREADY_VOTED`), expired
+(`POLL_EXPIRED`), guest (`AUTHENTICATION_REQUIRED`), unavailable authority
+(`COMMUNITY_UNAVAILABLE`), phone proof (`PHONE_VERIFICATION_REQUIRED`), vote
+restriction (`COMMUNITY_ACTION_RESTRICTED`), otherwise null. `canVote` is true
+only with a null reason; committed own choices are read-only. Advisory decisions
+are rechecked on mutation.
+
+### Ballot creation and recovery
+
+`POST /v1/community/posts/:postId/poll/ballots` accepts only
+`{clientRequestId,optionIds:string[]}`. Active identity determines the actor.
+Single choice requires exactly one option; multiple choice permits one through
+all distinct options. Empty/repeated IDs, coercions and caller-supplied identity
+fields are rejected by HTTP validation. Foreign/unknown options and single-choice
+multiples produce terminal `POLL_OPTIONS_INVALID` without recording a ballot.
+UUID casing and selected option order normalize to a canonical set for intent
+hashing; poll definition option order remains significant.
+
+The dedicated `vote` action requires active account/session, authoritative phone
+proof, current vote restrictions and visible active parent/scope. It does not
+require student verification, identity-campus selection, publishing privilege or
+being someone other than the post author. There is no revote, unvote or edit.
+
+HTTP 201 returns a minimal durable terminal receipt:
+
+- `{requestId,operation:"cast_poll_ballot",outcome:"created",resourceId,createdAt}`
+- `{requestId,operation:"cast_poll_ballot",outcome:"rejected",code}`
+
+`GET /v1/me/community/poll-requests/:clientRequestId` returns the receipt with
+HTTP 200, or `404 REQUEST_NOT_FOUND`. This is a dedicated account-owned namespace,
+separate from C1 publication requests. Equal-key/equal-intent replays return the
+same receipt; changed intent returns `409 REQUEST_CONFLICT`. Different keys
+cannot defeat unique `(poll,account)` ballots: later attempts get durable
+`POLL_ALREADY_VOTED`. IDs and terminal receipts never expire or reset on deletion.
+
+Terminal ballot codes are `POST_NOT_FOUND`, `POLL_NOT_FOUND`, `POLL_EXPIRED`,
+`POLL_ALREADY_VOTED`, `POLL_OPTIONS_INVALID`, `PHONE_VERIFICATION_REQUIRED`,
+`COMMUNITY_ACTION_RESTRICTED` and `COMMUNITY_SCOPE_UNAVAILABLE`. Authentication,
+validation, conflict, database/commit failure and unavailable dependencies do not
+commit a terminal receipt. Receipt-not-found never proves a concurrent original
+request cannot still commit.
+
+`GET /v1/me/community/poll-ballots/:postId` returns only the active account's
+`{postId,ballotId,createdAt,selectedOptionIds}`, or `404 BALLOT_NOT_FOUND`.
+Receipt and own-status recovery remain available after permission loss, deadline,
+hidden/deleted parent, without question, labels, live counts or hidden content.
+Active account/session checks still precede successful replay and recovery.
+
+Native clients durably freeze account-and-origin-isolated ballot intent before
+sending. Unknown outcomes survive timeout, malformed responses, Back/reopen,
+session refresh and account switching; a conflicting new ballot stays disabled
+until receipt recovery settles the frozen request. Single-choice taps submit;
+multiple choice uses local selection and explicit submit. Counts always refresh
+from the server, never from persisted optimistic increments.
+
+### Poll storage, import and transaction boundary
+
+Migration `0008_community_polls.sql` adds empty community-owned poll/option,
+ballot/selection and dedicated request tables; it changes no earlier migration
+or existing schema ownership. The existing community integration cleanup/guard
+covers these tables. Foreign keys bind ballot selections to the same poll,
+uniqueness enforces one poll per post/ballot per account, and deferred constraints
+require complete option/ballot sets at commit. Definitions, ordered options,
+ballots and choices are immutable. Child rows can only be added in their parent's
+creation transaction; terminal request payload/receipt cannot be replaced or
+removed, and pending reservations cannot commit alone.
+
+Historical question/option text is stored verbatim without the new-write text
+limit. Reconciled historical polls insert their nullable/datetime deadline at the
+import boundary; there is no public deadline editor/early-close route. Preserve
+raw original timestamps/timezone and irregular source records privately until
+explicit reconciliation, never silently truncate text or guess source indices.
+Production source extraction/import remains separate required work.
+
+Voting locks active session/account, its request reservation, parent post, scope,
+authority and poll in the established order. After these locks, a separate
+`clock_timestamp()` query evaluates expiry; request-start/transaction-start time
+cannot admit a ballot queued across its deadline. Parent locking serializes votes
+with deletion/hiding and gives coherent read counts. Local authority, visibility
+and approval adapters must hold their facts through commit; no provider call is
+allowed under locks. Ballot/selections/receipt and one minimal `poll_ballot_cast`
+outbox transition commit together. There is no invented ballot notification or
+reward obligation, and outbox creation is not external delivery.
+
+Real isolated PostgreSQL tests cover equal/different-key races, changed intent,
+complete rollback, strict HTTP validation, immutable DB constraints, expiry after
+lock waits, publication review binding, two-voter/five-selection counts, author
+and student-unverified voting, global/regional publication, named/anonymous
+privacy, lost permission/deleted-parent recovery, restriction/block/session/scope
+locks and ordinary fail-closed adapters. Actual native gateway → HTTP → PostgreSQL
+coverage is separate from mocked gateway/controller tests. Physical WeChat
+DevTools/device acceptance and production-scale count/query performance remain
+release gates.
+
 ## Retained parity backlog
 
 C2 discovery: category reconciliation, global school filters/aggregation, explicit
@@ -224,7 +377,7 @@ related-region sync, cross-region labels, water-post quotas, hot/search feeds,
 public profile privacy, subscriptions, exposures, pins, unread state.
 
 C2 composition: title fidelity, full drafts, remembered contact/location/link
-fields, anonymous DM choices, polls, trading, group formation, linked boards/groups
+fields, anonymous DM choices, trading, group formation, linked boards/groups
 and ratings, feedback channels, post status workflows.
 
 C2 discussion: replies and target deep links, reply pagination, comment sorting,

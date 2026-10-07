@@ -15,6 +15,9 @@ import {
   PendingAttemptStore,
 } from '../src/community/pending-attempt';
 import type { CommunityRuntime } from '../src/community/runtime';
+import { PendingBallotStore } from '../src/community/poll-pending';
+import type { Poll, BallotReceipt } from '../src/community/poll-contract';
+import { PrivateViewLifecycle } from '../src/identity-privacy/overlay';
 import { MemoryStorage } from './helpers';
 import { wireCredentials } from './identity-helpers';
 import { campus, FakeProfileGateway, ownProfile } from './profile-helpers';
@@ -42,6 +45,7 @@ export const anonymous = (): Author => ({
   isPostAuthor: true,
 });
 export const post = (overrides: Partial<Post> = {}): Post => ({
+  component: { kind: 'none' },
   id: postId,
   space: { id: spaceId, kind: 'regional', name: '合成测试地区' },
   category: 'discussion',
@@ -111,6 +115,55 @@ export const receipt = (
 });
 export class FakeCommunityGateway implements CommunityGateway {
   calls: { method: string; args: unknown[] }[] = [];
+  pollImpl: CommunityGateway['poll'] = async () => poll();
+  castBallotImpl: CommunityGateway['castBallot'] = async (
+    target,
+    payload,
+    cancel,
+  ) => {
+    const current = await this.pollImpl(target, cancel);
+    this.pollImpl = async () => ({
+      ...current,
+      voterCount: current.voterCount + 1,
+      selectionCount: current.selectionCount + payload.optionIds.length,
+      options: current.options.map((option) => ({
+        ...option,
+        count: option.count + (payload.optionIds.includes(option.id) ? 1 : 0),
+      })),
+      viewer: {
+        hasVoted: true,
+        selectedOptionIds: payload.optionIds,
+        canVote: false,
+        reason: 'POLL_ALREADY_VOTED',
+      },
+    });
+    return ballotReceipt({ requestId: payload.clientRequestId });
+  };
+  ballotReceiptImpl: CommunityGateway['ballotReceipt'] = async (id) =>
+    ballotReceipt({ requestId: id });
+  ownBallotImpl: CommunityGateway['ownBallot'] = async (id) => ({
+    postId: id,
+    ballotId,
+    createdAt,
+    selectedOptionIds: [optionOne],
+  });
+  poll(...args: Parameters<CommunityGateway['poll']>) {
+    this.calls.push({ method: 'poll', args });
+    return this.pollImpl(...args);
+  }
+  castBallot(...args: Parameters<CommunityGateway['castBallot']>) {
+    this.calls.push({ method: 'castBallot', args });
+    return this.castBallotImpl(...args);
+  }
+  ballotReceipt(...args: Parameters<CommunityGateway['ballotReceipt']>) {
+    this.calls.push({ method: 'ballotReceipt', args });
+    return this.ballotReceiptImpl(...args);
+  }
+  ownBallot(...args: Parameters<CommunityGateway['ownBallot']>) {
+    this.calls.push({ method: 'ownBallot', args });
+    return this.ownBallotImpl(...args);
+  }
+
   spacesImpl: CommunityGateway['spaces'] = async () => ({
     regional: space(),
     global: [],
@@ -233,6 +286,8 @@ export function setup(loggedIn = true) {
     sessions,
     gateway,
     profiles,
+    privateViews: new PrivateViewLifecycle(),
+    pendingBallots: new PendingBallotStore(storage, 'synthetic'),
     pending: new PendingAttemptStore(storage, 'synthetic'),
     drafts: new DraftStore(storage, 'synthetic'),
     newRequestId: async () => requestId,
@@ -246,3 +301,43 @@ export function setup(loggedIn = true) {
     accountId: wireCredentials().accountId,
   };
 }
+
+export const pollId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+export const optionOne = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+export const optionTwo = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+export const optionThree = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+export const ballotId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+export const poll = (overrides: Partial<Poll> = {}): Poll => ({
+  id: pollId,
+  postId,
+  question: '合成测试问题',
+  selectionMode: 'single',
+  options: [
+    { id: optionOne, label: '甲', position: 0, count: 0 },
+    { id: optionTwo, label: '乙', position: 1, count: 0 },
+    { id: optionThree, label: '吃瓜🍉', position: 2, count: 0 },
+  ],
+  deadline: null,
+  expired: false,
+  voterCount: 0,
+  selectionCount: 0,
+  viewer: {
+    hasVoted: false,
+    selectedOptionIds: [],
+    canVote: true,
+    reason: null,
+  },
+  ...overrides,
+});
+export const pollPost = (value: Poll = poll()): Post =>
+  post({ component: { kind: 'poll', poll: value } });
+export const ballotReceipt = (
+  overrides: Partial<Extract<BallotReceipt, { outcome: 'created' }>> = {},
+): BallotReceipt => ({
+  requestId,
+  operation: 'cast_poll_ballot',
+  outcome: 'created',
+  resourceId: ballotId,
+  createdAt,
+  ...overrides,
+});

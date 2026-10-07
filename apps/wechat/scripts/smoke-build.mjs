@@ -190,6 +190,157 @@ assert.equal(
   ),
   false,
 );
+// Exercise compiled poll handlers with local synthetic DTOs, including app-hide
+// after persistence and owner-only recovery. No network or provider is involved.
+const originalCommunityGateway = app.community.gateway;
+const originalNewRequestId = app.community.newRequestId;
+const pollAccount = '12345678-1234-4123-8123-123456789abc';
+const pollPostId = '66666666-6666-4666-8666-666666666666';
+const pollRequestId = '77777777-7777-4777-8777-777777777777';
+const pollOptionOne = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const pollOptionTwo = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+let pollWire = {
+  id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  postId: pollPostId,
+  question: '合成编译冒烟问题',
+  selectionMode: 'single',
+  options: [
+    { id: pollOptionOne, label: '甲', position: 0, count: 0 },
+    { id: pollOptionTwo, label: '乙', position: 1, count: 0 },
+  ],
+  deadline: null,
+  expired: false,
+  voterCount: 0,
+  selectionCount: 0,
+  viewer: {
+    hasVoted: false,
+    selectedOptionIds: [],
+    canVote: true,
+    reason: null,
+  },
+};
+const pollReceipt = {
+  requestId: pollRequestId,
+  operation: 'cast_poll_ballot',
+  outcome: 'created',
+  resourceId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  createdAt: '2026-10-07T00:00:00.000Z',
+};
+const pollPostWire = () => ({
+  id: pollPostId,
+  space: {
+    id: '55555555-5555-4555-8555-555555555555',
+    kind: 'regional',
+    name: '合成地区',
+  },
+  category: 'discussion',
+  text: '合成编译测试正文',
+  images: [],
+  author: {
+    kind: 'anonymous',
+    personaId: '99999999-9999-4999-8999-999999999999',
+    displayName: '合成匿名作者',
+    avatar: null,
+    isPostAuthor: true,
+  },
+  publishedAt: '2026-10-07T00:00:00.000Z',
+  likeCount: 0,
+  commentCount: 0,
+  viewer: { isSelf: true, isLiked: false, canDelete: true, canComment: true },
+  commentsPolicy: 'open',
+  component: { kind: 'poll', poll: pollWire },
+});
+let finishBallot;
+let ballotSends = 0;
+app.community.gateway = {
+  post: async () => pollPostWire(),
+  comments: async () => ({ items: [], nextCursor: null }),
+  poll: async () => pollWire,
+  castBallot: async (target, payload) => {
+    ballotSends += 1;
+    assert.equal(target, pollPostId);
+    assert.deepEqual(
+      app.community.pendingBallots.load(pollAccount).payload,
+      payload,
+    );
+    return new Promise((resolve) => {
+      finishBallot = resolve;
+    });
+  },
+  ballotReceipt: async () => pollReceipt,
+};
+app.community.newRequestId = async () => pollRequestId;
+app.identity.sessions.completeLogin(app.identity.sessions.beginLogin(), {
+  accountId: pollAccount,
+  sessionId: '22345678-1234-4123-8123-123456789abc',
+  accessToken: `wu_a_${'a'.repeat(43)}`,
+  refreshToken: `wu_r_${'a'.repeat(43)}`,
+  expiresAt: 1900000000000,
+  refreshExpiresAt: 1900600000000,
+});
+const detailModule = path.join(
+  dist,
+  'pages/community-detail/community-detail.js',
+);
+delete require.cache[require.resolve(detailModule)];
+require(detailModule);
+const pollPage = page;
+pollPage.setData = (data) => {
+  pollPage.data = { ...pollPage.data, ...data };
+};
+pollPage.onLoad({ postId: pollPostId });
+pollPage.onShow();
+for (let i = 0; i < 40; i += 1) await Promise.resolve();
+assert.equal(pollPage.data.pollView.loaded, true);
+assert.equal(pollPage.data.pollView.revealResults, false);
+pollPage.onPollOption({ currentTarget: { dataset: { id: pollOptionOne } } });
+for (let i = 0; i < 20; i += 1) await Promise.resolve();
+assert.equal(pollPage.data.pollView.frozen, true);
+pollPage.onPollOption({ currentTarget: { dataset: { id: pollOptionTwo } } });
+assert.equal(ballotSends, 1);
+app.onHide();
+assert.equal(pollPage.data.pollView.poll, null);
+finishBallot(pollReceipt);
+for (let i = 0; i < 20; i += 1) await Promise.resolve();
+assert.ok(app.community.pendingBallots.load(pollAccount));
+pollWire = {
+  ...pollWire,
+  voterCount: 1,
+  selectionCount: 1,
+  options: pollWire.options.map((option) => ({
+    ...option,
+    count: option.id === pollOptionOne ? 1 : 0,
+  })),
+  viewer: {
+    hasVoted: true,
+    selectedOptionIds: [pollOptionOne],
+    canVote: false,
+    reason: 'POLL_ALREADY_VOTED',
+  },
+};
+pollPage.onShow();
+for (let i = 0; i < 40; i += 1) await Promise.resolve();
+assert.equal(pollPage.data.pollView.frozen, true);
+pollPage.onPollReceipt();
+for (let i = 0; i < 40; i += 1) await Promise.resolve();
+assert.equal(app.community.pendingBallots.load(pollAccount), null);
+assert.equal(pollPage.data.pollView.revealResults, true);
+assert.equal(pollPage.data.pollView.canVote, false);
+app.onHide();
+assert.equal(pollPage.data.pollView.poll, null);
+pollPage.onUnload();
+app.identity.sessions.logout();
+app.community.gateway = originalCommunityGateway;
+app.community.newRequestId = originalNewRequestId;
+const pollComposerTemplate = readFileSync(
+  path.join(dist, 'pages/community-compose/community-compose.wxml'),
+  'utf8',
+);
+assert.match(pollComposerTemplate, /吃瓜🍉/);
+assert.equal(
+  /mode="date"|mode="time"|bind.*deadline/i.test(pollComposerTemplate),
+  false,
+);
 let privacyCleared = false;
 app.community.privateViews.subscribe(() => {
   privacyCleared = true;
@@ -198,5 +349,5 @@ app.onHide();
 assert.equal(privacyCleared, true);
 assert.equal(calls, 0);
 console.log(
-  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay and own-verification app-hide clearing, and configuration gating',
+  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification and durable-poll app-hide clearing/recovery, and configuration gating',
 );

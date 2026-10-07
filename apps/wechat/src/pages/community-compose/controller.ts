@@ -19,6 +19,12 @@ import {
   type Post,
   type Receipt,
 } from '../../community/contract';
+import {
+  componentDraft,
+  emptyPollDraft,
+  pollDraftComponent,
+  type PollDraft,
+} from '../../community/poll-draft';
 import type { PendingAttempt } from '../../community/pending-attempt';
 import type { CommunityRuntime } from '../../community/runtime';
 import type { Cancellation } from '../../platform/contracts';
@@ -46,6 +52,8 @@ export interface ComposeView extends CommunityView {
   readonly resourceId: string;
   readonly resourcePostId: string;
   readonly recoveryOperation: string;
+  readonly pollDraft: PollDraft;
+  readonly canAddPoll: boolean;
 }
 export const initialComposeView = (): ComposeView => ({
   ...initialCommunityView(),
@@ -65,6 +73,8 @@ export const initialComposeView = (): ComposeView => ({
   resourceId: '',
   resourcePostId: '',
   recoveryOperation: '',
+  pollDraft: emptyPollDraft(),
+  canAddPoll: false,
 });
 /** An inconsistent imported default must require a choice, never silently reveal a named identity. */
 export function commentIdentity(
@@ -217,6 +227,11 @@ export class ComposeController extends CommunityController<ComposeView> {
         this.update({
           loaded: true,
           text: draft?.text ?? '',
+          pollDraft:
+            target.operation === 'publish_post'
+              ? (draft?.poll ?? emptyPollDraft())
+              : emptyPollDraft(),
+          canAddPoll: target.operation === 'publish_post',
           authorMode: chosen.mode,
           commentsPolicy: draft?.commentsPolicy ?? 'open',
           identityForced: forced,
@@ -246,6 +261,11 @@ export class ComposeController extends CommunityController<ComposeView> {
       frozen: true,
       canSubmit: false,
       text: pending.payload.text,
+      pollDraft:
+        pending.operation === 'publish_post'
+          ? componentDraft(pending.payload.component)
+          : emptyPollDraft(),
+      canAddPoll: pending.operation === 'publish_post',
       authorMode: pending.payload.authorMode,
       effectiveIdentity:
         pending.payload.authorMode === 'anonymous'
@@ -312,6 +332,64 @@ export class ComposeController extends CommunityController<ComposeView> {
     this.persistDraft();
     this.recompute();
   }
+  private editPoll(patch: Partial<PollDraft>): void {
+    if (!this.editable() || !this.view.canAddPoll) return;
+    this.update({ pollDraft: { ...this.view.pollDraft, ...patch }, error: '' });
+    this.persistDraft();
+    this.recompute();
+  }
+  setPollEnabled(enabled: boolean): void {
+    this.editPoll({ enabled });
+  }
+  setPollQuestion(question: string): void {
+    this.editPoll({ question });
+  }
+  setPollMode(mode: string): void {
+    if (mode === 'single' || mode === 'multiple')
+      this.editPoll({ selectionMode: mode });
+  }
+  setPollOption(index: number, label: string): void {
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= this.view.pollDraft.options.length
+    )
+      return;
+    this.editPoll({
+      options: this.view.pollDraft.options.map((option, i) =>
+        i === index ? label : option,
+      ),
+    });
+  }
+  addPollOption(): void {
+    const draft = this.view.pollDraft;
+    if (!this.editable() || !this.view.canAddPoll) return;
+    if (draft.options.length + (draft.finalOption ? 1 : 0) >= 5) {
+      this.update({ error: '投票最多五个选项，吃瓜🍉也占用一个名额' });
+      return;
+    }
+    this.editPoll({ options: [...draft.options, ''] });
+  }
+  removePollOption(index: number): void {
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= this.view.pollDraft.options.length ||
+      this.view.pollDraft.options.length <= 2
+    )
+      return;
+    this.editPoll({
+      options: this.view.pollDraft.options.filter((_option, i) => i !== index),
+    });
+  }
+  setPollFinal(enabled: boolean): void {
+    if (!this.editable() || !this.view.canAddPoll) return;
+    if (enabled && this.view.pollDraft.options.length >= 5) {
+      this.update({ error: '已有五个普通选项，请先删除一个再启用吃瓜🍉' });
+      return;
+    }
+    this.editPoll({ finalOption: enabled });
+  }
   private persistDraft(): void {
     const accountId = this.accountId();
     if (!accountId || !this.target) return;
@@ -321,6 +399,9 @@ export class ComposeController extends CommunityController<ComposeView> {
         text: this.view.text,
         authorMode: this.view.authorMode,
         commentsPolicy: this.view.commentsPolicy,
+        ...(this.target.operation === 'publish_post'
+          ? { poll: this.view.pollDraft }
+          : {}),
       });
       this.draftSaved = true;
     } catch (error) {
@@ -359,6 +440,14 @@ export class ComposeController extends CommunityController<ComposeView> {
       !this.view.text.trim()
     )
       blocker = `请输入 1–${this.view.maxText} 个有效字符，保留你输入的空格与换行`;
+    if (!blocker && this.view.pollDraft.enabled) {
+      try {
+        pollDraftComponent(this.view.pollDraft);
+      } catch {
+        blocker =
+          '投票需独立问题及至少两个普通选项；问题和选项各 1–255 字，不可留空或重复，总数不超过五个';
+      }
+    }
     this.update({
       blocker,
       canSubmit: !blocker && !this.view.frozen && this.view.loaded,
@@ -377,7 +466,9 @@ export class ComposeController extends CommunityController<ComposeView> {
     const target = this.target,
       accountId = this.accountId()!,
       owner = this.runtime.sessions.snapshot();
+    const component = pollDraftComponent(this.view.pollDraft);
     const draft = {
+      ...(component.kind === 'poll' ? { component } : {}),
       text: this.view.text.replace(/\r\n/g, '\n'),
       authorMode: this.view.authorMode,
       commentsPolicy: this.view.commentsPolicy,
@@ -501,6 +592,8 @@ export class ComposeController extends CommunityController<ComposeView> {
       frozen: false,
       loaded: false,
       text: receipt.outcome === 'created' ? '' : this.view.text,
+      pollDraft:
+        receipt.outcome === 'created' ? emptyPollDraft() : this.view.pollDraft,
       canSubmit: false,
       receiptStatus:
         receipt.outcome === 'created'

@@ -30,12 +30,33 @@ import {
   type Receipt,
   type Spaces,
 } from './contract';
+import {
+  decodeBallotIntent,
+  decodeBallotReceipt,
+  decodeOwnBallot,
+  decodePoll,
+  type BallotIntent,
+  type BallotReceipt,
+  type OwnBallot,
+  type Poll,
+} from './poll-contract';
 export interface FeedQuery {
   readonly spaceId: string;
   readonly category?: Category;
   readonly cursor?: string;
 }
 export interface CommunityGateway {
+  poll(postId: string, cancel: Cancellation): Promise<Poll>;
+  castBallot(
+    postId: string,
+    intent: BallotIntent,
+    cancel: Cancellation,
+  ): Promise<BallotReceipt>;
+  ballotReceipt(
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<BallotReceipt>;
+  ownBallot(postId: string, cancel: Cancellation): Promise<OwnBallot>;
   spaces(campusId: string, cancel: Cancellation): Promise<Spaces>;
   capabilities(
     spaceId: string,
@@ -89,6 +110,59 @@ const page = (after: string | null) => {
 };
 export class HttpCommunityGateway implements CommunityGateway {
   constructor(private readonly api: ApiClient) {}
+  async poll(postId: string, cancel: Cancellation): Promise<Poll> {
+    const result = await this.api.request(
+      endpoint(`/v1/community/posts/${id(postId)}/poll`, decodePoll),
+      { cancellation: cancel },
+    );
+    if (result.postId !== postId) invalid();
+    return result;
+  }
+  async castBallot(
+    postId: string,
+    intent: BallotIntent,
+    cancel: Cancellation,
+  ): Promise<BallotReceipt> {
+    const checked = decodeBallotIntent(intent);
+    const result = await this.api.request(
+      endpoint(
+        `/v1/community/posts/${id(postId)}/poll/ballots`,
+        decodeBallotReceipt,
+        'required',
+        'POST',
+        201,
+      ),
+      {
+        body: { ...checked, optionIds: [...checked.optionIds] },
+        cancellation: cancel,
+      },
+    );
+    if (result.requestId !== checked.clientRequestId) invalid();
+    return result;
+  }
+  async ballotReceipt(
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<BallotReceipt> {
+    if (!uuid4(requestId)) invalid();
+    const result = await this.api.request(
+      endpoint(
+        `/v1/me/community/poll-requests/${requestId}`,
+        decodeBallotReceipt,
+      ),
+      { cancellation: cancel },
+    );
+    if (result.requestId !== requestId) invalid();
+    return result;
+  }
+  async ownBallot(postId: string, cancel: Cancellation): Promise<OwnBallot> {
+    const result = await this.api.request(
+      endpoint(`/v1/me/community/poll-ballots/${id(postId)}`, decodeOwnBallot),
+      { cancellation: cancel },
+    );
+    if (result.postId !== postId) invalid();
+    return result;
+  }
   spaces(campusId: string, cancel: Cancellation): Promise<Spaces> {
     return this.api.request(
       endpoint('/v1/community/spaces', decodeSpaces, 'none'),
@@ -172,10 +246,22 @@ export class HttpCommunityGateway implements CommunityGateway {
     cancel: Cancellation,
   ): Promise<Receipt> {
     const checked = decodePostIntent(intent);
+    const { component, ...base } = checked;
     const result = await this.api.request(
       endpoint('/v1/community/posts', decodeReceipt, 'required', 'POST', 201),
       {
-        body: { ...checked, imageAssetIds: [...checked.imageAssetIds] },
+        body: {
+          ...base,
+          imageAssetIds: [...checked.imageAssetIds],
+          ...(component
+            ? {
+                component:
+                  component.kind === 'poll'
+                    ? { ...component, options: [...component.options] }
+                    : { kind: 'none' },
+              }
+            : {}),
+        },
         cancellation: cancel,
       },
     );

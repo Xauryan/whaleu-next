@@ -42,6 +42,35 @@ Page({
   onRestricted(event: { detail: { value: boolean } }) {
     this.controller?.setRestricted(event.detail.value);
   },
+  onPollEnabled(event: { detail: { value: boolean } }) {
+    this.controller?.setPollEnabled(event.detail.value);
+  },
+  onPollQuestion(event: { detail: { value: string } }) {
+    this.controller?.setPollQuestion(event.detail.value);
+  },
+  onPollMode(event: { currentTarget: { dataset: { mode: string } } }) {
+    this.controller?.setPollMode(event.currentTarget.dataset.mode);
+  },
+  onPollOption(event: {
+    detail: { value: string };
+    currentTarget: { dataset: { index: number } };
+  }) {
+    this.controller?.setPollOption(
+      Number(event.currentTarget.dataset.index),
+      event.detail.value,
+    );
+  },
+  onAddPollOption() {
+    this.controller?.addPollOption();
+  },
+  onRemovePollOption(event: { currentTarget: { dataset: { index: number } } }) {
+    this.controller?.removePollOption(
+      Number(event.currentTarget.dataset.index),
+    );
+  },
+  onPollFinal(event: { detail: { value: boolean } }) {
+    this.controller?.setPollFinal(event.detail.value);
+  },
   onSubmit() {
     void this.controller?.submit();
   },

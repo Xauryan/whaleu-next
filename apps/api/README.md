@@ -112,3 +112,13 @@ developer student-number read; unmapped accounts stay unavailable. There is no
 provider, application/review mutation, number-backfill or production-import flow.
 See [verification V1](../../docs/API_VERIFICATION.md) for the exact contract and
 preservation/reconciliation gates.
+
+## Community polls development slice
+
+C2A adds poll composition/read projections and immutable account-owned ballots,
+including minimal durable receipt/status recovery after parent deletion or
+permission loss. Creation and voting remain behind the existing unavailable
+runtime safety ports; only injected synthetic test adapters enable local flows.
+The independent vote gate requires phone proof and current restrictions, not a
+new student/campus credential. See [community API](../../docs/API_COMMUNITY.md)
+for exact DTOs, immutable storage, transaction guarantees and remaining parity.

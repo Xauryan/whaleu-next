@@ -79,6 +79,11 @@ export function responseError(response: HttpResponse): ClientError | null {
     POST_DELETED: 410,
     REQUEST_CONFLICT: 409,
     REQUEST_NOT_FOUND: 404,
+    POLL_NOT_FOUND: 404,
+    POLL_EXPIRED: 409,
+    POLL_ALREADY_VOTED: 409,
+    POLL_OPTIONS_INVALID: 422,
+    BALLOT_NOT_FOUND: 404,
   };
   if (
     serverCode &&

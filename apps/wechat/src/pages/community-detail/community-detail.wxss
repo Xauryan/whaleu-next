@@ -1,1 +1,14 @@
 @import '../../community/forms.wxss';
+
+.poll-track {
+  height: 12rpx;
+  margin-top: 14rpx;
+  border-radius: 8rpx;
+  background: #edf3f5;
+  overflow: hidden;
+}
+.poll-bar {
+  height: 100%;
+  background: #4a9789;
+  border-radius: 8rpx;
+}

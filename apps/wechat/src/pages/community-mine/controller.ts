@@ -8,12 +8,14 @@ import type { OwnPublication } from '../../community/contract';
 import type { CommunityRuntime } from '../../community/runtime';
 export interface MineView extends CommunityView {
   readonly publications: readonly OwnPublication[];
+  readonly ballotRecoveryPostId: string;
   readonly loaded: boolean;
   readonly canLoadMore: boolean;
 }
 export const initialMineView = (): MineView => ({
   ...initialCommunityView(),
   publications: [],
+  ballotRecoveryPostId: '',
   loaded: false,
   canLoadMore: false,
 });
@@ -28,6 +30,15 @@ export class MineController extends CommunityController<MineView> {
   async load(): Promise<void> {
     if (!this.available()) return;
     this.nextCursor = null;
+    try {
+      this.update({
+        ballotRecoveryPostId:
+          this.runtime.pendingBallots.load(this.accountId()!)?.postId ?? '',
+      });
+    } catch {
+      this.update({ error: '无法读取待确认的投票记录，请保留本机数据后重试' });
+      return;
+    }
     this.update({ publications: [], loaded: false, canLoadMore: false });
     await this.read(false);
   }

@@ -1,3 +1,7 @@
+import { PollRepository } from './polls/poll.repository.js';
+import type { PollComponent } from './polls/contracts.js';
+import { postIntent } from './publication-intent.js';
+import { publicationHash } from './publication.repository.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -32,6 +36,7 @@ export class PublicationService {
     private readonly access: CommunityAccessService,
     @Inject(PublicationRepository)
     private readonly publications: PublicationRepository,
+    @Inject(PollRepository) private readonly polls: PollRepository,
     @Inject(AuthorDisplayService)
     private readonly profiles: AuthorDisplayService,
     @Inject(CONTENT_PUBLICATION_GATE)
@@ -44,6 +49,11 @@ export class PublicationService {
     text: string,
     ids: string[],
     tx: PoolClient,
+    structuredContent?: {
+      version: 2;
+      publicationIntentHash: string;
+      component: PollComponent;
+    },
   ): Promise<ApprovedAsset[]> {
     const images = ids.length
       ? requireDecision(
@@ -60,7 +70,16 @@ export class PublicationService {
     )
       throw new ApplicationError('MEDIA_NOT_READY');
     requireDecision(
-      await this.content.check({ accountId: actor, purpose, text, images }, tx),
+      await this.content.check(
+        {
+          accountId: actor,
+          purpose,
+          text,
+          images,
+          ...(structuredContent ? { structuredContent } : {}),
+        },
+        tx,
+      ),
       'CONTENT_REVIEW_UNAVAILABLE',
     );
     return images;
@@ -75,14 +94,7 @@ export class PublicationService {
       authorMode,
       commentsPolicy,
     } = body;
-    const intent = {
-      spaceId,
-      category,
-      text,
-      imageAssetIds,
-      authorMode,
-      commentsPolicy,
-    };
+    const intent = postIntent(body);
     return this.publications.execute(
       token,
       clientRequestId,
@@ -106,6 +118,13 @@ export class PublicationService {
           text,
           imageAssetIds,
           tx,
+          body.component?.kind === 'poll'
+            ? {
+                version: 2,
+                publicationIntentHash: publicationHash('publish_post', intent),
+                component: body.component,
+              }
+            : undefined,
         );
         if (authorMode === 'named') await this.profiles.prepare(actor, tx);
         const id = randomUUID();
@@ -116,6 +135,8 @@ export class PublicationService {
         if (authorMode === 'anonymous')
           await this.repository.persona(id, actor, tx);
         await this.repository.attach('post', id, images, tx);
+        if (body.component?.kind === 'poll')
+          await this.polls.create(id, body.component, tx);
         await this.repository.event(
           `post:${id}:created`,
           'post_created',

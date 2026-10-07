@@ -1,3 +1,11 @@
+import { PollRepository } from './polls/poll.repository.js';
+import { PollReadService } from './polls/poll-read.service.js';
+import { PollVotingService } from './polls/poll-voting.service.js';
+import { BallotRequestsRepository } from './polls/ballot-requests.repository.js';
+import {
+  PollController,
+  PollRecoveryController,
+} from './polls/poll.controller.js';
 import { CommunityContentIdentityService } from './content-identity.service.js';
 import {
   Body,
@@ -179,6 +187,8 @@ export class CommunityRecoveryController {
 @Module({
   imports: [DatabaseModule, CampusModule, ProfileModule, IdentityModule],
   controllers: [
+    PollController,
+    PollRecoveryController,
     CommunityReadController,
     CommunityPublicationController,
     CommunityReactionController,
@@ -186,6 +196,10 @@ export class CommunityRecoveryController {
   ],
   exports: [CommunityContentIdentityService],
   providers: [
+    PollRepository,
+    PollReadService,
+    PollVotingService,
+    BallotRequestsRepository,
     CommunityContentIdentityService,
     CommunityRepository,
     CommunityAccessService,

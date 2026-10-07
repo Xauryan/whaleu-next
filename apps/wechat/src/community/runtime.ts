@@ -13,6 +13,7 @@ import { WechatStorage, type WxApi } from '../platform/wechat';
 import { HttpProfileGateway, type ProfileGateway } from '../profile/gateway';
 import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
+import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
   readonly sessions: SessionStore;
   readonly identityPrivacy?: IdentityPrivacyGateway;
@@ -20,6 +21,7 @@ export interface CommunityRuntime {
   readonly gateway: CommunityGateway | undefined;
   readonly profiles: ProfileGateway | undefined;
   readonly pending: PendingAttemptStore;
+  readonly pendingBallots: PendingBallotStore;
   readonly drafts: DraftStore;
   readonly newRequestId: () => Promise<string>;
 }
@@ -40,6 +42,7 @@ export function createCommunityRuntime(
     gateway: identity.api ? new HttpCommunityGateway(identity.api) : undefined,
     profiles: identity.api ? new HttpProfileGateway(identity.api) : undefined,
     pending: new PendingAttemptStore(storage, origin),
+    pendingBallots: new PendingBallotStore(storage, origin),
     drafts: new DraftStore(storage, origin),
     newRequestId: () =>
       bounded(

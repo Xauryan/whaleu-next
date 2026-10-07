@@ -1,6 +1,7 @@
 import { ClientError, isRecord } from '../api/errors';
 import type { Storage } from '../platform/contracts';
 import { isUuid } from '../profile/contract';
+import { decodePollDraft, type PollDraft } from './poll-draft';
 import {
   boundedText,
   decodeCommentIntent,
@@ -117,6 +118,7 @@ export class PendingAttemptStore {
   }
 }
 export interface Draft {
+  readonly poll?: PollDraft;
   readonly version: 1;
   readonly text: string;
   readonly authorMode: AuthorMode;
@@ -139,7 +141,15 @@ export class DraftStore {
     try {
       const value = this.storage.get(this.key(accountId, target));
       if (value === undefined || value === null || value === '') return null;
-      exact(value, ['version', 'text', 'authorMode', 'commentsPolicy']);
+      if (!isRecord(value)) throw storageError();
+      const hasPoll = Object.prototype.hasOwnProperty.call(value, 'poll');
+      exact(value, [
+        'version',
+        'text',
+        'authorMode',
+        'commentsPolicy',
+        ...(hasPoll ? ['poll'] : []),
+      ]);
       if (
         value.version !== 1 ||
         !(
@@ -152,6 +162,7 @@ export class DraftStore {
         throw storageError();
       return Object.freeze({
         version: 1,
+        ...(hasPoll ? { poll: decodePollDraft(value.poll) } : {}),
         text: value.text,
         authorMode: value.authorMode as AuthorMode,
         commentsPolicy: value.commentsPolicy as Draft['commentsPolicy'],
@@ -164,8 +175,15 @@ export class DraftStore {
     try {
       if (!boundedText(draft.text.replace(/\r\n/g, '\n'), 0, 10000))
         throw storageError();
-      this.storage.set(this.key(accountId, target), { ...draft });
-      if (!equal(this.load(accountId, target), draft)) throw storageError();
+      const checked: Draft = {
+        version: 1,
+        ...(draft.poll ? { poll: decodePollDraft(draft.poll) } : {}),
+        text: draft.text,
+        authorMode: draft.authorMode,
+        commentsPolicy: draft.commentsPolicy,
+      };
+      this.storage.set(this.key(accountId, target), checked);
+      if (!equal(this.load(accountId, target), checked)) throw storageError();
     } catch {
       throw storageError();
     }

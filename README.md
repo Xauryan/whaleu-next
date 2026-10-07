@@ -8,8 +8,10 @@ and new clients are not goals.
 ## Status: incremental business implementation
 
 The backend and native WeChat client now include login/session handling,
-physical-campus selection, own profile editing and stored preferences. Community
-and privileged identity-view modules are being developed and tested separately.
+physical-campus selection, own profile editing, stored preferences, a partial
+community flow, audited developer identity views, canonical school-code mappings
+and independent verification-status summaries. Additional community modes and the
+remaining business modules are still being implemented.
 This is **not the completed rewrite** and is **not production-ready**. Remaining
 business modules, real-provider and native-device acceptance, production schema
 mapping, and reconciled data migration are still required. No production rollout

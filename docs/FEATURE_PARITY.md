@@ -74,6 +74,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Foundation and identity snapshot `806a2b00429e12ef4eacc3ab1574746393937edb`: 60 API tests, 96 native-client tests, and 22 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37628632248). This is not full product parity or a production rollout.
 - Campus/profile snapshot `417b1847b14895e46519925709ee96e471897330`: 66 API tests, 130 native-client tests and 43 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37636428025), including native gateway → Nest HTTP → PostgreSQL contracts. The commit signature is verified.
 - Community/developer/school-code snapshot `cc3ef8bb3904b7b7b369b0f3110418a9a60cd775`: 88 API tests, 182 native-client tests and 93 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37642626842), including community/privacy native gateway → Nest HTTP → PostgreSQL contracts and school-code migration tooling. The commit signature is verified.
+- Verification-preservation snapshot `6ed0d7e1e306bc9b7a104a2c4d880552afa61b4f`: 93 API tests, 217 native-client tests and 110 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37646773204), including actual native verification-summary contracts and final-clock privacy checks. The commit signature is verified.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -117,3 +118,12 @@ application coverage remain independent. Unmapped accounts remain unavailable;
 no production import, forced backfill, new authentication provider, application
 submission/review, attestation or private-evidence flow is delivered by this slice.
 See [verification V1 scope](API_VERIFICATION.md).
+
+Community C2A development checkpoint: structured single/multiple-choice polls,
+immutable account-owned ballots, separate voter/selection counts, historical
+expiry, durable ballot receipts and native composition/voting/recovery are
+implemented. Poll text participates in publication approval and idempotency.
+Voting does not invent a student-verification requirement. Real gateway → HTTP →
+PostgreSQL tests cover the contract; runtime policy adapters remain fail-closed
+where unavailable. Trading, group formation, replies, subscriptions and the other
+community backlog are still required. See [community API](API_COMMUNITY.md).

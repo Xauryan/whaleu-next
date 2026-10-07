@@ -1,3 +1,6 @@
+import { publicationHash } from '../../src/community/publication.repository.js';
+import { postIntent } from '../../src/community/publication-intent.js';
+import type { PublishPost } from '../../src/community/contracts.js';
 /** Synthetic dependency-injection adapters. Never exported by or selectable in the application. */
 import { createHash } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
@@ -46,6 +49,8 @@ export class FixtureVisibility implements CommunityVisibilityPort {
   ): Promise<Decision> {
     this.seen.push(subject);
     if (subject.authorMode === 'named') {
+      // Synthetic local guard also serializes absent block rows against inserts.
+      await tx.query('LOCK TABLE whaleu_community_test.blocks IN SHARE MODE');
       const result = await tx.query(
         'SELECT 1 FROM whaleu_community_test.blocks WHERE viewer=$1 AND author=$2 FOR SHARE',
         [viewer, subject.namedAccountId],
@@ -58,22 +63,18 @@ export class FixtureVisibility implements CommunityVisibilityPort {
 export class FixtureContent implements ContentPublicationGate {
   unavailable = false;
   async check(
-    input: {
-      accountId: string;
-      purpose: PublicationOperation;
-      text: string;
-      images: ApprovedAsset[];
-    },
+    input: Parameters<ContentPublicationGate['check']>[0],
     tx: PoolClient,
   ): Promise<Decision> {
     if (this.unavailable) return { kind: 'unavailable' };
     const result = await tx.query(
-      'SELECT 1 FROM whaleu_community_test.approvals WHERE account_id=$1 AND purpose=$2 AND text_hash=$3 AND images=$4::jsonb AND valid_until>clock_timestamp() FOR SHARE',
+      'SELECT 1 FROM whaleu_community_test.approvals WHERE account_id=$1 AND purpose=$2 AND text_hash=$3 AND images=$4::jsonb AND intent_hash IS NOT DISTINCT FROM $5::text AND valid_until>clock_timestamp() FOR SHARE',
       [
         input.accountId,
         input.purpose,
         digest(input.text),
         JSON.stringify(input.images),
+        input.structuredContent?.publicationIntentHash ?? null,
       ],
     );
     return result.rowCount
@@ -140,7 +141,7 @@ export async function fixtureSchema(pool: Pool) {
   await pool.query(`CREATE SCHEMA whaleu_community_test;
  CREATE TABLE whaleu_community_test.grants(account_id uuid,space_id uuid,authority jsonb NOT NULL,PRIMARY KEY(account_id,space_id));
  CREATE TABLE whaleu_community_test.blocks(viewer uuid,author uuid,PRIMARY KEY(viewer,author));
- CREATE TABLE whaleu_community_test.approvals(account_id uuid,purpose text,text_hash text,images jsonb,valid_until timestamptz NOT NULL DEFAULT now()+interval '1 hour');
+ CREATE TABLE whaleu_community_test.approvals(account_id uuid,purpose text,text_hash text,images jsonb,intent_hash text,valid_until timestamptz NOT NULL DEFAULT now()+interval '1 hour');
  CREATE TABLE whaleu_community_test.assets(id uuid PRIMARY KEY,account_id uuid,purpose text,digest text,ready boolean);`);
 }
 export async function approve(
@@ -175,5 +176,23 @@ export async function grant(
   await pool.query(
     'INSERT INTO whaleu_community_test.grants(account_id,space_id,authority) VALUES ($1,$2,$3::jsonb) ON CONFLICT(account_id,space_id) DO UPDATE SET authority=excluded.authority',
     [actor, space, JSON.stringify(authority)],
+  );
+}
+
+/** Poll fixture approval binds every normalized publication behavior field. */
+export async function approvePoll(
+  pool: Pool,
+  actor: string,
+  body: PublishPost,
+  images: ApprovedAsset[] = [],
+) {
+  await pool.query(
+    "INSERT INTO whaleu_community_test.approvals(account_id,purpose,text_hash,images,intent_hash) VALUES ($1,'publish_post',$2,$3::jsonb,$4)",
+    [
+      actor,
+      digest(body.text),
+      JSON.stringify(images),
+      publicationHash('publish_post', postIntent(body)),
+    ],
   );
 }
