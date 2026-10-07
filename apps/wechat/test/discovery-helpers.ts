@@ -39,7 +39,9 @@ export const publicProfile = (
   displayAvailability: 'unavailable',
   postsHidden: false,
   postCount: 1,
+  postCountStatus: 'known',
   tradeCount: 0,
+  tradeCountStatus: 'known',
   ...patch,
 });
 export const namedPost = () => post({ author: namedAuthor() });
@@ -50,7 +52,9 @@ export const profileList = (
   profileId,
   items: [namedPost()],
   total: 1,
+  totalStatus: 'known',
   nextCursor: null,
+  continuation: patch.nextCursor ? 'more' : 'end',
   ...patch,
 });
 export const likedItem = (patch: Partial<LikedItem> = {}): LikedItem => ({
@@ -72,7 +76,9 @@ export const likedItem = (patch: Partial<LikedItem> = {}): LikedItem => ({
 export const likedList = (patch: Partial<LikedList> = {}): LikedList => ({
   items: [likedItem()],
   visibleLikedCount: 1,
+  visibleLikedCountStatus: 'known',
   nextCursor: null,
+  continuation: patch.nextCursor ? 'more' : 'end',
   ...patch,
 });
 export function discoverySetup(loggedIn = true) {

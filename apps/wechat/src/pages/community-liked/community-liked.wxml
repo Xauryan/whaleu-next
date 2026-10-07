@@ -4,6 +4,7 @@
   <button bindtap="onReload" disabled="{{busy}}" loading="{{busy}}">重新加载点赞</button><button wx:if="{{busy}}" bindtap="onCancel">停止加载</button>
   <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">前往登录 →</navigator>
   <view wx:if="{{visibleLikedCount !== null}}" class="meta">当前可查看的点赞 {{visibleLikedCount}}</view>
+  <view wx:elif="{{loaded &amp;&amp; visibleLikedCountStatus === 'unavailable'}}" class="meta">当前可查看点赞的准确总数暂不可用，不代表没有记录。</view>
   <view wx:for="{{items}}" wx:key="likeId" class="card">
     <view class="author"><text wx:if="{{item.preview.author.kind === 'named'}}" class="link" data-id="{{item.likeId}}" bindtap="onAuthor">{{item.preview.author.displayName}} →</text><text wx:else>{{item.preview.author.displayName}}</text><text class="badge">{{item.preview.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text><text wx:if="{{item.preview.isSelf}}" class="badge">我</text></view>
     <view class="meta">{{item.kind === 'post' ? '帖子' : item.kind === 'comment' ? '根评论' : '回复'}} · 点赞时间：{{item.likedAt === null ? '时间未知' : item.likedAt}}</view>
@@ -12,7 +13,9 @@
     <navigator wx:elif="{{item.kind === 'comment'}}" class="link" url="/pages/community-detail/community-detail?postId={{item.postId}}&amp;rootCommentId={{item.rootCommentId}}">定位根评论 →</navigator>
     <navigator wx:else class="link" url="/pages/community-thread/community-thread?postId={{item.postId}}&amp;rootCommentId={{item.rootCommentId}}&amp;replyId={{item.targetId}}">定位回复 →</navigator>
   </view>
-  <view wx:if="{{loaded &amp;&amp; visibleLikedCount === 0}}" class="empty">当前没有可查看的点赞。</view>
-  <view wx:if="{{pageNumber}}" class="meta">第 {{pageNumber}} 页 · 每次翻页重新核验</view><button wx:if="{{canPrevious}}" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{canLoadMore}}" bindtap="onMore" disabled="{{busy}}">下一页</button>
+  <view wx:if="{{loaded &amp;&amp; visibleLikedCount === 0 &amp;&amp; continuation === 'end'}}" class="empty">当前没有可查看的点赞。</view>
+  <view wx:elif="{{continuation === 'scan_pending'}}" class="notice">本次核验尚未到历史末尾。点击继续查看，核验下一批；暂未显示记录不代表点赞历史为空。</view>
+  <view wx:elif="{{continuation === 'end'}}" class="meta">已到本次浏览末尾。新点赞或状态变化请重新加载查看。</view>
+  <view wx:if="{{pageNumber}}" class="meta">第 {{pageNumber}} 页 · 每次翻页重新核验</view><button wx:if="{{canPrevious}}" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{canLoadMore}}" bindtap="onMore" disabled="{{busy}}">{{continuation === 'scan_pending' ? '继续查看' : '下一页'}}</button>
   <navigator class="link" url="/pages/community-mine/community-mine">我的发布与结果恢复 →</navigator>
 </view>

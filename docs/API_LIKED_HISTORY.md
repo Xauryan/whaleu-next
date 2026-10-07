@@ -1,6 +1,6 @@
 # Own community liked history
 
-This bounded development slice covers community posts, root comments and replies.
+This bounded-per-request development slice covers community posts, root comments and replies.
 It does not claim other-domain liked history, production migration, provider
 acceptance or device acceptance.
 
@@ -33,7 +33,9 @@ interface LikedPage {
       isSelf: boolean;
     };
   }[];
-  visibleLikedCount: number;
+  visibleLikedCount: number | null;
+  visibleLikedCountStatus: 'known' | 'unavailable';
+  continuation: 'more' | 'scan_pending' | 'end';
   nextCursor: string | null;
 }
 ```
@@ -63,16 +65,23 @@ relationship coverage must be consulted. Existing canonical content read policy
 is preserved; this endpoint introduces no new account-lifecycle inference for
 anonymous authors.
 
-One bounded current policy-filtered set supplies both `visibleLikedCount` and
-page items. This checkpoint imposes a whole-history ceiling of 1,024 candidate memberships.
-At 1,025 memberships every page and count request fails with
-`COMMUNITY_UNAVAILABLE`, even if most memberships would later be filtered. A small
-requested page size does not bypass the ceiling. There is no history age cutoff.
-Scalable arbitrary-size history and current-policy counts remain an explicit
-release/parity gate. This bounded implementation does not claim that older or
-excess records do not exist. No unfiltered counters or removed-target
-body-bearing tombstones are returned. Canonical preview dependency failure also
-fails the request without a partial result.
+Each request scans at most 128 current membership positions, with one lookahead
+candidate. There is no whole-history size failure, source-history age cutoff or
+maximum reachable page. The current required content/ancestor/review policy still
+fails closed; an unavailable dependency is never silently skipped. Policy for an
+unscanned older target does not block an already authorized earlier page.
+
+`visibleLikedCount` is exact/known only when this same from-start scan establishes
+complete history exhaustion. Otherwise, including every continuation page, it is
+null/unavailable. It is never an unfiltered membership total, guessed zero or
+count copied from a prior cursor. Scalable exact current-policy counts remain an
+explicit subsequent release/parity gate.
+
+`continuation:'more'` means a visible page limit was filled with candidates left;
+`scan_pending` means the bounded scan ended before filling the page and may return
+no visible items. Both carry a next cursor. Only proven candidate exhaustion yields
+`end` with null cursor. A hidden-only batch is not an empty-history conclusion.
+Canonical preview dependency failure fails the request without a partial result.
 
 ## Ordering, continuation and concurrent changes
 
@@ -81,14 +90,24 @@ undated memberships follow, ordered by `likeId DESC`. Kind is a final stable tie
 breaker across the three independent storage tables. Undated records are retained
 and pageable, including across the dated/undated boundary.
 
-The strict opaque cursor binds the owner, session, list kind and exact limit.
-Its anchor contains only the last returned visible current membership's kind,
-record ID and nullable date. Raw account/session IDs, private author IDs and
-invisible candidate references are never embedded. Cursors are continuation
-coordinates, not authorization grants: current authentication and policy are
-rechecked on every request. Malformed/cross-owner/cross-session/cross-kind or
-cross-limit cursors return 400. A removed, re-liked, hidden or otherwise ineligible
-current anchor returns `DISCOVERY_RESTART_REQUIRED` (409); reload the first page.
+A canonical base64url cursor contains only 32 random bytes. Migration 0020's
+private immutable record binds owner, session, list kind and exact limit through
+a scope hash, with the current private seek and prior visible guard stored only
+server-side. No private account/session values, skipped targets or payloads are
+embedded in the token. Current authentication and policy are rechecked on every
+request. Malformed or cross-owner/session/kind/limit references return 400;
+missing, expired or corrupt records require generic 409 restart. A removed,
+re-liked, hidden or otherwise ineligible prior visible guard also returns
+`DISCOVERY_RESTART_REQUIRED`, including after empty scan hops. Refresh can reach
+remaining history. A skipped private seek need not remain eligible.
+
+The immutable input position is replayed with fresh reads; no old page body or
+mutable advanced pointer can reopen access or skip an undisclosed range after a
+lost response. Identical current output coordinates reuse a live opaque reference.
+Each reference expires after 24 hours without renewal; the per-account 256-record
+cap evicts older navigation references while permitting unlimited forward steps.
+Expired/evicted Previous links restart safely. Bounded cleanup removes only derived
+coordinates, never likes or content. No cleanup job is activated.
 
 This is live keyset pagination, not a cross-request database snapshot. Current
 newer likes may precede an existing cursor; refresh to see those entries. Current
@@ -97,15 +116,17 @@ page and retains only navigation cursors, without accumulating previous page bod
 Lifecycle and safety changes invalidate viewer-bound history and navigation. Refreshing an access token within the same session preserves the
 scope; another session for the same account does not.
 
-Candidates are discovered without membership row locks. The transaction acquires
-all distinct parent-post locks in sorted order, then root locks, then exact-reply
-locks, before re-reading current membership records. Normal like/unlike writers
-hold the parent exclusively, so a committed unlike/re-like cannot return its old
-record ID. A second bounded candidate read detects newly added targets while the
-locks were being acquired; such an unstable set fails with 503 rather than
-silently undercounting. A later change after the locked/read authorization point
-is outside the returned projection's point-in-time guarantee. Session/policy
-locks and expiry checks remain active until commit.
+Candidates are discovered without membership row locks. Each of the three
+membership tables uses separately limited indexed dated/undated keyset branches,
+then a bounded merge, so later pages do not rescan the full dated prefix. The
+transaction acquires all distinct parent-post locks in sorted order, then roots,
+then exact replies, including the carried visible guard. A second bounded scan
+from the same seek rejects newly introduced targets not in the locked set. Exact
+current memberships are re-read afterward; a committed unlike/re-like cannot
+return an old membership ID. A later insertion before the seek is visible on
+refresh; changes after the locked/read authorization point are outside the live
+projection snapshot. Session/policy/cursor expiry is checked after all deferred
+waits before commit.
 
 ## Forward migration 0019
 
@@ -134,7 +155,7 @@ content creation times, migration time, client time or a fabricated event time.
 - `apps/api/test/integration/liked-history.test.ts`: ordinary AppModule and real
   disposable PostgreSQL, actual pre-0019 memberships through the forward migration,
   canonical review/identity/safety records, mixed author modes, full named block
-  chain, counts/pages, current membership races, deadlines, overflow and constraints
+  chain, counts/pages, current membership races, deadlines, bounded progress and constraints
 - `apps/api/test/integration/public-profile-native-roundtrip.test.ts`: the native
   discovery gateway in the broader public-profile roundtrip acceptance suite
 

@@ -326,7 +326,13 @@ test(
         assert.equal(response.headers['vary'], 'Authorization');
         assert.deepEqual(
           Object.keys(response.body).sort(),
-          ['items', 'visibleLikedCount', 'nextCursor'].sort(),
+          [
+            'items',
+            'visibleLikedCount',
+            'visibleLikedCountStatus',
+            'continuation',
+            'nextCursor',
+          ].sort(),
         );
         const result = response.body as LikedPage;
         for (const item of result.items) exactItem(item);
@@ -436,6 +442,8 @@ test(
           assert.deepEqual(empty, {
             items: [],
             visibleLikedCount: 0,
+            visibleLikedCountStatus: 'known',
+            continuation: 'end',
             nextCursor: null,
           });
           assert.equal(
@@ -486,7 +494,7 @@ test(
         },
       );
       await t.test(
-        'dated ties page before all undated history with visible-only anchors and exact target author modes',
+        'dated ties page before all undated history with opaque coordinates and exact target author modes',
         async () => {
           const dated = [
             { kind: 'post', id: anonymous.id },
@@ -515,16 +523,13 @@ test(
           let cursor: string | undefined;
           do {
             const current = await page(1, cursor);
-            assert.equal(current.visibleLikedCount, 6);
+            assert.equal(current.visibleLikedCount, null);
             seen.push(...current.items.map((item) => item.likeId));
             if (current.nextCursor) {
-              const decoded = JSON.parse(
-                Buffer.from(current.nextCursor, 'base64url').toString('utf8'),
-              );
-              assert.equal(decoded.id, current.items.at(-1)!.likeId);
-              assert.equal(decoded.at, current.items.at(-1)!.likedAt);
-              assert.equal(decoded.targetKind, current.items.at(-1)!.kind);
-              assert.ok(!JSON.stringify(decoded).includes(reader.accountId));
+              assert.match(current.nextCursor, /^[A-Za-z0-9_-]{43}$/);
+              const bytes = Buffer.from(current.nextCursor, 'base64url');
+              assert.equal(bytes.length, 32);
+              assert.ok(!bytes.toString().includes(reader.accountId));
               assert.equal((await list(2, current.nextCursor)).status, 400);
               assert.equal(
                 (await list(1, current.nextCursor, peer)).status,
@@ -670,7 +675,7 @@ test(
         },
       );
       await t.test(
-        'missing exact review binding outside the page fails unavailable rather than silently dropping its count',
+        'unknown review outside a bounded page cannot block it or invent a total, but fails when reached',
         async () => {
           const target = randomUUID();
           await pool.query(
@@ -682,7 +687,14 @@ test(
             [target, reader.accountId],
           );
           try {
-            const response = await list(1);
+            let response = await list(1);
+            assert.equal(response.status, 200);
+            assert.equal(response.body.visibleLikedCount, null);
+            let hops = 0;
+            while (response.status === 200 && response.body.nextCursor) {
+              assert.ok(++hops < 20);
+              response = await list(1, response.body.nextCursor);
+            }
             assert.equal(response.status, 503);
             assert.equal(response.body.error.code, 'COMMUNITY_UNAVAILABLE');
           } finally {
@@ -898,7 +910,7 @@ test(
         },
       );
       await t.test(
-        'over 1024 candidates fails honestly before returning unfiltered counts, even when most have no approval',
+        'required unknown-review candidate fails closed without fabricated totals even in large history',
         async () => {
           const overflow = await createRuntimeActor(app!);
           await pool.query(

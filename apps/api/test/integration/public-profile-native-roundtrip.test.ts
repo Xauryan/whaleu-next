@@ -707,7 +707,7 @@ test(
         do {
           const result: {
             status: string;
-            total: number;
+            total: number | null;
             items: PostView[];
             nextCursor: string | null;
           } = await actor.discovery.list(
@@ -719,10 +719,7 @@ test(
             limit,
           );
           assert.equal(result.status, 'available');
-          assert.equal(
-            result.total,
-            kind === 'posts' ? eligiblePosts.length : eligibleTrades.length,
-          );
+          assert.equal(result.total, null);
           for (const item of result.items as PostView[]) {
             assert.ok(
               !seen.has(item.id),
@@ -847,6 +844,8 @@ test(
                   profileId: authorProfileId,
                   items: [],
                   total: 0,
+                  totalStatus: 'known',
+                  continuation: 'end',
                   nextCursor: null,
                 },
               );
@@ -888,17 +887,11 @@ test(
             1,
           );
           assert.ok(first.nextCursor);
-          const cursorJson = Buffer.from(
-            first.nextCursor,
-            'base64url',
-          ).toString('utf8');
-          noPrivateFields(JSON.parse(cursorJson));
+          const cursorBytes = Buffer.from(first.nextCursor, 'base64url');
+          assert.equal(cursorBytes.length, 32);
           for (const value of privateValues)
-            assert.ok(!cursorJson.includes(value));
-          assert.ok(
-            cursorJson.includes(first.items[0].id),
-            'Cursor only anchors a returned visible item',
-          );
+            assert.ok(!cursorBytes.toString().includes(value));
+          assert.ok(!cursorBytes.toString().includes(first.items[0].id));
           const raw = (
             profileId: string,
             kind: string,
@@ -961,10 +954,7 @@ test(
             '!',
             'A'.repeat(1025),
             Buffer.from(
-              JSON.stringify({
-                ...JSON.parse(cursorJson),
-                accountId: reader.credentials.accountId,
-              }),
+              JSON.stringify({ accountId: reader.credentials.accountId }),
             ).toString('base64url'),
           ])
             assert.equal(
@@ -1372,10 +1362,10 @@ test(
           do {
             const batch: {
               items: LikedRow[];
-              visibleLikedCount: number;
+              visibleLikedCount: number | null;
               nextCursor: string | null;
             } = await reader.discovery.liked(after, cancel, 1);
-            assert.equal(batch.visibleLikedCount, 4);
+            assert.equal(batch.visibleLikedCount, null);
             gathered.push(...batch.items);
             after = batch.nextCursor;
           } while (after);
@@ -1469,7 +1459,7 @@ test(
           const wire = Buffer.from(first.nextCursor, 'base64url').toString(
             'utf8',
           );
-          noPrivateFields(JSON.parse(wire));
+          assert.equal(Buffer.from(first.nextCursor, 'base64url').length, 32);
           for (const value of privateValues) assert.ok(!wire.includes(value));
           const badLimit = await request(app!.getHttpServer())
             .get('/v1/me/community/liked')
@@ -1812,7 +1802,7 @@ test(
           const page = profilePage(reader);
           await page.controller.load();
           assert.equal(page.view().items.length, 20);
-          assert.equal(page.view().total, 21);
+          assert.equal(page.view().total, null);
           assert.equal(page.view().pageNumber, 1);
           const previouslyVisible = page.view().items[0]!.id;
           const listPath = `${profilePath(authorProfileId)}/posts`;

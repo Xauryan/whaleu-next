@@ -125,3 +125,10 @@ historical dates to community post/comment/reply likes. Existing dates remain
 unknown; only new insertions receive server-time defaults. It does not import
 legacy records or activate accounting/experience. See
 [own liked history](../../../docs/API_LIKED_HISTORY.md).
+
+Migration 0020 adds private derived discovery cursor coordinates and a public
+profile keyset index. Random wire references contain no content or private scan
+anchors. Immutable 24-hour references have bounded account/shared-guest quotas and
+bounded expired-record cleanup, without a source-history or traversal-length
+cutoff. No content, memberships, grants, provider configuration or cleanup job is
+created or deleted by this migration.

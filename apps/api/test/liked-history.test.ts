@@ -2,15 +2,13 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
-import { BadRequestException } from '@nestjs/common';
 import {
   likedPageQuerySchema,
   emptyLikedBodySchema,
 } from '../src/community/liked/contracts.js';
 import {
   compareLikedAnchors,
-  decodeLikedCursor,
-  encodeLikedCursor,
+  likedCursorScope,
 } from '../src/community/liked/cursor.js';
 import type { LikedAnchor } from '../src/community/liked/cursor.js';
 
@@ -70,64 +68,14 @@ test('liked query only accepts exact bounded decimal limits and no owner overrid
   assert.deepEqual(emptyLikedBodySchema.parse({}), {});
   assert.equal(emptyLikedBodySchema.parse(undefined), undefined);
 });
-test('liked cursors bind account, session, limit and kind without carrying private identifiers', () => {
-  const cursor = encodeLikedCursor(anchor, owner, session, 20);
-  assert.deepEqual(decodeLikedCursor(cursor, owner, session, 20), anchor);
-  assert.deepEqual(
-    decodeLikedCursor(
-      encodeLikedCursor({ ...anchor, at: null }, owner, session, 20),
-      owner,
-      session,
-      20,
-    ),
-    { ...anchor, at: null },
-  );
-  const raw = Buffer.from(cursor, 'base64url').toString('utf8');
-  assert.ok(!raw.includes(owner));
-  assert.ok(!raw.includes(session));
-  assert.ok(!raw.includes('accountId'));
-  for (const [otherOwner, otherSession, limit] of [
-    [randomUUID(), session, 20],
-    [owner, randomUUID(), 20],
-    [owner, session, 10],
-  ] as const)
-    assert.throws(
-      () => decodeLikedCursor(cursor, otherOwner, otherSession, limit),
-      BadRequestException,
-    );
-  const parsed = JSON.parse(raw) as Record<string, unknown>;
-  for (const patch of [
-    { v: 2 },
-    { kind: 'profile_posts' },
-    { scope: 'bad' },
-    { targetKind: 'saved' },
-    { at: '2026-01-01' },
-    { at: '2026-01-01T00:00:00Z' },
-    { id: '1' },
-    { accountId: owner },
-    { limit: 51 },
-    { after: anchor },
-  ]) {
-    const changed = Buffer.from(
-      JSON.stringify({ ...parsed, ...patch }),
-    ).toString('base64url');
-    assert.throws(
-      () => decodeLikedCursor(changed, owner, session, 20),
-      BadRequestException,
-    );
-  }
-  for (const bad of [
-    '',
-    cursor + '=',
-    '*',
-    'x'.repeat(1025),
-    Buffer.from('null').toString('base64url'),
-  ])
-    assert.throws(
-      () => decodeLikedCursor(bad, owner, session, 20),
-      BadRequestException,
-    );
-  assert.equal(decodeLikedCursor(undefined, owner, session, 20), null);
+test('liked opaque-coordinate scopes bind account, session and limit', () => {
+  const scope = likedCursorScope(owner, session, 20);
+  assert.ok(!scope.includes(owner));
+  assert.ok(!scope.includes(session));
+  assert.equal(scope, likedCursorScope(owner, session, 20));
+  assert.notEqual(scope, likedCursorScope(randomUUID(), session, 20));
+  assert.notEqual(scope, likedCursorScope(owner, randomUUID(), 20));
+  assert.notEqual(scope, likedCursorScope(owner, session, 10));
 });
 test('liked order retains undated rows after dated rows and deterministically orders ties', () => {
   const ids = Array.from({ length: 5 }, randomUUID).sort();

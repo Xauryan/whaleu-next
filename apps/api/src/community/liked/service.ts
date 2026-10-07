@@ -1,4 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { z } from 'zod';
+import {
+  DiscoveryCursorRepository,
+  discoveryCursorBucket,
+} from '../discovery-cursors.js';
+import { DISCOVERY_SCAN_BATCH } from '../profile-discovery.facade.js';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
 import { IdentityService } from '../../identity/identity.service.js';
@@ -14,19 +20,24 @@ import type {
 import type { LikedPage, LikedPageQuery } from './contracts.js';
 import {
   compareLikedAnchors,
-  decodeLikedCursor,
-  encodeLikedCursor,
+  likedCursorScope,
+  likedAnchorSchema,
 } from './cursor.js';
 import type { LikedAnchor } from './cursor.js';
 import { LikedHistoryRepository } from './repository.js';
 import type { LikedCandidate } from './repository.js';
 
-interface VisibleLike {
-  candidate: LikedCandidate;
-  post: StoredPost;
-  target: StoredPost | StoredComment;
-  anchor: LikedAnchor;
-}
+const positionSchema = z.strictObject({
+  v: z.literal(1),
+  kind: z.literal('liked'),
+  after: likedAnchorSchema,
+  visible: likedAnchorSchema.nullable(),
+});
+const candidateAnchor = (item: LikedCandidate): LikedAnchor => ({
+  targetKind: item.kind,
+  at: item.liked_at?.toISOString() ?? null,
+  id: item.like_id,
+});
 @Injectable()
 export class LikedHistoryService {
   constructor(
@@ -39,6 +50,8 @@ export class LikedHistoryService {
     @Inject(IdentityService) private readonly identity: IdentityService,
     @Inject(LikedHistoryRepository)
     private readonly likes: LikedHistoryRepository,
+    @Inject(DiscoveryCursorRepository)
+    private readonly cursors: DiscoveryCursorRepository,
   ) {}
 
   private async lockedContent(candidates: LikedCandidate[], tx: PoolClient) {
@@ -75,40 +88,53 @@ export class LikedHistoryService {
       await lockSafetyPolicy(tx);
       const session = await this.identity.session(token, tx);
       const actor = session.accountId;
-      const seek = decodeLikedCursor(
-        query.cursor,
+      const scope = likedCursorScope(actor, session.sessionId, query.limit);
+      const position = query.cursor
+        ? await this.cursors.get(query.cursor, scope, tx, (value) =>
+            positionSchema.parse(value),
+          )
+        : null;
+      const seek = position?.after ?? null;
+      const guard = position?.visible ?? null;
+      if (guard && seek && compareLikedAnchors(seek, guard) < 0)
+        throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+      const candidates = await this.likes.candidates(
         actor,
-        session.sessionId,
-        query.limit,
-      );
-      const candidates = await this.likes.candidates(actor, tx);
-      if (candidates.length > 1024)
-        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-      const { posts, roots, replies } = await this.lockedContent(
-        candidates,
+        seek,
+        DISCOVERY_SCAN_BATCH + 1,
         tx,
       );
-      // An unseen new target while locks were being acquired cannot be silently
-      // left out of the count. This request must retry from a fresh bounded set.
-      const finalCandidates = await this.likes.candidates(actor, tx);
+      const guardCandidate = guard
+        ? await this.likes.guard(actor, guard, tx)
+        : null;
+      if (guard && !guardCandidate)
+        throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+      const { posts, roots, replies } = await this.lockedContent(
+        [...candidates, ...(guardCandidate ? [guardCandidate] : [])],
+        tx,
+      );
+      const finalCandidates = await this.likes.candidates(
+        actor,
+        seek,
+        DISCOVERY_SCAN_BATCH + 1,
+        tx,
+      );
       const keys = new Set(
         candidates.map((item) => `${item.kind}:${item.target_id}`),
       );
       if (
-        finalCandidates.length > 1024 ||
         finalCandidates.some(
           (item) => !keys.has(`${item.kind}:${item.target_id}`),
         )
       )
         throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-      const visible: VisibleLike[] = [];
       const postVisibility = new Map<string, boolean>();
       const rootVisibility = new Map<string, boolean>();
-      for (const candidate of finalCandidates) {
+      const visible = async (candidate: LikedCandidate) => {
         // Re-read the exact current record only AFTER its full parent chain is
         // locked. A concurrent delete/re-like must never return the stale ID.
         const current = await this.likes.current(actor, candidate, tx);
-        if (!current) continue;
+        if (!current) return null;
         const post = posts.get(candidate.post_id)!;
         if (!postVisibility.has(post.id)) {
           try {
@@ -123,7 +149,7 @@ export class LikedHistoryService {
             postVisibility.set(post.id, false);
           }
         }
-        if (!postVisibility.get(post.id)) continue;
+        if (!postVisibility.get(post.id)) return null;
         let target: StoredPost | StoredComment = post;
         if (candidate.root_comment_id) {
           const root = roots.get(candidate.root_comment_id)!;
@@ -134,7 +160,7 @@ export class LikedHistoryService {
               root.id,
               await this.access.visible(actor, root, tx, 'direct_post'),
             );
-          if (!rootVisibility.get(root.id)) continue;
+          if (!rootVisibility.get(root.id)) return null;
           target = root;
         }
         if (candidate.kind === 'reply') {
@@ -145,10 +171,10 @@ export class LikedHistoryService {
           )
             throw new ApplicationError('COMMUNITY_UNAVAILABLE');
           if (!(await this.access.visible(actor, reply, tx, 'direct_post')))
-            continue;
+            return null;
           target = reply;
         }
-        visible.push({
+        return {
           candidate,
           post,
           target,
@@ -157,23 +183,23 @@ export class LikedHistoryService {
             at: current.liked_at?.toISOString() ?? null,
             id: current.like_id,
           },
-        });
+        };
+      };
+      if (guard && guardCandidate) {
+        const current = await visible(guardCandidate);
+        if (!current || compareLikedAnchors(current.anchor, guard) !== 0)
+          throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
       }
-      visible.sort((a, b) => compareLikedAnchors(a.anchor, b.anchor));
-      const index = seek
-        ? visible.findIndex(
-            (item) =>
-              item.anchor.targetKind === seek.targetKind &&
-              item.anchor.id === seek.id &&
-              item.anchor.at === seek.at,
-          )
-        : -1;
-      if (seek && index === -1)
-        throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
-      const remaining = visible.slice(index + 1);
-      const page = remaining.slice(0, query.limit);
       const items: LikedPage['items'] = [];
-      for (const { candidate, post, target, anchor } of page)
+      let consumed = 0;
+      let lastVisible = guard;
+      for (const candidate of finalCandidates.slice(0, DISCOVERY_SCAN_BATCH)) {
+        consumed++;
+        const entry = await visible(candidate);
+        if (!entry) continue;
+        const { post, target, anchor } = entry;
+        if (compareLikedAnchors(anchor, candidateAnchor(candidate)) !== 0)
+          throw new ApplicationError('COMMUNITY_UNAVAILABLE');
         items.push({
           kind: candidate.kind,
           targetId: target.id,
@@ -192,20 +218,34 @@ export class LikedHistoryService {
             isSelf: target.account_id === actor,
           },
         });
+        lastVisible = anchor;
+        if (items.length === query.limit) break;
+      }
+      const exhausted = consumed === finalCandidates.length;
+      const next = exhausted
+        ? null
+        : candidateAnchor(finalCandidates[consumed - 1]!);
+      if (next && seek && compareLikedAnchors(next, seek) <= 0)
+        throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
       await this.identity.session(token, tx);
-      const last = page.at(-1);
       return {
         items,
-        visibleLikedCount: visible.length,
-        nextCursor:
-          remaining.length > query.limit && last
-            ? encodeLikedCursor(
-                last.anchor,
-                actor,
-                session.sessionId,
-                query.limit,
-              )
-            : null,
+        visibleLikedCount: !position && exhausted ? items.length : null,
+        visibleLikedCountStatus:
+          !position && exhausted ? 'known' : 'unavailable',
+        continuation: exhausted
+          ? 'end'
+          : items.length === query.limit
+            ? 'more'
+            : 'scan_pending',
+        nextCursor: next
+          ? await this.cursors.create(
+              scope,
+              discoveryCursorBucket(actor),
+              { v: 1, kind: 'liked', after: next, visible: lastVisible },
+              tx,
+            )
+          : null,
       };
     });
   }

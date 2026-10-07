@@ -114,7 +114,9 @@ test('hidden, unavailable and outgoing-blocked unions reject metadata/count/prof
     profileId,
     items: [],
     total: 0,
+    totalStatus: 'known',
     nextCursor: null,
+    continuation: 'end',
   };
   assert.deepEqual(decodeProfileList(hidden), hidden);
   for (const patch of [
@@ -217,4 +219,143 @@ test('profile sources extend blocks only, never reporting', () => {
     id: profileId,
   });
   assert.throws(() => decodeReportTarget({ kind: 'profile', id: profileId }));
+});
+
+test('counts are independently exact or explicitly unavailable, never coercible or silently zero', () => {
+  for (const patch of [
+    { postCount: null, postCountStatus: 'unavailable' as const },
+    { tradeCount: null, tradeCountStatus: 'unavailable' as const },
+    {
+      postCount: null,
+      postCountStatus: 'unavailable' as const,
+      tradeCount: null,
+      tradeCountStatus: 'unavailable' as const,
+    },
+  ])
+    assert.deepEqual(
+      decodePublicProfile(publicProfile(patch)),
+      publicProfile(patch),
+    );
+  for (const [value, status] of [
+    [null, 'known'],
+    [0, 'unavailable'],
+    [1, 'unavailable'],
+    ['0', 'known'],
+    [-1, 'known'],
+    [1.5, 'known'],
+    [Number.MAX_SAFE_INTEGER + 1, 'known'],
+    [null, 'pending'],
+    [null, undefined],
+  ]) {
+    assert.throws(() =>
+      decodePublicProfile({
+        ...publicProfile(),
+        postCount: value,
+        postCountStatus: status,
+      }),
+    );
+    assert.throws(() =>
+      decodePublicProfile({
+        ...publicProfile(),
+        tradeCount: value,
+        tradeCountStatus: status,
+      }),
+    );
+    assert.throws(() =>
+      decodeProfileList({
+        ...profileList(),
+        total: value,
+        totalStatus: status,
+      }),
+    );
+    assert.throws(() =>
+      decodeLikedList({
+        ...likedList(),
+        visibleLikedCount: value,
+        visibleLikedCountStatus: status,
+      }),
+    );
+  }
+  assert.throws(() =>
+    decodePublicProfile(
+      publicProfile({
+        postsHidden: true,
+        postCount: null,
+        postCountStatus: 'unavailable',
+      }),
+    ),
+  );
+  for (const decode of [decodeProfileList, decodeLikedList]) {
+    const known = decode === decodeProfileList ? profileList() : likedList();
+    const key =
+      decode === decodeProfileList ? 'totalStatus' : 'visibleLikedCountStatus';
+    const missing = { ...known } as Record<string, unknown>;
+    delete missing[key];
+    assert.throws(() => decode(missing));
+  }
+});
+
+test('empty scan continuation, exact end and unavailable counts are strict separate states', () => {
+  for (const kind of ['profile', 'liked'] as const) {
+    const decode = kind === 'profile' ? decodeProfileList : decodeLikedList;
+    const value =
+      kind === 'profile'
+        ? profileList({ total: null, totalStatus: 'unavailable' })
+        : likedList({
+            visibleLikedCount: null,
+            visibleLikedCountStatus: 'unavailable',
+          });
+    for (const patch of [
+      { continuation: 'end', nextCursor: null },
+      { continuation: 'end', nextCursor: null, items: [] },
+      { continuation: 'more', nextCursor: 'opaque_next' },
+      { continuation: 'scan_pending', nextCursor: 'opaque_next' },
+      { continuation: 'scan_pending', nextCursor: 'opaque_next', items: [] },
+    ])
+      assert.deepEqual(decode({ ...value, ...patch }), { ...value, ...patch });
+    for (const patch of [
+      { continuation: undefined },
+      { continuation: 'pending' },
+      { continuation: 'end', nextCursor: 'opaque_next' },
+      { continuation: 'more', nextCursor: null },
+      { continuation: 'more', nextCursor: 'opaque_next', items: [] },
+      { continuation: 'scan_pending', nextCursor: null },
+      { continuation: 'scan_pending', nextCursor: '' },
+      { continuation: 'scan_pending', nextCursor: { anchor: otherId } },
+      { continuation: 'scan_pending', nextCursor: 'x&accountId=secret' },
+      {
+        continuation: 'scan_pending',
+        nextCursor: 'opaque_next',
+        scanAnchor: otherId,
+      },
+      {
+        continuation: 'scan_pending',
+        nextCursor: 'opaque_next',
+        sessionId: otherId,
+      },
+      {
+        continuation: 'scan_pending',
+        nextCursor: 'opaque_next',
+        scanCount: 128,
+      },
+    ])
+      assert.throws(() => decode({ ...value, ...patch }));
+  }
+  for (const patch of [
+    { total: null, totalStatus: 'unavailable' },
+    { totalStatus: 'unavailable' },
+    { continuation: 'scan_pending', nextCursor: 'opaque_next' },
+  ])
+    assert.throws(() =>
+      decodeProfileList({
+        status: 'hidden',
+        profileId,
+        items: [],
+        total: 0,
+        totalStatus: 'known',
+        continuation: 'end',
+        nextCursor: null,
+        ...patch,
+      }),
+    );
 });

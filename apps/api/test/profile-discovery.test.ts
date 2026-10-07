@@ -9,11 +9,7 @@ import {
   emptyBodySchema,
   emptyQuerySchema,
 } from '../src/profile-discovery/contracts.js';
-import {
-  decodeProfileCursor,
-  encodeProfileCursor,
-  profileCursorScope,
-} from '../src/profile-discovery/cursor.js';
+import { profileCursorScope } from '../src/profile-discovery/cursor.js';
 import { blockRequestSchema } from '../src/safety/contracts.js';
 import { reportRequestSchema } from '../src/safety/reporting/contracts.js';
 import { identityBatchSchema } from '../src/identity-privacy/contracts.js';
@@ -49,21 +45,14 @@ test('public discovery uses strict bounded read queries without private selector
     assert.equal(schema.safeParse({ accountId: randomUUID() }).success, false);
 });
 
-test('profile cursors bind profile, kind, subtype, viewer, session and limit without private bytes', () => {
+test('profile cursor scope binds target, kind, subtype, viewer, session and limit', () => {
   const profileId = randomUUID(),
     accountId = randomUUID(),
-    sessionId = randomUUID(),
-    id = randomUUID();
+    sessionId = randomUUID();
   const session = { accountId, sessionId, expiresAt: 1, refreshExpiresAt: 2 };
   const query = { limit: 20 };
   const scope = profileCursorScope(profileId, 'posts', query, session);
-  const at = '2001-01-01T00:00:00.000Z';
-  const cursor = encodeProfileCursor(at, id, scope);
-  assert.deepEqual(decodeProfileCursor(cursor, scope), { at, id });
-  const bytes = Buffer.from(cursor, 'base64url').toString();
-  for (const privateId of [accountId, sessionId])
-    assert.ok(!bytes.includes(privateId));
-  const alternatives = [
+  for (const alternative of [
     profileCursorScope(randomUUID(), 'posts', query, session),
     profileCursorScope(profileId, 'trading', query, session),
     profileCursorScope(profileId, 'posts', { limit: 10 }, session),
@@ -82,21 +71,10 @@ test('profile cursors bind profile, kind, subtype, viewer, session and limit wit
       { ...query, tradingSubtype: 'qiugou' },
       session,
     ),
-  ];
-  for (const other of alternatives)
-    assert.throws(() => decodeProfileCursor(cursor, other));
-  for (const corrupt of [
-    '=',
-    'x'.repeat(1025),
-    Buffer.from(JSON.stringify({ ...JSON.parse(bytes), accountId })).toString(
-      'base64url',
-    ),
-    Buffer.from(JSON.stringify({ ...JSON.parse(bytes), at: 'now' })).toString(
-      'base64url',
-    ),
-    `${cursor}=`,
   ])
-    assert.throws(() => decodeProfileCursor(corrupt, scope));
+    assert.notEqual(scope, alternative);
+  assert.ok(!scope.includes(accountId));
+  assert.ok(!scope.includes(sessionId));
 });
 
 test('profile block sources never expand report or privileged identity target kinds', () => {

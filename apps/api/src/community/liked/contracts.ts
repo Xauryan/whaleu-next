@@ -36,6 +36,8 @@ export interface LikedItem {
 }
 export interface LikedPage {
   items: LikedItem[];
-  visibleLikedCount: number;
+  visibleLikedCount: number | null;
+  visibleLikedCountStatus: 'known' | 'unavailable';
+  continuation: 'more' | 'scan_pending' | 'end';
   nextCursor: string | null;
 }

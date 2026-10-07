@@ -13,6 +13,8 @@ import {
 import { isUuid } from '../../profile/contract';
 import type {
   AvailableProfile,
+  DiscoveryContinuation,
+  DiscoveryCountStatus,
   ProfileUnavailable,
   PublicProfile,
 } from '../../profile/discovery-contract';
@@ -21,6 +23,8 @@ export interface PublicProfileView extends CommunityView {
   readonly profile: PublicProfile | null;
   readonly items: readonly Post[];
   readonly total: number | null;
+  readonly totalStatus: DiscoveryCountStatus | null;
+  readonly continuation: DiscoveryContinuation | null;
   readonly loaded: boolean;
   readonly noProfile: boolean;
   readonly selfEntry: boolean;
@@ -35,6 +39,8 @@ export const initialPublicProfileView = (): PublicProfileView => ({
   profile: null,
   items: [],
   total: null,
+  totalStatus: null,
+  continuation: null,
   loaded: false,
   noProfile: false,
   selfEntry: false,
@@ -72,6 +78,8 @@ export class PublicProfileController extends CommunityController<PublicProfileVi
       profile: null,
       items: [],
       total: null,
+      totalStatus: null,
+      continuation: null,
       loaded: false,
       noProfile: false,
       selfEntry: this.targetProfileId === null,
@@ -114,6 +122,8 @@ export class PublicProfileController extends CommunityController<PublicProfileVi
       profile,
       items: [],
       total: null,
+      totalStatus: null,
+      continuation: null,
       loaded: true,
       canLoadMore: false,
       status:
@@ -171,7 +181,11 @@ export class PublicProfileController extends CommunityController<PublicProfileVi
           return { kind: 'unavailable' as const, profile: list };
         if (list.status === 'hidden')
           return { kind: 'hidden' as const, profile };
-        if (after && list.nextCursor === after)
+        if (
+          list.nextCursor !== null &&
+          (list.nextCursor === after ||
+            this.pageCursors.slice(0, pageIndex).includes(list.nextCursor))
+        )
           throw new ClientError('protocol', 'Discovery cursor did not advance');
         return { kind: 'available' as const, profile, list };
       },
@@ -195,7 +209,9 @@ export class PublicProfileController extends CommunityController<PublicProfileVi
             ...result.profile,
             postsHidden: true,
             postCount: 0,
+            postCountStatus: 'known',
             tradeCount: 0,
+            tradeCountStatus: 'known',
           };
           this.update({
             profile,
@@ -213,21 +229,35 @@ export class PublicProfileController extends CommunityController<PublicProfileVi
         this.update({
           profile: {
             ...profile,
-            ...(tab === 'posts'
-              ? { postCount: list.total }
-              : !subtype
-                ? { tradeCount: list.total }
-                : {}),
+            ...(list.totalStatus !== 'known'
+              ? {}
+              : tab === 'posts'
+                ? { postCount: list.total, postCountStatus: list.totalStatus }
+                : !subtype
+                  ? {
+                      tradeCount: list.total,
+                      tradeCountStatus: list.totalStatus,
+                    }
+                  : {}),
           },
           items,
           total: list.total,
+          totalStatus: list.totalStatus,
+          continuation: list.continuation,
           loaded: true,
           canLoadMore: !!list.nextCursor,
           canPrevious: pageIndex > 0,
           pageNumber: pageIndex + 1,
-          status: list.total
-            ? '已读取当前可查看的公开身份内容'
-            : '当前没有可展示的公开身份内容',
+          status:
+            list.continuation === 'scan_pending'
+              ? list.items.length
+                ? '已读取部分当前可查看内容，仍有历史待核验；请继续查看'
+                : '本批暂无可查看内容，仍有历史待核验；请继续查看'
+              : list.continuation === 'end'
+                ? list.total === 0
+                  ? '当前没有可展示的公开身份内容'
+                  : '已到本次浏览末尾；刷新可重新查看最新内容'
+                : '已读取当前可查看的公开身份内容',
         });
       },
       (error) => {
@@ -236,11 +266,13 @@ export class PublicProfileController extends CommunityController<PublicProfileVi
           profile: null,
           items: [],
           total: null,
+          totalStatus: null,
+          continuation: null,
           loaded: false,
           canLoadMore: false,
           ...(error.details.serverCode === 'DISCOVERY_RESTART_REQUIRED'
             ? {
-                status: '内容已变化，请重新加载',
+                status: '分页已失效或内容已变化，请重新加载',
                 error: '旧分页已清除，请重新加载当前可查看的内容',
               }
             : {}),

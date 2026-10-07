@@ -102,7 +102,9 @@ test('public hidden/basic-visible, outgoing blocked and unavailable clear every 
         profileId,
         items: [],
         total: 0,
+        totalStatus: 'known',
         nextCursor: null,
+        continuation: 'end',
       });
     await s.controller.more();
     assert.deepEqual(s.view().items, []);
@@ -185,7 +187,9 @@ test('scope/tab change suppresses pending profile data and subtype clears when s
     profileId: id,
     items: [],
     total: 0,
+    totalStatus: 'known',
     nextCursor: null,
+    continuation: 'end',
   });
   await s.controller.setTarget(requestId);
   pending.resolve(publicProfile());
@@ -309,3 +313,266 @@ test('failed fresh reads never expose stale bodies or confirmed-zero totals', as
   assert.equal(profile.view().loaded, false);
   assert.equal(liked.view().loaded, false);
 });
+
+test('unknown page totals preserve independently known fresh basics and unknown basic counts never become zero', async () => {
+  const s = profileHarness();
+  s.behavior.profile = async () =>
+    publicProfile({
+      postCount: 7,
+      tradeCount: null,
+      tradeCountStatus: 'unavailable',
+    });
+  s.behavior.list = async () =>
+    profileList({
+      items: [],
+      total: null,
+      totalStatus: 'unavailable',
+      nextCursor: 'pending_first',
+      continuation: 'scan_pending',
+    });
+  await s.controller.load();
+  const profile = s.view().profile;
+  assert.ok(profile?.status === 'available');
+  assert.equal(profile.postCount, 7);
+  assert.equal(profile.postCountStatus, 'known');
+  assert.equal(profile.tradeCount, null);
+  assert.equal(profile.tradeCountStatus, 'unavailable');
+  assert.equal(s.view().total, null);
+  assert.equal(s.view().totalStatus, 'unavailable');
+  assert.equal(s.view().continuation, 'scan_pending');
+  assert.equal(s.view().canLoadMore, true);
+  assert.match(s.view().status, /仍有历史待核验/);
+  assert.doesNotMatch(s.view().status, /当前没有/);
+  await flush();
+  assert.equal(
+    s.calls.filter((c) => c.method === 'list').length,
+    1,
+    'No automatic scan loop',
+  );
+});
+
+for (const kind of ['profile', 'liked'] as const) {
+  test(`${kind} all-hidden scan batches and a lost continuation response never fabricate empty history or auto-advance`, async () => {
+    const s = kind === 'profile' ? profileHarness() : likedHarness();
+    let fail = false,
+      requests = 0;
+    const state = (after: string | null) => {
+      requests++;
+      if (fail) throw new ClientError('network', 'Synthetic lost response');
+      return {
+        nextCursor: after ? null : 'hidden_next',
+        continuation: after ? ('end' as const) : ('scan_pending' as const),
+      };
+    };
+    s.behavior.list = async (_id, _kind, after) =>
+      profileList({
+        items: [],
+        total: null,
+        totalStatus: 'unavailable',
+        ...state(after),
+      });
+    s.behavior.liked = async (after) =>
+      likedList({
+        items: [],
+        visibleLikedCount: null,
+        visibleLikedCountStatus: 'unavailable',
+        ...state(after),
+      });
+    await s.controller.load();
+    assert.equal(s.view().continuation, 'scan_pending');
+    await s.controller.more();
+    assert.equal(s.view().continuation, 'end');
+    assert.doesNotMatch(s.view().status, /当前没有/);
+    assert.match(s.view().status, /本次浏览末尾/);
+    await s.controller.load();
+    fail = true;
+    await s.controller.more();
+    const stoppedAt = requests;
+    await flush();
+    await s.controller.more();
+    await s.controller.previous();
+    assert.equal(requests, stoppedAt);
+    assert.equal(s.view().loaded, false);
+    assert.equal(s.view().continuation, null);
+    assert.equal(s.view().canPrevious, false);
+    assert.equal(s.view().canLoadMore, false);
+    assert.deepEqual(s.view().items, []);
+    fail = false;
+    await s.controller.load();
+    assert.equal(s.view().pageNumber, 1);
+    assert.equal(s.view().continuation, 'scan_pending');
+  });
+
+  test(`${kind} manual scanning reaches beyond 1,024 visible rows and long empty ranges without bodies or cursors in storage`, async () => {
+    const s = kind === 'profile' ? profileHarness() : likedHarness();
+    const uuid = (n: number) =>
+      `aaaaaaaa-aaaa-4aaa-8aaa-${String(n).padStart(12, '0')}`;
+    const index = (after: string | null) =>
+      after ? Number(after.slice(5)) : 0;
+    // Sixty full pages, eight hidden-only batches, then an undated oldest item and a final empty batch.
+    const ids = (n: number) =>
+      n < 60
+        ? Array.from({ length: 20 }, (_, i) => uuid(2000 - n * 20 - i))
+        : n === 68
+          ? [uuid(1)]
+          : [];
+    const state = (n: number) => ({
+      nextCursor: n < 69 ? `scan_${n + 1}` : null,
+      continuation:
+        n === 69
+          ? ('end' as const)
+          : ids(n).length
+            ? ('more' as const)
+            : ('scan_pending' as const),
+    });
+    s.behavior.profile = async () =>
+      publicProfile({
+        postCount: null,
+        postCountStatus: 'unavailable',
+        tradeCount: null,
+        tradeCountStatus: 'unavailable',
+      });
+    s.behavior.list = async (_profile, _tab, after) => {
+      const n = index(after);
+      return profileList({
+        items: ids(n).map((id) => ({ ...namedPost(), id })),
+        total: null,
+        totalStatus: 'unavailable',
+        ...state(n),
+      });
+    };
+    s.behavior.liked = async (after) => {
+      const n = index(after);
+      return likedList({
+        items: ids(n).map((id) =>
+          likedItem({
+            targetId: id,
+            postId: id,
+            likeId: id,
+            ...(n === 68 ? { likedAt: null } : {}),
+          }),
+        ),
+        visibleLikedCount: null,
+        visibleLikedCountStatus: 'unavailable',
+        ...state(n),
+      });
+    };
+    const storageBefore = [...s.storage.data];
+    await s.controller.load();
+    let seen = 0;
+    for (let n = 0; n <= 69; n++) {
+      if (n) await s.controller.more();
+      assert.equal(s.view().pageNumber, n + 1);
+      assert.equal(
+        s.view().items.length,
+        ids(n).length,
+        'Only current page bodies are retained',
+      );
+      seen += s.view().items.length;
+      assert.equal(s.view().canLoadMore, n < 69);
+      if (n >= 60 && n < 68) {
+        assert.equal(s.view().continuation, 'scan_pending');
+        assert.match(s.view().status, /仍有历史待核验/);
+        assert.doesNotMatch(s.view().status, /当前没有/);
+      }
+      if (kind === 'liked' && n === 68)
+        assert.equal(
+          (s.view().items[0] as ReturnType<typeof likedItem>).likedAt,
+          null,
+        );
+    }
+    assert.equal(seen, 1201);
+    assert.equal(s.view().continuation, 'end');
+    assert.match(s.view().status, /本次浏览末尾/);
+    assert.doesNotMatch(s.view().status, /当前没有/);
+    assert.deepEqual([...s.storage.data], storageBefore);
+    const before = s.calls.length;
+    await s.controller.more();
+    assert.equal(s.calls.length, before);
+    // Previous re-fetches the old request coordinate; no body cache is restored.
+    if (kind === 'profile')
+      s.behavior.list = async () =>
+        profileList({ items: [], total: null, totalStatus: 'unavailable' });
+    else
+      s.behavior.liked = async () =>
+        likedList({
+          items: [],
+          visibleLikedCount: null,
+          visibleLikedCountStatus: 'unavailable',
+        });
+    await s.controller.previous();
+    assert.equal(s.view().pageNumber, 69);
+    assert.deepEqual(s.view().items, []);
+    assert.equal(s.view().canLoadMore, false);
+  });
+
+  test(`${kind} empty scan retries are explicit, slow repeated clicks are bounded, and cancellation rejects late results`, async () => {
+    const s = kind === 'profile' ? profileHarness() : likedHarness();
+    s.behavior.list = async () =>
+      profileList({
+        items: [],
+        total: null,
+        totalStatus: 'unavailable',
+        nextCursor: 'pending',
+        continuation: 'scan_pending',
+      });
+    s.behavior.liked = async () =>
+      likedList({
+        items: [],
+        visibleLikedCount: null,
+        visibleLikedCountStatus: 'unavailable',
+        nextCursor: 'pending',
+        continuation: 'scan_pending',
+      });
+    await s.controller.load();
+    const gate = deferred<void>();
+    if (kind === 'profile')
+      s.behavior.profile = async () => {
+        await gate.promise;
+        return publicProfile();
+      };
+    else
+      s.behavior.liked = async () => {
+        await gate.promise;
+        return likedList();
+      };
+    const before = s.calls.length;
+    const pending = s.controller.more();
+    await flush();
+    await s.controller.more();
+    await s.controller.previous();
+    assert.equal(s.calls.length, before + 1);
+    assert.equal(s.view().busy, true);
+    assert.equal(s.view().continuation, null);
+    s.controller.cancel();
+    gate.resolve();
+    await pending;
+    assert.equal(s.view().loaded, false);
+    assert.equal(s.view().continuation, null);
+    assert.deepEqual(s.view().items, []);
+    assert.equal(s.view().canPrevious, false);
+    assert.equal(s.view().canLoadMore, false);
+  });
+
+  test(`${kind} multi-hop cursor cycles fail closed while previous-page replay remains valid`, async () => {
+    const s = kind === 'profile' ? profileHarness() : likedHarness();
+    const next = (after: string | null) =>
+      after === null ? 'first' : after === 'first' ? 'second' : 'first';
+    s.behavior.list = async (_id, _tab, after) =>
+      profileList({ nextCursor: next(after) });
+    s.behavior.liked = async (after) => likedList({ nextCursor: next(after) });
+    await s.controller.load();
+    await s.controller.more();
+    await s.controller.previous();
+    assert.equal(s.view().loaded, true);
+    assert.equal(s.view().pageNumber, 1);
+    await s.controller.more();
+    assert.equal(s.view().pageNumber, 2);
+    await s.controller.more();
+    assert.equal(s.view().loaded, false);
+    assert.equal(s.view().continuation, null);
+    assert.deepEqual(s.view().items, []);
+    assert.ok(s.view().error);
+    assert.equal(s.view().canPrevious, false);
+  });
+}

@@ -86,6 +86,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Canonical runtime-policy and test-guard snapshot `a3f815e34a74f91e146890dde25539a38198692b`: 209 API tests, 582 native-client tests and 365 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37697445029), including normal-AppModule canonical authority and exact content-review binding. This supersedes the failed container-loopback guard run for its parent `3116ef22`; the corrected guard still requires a loopback client connection and peer, a dedicated test database and the pinned PostgreSQL version. The commit signature is verified.
 - Identity-campus selection snapshot `b987a71c2b249c5bffb756712fc69526e34d930f`: 219 API tests, 618 native-client tests and 410 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37699401447), including complete canonical candidate enumeration, immutable recovery, post-wait authority races and native draft preservation. The commit signature is verified.
 - Resolved-trading contact snapshot `5d49618f6b6ce13b5ee28f47e3a4865ff6817ca8`: 219 API tests, 631 native-client tests and 420 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37700745123), including resolved-owner suppression, reopen storage preservation, current-policy lock races and stale native disclosure barriers. The commit signature is verified.
+- Public-profile and liked-history snapshot `319fd3a96b8f4cd76721f8a4300fda8b6d23e917`: 226 API tests, 670 native-client tests and 456 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37702906848), including profile privacy, exact-target liked anonymity, historic null dates and native routing/lifecycle. The commit signature is verified. The documented 1,024-candidate capacity gate remains unfinished at this snapshot.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -257,7 +258,7 @@ never initializes a profile. Missing authoritative affiliation, public school UI
 level/title and received-interaction metrics remain explicitly unavailable. Known
 historic likes retain null dates and opaque storage-record identities, rather
 than invented event times. Native next/previous reads replace pages and revalidate
-current policy instead of reusing old card bodies. **Development capacity gate:**
+current policy instead of reusing old card bodies. **Capacity at this checkpoint (superseded for paging below):**
 more than 1,024 current candidates in a public list or own liked-history set makes
 that query unavailable, including affected profile counts. Scalable all-history
 paging and exact counts are still required before full discovery/history parity;
@@ -265,3 +266,16 @@ this is not a source-imposed date or record-retention cutoff. Media, authoritati
 optional displays, provider/device acceptance and production import also remain
 open. See [public profiles](API_PUBLIC_PROFILES.md) and
 [own liked history](API_LIKED_HISTORY.md).
+
+Scalable discovery-page checkpoint: the previous whole-history query failure is
+removed from public profile pages and own liked-history traversal. Bounded scans
+and durable opaque position references can continue through hidden-only batches
+and across older or undated records without a source-age cutoff. Native screens
+distinguish scan continuation, known end and unavailable counts, and re-read prior
+pages rather than restoring cached bodies. Exact database microsecond positions
+prevent same-millisecond post skips; public timestamps remain unchanged. Small
+basic counts retain their previous bounded exact-count window, while count-only
+uncertainty or expiry can clear that field without weakening mandatory identity,
+privacy or safety checks. Exact totals for larger histories remain a separate
+release gate; an unavailable count is not zero or a claim that the history ended.
+No background cleanup job, provider or production migration was activated.

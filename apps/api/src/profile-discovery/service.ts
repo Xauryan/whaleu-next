@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.js';
-import { ApplicationError } from '../http/application-error.js';
+import { registerOptionalTransactionDeadline } from '../database/transaction-deadlines.js';
 import { IdentityService } from '../identity/identity.service.js';
 import type { SessionView } from '../identity/contracts.js';
 import { PublicProfileFacade } from '../profile/public-profile.facade.js';
@@ -16,11 +16,7 @@ import type {
   PublicProfilePage,
   UnavailableProfile,
 } from './contracts.js';
-import {
-  decodeProfileCursor,
-  encodeProfileCursor,
-  profileCursorScope,
-} from './cursor.js';
+import { profileCursorScope } from './cursor.js';
 
 type AvailableTarget = {
   status: 'available';
@@ -82,30 +78,24 @@ export class ProfileDiscoveryService {
       const session = token ? await this.identity.session(token, tx) : null;
       const target = await this.target(profileId, session, tx);
       if (target.status !== 'available') return target;
-      let postCount = 0,
-        tradeCount = 0;
-      if (!target.hidden) {
-        postCount = (
-          await this.community.eligible(
+      const postCount = target.hidden
+        ? { value: 0, status: 'known' as const, optionalUntil: null }
+        : await this.community.count(
             target.record.accountId,
             session?.accountId ?? null,
             'posts',
-            undefined,
             tx,
-          )
-        ).length;
-        tradeCount = (
-          await this.community.eligible(
+          );
+      const tradeCount = target.hidden
+        ? { value: 0, status: 'known' as const, optionalUntil: null }
+        : await this.community.count(
             target.record.accountId,
             session?.accountId ?? null,
             'trading',
-            undefined,
             tx,
-          )
-        ).length;
-      }
+          );
       if (token) await this.identity.session(token, tx);
-      return {
+      const result: Extract<PublicProfile, { status: 'available' }> = {
         status: 'available',
         profileId: target.record.profileId,
         isOwn: target.isOwn,
@@ -119,9 +109,20 @@ export class ProfileDiscoveryService {
         totalInteractions: null,
         displayAvailability: 'unavailable',
         postsHidden: target.hidden,
-        postCount,
-        tradeCount,
+        postCount: postCount.value,
+        postCountStatus: postCount.status,
+        tradeCount: tradeCount.value,
+        tradeCountStatus: tradeCount.status,
       };
+      registerOptionalTransactionDeadline(tx, postCount.optionalUntil, () => {
+        result.postCount = null;
+        result.postCountStatus = 'unavailable';
+      });
+      registerOptionalTransactionDeadline(tx, tradeCount.optionalUntil, () => {
+        result.tradeCount = null;
+        result.tradeCountStatus = 'unavailable';
+      });
+      return result;
     });
   }
 
@@ -135,7 +136,7 @@ export class ProfileDiscoveryService {
       await lockSafetyPolicy(tx);
       const session = token ? await this.identity.session(token, tx) : null;
       const scope = profileCursorScope(profileId, kind, query, session);
-      const seek = decodeProfileCursor(query.cursor, scope);
+      await this.community.validateCursor(query.cursor, scope, tx);
       const target = await this.target(profileId, session, tx);
       if (target.status !== 'available') return target;
       if (target.hidden)
@@ -144,47 +145,22 @@ export class ProfileDiscoveryService {
           profileId,
           items: [],
           total: 0,
+          totalStatus: 'known',
+          continuation: 'end',
           nextCursor: null,
         };
-      const eligible = await this.community.eligible(
+      const page = await this.community.page(
         target.record.accountId,
         session?.accountId ?? null,
         kind,
-        query.tradingSubtype,
+        query,
+        scope,
         tx,
+        async () => {
+          if (token) await this.identity.session(token, tx);
+        },
       );
-      const anchor = seek
-        ? eligible.findIndex(
-            (item) =>
-              item.post.id === seek.id &&
-              item.post.published_at.toISOString() === seek.at,
-          )
-        : -1;
-      if (seek && anchor < 0)
-        throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
-      const remaining = eligible.slice(anchor + 1);
-      const page = remaining.slice(0, query.limit);
-      const items = await this.community.project(
-        page,
-        session?.accountId ?? null,
-        tx,
-      );
-      const last = page.at(-1);
-      if (token) await this.identity.session(token, tx);
-      return {
-        status: 'available',
-        profileId,
-        items,
-        total: eligible.length,
-        nextCursor:
-          remaining.length > query.limit && last
-            ? encodeProfileCursor(
-                last.post.published_at.toISOString(),
-                last.post.id,
-                scope,
-              )
-            : null,
-      };
+      return { status: 'available', profileId, ...page };
     });
   }
 }

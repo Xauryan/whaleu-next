@@ -8,7 +8,7 @@ unsafe raw account/content projections.
 
 ## Routes and exact public states
 
-- `GET /v1/profiles/:profileId`: optional authentication; current basics and counts
+- `GET /v1/profiles/:profileId`: optional authentication; current basics and independently available counts
 - `GET /v1/profiles/:profileId/posts?limit=20&cursor=...`
 - `GET /v1/profiles/:profileId/trading?limit=20&cursor=...&tradingSubtype=qiugou`
 - `GET /v1/me/public-profile-ref`: active authentication; exactly `{profileId}`
@@ -51,7 +51,9 @@ Available basics have exactly:
   "displayAvailability": "unavailable",
   "postsHidden": false,
   "postCount": 0,
-  "tradeCount": 0
+  "postCountStatus": "known",
+  "tradeCount": 0,
+  "tradeCountStatus": "known"
 }
 ```
 
@@ -76,11 +78,11 @@ Other basic/list states are minimal and exact:
   existing revision-checked unblock; no underlying target account ID is returned
 
 An available list is exactly
-`{status:'available',profileId,items:PostView[],total,nextCursor}`. Its items are
+`{status:'available',profileId,items:PostView[],total,totalStatus,continuation,nextCursor}`. Its items are
 ordinary canonical post projections, including safe poll/formation/trade metadata.
 Chosen trading contacts, contact fallbacks and privileged identity overlays are
 absent. A privacy-hidden list is exactly
-`{status:'hidden',profileId,items:[],total:0,nextCursor:null}`. Empty available and
+`{status:'hidden',profileId,items:[],total:0,totalStatus:'known',continuation:'end',nextCursor:null}`. Empty available and
 hidden/unavailable states are different.
 
 ## Privacy and block policy
@@ -120,28 +122,66 @@ The deliberate reconciliation of inconsistent source count/list predicates is:
   Resolution neither deletes content nor changes urgency or chosen stored contacts
 - No synthetic resolved state is added to non-trading posts
 
-The community owner computes a complete current eligible set, then obtains both
-count and page from that same set. It enumerates at most 1,025 named candidates
-per list kind, locks/rechecks at most 1,024 in deterministic post-ID order, and
-fails `503 COMMUNITY_UNAVAILABLE` on overflow. Basic counts evaluate each kind
-with the same bound. There is no age cutoff, unfiltered total or false end when
-coverage is unknown. This is a whole-history development capacity limit: above
-the bound all available pages/counts for that kind fail, not just one slow page.
-Scalable public/liked history and current-policy counts are an explicit open
-release/parity gate; this checkpoint does not preserve arbitrary-size discovery
-yet. Existing own minimal recovery remains separately pageable. Only selected
-page items are serialized; nested canonical
-serializers retain their independent bounded checks.
+The community owner scans at most 128 candidate positions per call, querying and
+locking at most 129 candidates plus a prior visible guard in deterministic post-ID
+order. An index-backed `(published_at DESC,id DESC)` keyset makes every forward
+scan advance without a source-history date or reachable-page cutoff. A second
+bounded read after locking rejects an unstable newly introduced target rather
+than projecting an unlocked row. Only requested visible items are serialized.
+Nested canonical serializers retain their independent bounded checks.
 
-`limit` is a strict decimal query string from 1 to 50, default 20. Order is
-published time descending, then public content UUID descending. The strict
-canonical-base64url cursor binds kind, target profile, subtype, page size, viewer
-and authenticated session through an opaque hash. It includes only the last
-visible post's ID and time, never a private account/session value or skipped-row
-anchor. The current eligible set must still contain the exact anchor and time;
-a deleted/hidden/ineligible anchor returns `409 DISCOVERY_RESTART_REQUIRED`.
-Clients clear and restart rather than preserve a stale page. Cross-profile, kind,
-subtype, size, viewer/session or malformed cursors reject with `400 BAD_REQUEST`.
+Counts are separate from list availability. `postCount`/`tradeCount` and list
+`total` are `number|null`, paired respectively with `postCountStatus`,
+`tradeCountStatus` and `totalStatus` (`known|unavailable`). Known is an exact current
+policy-filtered value. Null is never zero or an unfiltered estimate. Basics retain
+positive exact counts when a bounded complete scan of at most 1,024 candidates
+proves them. Larger histories leave basics available with unavailable counts.
+Count-only current-review/dependency uncertainty may also make that count
+unavailable, without weakening mandatory profile privacy, active target, session
+or bilateral-safety checks. Each optional count has a savepoint and deadline
+checkpoint; classified count-only failure rolls back its work. Successful count
+source locks remain through commit, while separate optional expiry callbacks
+change only that count and status after deferred waits and the final database
+clock. Unexpected database/program errors still fail the request.
+
+List counts are known only when this same from-start page scan proves complete
+candidate exhaustion. A page that stops at its visible limit or scan budget, and
+every continuation page including a terminal one, returns null/unavailable.
+Scalable exact-count ownership and batching remain a separate unfinished phase;
+page traversal does not establish complete discovery parity.
+
+`continuation` explicitly separates `more` (visible page limit reached with
+remaining candidates), `scan_pending` (scan budget reached before the page filled,
+possibly with no visible items), and `end` (candidate exhaustion established).
+Both nonterminal states carry `nextCursor`; only end uses null. A filtered batch
+is never a confirmed empty history. Clients offer a deliberate Continue action
+for scan_pending rather than polling indefinitely. More does not promise that the
+next candidate will be visible.
+
+`limit` is a strict decimal string from 1 to 50, default 20. Wire cursors are
+canonical base64url references containing 32 random bytes only. Additive migration
+0020 stores private immutable versioned seek/guard coordinates server-side,
+binding target, kind, subtype, page size, viewer and authenticated session through
+a scope hash. No body, contacts, authorization grant or skipped anchor enters the
+token. The prior visible item is rechecked even across hidden-only scan hops;
+its deletion, changed timestamp or lost eligibility returns
+`409 DISCOVERY_RESTART_REQUIRED`. A fresh first page can reach remaining history.
+Private skipped anchors are position only and are never required to stay visible.
+Private profile coordinates preserve PostgreSQL microseconds, so source timestamps
+sharing a displayed millisecond remain separately reachable.
+Malformed/cross-context references return 400; missing, expired or corrupt stored
+coordinates require generic 409 restart. Refresh within the same session keeps
+scope; another session or guest/auth transition does not.
+
+Each input coordinate is immutable. Replaying it freshly scans the current source
+from that position, never a saved body or advanced pointer. An unchanged output
+coordinate deduplicates to the same live reference; live changes may produce a
+different authorized page and successor. References expire after 24 hours without
+renewal. Per-account 256 and shared-guest 1,024 reference caps evict older navigation
+references, requiring a safe restart for old Previous links, without imposing any
+maximum forward traversal length. Bounded cleanup deletes only expired derived
+cursor records; no scheduled job is activated. Content and memberships are never
+removed by cursor expiry or quota eviction.
 
 This is live pagination, not a frozen multi-request snapshot. Newly inserted rows
 before an anchor appear on refresh; deletions, moderation, privacy or blocks are
@@ -188,6 +228,6 @@ provider/device/migration acceptance remain required separate parity work.
 Disposable canonical AppModule tests cover current eligible counts/pages,
 privacy/block directions, strict selectors/cursors, current target availability,
 unknown/expired coverage, privacy/lifecycle lock ordering, post-wait expiry and
-honest overflow. Native gateway roundtrips, lifecycle/controller tests and build
+bounded progress, optional-count expiry and opaque-cursor retention. Native gateway roundtrips, lifecycle/controller tests and build
 smokes supplement these. They are not real-device, production-provider, migration
 reconciliation or public deployment acceptance.

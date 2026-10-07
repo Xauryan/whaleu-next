@@ -77,8 +77,10 @@ export async function smokeProfileDiscovery({
     totalInteractions: null,
     displayAvailability: 'unavailable',
     postsHidden: hidden,
-    postCount: hidden ? 0 : 2,
+    postCount: hidden ? 0 : scanMode ? null : 2,
+    postCountStatus: hidden || !scanMode ? 'known' : 'unavailable',
     tradeCount: 0,
+    tradeCountStatus: 'known',
   });
   const blocked = () => ({
     status: 'blocked_by_you',
@@ -110,6 +112,8 @@ export async function smokeProfileDiscovery({
     loseBlock = true,
     ownRef = profileId,
     sequence = 1,
+    scanMode = false,
+    expireCursor = false,
     listGate;
   const api = new ApiClient(
     'https://api.example',
@@ -129,6 +133,33 @@ export async function smokeProfileDiscovery({
           assert.equal(request.method, 'GET');
           assert.equal(request.body, undefined);
           const after = url.searchParams.get('cursor');
+          if (scanMode && !hidden && !isBlocked) {
+            if (after && expireCursor)
+              return {
+                status: 409,
+                headers: {},
+                body: { error: { code: 'DISCOVERY_RESTART_REQUIRED' } },
+              };
+            const n = after ? Number(after.split('_').pop()) : 0;
+            return response({
+              status: 'available',
+              profileId,
+              items:
+                n < 2
+                  ? []
+                  : [
+                      {
+                        ...namedPost(),
+                        id: secondId,
+                        publishedAt: '2001-01-01T00:00:00.000Z',
+                      },
+                    ],
+              total: null,
+              totalStatus: 'unavailable',
+              nextCursor: n < 2 ? `profile_scan_${n + 1}` : null,
+              continuation: n < 2 ? 'scan_pending' : 'end',
+            });
+          }
           const body = isBlocked
             ? blocked()
             : hidden
@@ -137,7 +168,9 @@ export async function smokeProfileDiscovery({
                   profileId,
                   items: [],
                   total: 0,
+                  totalStatus: 'known',
                   nextCursor: null,
+                  continuation: 'end',
                 }
               : {
                   status: 'available',
@@ -151,6 +184,9 @@ export async function smokeProfileDiscovery({
                         },
                       ],
                   total: url.pathname.endsWith('/trading') ? 0 : 2,
+                  totalStatus: 'known',
+                  continuation:
+                    after || url.pathname.endsWith('/trading') ? 'end' : 'more',
                   nextCursor:
                     after || url.pathname.endsWith('/trading')
                       ? null
@@ -165,6 +201,22 @@ export async function smokeProfileDiscovery({
         }
         if (url.pathname === '/v1/me/community/liked') {
           const after = url.searchParams.get('cursor');
+          if (scanMode) {
+            if (after && expireCursor)
+              return {
+                status: 409,
+                headers: {},
+                body: { error: { code: 'DISCOVERY_RESTART_REQUIRED' } },
+              };
+            const n = after ? Number(after.split('_').pop()) : 0;
+            return response({
+              items: n < 2 ? [] : [like(secondId, anonymousId, null)],
+              visibleLikedCount: null,
+              visibleLikedCountStatus: 'unavailable',
+              nextCursor: n < 2 ? `liked_scan_${n + 1}` : null,
+              continuation: n < 2 ? 'scan_pending' : 'end',
+            });
+          }
           return response({
             items: [
               like(
@@ -174,7 +226,9 @@ export async function smokeProfileDiscovery({
               ),
             ],
             visibleLikedCount: 2,
+            visibleLikedCountStatus: 'known',
             nextCursor: after ? null : 'liked_second',
+            continuation: after ? 'end' : 'more',
           });
         }
         if (url.pathname.startsWith('/v1/me/safety/block-requests/'))
@@ -303,6 +357,72 @@ export async function smokeProfileDiscovery({
     await flush();
     assert.equal(page.data.pageNumber, 1);
     page.onUnload();
+    scanMode = true;
+    for (const route of ['public-profile', 'community-liked']) {
+      const scan = mount(
+        route,
+        route === 'public-profile' ? { profileId } : undefined,
+      );
+      await flush();
+      assert.equal(scan.data.loaded, true);
+      assert.equal(scan.data.continuation, 'scan_pending');
+      assert.equal(scan.data.canLoadMore, true);
+      assert.deepEqual(scan.data.items, []);
+      assert.doesNotMatch(scan.data.status, /当前没有/);
+      if (route === 'public-profile') {
+        assert.equal(scan.data.profile.postCount, null);
+        assert.equal(scan.data.profile.postCountStatus, 'unavailable');
+        assert.equal(scan.data.total, null);
+      } else assert.equal(scan.data.visibleLikedCount, null);
+      const before = requests.length;
+      await flush();
+      assert.equal(
+        requests.length,
+        before,
+        'No automatic polling through hidden batches',
+      );
+      scan.onMore();
+      scan.onMore();
+      await flush();
+      assert.equal(scan.data.pageNumber, 2);
+      assert.equal(scan.data.continuation, 'scan_pending');
+      assert.deepEqual(scan.data.items, []);
+      scan.onMore();
+      await flush();
+      assert.equal(scan.data.pageNumber, 3);
+      assert.equal(scan.data.items.length, 1);
+      assert.equal(scan.data.continuation, 'end');
+      assert.equal(scan.data.canLoadMore, false);
+      if (route === 'community-liked')
+        assert.equal(scan.data.items[0].likedAt, null);
+      else
+        assert.equal(
+          scan.data.items[0].publishedAt,
+          '2001-01-01T00:00:00.000Z',
+        );
+      scan.onPrevious();
+      await flush();
+      assert.deepEqual(scan.data.items, []);
+      assert.equal(scan.data.continuation, 'scan_pending');
+      expireCursor = true;
+      scan.onMore();
+      await flush();
+      assert.equal(scan.data.loaded, false);
+      assert.equal(scan.data.continuation, null);
+      assert.equal(scan.data.canLoadMore, false);
+      assert.match(scan.data.status, /分页已失效/);
+      assert.deepEqual(scan.data.items, []);
+      expireCursor = false;
+      scan.onReload();
+      await flush();
+      assert.equal(scan.data.pageNumber, 1);
+      assert.equal(scan.data.continuation, 'scan_pending');
+      scan.onHide();
+      assert.equal(scan.data.continuation, null);
+      assert.deepEqual(scan.data.items, []);
+      scan.onUnload();
+    }
+    scanMode = false;
     ownRef = null;
     const own = mount('public-profile', {});
     await flush();
@@ -441,6 +561,9 @@ export async function smokeProfileDiscovery({
       'utf8',
     );
     assert.match(template, /时间未知/);
+    assert.match(template, /准确总数暂不可用/);
+    assert.match(template, /continuation === 'end'/);
+    assert.match(template, /scan_pending.*继续查看/);
     assert.equal(
       /rich-text|style="\{\{|openid|studentNumber/.test(template),
       false,
@@ -451,6 +574,9 @@ export async function smokeProfileDiscovery({
     );
     assert.match(profileTemplate, /上一页/);
     assert.match(profileTemplate, /下一页/);
+    assert.match(profileTemplate, /总数暂不可用/);
+    assert.match(profileTemplate, /continuation === 'end'/);
+    assert.match(profileTemplate, /scan_pending.*继续查看/);
     assert.equal(
       /加载更多|累计|lifetime|rich-text|style="\{\{/.test(profileTemplate),
       false,
@@ -475,6 +601,6 @@ export async function smokeProfileDiscovery({
     );
   }
   console.log(
-    'Public-profile compiled native smoke passed: strict real gateway, privacy-aware next/previous, null self-ref, undated liked history, profile-sourced lost-response block recovery, hide clearing and canonical named-only author navigation',
+    'Public-profile compiled native smoke passed: strict nullable counts and manual scan continuation, privacy-aware next/previous, explicit expired-cursor reload, null self-ref, old and undated history, profile-sourced lost-response block recovery, hide clearing and canonical named-only author navigation',
   );
 }

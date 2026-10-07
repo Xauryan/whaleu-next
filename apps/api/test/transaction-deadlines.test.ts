@@ -8,6 +8,7 @@ import {
   checkpointTransactionDeadlines,
   clearTransactionDeadlines,
   registerTransactionDeadline,
+  registerOptionalTransactionDeadline,
   restoreTransactionDeadlines,
   startTransactionDeadlines,
 } from '../src/database/transaction-deadlines.js';
@@ -249,4 +250,80 @@ test('an invalid final clock cannot silently allow a transaction with deadlines'
   );
   assert.deepEqual(f.commands, ['BEGIN', immediate, clock, 'ROLLBACK']);
   assert.deepEqual(f.releases, [false]);
+});
+
+test('optional-only deadlines use the final database clock and downgrade independent fields after waits', async () => {
+  const f = fixture();
+  f.state.beforeImmediate = async () => {
+    f.state.now = new Date(200);
+  };
+  const result = await inTransaction(f.pool, async (tx) => {
+    const value = {
+      posts: 4 as number | null,
+      postStatus: 'known',
+      trades: 3 as number | null,
+      tradeStatus: 'known',
+    };
+    registerOptionalTransactionDeadline(tx, 200, () => {
+      value.posts = null;
+      value.postStatus = 'unavailable';
+    });
+    registerOptionalTransactionDeadline(tx, 201, () => {
+      value.trades = null;
+      value.tradeStatus = 'unavailable';
+    });
+    return value;
+  });
+  assert.deepEqual(result, {
+    posts: null,
+    postStatus: 'unavailable',
+    trades: 3,
+    tradeStatus: 'known',
+  });
+  assert.deepEqual(f.commands, ['BEGIN', immediate, clock, 'COMMIT']);
+  f.commands.length = 0;
+  await inTransaction(f.pool, async () => 1);
+  assert.deepEqual(f.commands, ['BEGIN', 'COMMIT']);
+});
+test('mandatory same-code proof wins over optional fallback and savepoint restoration prunes inner callbacks', async () => {
+  const f = fixture();
+  let baselineCallback = 0,
+    discardedCallback = 0;
+  startTransactionDeadlines(f.tx);
+  registerTransactionDeadline(f.tx, 101, 'COMMUNITY_UNAVAILABLE');
+  registerOptionalTransactionDeadline(f.tx, 100, () => baselineCallback++);
+  const baseline = checkpointTransactionDeadlines(f.tx);
+  registerTransactionDeadline(f.tx, 50, 'COMMUNITY_UNAVAILABLE');
+  registerOptionalTransactionDeadline(f.tx, 50, () => discardedCallback++);
+  restoreTransactionDeadlines(f.tx, baseline);
+  await checkTransactionDeadlines(f.tx);
+  assert.equal(baselineCallback, 1);
+  assert.equal(discardedCallback, 0);
+  f.state.now = new Date(101);
+  await assert.rejects(
+    checkTransactionDeadlines(f.tx),
+    errorIs('COMMUNITY_UNAVAILABLE'),
+  );
+  assert.equal(
+    baselineCallback,
+    1,
+    'mandatory denial occurs before optional callbacks',
+  );
+  clearTransactionDeadlines(f.tx);
+  await checkTransactionDeadlines(f.tx);
+  assert.equal(baselineCallback, 1);
+});
+test('optional callback failures and unexpected database errors cannot become successful profiles', async () => {
+  const f = fixture(),
+    failure = new Error('Synthetic optional callback bug');
+  await assert.rejects(
+    inTransaction(f.pool, async (tx) => {
+      registerOptionalTransactionDeadline(tx, 0, () => {
+        throw failure;
+      });
+      return 'not returned';
+    }),
+    (error) => error === failure,
+  );
+  assert.equal(f.commands.at(-1), 'ROLLBACK');
 });

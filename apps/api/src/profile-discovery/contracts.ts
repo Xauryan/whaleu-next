@@ -48,8 +48,10 @@ export type PublicProfile =
       totalInteractions: null;
       displayAvailability: 'unavailable';
       postsHidden: boolean;
-      postCount: number;
-      tradeCount: number;
+      postCount: number | null;
+      postCountStatus: 'known' | 'unavailable';
+      tradeCount: number | null;
+      tradeCountStatus: 'known' | 'unavailable';
     };
 export type PublicProfilePage =
   | UnavailableProfile
@@ -57,6 +59,8 @@ export type PublicProfilePage =
       status: 'available' | 'hidden';
       profileId: string;
       items: PostView[];
-      total: number;
+      total: number | null;
+      totalStatus: 'known' | 'unavailable';
+      continuation: 'more' | 'scan_pending' | 'end';
       nextCursor: string | null;
     };

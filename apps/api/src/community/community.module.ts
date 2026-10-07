@@ -1,4 +1,5 @@
 import { VerificationModule } from '../verification/verification.module.js';
+import { DiscoveryCursorRepository } from './discovery-cursors.js';
 import { CommunityProfileDiscoveryFacade } from './profile-discovery.facade.js';
 import { LikedHistoryController } from './liked/controller.js';
 import { LikedHistoryService } from './liked/service.js';
@@ -274,6 +275,7 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    DiscoveryCursorRepository,
     LikedHistoryService,
     LikedHistoryRepository,
     CommunityProfileDiscoveryFacade,

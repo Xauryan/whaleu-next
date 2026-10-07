@@ -16,6 +16,8 @@ import {
 } from '../community/contract';
 import { bioError, isUuid } from './contract';
 
+export type DiscoveryCountStatus = 'known' | 'unavailable';
+export type DiscoveryContinuation = 'more' | 'scan_pending' | 'end';
 export type ProfileUnavailable =
   | { readonly status: 'unavailable'; readonly profileId: string }
   | {
@@ -37,8 +39,10 @@ export interface AvailableProfile {
   readonly totalInteractions: null;
   readonly displayAvailability: 'unavailable';
   readonly postsHidden: boolean;
-  readonly postCount: number;
-  readonly tradeCount: number;
+  readonly postCount: number | null;
+  readonly postCountStatus: DiscoveryCountStatus;
+  readonly tradeCount: number | null;
+  readonly tradeCountStatus: DiscoveryCountStatus;
 }
 export type PublicProfile = AvailableProfile | ProfileUnavailable;
 export type ProfileList =
@@ -47,8 +51,10 @@ export type ProfileList =
       readonly status: 'available' | 'hidden';
       readonly profileId: string;
       readonly items: readonly Post[];
-      readonly total: number;
+      readonly total: number | null;
+      readonly totalStatus: DiscoveryCountStatus;
       readonly nextCursor: string | null;
+      readonly continuation: DiscoveryContinuation;
     };
 export interface OwnProfileRef {
   readonly profileId: string | null;
@@ -70,11 +76,27 @@ export interface LikedItem {
 }
 export interface LikedList {
   readonly items: readonly LikedItem[];
-  readonly visibleLikedCount: number;
+  readonly visibleLikedCount: number | null;
+  readonly visibleLikedCountStatus: DiscoveryCountStatus;
   readonly nextCursor: string | null;
+  readonly continuation: DiscoveryContinuation;
 }
 const count = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+const countState = (value: unknown, status: unknown): boolean =>
+  status === 'known'
+    ? count(value)
+    : status === 'unavailable' && value === null;
+function continuationState(
+  value: unknown,
+  next: unknown,
+  itemCount: number,
+): boolean {
+  if (!cursor(next)) return false;
+  if (value === 'end') return next === null;
+  if (value === 'scan_pending') return next !== null;
+  return value === 'more' && next !== null && itemCount > 0;
+}
 function unavailable(value: unknown): ProfileUnavailable {
   if (!isRecord(value) || !isUuid(value.profileId)) invalid();
   if (value.status === 'unavailable') {
@@ -108,7 +130,9 @@ export function decodePublicProfile(value: unknown): PublicProfile {
     'displayAvailability',
     'postsHidden',
     'postCount',
+    'postCountStatus',
     'tradeCount',
+    'tradeCountStatus',
   ]);
   if (
     !isUuid(value.profileId) ||
@@ -124,8 +148,8 @@ export function decodePublicProfile(value: unknown): PublicProfile {
     value.totalInteractions !== null ||
     value.displayAvailability !== 'unavailable' ||
     typeof value.postsHidden !== 'boolean' ||
-    !count(value.postCount) ||
-    !count(value.tradeCount) ||
+    !countState(value.postCount, value.postCountStatus) ||
+    !countState(value.tradeCount, value.tradeCountStatus) ||
     (value.postsHidden &&
       (value.isOwn || value.postCount !== 0 || value.tradeCount !== 0))
   )
@@ -136,15 +160,26 @@ export function decodeProfileList(value: unknown): ProfileList {
   if (!isRecord(value)) invalid();
   if (!['available', 'hidden'].includes(value.status as string))
     return unavailable(value);
-  exact(value, ['status', 'profileId', 'items', 'total', 'nextCursor']);
+  exact(value, [
+    'status',
+    'profileId',
+    'items',
+    'total',
+    'totalStatus',
+    'nextCursor',
+    'continuation',
+  ]);
   if (
     !isUuid(value.profileId) ||
     !Array.isArray(value.items) ||
     value.items.length > 50 ||
-    !count(value.total) ||
-    value.items.length > value.total ||
-    !cursor(value.nextCursor) ||
-    (!value.items.length && value.nextCursor !== null) ||
+    !countState(value.total, value.totalStatus) ||
+    (count(value.total) && value.items.length > value.total) ||
+    !continuationState(
+      value.continuation,
+      value.nextCursor,
+      value.items.length,
+    ) ||
     (value.status === 'hidden' &&
       (value.items.length !== 0 ||
         value.total !== 0 ||
@@ -165,8 +200,10 @@ export function decodeProfileList(value: unknown): ProfileList {
     status: value.status as 'available' | 'hidden',
     profileId: value.profileId,
     items: Object.freeze(items),
-    total: value.total,
-    nextCursor: value.nextCursor,
+    total: value.total as number | null,
+    totalStatus: value.totalStatus as DiscoveryCountStatus,
+    nextCursor: value.nextCursor as string | null,
+    continuation: value.continuation as DiscoveryContinuation,
   });
 }
 export function decodeOwnProfileRef(value: unknown): OwnProfileRef {
@@ -236,14 +273,20 @@ export function decodeLikedItem(value: unknown): LikedItem {
   });
 }
 export function decodeLikedList(value: unknown): LikedList {
-  exact(value, ['items', 'visibleLikedCount', 'nextCursor']);
+  exact(value, [
+    'items',
+    'visibleLikedCount',
+    'visibleLikedCountStatus',
+    'nextCursor',
+    'continuation',
+  ]);
   if (
     !Array.isArray(value.items) ||
     value.items.length > 50 ||
-    !count(value.visibleLikedCount) ||
-    value.items.length > value.visibleLikedCount ||
-    !cursor(value.nextCursor) ||
-    (!value.items.length && value.nextCursor !== null)
+    !countState(value.visibleLikedCount, value.visibleLikedCountStatus) ||
+    (count(value.visibleLikedCount) &&
+      value.items.length > value.visibleLikedCount) ||
+    !continuationState(value.continuation, value.nextCursor, value.items.length)
   )
     invalid();
   const items = value.items.map(decodeLikedItem);
@@ -255,7 +298,10 @@ export function decodeLikedList(value: unknown): LikedList {
     invalid();
   return Object.freeze({
     items: Object.freeze(items),
-    visibleLikedCount: value.visibleLikedCount,
-    nextCursor: value.nextCursor,
+    visibleLikedCount: value.visibleLikedCount as number | null,
+    visibleLikedCountStatus:
+      value.visibleLikedCountStatus as DiscoveryCountStatus,
+    nextCursor: value.nextCursor as string | null,
+    continuation: value.continuation as DiscoveryContinuation,
   });
 }

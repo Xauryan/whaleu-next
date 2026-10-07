@@ -191,3 +191,112 @@ for (const login of ['same', 'other'] as const)
       await assert.rejects(running, { kind: 'stale-session' });
     }
   });
+
+test('real transport admits empty opaque continuation and nullable counts without selector changes', async () => {
+  const s = setup(),
+    cancel = new Cancellation();
+  const profile = publicProfile({
+    postCount: null,
+    postCountStatus: 'unavailable',
+  });
+  const list = profileList({
+    items: [],
+    total: null,
+    totalStatus: 'unavailable',
+    continuation: 'scan_pending',
+    nextCursor: 'd1_opaque_ref',
+  });
+  const likes = likedList({
+    items: [],
+    visibleLikedCount: null,
+    visibleLikedCountStatus: 'unavailable',
+    continuation: 'scan_pending',
+    nextCursor: 'd1_liked_ref',
+  });
+  s.transport.reply(profile);
+  assert.deepEqual(await s.gateway.profile(profileId, cancel), profile);
+  s.transport.reply(list);
+  assert.deepEqual(
+    await s.gateway.list(profileId, 'posts', null, cancel),
+    list,
+  );
+  s.transport.reply(likes);
+  assert.deepEqual(await s.gateway.liked(null, cancel), likes);
+  s.transport.reply(
+    likedList({
+      items: [],
+      visibleLikedCount: null,
+      visibleLikedCountStatus: 'unavailable',
+      continuation: 'end',
+    }),
+  );
+  const terminal = await s.gateway.liked('d1_liked_ref', cancel);
+  assert.equal(terminal.visibleLikedCount, null);
+  assert.equal(terminal.continuation, 'end');
+  assert.equal(terminal.nextCursor, null);
+  assert.match(s.transport.requests[3]!.url, /cursor=d1_liked_ref$/);
+  assert.ok(
+    s.transport.requests.every(
+      (r) => r.method === 'GET' && r.body === undefined,
+    ),
+  );
+});
+
+test('lost or expired cursor state remains explicit restart with no automatic first-page substitute', async () => {
+  for (const kind of ['profile', 'liked'] as const) {
+    const s = setup(),
+      cancel = new Cancellation();
+    s.transport.reply(
+      {
+        error: {
+          code: 'DISCOVERY_RESTART_REQUIRED',
+          message: 'private scan coordinate',
+        },
+      },
+      409,
+    );
+    await assert.rejects(
+      kind === 'profile'
+        ? s.gateway.list(profileId, 'posts', 'd1_missing_ref', cancel)
+        : s.gateway.liked('d1_missing_ref', cancel),
+      (error: unknown) => {
+        assert.ok(error instanceof Error && 'details' in error);
+        assert.equal(
+          (error.details as { serverCode: string }).serverCode,
+          'DISCOVERY_RESTART_REQUIRED',
+        );
+        assert.doesNotMatch(error.message, /private scan/);
+        return true;
+      },
+    );
+    assert.equal(s.transport.requests.length, 1);
+    assert.match(s.transport.requests[0]!.url, /cursor=d1_missing_ref$/);
+  }
+});
+
+test('access-token rotation replays the same opaque coordinate once within the same session', async () => {
+  const s = setup(),
+    cancel = new Cancellation();
+  const sessionId = s.sessions.snapshot().credentials!.sessionId;
+  s.transport.reply({ error: { code: 'ACCESS_TOKEN_EXPIRED' } }, 401);
+  s.transport.reply(
+    likedList({
+      items: [],
+      visibleLikedCount: null,
+      visibleLikedCountStatus: 'unavailable',
+      continuation: 'scan_pending',
+      nextCursor: 'opaque_second',
+    }),
+  );
+  const page = await s.gateway.liked('opaque_first', cancel);
+  assert.equal(page.continuation, 'scan_pending');
+  assert.equal(s.refreshes(), 1);
+  assert.equal(s.sessions.snapshot().credentials!.sessionId, sessionId);
+  assert.equal(s.transport.requests.length, 2);
+  assert.equal(s.transport.requests[0]!.url, s.transport.requests[1]!.url);
+  assert.match(s.transport.requests[1]!.url, /cursor=opaque_first$/);
+  assert.notEqual(
+    s.transport.requests[0]!.headers.Authorization,
+    s.transport.requests[1]!.headers.Authorization,
+  );
+});

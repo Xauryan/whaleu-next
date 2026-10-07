@@ -210,15 +210,17 @@ not issue verification, infer historical selections or change browsing campus.
 
 Public author pages now use existing public profile IDs, current active-account
 checks, dedicated bilateral safety policy and locked profile-history preferences.
-Community supplies contact-free canonical post/trading pages and exact counts from
-the same eligible set. Own public-reference reads remain nonmutating; untouched
+Community supplies contact-free canonical post/trading pages with separately
+classified current counts. Own public-reference reads remain nonmutating; untouched
 accounts return null. The self-only liked list independently projects post/root/
 reply authors and retains undated known-owned memberships without invented dates.
 
-These are bounded development slices: more than 1,024 candidates makes the whole
-corresponding history/count unavailable, including basic profile reads whose
-counts exceed capacity. Scalable current-policy history/counts, optional public
-UID/title/media/affiliation/experience/received-interaction owners and full native-
-device/provider/migration acceptance remain explicit release/parity gates. See
+Pages now make bounded forward progress through arbitrary-length history using
+private durable opaque cursor coordinates; hidden-only batches return explicit
+scan continuation. Small safely proven basic counts remain exact; unavailable
+counts are null and do not block authorized pages. Scalable exact current-policy
+counts, optional public UID/title/media/affiliation/experience/received-interaction
+owners and full native-device/provider/migration acceptance remain explicit
+release/parity gates. See
 [public profiles](../../docs/API_PUBLIC_PROFILES.md) and
 [own liked history](../../docs/API_LIKED_HISTORY.md).
