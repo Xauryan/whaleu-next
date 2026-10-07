@@ -68,6 +68,7 @@ export interface ComposeView extends CommunityView {
   readonly canDisableComments: boolean;
   readonly frozen: boolean;
   readonly canSubmit: boolean;
+  readonly canOpenIdentityCampus: boolean;
   readonly blocker: string;
   readonly mediaNotice: string;
   readonly maxText: number;
@@ -96,6 +97,7 @@ export const initialComposeView = (): ComposeView => ({
   canDisableComments: false,
   frozen: false,
   canSubmit: false,
+  canOpenIdentityCampus: false,
   blocker: '',
   mediaNotice: '图片上传、预览与审核尚未接入，暂不能添加图片',
   maxText: 2500,
@@ -756,6 +758,8 @@ export class ComposeController extends CommunityController<ComposeView> {
     this.update({
       blocker,
       canSubmit: !blocker && !this.view.frozen && this.view.loaded,
+      canOpenIdentityCampus:
+        this.draftSaved && !this.view.frozen && this.view.loaded,
       effectiveIdentity:
         this.view.authorMode === 'anonymous'
           ? this.view.identityForced

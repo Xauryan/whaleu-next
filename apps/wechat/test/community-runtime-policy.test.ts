@@ -157,7 +157,7 @@ test('missing approval and unknown authority never become terminal publication r
   assert.match(reasonMessage('CONTENT_REVIEW_UNAVAILABLE'), /尚未开放审核/);
   assert.match(
     reasonMessage('IDENTITY_CAMPUS_REQUIRED'),
-    /尚未开放身份校区选择/,
+    /身份校区页面明确选择/,
   );
   assert.match(
     reasonMessage('STUDENT_VERIFICATION_REQUIRED'),

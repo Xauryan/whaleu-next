@@ -2,7 +2,10 @@
 
 These are private owner facades, exported by `CampusModule`. They never read a
 profile's browsing campus, public school code, phone value or student number.
-There are no write providers, routes, seeds or startup data. An empty migrated
+The original community authority readers remain read-only. The separate own-account
+selector adds explicit current-choice writes only; see
+[the selector contract](../../../../../docs/API_IDENTITY_CAMPUS.md). There are no
+topology/configuration write providers, seeds or startup data. An empty migrated
 application cannot infer either an identity choice or community configuration.
 
 ## Owner API
@@ -146,9 +149,10 @@ including future writers; head locking alone is not a substitute. All six new
 owned tables additionally enforce the exclusive gate using BEFORE STATEMENT
 INSERT/UPDATE/DELETE triggers, before their statement's row locks. Multi-statement
 writers must still acquire it before any earlier SELECT FOR UPDATE; a later
-trigger cannot repair locks already taken. Existing active-campus/assignment/
-region tables are not changed by this slice. Their future writers must follow
-the same outer-gate protocol. Campus resolution share-locks the singleton topology head, then the account selection
+trigger cannot repair locks already taken. Migration 0017 subsequently adds the same statement gates to institutions,
+campuses, regions and assignments, including catalog inserts/deletes, so complete
+option enumeration is phantom-safe. Future multi-statement writers must still
+follow the same outer-gate-first protocol. Campus resolution share-locks the singleton topology head, then the account selection
 head. It separately reads the immutable records after acquiring those locks, so
 an initially null pointer is stable and a waited-on head is reread consistently.
 Required active regions are share-locked in UUID order, followed by the physical
@@ -171,5 +175,6 @@ Every successful owner read checks a fresh database clock after all potential
 waits and registers its locked deadlines for the final post-deferred-constraint
 transaction check. No network or provider work occurs under these locks.
 
-Production topology/configuration administration, identity-selection UX and
-trusted fact issuance remain separate unfinished work.
+Production topology/configuration administration and trusted fact issuance remain
+separate unfinished work. Explicit own-account selection is now implemented by
+IdentityCampusModule, without changing these readers' authorization contract.

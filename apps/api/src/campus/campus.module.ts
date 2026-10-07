@@ -1,3 +1,4 @@
+import { IdentitySelectionRepository } from './community-policy/identity-selection.repository.js';
 import { Controller, Get, Inject, Module, Query } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.js';
 import { SchemaValidationPipe } from '../http/validation.js';
@@ -45,11 +46,13 @@ export class OperatingRegionController {
     CampusRepository,
     CampusService,
     CampusCommunityPolicyService,
+    IdentitySelectionRepository,
     RegionalCommunityPolicyService,
   ],
   exports: [
     CampusService,
     CampusCommunityPolicyService,
+    IdentitySelectionRepository,
     RegionalCommunityPolicyService,
   ],
 })

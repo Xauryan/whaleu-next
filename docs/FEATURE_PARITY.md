@@ -83,6 +83,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Local Updates snapshot `43faae3927ee1c81a42a9b00fa94bc79b866425b`: 125 API tests, 482 native-client tests and 261 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37682737147), including persisted notices, owner read state and durable automatic processing. The commit signature is verified.
 - Named-block snapshot `b3fb9c283f69bc776b4e71fd11e2d8a43769df6d`: 165 API tests, 515 native-client tests and 291 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37688226424), including directional policy, immutable recovery, anonymous isolation and native state invalidation. The commit signature is verified.
 - Reports/jury snapshot `0f8e1d07bb4cedcd55a99b7188b77a0c1e8bc067`: 183 API tests, 575 native-client tests and 325 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37693021034), including deterministic removal, durable settlement and owner-only system notices. The commit signature is verified.
+- Canonical runtime-policy and test-guard snapshot `a3f815e34a74f91e146890dde25539a38198692b`: 209 API tests, 582 native-client tests and 365 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37697445029), including normal-AppModule canonical authority and exact content-review binding. This supersedes the failed container-loopback guard run for its parent `3116ef22`; the corrected guard still requires a loopback client connection and peer, a dedicated test database and the pinned PostgreSQL version. The commit signature is verified.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -226,3 +227,16 @@ without a review issuance workflow, even when preapproved exact local intents
 can publish. Identity selection controls, configuration/review administration,
 media, real verification/providers, historical reconciliation and physical-device
 acceptance remain outstanding. See [runtime policy scope](COMMUNITY_RUNTIME_POLICY.md).
+
+Identity-campus selection checkpoint: authenticated owners can inspect independently
+validated selection/options and explicitly select or renew a physical identity
+campus using canonical affiliation, phone, safety and complete topology facts.
+The new normal-AppModule API and native selector preserve browsing preferences,
+verification records, existing content scopes and management authority. Immutable
+receipts recover uncertain outcomes without replaying old state; changed inputs
+require fresh explicit confirmation, including for the same campus. Unknown
+history remains distinct from known missing choice. Publication drafts keep their
+original targets and require a separate send action after selection. This does not
+issue verification, topology, review approvals or real grants, activate providers,
+reconcile production history, or implement physical-device acceptance. See
+[identity-campus API and boundaries](API_IDENTITY_CAMPUS.md).

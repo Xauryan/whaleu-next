@@ -1,3 +1,8 @@
+import {
+  createIdentityCampusRuntime,
+  type IdentityCampusRuntime,
+} from './identity-campus/runtime';
+import { WechatStorage } from './platform/wechat';
 import { clientConfiguration } from './config';
 import { createIdentityRuntime, type IdentityRuntime } from './auth/runtime';
 import {
@@ -14,12 +19,14 @@ export interface WhaleuApp {
   identity: IdentityRuntime | undefined;
   community: CommunityRuntime | undefined;
   verification: VerificationRuntime | undefined;
+  identityCampus: IdentityCampusRuntime | undefined;
   globalData: { implementationStage: string; featureParityVerified: boolean };
 }
 App<WhaleuApp>({
   identity: undefined,
   community: undefined,
   verification: undefined,
+  identityCampus: undefined,
   globalData: {
     implementationStage: 'native-community-c2b-discussion-partial',
     featureParityVerified: false,
@@ -27,6 +34,7 @@ App<WhaleuApp>({
   onHide() {
     this.community?.privateViews?.clear();
     this.verification?.privateViews.clear();
+    this.identityCampus?.privateViews.clear();
   },
   onLaunch() {
     this.identity = createIdentityRuntime(clientConfiguration, wx, systemClock);
@@ -35,6 +43,12 @@ App<WhaleuApp>({
       this.identity,
       wx,
       clientConfiguration.apiOrigin,
+    );
+    this.identityCampus = createIdentityCampusRuntime(
+      this.identity,
+      new WechatStorage(wx),
+      clientConfiguration.apiOrigin,
+      this.community.newRequestId,
     );
   },
 });

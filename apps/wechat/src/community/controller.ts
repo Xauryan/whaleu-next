@@ -26,7 +26,7 @@ export const reasonMessage = (code: string | null): string =>
     STUDENT_VERIFICATION_REQUIRED:
       '此操作需要有效的所属机构认证，不要求学号认证；认证办理尚未开放',
     IDENTITY_CAMPUS_REQUIRED:
-      '需要确认身份校区；当前版本尚未开放身份校区选择，浏览校区不能代替',
+      '需要确认身份校区；请进入身份校区页面明确选择，浏览校区不能代替',
     COMMUNITY_ACTION_RESTRICTED: '当前账号暂不能执行此操作',
     AUTHOR_MODE_NOT_ALLOWED: '所选身份暂不可用，请自行确认身份选择后再发布',
     COMMENTS_DISABLED: '此帖暂不开放普通评论',

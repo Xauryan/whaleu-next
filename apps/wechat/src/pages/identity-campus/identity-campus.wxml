@@ -1,0 +1,36 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 我的身份校区</view>
+  <view class="title">确认之后发布的身份范围</view>
+  <view class="intro">身份校区用于之后发布的内容，不会更改浏览校园、学校认证、历史内容或管理范围。</view>
+  <view class="status-panel">
+    <view class="status" aria-role="status">{{status}}</view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+    <view wx:if="{{receiptStatus}}" class="detail">{{receiptStatus}}</view>
+    <button wx:if="{{busy}}" class="secondary" bindtap="onCancel">停止等待结果（不撤销已发送请求）</button>
+    <button wx:if="{{!busy &amp;&amp; !frozen}}" class="secondary" bindtap="onReload" disabled="{{!hasSession || !configured}}">重新查询当前状态</button>
+    <navigator wx:if="{{!hasSession}}" class="text-link" url="/pages/login/login">前往登录</navigator>
+  </view>
+  <view wx:if="{{frozen}}" class="card">
+    <view class="card-title">先确认原请求结果</view>
+    <view class="detail">关闭、返回或停止等待不会撤销已经发送的选择。未查到回执也不代表未完成；请保留原请求，不能另建一次选择。</view>
+    <button class="primary" bindtap="onReceipt" disabled="{{busy || !hasSession}}">查询原请求回执</button>
+    <button class="secondary" bindtap="onRetry" disabled="{{busy || !hasSession}}">重试完全相同的原请求</button>
+  </view>
+  <block wx:if="{{loaded &amp;&amp; state &amp;&amp; !frozen}}">
+    <view wx:if="{{state.selectedCampus}}" class="card"><view class="card-title">当前已确认的身份校区</view><view class="campus-name">{{state.selectedCampus.name}}</view><view class="detail">{{state.selectedCampus.operatingRegion.name}}</view></view>
+    <view class="detail">{{eligibilityMessage}}</view>
+    <view wx:if="{{state.options.status === 'known' &amp;&amp; state.options.items.length > 0}}" class="card">
+      <view class="card-title">当前可选校区</view>
+      <view class="detail">显示选项不代表允许保存。请选择具体校区并确认，单个选项也不会自动保存。</view>
+      <button wx:for="{{state.options.items}}" wx:key="id" class="campus-option {{selectedId === item.id ? 'selected' : ''}}" data-id="{{item.id}}" bindtap="onChoose" disabled="{{busy || !state.canSelect}}"><view>{{item.name}}</view><view class="detail">{{item.operatingRegion.name}}</view></button>
+      <button class="primary" bindtap="onRequestConfirmation" disabled="{{busy || !state.canSelect || !selectedId}}">确认所选校区…</button>
+    </view>
+    <view wx:if="{{confirmation}}" class="card confirmation">
+      <view class="card-title">将身份校区设为以下校区？</view><view class="campus-name">{{confirmation.name}}</view><view class="detail">地区：{{confirmation.operatingRegion.name}}</view>
+      <view class="detail">确认只保存身份校区。返回原草稿后仍需再次点击发送，发布资格与内容审核会重新检查。</view>
+      <button class="primary" bindtap="onConfirm" disabled="{{busy}}">确认保存此身份校区</button><button class="secondary" bindtap="onDismissConfirmation" disabled="{{busy}}">取消选择</button>
+    </view>
+  </block>
+  <view class="footnote">本页不会补填学号、提交认证申请或开通管理权限。离开后会清除状态显示；本机仅保留当前账号尚待确认的选择请求。</view>
+  <navigator class="text-link" url="/pages/verification/verification">查看我的认证状态 →</navigator>
+</view>

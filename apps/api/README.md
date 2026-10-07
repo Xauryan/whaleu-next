@@ -194,3 +194,11 @@ review and production reconciliation remain separate unfinished work.
 
 See [named-blocking contract](../../docs/API_SAFETY.md) for routes, cleanup gates,
 final-clock/lock order, exact receipt semantics and explicitly new bounded rates.
+
+## Own identity-campus selection
+
+Authenticated status/options, explicit version-bound choice and owner-only
+exact-once success recovery are documented in
+[API_IDENTITY_CAMPUS](../../docs/API_IDENTITY_CAMPUS.md). The new normal-AppModule
+flow consumes existing canonical affiliation/phone/safety/topology inputs; it does
+not issue verification, infer historical selections or change browsing campus.

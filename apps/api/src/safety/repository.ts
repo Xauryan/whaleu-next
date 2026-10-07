@@ -4,6 +4,7 @@ import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import type { VisibilityPurpose } from '../community/community-policy.js';
 export interface SafetyHead {
+  state_version?: string;
   block_coverage: string;
   restriction_coverage: string;
   provenance: string;
@@ -25,7 +26,7 @@ export class SafetyRepository {
     return (
       (
         await tx.query<SafetyHead>(
-          'SELECT block_coverage,restriction_coverage,provenance,actions_allowed,valid_until FROM whaleu_safety.account_heads WHERE account_id=$1 FOR SHARE',
+          'SELECT block_coverage,restriction_coverage,provenance,actions_allowed,valid_until,xmin::text state_version FROM whaleu_safety.account_heads WHERE account_id=$1 FOR SHARE',
           [accountId],
         )
       ).rows[0] ?? null
@@ -52,6 +53,33 @@ export class SafetyRepository {
       'SAFETY_UNAVAILABLE',
     );
     return head.valid_until?.getTime() ?? null;
+  }
+  /** Narrow own-account selector state, never moderation evidence or phone values. */
+  async selectionEligibility(
+    accountId: string,
+    tx: PoolClient,
+  ): Promise<{
+    status: 'allowed' | 'restricted' | 'unavailable';
+    fingerprint: SafetyHead | null;
+  }> {
+    let status: 'allowed' | 'restricted' | 'unavailable' = 'allowed';
+    try {
+      await this.restriction(accountId, tx);
+    } catch (error) {
+      if (!(error instanceof ApplicationError)) throw error;
+      if (error.code === 'SAFETY_ACTION_RESTRICTED') status = 'restricted';
+      else if (error.code === 'SAFETY_UNAVAILABLE') status = 'unavailable';
+      else throw error;
+    }
+    if (status === 'unavailable') return { status, fingerprint: null };
+    const head = await this.head(accountId, tx);
+    if (!head) throw new ApplicationError('SAFETY_UNAVAILABLE');
+    registerTransactionDeadline(
+      tx,
+      head.valid_until?.getTime() ?? null,
+      'SAFETY_UNAVAILABLE',
+    );
+    return { status, fingerprint: head };
   }
   async directions(
     viewer: string,

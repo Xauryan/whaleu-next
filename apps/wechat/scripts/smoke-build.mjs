@@ -1,3 +1,4 @@
+import { smokeIdentityCampus } from './smoke-identity-campus.mjs';
 import { smokeRuntimePolicy } from './smoke-runtime-policy.mjs';
 import { smokeReporting } from './smoke-reporting.mjs';
 import { smokeSystemNotices } from './smoke-system-notices.mjs';
@@ -1729,6 +1730,12 @@ await smokeRuntimePolicy({
   mountPage: mountTradingPage,
   flush: flushTrading,
   postWire: pollPostWire,
+});
+await smokeIdentityCampus({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
 });
 app.community.identityPrivacy = originalIdentityPrivacy;
 app.community.profiles = originalProfiles;

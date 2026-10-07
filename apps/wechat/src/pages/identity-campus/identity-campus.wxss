@@ -1,0 +1,14 @@
+@import '../profile/profile.wxss';
+.campus-option {
+  margin: 18rpx 0;
+  padding: 18rpx;
+  text-align: left;
+  border: 2rpx solid #d7e0ea;
+}
+.campus-option.selected {
+  border-color: #195a93;
+  background: #eaf3fb;
+}
+.confirmation {
+  border: 2rpx solid #195a93;
+}

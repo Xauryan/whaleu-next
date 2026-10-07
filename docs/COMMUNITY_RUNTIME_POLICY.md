@@ -158,9 +158,14 @@ no suite may clean schemas until it has established exclusive ownership.
 
 ## Remaining release work
 
+The subsequent [own identity-campus selector](API_IDENTITY_CAMPUS.md) now provides
+explicit own-account choice, native recovery and status/options using canonical
+inputs. It does not issue affiliation, phone or topology facts or reconcile prior
+selection history.
+
 Real phone binding/protected storage/provider completion; affiliation review and
 private provenance reconciliation; authorized topology/configuration controls;
-ordinary own-account identity-selection API/UI; trusted review issuance, taxonomy,
+trusted review issuance, taxonomy,
 queued obligations and activation; media ownership/review/delivery; related-sync
 publication/distribution; historical schema/data import, restore/reconciliation/
 rollback; provider and physical-device acceptance all remain explicit work.

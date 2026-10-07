@@ -3,6 +3,26 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  IDENTITY_CAMPUS_REQUEST_NOT_FOUND: {
+    status: 404,
+    message: 'Identity campus request not found',
+  },
+  IDENTITY_CAMPUS_REQUEST_CONFLICT: {
+    status: 409,
+    message: 'Identity campus request conflicts',
+  },
+  IDENTITY_CAMPUS_REVISION_CONFLICT: {
+    status: 409,
+    message: 'Identity campus inputs changed; refresh and confirm again',
+  },
+  IDENTITY_CAMPUS_NOT_ELIGIBLE: {
+    status: 409,
+    message: 'Campus is not eligible for identity selection',
+  },
+  IDENTITY_CAMPUS_UNAVAILABLE: {
+    status: 503,
+    message: 'Identity campus selection is unavailable',
+  },
   REPORT_TARGET_UNAVAILABLE: {
     status: 404,
     message: 'Report target is unavailable',

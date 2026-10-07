@@ -110,3 +110,7 @@ checks, immutable reviewed definitions, and consumption/visibility lifetime sepa
 are documented in [runtime policy](../../../docs/COMMUNITY_RUNTIME_POLICY.md). No
 startup records, grants, runtime approval writer, provider, production import or
 identity-selector endpoint are installed.
+
+Migration 0017 adds empty, immutable own identity-campus selection receipts and
+phantom-safe catalog statement gates. It does not seed choices, topology or
+verification. Existing migrations remain unchanged.

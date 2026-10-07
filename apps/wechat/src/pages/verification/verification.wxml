@@ -20,8 +20,9 @@
   </block>
   <view class="card pending-feature">
     <view class="card-title">认证办理功能待接入</view>
-    <view class="detail">此版本仅支持状态查询。学生认证申请、证明材料上传、审核、重新申请、手机号授权绑定及身份校区选择尚未开放，不能在此提交或办理。社区操作不要求学号认证，实际资格由服务端按操作分别校验。</view>
+    <view class="detail">此版本仅支持状态查询。学生认证申请、证明材料上传、审核、重新申请、手机号授权绑定尚未开放，不能在此提交或办理。社区操作不要求学号认证，实际资格由服务端按操作分别校验。</view>
   </view>
+  <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/identity-campus/identity-campus">查看身份校区状态与可选校区 →</navigator>
   <navigator class="text-link" url="/pages/profile/profile">查看我的资料</navigator>
   <navigator class="text-link" url="/pages/login/login" open-type="reLaunch">返回登录与会话管理</navigator>
 </view>
