@@ -192,13 +192,18 @@ export class TradingContactsController extends CommunityController<TradingContac
   }
   load(post: Post | null): void {
     this.stop();
-    this.postId = post?.trading ? post.id : null;
+    this.postId = post?.trading?.resolution === 'open' ? post.id : null;
     this.update({
       contacts: null,
       enabled: !!this.postId,
       busy: false,
       error: '',
-      status: '联系方式由发布者自愿公开，点击后重新检查查看权限',
+      status:
+        post?.trading?.resolution === 'resolved'
+          ? '此交易已解决，联系方式不再公开'
+          : this.postId
+            ? '联系方式由发布者自愿公开，点击后重新检查查看权限'
+            : '请等待重新读取当前交易状态',
     });
   }
   async reveal(): Promise<void> {
@@ -209,7 +214,13 @@ export class TradingContactsController extends CommunityController<TradingContac
     await this.read(field);
   }
   private async read(field?: keyof TradingContacts): Promise<void> {
-    if (!this.postId || this.view.busy || !this.available()) return;
+    if (
+      !this.postId ||
+      !this.view.enabled ||
+      this.view.busy ||
+      !this.available()
+    )
+      return;
     const postId = this.postId,
       owner = this.runtime.sessions.snapshot();
     this.update({ contacts: null });
@@ -241,11 +252,16 @@ export class TradingContactsController extends CommunityController<TradingContac
             ? '已复制发布者公开填写的联系方式'
             : '发布者自愿公开的联系方式，不代表已认证',
         }),
-      () => this.update({ contacts: null }),
+      () => {
+        // A failed current check cannot leave an old open projection as a grant.
+        this.postId = null;
+        this.update({ contacts: null, enabled: false });
+      },
     );
   }
   override cancel(): void {
     super.cancel();
-    this.update({ contacts: null });
+    this.postId = null;
+    this.update({ contacts: null, enabled: false });
   }
 }

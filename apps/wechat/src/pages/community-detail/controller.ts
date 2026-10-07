@@ -38,11 +38,19 @@ export const initialDetailView = (): DetailView => ({
 });
 export class DetailController extends CommunityController<DetailView> {
   private nextCursor: string | null = null;
+  private postReadGeneration = 0;
+  /** Identifies when a post read began, not when its callback eventually arrives. */
+  get readGeneration(): number {
+    return this.postReadGeneration;
+  }
   constructor(
     runtime: CommunityRuntime,
     private readonly postId: string,
     render: (view: DetailView) => void,
-    private readonly onPost: (post: Post | null) => void = () => undefined,
+    private readonly onPost: (
+      post: Post | null,
+      readGeneration: number,
+    ) => void = () => undefined,
     private readonly located:
       { commentId: string } | { replyId: string } | null = null,
   ) {
@@ -51,11 +59,11 @@ export class DetailController extends CommunityController<DetailView> {
   }
   protected override resetPrivate(): void {
     this.nextCursor = null;
-    this.onPost?.(null);
+    this.onPost?.(null, this.postReadGeneration);
   }
   private clear(): void {
     this.nextCursor = null;
-    this.onPost(null);
+    this.onPost(null, this.postReadGeneration);
     this.update({
       post: null,
       locatedComment: null,
@@ -71,6 +79,7 @@ export class DetailController extends CommunityController<DetailView> {
     void this.load();
   }
   async load(): Promise<void> {
+    const readGeneration = ++this.postReadGeneration;
     this.clear();
     if (!this.available()) return;
     // Never expose comments until a fresh parent visibility decision has succeeded.
@@ -115,7 +124,7 @@ export class DetailController extends CommunityController<DetailView> {
           needsReload: false,
           status: '已加载帖子与评论',
         });
-        this.onPost(result.post);
+        this.onPost(result.post, readGeneration);
       },
       () => this.clear(),
     );

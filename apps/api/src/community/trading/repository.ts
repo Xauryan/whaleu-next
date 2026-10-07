@@ -55,9 +55,11 @@ export class TradingRepository {
     return result.rows[0] ?? null;
   }
   async contacts(postId: string, tx: PoolClient): Promise<TradingContacts> {
+    // Call only after the current visible parent is locked. Resolution changes
+    // disclosure, never the immutable chosen values; owners have no exception.
     const row = (
       await tx.query<TradingContacts>(
-        'SELECT wechat,qq,phone FROM whaleu_community.trading_listings WHERE post_id=$1 FOR SHARE',
+        "SELECT wechat,qq,phone FROM whaleu_community.trading_listings WHERE post_id=$1 AND resolution='open' FOR SHARE",
         [postId],
       )
     ).rows[0];

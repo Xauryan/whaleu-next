@@ -1036,6 +1036,42 @@ test(
             },
             'Historical empty contacts are retained rather than fabricated',
           );
+          // Raw historical reads have their own fixture-only policy adapters;
+          // ordinary canonical runtime coverage lives in trading-contacts-runtime.
+          for (const [id, expected] of [
+            [historical, historicalContacts],
+            [exactWithRaw, { wechat: '', qq: '', phone: '' }],
+          ] as const) {
+            const resolved = await author.community.setTradingResolution(
+              id,
+              'resolved',
+              randomUUID(),
+              cancel,
+            );
+            applied(resolved, id, 'resolved');
+            for (const client of [author, observer])
+              await assert.rejects(
+                client.community.tradingContacts(id, cancel),
+                clientFailure('http', 404, 'POST_NOT_FOUND'),
+              );
+            applied(
+              await author.community.setTradingResolution(
+                id,
+                'open',
+                randomUUID(),
+                cancel,
+              ),
+              id,
+              'open',
+            );
+            assert.deepEqual(
+              await observer.community.tradingContacts(id, cancel),
+              {
+                postId: id,
+                contacts: expected,
+              },
+            );
+          }
           const own: { items: PostView[]; nextCursor: string | null } =
             await author.community.ownTrading(null, cancel);
           assert.ok(own.items.some((item) => item.id === urgent.resourceId));

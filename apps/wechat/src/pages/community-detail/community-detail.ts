@@ -74,6 +74,8 @@ Page({
     FormationContactsController | undefined,
   tradingMutations: undefined as TradingMutationController | undefined,
   tradingContactsController: undefined as TradingContactsController | undefined,
+  tradingContactsAwaitingFresh: true,
+  tradingContactsFreshAfter: 0,
   located: null as { commentId: string } | { replyId: string } | null,
   mutations: undefined as DiscussionMutationController | undefined,
   pollController: undefined as PollController | undefined,
@@ -110,6 +112,8 @@ Page({
     this.savedMutations?.dispose();
     this.tradingMutations?.dispose();
     this.tradingContactsController?.dispose();
+    this.tradingContactsAwaitingFresh = true;
+    this.tradingContactsFreshAfter = 0;
     this.mutations?.dispose();
     this.pollController?.dispose();
     this.formationController?.dispose();
@@ -269,7 +273,16 @@ Page({
     void this.savedMutations.load();
     this.tradingMutations = new TradingMutationController(
       runtime,
-      (view) => this.setData({ tradingMutation: view }),
+      (view) => {
+        this.setData({ tradingMutation: view });
+        if (view.busy || view.frozen) {
+          // The old detail may still say open while mutation/recovery is pending.
+          // Even a delayed older post callback must not restore its disclosure.
+          this.tradingContactsAwaitingFresh = true;
+          this.tradingContactsFreshAfter = this.controller?.readGeneration ?? 0;
+          this.tradingContactsController?.load(null);
+        }
+      },
       () => {
         void this.controller?.load();
       },
@@ -277,7 +290,13 @@ Page({
     this.tradingMutations.load();
     this.tradingContactsController = new TradingContactsController(
       runtime,
-      (view) => this.setData({ tradingContacts: view }),
+      (view) => {
+        this.setData({ tradingContacts: view });
+        if (view.error) {
+          this.tradingContactsAwaitingFresh = true;
+          this.tradingContactsFreshAfter = this.controller?.readGeneration ?? 0;
+        }
+      },
       (text) =>
         new Promise<void>((resolve, reject) => {
           if (!wx.setClipboardData) {
@@ -297,9 +316,14 @@ Page({
       this.postId,
       (view) => {
         this.setData({ ...view });
-        if (view.busy || !view.loaded)
+        if (view.busy || !view.loaded || view.needsReload)
           this.tradingContactsController?.load(null);
-        else if (!this.data.tradingContacts.enabled)
+        else if (
+          !this.tradingContactsAwaitingFresh &&
+          !this.data.tradingMutation.busy &&
+          !this.data.tradingMutation.frozen &&
+          !this.data.tradingContacts.enabled
+        )
           this.tradingContactsController?.load(view.post);
         const targets: DisplayTarget[] = view.post
           ? [
@@ -361,12 +385,20 @@ Page({
           void this.identityOverlay?.show(targets);
         }
       },
-      (post) => {
+      (post, readGeneration) => {
         void this.pollController?.load(post);
         void this.formationController?.load(post);
         this.formationContactsController?.load(null);
         void this.savedMutations?.load(post);
-        this.tradingContactsController?.load(post);
+        if (
+          post &&
+          !this.data.tradingMutation.busy &&
+          !this.data.tradingMutation.frozen &&
+          readGeneration > this.tradingContactsFreshAfter
+        ) {
+          this.tradingContactsAwaitingFresh = false;
+          this.tradingContactsController?.load(post);
+        } else this.tradingContactsController?.load(null);
       },
       this.located,
     );

@@ -61,6 +61,58 @@ function contacts() {
   );
   return { ...s, controller, copied, view: () => views[views.length - 1]! };
 }
+test('resolved contacts disable reveal and direct copy handlers until a fresh open projection', async () => {
+  const s = contacts();
+  s.controller.load(tradingPost());
+  await s.controller.reveal();
+  assert.ok(s.view().contacts);
+  s.controller.load(
+    tradingPost({ trading: tradingView({ resolution: 'resolved' }) }),
+  );
+  assert.equal(s.view().enabled, false);
+  assert.equal(s.view().contacts, null);
+  const reads = s.gateway.calls.length;
+  await s.controller.reveal();
+  for (const field of ['wechat', 'qq', 'phone']) await s.controller.copy(field);
+  assert.equal(s.gateway.calls.length, reads);
+  assert.deepEqual(s.copied, []);
+  s.controller.load(tradingPost());
+  assert.equal(s.view().enabled, true);
+  assert.equal(s.view().contacts, null);
+  await s.controller.reveal();
+  assert.equal(s.gateway.calls.length, reads + 1);
+});
+for (const action of ['reveal', 'copy'] as const) {
+  for (const state of ['resolved', 'unavailable', 'replacement'] as const) {
+    test(`late contact ${action} cannot cross ${state} projection, including a subsequent reopen`, async () => {
+      const s = contacts(),
+        pending = deferred<TradingContactView>();
+      s.controller.load(tradingPost());
+      s.gateway.tradingContactsImpl = async () => pending.promise;
+      const running =
+        action === 'reveal'
+          ? s.controller.reveal()
+          : s.controller.copy('phone');
+      await flush();
+      s.controller.load(
+        state === 'unavailable'
+          ? null
+          : state === 'resolved'
+            ? tradingPost({ trading: tradingView({ resolution: 'resolved' }) })
+            : tradingPost({ id: otherId }),
+      );
+      assert.equal(s.view().contacts, null);
+      s.controller.load(tradingPost());
+      pending.resolve({
+        postId,
+        contacts: tradingContacts({ phone: 'stale-before-resolve' }),
+      });
+      await running;
+      assert.equal(s.view().contacts, null);
+      assert.deepEqual(s.copied, []);
+    });
+  }
+}
 async function compose() {
   const s = setup(),
     views: ComposeView[] = [];
@@ -305,38 +357,42 @@ for (const lifecycle of [
     assert.ok(s.runtime.pendingTrading.load(s.accountId));
     assert.equal(s.settled(), 0);
   });
-  test(`contact ${lifecycle} clears private render and prevents late clipboard disclosure`, async () => {
-    const s = contacts(),
-      pending = deferred<TradingContactView>();
-    s.controller.load(tradingPost());
-    await s.controller.reveal();
-    assert.ok(s.view().contacts);
-    s.gateway.tradingContactsImpl = async () => pending.promise;
-    const running = s.controller.copy('phone');
-    await flush();
-    if (lifecycle === 'cancel') s.controller.cancel();
-    else if (lifecycle === 'dispose') s.controller.dispose();
-    else if (lifecycle === 'app-hide') s.runtime.privateViews!.clear();
-    else if (lifecycle === 'logout') s.sessions.logout();
-    else
-      s.sessions.completeLogin(s.sessions.beginLogin(), {
-        ...wireCredentials('b'),
-        accountId: lifecycle === 'same-account' ? s.accountId : otherId,
+  for (const action of ['reveal', 'copy'] as const)
+    test(`contact ${action} ${lifecycle} clears private render and prevents late clipboard disclosure`, async () => {
+      const s = contacts(),
+        pending = deferred<TradingContactView>();
+      s.controller.load(tradingPost());
+      await s.controller.reveal();
+      assert.ok(s.view().contacts);
+      s.gateway.tradingContactsImpl = async () => pending.promise;
+      const running =
+        action === 'reveal'
+          ? s.controller.reveal()
+          : s.controller.copy('phone');
+      await flush();
+      if (lifecycle === 'cancel') s.controller.cancel();
+      else if (lifecycle === 'dispose') s.controller.dispose();
+      else if (lifecycle === 'app-hide') s.runtime.privateViews!.clear();
+      else if (lifecycle === 'logout') s.sessions.logout();
+      else
+        s.sessions.completeLogin(s.sessions.beginLogin(), {
+          ...wireCredentials('b'),
+          accountId: lifecycle === 'same-account' ? s.accountId : otherId,
+        });
+      pending.resolve({
+        postId,
+        contacts: tradingContacts({ phone: 'private-late-contact' }),
       });
-    pending.resolve({
-      postId,
-      contacts: tradingContacts({ phone: 'private-late-contact' }),
+      await running;
+      assert.equal(s.view().contacts, null);
+      assert.deepEqual(s.copied, []);
+      assert.equal(
+        JSON.stringify([...s.storage.data.values()]).includes(
+          'private-late-contact',
+        ),
+        false,
+      );
     });
-    await running;
-    assert.equal(s.view().contacts, null);
-    assert.deepEqual(s.copied, []);
-    assert.equal(
-      JSON.stringify([...s.storage.data.values()]).includes(
-        'private-late-contact',
-      ),
-      false,
-    );
-  });
 }
 test('contact display is explicit; each copy reauthorizes and preserves literal data with no inferred phone or URL action', async () => {
   const s = contacts();
@@ -363,7 +419,15 @@ test('contact display is explicit; each copy reauthorizes and preserves literal 
   };
   await s.controller.copy('wechat');
   assert.equal(s.view().contacts, null);
+  assert.equal(s.view().enabled, false);
   assert.deepEqual(s.copied, [original]);
+  await s.controller.reveal();
+  await s.controller.copy('phone');
+  assert.equal(
+    s.gateway.calls.length,
+    3,
+    'A denied check requires a new parent read',
+  );
   s.controller.load(null);
   await s.controller.reveal();
   assert.equal(s.gateway.calls.length, 3);

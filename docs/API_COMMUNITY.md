@@ -678,13 +678,37 @@ constitute an importer or evidence of a production schema. Native rendering uses
 plain text and a bounded read envelope, never interprets raw price as a number.
 
 `GET /v1/community/posts/:postId/trading/contacts` requires an active session and
-the identical visible, active parent gate as detail. It returns exactly
-`{postId,contacts:{wechat,qq,phone}}`. Hidden/deleted/blocked/inactive or non-trading
-parents return generic `POST_NOT_FOUND`. No feed, ordinary post detail, own
+the identical visible, active parent gate as detail, plus a currently `open`
+listing. It returns exactly `{postId,contacts:{wechat,qq,phone}}`.
+Resolved listings, including owner reads, return generic HTTP 404
+`POST_NOT_FOUND`, as do hidden/deleted/blocked/inactive or non-trading parents.
+All three fields are suppressed together, including arbitrary or empty historical
+values. This is disclosure suppression, not contact erasure. No phone, student or
+identity-campus proof is added to the existing authenticated read gate. Unknown
+canonical dependencies still fail closed; responses and errors remain `no-store`.
+No feed, ordinary post detail, own
 recovery list, resolution receipt, public author projection, generic event or log
 contains these contact values. A contact-copy action must recheck this endpoint;
 a previously revealed contact is not a grant after visibility/session changes.
 Publicly selected listing contacts remain distinct from private account data.
+
+The contact transaction retains the policy/session, parent then listing shared
+lock order and final canonical policy-deadline checks. A read ordered after a
+committed resolve cannot return contacts; a read ordered before it can be
+authorized at that time. Already returned or copied values cannot be recalled.
+A new reopen intent restores only eligibility for a fresh contact read under all
+current policy checks; it never restores an unavailable parent or bypasses a block.
+
+Native resolved/unavailable projections disable reveal and copy. Beginning a
+resolution or recovering an uncertain result synchronously clears contacts and
+invalidates pending reads/copies. Unknown outcomes retain the original journal
+and keep contact access disabled. Only a successful current post read begun after
+the latest mutation/recovery barrier can re-enable an open listing; old callbacks,
+unrelated likes/replies renders and historical receipts cannot do so. Re-enabling
+does not restore contact values: another authorized GET is required. A denied
+contact check, cancellation, account/login replacement and page/app hide clear
+private state. A clipboard call already handed to the platform cannot be undone;
+late network results must not initiate a new clipboard call.
 
 ### Distribution and owner listings
 
@@ -728,14 +752,24 @@ permission is not reused as a status gate. A generic `canManage` flag cannot
 mutate another account's listing. Scoped manager status remains a separate live
 authorization/audit gate, not an invented grant.
 
-Resolution changes neither urgency nor chosen contacts, amount, category,
-visibility or deletion. Parent then listing locks serialize resolution with
+Resolution changes neither urgency nor stored chosen contacts, amount, category,
+visibility or deletion. A resolved listing remains readable in detail and own
+history but discloses no contacts, even to its owner. Parent then listing locks serialize resolution with
 safety changes and deletion. Only real transitions create a minimal
 `trading_resolution_changed` internal event, with no contact/body data or external
 delivery claim. Receipt, status and event commit atomically. Terminal codes are
 `POST_NOT_FOUND`, `COMMUNITY_SCOPE_UNAVAILABLE`, `PHONE_VERIFICATION_REQUIRED` and
 `COMMUNITY_ACTION_RESTRICTED`; unavailable dependencies, invalid auth/input and
 transaction failures never leave a terminal receipt.
+
+`trading-contacts-runtime.test.ts` exercises normal AppModule, canonical synthetic
+owner records, real PostgreSQL lock ordering and native gateway decoding without
+application provider overrides. Regressions cover resolve/reopen/replay, bilateral
+blocks, deletion/hidden/approval/scope loss, current deadlines and late native
+results. Separate historical projection fixtures cover lossless arbitrary and
+empty contacts. Native controller tests and emitted-page smoke cover immediate
+clearing, unknown-result recovery, read-start generation and lifecycle races.
+These checks do not establish production data migration or physical-device QA.
 
 Migration `0010` only adds empty storage and forward constraints. A deferred
 shape guard rejects missing trading children, nonregional/anonymous parents and
