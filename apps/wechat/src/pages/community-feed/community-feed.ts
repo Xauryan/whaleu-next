@@ -1,4 +1,8 @@
 import {
+  BlockMutationController,
+  initialBlockMutationView,
+} from '../../community/block-controller';
+import {
   UpdatesBadgeController,
   initialUpdatesBadgeView,
 } from '../community-updates/controller';
@@ -15,6 +19,7 @@ import type { WhaleuApp } from '../../app';
 import { FeedController, initialFeedView } from './controller';
 Page({
   data: {
+    block: initialBlockMutationView(),
     ...initialFeedView(),
     updatesBadge: initialUpdatesBadgeView(),
     tradingCategories,
@@ -34,11 +39,16 @@ Page({
       { key: 'deep_sea', label: '深海树洞' },
     ],
   },
+  blockMutations: undefined as BlockMutationController | undefined,
+  blockTargets: '',
   controller: undefined as FeedController | undefined,
   updatesBadge: undefined as UpdatesBadgeController | undefined,
   identityOverlay: undefined as IdentityOverlayController | undefined,
   overlayTargets: '',
   onShow() {
+    this.blockMutations?.dispose();
+    this.blockMutations = undefined;
+    this.blockTargets = '';
     this.updatesBadge?.dispose();
     this.updatesBadge = undefined;
     this.controller?.dispose();
@@ -53,6 +63,14 @@ Page({
       this.setData({ updatesBadge: view }),
     );
     void this.updatesBadge.load();
+    this.blockMutations = new BlockMutationController(runtime, (view) => {
+      this.setData({ block: view });
+      if (view.busy || view.frozen) {
+        this.identityOverlay?.clear();
+        this.overlayTargets = '';
+      }
+    });
+    this.blockMutations.load();
     this.identityOverlay = new IdentityOverlayController(
       runtime.sessions,
       runtime.identityPrivacy,
@@ -65,7 +83,15 @@ Page({
       const key = view.posts
         .map((item) => item.id + ':' + item.author.kind)
         .join(',');
-      if (view.busy || !view.loaded) {
+      if (view.busy || !view.loaded || key !== this.blockTargets)
+        this.blockMutations?.dismissBlock();
+      this.blockTargets = key;
+      if (
+        view.busy ||
+        !view.loaded ||
+        this.data.block.busy ||
+        this.data.block.frozen
+      ) {
         this.identityOverlay?.clear();
         this.overlayTargets = '';
       } else if (key !== this.overlayTargets) {
@@ -106,7 +132,30 @@ Page({
     void this.updatesBadge?.load();
     void this.controller?.refresh();
   },
+  onBlockPost(event: { currentTarget: { dataset: { id: string } } }) {
+    const post = this.data.posts.find(
+      (item) => item.id === event.currentTarget.dataset.id,
+    );
+    if (post && this.data.loaded && this.data.hasSession && !this.data.busy)
+      this.blockMutations?.requestBlock('post', post);
+  },
+  onConfirmBlock() {
+    void this.blockMutations?.confirmBlock();
+  },
+  onDismissBlock() {
+    this.blockMutations?.dismissBlock();
+  },
+  onBlockReceipt() {
+    void this.blockMutations?.recover();
+  },
+  onBlockRetry() {
+    void this.blockMutations?.recover(true);
+  },
+  onBlockCancel() {
+    this.blockMutations?.cancel();
+  },
   onReload() {
+    this.blockMutations?.dismissBlock();
     void this.updatesBadge?.load();
     void this.controller?.load();
   },
@@ -118,6 +167,9 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.blockMutations?.dispose();
+    this.blockMutations = undefined;
+    this.blockTargets = '';
     this.updatesBadge?.dispose();
     this.updatesBadge = undefined;
     this.controller?.dispose();
@@ -126,6 +178,9 @@ Page({
     this.identityOverlay = undefined;
   },
   onUnload() {
+    this.blockMutations?.dispose();
+    this.blockMutations = undefined;
+    this.blockTargets = '';
     this.updatesBadge?.dispose();
     this.updatesBadge = undefined;
     this.controller?.dispose();

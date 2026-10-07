@@ -1,3 +1,8 @@
+import {
+  startTransactionDeadlines,
+  checkTransactionDeadlines,
+  clearTransactionDeadlines,
+} from '../src/database/transaction-deadlines.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -41,6 +46,7 @@ function fixture() {
     now: 500,
     auditNow: null as number | null,
     numberValidUntil: null as number | null,
+    wrapperNow: null as number | null,
   };
   const client = {
     query: async (sql: string) => {
@@ -55,13 +61,20 @@ function fixture() {
       operation: (transaction: PoolClient) => Promise<T>,
     ) => {
       try {
+        if (state.wrapperNow !== null) startTransactionDeadlines(client);
         const result = await operation(client);
+        if (state.wrapperNow !== null) {
+          state.now = state.wrapperNow;
+          await checkTransactionDeadlines(client);
+        }
         if (state.commitFails) throw new Error('synthetic COMMIT failure');
         commits++;
         return result;
       } catch (error) {
         rollbacks++;
         throw error;
+      } finally {
+        clearTransactionDeadlines(client);
       }
     },
   } as DatabaseService;
@@ -243,10 +256,11 @@ test('audit must insert exactly one metadata row per target, including silent tr
   }
 });
 
-test('single final clock is the last query and locked snapshots are never re-opened', async () => {
+test('local privacy final clock is the last owner query and locked snapshots are never re-opened', async () => {
   const f = fixture();
   await f.service.view('synthetic', { targets: [target] }, randomUUID());
   assert.deepEqual(f.statements, [
+    "SELECT pg_advisory_xact_lock_shared(hashtextextended('whaleu:named-block-policy:v1',0))",
     'SELECT clock_timestamp() AS now',
     'SET CONSTRAINTS ALL IMMEDIATE',
     'SELECT clock_timestamp() AS now',
@@ -272,5 +286,24 @@ test('post-audit pure deadline checks abort number, grant and session expiry wit
     assert.equal(f.statements.at(-1), 'SELECT clock_timestamp() AS now');
     assert.equal(f.committed(), 0);
     assert.equal(f.rolledBack(), 1);
+  }
+});
+
+test('wrapper final clock rejects grant and disclosed student expiry after the local privacy final clock', async () => {
+  for (const kind of ['grant', 'student'] as const) {
+    const f = fixture();
+    f.state.wrapperNow = kind === 'grant' ? 950 : 800;
+    f.state.numberValidUntil = kind === 'student' ? 700 : null;
+    await assert.rejects(
+      f.service.view('synthetic', { targets: [target] }, randomUUID()),
+      errorIs(
+        kind === 'grant'
+          ? 'AUTHORIZATION_REQUIRED'
+          : 'IDENTITY_VIEW_UNAVAILABLE',
+      ),
+    );
+    assert.equal(f.committed(), 0);
+    assert.equal(f.snapshotReads(), 1);
+    assert.equal(f.statements.at(-1), 'SELECT clock_timestamp() AS now');
   }
 });

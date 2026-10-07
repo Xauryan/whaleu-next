@@ -17,6 +17,7 @@ import {
 } from '../../src/database/migrations.js';
 import type { Migration } from '../../src/database/migrations.js';
 import { AppLogger } from '../../src/observability/logger.js';
+import { migrationSchemaNames } from '../support/migration-schemas.js';
 
 function migration(name: string, sql: string): Migration {
   return {
@@ -80,7 +81,8 @@ test(
         'PostgreSQL 18.6+ (18.x) is required',
       );
       const existing = await pool.query<{ present: boolean }>(
-        "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_notifications','whaleu_community','whaleu_authorization','whaleu_verification')) AS present",
+        'SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname=ANY($1::text[])) AS present',
+        [migrationSchemaNames],
       );
       assert.equal(
         existing.rows[0]?.present,

@@ -73,8 +73,9 @@ export class PollController extends CommunityController<PollView> {
   ) {
     super(runtime, initialPollView, render);
     this.unsubscribeVisibility =
-      runtime.privateViews?.subscribe(() => this.dispose()) ??
-      (() => undefined);
+      runtime.privateViews?.subscribe((accountId) => {
+        if (accountId === undefined) this.dispose();
+      }) ?? (() => undefined);
   }
   protected override resetPrivate(): void {
     this.parent = null;

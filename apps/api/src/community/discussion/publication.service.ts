@@ -63,6 +63,8 @@ export class ReplyPublicationService {
           comment: root,
           authority,
         } = await this.access.accessibleComment(rootId, actor, tx, true);
+        await this.access.interaction(actor, post, tx);
+        await this.access.interaction(actor, root, tx);
         const mode =
           post.author_mode === 'anonymous' && post.account_id === actor
             ? 'anonymous'
@@ -91,9 +93,10 @@ export class ReplyPublicationService {
           if (
             target.post_id !== post.id ||
             target.root_comment_id !== root.id ||
-            !(await this.access.visible(actor, target, tx))
+            !(await this.access.visible(actor, target, tx, 'list_projection'))
           )
             throw new ApplicationError('REPLY_NOT_FOUND');
+          await this.access.interaction(actor, target, tx);
           targetAccount = target.account_id;
         }
         const assets = await this.approval.approved(

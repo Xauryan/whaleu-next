@@ -1,0 +1,23 @@
+<template name="block-recovery">
+  <view wx:if="{{block.confirmSource}}" class="confirm" aria-role="dialog" aria-label="确认拉黑公开身份作者">
+    <view class="section-title">拉黑此公开身份作者？</view>
+    <view class="notice">你发起拉黑后，你的列表会过滤对方的公开身份帖子、评论与回复。任一方拉黑时，相关公开身份帖子的直接访问和评论／回复互动会受限。</view>
+    <view class="notice">匿名内容不会仅因其背后账号被拉黑而隐藏。此操作只建立你发起的拉黑关系，可在“我的拉黑”中解除。</view>
+    <button class="danger" bindtap="onConfirmBlock" disabled="{{block.busy || block.frozen}}" loading="{{block.busy}}">确认拉黑</button>
+    <button class="secondary" bindtap="onDismissBlock" disabled="{{block.busy}}">取消</button>
+  </view>
+  <view wx:if="{{block.busy || block.frozen || block.receiptStatus || block.error}}" class="card">
+    <view class="section-title">拉黑与解除结果</view>
+    <view class="status" aria-role="status">{{block.status}}</view>
+    <view wx:if="{{block.error}}" class="error" aria-role="alert">{{block.error}}</view>
+    <view wx:if="{{block.receiptStatus}}" class="notice">{{block.receiptStatus}}</view>
+    <view wx:if="{{block.current}}" class="meta">最新查询状态：{{block.current.blocked ? '你已拉黑此公开身份' : '你未拉黑此公开身份'}}。原请求回执仅说明当时结果。</view>
+    <view wx:if="{{block.frozen}}">
+      <button bindtap="onBlockReceipt" disabled="{{block.busy}}">查询原请求回执</button>
+      <button bindtap="onBlockRetry" disabled="{{block.busy}}">重试完全相同的原请求</button>
+    </view>
+    <button wx:if="{{block.busy}}" bindtap="onBlockCancel">停止等待（不撤销请求）</button>
+    <view class="notice">关闭页面、重启或切换账号后，未确认的原请求仍保留在原账号下。结果未知时不会显示成功，也不能用相反操作覆盖。</view>
+    <navigator class="link" url="/pages/community-blocks/community-blocks">我的拉黑与结果恢复 →</navigator>
+  </view>
+</template>

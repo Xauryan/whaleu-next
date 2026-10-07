@@ -305,7 +305,9 @@ test('Typed authority denial is terminal suppression while unavailable stays ret
       { activeAccount: async () => true } as never,
     );
     assert.deepEqual(
-      await facade.eligible(target, recipient, {} as PoolClient),
+      await facade.eligible(target, recipient, {
+        query: async () => ({ rows: [] }),
+      } as unknown as PoolClient),
       decision.kind === 'deny'
         ? { outcome: 'suppressed', code: 'target_inaccessible' }
         : { outcome: 'unavailable', code: 'authority_unavailable' },

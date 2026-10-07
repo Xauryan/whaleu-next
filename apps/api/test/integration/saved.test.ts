@@ -56,6 +56,7 @@ import {
   grant,
   verified,
 } from '../support/community-fixtures.js';
+import { migrationSchemaNames } from '../support/migration-schemas.js';
 const codeIs = (code: string) => (error: unknown) =>
   error instanceof ApplicationError && error.code === code;
 const sqlCode = (code: string) => (error: unknown) =>
@@ -96,17 +97,7 @@ test(
       owns = false;
     const authorization = new FixtureAuthorization(),
       visibility = new FixtureVisibility();
-    const schemas = [
-      'whaleu_notifications',
-      'whaleu_community_test',
-      'whaleu_verification',
-      'whaleu_authorization',
-      'whaleu_community',
-      'whaleu_profile',
-      'whaleu_campus',
-      'whaleu_identity',
-      'whaleu_meta',
-    ];
+    const schemas = ['whaleu_community_test', ...migrationSchemaNames];
     try {
       suite = await pool.connect();
       locked = (

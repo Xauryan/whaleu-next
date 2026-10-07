@@ -9,6 +9,7 @@ import {
 import { DatabaseModule } from '../database/database.js';
 import { IdentityModule } from '../identity/identity.module.js';
 import { bearerToken } from '../identity/tokens.js';
+import { LocalSafetyPhoneSource } from './safety-phone.source.js';
 import { LocalStudentIdentitySource } from './student-identity.source.js';
 import { VerificationRepository } from './verification.repository.js';
 import { VerificationService } from './verification.service.js';
@@ -34,7 +35,8 @@ export class VerificationController {
     VerificationRepository,
     VerificationService,
     LocalStudentIdentitySource,
+    LocalSafetyPhoneSource,
   ],
-  exports: [LocalStudentIdentitySource],
+  exports: [LocalStudentIdentitySource, LocalSafetyPhoneSource],
 })
 export class VerificationModule {}

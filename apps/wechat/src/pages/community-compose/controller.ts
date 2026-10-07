@@ -191,6 +191,9 @@ export class ComposeController extends CommunityController<ComposeView> {
     this.draftSaved = false;
     this.identityConflict = false;
   }
+  protected override onSafetyInvalidated(): void {
+    void this.load();
+  }
   async load(): Promise<void> {
     if (!this.available()) return;
     this.stop();

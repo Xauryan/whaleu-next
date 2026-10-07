@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import type {
   AssertionRecord,
+  SafetyPhoneEligibility,
   SnapshotRecord,
   VerificationRead,
 } from './contracts.js';
@@ -22,6 +23,49 @@ function unavailable(): VerificationRead {
 
 @Injectable()
 export class VerificationRepository {
+  async phone(
+    accountId: string,
+    transaction: PoolClient,
+  ): Promise<SafetyPhoneEligibility> {
+    // The owning head freezes even a missing pointer for the caller's transaction.
+    // Assertions and snapshots are immutable; writers UPDATE-lock this head first.
+    const head = (
+      await transaction.query<{ snapshot_id: string | null }>(
+        'SELECT snapshot_id FROM whaleu_verification.account_heads WHERE account_id=$1 FOR SHARE',
+        [accountId],
+      )
+    ).rows[0];
+    if (!head?.snapshot_id) return { status: 'unavailable' };
+    const snapshot = (
+      await transaction.query<{ phone_assertion_id: string | null }>(
+        'SELECT phone_assertion_id FROM whaleu_verification.snapshots WHERE id=$1 AND account_id=$2',
+        [head.snapshot_id, accountId],
+      )
+    ).rows[0];
+    if (!snapshot?.phone_assertion_id) return { status: 'unavailable' };
+    const assertion = (
+      await transaction.query<
+        Omit<AssertionRecord, 'origin_region_id' | 'student_number'>
+      >(
+        `SELECT id,account_id,fact_kind,assertion_state,coverage_state,provenance_state,method,source_reference,policy_reference,source_account_id,
+                issuer_institution_id,source_issuer_institution_id,phone_binding_reference,verified_at,expiry_kind,expires_at
+         FROM whaleu_verification.assertions WHERE account_id=$1 AND id=$2 AND fact_kind='phone'`,
+        [accountId, snapshot.phone_assertion_id],
+      )
+    ).rows[0];
+    // Always evaluate expiry with a fresh statement after all potentially waiting reads.
+    const now = (
+      await transaction.query<{ now: Date }>('SELECT clock_timestamp() AS now')
+    ).rows[0]!.now;
+    const status = assertionStatus(assertion, accountId, 'phone', now);
+    if (status === 'verified')
+      return {
+        status,
+        validUntil: assertion!.expires_at?.getTime() ?? null,
+      };
+    return { status: status === 'unavailable' ? 'unavailable' : 'unverified' };
+  }
+
   async read(
     accountId: string,
     transaction: PoolClient,

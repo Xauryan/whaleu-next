@@ -1,3 +1,6 @@
+import { SafetyChanges } from './safety-changes';
+import { HttpBlockGateway, type BlockGateway } from './block-gateway';
+import { PendingBlockStore } from './block-pending';
 import { PendingSavedStore } from './saved-pending';
 import { PendingFormationJoinStore } from './formation-pending';
 import { PendingTradingStore } from './trading-pending';
@@ -20,6 +23,9 @@ import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
   readonly sessions: SessionStore;
+  readonly safetyChanges?: SafetyChanges;
+  readonly blocks?: BlockGateway;
+  readonly pendingBlocks?: PendingBlockStore;
   readonly identityPrivacy?: IdentityPrivacyGateway;
   readonly privateViews?: PrivateViewLifecycle;
   readonly gateway: CommunityGateway | undefined;
@@ -41,9 +47,13 @@ export function createCommunityRuntime(
   clock: Clock = systemClock,
 ): CommunityRuntime {
   const storage = new WechatStorage(wx);
+  const privateViews = new PrivateViewLifecycle();
   return {
     sessions: identity.sessions,
-    privateViews: new PrivateViewLifecycle(),
+    privateViews,
+    safetyChanges: new SafetyChanges(privateViews),
+    pendingBlocks: new PendingBlockStore(storage, origin),
+    ...(identity.api ? { blocks: new HttpBlockGateway(identity.api) } : {}),
     ...(identity.api
       ? { identityPrivacy: new HttpIdentityPrivacyGateway(identity.api) }
       : {}),

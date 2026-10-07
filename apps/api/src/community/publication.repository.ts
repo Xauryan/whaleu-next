@@ -1,3 +1,7 @@
+import {
+  checkpointTransactionDeadlines,
+  restoreTransactionDeadlines,
+} from '../database/transaction-deadlines.js';
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -67,7 +71,11 @@ export class PublicationRepository {
       const row = result.rows[0]!;
       if (row.payload_hash !== hash || row.operation !== operation)
         throw new ApplicationError('REQUEST_CONFLICT');
-      if (row.receipt) return row.receipt;
+      if (row.receipt) {
+        await this.access.actor(token, tx);
+        return row.receipt;
+      }
+      const deadlineCheckpoint = checkpointTransactionDeadlines(tx);
       await tx.query('SAVEPOINT publication_work');
       let receipt: PublicationReceipt;
       try {
@@ -84,6 +92,7 @@ export class PublicationRepository {
         )
           throw error;
         await tx.query('ROLLBACK TO SAVEPOINT publication_work');
+        restoreTransactionDeadlines(tx, deadlineCheckpoint);
         receipt = {
           requestId,
           operation,
@@ -96,6 +105,7 @@ export class PublicationRepository {
         'UPDATE whaleu_community.publication_requests SET receipt=$3::jsonb WHERE account_id=$1 AND client_request_id=$2',
         [actor, requestId, JSON.stringify(receipt)],
       );
+      await this.access.actor(token, tx);
       return receipt;
     });
   }

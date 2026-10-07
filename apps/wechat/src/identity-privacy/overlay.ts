@@ -214,17 +214,17 @@ export class HttpIdentityPrivacyGateway implements IdentityPrivacyGateway {
   }
 }
 export class PrivateViewLifecycle {
-  private listeners = new Set<() => void>();
-  subscribe(listener: () => void): () => void {
+  private listeners = new Set<(accountId?: string) => void>();
+  subscribe(listener: (accountId?: string) => void): () => void {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
     };
   }
-  clear(): void {
-    for (const listener of this.listeners) {
+  clear(accountId?: string): void {
+    for (const listener of [...this.listeners]) {
       try {
-        listener();
+        listener(accountId);
       } catch {
         /* One native render failure cannot retain another private overlay. */
       }
@@ -258,7 +258,13 @@ export class IdentityOverlayController {
     lifecycle?: PrivateViewLifecycle,
   ) {
     this.unsubscribeVisibility =
-      lifecycle?.subscribe(() => this.clear()) ?? (() => undefined);
+      lifecycle?.subscribe((accountId) => {
+        if (
+          accountId === undefined ||
+          accountId === this.owner.credentials?.accountId
+        )
+          this.clear();
+      }) ?? (() => undefined);
     this.owner = sessions.snapshot();
     this.unsubscribe = sessions.subscribe(() => {
       const now = sessions.snapshot();

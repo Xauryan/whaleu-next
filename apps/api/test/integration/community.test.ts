@@ -50,6 +50,7 @@ import {
   grant,
   verified,
 } from '../support/community-fixtures.js';
+import { migrationSchemaNames } from '../support/migration-schemas.js';
 const codeIs = (code: string) => (error: unknown) =>
   error instanceof ApplicationError && error.code === code;
 function created(
@@ -132,7 +133,8 @@ test(
       assert.equal(
         (
           await pool.query<{ count: number }>(
-            "SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_community','whaleu_authorization','whaleu_verification','whaleu_community_test')",
+            'SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname=ANY($1::text[])',
+            [['whaleu_community_test', ...migrationSchemaNames]],
           )
         ).rows[0]!.count,
         0,
@@ -1203,15 +1205,8 @@ test(
         await app?.close();
         if (owns) {
           for (const schema of [
-            'whaleu_notifications',
             'whaleu_community_test',
-            'whaleu_verification',
-            'whaleu_authorization',
-            'whaleu_community',
-            'whaleu_profile',
-            'whaleu_campus',
-            'whaleu_identity',
-            'whaleu_meta',
+            ...migrationSchemaNames,
           ])
             await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
         }

@@ -33,6 +33,7 @@ import type {
   StudentIdentitySource,
   VerifiedStudentIdentity,
 } from '../../src/identity-privacy/contracts.js';
+import { migrationSchemaNames } from '../support/migration-schemas.js';
 
 const errorIs = (code: string) => (error: unknown) =>
   error instanceof ApplicationError && error.code === code;
@@ -131,7 +132,8 @@ test(
       assert.equal(
         (
           await pool.query<{ count: number }>(
-            "SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_notifications','whaleu_community','whaleu_authorization','whaleu_verification','whaleu_authorization_test')",
+            'SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname=ANY($1::text[])',
+            [['whaleu_authorization_test', ...migrationSchemaNames]],
           )
         ).rows[0]!.count,
         0,
@@ -826,14 +828,7 @@ test(
         if (owns)
           for (const schema of [
             'whaleu_authorization_test',
-            'whaleu_verification',
-            'whaleu_authorization',
-            'whaleu_notifications',
-            'whaleu_community',
-            'whaleu_profile',
-            'whaleu_campus',
-            'whaleu_identity',
-            'whaleu_meta',
+            ...migrationSchemaNames,
           ])
             await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
       } finally {

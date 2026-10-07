@@ -34,6 +34,7 @@ import {
   setSyntheticSnapshot,
   syntheticAssertion,
 } from '../support/verification-fixtures.js';
+import { migrationSchemaNames } from '../support/migration-schemas.js';
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 async function waitForHeadLock(pool: Pool): Promise<void> {
@@ -962,16 +963,7 @@ test(
       try {
         await app?.close();
         if (owns)
-          for (const schema of [
-            'whaleu_verification',
-            'whaleu_authorization',
-            'whaleu_notifications',
-            'whaleu_community',
-            'whaleu_profile',
-            'whaleu_campus',
-            'whaleu_identity',
-            'whaleu_meta',
-          ])
+          for (const schema of migrationSchemaNames)
             await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
       } finally {
         if (locked)

@@ -82,6 +82,9 @@ export class ThreadController extends CommunityController<ThreadView> {
       ]),
     ]);
   }
+  protected override onSafetyInvalidated(): void {
+    void this.load();
+  }
   async load(): Promise<void> {
     this.clear();
     if (!this.available()) return;

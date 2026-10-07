@@ -25,6 +25,7 @@ import {
   syntheticInstitutions,
   syntheticSchoolManifest,
 } from '../support/school-fixtures.js';
+import { migrationSchemaNames } from '../support/migration-schemas.js';
 
 test(
   'real PostgreSQL reviewed school identifier migration preserves rows, keys and relationships',
@@ -67,7 +68,8 @@ test(
       assert.equal(
         (
           await pool.query<{ count: number }>(
-            "SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_notifications','whaleu_community','whaleu_authorization','whaleu_verification')",
+            'SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname=ANY($1::text[])',
+            [migrationSchemaNames],
           )
         ).rows[0]?.count,
         0,
@@ -368,16 +370,7 @@ test(
     } finally {
       try {
         if (ownsSchemas)
-          for (const schema of [
-            'whaleu_verification',
-            'whaleu_authorization',
-            'whaleu_notifications',
-            'whaleu_community',
-            'whaleu_profile',
-            'whaleu_campus',
-            'whaleu_identity',
-            'whaleu_meta',
-          ])
+          for (const schema of migrationSchemaNames)
             await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
       } finally {
         if (locked)

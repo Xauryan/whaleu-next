@@ -27,6 +27,9 @@ export class SavedController extends CommunityController<SavedView> {
   protected override resetPrivate(): void {
     this.nextCursor = null;
   }
+  protected override onSafetyInvalidated(): void {
+    void this.load();
+  }
   async load(): Promise<void> {
     this.stop();
     this.nextCursor = null;

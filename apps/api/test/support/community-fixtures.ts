@@ -13,6 +13,7 @@ import type {
   Decision,
   MediaAttachmentPort,
   VisibilitySubject,
+  VisibilityPurpose,
 } from '../../src/community/community-policy.js';
 import type {
   CommunitySpace,
@@ -46,6 +47,7 @@ export class FixtureVisibility implements CommunityVisibilityPort {
     viewer: string | null,
     subject: VisibilitySubject,
     tx: PoolClient,
+    _purpose: VisibilityPurpose,
   ): Promise<Decision> {
     this.seen.push(subject);
     if (subject.authorMode === 'named') {

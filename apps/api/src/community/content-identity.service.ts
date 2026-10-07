@@ -60,6 +60,7 @@ export class CommunityContentIdentityService {
                   author_mode: 'named',
                 },
             tx,
+            'list_projection',
           ))
         )
           return null;
@@ -100,7 +101,14 @@ export class CommunityContentIdentityService {
         tx,
       );
       const comment = await this.repository.comment(target.id, tx, true);
-      if (!(await this.access.visible(viewerAccountId, comment, tx)))
+      if (
+        !(await this.access.visible(
+          viewerAccountId,
+          comment,
+          tx,
+          'list_projection',
+        ))
+      )
         return null;
       return {
         accountId: comment.account_id,

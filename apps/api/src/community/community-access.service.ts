@@ -1,3 +1,4 @@
+import { lockSafetyPolicy } from '../safety/locks.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -12,6 +13,8 @@ import type {
   CommunityAuthorizationPort,
   CommunityVisibilityPort,
   VisibilitySubject,
+  VisibilityPurpose,
+  Decision,
 } from './community-policy.js';
 import type { CommunitySpace } from './contracts.js';
 import { CommunityRepository } from './community.repository.js';
@@ -28,6 +31,7 @@ export class CommunityAccessService {
     private readonly repository: CommunityRepository,
   ) {}
   async actor(token: string, tx: PoolClient): Promise<string> {
+    await lockSafetyPolicy(tx);
     return (await this.identity.session(token, tx)).accountId;
   }
   async authority(
@@ -48,33 +52,56 @@ export class CommunityAccessService {
     const decision = await this.authorization.resolve(accountId, space, tx);
     return decision.kind === 'allow' ? decision.value : null;
   }
+  async visibilityDecision(
+    viewer: string | null,
+    content: StoredPost | StoredComment,
+    tx: PoolClient,
+    purpose: VisibilityPurpose,
+  ): Promise<Decision> {
+    if (content.visibility !== 'approved' || content.deleted_at)
+      return { kind: 'deny', reason: 'POST_NOT_FOUND' };
+    const subject: VisibilitySubject =
+      content.author_mode === 'named'
+        ? {
+            contentId: content.id,
+            authorMode: 'named',
+            namedAccountId: content.account_id,
+          }
+        : { contentId: content.id, authorMode: 'anonymous' };
+    const result = await this.visibility.check(viewer, subject, tx, purpose);
+    if (result.kind === 'unavailable')
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    return result;
+  }
   async visible(
     viewer: string | null,
     content: StoredPost | StoredComment,
     tx: PoolClient,
+    purpose: VisibilityPurpose,
   ): Promise<boolean> {
-    if (content.visibility !== 'approved' || content.deleted_at) return false;
-    const subject: VisibilitySubject = {
-      contentId: content.id,
-      authorMode: content.author_mode,
-      ...(content.author_mode === 'named'
-        ? { namedAccountId: content.account_id }
-        : {}),
-    };
-    const result = await this.visibility.check(viewer, subject, tx);
-    if (result.kind === 'unavailable')
-      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-    return result.kind === 'allow';
+    return (
+      (await this.visibilityDecision(viewer, content, tx, purpose)).kind ===
+      'allow'
+    );
+  }
+  async interaction(
+    viewer: string,
+    content: StoredPost | StoredComment,
+    tx: PoolClient,
+  ) {
+    if (!(await this.visible(viewer, content, tx, 'named_interaction')))
+      throw new ApplicationError('POST_NOT_FOUND');
   }
   async accessiblePost(
     id: string,
     viewer: string | null,
     tx: PoolClient,
     write = false,
+    explainOwnBlock = false,
   ): Promise<{ post: StoredPost; space: CommunitySpace }> {
+    await lockSafetyPolicy(tx);
     const post = await this.repository.post(id, tx, write);
-    // A generic absence avoids distinguishing hidden, deleted and blocked content.
-    if (!(await this.visible(viewer, post, tx)))
+    if (post.visibility !== 'approved' || post.deleted_at)
       throw new ApplicationError('POST_NOT_FOUND');
     let space: CommunitySpace;
     try {
@@ -87,6 +114,20 @@ export class CommunityAccessService {
         throw new ApplicationError('POST_NOT_FOUND');
       throw error;
     }
+    const decision = await this.visibilityDecision(
+      viewer,
+      post,
+      tx,
+      'direct_post',
+    );
+    if (decision.kind !== 'allow')
+      throw new ApplicationError(
+        explainOwnBlock &&
+          decision.kind === 'deny' &&
+          decision.reason === 'POST_BLOCKED_BY_YOU'
+          ? 'POST_BLOCKED_BY_YOU'
+          : 'POST_NOT_FOUND',
+      );
     return { post, space };
   }
   async accessibleComment(
@@ -108,7 +149,7 @@ export class CommunityAccessService {
     const comment = await this.repository.comment(id, tx, true);
     if (
       comment.post_id !== post.id ||
-      !(await this.visible(viewer, comment, tx))
+      !(await this.visible(viewer, comment, tx, 'list_projection'))
     )
       throw new ApplicationError('COMMENT_NOT_FOUND');
     return { post, space, comment, authority };
@@ -130,7 +171,7 @@ export class CommunityAccessService {
     if (
       reply.post_id !== parent.post.id ||
       reply.root_comment_id !== parent.comment.id ||
-      !(await this.visible(viewer, reply, tx))
+      !(await this.visible(viewer, reply, tx, 'list_projection'))
     )
       throw new ApplicationError('REPLY_NOT_FOUND');
     return { ...parent, reply };

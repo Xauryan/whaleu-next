@@ -49,7 +49,7 @@ export class DeletionService {
       );
       const comment = result.rows[0]!;
       if (comment.deleted_at) return;
-      if (!(await this.access.visible(actor, comment, tx)))
+      if (!(await this.access.visible(actor, comment, tx, 'list_projection')))
         throw new ApplicationError('COMMENT_NOT_FOUND');
       await tx.query(
         'DELETE FROM whaleu_community.comment_pins WHERE comment_id=$1',

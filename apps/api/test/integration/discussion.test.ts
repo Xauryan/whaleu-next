@@ -53,6 +53,7 @@ import {
   grant,
   verified,
 } from '../support/community-fixtures.js';
+import { migrationSchemaNames } from '../support/migration-schemas.js';
 const code = (expected: string) => (error: unknown) =>
   error instanceof ApplicationError && error.code === expected;
 function created(receipt: PublicationReceipt) {
@@ -97,17 +98,7 @@ test(
     const authorization = new FixtureAuthorization(),
       visibility = new FixtureVisibility(),
       content = new FixtureContent();
-    const schemas = [
-      'whaleu_notifications',
-      'whaleu_community_test',
-      'whaleu_verification',
-      'whaleu_authorization',
-      'whaleu_community',
-      'whaleu_profile',
-      'whaleu_campus',
-      'whaleu_identity',
-      'whaleu_meta',
-    ];
+    const schemas = ['whaleu_community_test', ...migrationSchemaNames];
     const region = randomUUID(),
       space = randomUUID(),
       global = randomUUID();

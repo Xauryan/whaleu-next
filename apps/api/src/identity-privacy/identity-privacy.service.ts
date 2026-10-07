@@ -1,3 +1,5 @@
+import { registerTransactionDeadline } from '../database/transaction-deadlines.js';
+import { lockSafetyPolicy } from '../safety/locks.js';
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -51,6 +53,7 @@ export class IdentityPrivacyService {
     const targets = parsed.data.targets;
     const batchId = randomUUID();
     const outcome = await this.database.transaction(async (transaction) => {
+      await lockSafetyPolicy(transaction);
       // These facades hold session/account/token and grant/scope locks until COMMIT.
       // Their captured deadlines permit a pure final decision without reopening rows.
       const actor = await this.identity.session(token, transaction);
@@ -157,7 +160,8 @@ export class IdentityPrivacyService {
       );
       // Flush deferred audit/foreign-key work BEFORE the final clock, including
       // any associated lock waits. No SQL/read/provider operation follows this
-      // clock except transaction COMMIT; all eligibility checks below are pure.
+      // clock inside this owner; the transaction wrapper subsequently flushes
+      // and checks all registered bounds again at its true final clock.
       await transaction.query('SET CONSTRAINTS ALL IMMEDIATE');
       const decisionAt = await databaseTime(transaction);
       if (elapsed(actor.expiresAt, decisionAt))
@@ -174,6 +178,25 @@ export class IdentityPrivacyService {
           // Abort, rather than silently alter an already-audited field selection.
           throw new ApplicationError('IDENTITY_VIEW_UNAVAILABLE');
         }
+      }
+      // The database wrapper owns the final transaction clock; preserve every
+      // actually disclosed held bound across its final deferred-constraint flush.
+      registerTransactionDeadline(
+        transaction,
+        grant.validUntil,
+        'AUTHORIZATION_REQUIRED',
+      );
+      for (let index = 0; index < items.length; index++) {
+        const item = items[index]!;
+        if (
+          item.status === 'available' &&
+          item.identity.studentNumberStatus === 'verified'
+        )
+          registerTransactionDeadline(
+            transaction,
+            snapshots[index]!.validUntil,
+            'IDENTITY_VIEW_UNAVAILABLE',
+          );
       }
       return { items };
     });

@@ -1,3 +1,4 @@
+import { lockSafetyPolicy } from '../safety/locks.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.js';
 import { IdentityService } from '../identity/identity.service.js';
@@ -53,6 +54,7 @@ export class UpdatesReadService {
   }
   list(token: string, query: UpdatesQuery): Promise<UpdatesPage> {
     return this.database.transaction(async (tx) => {
+      await lockSafetyPolicy(tx);
       const { accountId } = await this.identity.session(token, tx);
       const seek = updatesCursor(query.cursor, accountId, query.limit);
       await this.repository.owner(accountId, tx);
@@ -80,6 +82,7 @@ export class UpdatesReadService {
   }
   unreadCount(token: string) {
     return this.database.transaction(async (tx) => {
+      await lockSafetyPolicy(tx);
       const { accountId } = await this.identity.session(token, tx);
       await this.repository.owner(accountId, tx);
       const unreadCount = await this.repository.count(accountId, tx);
@@ -89,6 +92,7 @@ export class UpdatesReadService {
   }
   target(token: string, noticeId: string) {
     return this.database.transaction(async (tx) => {
+      await lockSafetyPolicy(tx);
       const { accountId } = await this.identity.session(token, tx);
       await this.repository.owner(accountId, tx);
       const item = await this.project(
@@ -107,6 +111,7 @@ export class UpdatesReadService {
   }
   markRead(token: string, noticeId: string) {
     return this.database.transaction(async (tx) => {
+      await lockSafetyPolicy(tx);
       const { accountId } = await this.identity.session(token, tx);
       await this.repository.owner(accountId, tx, true);
       const row = await this.repository.markRead(accountId, noticeId, tx);

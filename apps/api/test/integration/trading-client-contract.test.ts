@@ -53,6 +53,7 @@ import {
   grant,
   verified,
 } from '../support/community-fixtures.js';
+import { migrationSchemaNames } from '../support/migration-schemas.js';
 
 // Execute actual native gateways and strict decoders. Only platform I/O and
 // unavailable external providers are replaced by local synthetic test adapters.
@@ -1663,15 +1664,8 @@ test(
         try {
           if (ownsSchemas)
             for (const schema of [
-              'whaleu_notifications',
               'whaleu_community_test',
-              'whaleu_verification',
-              'whaleu_authorization',
-              'whaleu_community',
-              'whaleu_profile',
-              'whaleu_campus',
-              'whaleu_identity',
-              'whaleu_meta',
+              ...migrationSchemaNames,
             ])
               await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
         } finally {

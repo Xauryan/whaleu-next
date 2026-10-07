@@ -90,3 +90,13 @@ migrations, publication hashes and receipts remain unchanged. No notices,
 experience grants, ranking updates, provider consent or production import are
 performed. See [C2E Saved](../../../docs/API_COMMUNITY.md#c2e-saved-posts-and-per-post-preferences-increment-1)
 for read/cleanup policy, pagination bounds and retained delivery work.
+
+`0014_named_blocks.sql` adds empty directional named block relationships,
+account-owned immutable receipts, coverage heads, transition audits and bounded
+rate counters in `whaleu_safety`. No old account receives fabricated empty history;
+only identity's new-native-account transaction establishes initial coverage.
+Creation provenance is immutable, revisions are monotonic, and deferred checks
+require exact completed receipts and matching owner transition audit. Inactive
+relationships and receipts remain retained to prevent stale-request resurrection.
+No moderation, ban/grant issuance, provider, production import or verification
+assertion is created. See [S1A named blocking](../../../docs/API_SAFETY.md).

@@ -118,6 +118,7 @@ export class FormationService {
             author_mode: 'named',
           },
       tx,
+      'list_projection',
     );
   }
   private async memberView(
@@ -169,6 +170,10 @@ export class FormationService {
   ): Promise<FormationView | null> {
     const formation = await this.formations.find(post.id, tx);
     if (!formation) return null;
+    // Discovery remains one-way, but a full roster is a direct-parent projection.
+    // A reverse-blocked feed card retains its ordinary card and omits this component.
+    if (!(await this.access.visible(viewer, post, tx, 'direct_post')))
+      return null;
     const roster = await this.formations.members(formation.id, tx);
     const own = roster.find((member) => member.account_id === viewer);
     const safeTheme = safeFormationDisplayText(formation.theme);

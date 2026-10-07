@@ -1,0 +1,24 @@
+<import src="../../community/block-recovery.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 我的拉黑</view>
+  <view class="title">我拉黑的公开身份</view>
+  <view class="notice">这里只展示你发起的拉黑。解除只撤销你的这一方向，不能撤销对方发起的拉黑；匿名内容不会仅因背后账号被拉黑而隐藏。</view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <button bindtap="onReload" disabled="{{busy || block.busy}}" loading="{{busy}}">刷新我的拉黑</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止等待列表</button>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看自己的拉黑 →</navigator>
+  <template is="block-recovery" data="{{block}}" />
+  <view wx:for="{{items}}" wx:key="relationshipId" class="card">
+    <view class="author">{{item.display.kind === 'unavailable' ? '公开身份资料暂不可用' : item.display.displayName}}</view>
+    <view wx:if="{{item.display.kind === 'snapshot'}}" class="meta">拉黑时的公开名称，可能已变更</view>
+    <view class="meta">拉黑于 {{item.blockedAt}}</view>
+    <view class="notice">即使原内容或公开资料已不可查看，仍可解除你发起的拉黑。</view>
+    <view wx:if="{{block.activeRelationshipId === item.relationshipId &amp;&amp; block.error}}" class="error" aria-role="alert">{{block.error}}</view>
+    <button data-id="{{item.relationshipId}}" bindtap="onUnblock" disabled="{{busy || block.busy || block.frozen || !item.canUnblock}}" loading="{{block.busy &amp;&amp; block.activeRelationshipId === item.relationshipId}}">{{block.busy &amp;&amp; block.activeRelationshipId === item.relationshipId ? '正在解除' : '解除我的拉黑'}}</button>
+  </view>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">你目前没有发起的拉黑</view>
+  <button wx:if="{{canLoadMore}}" bindtap="onMore" disabled="{{busy || block.busy}}">加载更多</button>
+  <view class="notice">在当前可查看的公开身份帖子、评论或回复中发起拉黑。公开个人主页的拉黑入口尚未接入。实际操作资格由服务端确认。</view>
+  <navigator class="link" url="/pages/community-feed/community-feed">回到校园社区 →</navigator>
+</view>

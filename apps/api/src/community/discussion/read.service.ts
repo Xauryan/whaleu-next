@@ -37,7 +37,7 @@ export class DiscussionReadService {
         throw new ApplicationError('COMMUNITY_UNAVAILABLE');
       const items: CommentView[] = [];
       for (const row of rows.rows)
-        if (await this.access.visible(actor, row, tx))
+        if (await this.access.visible(actor, row, tx, 'list_projection'))
           items.push(
             await this.serializer.comment(
               row,

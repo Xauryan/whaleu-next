@@ -1,3 +1,4 @@
+import { lockSafetyPolicy } from '../safety/locks.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { ApplicationError } from '../http/application-error.js';
 import { CommunityRepository } from './community.repository.js';
@@ -90,6 +91,7 @@ export class FeedService {
   }
   feed(token: string | null, query: FeedQuery): Promise<FeedPage> {
     return this.repository.database.transaction(async (tx) => {
+      await lockSafetyPolicy(tx);
       const actor = token ? await this.access.actor(token, tx) : null;
       const space = await this.repository.space(query.spaceId, tx);
       const authority = await this.access.advisory(actor, space, tx);
@@ -122,7 +124,7 @@ export class FeedService {
         if (!rows.rows.length) break;
         for (const post of rows.rows) {
           seek = { at: post.published_at.toISOString(), id: post.id };
-          if (await this.access.visible(actor, post, tx))
+          if (await this.access.visible(actor, post, tx, 'list_projection'))
             items.push(
               await this.serializer.post(post, space, actor, authority, tx),
             );
@@ -230,7 +232,13 @@ export class FeedService {
   detail(token: string, id: string): Promise<PostView> {
     return this.repository.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);
-      const { post, space } = await this.access.accessiblePost(id, actor, tx);
+      const { post, space } = await this.access.accessiblePost(
+        id,
+        actor,
+        tx,
+        false,
+        true,
+      );
       return this.serializer.post(
         post,
         space,
@@ -263,7 +271,7 @@ export class FeedService {
         if (!rows.rows.length) break;
         for (const comment of rows.rows) {
           seek = { at: comment.created_at.toISOString(), id: comment.id };
-          if (await this.access.visible(actor, comment, tx))
+          if (await this.access.visible(actor, comment, tx, 'list_projection'))
             items.push(
               await this.serializer.comment(
                 comment,

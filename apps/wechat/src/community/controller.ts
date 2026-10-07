@@ -34,6 +34,13 @@ export const reasonMessage = (code: string | null): string =>
     MEDIA_UNAVAILABLE: '图片上传与审核服务尚未接入',
     NOTICE_NOT_FOUND: '此更新不存在或不属于当前账号，请刷新列表',
     POST_NOT_FOUND: '帖子不存在或当前不可查看',
+    POST_BLOCKED_BY_YOU: '你已屏蔽此用户，可在屏蔽列表中解除',
+    BLOCK_TARGET_NOT_ALLOWED: '仅可屏蔽当前可查看的非本人公开身份内容',
+    BLOCK_NOT_FOUND: '此屏蔽关系不存在或不属于当前账号',
+    BLOCK_REVISION_CONFLICT: '屏蔽状态已变化，请刷新后再操作',
+    SAFETY_UNAVAILABLE: '安全设置服务尚未就绪，请稍后重试',
+    SAFETY_ACTION_RESTRICTED: '当前账号暂不能修改安全设置',
+    RATE_LIMITED: '操作过于频繁，请稍后重试',
     DISCUSSION_RESTART_REQUIRED: '讨论排序已变化，请重新加载，旧分页已清除',
     REPLY_NOT_FOUND: '回复不存在或当前不可查看',
     COMMENT_PIN_CONFLICT: '此帖已有置顶评论，请先取消原置顶后再选择另一条',
@@ -90,14 +97,17 @@ export abstract class CommunityController<V extends CommunityView> {
   private cancellation: Cancellation | undefined;
   private readonly unsubscribe: () => void;
   private readonly unsubscribeRootHide: () => void;
+  private readonly unsubscribeSafety: () => void;
   constructor(
     protected readonly runtime: CommunityRuntime,
     private readonly initial: () => V,
     private readonly render: (view: V) => void,
   ) {
     this.unsubscribeRootHide =
-      runtime.privateViews?.subscribe(() => this.dispose()) ??
-      (() => undefined);
+      runtime.privateViews?.subscribe((accountId) => {
+        // Named-block changes use their own scoped event, never the root-hide disposal path.
+        if (accountId === undefined) this.dispose();
+      }) ?? (() => undefined);
     this.owner = runtime.sessions.snapshot();
     this.view = initial();
     this.unsubscribe = runtime.sessions.subscribe(() => {
@@ -118,12 +128,31 @@ export abstract class CommunityController<V extends CommunityView> {
         } as Partial<V>);
       }
     });
+    this.unsubscribeSafety =
+      runtime.safetyChanges?.subscribe((accountId) => {
+        if (this.stopped || this.accountId() !== accountId) return;
+        const previous = this.view;
+        this.stop();
+        this.view = initial();
+        try {
+          this.resetPrivate();
+        } finally {
+          this.update({
+            hasSession: !!this.owner.credentials,
+            configured: !!runtime.gateway,
+            status: '屏蔽设置已更新，正在重新核验内容',
+          } as Partial<V>);
+        }
+        this.onSafetyInvalidated(previous);
+      }) ?? (() => undefined);
     this.update({
       configured: !!runtime.gateway,
       hasSession: !!this.owner.credentials,
     } as Partial<V>);
   }
   protected resetPrivate(): void {}
+  /** Read owners may reload after all of this controller's previous callbacks were invalidated. */
+  protected onSafetyInvalidated(_previous: V): void {}
   protected update(patch: Partial<V>): void {
     if (this.stopped) return;
     this.view = Object.freeze({ ...this.view, ...patch });
@@ -227,6 +256,7 @@ export abstract class CommunityController<V extends CommunityView> {
     this.stop();
     this.unsubscribe();
     this.unsubscribeRootHide();
+    this.unsubscribeSafety();
     this.resetPrivate();
     this.view = this.initial();
     this.render(this.view);

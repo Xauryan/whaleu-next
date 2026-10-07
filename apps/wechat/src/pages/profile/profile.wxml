@@ -11,6 +11,7 @@
     <navigator wx:if="{{!hasSession}}" class="text-link" url="/pages/login/login" open-type="reLaunch">前往登录</navigator>
   </view>
   <navigator wx:if="{{!profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/verification/verification">查看我的认证状态 →</navigator>
+  <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/community-blocks/community-blocks">我的拉黑与结果恢复 →</navigator>
   <block wx:if="{{loaded}}">
     <view class="card">
       <view class="card-title">我的校园</view>

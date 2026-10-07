@@ -59,6 +59,75 @@ export class FeedController extends CommunityController<FeedView> {
   setQuery(query: string): void {
     this.update({ query });
   }
+  protected override onSafetyInvalidated(previous: FeedView): void {
+    if (!previous.space || !previous.campusId) {
+      void this.load();
+      return;
+    }
+    const selected = {
+      campusId: previous.campusId,
+      campusName: previous.campusName,
+      spaceId: previous.space.id,
+      category: previous.category,
+      tradingSubtype: previous.tradingSubtype,
+    };
+    // Retain only public navigation choices, never old rows/cursors or private previews.
+    void this.recheckSelectedScope(selected);
+  }
+  private async recheckSelectedScope(
+    selected: Pick<
+      FeedView,
+      'campusId' | 'campusName' | 'category' | 'tradingSubtype'
+    > & { readonly spaceId: string },
+  ): Promise<void> {
+    if (!this.available(false)) return;
+    await this.run(
+      async (cancel) => {
+        const spaces = await this.runtime.gateway!.spaces(
+          selected.campusId,
+          cancel,
+        );
+        const space =
+          [spaces.regional, ...spaces.global].find(
+            (item) => item?.id === selected.spaceId && item.isActive,
+          ) ?? null;
+        const feed = space
+          ? await this.runtime.gateway!.feed(
+              {
+                spaceId: space.id,
+                ...(selected.category !== 'all'
+                  ? { category: selected.category }
+                  : {}),
+                ...(selected.category === 'trading' && selected.tradingSubtype
+                  ? { tradingSubtype: selected.tradingSubtype }
+                  : {}),
+              },
+              cancel,
+            )
+          : null;
+        return { spaces, space, feed };
+      },
+      (result) => {
+        this.regional = result.spaces.regional;
+        this.nextCursor = result.feed?.nextCursor ?? null;
+        this.update({
+          campusId: selected.campusId,
+          campusName: selected.campusName,
+          category: selected.category,
+          tradingSubtype: selected.tradingSubtype,
+          space: result.space,
+          globalSpaces: result.spaces.global.filter((item) => item.isActive),
+          posts: result.feed?.items ?? [],
+          continuation: result.feed?.continuation ?? 'end',
+          loaded: true,
+          canLoadMore: !!this.nextCursor,
+          status: result.space
+            ? '已按最新屏蔽设置重新核验当前列表'
+            : '原浏览范围当前不可用，请重新选择',
+        });
+      },
+    );
+  }
   async load(): Promise<void> {
     if (!this.available(false) || !this.runtime.profiles) return;
     const owner = this.owner;

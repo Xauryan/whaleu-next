@@ -53,6 +53,9 @@ export class UpdatesController extends CommunityController<UpdatesView> {
       canLoadMore: false,
     });
   }
+  protected override onSafetyInvalidated(): void {
+    void this.load();
+  }
   async load(): Promise<void> {
     this.stop();
     this.clear();
@@ -257,6 +260,9 @@ export class UpdatesBadgeController extends CommunityController<UpdatesBadgeView
     render: (view: UpdatesBadgeView) => void,
   ) {
     super(runtime, initialUpdatesBadgeView, render);
+  }
+  protected override onSafetyInvalidated(): void {
+    void this.load();
   }
   async load(): Promise<void> {
     this.stop();

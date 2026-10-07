@@ -1,3 +1,4 @@
+import { smokeNamedBlocks } from './smoke-blocks.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -1678,6 +1679,24 @@ assert.equal(
   ),
   false,
 );
+app.identity.sessions.completeLogin(app.identity.sessions.beginLogin(), {
+  accountId: pollAccount,
+  sessionId: '22345678-1234-4123-8123-123456789abc',
+  accessToken: `wu_a_${'a'.repeat(43)}`,
+  refreshToken: `wu_r_${'a'.repeat(43)}`,
+  expiresAt: 1900000000000,
+  refreshExpiresAt: 1900600000000000,
+});
+await smokeNamedBlocks({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
+  postWire: pollPostWire,
+  rootWire,
+  replyWire,
+  accountId: pollAccount,
+});
 app.community.identityPrivacy = originalIdentityPrivacy;
 app.community.profiles = originalProfiles;
 app.identity.sessions.logout();

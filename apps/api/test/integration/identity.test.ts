@@ -23,6 +23,7 @@ import { IdentityService } from '../../src/identity/identity.service.js';
 import { IdentityRateLimiter } from '../../src/identity/rate-limit.js';
 import { hashToken, mintToken } from '../../src/identity/tokens.js';
 import { AppLogger } from '../../src/observability/logger.js';
+import { migrationSchemaNames } from '../support/migration-schemas.js';
 
 function hasCode(code: string): (error: unknown) => boolean {
   return (error) => error instanceof ApplicationError && error.code === code;
@@ -96,7 +97,8 @@ test(
         'PostgreSQL 18.6+ (18.x) is required',
       );
       const existing = await pool.query<{ count: number }>(
-        "SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_notifications','whaleu_community','whaleu_authorization','whaleu_verification')",
+        'SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname=ANY($1::text[])',
+        [migrationSchemaNames],
       );
       assert.equal(
         existing.rows[0]?.count,
@@ -585,18 +587,8 @@ test(
       try {
         await database.onApplicationShutdown();
         if (ownsSchema) {
-          await pool.query('DROP SCHEMA IF EXISTS whaleu_verification CASCADE');
-          await pool.query(
-            'DROP SCHEMA IF EXISTS whaleu_authorization CASCADE',
-          );
-          await pool.query(
-            'DROP SCHEMA IF EXISTS whaleu_notifications CASCADE',
-          );
-          await pool.query('DROP SCHEMA IF EXISTS whaleu_community CASCADE');
-          await pool.query('DROP SCHEMA IF EXISTS whaleu_profile CASCADE');
-          await pool.query('DROP SCHEMA IF EXISTS whaleu_campus CASCADE');
-          await pool.query('DROP SCHEMA IF EXISTS whaleu_identity CASCADE');
-          await pool.query('DROP SCHEMA IF EXISTS whaleu_meta CASCADE');
+          for (const schema of migrationSchemaNames)
+            await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
         }
       } finally {
         if (suiteLocked)

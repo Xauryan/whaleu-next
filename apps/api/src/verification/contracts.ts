@@ -53,6 +53,11 @@ export interface VerificationRead {
   readonly studentNumberValidUntil: number | null;
 }
 
+/** Transaction-bound phone eligibility only; no binding or identity values escape. */
+export type SafetyPhoneEligibility =
+  | { readonly status: 'verified'; readonly validUntil: number | null }
+  | { readonly status: 'unverified' | 'unavailable' };
+
 /** Report shape only. No importer until a complete schema export and reviewed mapping exist. */
 export interface ReconciliationReport {
   readonly mode: 'dry-run';

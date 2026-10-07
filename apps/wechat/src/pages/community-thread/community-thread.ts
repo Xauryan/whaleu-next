@@ -1,3 +1,7 @@
+import {
+  BlockMutationController,
+  initialBlockMutationView,
+} from '../../community/block-controller';
 import type { WhaleuApp } from '../../app';
 import { isUuid } from '../../profile/contract';
 import {
@@ -13,11 +17,14 @@ import {
 import { ThreadController, initialThreadView } from './controller';
 Page({
   data: {
+    block: initialBlockMutationView(),
     ...initialThreadView(),
     interaction: initialDiscussionMutationView(),
     identityOverlay: initialOverlayView(),
     requestedReplyId: '',
   },
+  blockMutations: undefined as BlockMutationController | undefined,
+  blockTargets: '',
   controller: undefined as ThreadController | undefined,
   mutations: undefined as DiscussionMutationController | undefined,
   identityOverlay: undefined as IdentityOverlayController | undefined,
@@ -38,6 +45,9 @@ Page({
     this.setData({ requestedReplyId: this.replyId ?? '' });
   },
   onShow() {
+    this.blockMutations?.dispose();
+    this.blockMutations = undefined;
+    this.blockTargets = '';
     this.controller?.dispose();
     this.mutations?.dispose();
     this.identityOverlay?.dispose();
@@ -47,6 +57,14 @@ Page({
       this.setData({ error: '讨论地址无效或环境尚未初始化' });
       return;
     }
+    this.blockMutations = new BlockMutationController(runtime, (view) => {
+      this.setData({ block: view });
+      if (view.busy || view.frozen) {
+        this.identityOverlay?.clear();
+        this.overlayTargets = '';
+      }
+    });
+    this.blockMutations.load();
     this.identityOverlay = new IdentityOverlayController(
       runtime.sessions,
       runtime.identityPrivacy,
@@ -106,9 +124,14 @@ Page({
         const key = targets
           .map((item) => item.kind + ':' + item.id + ':' + item.authorMode)
           .join(',');
+        if (view.busy || !view.loaded || key !== this.blockTargets)
+          this.blockMutations?.dismissBlock();
+        this.blockTargets = key;
         if (
           view.busy ||
           !view.loaded ||
+          this.data.block.busy ||
+          this.data.block.frozen ||
           this.data.interaction.busy ||
           this.data.interaction.frozen
         ) {
@@ -122,7 +145,43 @@ Page({
     );
     void this.controller.load();
   },
+  onBlockPost() {
+    const post = this.data.post;
+    if (post && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.blockMutations?.requestBlock('post', post);
+  },
+  onBlockRoot() {
+    const root = this.data.root;
+    if (root && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.blockMutations?.requestBlock('comment', root);
+  },
+  onBlockReply(event: { currentTarget: { dataset: { id: string } } }) {
+    const id = event.currentTarget.dataset.id,
+      reply =
+        [...this.data.replies, ...this.data.contextReplies].find(
+          (item) => item.id === id,
+        ) ??
+        (this.data.locatedReply?.id === id ? this.data.locatedReply : null);
+    if (reply && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.blockMutations?.requestBlock('reply', reply);
+  },
+  onConfirmBlock() {
+    void this.blockMutations?.confirmBlock();
+  },
+  onDismissBlock() {
+    this.blockMutations?.dismissBlock();
+  },
+  onBlockReceipt() {
+    void this.blockMutations?.recover();
+  },
+  onBlockRetry() {
+    void this.blockMutations?.recover(true);
+  },
+  onBlockCancel() {
+    this.blockMutations?.cancel();
+  },
   onReload() {
+    this.blockMutations?.dismissBlock();
     void this.controller?.load();
   },
   onMore() {
@@ -188,6 +247,9 @@ Page({
     this.mutations?.cancel();
   },
   onHide() {
+    this.blockMutations?.dispose();
+    this.blockMutations = undefined;
+    this.blockTargets = '';
     this.controller?.dispose();
     this.controller = undefined;
     this.mutations?.dispose();

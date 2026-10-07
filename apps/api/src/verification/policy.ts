@@ -4,6 +4,13 @@ import type {
   VerificationStatus,
 } from './contracts.js';
 
+/** Phone-only reads do not need private student numbers or origin metadata. */
+type AssertionPolicyRecord = Omit<
+  AssertionRecord,
+  'id' | 'origin_region_id' | 'student_number'
+> &
+  Partial<Pick<AssertionRecord, 'student_number'>>;
+
 export function safeStudentNumber(value: unknown): value is string {
   return (
     typeof value === 'string' &&
@@ -16,7 +23,7 @@ export function safeStudentNumber(value: unknown): value is string {
 
 /** Never elevate absence, a generic student flag, a role or a chosen school. */
 export function assertionStatus(
-  record: AssertionRecord | undefined,
+  record: AssertionPolicyRecord | undefined,
   accountId: string,
   kind: FactKind,
   now: Date,

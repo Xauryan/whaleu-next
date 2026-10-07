@@ -3,6 +3,27 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  SAFETY_UNAVAILABLE: {
+    status: 503,
+    message: 'Safety controls are unavailable',
+  },
+  SAFETY_ACTION_RESTRICTED: {
+    status: 403,
+    message: 'Safety action is restricted',
+  },
+  BLOCK_TARGET_NOT_ALLOWED: {
+    status: 403,
+    message: 'This target cannot be blocked',
+  },
+  BLOCK_NOT_FOUND: { status: 404, message: 'Block not found' },
+  BLOCK_REVISION_CONFLICT: {
+    status: 409,
+    message: 'Block changed; refresh before continuing',
+  },
+  POST_BLOCKED_BY_YOU: {
+    status: 404,
+    message: 'You blocked this named author',
+  },
   AUTHORIZATION_REQUIRED: {
     status: 403,
     message: 'Required role is not granted',

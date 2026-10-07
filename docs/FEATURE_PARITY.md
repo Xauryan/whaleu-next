@@ -37,7 +37,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 - [ ] NOT IMPLEMENTED — Private messages: conversation create/list, real/anonymous contexts, history pagination, text/image sending, unread counts, read markers, recall, deletion, blocking and anti-harassment limits
 - [ ] PARTIAL — Notifications: grouped counts and lists, mark read, badges, comment/reply/like/activity/review events, application/group-review details, live updates and session-safe refresh
 - [ ] PARTIAL — Notification preferences/delivery: post-specific settings, mute/subscription status, mini-program subscriptions, official-account templates, reminders/guides, queued delivery and duplicate prevention
-- [ ] NOT IMPLEMENTED — User safety: block/unblock/list/check, reporting posts/comments/replies, report status/count/voting, restricted interactions and consistent anonymous identity protection
+- [ ] PARTIAL — User safety: block/unblock/list/check, reporting posts/comments/replies, report status/count/voting, restricted interactions and consistent anonymous identity protection
 - [ ] NOT IMPLEMENTED — Moderation: post status/category/visibility, pins/read markers, content/image review, profile moderation, bans/unbans, feature restrictions and moderation history
 - [ ] PARTIAL — School/super administration: scoped user lookup, identity changes, admin appointment/scope, roles and expiry, school changes, UID management, user/post rankings and data overview
 - [ ] NOT IMPLEMENTED — School configuration: community/official-account/admin contact settings, review channels, unverified-post settings, push configuration and authorized test delivery
@@ -80,6 +80,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Trading snapshot `699c4f34cf145f5e7b1b0a02131cee50f2747c42`: 106 API tests, 337 native-client tests and 183 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37658218303), including exact prices, private contact access and durable status recovery. The commit signature is verified.
 - Formation snapshot `f68c32f35093f97a411cd3070cefc829288c2fa2`: 111 API tests, 377 native-client tests and 216 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37670924060), including concurrent joins, private contact access and audited roster identity. The commit signature is verified.
 - Saved snapshot `88d8a785daf8161e80a295f291a900e7e50f04af`: 115 API tests, 444 native-client tests and 244 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37673805090), including exact Saved visibility, preference independence and durable recovery. The commit signature is verified.
+- Local Updates snapshot `43faae3927ee1c81a42a9b00fa94bc79b866425b`: 125 API tests, 482 native-client tests and 261 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37682737147), including persisted notices, owner read state and durable automatic processing. The commit signature is verified.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -172,17 +173,7 @@ scoped and transient. Re-save preserves mute choices; no-op saves do not reset
 membership time. Reward/ranking obligations are durable but not settled. No
 in-app notice, external delivery, provider consent, quota or device permission
 is created merely by saving or enabling a preference. Actual community in-app
-updates remain the next separate increment.
-
-Local community Updates checkpoint: actual persisted root/reply/saved notices,
-owner-only list/unread/mark-read, fresh authorized target navigation and transient
-separately audited developer overlays are implemented. Materialization has exact
-recipient/self/overlap rules, saved-epoch and mute-history fences, atomic receipts
-and durable retry/restart behavior. A bounded automatic dispatcher is default off;
-manual tooling is dry-run by default. Configured capability is distinct from an
-actual generated notice. External channels, consent/quota integration, unrelated
-notification categories, reward/ranking settlement and production/device acceptance
-remain unimplemented or unverified. See [local Updates API](API_UPDATES.md).
+updates are covered by the separate increment below.
 
 Community in-app Updates increment 2 checkpoint: local root/reply obligations can
 materialize actual owner-scoped notices with exact unread/read state and fresh
@@ -193,3 +184,16 @@ pending work and retries across restart; manual/imported backlog is not adopted.
 Native capability copy distinguishes disabled/manual/automatic configuration
 from specific generated records. External delivery, other notification domains,
 experience settlement, imports and physical-device acceptance remain incomplete.
+See [local Updates API](API_UPDATES.md).
+
+Named-blocking S1A checkpoint: directional named-content block/unblock, own opaque
+relationship list/status and durable account-owned recovery are implemented.
+One-way discovery/child filtering and bilateral direct post/comment interaction
+rules are explicit. Anonymous subjects never resolve hidden owners for blocking.
+Phone-only eligibility, source-independent owner cleanup, immutable receipts and
+final transaction deadlines are independently enforced. Native state invalidation
+covers stale content, Saved, Updates, contact projections and audited overlays.
+Authorized named-profile direction flags, anonymous conversation blocking,
+reports/juries, restriction issuance and full moderation remain required. Runtime
+base visibility and publication authority remain unavailable where their owned
+sources are not yet implemented. See [named-blocking API](API_SAFETY.md).

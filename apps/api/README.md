@@ -180,3 +180,17 @@ by a mode change. Existing runtime authority/media adapters remain fail-closed.
 No provider or device delivery, consent/quota, rewards or ranking is activated.
 See [local Updates contract](../../docs/API_UPDATES.md) for configuration,
 transaction/retry/visibility semantics, acceptance evidence and retained work.
+
+## S1A named safety controls
+
+Named post/comment/reply blocking, own unblock/list/status, and durable minimal
+request recovery are implemented through local owning facades. Directional feed
+filtering differs deliberately from bilateral direct post/discussion interaction
+checks; anonymous targets never resolve hidden accounts. Phone eligibility is
+verification-owned and independent of student number/affiliation. Existing
+aggregate visibility, publication, media and role policies remain fail-closed.
+Reports/juries/bans, named-profile direction/actions, private evidence, provider
+review and production reconciliation remain separate unfinished work.
+
+See [named-blocking contract](../../docs/API_SAFETY.md) for routes, cleanup gates,
+final-clock/lock order, exact receipt semantics and explicitly new bounded rates.

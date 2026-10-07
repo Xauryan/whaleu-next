@@ -1,3 +1,4 @@
+import { lockSafetyPolicy } from '../safety/locks.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -68,6 +69,7 @@ export class CommunityUpdatesFacade {
     | { status: 'ready'; event: CommunityUpdateEvent }
     | { status: 'missing' | 'ignored' | 'unavailable'; code: string }
   > {
+    await lockSafetyPolicy(tx);
     const row = (
       await tx.query<{
         event_type: string;
@@ -224,6 +226,7 @@ export class CommunityUpdatesFacade {
     eventSequence?: string,
   ): Promise<UpdateEligibility> {
     try {
+      await lockSafetyPolicy(tx);
       if (!(await this.identity.activeAccount(recipient.accountId, tx)))
         return { outcome: 'suppressed', code: 'recipient_inactive' };
       const { post, space } = await this.access.accessiblePost(
@@ -245,7 +248,12 @@ export class CommunityUpdatesFacade {
       const root = await this.repository.comment(target.commentId, tx, true);
       if (
         root.post_id !== post.id ||
-        !(await this.access.visible(recipient.accountId, root, tx))
+        !(await this.access.visible(
+          recipient.accountId,
+          root,
+          tx,
+          'list_projection',
+        ))
       )
         return { outcome: 'suppressed', code: 'target_inaccessible' };
       const content = target.replyId
@@ -256,7 +264,12 @@ export class CommunityUpdatesFacade {
         (target.replyId &&
           (content as import('./community.repository.js').StoredReply)
             .root_comment_id !== root.id) ||
-        !(await this.access.visible(recipient.accountId, content, tx))
+        !(await this.access.visible(
+          recipient.accountId,
+          content,
+          tx,
+          'list_projection',
+        ))
       )
         return { outcome: 'suppressed', code: 'target_inaccessible' };
       for (const accountId of [

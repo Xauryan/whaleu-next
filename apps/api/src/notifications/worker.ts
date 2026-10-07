@@ -1,3 +1,4 @@
+import { lockSafetyPolicy } from '../safety/locks.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { APP_CONFIG } from '../config/config.js';
 import type { RuntimeConfig } from '../config/config.js';
@@ -57,6 +58,7 @@ export class UpdatesWorker {
     for (const eventId of options.eventIds) {
       const one = await this.database.transaction(
         async (tx): Promise<Omit<WorkerResult, 'requested'>> => {
+          await lockSafetyPolicy(tx);
           const counts = {
             processed: 0,
             alreadyProcessed: 0,

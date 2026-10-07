@@ -191,7 +191,7 @@ export class DiscussionMutationService {
       const reply = await this.repository.reply(id, tx, true);
       if (reply.deleted_at) return;
       requireAction(authority!, 'delete');
-      if (!(await this.access.visible(actor, reply, tx)))
+      if (!(await this.access.visible(actor, reply, tx, 'list_projection')))
         throw new ApplicationError('REPLY_NOT_FOUND');
       await tx.query(
         'UPDATE whaleu_community.replies SET deleted_at=clock_timestamp() WHERE id=$1',

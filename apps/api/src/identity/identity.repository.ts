@@ -1,3 +1,5 @@
+import { registerTransactionDeadline } from '../database/transaction-deadlines.js';
+import { initializeNativeSafetyAccount } from '../safety/lifecycle.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -82,6 +84,7 @@ export class IdentityRepository {
           'INSERT INTO whaleu_identity.accounts (id) VALUES ($1)',
           [accountId],
         );
+        await initializeNativeSafetyAccount(accountId, client);
         await client.query(
           'INSERT INTO whaleu_identity.provider_identities (provider, app_id, subject, account_id, union_subject) VALUES ($1,$2,$3,$4,$5)',
           [
@@ -250,6 +253,15 @@ export class IdentityRepository {
     if (row.status !== 'active') throw new ApplicationError('ACCOUNT_BLOCKED');
     if (row.token_expires_at <= row.now || row.absolute_expires_at <= row.now)
       throw new ApplicationError('ACCESS_TOKEN_EXPIRED');
+    if (transaction)
+      registerTransactionDeadline(
+        transaction,
+        Math.min(
+          row.token_expires_at.getTime(),
+          row.absolute_expires_at.getTime(),
+        ),
+        'ACCESS_TOKEN_EXPIRED',
+      );
     return {
       ...view(row),
       // The locked presented token, not a newer token in the same session, is

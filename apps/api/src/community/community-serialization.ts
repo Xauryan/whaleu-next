@@ -134,7 +134,7 @@ export class CommunitySerializer {
     let commentCount = 0,
       replyCount = 0;
     for (const comment of comments.rows)
-      if (await this.access.visible(viewer, comment, tx)) {
+      if (await this.access.visible(viewer, comment, tx, 'list_projection')) {
         commentCount++;
         replyCount += (await this.visibleReplies(comment.id, viewer, tx))
           .length;
@@ -281,7 +281,8 @@ export class CommunitySerializer {
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     const visible: StoredReply[] = [];
     for (const reply of rows.rows)
-      if (await this.access.visible(viewer, reply, tx)) visible.push(reply);
+      if (await this.access.visible(viewer, reply, tx, 'list_projection'))
+        visible.push(reply);
     return visible;
   }
   async reply(
@@ -302,7 +303,7 @@ export class CommunitySerializer {
       target =
         original.post_id === post.id &&
         original.root_comment_id === root.id &&
-        (await this.access.visible(viewer, original, tx))
+        (await this.access.visible(viewer, original, tx, 'list_projection'))
           ? {
               kind: 'reply',
               id: original.id,

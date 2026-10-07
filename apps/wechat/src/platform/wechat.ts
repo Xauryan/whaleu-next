@@ -12,6 +12,7 @@ export interface WxRequestTask {
   abort(): void;
 }
 export interface WxApi {
+  stopPullDownRefresh?: () => void;
   navigateTo?(options: {
     url: string;
     success(): void;

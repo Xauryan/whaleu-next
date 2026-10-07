@@ -1,4 +1,8 @@
 import {
+  BlockMutationController,
+  initialBlockMutationView,
+} from '../../community/block-controller';
+import {
   SavedMutationController,
   initialSavedMutationView,
 } from '../../community/saved-controller';
@@ -35,6 +39,7 @@ import {
 } from '../../community/poll-controller';
 Page({
   data: {
+    block: initialBlockMutationView(),
     ...initialDetailView(),
     tradingLabels,
     identityOverlay: initialOverlayView(),
@@ -47,6 +52,8 @@ Page({
     tradingMutation: initialTradingMutationView(),
     tradingContacts: initialTradingContactsView(),
   },
+  blockMutations: undefined as BlockMutationController | undefined,
+  blockTargets: '',
   controller: undefined as DetailController | undefined,
   postId: '',
   savedMutations: undefined as SavedMutationController | undefined,
@@ -78,6 +85,9 @@ Page({
         : null;
   },
   onShow() {
+    this.blockMutations?.dispose();
+    this.blockMutations = undefined;
+    this.blockTargets = '';
     this.controller?.dispose();
     this.savedMutations?.dispose();
     this.tradingMutations?.dispose();
@@ -95,6 +105,16 @@ Page({
       this.setData({ error: '帖子地址无效或环境尚未初始化' });
       return;
     }
+    this.blockMutations = new BlockMutationController(runtime, (view) => {
+      this.setData({ block: view });
+      if (view.busy || view.frozen) {
+        this.identityOverlay?.clear();
+        this.overlayTargets = '';
+        this.formationIdentityOverlay?.clear();
+        this.formationOverlayTargets = '';
+      }
+    });
+    this.blockMutations.load();
     this.identityOverlay = new IdentityOverlayController(
       runtime.sessions,
       runtime.identityPrivacy,
@@ -147,6 +167,8 @@ Page({
           view.busy ||
           !view.loaded ||
           view.frozen ||
+          this.data.block.busy ||
+          this.data.block.frozen ||
           !view.formation ||
           !this.data.loaded
         ) {
@@ -272,9 +294,14 @@ Page({
         const key = targets
           .map((item) => item.kind + ':' + item.id + ':' + item.authorMode)
           .join(',');
+        if (view.busy || !view.loaded || key !== this.blockTargets)
+          this.blockMutations?.dismissBlock();
+        this.blockTargets = key;
         if (
           view.busy ||
           !view.loaded ||
+          this.data.block.busy ||
+          this.data.block.frozen ||
           this.data.interaction.busy ||
           this.data.interaction.frozen
         ) {
@@ -437,7 +464,51 @@ Page({
   onPollCancel() {
     this.pollController?.cancel();
   },
+  onBlockPost() {
+    const post = this.data.post;
+    if (post && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.blockMutations?.requestBlock('post', post);
+  },
+  onBlockComment(event: { currentTarget: { dataset: { id: string } } }) {
+    const id = event.currentTarget.dataset.id,
+      comment =
+        this.data.comments.find((item) => item.id === id) ??
+        (this.data.locatedComment?.id === id ? this.data.locatedComment : null);
+    if (
+      comment &&
+      this.data.loaded &&
+      !this.data.busy &&
+      !this.data.needsReload
+    )
+      this.blockMutations?.requestBlock('comment', comment);
+  },
+  onBlockReply(event: { currentTarget: { dataset: { id: string } } }) {
+    const reply = [
+      ...this.data.comments,
+      ...(this.data.locatedComment ? [this.data.locatedComment] : []),
+    ]
+      .flatMap((item) => item.replyPreview.items)
+      .find((item) => item.id === event.currentTarget.dataset.id);
+    if (reply && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.blockMutations?.requestBlock('reply', reply);
+  },
+  onConfirmBlock() {
+    void this.blockMutations?.confirmBlock();
+  },
+  onDismissBlock() {
+    this.blockMutations?.dismissBlock();
+  },
+  onBlockReceipt() {
+    void this.blockMutations?.recover();
+  },
+  onBlockRetry() {
+    void this.blockMutations?.recover(true);
+  },
+  onBlockCancel() {
+    this.blockMutations?.cancel();
+  },
   onReload() {
+    this.blockMutations?.dismissBlock();
     void this.controller?.load();
   },
   onMore() {
@@ -491,6 +562,9 @@ Page({
     this.savedMutations?.cancel();
   },
   onHide() {
+    this.blockMutations?.dispose();
+    this.blockMutations = undefined;
+    this.blockTargets = '';
     this.controller?.dispose();
     this.savedMutations?.dispose();
     this.tradingMutations?.dispose();
@@ -513,6 +587,9 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.blockMutations?.dispose();
+    this.blockMutations = undefined;
+    this.blockTargets = '';
     this.controller?.dispose();
     this.savedMutations?.dispose();
     this.tradingMutations?.dispose();

@@ -47,6 +47,9 @@ export class MineController extends CommunityController<MineView> {
   protected override resetPrivate(): void {
     this.nextCursor = null;
   }
+  protected override onSafetyInvalidated(): void {
+    void this.load();
+  }
   async load(): Promise<void> {
     if (!this.available()) return;
     this.nextCursor = null;

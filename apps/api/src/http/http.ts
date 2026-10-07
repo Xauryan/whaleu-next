@@ -58,6 +58,8 @@ export class SafeExceptionFilter implements ExceptionFilter {
     const requestId =
       typeof existingRequestId === 'string' ? existingRequestId : randomUUID();
     if (!response.headersSent) response.setHeader('x-request-id', requestId);
+    if (status === 429 && !response.headersSent)
+      response.setHeader('retry-after', '60');
     if (status >= 500) {
       this.logger.structured.error({ event: 'http_error', status, requestId });
     }

@@ -67,6 +67,9 @@ export class DetailController extends CommunityController<DetailView> {
       needsReload: true,
     });
   }
+  protected override onSafetyInvalidated(): void {
+    void this.load();
+  }
   async load(): Promise<void> {
     this.clear();
     if (!this.available()) return;

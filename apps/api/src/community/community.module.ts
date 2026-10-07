@@ -1,3 +1,6 @@
+import { SafetyPolicyModule } from '../safety/policy.module.js';
+import { NamedBlockVisibility } from '../safety/visibility.js';
+import { CommunityNamedBlockSourceFacade } from './named-block-source.facade.js';
 import { CommunityUpdatesFacade } from './updates.facade.js';
 import { SavedRepository } from './saved/repository.js';
 import { SavedReadService } from './saved/read.service.js';
@@ -81,7 +84,6 @@ import {
   CONTENT_PUBLICATION_GATE,
   MEDIA_ATTACHMENT,
   UnavailableAuthorization,
-  UnavailableVisibility,
   UnavailableContentGate,
   UnavailableMedia,
 } from './community-policy.js';
@@ -227,7 +229,13 @@ export class CommunityRecoveryController {
   }
 }
 @Module({
-  imports: [DatabaseModule, CampusModule, ProfileModule, IdentityModule],
+  imports: [
+    DatabaseModule,
+    CampusModule,
+    ProfileModule,
+    IdentityModule,
+    SafetyPolicyModule,
+  ],
   controllers: [
     SavedController,
     SavedRecoveryController,
@@ -244,8 +252,13 @@ export class CommunityRecoveryController {
     CommunityReactionController,
     CommunityRecoveryController,
   ],
-  exports: [CommunityContentIdentityService, CommunityUpdatesFacade],
+  exports: [
+    CommunityContentIdentityService,
+    CommunityUpdatesFacade,
+    CommunityNamedBlockSourceFacade,
+  ],
   providers: [
+    CommunityNamedBlockSourceFacade,
     CommunityUpdatesFacade,
     SavedRepository,
     SavedReadService,
@@ -271,7 +284,7 @@ export class CommunityRecoveryController {
     ReactionsService,
     DeletionService,
     { provide: COMMUNITY_AUTHORIZATION, useClass: UnavailableAuthorization },
-    { provide: COMMUNITY_VISIBILITY, useClass: UnavailableVisibility },
+    { provide: COMMUNITY_VISIBILITY, useExisting: NamedBlockVisibility },
     { provide: CONTENT_PUBLICATION_GATE, useClass: UnavailableContentGate },
     { provide: MEDIA_ATTACHMENT, useClass: UnavailableMedia },
   ],

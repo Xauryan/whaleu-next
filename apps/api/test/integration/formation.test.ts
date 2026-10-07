@@ -51,6 +51,7 @@ import {
   grant,
   verified,
 } from '../support/community-fixtures.js';
+import { migrationSchemaNames } from '../support/migration-schemas.js';
 const codeIs = (code: string) => (error: unknown) =>
   error instanceof ApplicationError && error.code === code;
 const sqlCode = (code: string) => (error: unknown) =>
@@ -91,17 +92,7 @@ test(
     const region = randomUUID(),
       spaceId = randomUUID(),
       globalId = randomUUID();
-    const schemas = [
-      'whaleu_notifications',
-      'whaleu_community_test',
-      'whaleu_verification',
-      'whaleu_authorization',
-      'whaleu_community',
-      'whaleu_profile',
-      'whaleu_campus',
-      'whaleu_identity',
-      'whaleu_meta',
-    ];
+    const schemas = ['whaleu_community_test', ...migrationSchemaNames];
     try {
       suite = await pool.connect();
       locked = (
@@ -579,10 +570,10 @@ test(
           const receipt = await formations.join(voter.accessToken, id, input);
           const own = await formations.own(voter.accessToken, id);
           const check = visibility.check.bind(visibility);
-          visibility.check = async (viewer, subject, tx) =>
+          visibility.check = async (viewer, subject, tx, purpose) =>
             viewer === voter.accountId && subject.contentId === own.membershipId
               ? { kind: 'deny', reason: 'POST_NOT_FOUND' }
-              : check(viewer, subject, tx);
+              : check(viewer, subject, tx, purpose);
           try {
             const view = await formations.get(voter.accessToken, id);
             assert.equal(view.viewer.isMember, true);

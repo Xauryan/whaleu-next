@@ -194,6 +194,7 @@ export class PublicationService {
           tx,
           true,
         );
+        await this.access.interaction(actor, post, tx);
         const authority = await this.access.authority(actor, space, tx);
         const effectiveMode =
           post.author_mode === 'anonymous' && post.account_id === actor

@@ -45,17 +45,19 @@ export interface CommunityAuthorizationPort {
     transaction: PoolClient,
   ): Promise<Decision<Authority>>;
 }
-export interface VisibilitySubject {
-  contentId: string;
-  authorMode: AuthorMode;
-  namedAccountId?: string;
-}
+export type VisibilityPurpose =
+  'list_projection' | 'direct_post' | 'named_interaction';
+export type VisibilitySubject = { contentId: string } & (
+  | { authorMode: 'named'; namedAccountId: string }
+  | { authorMode: 'anonymous'; namedAccountId?: never }
+);
 /** Anonymous subjects deliberately carry no underlying account or profile ID. */
 export interface CommunityVisibilityPort {
   check(
     viewerAccountId: string | null,
     subject: VisibilitySubject,
     transaction: PoolClient,
+    purpose: VisibilityPurpose,
   ): Promise<Decision>;
 }
 export interface ApprovedAsset {
@@ -111,6 +113,7 @@ export interface MediaAttachmentPort {
 }
 export const COMMUNITY_AUTHORIZATION = Symbol('COMMUNITY_AUTHORIZATION');
 export const COMMUNITY_VISIBILITY = Symbol('COMMUNITY_VISIBILITY');
+export const COMMUNITY_BASE_VISIBILITY = Symbol('COMMUNITY_BASE_VISIBILITY');
 export const CONTENT_PUBLICATION_GATE = Symbol('CONTENT_PUBLICATION_GATE');
 export const MEDIA_ATTACHMENT = Symbol('MEDIA_ATTACHMENT');
 export class UnavailableAuthorization implements CommunityAuthorizationPort {

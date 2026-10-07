@@ -1,3 +1,8 @@
+import {
+  startTransactionDeadlines,
+  checkTransactionDeadlines,
+  clearTransactionDeadlines,
+} from './transaction-deadlines.js';
 import { Inject, Injectable, Module } from '@nestjs/common';
 import type {
   BeforeApplicationShutdown,
@@ -43,7 +48,9 @@ export async function inTransaction<T>(
   let destroy = false;
   try {
     await client.query('BEGIN');
+    startTransactionDeadlines(client);
     const result = await operation(client);
+    await checkTransactionDeadlines(client);
     await client.query('COMMIT');
     return result;
   } catch (error) {
@@ -54,6 +61,7 @@ export async function inTransaction<T>(
     }
     throw error;
   } finally {
+    clearTransactionDeadlines(client);
     client.release(destroy);
   }
 }
