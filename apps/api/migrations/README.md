@@ -5,6 +5,13 @@ no import or transformation of legacy records. Production schema mapping and all
 legacy-data migration remain separate, required milestones.
 `0002_identity_retention_index.sql` adds the terminal-session lookup index for
 operator-only maintenance; applying it does not delete any records.
+`0003_campus_profile.sql` introduces the campus/profile schema (see the migration
+file for its exact name and checksum).
+`0004_community.sql` introduces operating regions, community content, durable
+publication receipts and outbox records. It does not seed real publishing grants.
+`0005_authorization_identity_privacy.sql` introduces explicitly approved scoped
+roles and an append-only privileged-identity access ledger. No account is granted
+administrator or developer status automatically.
 
 - Add immutable UTF-8 files named `0001_descriptive_name.sql`, in increasing order
 - SQL files are trusted repository code and require review before execution
@@ -21,5 +28,15 @@ operator-only maintenance; applying it does not delete any records.
 - Review a backup/restore rehearsal and run in a disposable database before any
   separately authorized production migration
 
-The runner is migration infrastructure, not a legacy-data migration tool. Data
-mapping, validation, dry-run comparisons, cutover, and rollback remain unimplemented.
+The SQL runner is migration infrastructure, not a legacy-data migration tool.
+Full source-database import, production reconciliation, cutover and rollback
+remain separate milestones. The reviewed school registry tool below covers only
+its explicit mapping subset.
+
+`0006_school_identifiers.sql` adds empty canonical five/ten-digit institution
+registries, source provenance, reviewed legacy crosswalks and scheme-scoped
+historical aliases. Private institution/campus relationships remain unchanged;
+unresolved public institution IDs are null. The separate `schools:migrate` tool
+is dry-run by default and only applies explicit reviewed mappings. See
+[school identifier migration](../../../docs/SCHOOL_IDENTIFIERS.md). It is not a
+complete legacy import or evidence that any production records were migrated.

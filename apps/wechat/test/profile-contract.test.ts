@@ -108,3 +108,23 @@ test('preferences require all booleans on response, reject incompatible comment 
     }),
   );
 });
+test('public institution business IDs accept nullable five-digit codes and never internal UUID fallback', () => {
+  for (const institutionId of ['10001', '10006', null])
+    assert.equal(
+      decodeCampus({ ...campus(), institutionId }).institutionId,
+      institutionId,
+    );
+  for (const institutionId of [
+    '1001',
+    '100001',
+    '10001\n',
+    'abcde',
+    10001,
+    '44444444-4444-4444-8444-444444444444',
+  ])
+    assert.throws(() => decodeCampus({ ...campus(), institutionId }));
+});
+
+test('UUID catalogue identifiers reject a terminal line break', () => {
+  assert.throws(() => decodeCampus({ ...campus(), id: campus().id + '\n' }));
+});

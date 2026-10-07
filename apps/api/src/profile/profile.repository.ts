@@ -36,6 +36,48 @@ export class ProfileRepository {
     @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
 
+  async identityProfile(
+    accountId: string,
+    transaction: PoolClient,
+  ): Promise<{ nickname: string | null } | null> {
+    const result = await transaction.query<{ nickname: string | null }>(
+      'SELECT nickname FROM whaleu_profile.profiles WHERE account_id=$1 FOR SHARE',
+      [accountId],
+    );
+    return result.rows[0] ?? null;
+  }
+  async authorDisplay(
+    accountId: string,
+    transaction: PoolClient,
+  ): Promise<{ profileId: string; displayName: string }> {
+    // Only called by the publication boundary; ordinary profile GET remains read-only.
+    await transaction.query(
+      'INSERT INTO whaleu_profile.profiles(account_id) VALUES ($1) ON CONFLICT (account_id) DO NOTHING',
+      [accountId],
+    );
+    const result = await transaction.query<{
+      profileId: string;
+      displayName: string;
+    }>(
+      `SELECT public_id AS "profileId", coalesce(nickname,'鲸鱼用户') AS "displayName" FROM whaleu_profile.profiles WHERE account_id=$1 FOR SHARE`,
+      [accountId],
+    );
+    return result.rows[0]!;
+  }
+  async existingAuthorDisplay(
+    accountId: string,
+    transaction: PoolClient,
+  ): Promise<{ profileId: string; displayName: string } | null> {
+    const result = await transaction.query<{
+      profileId: string;
+      displayName: string;
+    }>(
+      `SELECT public_id AS "profileId", coalesce(nickname,'鲸鱼用户') AS "displayName" FROM whaleu_profile.profiles WHERE account_id=$1`,
+      [accountId],
+    );
+    return result.rows[0] ?? null;
+  }
+
   async get(accountId: string): Promise<StoredProfile> {
     const result = await this.database.query<StoredProfile>(
       `SELECT ${projection} FROM whaleu_profile.profiles WHERE account_id = $1`,

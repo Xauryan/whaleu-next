@@ -6,7 +6,7 @@ export const campusId = '33333333-3333-4333-8333-333333333333';
 export function campus(overrides: Partial<Campus> = {}): Campus {
   return {
     id: campusId,
-    institutionId: '44444444-4444-4444-8444-444444444444',
+    institutionId: '10001',
     institutionName: '测试大学',
     fullName: '测试大学主校区',
     shortName: null,

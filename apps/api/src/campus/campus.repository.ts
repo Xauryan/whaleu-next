@@ -1,9 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.js';
-import type { Campus, CampusPage, CampusQuery } from './contracts.js';
+import type {
+  Campus,
+  CampusPage,
+  CampusQuery,
+  OperatingRegion,
+} from './contracts.js';
 
-const projection = `c.id, c.institution_id AS "institutionId", i.name AS "institutionName",
+const projection = `c.id, si.school_code AS "institutionId", i.name AS "institutionName",
  c.full_name AS "fullName", c.short_name AS "shortName", c.district, c.is_active AS "isActive"`;
 
 @Injectable()
@@ -22,6 +27,7 @@ export class CampusRepository {
       `WITH filtered AS (
         SELECT ${projection}, c.sort_order FROM whaleu_campus.campuses c
         JOIN whaleu_campus.institutions i ON i.id = c.institution_id
+        LEFT JOIN whaleu_campus.school_identifiers si ON si.institution_id = i.id
         WHERE ($1::text IS NULL OR c.district = $1)
           AND ($2::text = '' OR strpos(lower(c.full_name), lower($2)) > 0
             OR strpos(lower(coalesce(c.short_name, '')), lower($2)) > 0
@@ -42,9 +48,28 @@ export class CampusRepository {
     return { ...result.rows[0]!, page: query.page, pageSize: query.pageSize };
   }
 
+  async mappedRegion(campusId: string): Promise<OperatingRegion | null> {
+    const result = await this.database.query<OperatingRegion>(
+      `SELECT r.id,r.name,r.is_active AS "isActive" FROM whaleu_campus.campus_region_assignments a JOIN whaleu_campus.operating_regions r ON r.id=a.operating_region_id WHERE a.campus_id=$1`,
+      [campusId],
+    );
+    return result.rows[0] ?? null;
+  }
+  async region(
+    id: string,
+    transaction: PoolClient,
+  ): Promise<OperatingRegion | null> {
+    const result = await transaction.query<OperatingRegion>(
+      'SELECT id,name,is_active AS "isActive" FROM whaleu_campus.operating_regions WHERE id=$1 FOR SHARE',
+      [id],
+    );
+    return result.rows[0] ?? null;
+  }
+
   async find(id: string, transaction?: PoolClient): Promise<Campus | null> {
     const sql = `SELECT ${projection} FROM whaleu_campus.campuses c
-       JOIN whaleu_campus.institutions i ON i.id = c.institution_id WHERE c.id = $1
+       JOIN whaleu_campus.institutions i ON i.id = c.institution_id
+        LEFT JOIN whaleu_campus.school_identifiers si ON si.institution_id = i.id WHERE c.id = $1
        ${transaction ? 'FOR SHARE OF c, i' : ''}`;
     const result = transaction
       ? await transaction.query<Campus>(sql, [id])

@@ -1,0 +1,13 @@
+<view class="screen"><view class="eyebrow">WHALEU · 写下此刻</view><view class="title">{{frozen ? '确认原发布结果' : (maxText === 500 ? '写一条评论' : '分享校园里的事')}}</view>
+  <view class="subtitle">本地草稿与已提交内容分别保存。结果未确认前，原请求不会被修改或替换。</view>
+  <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{hasSession}}" class="card"><view wx:if="{{recoveryOperation}}" class="meta">待确认类型：{{recoveryOperation}}</view><view class="label">正文 · 最多 {{maxText}} 字</view><textarea value="{{text}}" bindinput="onText" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="说说你想分享的事…" />
+    <view class="scope">发送时展示：{{effectiveIdentity || '请等待当前身份权限检查'}}</view><view wx:if="{{!frozen &amp;&amp; !identityForced}}" class="chips"><view class="chip {{authorMode === 'named' ? 'active' : ''}}" data-mode="named" bindtap="onMode">公开身份</view><view class="chip {{authorMode === 'anonymous' ? 'active' : ''}}" data-mode="anonymous" bindtap="onMode">匿名</view></view>
+    <view wx:if="{{canDisableComments &amp;&amp; !frozen}}" class="row"><text>限制普通评论</text><switch checked="{{commentsPolicy === 'restricted'}}" bindchange="onRestricted" disabled="{{busy}}" /></view>
+    <view class="notice">{{mediaNotice}}。帖子最多九张、评论最多三张的图片功能保留为待完成项。</view><view wx:if="{{blocker}}" class="notice">{{blocker}}</view>
+    <button wx:if="{{!frozen}}" class="primary" bindtap="onSubmit" disabled="{{!canSubmit || busy}}" loading="{{busy}}">确认以上身份并发布</button><button wx:if="{{frozen}}" class="primary" bindtap="onReceipt" disabled="{{busy}}" loading="{{busy}}">查询原请求回执</button><button wx:if="{{frozen}}" class="secondary" bindtap="onRetry" disabled="{{busy}}">重试完全相同的原请求</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待（不撤销发布）</button>
+    <view wx:if="{{receiptStatus}}" class="status">{{receiptStatus}}</view><navigator wx:if="{{resourcePostId}}" class="link" url="/pages/community-detail/community-detail?postId={{resourcePostId}}">查看已确认的帖子 →</navigator>
+  </view>
+  <button wx:if="{{!busy}}" class="secondary" bindtap="onReload">重新检查草稿与待确认记录</button><navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续</navigator><navigator class="link" url="/pages/community-mine/community-mine">我的发布与结果恢复 →</navigator>
+  <view class="notice">关闭页面或换账号会清空页面内容，但原账号草稿与待确认请求仍保留在本机。请勿在结果未确认前清除小程序数据。</view>
+</view>

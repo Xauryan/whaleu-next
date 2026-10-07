@@ -64,12 +64,19 @@ assert.equal(/accessToken|refreshToken/.test(wxml), false);
 if (!configured) await page.controller.login();
 assert.equal(page.data.verified, false);
 page.onUnload();
-for (const route of ['pages/profile/profile', 'pages/campus/campus']) {
+for (const route of config.pages.filter(
+  (route) => !['pages/login/login', 'pages/status/status'].includes(route),
+)) {
   require(path.join(dist, `${route}.js`));
   const current = page;
   current.setData = (data) => {
     current.data = { ...current.data, ...data };
   };
+  current.onLoad?.({
+    postId: '66666666-6666-4666-8666-666666666666',
+    spaceId: '55555555-5555-4555-8555-555555555555',
+    category: 'discussion',
+  });
   current.onShow();
   assert.equal(current.data.loaded, false);
   assert.ok(current.data.error);
@@ -81,7 +88,7 @@ for (const route of ['pages/profile/profile', 'pages/campus/campus']) {
   assert.equal(/accessToken|refreshToken/.test(template), false);
   for (const match of template.matchAll(/url="\/([^"]+)"/g))
     assert.ok(
-      config.pages.includes(match[1]),
+      config.pages.includes(match[1].split('?')[0]),
       `Unregistered navigation: ${match[1]}`,
     );
   current.onHide();
@@ -91,7 +98,13 @@ for (const route of ['pages/profile/profile', 'pages/campus/campus']) {
   assert.ok(current.controller);
   current.onUnload();
 }
+let privacyCleared = false;
+app.community.privateViews.subscribe(() => {
+  privacyCleared = true;
+});
+app.onHide();
+assert.equal(privacyCleared, true);
 assert.equal(calls, 0);
 console.log(
-  'Native build smoke passed: local bootstrap, all identity/campus/profile handlers, hide/show cancellation, assets, navigation, and configuration gating',
+  'Native build smoke passed: local bootstrap, all identity/campus/profile/community handlers, hide/show cancellation, assets, navigation, private-overlay app-hide clearing, and configuration gating',
 );

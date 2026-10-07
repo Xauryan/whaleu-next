@@ -12,7 +12,8 @@
     "start": "node --env-file-if-exists=../../.env dist/main.js",
     "db:status": "node --env-file-if-exists=../../.env --import tsx src/database/migrate.ts status",
     "db:migrate": "node --env-file-if-exists=../../.env --import tsx src/database/migrate.ts up",
-    "auth:maintain": "node --env-file-if-exists=../../.env --import tsx src/identity/maintain.ts"
+    "auth:maintain": "node --env-file-if-exists=../../.env --import tsx src/identity/maintain.ts",
+    "schools:migrate": "node --env-file-if-exists=../../.env --import tsx src/campus/school-identifiers/migrate.ts"
   },
   "dependencies": {
     "@nestjs/common": "12.1.2",

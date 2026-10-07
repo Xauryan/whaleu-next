@@ -5,14 +5,15 @@ Greenfield WhaleU rewrite using a TypeScript/NestJS modular monolith, PostgreSQL
 while redesigning interfaces and modules. Old API compatibility and parallel old
 and new clients are not goals.
 
-## Status: first implementation milestone
+## Status: incremental business implementation
 
-This repository currently contains a runnable backend infrastructure foundation
-and a native WeChat Mini Program transport/session foundation. It is **not the
-completed rewrite** and is **not production-ready**. Business endpoints, complete
-client screens, production schema mapping, data migration, and full end-to-end
-acceptance remain to be implemented. No production deployment or data changes
-are part of this milestone.
+The backend and native WeChat client now include login/session handling,
+physical-campus selection, own profile editing and stored preferences. Community
+and privileged identity-view modules are being developed and tested separately.
+This is **not the completed rewrite** and is **not production-ready**. Remaining
+business modules, real-provider and native-device acceptance, production schema
+mapping, and reconciled data migration are still required. No production rollout
+or production data changes are part of these development milestones.
 
 See the [feature-parity checklist](docs/FEATURE_PARITY.md) for the required scope.
 
@@ -42,7 +43,8 @@ npm run dev
 
 The API binds to `127.0.0.1:3000`. PostgreSQL is isolated on `127.0.0.1:55432` with
 development-only credentials. Existing application databases are never contacted
-by these defaults. No application tables are fabricated by this foundation.
+by these defaults. Migrations create the new application schema; they do not import legacy data or
+seed real users, privileges, or a fabricated school directory.
 
 ```sh
 curl http://127.0.0.1:3000/health/live

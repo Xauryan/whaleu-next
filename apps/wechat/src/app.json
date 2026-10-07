@@ -3,7 +3,11 @@
     "pages/login/login",
     "pages/status/status",
     "pages/profile/profile",
-    "pages/campus/campus"
+    "pages/campus/campus",
+    "pages/community-feed/community-feed",
+    "pages/community-detail/community-detail",
+    "pages/community-compose/community-compose",
+    "pages/community-mine/community-mine"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

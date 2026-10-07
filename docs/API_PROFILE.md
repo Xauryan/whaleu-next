@@ -17,7 +17,8 @@ The response is `{ items: Campus[], page, pageSize, total }`. `total` is a nonne
 
 A `Campus` has exactly:
 
-- `id`, `institutionId`: UUID strings
+- `id`: physical campus UUID
+- `institutionId`: reviewed five-digit school business identifier string (for example, `"10001"`); `null` while unresolved. The private institution UUID is never exposed here. Campus and operating-region UUIDs are different identifiers
 - `institutionName`, `fullName`: strings of 1–200 Unicode codepoints
 - `shortName`: null or 1–100 Unicode codepoints
 - `district`: string of 1–100 Unicode codepoints

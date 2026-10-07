@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 import { Inject, Injectable } from '@nestjs/common';
 import { IDENTITY_PROVIDER } from './contracts.js';
 import type {
@@ -34,9 +35,10 @@ export class IdentityService {
     });
     return { ...session, accessToken, refreshToken };
   }
-  session(token: string): Promise<SessionView> {
+  session(token: string, transaction?: PoolClient): Promise<SessionView> {
     return this.repository.authenticate(
       hashToken(requireToken(token, 'access')),
+      transaction,
     );
   }
   logout(token: string): Promise<void> {

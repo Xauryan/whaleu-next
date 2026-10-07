@@ -15,13 +15,13 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 
 ## Campus feed and publishing
 
-- [ ] NOT IMPLEMENTED — Feed discovery: campus/global feeds, category filtering, hot list, search, pagination, refresh, post details, user posts, my publications and my subscriptions
-- [ ] NOT IMPLEMENTED — Post composition: text, multiple images, category, campus/location, draft save/restore/clear, remembered fields, preview, upload progress/error handling and safe repeated submission
-- [ ] NOT IMPLEMENTED — Post modes: ordinary and anonymous identity, anonymous-DM option, trading category/price modes, contact fields, polls and options, group-formation details and join/contact retrieval
-- [ ] NOT IMPLEMENTED — Linked content: board/category/group links and labels; publishing capabilities; related-campus synchronization; restricted/unverified publishing channels
-- [ ] NOT IMPLEMENTED — Reading: original text fidelity, readable formatting, contact parsing, images, post metadata, view/exposure counts, pinned/unread state, deep-sea category distinctions and share/navigation links
-- [ ] NOT IMPLEMENTED — Interactions: likes and liked-items lists, post subscriptions, vote submission/results, comments/replies, anonymous comment identities, comment pin/unpin, comment-disable policy and author deletion
-- [ ] NOT IMPLEMENTED — Publish reliability: saved request identity and frozen payload; response-loss recovery; replay without duplicate content, reward or notification; account-isolated pending drafts/attempts
+- [ ] PARTIAL — Feed discovery: campus/global feeds, category filtering, hot list, search, pagination, refresh, post details, user posts, my publications and my subscriptions
+- [ ] PARTIAL — Post composition: text, multiple images, category, campus/location, draft save/restore/clear, remembered fields, preview, upload progress/error handling and safe repeated submission
+- [ ] PARTIAL — Post modes: ordinary and anonymous identity, anonymous-DM option, trading category/price modes, contact fields, polls and options, group-formation details and join/contact retrieval
+- [ ] PARTIAL — Linked content: board/category/group links and labels; publishing capabilities; related-campus synchronization; restricted/unverified publishing channels
+- [ ] PARTIAL — Reading: original text fidelity, readable formatting, contact parsing, images, post metadata, view/exposure counts, pinned/unread state, deep-sea category distinctions and share/navigation links
+- [ ] PARTIAL — Interactions: likes and liked-items lists, post subscriptions, vote submission/results, comments/replies, anonymous comment identities, comment pin/unpin, comment-disable policy and author deletion
+- [ ] PARTIAL — Publish reliability: saved request identity and frozen payload; response-loss recovery; replay without duplicate content, reward or notification; account-isolated pending drafts/attempts
 
 ## Community, errands and reviews
 
@@ -39,7 +39,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 - [ ] NOT IMPLEMENTED — Notification preferences/delivery: post-specific settings, mute/subscription status, mini-program subscriptions, official-account templates, reminders/guides, queued delivery and duplicate prevention
 - [ ] NOT IMPLEMENTED — User safety: block/unblock/list/check, reporting posts/comments/replies, report status/count/voting, restricted interactions and consistent anonymous identity protection
 - [ ] NOT IMPLEMENTED — Moderation: post status/category/visibility, pins/read markers, content/image review, profile moderation, bans/unbans, feature restrictions and moderation history
-- [ ] NOT IMPLEMENTED — School/super administration: scoped user lookup, identity changes, admin appointment/scope, roles and expiry, school changes, UID management, user/post rankings and data overview
+- [ ] PARTIAL — School/super administration: scoped user lookup, identity changes, admin appointment/scope, roles and expiry, school changes, UID management, user/post rankings and data overview
 - [ ] NOT IMPLEMENTED — School configuration: community/official-account/admin contact settings, review channels, unverified-post settings, push configuration and authorized test delivery
 - [ ] NOT IMPLEMENTED — Announcements/feedback: announcement list/new checks/popups, school targeting, create/edit/delete, reading layout, feedback submission/viewing and responsible-admin notifications
 
@@ -56,10 +56,10 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 
 ## Release gates across every feature
 
-- [ ] NOT IMPLEMENTED — Explicit API contracts: new versioned endpoints, validated request/response types, consistent error codes, pagination, optional/null fields, uploads and generated native-client contracts
-- [ ] NOT IMPLEMENTED — Authorization matrix: unauthenticated, phone-unverified, student-unverified, verified, banned/restricted, school administrator and super administrator; cross-school and ownership denial cases
+- [ ] PARTIAL — Explicit API contracts: new versioned endpoints, validated request/response types, consistent error codes, pagination, optional/null fields, uploads and generated native-client contracts
+- [ ] PARTIAL — Authorization matrix: unauthenticated, phone-unverified, student-unverified, verified, banned/restricted, school administrator, super administrator and developer; cross-school and ownership denial cases
 - [ ] NOT IMPLEMENTED — Data preservation: existing IDs, relationships, histories, school/anonymous identities, soft-deletion state, content/media references, ordering, timestamps and monetary values
-- [ ] NOT IMPLEMENTED — Concurrency/recovery: publication replay, one errand accepter, message limits/unread counts, queue delivery, exposure flush recovery, interrupted client requests and account switching
+- [ ] PARTIAL — Concurrency/recovery: publication replay, one errand accepter, message limits/unread counts, queue delivery, exposure flush recovery, interrupted client requests and account switching
 - [ ] NOT IMPLEMENTED — Native-client parity: each supported platform implements its full feature checklist, with permission/cancellation/error/retry behavior and compatible deep-link/navigation destinations
 - [ ] NOT IMPLEMENTED — Migration/cutover: authorized schema inventory, restore rehearsal, reconciliation, writer/queue coordination, new-client smoke tests and tested post-cutover data recovery
 
@@ -72,6 +72,33 @@ All capabilities still need acceptance cases tied to real implementation commits
 ## Verified implementation checkpoints
 
 - Foundation and identity snapshot `806a2b00429e12ef4eacc3ab1574746393937edb`: 60 API tests, 96 native-client tests, and 22 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37628632248). This is not full product parity or a production rollout.
-- PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by that checkpoint.
+- Campus/profile snapshot `417b1847b14895e46519925709ee96e471897330`: 66 API tests, 130 native-client tests and 43 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37636428025), including native gateway → Nest HTTP → PostgreSQL contracts. The commit signature is verified.
+- PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
-Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Operating-region mapping and actual community feed switching, verified identity/admin scope, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
+Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
+
+## Additional user requirements
+
+- School business identifiers use reviewed five-digit institution codes, including
+  Peking University `10001` and Beihang University `10006`. Preserve ten-digit
+  official identifiers, provenance and legacy crosswalks. Physical campuses and
+  community operating regions remain distinct entities. Unresolved mappings must
+  remain explicit and must not be guessed from school names.
+- Role precedence is developer, super administrator, then school administrator.
+  Only the explicit developer capability permits the foreground identity overlay
+  for anonymous authors and student numbers for named or anonymous authors.
+  Ordinary content responses retain anonymity. Every privileged disclosure must
+  be server-authorized and audited; real accounts receive no automatic grants.
+  Actual student numbers require an authoritative verification source; unavailable
+  information must not be fabricated. Inclusion of legal names is not assumed.
+
+Community/authorization development checkpoint: chronological regional/global feed,
+post detail, text post/root-comment composition, thread-local anonymous identities,
+desired-state post likes, own soft deletion and durable account-isolated publication
+receipts have backend and native-client tests. The developer-only identity overlay
+has separate authorization, append-only access auditing and transient client state.
+Normal runtime verification, safety, moderation, visibility and media adapters are
+still fail-closed/unavailable. Student-number data has no authoritative production
+source yet. No real account has received a role grant. Polls, trading, nested replies,
+subscriptions, related-region distribution, hot/search and the other listed business
+capabilities remain required. See [community scope and gates](API_COMMUNITY.md).

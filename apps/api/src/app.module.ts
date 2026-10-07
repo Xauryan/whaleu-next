@@ -1,3 +1,5 @@
+import { IdentityPrivacyModule } from './identity-privacy/identity-privacy.module.js';
+import { CommunityModule } from './community/community.module.js';
 import { CampusModule } from './campus/campus.module.js';
 import { ProfileModule } from './profile/profile.module.js';
 import { Module } from '@nestjs/common';
@@ -20,6 +22,8 @@ export class AppModule {
         IdentityModule,
         CampusModule,
         ProfileModule,
+        CommunityModule,
+        IdentityPrivacyModule,
       ],
     };
   }

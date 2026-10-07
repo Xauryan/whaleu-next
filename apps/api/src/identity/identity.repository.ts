@@ -186,15 +186,54 @@ export class IdentityRepository {
     return outcome;
   }
 
-  async authenticate(accessHash: string): Promise<SessionView> {
-    const result = await this.database.query<AccessRow & { now: Date }>(
-      `SELECT s.*, a.status, t.expires_at AS token_expires_at, clock_timestamp() AS now
+  async authenticate(
+    accessHash: string,
+    transaction?: PoolClient,
+  ): Promise<SessionView> {
+    let lockedSession: string | null = null;
+    if (transaction) {
+      // Match account lifecycle -> session rotation -> token mutation lock order.
+      // A join's row-lock evaluation order is not an ordering guarantee.
+      const reference = await transaction.query<{
+        account_id: string;
+        session_id: string;
+      }>(
+        'SELECT s.account_id,t.session_id FROM whaleu_identity.access_tokens t JOIN whaleu_identity.sessions s ON s.id=t.session_id WHERE t.token_hash=$1',
+        [accessHash],
+      );
+      const target = reference.rows[0];
+      if (!target) throw new ApplicationError('AUTHENTICATION_REQUIRED');
+      await transaction.query(
+        'SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE',
+        [target.account_id],
+      );
+      await transaction.query(
+        'SELECT id FROM whaleu_identity.sessions WHERE id=$1 AND account_id=$2 FOR SHARE',
+        [target.session_id, target.account_id],
+      );
+      lockedSession = target.session_id;
+    }
+    const sql = `SELECT s.*, a.status, t.expires_at AS token_expires_at, clock_timestamp() AS now
       FROM whaleu_identity.access_tokens t JOIN whaleu_identity.sessions s ON s.id=t.session_id
-      JOIN whaleu_identity.accounts a ON a.id=s.account_id WHERE t.token_hash=$1`,
-      [accessHash],
-    );
+      JOIN whaleu_identity.accounts a ON a.id=s.account_id WHERE t.token_hash=$1 AND ($2::uuid IS NULL OR s.id=$2) ${transaction ? 'FOR SHARE OF t' : ''}`;
+    const result = transaction
+      ? await transaction.query<AccessRow & { now: Date }>(sql, [
+          accessHash,
+          lockedSession,
+        ])
+      : await this.database.query<AccessRow & { now: Date }>(sql, [
+          accessHash,
+          lockedSession,
+        ]);
     const row = result.rows[0];
     if (!row) throw new ApplicationError('AUTHENTICATION_REQUIRED');
+    // Row-lock waits must not reuse a timestamp evaluated before the lock was acquired.
+    if (transaction)
+      row.now = (
+        await transaction.query<{ now: Date }>(
+          'SELECT clock_timestamp() AS now',
+        )
+      ).rows[0]!.now;
     if (row.revoked_at) throw new ApplicationError('SESSION_REVOKED');
     if (row.status !== 'active') throw new ApplicationError('ACCOUNT_BLOCKED');
     if (row.token_expires_at <= row.now || row.absolute_expires_at <= row.now)

@@ -3,6 +3,57 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  AUTHORIZATION_REQUIRED: {
+    status: 403,
+    message: 'Required role is not granted',
+  },
+  AUTHORIZATION_UNAVAILABLE: {
+    status: 503,
+    message: 'Authorization is unavailable',
+  },
+  IDENTITY_VIEW_UNAVAILABLE: {
+    status: 503,
+    message: 'Identity view is unavailable',
+  },
+  IDENTITY_AUDIT_UNAVAILABLE: {
+    status: 503,
+    message: 'Identity audit is unavailable',
+  },
+  COMMUNITY_UNAVAILABLE: { status: 503, message: 'Community is unavailable' },
+  COMMUNITY_SCOPE_UNAVAILABLE: {
+    status: 409,
+    message: 'Community scope is unavailable',
+  },
+  STUDENT_VERIFICATION_REQUIRED: {
+    status: 403,
+    message: 'Student verification required',
+  },
+  IDENTITY_CAMPUS_REQUIRED: {
+    status: 403,
+    message: 'Identity campus required',
+  },
+  COMMUNITY_ACTION_RESTRICTED: {
+    status: 403,
+    message: 'Community action is restricted',
+  },
+  AUTHOR_MODE_NOT_ALLOWED: {
+    status: 403,
+    message: 'Author mode is not allowed',
+  },
+  COMMENTS_DISABLED: { status: 403, message: 'Comments are disabled' },
+  CONTENT_REJECTED: { status: 422, message: 'Content did not pass review' },
+  CONTENT_REVIEW_UNAVAILABLE: {
+    status: 503,
+    message: 'Content review is unavailable',
+  },
+  MEDIA_NOT_READY: { status: 409, message: 'Media is not ready' },
+  MEDIA_UNAVAILABLE: { status: 503, message: 'Media is unavailable' },
+  POST_NOT_FOUND: { status: 404, message: 'Post not found' },
+  COMMENT_NOT_FOUND: { status: 404, message: 'Comment not found' },
+  POST_DELETED: { status: 410, message: 'Post deleted' },
+  REQUEST_CONFLICT: { status: 409, message: 'Publication request conflicts' },
+  REQUEST_NOT_FOUND: { status: 404, message: 'Publication request not found' },
+
   CAMPUS_NOT_FOUND: { status: 404, message: 'Campus not found' },
   CAMPUS_UNAVAILABLE: {
     status: 409,

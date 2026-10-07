@@ -26,7 +26,8 @@ export const campusQuerySchema = z.strictObject({
 export type CampusQuery = z.infer<typeof campusQuerySchema>;
 export interface Campus {
   readonly id: string;
-  readonly institutionId: string;
+  // Reviewed five-digit school business identifier; null means unresolved.
+  readonly institutionId: string | null;
   readonly institutionName: string;
   readonly fullName: string;
   readonly shortName: string | null;
@@ -39,3 +40,12 @@ export interface CampusPage {
   readonly pageSize: number;
   readonly total: number;
 }
+
+export interface OperatingRegion {
+  readonly id: string;
+  readonly name: string;
+  readonly isActive: boolean;
+}
+export const operatingRegionQuerySchema = z.strictObject({
+  campusId: z.uuid(),
+});

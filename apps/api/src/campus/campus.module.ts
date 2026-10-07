@@ -1,7 +1,7 @@
 import { Controller, Get, Inject, Module, Query } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.js';
 import { SchemaValidationPipe } from '../http/validation.js';
-import { campusQuerySchema } from './contracts.js';
+import { campusQuerySchema, operatingRegionQuerySchema } from './contracts.js';
 import type { CampusPage, CampusQuery } from './contracts.js';
 import { CampusRepository } from './campus.repository.js';
 import { CampusService } from './campus.service.js';
@@ -19,9 +19,26 @@ export class CampusController {
   }
 }
 
+@Controller('v1/operating-regions')
+export class OperatingRegionController {
+  constructor(
+    @Inject(CampusService) private readonly campuses: CampusService,
+  ) {}
+  @Get()
+  async list(
+    @Query(new SchemaValidationPipe(operatingRegionQuerySchema))
+    query: {
+      campusId: string;
+    },
+  ) {
+    const { region } = await this.campuses.getBrowseContext(query.campusId);
+    return { items: region ? [region] : [] };
+  }
+}
+
 @Module({
   imports: [DatabaseModule],
-  controllers: [CampusController],
+  controllers: [CampusController, OperatingRegionController],
   providers: [CampusRepository, CampusService],
   exports: [CampusService],
 })

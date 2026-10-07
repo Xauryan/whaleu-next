@@ -12,6 +12,11 @@ export interface WxRequestTask {
   abort(): void;
 }
 export interface WxApi {
+  getRandomValues?(options: {
+    length: number;
+    success(result: { randomValues: ArrayBuffer }): void;
+    fail(error: unknown): void;
+  }): void;
   request(options: {
     url: string;
     method: HttpRequest['method'];

@@ -1,0 +1,21 @@
+<import src="../../identity-privacy/view.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 校园社区</view><view class="title">与校园里的你相遇</view>
+  <view class="subtitle">按发布时间探索你选择的地区。浏览校区不代表学生认证或管理权限。</view>
+  <view class="actions"><navigator class="link" url="/pages/login/login">登录与会话</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/community-mine/community-mine">我的发布与结果恢复</navigator></view>
+  <view class="card"><view class="section-title">浏览校园</view><input value="{{query}}" bindinput="onQuery" bindconfirm="onSearch" placeholder="搜索学校或校区" maxlength="100" /><button class="secondary" bindtap="onSearch" disabled="{{busy || !configured}}">搜索校园</button>
+    <view class="chips"><view wx:for="{{campuses}}" wx:key="id" class="chip {{campusId === item.id ? 'active' : ''}}" data-id="{{item.id}}" bindtap="onCampus">{{item.fullName}}{{item.isActive ? '' : '（不可用）'}}</view></view>
+    <view wx:if="{{campusName}}" class="meta">浏览校区：{{campusName}}</view>
+    <view class="scope">{{space ? (space.kind === 'global' ? '全站社区 · ' : '地区社区 · ') + space.name : '尚未解析可用的社区地区'}}</view>
+    <view class="chips"><view wx:if="{{campusId}}" class="chip" bindtap="onRegional">返回校区地区</view><view wx:for="{{globalSpaces}}" wx:key="id" class="chip" data-id="{{item.id}}" bindtap="onGlobal">主动切换：{{item.name}}</view></view>
+    <view wx:if="{{space &amp;&amp; space.kind === 'regional'}}" class="chips"><view wx:for="{{categories}}" wx:key="key" class="chip {{category === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onCategory">{{item.label}}</view></view>
+  </view>
+  <view class="status" aria-role="status">{{status}}</view><view wx:if="{{identityOverlay.notice}}" class="notice">{{identityOverlay.notice}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <navigator wx:if="{{hasSession &amp;&amp; space}}" class="link" url="/pages/community-compose/community-compose?spaceId={{space.id}}&amp;category={{category}}">写一条新帖子 →</navigator>
+  <button wx:if="{{space}}" class="secondary" bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新信息流</button><button wx:else class="secondary" bindtap="onReload" disabled="{{busy}}">重新加载校园与地区</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+  <view wx:for="{{posts}}" wx:key="id" class="card"><view class="author">{{item.author.displayName}}<text class="badge">{{item.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text><text wx:if="{{item.viewer.isSelf}}" class="badge">我</text></view><view class="meta">{{item.space.name}} · {{item.publishedAt}}</view><view class="body">{{item.text}}</view><template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[item.id]}}" /><view class="image-grid"><image wx:for="{{item.images}}" wx:for-item="media" wx:key="assetId" src="{{media.thumbnailUrl}}" mode="aspectFill" /></view><view class="meta">{{item.likeCount}} 赞 · {{item.commentCount}} 条根评论</view><navigator wx:if="{{hasSession}}" class="link" url="/pages/community-detail/community-detail?postId={{item.id}}">查看讨论 →</navigator></view>
+  <view wx:if="{{loaded &amp;&amp; space &amp;&amp; !posts.length}}" class="empty">暂时没有可展示的帖子。这里不会生成示例内容。</view>
+  <view wx:if="{{continuation === 'login_required'}}" class="notice">访客仅可预览前十条帖子。登录后查看详情，继续浏览还需手机号验证。</view><view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">当前仅可查看前十条；继续浏览需要手机号验证。验证流程尚未接入。</view><view wx:if="{{loaded &amp;&amp; posts.length &amp;&amp; continuation === 'end'}}" class="meta">已到当前信息流末尾</view>
+  <button wx:if="{{canLoadMore}}" class="secondary" bindtap="onMore" disabled="{{busy}}">加载更多</button>
+  <view class="notice">开发中的 C1：安全、认证与媒体适配未就绪时会明确阻止发布。热门、投票、交易、组队、回复和订阅等完整功能仍保留在后续开发范围。</view>
+</view>

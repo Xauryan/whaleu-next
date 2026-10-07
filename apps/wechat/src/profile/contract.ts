@@ -2,7 +2,7 @@ import { ClientError, isRecord } from '../api/errors';
 
 export interface Campus {
   readonly id: string;
-  readonly institutionId: string;
+  readonly institutionId: string | null;
   readonly institutionName: string;
   readonly fullName: string;
   readonly shortName: string | null;
@@ -59,6 +59,7 @@ export interface CampusPatch {
 }
 export const isUuid = (value: unknown): value is string =>
   typeof value === 'string' &&
+  value.length === 36 &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
     value,
   );
@@ -118,7 +119,12 @@ export function decodeCampus(value: unknown): Campus {
   ]);
   if (
     !isUuid(value.id) ||
-    !isUuid(value.institutionId) ||
+    !(
+      value.institutionId === null ||
+      (typeof value.institutionId === 'string' &&
+        value.institutionId.length === 5 &&
+        /^[0-9]{5}$/.test(value.institutionId))
+    ) ||
     !text(value.institutionName, 1, 200) ||
     !text(value.fullName, 1, 200) ||
     !(value.shortName === null || text(value.shortName, 1, 100)) ||

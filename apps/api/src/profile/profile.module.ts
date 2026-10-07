@@ -1,3 +1,5 @@
+import { AccountIdentityProfileService } from './account-identity-profile.service.js';
+import { AuthorDisplayService } from './author-display.service.js';
 import {
   Body,
   Controller,
@@ -72,6 +74,12 @@ export class ProfileController {
 @Module({
   imports: [DatabaseModule, IdentityModule, CampusModule],
   controllers: [ProfileController],
-  providers: [ProfileRepository, ProfileService],
+  providers: [
+    ProfileRepository,
+    ProfileService,
+    AuthorDisplayService,
+    AccountIdentityProfileService,
+  ],
+  exports: [AuthorDisplayService, AccountIdentityProfileService],
 })
 export class ProfileModule {}

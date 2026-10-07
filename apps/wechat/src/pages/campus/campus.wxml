@@ -49,6 +49,7 @@
       <button class="secondary" bindtap="onCancelSelection" disabled="{{saving}}">取消本次选择</button>
     </view>
   </block>
-  <view class="footnote">当前页面已接入新校园与个人资料 API。校园社区、跨校浏览权限、身份认证及其余原有业务功能仍待实现。</view>
+  <view class="footnote">当前页面已接入新校园与个人资料 API。社区会按显式地区映射解析浏览范围；跨校发布权限、身份认证及其余业务仍待完成。</view>
+  <navigator class="text-link" url="/pages/community-feed/community-feed">打开校园社区 →</navigator>
   <navigator class="text-link" open-type="navigateBack">返回上一页</navigator>
 </view>
