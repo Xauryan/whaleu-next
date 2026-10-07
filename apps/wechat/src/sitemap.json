@@ -1,0 +1,4 @@
+{
+  "desc": "Development foundation is not indexed",
+  "rules": [{ "action": "disallow", "page": "*" }]
+}

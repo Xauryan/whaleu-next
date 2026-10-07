@@ -1,0 +1,21 @@
+name: whaleu-next-dev
+services:
+  postgres:
+    image: postgres:18.6-bookworm
+    environment:
+      POSTGRES_USER: whaleu_dev
+      POSTGRES_PASSWORD: local_development_only
+      POSTGRES_DB: whaleu_dev
+    ports:
+      - '127.0.0.1:55432:5432'
+    volumes:
+      # PostgreSQL 18 images store version-specific data below /var/lib/postgresql.
+      - postgres_dev_data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U whaleu_dev -d whaleu_dev']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+volumes:
+  postgres_dev_data:

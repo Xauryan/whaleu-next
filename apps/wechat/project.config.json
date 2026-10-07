@@ -1,0 +1,8 @@
+{
+  "description": "Development-only native client foundation; feature parity is not complete",
+  "miniprogramRoot": "dist/",
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "projectname": "whaleu-next-development",
+  "setting": { "es6": true, "minified": false, "urlCheck": true }
+}

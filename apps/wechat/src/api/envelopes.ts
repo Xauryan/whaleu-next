@@ -1,0 +1,96 @@
+import {
+  ClientError,
+  isRecord,
+  type ErrorDetails,
+  type ErrorKind,
+} from './errors';
+import type { HttpResponse } from '../platform/contracts';
+
+export type Decoder<T> = (value: unknown) => T;
+
+/** New API errors use non-2xx HTTP status and { error: { code, message, requestId } }. */
+export function responseError(response: HttpResponse): ClientError | null {
+  if (
+    !Number.isInteger(response.status) ||
+    response.status < 100 ||
+    response.status > 599
+  ) {
+    return new ClientError('protocol', 'The HTTP response status is invalid');
+  }
+  const body = isRecord(response.body) ? response.body : {};
+  if (response.status >= 200 && response.status < 300) {
+    return body.error === undefined
+      ? null
+      : new ClientError(
+          'protocol',
+          'An error envelope must have an unsuccessful HTTP status',
+        );
+  }
+  const error = isRecord(body.error) ? body.error : {};
+  const serverCode =
+    typeof error.code === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(error.code)
+      ? error.code
+      : undefined;
+  // Only accept a bounded correlation identifier; never expose arbitrary server text.
+  const requestId =
+    typeof error.requestId === 'string' &&
+    /^[a-f0-9-]{36}$/i.test(error.requestId)
+      ? error.requestId
+      : undefined;
+  const details: ErrorDetails = {
+    httpStatus: response.status,
+    ...(serverCode ? { serverCode } : {}),
+    ...(requestId ? { requestId } : {}),
+  };
+  const expectedStatus: Readonly<Record<string, number>> = {
+    AUTHENTICATION_REQUIRED: 401,
+    ACCESS_TOKEN_EXPIRED: 401,
+    SESSION_REVOKED: 401,
+    PHONE_VERIFICATION_REQUIRED: 403,
+    CONTENT_REVIEW_REJECTED: 422,
+  };
+  if (
+    serverCode &&
+    expectedStatus[serverCode] !== undefined &&
+    expectedStatus[serverCode] !== response.status
+  ) {
+    return new ClientError(
+      'protocol',
+      'The error code and HTTP status do not match',
+      details,
+    );
+  }
+  let kind: ErrorKind = 'http';
+  if (response.status === 401)
+    kind =
+      serverCode === 'ACCESS_TOKEN_EXPIRED' ? 'auth-expired' : 'auth-required';
+  else if (response.status === 403)
+    kind =
+      serverCode === 'PHONE_VERIFICATION_REQUIRED'
+        ? 'phone-verification-required'
+        : 'forbidden';
+  else if (response.status === 422 && serverCode === 'CONTENT_REVIEW_REJECTED')
+    kind = 'content-audit-rejected';
+  else if (
+    response.status === 400 ||
+    response.status === 409 ||
+    response.status === 422
+  )
+    kind = 'business';
+  return new ClientError(kind, 'The server rejected the request', details);
+}
+
+/** Success DTOs have endpoint-specific runtime validators; no legacy business-code interpretation. */
+export function decodeResponse<T>(
+  response: HttpResponse,
+  decode: Decoder<T>,
+): T {
+  const error = responseError(response);
+  if (error) throw error;
+  try {
+    return decode(response.body);
+  } catch (failure) {
+    if (failure instanceof ClientError) throw failure;
+    throw new ClientError('protocol', 'The response data is invalid');
+  }
+}

@@ -1,0 +1,6 @@
+<view class="screen">
+  <view class="label">{{stage}}</view>
+  <view class="title">{{title}}</view>
+  <view class="description">{{summary}}</view>
+  <view class="notice">{{notice}}</view>
+</view>

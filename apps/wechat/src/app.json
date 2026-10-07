@@ -1,0 +1,11 @@
+{
+  "pages": ["pages/status/status"],
+  "window": {
+    "navigationBarTitleText": "WhaleU 开发构建",
+    "navigationBarBackgroundColor": "#f3f6fb",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f3f6fb"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

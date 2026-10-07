@@ -1,0 +1,40 @@
+{
+  "name": "whaleu-next",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@11.9.0",
+  "engines": {
+    "node": ">=24.19.0 <25",
+    "npm": ">=11.9.0 <12"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @whaleu/api",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:integration": "npm run test:integration -w @whaleu/api",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "db:up": "docker compose up -d --wait",
+    "db:stop": "docker compose stop",
+    "db:status": "npm run db:status -w @whaleu/api",
+    "db:migrate": "npm run db:migrate -w @whaleu/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.1",
+    "eslint": "10.12.0",
+    "globals": "17.13.0",
+    "prettier": "3.9.9",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1"
+  }
+}

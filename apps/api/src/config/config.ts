@@ -1,0 +1,78 @@
+import { Global, Module } from '@nestjs/common';
+import type { DynamicModule } from '@nestjs/common';
+import { z } from 'zod';
+
+const positiveInteger = (fallback: number, max: number) =>
+  z.coerce.number().int().positive().max(max).default(fallback);
+
+const schema = z.object({
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'])
+    .default('development'),
+  HTTP_HOST: z.string().min(1).default('127.0.0.1'),
+  PORT: positiveInteger(3000, 65535),
+  DATABASE_URL: z.string().min(1),
+  PG_SSL_MODE: z.enum(['verify-full', 'disable']).default('verify-full'),
+  PG_POOL_MAX: positiveInteger(10, 100),
+  PG_CONNECTION_TIMEOUT_MS: positiveInteger(5000, 60000),
+  PG_STATEMENT_TIMEOUT_MS: positiveInteger(10000, 300000),
+  LOG_LEVEL: z
+    .enum(['debug', 'info', 'warn', 'error', 'silent'])
+    .default('info'),
+});
+
+export type RuntimeConfig = Readonly<z.infer<typeof schema>>;
+export const APP_CONFIG = Symbol('APP_CONFIG');
+
+export function loadConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
+  const result = schema.safeParse(env);
+  if (!result.success) {
+    const keys = [
+      ...new Set(result.error.issues.map((issue) => issue.path[0])),
+    ];
+    // Report only field names, never the values or Zod's received-input diagnostics.
+    throw new Error(`Invalid configuration fields: ${keys.join(', ')}`);
+  }
+  const config = result.data;
+  let url: URL;
+  try {
+    url = new URL(config.DATABASE_URL);
+  } catch {
+    throw new Error('DATABASE_URL must be a valid PostgreSQL URL');
+  }
+  if (
+    !['postgres:', 'postgresql:'].includes(url.protocol) ||
+    !url.hostname ||
+    url.pathname.length < 2 ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error(
+      'DATABASE_URL must name a database and have no query or fragment',
+    );
+  }
+  if (
+    config.PG_SSL_MODE === 'disable' &&
+    !['localhost', '127.0.0.1', '[::1]', 'postgres'].includes(url.hostname)
+  ) {
+    throw new Error(
+      'Unencrypted PostgreSQL connections are limited to local development',
+    );
+  }
+  if (config.NODE_ENV === 'production' && config.PG_SSL_MODE === 'disable') {
+    throw new Error('Production requires verified PostgreSQL TLS');
+  }
+  return Object.freeze(config);
+}
+
+@Global()
+@Module({})
+export class ConfigurationModule {
+  static register(config: RuntimeConfig): DynamicModule {
+    return {
+      module: ConfigurationModule,
+      providers: [{ provide: APP_CONFIG, useValue: config }],
+      exports: [APP_CONFIG],
+    };
+  }
+}
