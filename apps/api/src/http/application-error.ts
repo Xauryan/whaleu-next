@@ -3,6 +3,10 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  DISCOVERY_RESTART_REQUIRED: {
+    status: 409,
+    message: 'Discovery changed; refresh to continue',
+  },
   IDENTITY_CAMPUS_REQUEST_NOT_FOUND: {
     status: 404,
     message: 'Identity campus request not found',

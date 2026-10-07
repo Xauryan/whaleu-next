@@ -10,7 +10,10 @@ and new clients are not goals.
 The backend and native WeChat client now include login/session handling,
 physical-campus selection, own profile editing, stored preferences, a partial
 community flow, audited developer identity views, canonical school-code mappings
-and independent verification-status summaries. Tested community increments include
+and independent verification-status summaries. Named public profiles, privacy-aware
+post/trading discovery and self-only community liked history are also implemented
+as bounded development slices; scalable arbitrary-size history/counts remain an
+open release gate. Tested community increments include
 polls, flat discussion threads, trading listings, post-based group formation,
 Saved preferences, local Updates, named-content blocking, reports and local
 post-jury outcomes with owner-only system notices. The remaining business modules and complete

@@ -1,4 +1,8 @@
 import { VerificationModule } from '../verification/verification.module.js';
+import { CommunityProfileDiscoveryFacade } from './profile-discovery.facade.js';
+import { LikedHistoryController } from './liked/controller.js';
+import { LikedHistoryService } from './liked/service.js';
+import { LikedHistoryRepository } from './liked/repository.js';
 import { AuthorizationModule } from '../authorization/authorization.module.js';
 import { ContentReviewModule } from './content-review/content-review.module.js';
 import { LocalContentPublicationGate } from './content-review/local-content-publication-gate.js';
@@ -245,6 +249,7 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    LikedHistoryController,
     SavedController,
     SavedRecoveryController,
     FormationController,
@@ -261,6 +266,7 @@ export class CommunityRecoveryController {
     CommunityRecoveryController,
   ],
   exports: [
+    CommunityProfileDiscoveryFacade,
     CommunityContentIdentityService,
     CommunityUpdatesFacade,
     CommunityNamedBlockSourceFacade,
@@ -268,6 +274,9 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    LikedHistoryService,
+    LikedHistoryRepository,
+    CommunityProfileDiscoveryFacade,
     CommunityNamedBlockSourceFacade,
     CommunityReportTargetFacade,
     CommunityModerationRemovalFacade,

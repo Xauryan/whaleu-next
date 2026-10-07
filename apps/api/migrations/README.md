@@ -114,3 +114,14 @@ identity-selector endpoint are installed.
 Migration 0017 adds empty, immutable own identity-campus selection receipts and
 phantom-safe catalog statement gates. It does not seed choices, topology or
 verification. Existing migrations remain unchanged.
+
+Migration 0018 extends the existing named-block source constraint to public
+profile references. It creates no profiles, identities, entitlements or grants and
+does not expand report/privileged-identity target domains. See
+[public profiles](../../../docs/API_PUBLIC_PROFILES.md).
+
+Migration 0019 adds opaque current-like membership identities and nullable
+historical dates to community post/comment/reply likes. Existing dates remain
+unknown; only new insertions receive server-time defaults. It does not import
+legacy records or activate accounting/experience. See
+[own liked history](../../../docs/API_LIKED_HISTORY.md).

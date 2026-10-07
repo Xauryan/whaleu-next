@@ -2,7 +2,7 @@ import { isRecord } from '../api/errors';
 import { isUuid } from '../profile/contract';
 import { cursor, exact, invalid, timestamp, uuid4 } from './contract';
 export interface BlockSource {
-  readonly kind: 'post' | 'comment' | 'reply';
+  readonly kind: 'post' | 'comment' | 'reply' | 'profile';
   readonly id: string;
 }
 export type BlockIntent = { readonly clientRequestId: string } & (
@@ -70,7 +70,7 @@ const revision = (value: unknown): value is string =>
 export function decodeBlockSource(value: unknown): BlockSource {
   exact(value, ['kind', 'id']);
   if (
-    !['post', 'comment', 'reply'].includes(value.kind as string) ||
+    !['post', 'comment', 'reply', 'profile'].includes(value.kind as string) ||
     !isUuid(value.id)
   )
     invalid();

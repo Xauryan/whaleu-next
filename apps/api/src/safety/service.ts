@@ -12,6 +12,8 @@ import { ApplicationError } from '../http/application-error.js';
 import type { ApplicationErrorCode } from '../http/application-error.js';
 import { IdentityService } from '../identity/identity.service.js';
 import { AuthorDisplayService } from '../profile/author-display.service.js';
+import { PublicProfileFacade } from '../profile/public-profile.facade.js';
+import { ProfileVisibilityFacade } from './profile-visibility.facade.js';
 import { LocalSafetyPhoneSource } from '../verification/safety-phone.source.js';
 import { CommunityNamedBlockSourceFacade } from '../community/named-block-source.facade.js';
 import { SafetyRepository } from './repository.js';
@@ -65,6 +67,10 @@ export class NamedBlockService {
     private readonly sources: CommunityNamedBlockSourceFacade,
     @Inject(AuthorDisplayService)
     private readonly profiles: AuthorDisplayService,
+    @Inject(PublicProfileFacade)
+    private readonly publicProfiles: PublicProfileFacade,
+    @Inject(ProfileVisibilityFacade)
+    private readonly profileVisibility: ProfileVisibilityFacade,
   ) {}
   private async transaction<T>(
     write: boolean,
@@ -195,11 +201,10 @@ export class NamedBlockService {
         bounds = await this.eligible(actor, tx);
         let row: StoredBlock;
         if (block) {
-          const { namedAccountId } = await this.sources.resolve(
-            block.source,
-            actor,
-            tx,
-          );
+          const { namedAccountId } =
+            block.source.kind === 'profile'
+              ? await this.profileSource(block.source.id, actor, tx)
+              : await this.sources.resolve(block.source, actor, tx);
           await lockNamedPair(actor, namedAccountId, tx);
           const current = (
             await tx.query<StoredBlock>(
@@ -266,6 +271,21 @@ export class NamedBlockService {
       await this.final(token, tx, bounds);
       return result;
     });
+  }
+  private async profileSource(id: string, actor: string, tx: PoolClient) {
+    const target = await this.publicProfiles.find(id, tx);
+    if (
+      !target ||
+      target.accountId === actor ||
+      !(await this.identity.activeAccount(target.accountId, tx))
+    )
+      throw new ApplicationError('BLOCK_TARGET_NOT_ALLOWED');
+    if (
+      (await this.profileVisibility.read(actor, target.accountId, tx))
+        .status !== 'available'
+    )
+      throw new ApplicationError('BLOCK_TARGET_NOT_ALLOWED');
+    return { namedAccountId: target.accountId };
   }
   private async event(
     actor: string,

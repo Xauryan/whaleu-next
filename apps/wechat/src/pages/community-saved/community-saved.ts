@@ -1,3 +1,4 @@
+import { AuthorNavigator } from '../../profile/author-navigation';
 import {
   IdentityOverlayController,
   initialOverlayView,
@@ -21,7 +22,14 @@ Page({
   overlayTargets: '',
   controller: undefined as SavedController | undefined,
   savedMutations: undefined as SavedMutationController | undefined,
+  authorNavigator: undefined as AuthorNavigator | undefined,
   onShow() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = new AuthorNavigator(
+      wx,
+      () => this.setData({ error: '暂不能打开主页，请重试' }),
+      getApp<WhaleuApp>().community,
+    );
     this.controller?.dispose();
     this.savedMutations?.dispose();
     this.identityOverlay?.dispose();
@@ -66,6 +74,14 @@ Page({
     void this.savedMutations.load();
     void this.controller.load();
   },
+  onAuthor(event: { currentTarget: { dataset: { id: string } } }) {
+    if (!this.data.loaded || this.data.busy) return;
+    this.authorNavigator?.open(
+      this.data.items.find(
+        (item) => item.post.id === event.currentTarget.dataset.id,
+      )?.post.author,
+    );
+  },
   onReload() {
     void this.controller?.load();
     void this.savedMutations?.load();
@@ -93,6 +109,8 @@ Page({
     this.savedMutations?.cancel();
   },
   onHide() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = undefined;
     this.controller?.dispose();
     this.controller = undefined;
     this.savedMutations?.dispose();
@@ -102,6 +120,8 @@ Page({
     this.overlayTargets = '';
   },
   onUnload() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = undefined;
     this.controller?.dispose();
     this.controller = undefined;
     this.savedMutations?.dispose();

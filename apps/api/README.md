@@ -191,8 +191,9 @@ filtering differs deliberately from bilateral direct post/discussion interaction
 checks; anonymous targets never resolve hidden accounts. Phone eligibility is
 verification-owned and independent of student number/affiliation. Existing
 aggregate visibility, publication, media and role policies remain fail-closed.
-Reports/juries/bans, named-profile direction/actions, private evidence, provider
-review and production reconciliation remain separate unfinished work.
+Named-profile direction/actions are covered by the public-discovery increment
+below. Remaining safety/private-evidence/provider and production reconciliation
+work stays separate; see the feature-parity checklist for the current ledger.
 
 See [named-blocking contract](../../docs/API_SAFETY.md) for routes, cleanup gates,
 final-clock/lock order, exact receipt semantics and explicitly new bounded rates.
@@ -204,3 +205,20 @@ exact-once success recovery are documented in
 [API_IDENTITY_CAMPUS](../../docs/API_IDENTITY_CAMPUS.md). The new normal-AppModule
 flow consumes existing canonical affiliation/phone/safety/topology inputs; it does
 not issue verification, infer historical selections or change browsing campus.
+
+## Named public profiles and own liked history
+
+Public author pages now use existing public profile IDs, current active-account
+checks, dedicated bilateral safety policy and locked profile-history preferences.
+Community supplies contact-free canonical post/trading pages and exact counts from
+the same eligible set. Own public-reference reads remain nonmutating; untouched
+accounts return null. The self-only liked list independently projects post/root/
+reply authors and retains undated known-owned memberships without invented dates.
+
+These are bounded development slices: more than 1,024 candidates makes the whole
+corresponding history/count unavailable, including basic profile reads whose
+counts exceed capacity. Scalable current-policy history/counts, optional public
+UID/title/media/affiliation/experience/received-interaction owners and full native-
+device/provider/migration acceptance remain explicit release/parity gates. See
+[public profiles](../../docs/API_PUBLIC_PROFILES.md) and
+[own liked history](../../docs/API_LIKED_HISTORY.md).

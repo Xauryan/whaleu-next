@@ -1,3 +1,4 @@
+import { AuthorNavigator } from '../../profile/author-navigation';
 import {
   SystemNoticesBadgeController,
   initialSystemNoticesBadgeView,
@@ -57,7 +58,14 @@ Page({
   updatesBadge: undefined as UpdatesBadgeController | undefined,
   identityOverlay: undefined as IdentityOverlayController | undefined,
   overlayTargets: '',
+  authorNavigator: undefined as AuthorNavigator | undefined,
   onShow() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = new AuthorNavigator(
+      wx,
+      () => this.setData({ error: '暂不能打开主页，请重试' }),
+      getApp<WhaleuApp>().community,
+    );
     this.reportMutations?.dispose();
     this.reportMutations = undefined;
     this.blockMutations?.dispose();
@@ -214,6 +222,13 @@ Page({
   onBlockCancel() {
     this.blockMutations?.cancel();
   },
+  onAuthor(event: { currentTarget: { dataset: { id: string } } }) {
+    if (!this.data.loaded || this.data.busy) return;
+    this.authorNavigator?.open(
+      this.data.posts.find((item) => item.id === event.currentTarget.dataset.id)
+        ?.author,
+    );
+  },
   onReload() {
     this.reportMutations?.dismiss();
     this.blockMutations?.dismissBlock();
@@ -229,6 +244,8 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = undefined;
     this.reportMutations?.dispose();
     this.reportMutations = undefined;
     this.blockMutations?.dispose();
@@ -244,6 +261,8 @@ Page({
     this.identityOverlay = undefined;
   },
   onUnload() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = undefined;
     this.reportMutations?.dispose();
     this.reportMutations = undefined;
     this.blockMutations?.dispose();

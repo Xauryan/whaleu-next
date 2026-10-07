@@ -13,6 +13,8 @@
   <navigator wx:if="{{!profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/verification/verification">查看我的认证状态 →</navigator>
   <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/community-blocks/community-blocks">我的拉黑与结果恢复 →</navigator>
   <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/identity-campus/identity-campus">选择或重新确认身份校区 →</navigator>
+  <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/public-profile/public-profile">我的公开主页 →</navigator>
+  <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/community-liked/community-liked">我的点赞历史 →</navigator>
   <block wx:if="{{loaded}}">
     <view class="card">
       <view class="card-title">我的校园</view>
@@ -46,6 +48,6 @@
     </view>
     <button wx:if="{{profileDirty || preferencesDirty}}" class="secondary" bindtap="onCancelEdits" disabled="{{loading || saving}}">取消未保存的修改</button>
   </block>
-  <view class="footnote">头像与媒体上传、手机号与学生认证办理、公开主页、主题外观及其他业务功能待接入。此开发构建不代表完整功能对齐。</view>
+  <view class="footnote">头像与媒体上传、手机号与学生认证办理、主题外观及其他业务功能待接入。此开发构建不代表完整功能对齐。</view>
   <navigator class="text-link" url="/pages/login/login" open-type="reLaunch">返回登录与会话管理</navigator>
 </view>

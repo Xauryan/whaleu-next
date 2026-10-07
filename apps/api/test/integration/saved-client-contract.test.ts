@@ -1599,6 +1599,7 @@ test(
             [grantId, developerId],
           );
           applied(await set(other, formation, true), formation, true);
+          applied(await set(other, urgent, true), urgent, true);
           const ordinary = await list(other);
           noPrivateFields(ordinary);
           assert.ok(
@@ -1628,21 +1629,33 @@ test(
               loaded: boolean;
               busy: boolean;
               identityOverlay: Overlay;
+              error: string;
             };
             setData(patch: Record<string, unknown>): void;
             onShow(): void;
+            onAuthor(event: {
+              currentTarget: { dataset: { id: string; profileId?: string } };
+            }): void;
             onReload(): void;
             onHide(): void;
             onUnload(): void;
           }
+          interface NativeNavigation {
+            readonly url: string;
+            success(): void;
+            fail(error: unknown): void;
+          }
+          const navigation: NativeNavigation[] = [];
           const observers = new Set<() => void>();
           let page: PageHarness | undefined;
           const globals = globalThis as unknown as {
             Page?: (value: unknown) => void;
             getApp?: () => unknown;
+            wx?: { navigateTo(options: NativeNavigation): void };
           };
           const previousPage = globals.Page,
-            previousGetApp = globals.getApp;
+            previousGetApp = globals.getApp,
+            previousWx = globals.wx;
           const runtime = {
             sessions: other.sessions,
             gateway: other.community,
@@ -1660,6 +1673,7 @@ test(
             };
           };
           globals.getApp = () => ({ community: runtime });
+          globals.wx = { navigateTo: (options) => navigation.push(options) };
           const until = (predicate: () => boolean, message: string) =>
             new Promise<void>((resolve, reject) => {
               const timer = setTimeout(() => {
@@ -1678,7 +1692,7 @@ test(
             });
           try {
             // Execute the actual Page lifecycle and render closure, replacing only
-            // native Page/getApp/setData platform hooks with this local test host.
+            // native Page/getApp/setData/navigation platform hooks with this local test host.
             require('../../../wechat/src/pages/community-saved/community-saved.ts');
             assert.ok(page);
             page.onShow();
@@ -1700,6 +1714,41 @@ test(
               null,
             );
             noPrivateFields(page.data.items);
+            const namedSaved = page.data.items.find(
+              (entry) => entry.post.id === urgent,
+            )?.post;
+            assert.ok(namedSaved?.author.kind === 'named');
+            const namedProfileId = namedSaved.author.profileId;
+            page.onAuthor({
+              currentTarget: {
+                dataset: { id: formation, profileId: namedProfileId },
+              },
+            });
+            page.onAuthor({
+              currentTarget: {
+                dataset: { id: randomUUID(), profileId: namedProfileId },
+              },
+            });
+            assert.equal(
+              navigation.length,
+              0,
+              'Anonymous/unknown rows cannot route through injected IDs or the separately audited overlay',
+            );
+            page.onAuthor({
+              currentTarget: {
+                dataset: { id: urgent, profileId: randomUUID() },
+              },
+            });
+            page.onAuthor({ currentTarget: { dataset: { id: urgent } } });
+            assert.equal(
+              navigation.length,
+              1,
+              'Repeated taps cannot duplicate an in-flight native navigation',
+            );
+            assert.equal(
+              navigation[0]!.url,
+              `/pages/public-profile/public-profile?profileId=${namedProfileId}`,
+            );
             assert.deepEqual(
               await list(other),
               ordinary,
@@ -1780,14 +1829,41 @@ test(
               [],
               'Account change also clears the ordinary Saved window',
             );
+            const replacementError = page.data.error;
+            navigation[0]!.fail({
+              errMsg: 'synthetic late private platform detail',
+            });
+            assert.equal(
+              page.data.error,
+              replacementError,
+              'Old navigation callbacks cannot alter the replacement login view',
+            );
+            page.onAuthor({
+              currentTarget: {
+                dataset: { id: urgent, profileId: namedProfileId },
+              },
+            });
+            assert.equal(
+              navigation.length,
+              1,
+              'Cleared Saved rows cannot supply a stale author after account replacement',
+            );
             page.onHide();
             assert.deepEqual(page.data.identityOverlay.items, {});
+            page.onAuthor({ currentTarget: { dataset: { id: urgent } } });
+            assert.equal(
+              navigation.length,
+              1,
+              'Hidden page navigation is disposed',
+            );
           } finally {
             page?.onUnload();
             if (previousPage === undefined) delete globals.Page;
             else globals.Page = previousPage;
             if (previousGetApp === undefined) delete globals.getApp;
             else globals.getApp = previousGetApp;
+            if (previousWx === undefined) delete globals.wx;
+            else globals.wx = previousWx;
             other.sessions.completeLogin(
               other.sessions.beginLogin(),
               other.credentials,

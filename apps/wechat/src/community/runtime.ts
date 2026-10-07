@@ -1,4 +1,8 @@
 import {
+  HttpDiscoveryGateway,
+  type DiscoveryGateway,
+} from '../profile/discovery-gateway';
+import {
   HttpSystemNoticesGateway,
   type SystemNoticesGateway,
 } from './system-notices-gateway';
@@ -28,6 +32,7 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly discovery?: DiscoveryGateway;
   readonly sessions: SessionStore;
   readonly safetyChanges?: SafetyChanges;
   readonly systemNotices?: SystemNoticesGateway;
@@ -60,6 +65,9 @@ export function createCommunityRuntime(
   const privateViews = new PrivateViewLifecycle();
   return {
     sessions: identity.sessions,
+    ...(identity.api
+      ? { discovery: new HttpDiscoveryGateway(identity.api) }
+      : {}),
     privateViews,
     safetyChanges: new SafetyChanges(privateViews),
     ...(identity.api

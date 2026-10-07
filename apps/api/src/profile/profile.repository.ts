@@ -36,6 +36,33 @@ export class ProfileRepository {
     @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
 
+  async publicProfile(profileId: string, tx: PoolClient) {
+    const result = await tx.query<{
+      accountId: string;
+      profileId: string;
+      displayName: string;
+      bio: string;
+      preferences: unknown;
+    }>(
+      `SELECT account_id AS "accountId", public_id AS "profileId",
+       coalesce(nickname,'鲸鱼用户') AS "displayName", bio, preferences
+       FROM whaleu_profile.profiles WHERE public_id=$1 FOR SHARE`,
+      [profileId],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async publicReference(
+    accountId: string,
+    tx: PoolClient,
+  ): Promise<string | null> {
+    const result = await tx.query<{ profileId: string }>(
+      'SELECT public_id AS "profileId" FROM whaleu_profile.profiles WHERE account_id=$1 FOR SHARE',
+      [accountId],
+    );
+    return result.rows[0]?.profileId ?? null;
+  }
+
   async identityProfile(
     accountId: string,
     transaction: PoolClient,

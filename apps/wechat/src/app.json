@@ -15,7 +15,9 @@
     "pages/community-updates/community-updates",
     "pages/community-blocks/community-blocks",
     "pages/report-progress/report-progress",
-    "pages/system-notices/system-notices"
+    "pages/system-notices/system-notices",
+    "pages/public-profile/public-profile",
+    "pages/community-liked/community-liked"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

@@ -36,7 +36,10 @@ const labels: Record<PreferenceKey, readonly [string, string]> = {
     '两项均关闭时不强制评论身份',
   ],
   defaultAllowAnonymousDm: ['默认允许分身私信', '作为后续发布功能的默认偏好'],
-  hideProfilePosts: ['隐藏个人主页帖子', '保存展示偏好，公开主页功能待接入'],
+  hideProfilePosts: [
+    '隐藏个人主页帖子',
+    '对其他人隐藏主页帖子、交易与对应数量；不会删除内容',
+  ],
   activitySubscribed: ['活动提醒', '保存活动提醒偏好，消息投递待接入'],
 };
 const rows = (preferences: Preferences): readonly PreferenceRow[] =>

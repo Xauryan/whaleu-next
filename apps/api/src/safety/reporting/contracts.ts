@@ -1,8 +1,13 @@
 import { z } from 'zod';
-import { sourceSchema } from '../contracts.js';
+// Reports remain content-only. Expanding named block sources must never
+// implicitly add a report target domain or moderation authority.
+export const reportTargetSchema = z.strictObject({
+  kind: z.enum(['post', 'comment', 'reply']),
+  id: z.uuid().transform((id) => id.toLowerCase()),
+});
 export const reportRequestSchema = z.strictObject({
   clientRequestId: z.uuidv4().transform((x) => x.toLowerCase()),
-  target: sourceSchema,
+  target: reportTargetSchema,
 });
 export const juryVoteSchema = z.strictObject({
   clientRequestId: z.uuidv4().transform((x) => x.toLowerCase()),
@@ -10,7 +15,7 @@ export const juryVoteSchema = z.strictObject({
   juryId: z.uuid().transform((x) => x.toLowerCase()),
   vote: z.enum(['keep', 'remove']),
 });
-export type ReportTarget = z.infer<typeof sourceSchema>;
+export type ReportTarget = z.infer<typeof reportTargetSchema>;
 export type ReportRequest = z.infer<typeof reportRequestSchema>;
 export type JuryVoteRequest = z.infer<typeof juryVoteSchema>;
 export const terminalReportCodes = [

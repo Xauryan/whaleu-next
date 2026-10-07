@@ -16,6 +16,9 @@ export class CommunityNamedBlockSourceFacade {
     actor: string,
     tx: PoolClient,
   ): Promise<{ namedAccountId: string }> {
+    // Public profiles have their own owner resolver; never treat one as a reply.
+    if (source.kind === 'profile')
+      throw new ApplicationError('BLOCK_TARGET_NOT_ALLOWED');
     const content =
       source.kind === 'post'
         ? (await this.access.accessiblePost(source.id, actor, tx)).post

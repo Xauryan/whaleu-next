@@ -1,4 +1,5 @@
 import { IdentityCampusModule } from './identity-campus/module.js';
+import { ProfileDiscoveryModule } from './profile-discovery/module.js';
 import { SafetyModule } from './safety/safety.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { IdentityPrivacyModule } from './identity-privacy/identity-privacy.module.js';
@@ -26,6 +27,7 @@ export class AppModule {
         CampusModule,
         IdentityCampusModule,
         ProfileModule,
+        ProfileDiscoveryModule,
         CommunityModule,
         SafetyModule,
         NotificationsModule,

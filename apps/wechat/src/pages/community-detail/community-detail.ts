@@ -1,3 +1,4 @@
+import { AuthorNavigator } from '../../profile/author-navigation';
 import {
   ReportMutationController,
   initialReportMutationView,
@@ -98,7 +99,14 @@ Page({
         ? { commentId: query.rootCommentId }
         : null;
   },
+  authorNavigator: undefined as AuthorNavigator | undefined,
   onShow() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = new AuthorNavigator(
+      wx,
+      () => this.setData({ error: '暂不能打开主页，请重试' }),
+      getApp<WhaleuApp>().community,
+    );
     this.reportMutations?.dispose();
     this.reportMutations = undefined;
     this.juryVotes?.dispose();
@@ -660,6 +668,33 @@ Page({
   onBlockCancel() {
     this.blockMutations?.cancel();
   },
+  onAuthor(event: {
+    currentTarget: { dataset: { kind: string; id: string } };
+  }) {
+    if (!this.data.loaded || this.data.busy || this.data.needsReload) return;
+    const { kind, id } = event.currentTarget.dataset;
+    const comments = [
+      ...this.data.comments,
+      ...(this.data.locatedComment ? [this.data.locatedComment] : []),
+    ];
+    const author =
+      kind === 'post' && this.data.post?.id === id
+        ? this.data.post.author
+        : kind === 'comment'
+          ? comments.find((item) => item.id === id)?.author
+          : kind === 'reply'
+            ? comments
+                .flatMap((item) => item.replyPreview.items)
+                .find((item) => item.id === id)?.author
+            : kind === 'member' &&
+                this.data.formationView.loaded &&
+                !this.data.formationView.busy
+              ? this.data.formationView.formation?.members.find(
+                  (item) => item.id === id,
+                )?.author
+              : undefined;
+    this.authorNavigator?.open(author);
+  },
   onReload() {
     this.reportMutations?.dismiss();
     this.blockMutations?.dismissBlock();
@@ -716,6 +751,8 @@ Page({
     this.savedMutations?.cancel();
   },
   onHide() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = undefined;
     this.reportMutations?.dispose();
     this.reportMutations = undefined;
     this.juryVotes?.dispose();
@@ -747,6 +784,8 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = undefined;
     this.reportMutations?.dispose();
     this.reportMutations = undefined;
     this.juryVotes?.dispose();

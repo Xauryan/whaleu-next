@@ -1,3 +1,4 @@
+import { AuthorNavigator } from '../../profile/author-navigation';
 import {
   ReportMutationController,
   initialReportMutationView,
@@ -50,7 +51,14 @@ Page({
     this.replyId = valid ? (query.replyId ?? null) : null;
     this.setData({ requestedReplyId: this.replyId ?? '' });
   },
+  authorNavigator: undefined as AuthorNavigator | undefined,
   onShow() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = new AuthorNavigator(
+      wx,
+      () => this.setData({ error: '暂不能打开主页，请重试' }),
+      getApp<WhaleuApp>().community,
+    );
     this.reportMutations?.dispose();
     this.reportMutations = undefined;
     this.blockMutations?.dispose();
@@ -239,6 +247,28 @@ Page({
   onBlockCancel() {
     this.blockMutations?.cancel();
   },
+  onAuthor(event: {
+    currentTarget: { dataset: { kind: string; id: string } };
+  }) {
+    if (!this.data.loaded || this.data.busy || this.data.needsReload) return;
+    const { kind, id } = event.currentTarget.dataset;
+    const reply = [
+      ...this.data.replies,
+      ...this.data.contextReplies,
+      ...(this.data.locatedReply ? [this.data.locatedReply] : []),
+    ].find((item) => item.id === id);
+    const author =
+      kind === 'post' && this.data.post?.id === id
+        ? this.data.post.author
+        : kind === 'comment' && this.data.root?.id === id
+          ? this.data.root.author
+          : kind === 'reply'
+            ? reply?.author
+            : kind === 'reply_target' && reply?.target.status === 'available'
+              ? reply.target.author
+              : undefined;
+    this.authorNavigator?.open(author);
+  },
   onReload() {
     this.reportMutations?.dismiss();
     this.blockMutations?.dismissBlock();
@@ -307,6 +337,8 @@ Page({
     this.mutations?.cancel();
   },
   onHide() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = undefined;
     this.reportMutations?.dispose();
     this.reportMutations = undefined;
     this.blockMutations?.dispose();
@@ -320,6 +352,8 @@ Page({
     this.identityOverlay = undefined;
   },
   onUnload() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = undefined;
     this.onHide();
   },
 });

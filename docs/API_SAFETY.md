@@ -14,7 +14,7 @@ All routes require a current active session and reject unexpected fields/query
 parameters. Private account IDs, source author overrides, incoming rosters,
 private profile lookups and anonymous owner resolution are not accepted.
 
-- `PUT /v1/me/safety/blocks`: `{clientRequestId, source:{kind:'post'|'comment'|'reply',id}, blocked:true}`
+- `PUT /v1/me/safety/blocks`: `{clientRequestId, source:{kind:'post'|'comment'|'reply'|'profile',id}, blocked:true}`
 - `PUT /v1/me/safety/blocks/:relationshipId`: `{clientRequestId,blocked:false,expectedRevision}`; revision is a positive decimal string
 - `GET /v1/me/safety/blocks?limit=20&cursor=...`: maximum 50; opaque own relationship ID/revision, blocked-at timestamp, current safe named display or explicitly labeled snapshot, removable state
 - `GET /v1/me/safety/blocks/:relationshipId`: own current `{relationshipId,blocked,revision}`
@@ -77,10 +77,11 @@ Anonymous subjects contain no account/profile ID and never consult block pairs.
 A reverse-only named post may appear in discovery and fail direct access. Its
 formation roster component is omitted; contacts remain direct-gated. Own-block
 copy (`POST_BLOCKED_BY_YOU`) is available only on direct post detail after live,
-scope and base access succeed. Other denial paths are generic absence. A named
-profile resolver is deferred: follow-on must preserve authorized outgoing and
-incoming flags plus canBlock/canUnblock, including incoming-only Block suppression.
-That intended profile behavior is unfinished parity, not prohibited functionality.
+scope and base access succeed. Other denial paths are generic absence. Named public-profile reads now use a dedicated bilateral safety facade; outgoing
+owners receive only their opaque relationship/revision for unblock, while incoming
+denials remain generic unavailable. This is an intentional privacy-safe wire
+correction. Profile-sourced blocking resolves the public UUID through the profile
+owner; it does not expand report targets. See [public profiles](API_PUBLIC_PROFILES.md).
 There is still no raw-account relationship oracle, incoming roster or anonymous
 profile lookup. Anonymous-conversation blocking is separately deferred.
 

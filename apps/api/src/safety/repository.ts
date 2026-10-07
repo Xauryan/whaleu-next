@@ -84,7 +84,7 @@ export class SafetyRepository {
   async directions(
     viewer: string,
     author: string,
-    purpose: VisibilityPurpose,
+    purpose: VisibilityPurpose | 'public_profile',
     tx: PoolClient,
   ): Promise<{ outgoing: boolean; incoming: boolean } | null> {
     const ids =
@@ -117,6 +117,17 @@ export class SafetyRepository {
       )
     ).rows[0]!;
     return row;
+  }
+  async outgoingReference(viewer: string, target: string, tx: PoolClient) {
+    const result = await tx.query<{
+      relationshipId: string;
+      blocked: true;
+      revision: string;
+    }>(
+      'SELECT id AS "relationshipId", active AS blocked, revision::text FROM whaleu_safety.blocks WHERE blocker_id=$1 AND blocked_id=$2 AND active FOR SHARE',
+      [viewer, target],
+    );
+    return result.rows[0] ?? null;
   }
   async own(actor: string, id: string, tx: PoolClient): Promise<StoredBlock> {
     const row = (

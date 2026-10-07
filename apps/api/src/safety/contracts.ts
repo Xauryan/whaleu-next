@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { ApplicationErrorCode } from '../http/application-error.js';
 const uuid = z.uuid().transform((id) => id.toLowerCase());
 export const sourceSchema = z.strictObject({
-  kind: z.enum(['post', 'comment', 'reply']),
+  kind: z.enum(['post', 'comment', 'reply', 'profile']),
   id: uuid,
 });
 export type NamedBlockSource = z.infer<typeof sourceSchema>;

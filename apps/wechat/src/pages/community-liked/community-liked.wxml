@@ -1,0 +1,18 @@
+<view class="screen"><view class="eyebrow">WHALEU · 我的</view><view class="title">点赞历史</view>
+  <view class="notice">仅当前登录账号可查看。这里只包含仍可查看的社区帖子、根评论与回复；其他业务的点赞历史待接入。</view>
+  <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <button bindtap="onReload" disabled="{{busy}}" loading="{{busy}}">重新加载点赞</button><button wx:if="{{busy}}" bindtap="onCancel">停止加载</button>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">前往登录 →</navigator>
+  <view wx:if="{{visibleLikedCount !== null}}" class="meta">当前可查看的点赞 {{visibleLikedCount}}</view>
+  <view wx:for="{{items}}" wx:key="likeId" class="card">
+    <view class="author"><text wx:if="{{item.preview.author.kind === 'named'}}" class="link" data-id="{{item.likeId}}" bindtap="onAuthor">{{item.preview.author.displayName}} →</text><text wx:else>{{item.preview.author.displayName}}</text><text class="badge">{{item.preview.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text><text wx:if="{{item.preview.isSelf}}" class="badge">我</text></view>
+    <view class="meta">{{item.kind === 'post' ? '帖子' : item.kind === 'comment' ? '根评论' : '回复'}} · 点赞时间：{{item.likedAt === null ? '时间未知' : item.likedAt}}</view>
+    <view class="body"><text>{{item.preview.text}}</text></view><view class="image-grid"><image wx:for="{{item.preview.images}}" wx:for-item="media" wx:key="assetId" src="{{media.thumbnailUrl}}" mode="aspectFill" /></view>
+    <navigator wx:if="{{item.kind === 'post'}}" class="link" url="/pages/community-detail/community-detail?postId={{item.postId}}">查看帖子 →</navigator>
+    <navigator wx:elif="{{item.kind === 'comment'}}" class="link" url="/pages/community-detail/community-detail?postId={{item.postId}}&amp;rootCommentId={{item.rootCommentId}}">定位根评论 →</navigator>
+    <navigator wx:else class="link" url="/pages/community-thread/community-thread?postId={{item.postId}}&amp;rootCommentId={{item.rootCommentId}}&amp;replyId={{item.targetId}}">定位回复 →</navigator>
+  </view>
+  <view wx:if="{{loaded &amp;&amp; visibleLikedCount === 0}}" class="empty">当前没有可查看的点赞。</view>
+  <view wx:if="{{pageNumber}}" class="meta">第 {{pageNumber}} 页 · 每次翻页重新核验</view><button wx:if="{{canPrevious}}" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{canLoadMore}}" bindtap="onMore" disabled="{{busy}}">下一页</button>
+  <navigator class="link" url="/pages/community-mine/community-mine">我的发布与结果恢复 →</navigator>
+</view>

@@ -4,16 +4,18 @@ import { ContentReviewModule } from '../community/content-review/content-review.
 import { LocalApprovedContentVisibility } from '../community/content-review/local-approved-content-visibility.js';
 import { SafetyRepository } from './repository.js';
 import { NamedBlockVisibility } from './visibility.js';
+import { ProfileVisibilityFacade } from './profile-visibility.facade.js';
 @Module({
   imports: [ContentReviewModule],
   providers: [
     SafetyRepository,
     NamedBlockVisibility,
+    ProfileVisibilityFacade,
     {
       provide: COMMUNITY_BASE_VISIBILITY,
       useExisting: LocalApprovedContentVisibility,
     },
   ],
-  exports: [SafetyRepository, NamedBlockVisibility],
+  exports: [SafetyRepository, NamedBlockVisibility, ProfileVisibilityFacade],
 })
 export class SafetyPolicyModule {}

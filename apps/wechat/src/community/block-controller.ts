@@ -1,3 +1,7 @@
+import {
+  decodePublicProfile,
+  type PublicProfile,
+} from '../profile/discovery-contract';
 import { ClientError } from '../api/errors';
 import type { Cancellation } from '../platform/contracts';
 import {
@@ -122,7 +126,7 @@ export class BlockMutationController extends CommunityController<BlockMutationVi
     });
   }
   requestBlock(
-    kind: BlockSource['kind'],
+    kind: Exclude<BlockSource['kind'], 'profile'>,
     item: {
       readonly id: string;
       readonly author: { readonly kind: 'named' | 'anonymous' };
@@ -133,6 +137,7 @@ export class BlockMutationController extends CommunityController<BlockMutationVi
       this.view.busy ||
       this.view.frozen ||
       this.view.confirmSource ||
+      !['post', 'comment', 'reply'].includes(kind) ||
       item.author.kind !== 'named' ||
       item.viewer.isSelf ||
       !this.ready()
@@ -152,6 +157,54 @@ export class BlockMutationController extends CommunityController<BlockMutationVi
       });
     } catch (error) {
       this.update({ frozen: true, error: communityError(error) });
+    }
+  }
+  /** Profile blocks use a real current public-profile projection, never a counterfeit content author. */
+  requestProfileBlock(raw: PublicProfile): void {
+    if (
+      this.view.busy ||
+      this.view.frozen ||
+      this.view.confirmSource ||
+      !this.ready()
+    )
+      return;
+    try {
+      const profile = decodePublicProfile(raw);
+      if (profile.status !== 'available' || profile.isOwn) return;
+      const pending = this.runtime.pendingBlocks!.load(this.accountId()!);
+      if (pending) {
+        this.show(pending);
+        return;
+      }
+      this.update({
+        confirmSource: { kind: 'profile', id: profile.profileId },
+        error: '',
+        receiptStatus: '',
+        current: null,
+      });
+    } catch (error) {
+      this.update({ error: communityError(error) });
+    }
+  }
+  async unblockProfile(raw: PublicProfile): Promise<void> {
+    if (
+      this.view.busy ||
+      this.view.frozen ||
+      this.view.confirmSource ||
+      !this.ready()
+    )
+      return;
+    try {
+      const profile = decodePublicProfile(raw);
+      if (profile.status !== 'blocked_by_you') return;
+      await this.apply({
+        operation: 'unblock_named',
+        relationshipId: profile.relationship.relationshipId,
+        expectedRevision: profile.relationship.revision,
+        blocked: false,
+      });
+    } catch (error) {
+      this.update({ error: communityError(error) });
     }
   }
   dismissBlock(): void {

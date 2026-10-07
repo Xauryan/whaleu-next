@@ -1,3 +1,4 @@
+import { AuthorNavigator } from '../../profile/author-navigation';
 import {
   tradingCategories,
   tradingLabels,
@@ -7,7 +8,14 @@ import { MineController, initialMineView } from './controller';
 Page({
   data: { ...initialMineView(), tradingCategories, tradingLabels },
   controller: undefined as MineController | undefined,
+  authorNavigator: undefined as AuthorNavigator | undefined,
   onShow() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = new AuthorNavigator(
+      wx,
+      () => this.setData({ error: '暂不能打开主页，请重试' }),
+      getApp<WhaleuApp>().community,
+    );
     this.controller?.dispose();
     const runtime = getApp<WhaleuApp>().community;
     if (!runtime) {
@@ -28,6 +36,14 @@ Page({
   onTradingSubtype(event: { currentTarget: { dataset: { key: string } } }) {
     void this.controller?.setTradingSubtype(event.currentTarget.dataset.key);
   },
+  onAuthor(event: { currentTarget: { dataset: { id: string } } }) {
+    if (!this.data.loaded || this.data.busy) return;
+    this.authorNavigator?.open(
+      this.data.tradingPosts.find(
+        (item) => item.id === event.currentTarget.dataset.id,
+      )?.author,
+    );
+  },
   onReload() {
     void this.controller?.load();
   },
@@ -38,10 +54,14 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = undefined;
     this.controller?.dispose();
     this.controller = undefined;
   },
   onUnload() {
+    this.authorNavigator?.dispose();
+    this.authorNavigator = undefined;
     this.controller?.dispose();
     this.controller = undefined;
   },

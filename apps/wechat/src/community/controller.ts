@@ -19,6 +19,9 @@ export const initialCommunityView = (): CommunityView => ({
 });
 export const reasonMessage = (code: string | null): string =>
   ({
+    DISCOVERY_UNAVAILABLE: '公开主页或点赞历史暂不能确认，请稍后重试',
+    DISCOVERY_RESTART_REQUIRED: '内容已变化，请重新加载；旧分页已清除',
+    PROFILE_UNAVAILABLE: '此主页当前不可查看',
     COMMUNITY_UNAVAILABLE: '此操作所需的服务端状态暂不能确认，请稍后重试',
     COMMUNITY_SCOPE_UNAVAILABLE:
       '当前社区范围不适用于此操作；切换浏览校园不会授予发布权限',
