@@ -911,3 +911,214 @@ the parent context. Named and anonymous identity disclosure uses the existing
 separate privilege/audit DTO and unchanged final-clock safeguards. It never adds
 identity fields to the ordinary roster and does not grant formation-contact
 access. No developer role grants are seeded outside synthetic tests.
+
+## C2E Saved posts and per-post preferences, increment 1
+
+This increment implements account-owned saving and two independent preference
+bits. It does **not** deliver in-app or external updates, settle experience, or
+apply ranking changes. The next bounded increment must materialize and verify
+real local in-app notices before notification UI can claim delivery. All existing
+publication/ballot/discussion/trading/formation receipt bytes and intent hashes
+remain unchanged. No real provider, production data, paid API, role grant, student
+number import or institutional authentication is activated.
+
+### Strict HTTP and projection contracts
+
+All routes require the current bearer session, reject unrecognized query/body
+keys and derive the owner from that session. Every mutation below returns HTTP
+200 with a terminal receipt; validation and unavailable infrastructure use the
+existing error envelope. Prefix all paths below with `/v1`.
+
+- `PUT community/posts/:postId/save` and `DELETE community/posts/:postId/save`
+  accept exactly `{clientRequestId}` and set the desired saved state
+- `GET me/community/saved?cursor&limit` accepts a decimal limit from 1 to 50,
+  default 20, and returns `{items:[{post,savedAt,saveEpochId}],nextCursor,visibleSavedCount}`
+- `POST me/community/saved/status` accepts `{postIds}` with 1–100 distinct UUIDs,
+  rejecting case-insensitive duplicates before queries. It returns HTTP 200
+  `{items}` in request order. An unavailable or nonexistent target is only
+  `{postId,status:"unavailable"}`; an accessible target is
+  `{postId,status:"available",saveCount,isSaved,savedAt,saveEpochId,preferences}`
+- `GET community/posts/:postId/update-preferences` returns the preferences DTO
+- `PUT community/posts/:postId/update-preferences` accepts only
+  `{clientRequestId,channel:"saved"|"external",enabled:boolean}`
+- `GET me/community/saved-requests/:requestId` recovers the original account's
+  immutable terminal receipt without returning live parent data
+
+Canonical post projections now include `saveCount` and three additional viewer
+booleans: `isSaved`, `canSave`, `canSetUpdatePreference`. Aggregate save count is
+all active account/post relations, including self-saves and bookmark-only saves.
+There is no saver roster, account ID or contact expansion. Saved items reuse the
+canonical poll/trading/formation post serializer. Urgent and resolved trades
+remain saveable/readable under the normal parent policy; urgency never means
+hidden/deleted. Existing root/reply/discussion counts retain their meanings.
+
+The preferences DTO is exactly
+`{postId,savedUpdatesEnabled,externalUpdatesEnabled,revision,canSetPreference,reason,inAppCapability,externalCapability}`.
+`revision` is a nonnegative decimal string, initially `"0"`, and advances only
+when a bit really changes. `canSetPreference` is advisory and its `reason` is
+null, `COMMUNITY_UNAVAILABLE`, `PHONE_VERIFICATION_REQUIRED`, or
+`COMMUNITY_ACTION_RESTRICTED`. Both capability fields are always `"unavailable"`
+in this increment. Preferences are exposed in their own endpoint and batch DTO,
+not silently added to unrelated post viewer fields.
+
+Absent preferences logically default to both enabled. The `saved` channel
+changes only `savedUpdatesEnabled`; the `external` channel changes only
+`externalUpdatesEnabled`. An unsaved post, including the viewer's own post, can
+have either setting. Unsave/re-save never deletes or resets them. A no-op does
+not rewrite revision or per-channel change times. Both-default rows and their
+history are retained once any real change has occurred.
+
+The intended future delivery policy remains:
+
+- Saved updates disabled means bookmark-only for the saved-recipient branch of
+  in-app and external notices; direct comments/replies remain independent
+- External updates disabled suppresses this post's direct and saved external
+  notices, without muting direct or saved in-app notices
+- Enabled preferences record intent. They never grant provider consent, quota,
+  device permission or account enrollment
+- Reminder-banner visibility is a separate invitation-display setting. This
+  increment does not alter it, other categories, template settings or devices
+
+### Current access and explicit owner cleanup
+
+Ordinary save/unsave uses the independent `save_post` action. Ordinary preference
+changes use `set_post_update_preference`. Both require active account/session,
+authoritative phone proof, current action restrictions and current parent/scope
+visibility. Neither reuses publication-category, student verification,
+identity-campus, comments-open or formation membership rules. Safety adapters
+remain unavailable by default. Local tests inject synthetic adapters only.
+
+Read/list/batch/preferences use the established authenticated post-read policy:
+current active parent/scope and named/anonymous visibility policy. Phone proof
+is not newly required merely to read the first or later Saved pages. Active
+regional and global scopes use their ordinary policies; a selected browsing
+campus is not a Saved filter and cannot remove relationships. Anonymous visibility
+checks never receive a private named-account selector.
+
+Two separately routed reduction-only operations support cleanup after access
+loss. They accept only `{clientRequestId}` and return the same minimal receipt:
+
+- `DELETE me/community/saved/:postId` removes only the active session owner's
+  relation. A missing relation/parent is an applied no-op, revealing no existence
+- `DELETE me/community/post-update-preferences/:postId/:channel` disables only
+  one channel of an already persisted own preference row. Absent own state is a
+  generic terminal `POST_NOT_FOUND`, even if a parent exists
+
+These explicit cleanup routes require an active original-account session and
+bypass phone/action/parent-visibility gates solely to reduce that account's
+existing state. They cannot enable, save, change another owner or return hidden
+parent previews, counts, personas or permissions. Ordinary native controls use
+the ordinary gated routes; cleanup is not a silent fallback around restrictions.
+Previously terminal rejection still replays unchanged; a new cleanup intent
+requires a new key. Recovery also remains available after parent deletion,
+phone/scope loss or restrictions, but not after token/session/account revocation.
+Presented-token validity is rechecked after potentially blocking work and before
+commit/response.
+
+### Receipts and opposite-intent recovery
+
+A dedicated saved request ledger is separate from publication requests. Both
+applied and rejected receipts include the same exact frozen intent identity:
+
+```json
+{
+  "requestId": "00000000-0000-4000-8000-000000000001",
+  "operation": "set_post_saved",
+  "postId": "00000000-0000-4000-8000-000000000002",
+  "desired": true,
+  "channel": null,
+  "outcome": "applied"
+}
+```
+
+Preference operation is `set_post_update_preference`, with channel `saved` or
+`external` and desired equal to the intended Boolean. A rejected result adds
+only `code`, one of `POST_NOT_FOUND`, `COMMUNITY_SCOPE_UNAVAILABLE`,
+`PHONE_VERIFICATION_REQUIRED`, `COMMUNITY_ACTION_RESTRICTED`. Temporary unavailable
+adapters/infrastructure roll back with no committed terminal request. Receipts
+never contain live count/epoch/settings, actors, contacts or delivery claims.
+
+Equal account/key/canonical intent returns the original immutable receipt.
+Changing the post, operation, channel or desired value under the same key is
+`REQUEST_CONFLICT`. A receipt row cannot commit while pending. A no-op stores a
+receipt without a new epoch, history transition, outbox event or obligation.
+After save-A and unsave-B settle, replaying A can only return A's receipt; it
+cannot restore the relation or overwrite B. Preferences obey the same rule.
+Different devices serialize by database arrival, not by guessed gesture time.
+
+Clients must persist a frozen account-owned intent before dispatch and settle it
+before sending an opposite intent. Timeout, cancellation, malformed response,
+page dismissal and `REQUEST_NOT_FOUND` are uncertain, not evidence of rollback.
+Receipt settlement is followed by a fresh authorized live read. Stale account,
+authentication, navigation and list responses cannot overwrite a newer choice.
+Native implementation uses one unresolved saved/preference intent per account
+for conservative cross-channel ordering, independently of publication journals.
+
+### Pagination, epochs and future event eligibility
+
+Saved order is `(savedAt DESC,saveEpochId DESC)`. A no-op save retains both values;
+a genuine unsave/re-save closes the old epoch and creates a new UUID epoch/time.
+Inactive current state has null `savedAt`/`saveEpochId` while history is retained.
+The cursor contains the last visible saved epoch/time, bounded limit and an opaque
+purpose-bound digest of the viewer identity. It contains no raw account ID or
+hidden post ID. Digest binding is not authentication or a visibility grant;
+every call independently reauthorizes.
+
+For the injectable policy adapter, list/count collect at most 1024 active candidate
+relations, then acquire parent-first locks and filter through the same current
+read policy. `visibleSavedCount`, `items` and `nextCursor` all use that one filtered
+candidate set. The count describes the current filtered candidate set for this
+response, not a transaction-wide or cross-request frozen snapshot. More than
+1024 candidates returns `COMMUNITY_UNAVAILABLE` rather than an unfiltered total.
+Concurrent additions may appear on refresh; re-save can move an item before a
+previous cursor. Native deduplication is by post ID within the loaded window.
+Hidden/deleted/inactive/blocked rows do not leak IDs, counts or cursor anchors.
+A completely filtered set returns an empty page, zero total and no cursor.
+
+Migration `0012` adds current relations, immutable start/end epoch history,
+persistent preference snapshots/history, immutable desired-state receipts and
+pending obligations. It does not change earlier migration files. Current/active
+epoch consistency, independent preference snapshot/history consistency, unique
+active membership and immutable terminal request identity are enforced in
+PostgreSQL as well as service code. Obligation identity/payload is retained;
+future consumers may update its separate outcome without changing its target.
+
+Save starts/ends and preference changes obtain the shared discussion sequence
+only after locking the parent. New root/reply inserts also acquire this parent
+lock before allocating their authoritative order; existing root/reply sequences
+and old receipts are unchanged. This disambiguates equal wall-clock timestamps.
+The next local-notification increment must require a saved epoch covering the
+root event order and the same still-active epoch at materialization, then recheck
+current visibility/account/preferences. Unsave/re-save cannot qualify an old
+event. Historical imports cannot invent absent epoch history. No-backfill after
+processed suppression remains a requirement for that next consumer, not a claim
+that a worker already delivers notices.
+
+### Durable obligations and retained release work
+
+Only an actual save transition adds a saver reward obligation and a distinct
+nonself author reward obligation, plus author-interaction/ranking contributions.
+Self-save creates no second author reward or notice. Unsave records the inverse
+interaction/ranking contribution without reward reversal/refund. Each obligation
+has a unique epoch/transition/action/recipient key and starts `pending`; receipt,
+relationship/history, obligations and minimal internal outbox event commit in
+one transaction. Preference changes, no-ops, reads and retries generate no reward
+obligations. No code marks a reward paid or an update delivered. Save transitions
+do not invent a “someone saved you” notification.
+
+The experience domain still owns amounts, shared caps, accounting day, grant
+receipts and settlement. Ranking consumers and all notification delivery remain
+pending. Future local notices must implement direct/saved recipient dedupe,
+exact owner unread/read rows, current safe previews, typed root/reply anchors and
+crash-safe materialization. Replies, poll ballots, formation joins and trading
+resolution do not gain new saved-recipient fan-out here. External capability stays
+unavailable until separately implemented consent/quota/mapping/current-access
+and ambiguous-send recovery gates have been verified. Stored unavailable work
+must not be automatically drained when a provider is eventually activated.
+
+Production import is separate and unauthorized here. It must preserve private
+relation/preference/raw timestamps, source timezone/provenance, duplicates/orphans,
+independent urgency/resolution/deletion, notification/read history and unknown
+delivery/consent/reward outcomes for explicit reconciliation. Do not replay
+historic rewards/notices or fabricate missing epochs. Full parity, actual device
+acceptance and real provider verification remain outstanding.

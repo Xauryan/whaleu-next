@@ -1,3 +1,4 @@
+import { SavedRepository } from './saved/repository.js';
 import { FormationService } from './formation/service.js';
 import { TradingRepository } from './trading/repository.js';
 import { encodeDiscussionCursor, replyCursor } from './discussion/cursor.js';
@@ -31,6 +32,7 @@ import { CommunityAccessService } from './community-access.service.js';
 @Injectable()
 export class CommunitySerializer {
   constructor(
+    @Inject(SavedRepository) private readonly saved: SavedRepository,
     @Inject(CommunityRepository)
     private readonly repository: CommunityRepository,
     @Inject(AuthorDisplayService)
@@ -166,6 +168,7 @@ export class CommunitySerializer {
         }
         if (canComment) break;
       }
+    const saved = await this.saved.projection(post.id, viewer, tx);
     const poll = await this.polls.project(post.id, viewer, authority, tx);
     const formation = await this.formations.project(
       post,
@@ -174,6 +177,7 @@ export class CommunitySerializer {
       tx,
     );
     return {
+      saveCount: saved.saveCount,
       trading: await this.trading.project(post, viewer, authority, tx),
       component: poll
         ? { kind: 'poll', poll }
@@ -197,6 +201,12 @@ export class CommunitySerializer {
         canDelete:
           viewer === post.account_id && actionAllowed(authority, 'delete'),
         canComment,
+        isSaved: saved.isSaved,
+        canSave: actionAllowed(authority, 'save_post'),
+        canSetUpdatePreference: actionAllowed(
+          authority,
+          'set_post_update_preference',
+        ),
       },
       commentsPolicy: post.comments_policy,
     };

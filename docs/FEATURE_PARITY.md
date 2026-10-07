@@ -36,7 +36,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 
 - [ ] NOT IMPLEMENTED — Private messages: conversation create/list, real/anonymous contexts, history pagination, text/image sending, unread counts, read markers, recall, deletion, blocking and anti-harassment limits
 - [ ] NOT IMPLEMENTED — Notifications: grouped counts and lists, mark read, badges, comment/reply/like/activity/review events, application/group-review details, live updates and session-safe refresh
-- [ ] NOT IMPLEMENTED — Notification preferences/delivery: post-specific settings, mute/subscription status, mini-program subscriptions, official-account templates, reminders/guides, queued delivery and duplicate prevention
+- [ ] PARTIAL — Notification preferences/delivery: post-specific settings, mute/subscription status, mini-program subscriptions, official-account templates, reminders/guides, queued delivery and duplicate prevention
 - [ ] NOT IMPLEMENTED — User safety: block/unblock/list/check, reporting posts/comments/replies, report status/count/voting, restricted interactions and consistent anonymous identity protection
 - [ ] NOT IMPLEMENTED — Moderation: post status/category/visibility, pins/read markers, content/image review, profile moderation, bans/unbans, feature restrictions and moderation history
 - [ ] PARTIAL — School/super administration: scoped user lookup, identity changes, admin appointment/scope, roles and expiry, school changes, UID management, user/post rankings and data overview
@@ -78,6 +78,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Poll snapshot `3c10b6c42d963b1595c31b9ab9959bf0b4e2f36b`: 98 API tests, 250 native-client tests and 137 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37649513781), including native poll publication, ballot recovery and privacy contracts. The commit signature is verified.
 - Discussion snapshot `27d2c7cb7a29f80e2bcb2080fffdc8e84a832d2e`: 102 API tests, 291 native-client tests and 159 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37654039425), including native reply, reaction, pin and audited identity contracts. The commit signature is verified.
 - Trading snapshot `699c4f34cf145f5e7b1b0a02131cee50f2747c42`: 106 API tests, 337 native-client tests and 183 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37658218303), including exact prices, private contact access and durable status recovery. The commit signature is verified.
+- Formation snapshot `f68c32f35093f97a411cd3070cefc829288c2fa2`: 111 API tests, 377 native-client tests and 216 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37670924060), including concurrent joins, private contact access and audited roster identity. The commit signature is verified.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -161,3 +162,13 @@ contact access to nonmembers. Historical display/provenance, phone-only joining
 without an invented student gate, and account/hide/expiry clearing are tested.
 This does not implement group directories, official accounts, invented leave/kick/
 close operations, production import, real providers or physical-device acceptance.
+
+Saved/update-preference increment 1 checkpoint: current-policy Saved browsing,
+recoverable save/unsave, preserved urgent listings, immutable membership epochs,
+independent per-post saved/external update intent and explicit own-state cleanup
+are implemented. Native state and audited developer overlays are account/origin
+scoped and transient. Re-save preserves mute choices; no-op saves do not reset
+membership time. Reward/ranking obligations are durable but not settled. No
+in-app notice, external delivery, provider consent, quota or device permission
+is created merely by saving or enabling a preference. Actual community in-app
+updates remain the next separate increment.

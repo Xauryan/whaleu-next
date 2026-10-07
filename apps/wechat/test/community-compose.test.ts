@@ -335,6 +335,9 @@ test('unverified named comments and denied/unavailable policy have honest effect
         isLiked: false,
         canDelete: false,
         canComment: true,
+        isSaved: false,
+        canSave: true,
+        canSetUpdatePreference: true,
       },
     });
   s.gateway.commentCapabilitiesImpl = async () =>

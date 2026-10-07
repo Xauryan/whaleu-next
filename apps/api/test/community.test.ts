@@ -269,6 +269,7 @@ test('media projection rejects malformed expiry, credentials, controls, asset su
       resolveOwned: async () => ({ kind: 'unavailable' as const }),
     };
     const serializer = new CommunitySerializer(
+      {} as import('../src/community/saved/repository.js').SavedRepository,
       repository,
       {} as import('../src/profile/author-display.service.js').AuthorDisplayService,
       media,

@@ -80,3 +80,13 @@ shape and receipt completion are enforced independently in PostgreSQL. This is
 not a source-data migration. Preserve raw historical statuses/counts/contacts and
 provenance in a separately authorized reconciliation flow; never infer consent,
 truncate data or guess repairs for conflicting creators/duplicate actors/overflow.
+
+`0012_community_saved.sql` adds empty account-owned Saved relations, durable
+membership epochs, independent per-post update preferences/history, minimal
+immutable desired-state receipts and pending reward/ranking obligations. Parent
+locking and shared discussion order establish future event-time eligibility;
+current/active epoch and preference/history shape are checked at commit. Existing
+migrations, publication hashes and receipts remain unchanged. No notices,
+experience grants, ranking updates, provider consent or production import are
+performed. See [C2E Saved](../../../docs/API_COMMUNITY.md#c2e-saved-posts-and-per-post-preferences-increment-1)
+for read/cleanup policy, pagination bounds and retained delivery work.

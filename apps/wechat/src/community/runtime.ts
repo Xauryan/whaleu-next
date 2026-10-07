@@ -1,3 +1,4 @@
+import { PendingSavedStore } from './saved-pending';
 import { PendingFormationJoinStore } from './formation-pending';
 import { PendingTradingStore } from './trading-pending';
 import { PendingDiscussionStore } from './discussion-pending';
@@ -28,6 +29,7 @@ export interface CommunityRuntime {
   readonly pendingBallots: PendingBallotStore;
   readonly pendingDiscussion: PendingDiscussionStore;
   readonly pendingTrading: PendingTradingStore;
+  readonly pendingSaved: PendingSavedStore;
   readonly drafts: DraftStore;
   readonly newRequestId: () => Promise<string>;
 }
@@ -52,6 +54,7 @@ export function createCommunityRuntime(
     pendingBallots: new PendingBallotStore(storage, origin),
     pendingDiscussion: new PendingDiscussionStore(storage, origin),
     pendingTrading: new PendingTradingStore(storage, origin),
+    pendingSaved: new PendingSavedStore(storage, origin),
     drafts: new DraftStore(storage, origin),
     newRequestId: () =>
       bounded(

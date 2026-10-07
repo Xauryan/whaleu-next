@@ -1,4 +1,17 @@
 import {
+  decodePostUpdatePreferences,
+  decodeSavedIntent,
+  decodeSavedList,
+  decodeSavedReceipt,
+  decodeSavedStatuses,
+  matchSavedReceipt,
+  type PostUpdatePreferences,
+  type SavedIntent,
+  type SavedList,
+  type SavedReceipt,
+  type SavedStatuses,
+} from './saved-contract';
+import {
   decodeFormation,
   decodeFormationJoinIntent,
   decodeFormationReceipt,
@@ -92,6 +105,21 @@ export interface FeedQuery {
   readonly cursor?: string;
 }
 export interface CommunityGateway {
+  saved(
+    after: string | null,
+    cancel: Cancellation,
+    limit?: number,
+  ): Promise<SavedList>;
+  savedStatuses(
+    postIds: readonly string[],
+    cancel: Cancellation,
+  ): Promise<SavedStatuses>;
+  postUpdatePreferences(
+    postId: string,
+    cancel: Cancellation,
+  ): Promise<PostUpdatePreferences>;
+  applySaved(intent: SavedIntent, cancel: Cancellation): Promise<SavedReceipt>;
+  savedReceipt(requestId: string, cancel: Cancellation): Promise<SavedReceipt>;
   formation(postId: string, cancel: Cancellation): Promise<Formation>;
   joinFormation(
     postId: string,
@@ -231,6 +259,109 @@ const page = (after: string | null) => {
 };
 export class HttpCommunityGateway implements CommunityGateway {
   constructor(private readonly api: ApiClient) {}
+  async saved(
+    after: string | null,
+    cancel: Cancellation,
+    limit = 20,
+  ): Promise<SavedList> {
+    if (!cursor(after) || !Number.isInteger(limit) || limit < 1 || limit > 50)
+      invalid();
+    const result = await this.api.request(
+      endpoint('/v1/me/community/saved', decodeSavedList),
+      {
+        query: { limit, ...(after ? { cursor: after } : {}) },
+        cancellation: cancel,
+      },
+    );
+    if (result.items.length > limit) invalid();
+    return result;
+  }
+  async savedStatuses(
+    postIds: readonly string[],
+    cancel: Cancellation,
+  ): Promise<SavedStatuses> {
+    if (
+      !Array.isArray(postIds) ||
+      postIds.length < 1 ||
+      postIds.length > 100 ||
+      postIds.some((value) => !isUuid(value)) ||
+      new Set(postIds.map((value) => value.toLowerCase())).size !==
+        postIds.length
+    )
+      invalid();
+    const targets = [...postIds];
+    const result = await this.api.request(
+      endpoint(
+        '/v1/me/community/saved/status',
+        decodeSavedStatuses,
+        'required',
+        'POST',
+      ),
+      { body: { postIds: targets }, cancellation: cancel },
+    );
+    if (
+      result.items.length !== targets.length ||
+      result.items.some((item) => !targets.includes(item.postId))
+    )
+      invalid();
+    return result;
+  }
+  async postUpdatePreferences(
+    postId: string,
+    cancel: Cancellation,
+  ): Promise<PostUpdatePreferences> {
+    const result = await this.api.request(
+      endpoint(
+        `/v1/community/posts/${id(postId)}/update-preferences`,
+        decodePostUpdatePreferences,
+      ),
+      { cancellation: cancel },
+    );
+    if (result.postId !== postId) invalid();
+    return result;
+  }
+  async applySaved(
+    intent: SavedIntent,
+    cancel: Cancellation,
+  ): Promise<SavedReceipt> {
+    const checked = decodeSavedIntent(intent),
+      saving = checked.operation === 'set_post_saved';
+    const result = await this.api.request(
+      endpoint(
+        `/v1/community/posts/${checked.postId}/${saving ? 'save' : 'update-preferences'}`,
+        decodeSavedReceipt,
+        'required',
+        saving && !checked.desired ? 'DELETE' : 'PUT',
+      ),
+      {
+        body: saving
+          ? { clientRequestId: checked.clientRequestId }
+          : {
+              clientRequestId: checked.clientRequestId,
+              channel: checked.channel,
+              enabled: checked.desired,
+            },
+        cancellation: cancel,
+      },
+    );
+    matchSavedReceipt(checked, result);
+    return result;
+  }
+  async savedReceipt(
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<SavedReceipt> {
+    if (!uuid4(requestId)) invalid();
+    const result = await this.api.request(
+      endpoint(
+        `/v1/me/community/saved-requests/${requestId}`,
+        decodeSavedReceipt,
+      ),
+      { cancellation: cancel },
+    );
+    if (result.requestId !== requestId) invalid();
+    return result;
+  }
   async formation(postId: string, cancel: Cancellation): Promise<Formation> {
     const result = await this.api.request(
       endpoint(`/v1/community/posts/${id(postId)}/formation`, decodeFormation),

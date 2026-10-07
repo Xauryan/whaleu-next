@@ -1,3 +1,10 @@
+import { SavedRepository } from './saved/repository.js';
+import { SavedReadService } from './saved/read.service.js';
+import { SavedMutationService } from './saved/mutation.service.js';
+import {
+  SavedController,
+  SavedRecoveryController,
+} from './saved/controller.js';
 import { FormationRepository } from './formation/repository.js';
 import { FormationService } from './formation/service.js';
 import {
@@ -221,6 +228,8 @@ export class CommunityRecoveryController {
 @Module({
   imports: [DatabaseModule, CampusModule, ProfileModule, IdentityModule],
   controllers: [
+    SavedController,
+    SavedRecoveryController,
     FormationController,
     FormationRecoveryController,
     TradingController,
@@ -236,6 +245,9 @@ export class CommunityRecoveryController {
   ],
   exports: [CommunityContentIdentityService],
   providers: [
+    SavedRepository,
+    SavedReadService,
+    SavedMutationService,
     FormationRepository,
     FormationService,
     TradingRepository,

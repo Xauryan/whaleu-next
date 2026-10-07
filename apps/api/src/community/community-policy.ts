@@ -22,7 +22,9 @@ export type Action =
   | 'pin'
   | 'resolve_trading'
   | 'join_formation'
-  | 'read_formation_contacts';
+  | 'read_formation_contacts'
+  | 'save_post'
+  | 'set_post_update_preference';
 export interface Authority {
   phoneVerified: boolean;
   studentVerified: boolean;

@@ -128,6 +128,7 @@ export type AuthorView =
       isPostAuthor: boolean;
     };
 export interface PostView {
+  saveCount: number;
   trading: TradingView | null;
   component:
     | { kind: 'none' }
@@ -149,6 +150,9 @@ export interface PostView {
     isLiked: boolean;
     canDelete: boolean;
     canComment: boolean;
+    isSaved: boolean;
+    canSave: boolean;
+    canSetUpdatePreference: boolean;
   };
   commentsPolicy: 'open' | 'restricted';
 }

@@ -141,3 +141,15 @@ parent deletion without returning contacts or hidden parent content. Normal
 runtime safety adapters remain fail-closed; only synthetic fixtures exercise
 this development slice. See [C2D API](../../docs/API_COMMUNITY.md#c2d-post-group-formation-development-slice)
 for consent, immutable storage, privacy and future import boundaries.
+
+## Community Saved development slice
+
+C2E increment 1 adds account-owned save/unsave, current visible Saved browsing,
+aggregate/own state, two independent default-enabled per-post preferences and
+minimal durable recovery receipts. Re-save starts a fresh membership epoch while
+preserving mute choices. Explicit active-session-only reduction routes support
+own cleanup after parent access loss. Ordinary writes require dedicated phone/
+action checks without a new publication or student gate. Reward/ranking work is
+persisted as pending obligations; no in-app/external notices or experience grants
+are delivered. External capability remains unavailable and preferences are not
+provider consent. See [C2E API](../../docs/API_COMMUNITY.md#c2e-saved-posts-and-per-post-preferences-increment-1).

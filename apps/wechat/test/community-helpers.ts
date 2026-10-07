@@ -1,3 +1,5 @@
+import { PendingSavedStore } from '../src/community/saved-pending';
+import type { PostUpdatePreferences } from '../src/community/saved-contract';
 import { PendingFormationJoinStore } from '../src/community/formation-pending';
 import type {
   Formation,
@@ -69,10 +71,19 @@ export const post = (overrides: Partial<Post> = {}): Post => ({
   author: anonymous(),
   publishedAt: createdAt,
   likeCount: 0,
+  saveCount: 0,
   commentCount: 1,
   replyCount: 0,
   discussionCount: 1,
-  viewer: { isSelf: true, isLiked: false, canDelete: true, canComment: true },
+  viewer: {
+    isSelf: true,
+    isLiked: false,
+    canDelete: true,
+    canComment: true,
+    isSaved: false,
+    canSave: true,
+    canSetUpdatePreference: true,
+  },
   commentsPolicy: 'open',
   ...overrides,
 });
@@ -154,7 +165,66 @@ export const reply = (overrides: Partial<Reply> = {}): Reply => ({
   viewer: { isSelf: true, canDelete: true, isLiked: false },
   ...overrides,
 });
+export const postUpdatePreferences = (
+  overrides: Partial<PostUpdatePreferences> = {},
+): PostUpdatePreferences => ({
+  postId,
+  savedUpdatesEnabled: true,
+  externalUpdatesEnabled: true,
+  revision: '0',
+  canSetPreference: true,
+  reason: null,
+  inAppCapability: 'unavailable',
+  externalCapability: 'unavailable',
+  ...overrides,
+});
 export class FakeCommunityGateway implements CommunityGateway {
+  savedImpl: CommunityGateway['saved'] = async () => ({
+    items: [],
+    nextCursor: null,
+    visibleSavedCount: 0,
+  });
+  savedStatusesImpl: CommunityGateway['savedStatuses'] = async (ids) => ({
+    items: ids.map((id) => ({ postId: id, status: 'unavailable' })),
+  });
+  postUpdatePreferencesImpl: CommunityGateway['postUpdatePreferences'] = async (
+    id,
+  ) => postUpdatePreferences({ postId: id });
+  applySavedImpl: CommunityGateway['applySaved'] = async ({
+    clientRequestId,
+    ...intent
+  }) => ({ requestId: clientRequestId, ...intent, outcome: 'applied' });
+  savedReceiptImpl: CommunityGateway['savedReceipt'] = async (id) => ({
+    requestId: id,
+    operation: 'set_post_saved',
+    postId,
+    desired: true,
+    channel: null,
+    outcome: 'applied',
+  });
+  saved(...args: Parameters<CommunityGateway['saved']>) {
+    this.calls.push({ method: 'saved', args });
+    return this.savedImpl(...args);
+  }
+  savedStatuses(...args: Parameters<CommunityGateway['savedStatuses']>) {
+    this.calls.push({ method: 'savedStatuses', args });
+    return this.savedStatusesImpl(...args);
+  }
+  postUpdatePreferences(
+    ...args: Parameters<CommunityGateway['postUpdatePreferences']>
+  ) {
+    this.calls.push({ method: 'postUpdatePreferences', args });
+    return this.postUpdatePreferencesImpl(...args);
+  }
+  applySaved(...args: Parameters<CommunityGateway['applySaved']>) {
+    this.calls.push({ method: 'applySaved', args });
+    return this.applySavedImpl(...args);
+  }
+  savedReceipt(...args: Parameters<CommunityGateway['savedReceipt']>) {
+    this.calls.push({ method: 'savedReceipt', args });
+    return this.savedReceiptImpl(...args);
+  }
+
   formationImpl: CommunityGateway['formation'] = async () => formation();
   joinFormationImpl: CommunityGateway['joinFormation'] = async (
     _post,
@@ -531,6 +601,7 @@ export function setup(loggedIn = true) {
     pendingBallots: new PendingBallotStore(storage, 'synthetic'),
     pendingDiscussion: new PendingDiscussionStore(storage, 'synthetic'),
     pendingTrading: new PendingTradingStore(storage, 'synthetic'),
+    pendingSaved: new PendingSavedStore(storage, 'synthetic'),
     pending: new PendingAttemptStore(storage, 'synthetic'),
     drafts: new DraftStore(storage, 'synthetic'),
     newRequestId: async () => requestId,
@@ -669,6 +740,9 @@ export const formationPost = (value: Formation = formation()): Post =>
       isLiked: false,
       canDelete: false,
       canComment: true,
+      isSaved: false,
+      canSave: true,
+      canSetUpdatePreference: true,
     },
   });
 export const formationReceipt = (

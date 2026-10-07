@@ -1,4 +1,8 @@
 import {
+  SavedMutationController,
+  initialSavedMutationView,
+} from '../../community/saved-controller';
+import {
   FormationController,
   FormationContactsController,
   initialFormationView,
@@ -39,11 +43,13 @@ Page({
     formationView: initialFormationView(),
     formationContacts: initialFormationContactsView(),
     interaction: initialDiscussionMutationView(),
+    savedMutation: initialSavedMutationView(),
     tradingMutation: initialTradingMutationView(),
     tradingContacts: initialTradingContactsView(),
   },
   controller: undefined as DetailController | undefined,
   postId: '',
+  savedMutations: undefined as SavedMutationController | undefined,
   formationController: undefined as FormationController | undefined,
   formationContactsController: undefined as
     FormationContactsController | undefined,
@@ -73,6 +79,7 @@ Page({
   },
   onShow() {
     this.controller?.dispose();
+    this.savedMutations?.dispose();
     this.tradingMutations?.dispose();
     this.tradingContactsController?.dispose();
     this.mutations?.dispose();
@@ -185,6 +192,14 @@ Page({
       },
     );
     this.mutations.load();
+    this.savedMutations = new SavedMutationController(
+      runtime,
+      (view) => this.setData({ savedMutation: view }),
+      () => {
+        void this.controller?.load();
+      },
+    );
+    void this.savedMutations.load();
     this.tradingMutations = new TradingMutationController(
       runtime,
       (view) => this.setData({ tradingMutation: view }),
@@ -274,6 +289,7 @@ Page({
         void this.pollController?.load(post);
         void this.formationController?.load(post);
         this.formationContactsController?.load(null);
+        void this.savedMutations?.load(post);
         this.tradingContactsController?.load(post);
       },
       this.located,
@@ -446,11 +462,41 @@ Page({
   onCancel() {
     this.controller?.cancel();
   },
+  onSavedToggle() {
+    if (this.data.post && !this.data.busy && !this.data.needsReload)
+      void this.savedMutations?.setSaved(
+        this.data.post,
+        !this.data.post.viewer.isSaved,
+      );
+  },
+  onSavedPreference(event: {
+    currentTarget: { dataset: { channel: string } };
+    detail: { value: boolean };
+  }) {
+    const channel = event.currentTarget.dataset.channel;
+    if (
+      (channel === 'saved' || channel === 'external') &&
+      !this.data.busy &&
+      !this.data.needsReload
+    )
+      void this.savedMutations?.setPreference(channel, event.detail.value);
+  },
+  onSavedReceipt() {
+    void this.savedMutations?.recover();
+  },
+  onSavedRetry() {
+    void this.savedMutations?.recover(true);
+  },
+  onSavedCancel() {
+    this.savedMutations?.cancel();
+  },
   onHide() {
     this.controller?.dispose();
+    this.savedMutations?.dispose();
     this.tradingMutations?.dispose();
     this.tradingContactsController?.dispose();
     this.controller = undefined;
+    this.savedMutations = undefined;
     this.tradingMutations = undefined;
     this.tradingContactsController = undefined;
     this.mutations?.dispose();
@@ -468,9 +514,11 @@ Page({
   },
   onUnload() {
     this.controller?.dispose();
+    this.savedMutations?.dispose();
     this.tradingMutations?.dispose();
     this.tradingContactsController?.dispose();
     this.controller = undefined;
+    this.savedMutations = undefined;
     this.tradingMutations = undefined;
     this.tradingContactsController = undefined;
     this.mutations?.dispose();

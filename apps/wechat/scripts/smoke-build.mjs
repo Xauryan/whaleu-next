@@ -249,10 +249,19 @@ const pollPostWire = () => ({
   },
   publishedAt: '2026-10-07T00:00:00.000Z',
   likeCount: 0,
+  saveCount: 0,
   commentCount: 0,
   replyCount: 0,
   discussionCount: 0,
-  viewer: { isSelf: true, isLiked: false, canDelete: true, canComment: true },
+  viewer: {
+    isSelf: true,
+    isLiked: false,
+    canDelete: true,
+    canComment: true,
+    isSaved: false,
+    canSave: true,
+    canSetUpdatePreference: true,
+  },
   commentsPolicy: 'open',
   component: { kind: 'poll', poll: pollWire },
 });
@@ -989,7 +998,15 @@ const formationWire = () => ({
 const formationPostWire = () => ({
   ...pollPostWire(),
   component: { kind: 'formation', formation: formationWire() },
-  viewer: { isSelf: false, isLiked: false, canDelete: false, canComment: true },
+  viewer: {
+    isSelf: false,
+    isLiked: false,
+    canDelete: false,
+    canComment: true,
+    isSaved: false,
+    canSave: true,
+    canSetUpdatePreference: true,
+  },
 });
 app.community.profiles = {
   profile: async () => ({
@@ -1193,6 +1210,231 @@ app.onHide();
 assert.deepEqual(formationPage.data.formationContacts.rows, []);
 formationPage.onUnload();
 assert.deepEqual(formationPage.data.formationIdentityOverlay.items, {});
+// Saved increment 1: durable intent, independent bits and a current visible list.
+// These synthetic handlers never enroll a provider or manufacture delivered updates.
+let savedActive = false,
+  savedHidden = false,
+  savedFirst = true,
+  savedSends = 0;
+let finishSaved, savedCancellation;
+let savedBits = { savedUpdatesEnabled: true, externalUpdatesEnabled: true };
+let savedRevision = 0;
+const savedReceipts = new Map();
+let savedRequestSequence = 10;
+app.community.newRequestId = async () =>
+  `77777777-7777-4777-8777-${String(savedRequestSequence++).padStart(12, '0')}`;
+const savedPostWire = () => {
+  const current = tradingPostWire();
+  return {
+    ...current,
+    saveCount: savedActive ? 1 : 0,
+    viewer: {
+      ...current.viewer,
+      isSaved: savedActive,
+      canSave: true,
+      canSetUpdatePreference: true,
+    },
+  };
+};
+const savedPreferencesWire = () => ({
+  postId: pollPostId,
+  ...savedBits,
+  revision: String(savedRevision),
+  canSetPreference: true,
+  reason: null,
+  inAppCapability: 'unavailable',
+  externalCapability: 'unavailable',
+});
+app.community.gateway = {
+  post: async () => {
+    if (savedHidden) throw new Error('Unavailable parent');
+    return savedPostWire();
+  },
+  comments: async () => ({ items: [], nextCursor: null }),
+  postUpdatePreferences: async () => savedPreferencesWire(),
+  saved: async () => ({
+    items:
+      savedActive && !savedHidden
+        ? [
+            {
+              post: savedPostWire(),
+              savedAt: pollReceipt.createdAt,
+              saveEpochId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            },
+          ]
+        : [],
+    nextCursor: null,
+    visibleSavedCount: savedActive && !savedHidden ? 1 : 0,
+  }),
+  applySaved: async (intent, cancel) => {
+    savedSends++;
+    savedCancellation = cancel;
+    const frozen = app.community.pendingSaved.load(pollAccount);
+    assert.equal(frozen.clientRequestId, intent.clientRequestId);
+    assert.equal(frozen.operation, intent.operation);
+    assert.equal(frozen.desired, intent.desired);
+    if (intent.operation === 'set_post_saved') savedActive = intent.desired;
+    else {
+      savedBits = {
+        ...savedBits,
+        [intent.channel === 'saved'
+          ? 'savedUpdatesEnabled'
+          : 'externalUpdatesEnabled']: intent.desired,
+      };
+      savedRevision++;
+    }
+    const { clientRequestId, ...identity } = intent;
+    const receipt = {
+      requestId: clientRequestId,
+      ...identity,
+      outcome: 'applied',
+    };
+    savedReceipts.set(clientRequestId, receipt);
+    if (savedFirst) {
+      savedFirst = false;
+      return new Promise((resolve) => {
+        finishSaved = () => resolve(receipt);
+      });
+    }
+    return receipt;
+  },
+  savedReceipt: async (requestId) => savedReceipts.get(requestId),
+};
+app.community.identityPrivacy = undefined;
+const savedDetail = mountTradingPage(detailModule, { postId: pollPostId });
+await flushTrading();
+assert.equal(
+  savedDetail.data.savedMutation.preferences.savedUpdatesEnabled,
+  true,
+);
+savedDetail.onSavedToggle();
+await flushTrading();
+savedDetail.onSavedToggle();
+assert.equal(savedSends, 1);
+assert.equal(savedDetail.data.savedMutation.frozen, true);
+app.onHide();
+assert.equal(savedCancellation.isCancelled, true);
+assert.equal(savedDetail.data.savedMutation.preferences, null);
+finishSaved();
+await flushTrading();
+assert.ok(app.community.pendingSaved.load(pollAccount));
+savedHidden = true;
+savedDetail.onShow();
+await flushTrading();
+assert.equal(savedDetail.data.post, null);
+assert.equal(savedDetail.data.savedMutation.frozen, true);
+savedDetail.onSavedReceipt();
+await flushTrading();
+assert.equal(app.community.pendingSaved.load(pollAccount), null);
+assert.equal(savedDetail.data.post, null);
+// A later independent unsave wins; replay A must not restore its historic desired bit.
+savedActive = false;
+savedHidden = false;
+savedDetail.onReload();
+await flushTrading();
+assert.equal(savedDetail.data.post.viewer.isSaved, false);
+for (const channel of ['saved', 'external']) {
+  savedDetail.onSavedPreference({
+    currentTarget: { dataset: { channel } },
+    detail: { value: false },
+  });
+  await flushTrading();
+  assert.equal(
+    savedDetail.data.savedMutation.preferences[
+      channel === 'saved' ? 'savedUpdatesEnabled' : 'externalUpdatesEnabled'
+    ],
+    false,
+  );
+  if (channel === 'saved')
+    assert.equal(
+      savedDetail.data.savedMutation.preferences.externalUpdatesEnabled,
+      true,
+    );
+}
+savedDetail.onSavedToggle();
+await flushTrading();
+assert.equal(savedDetail.data.post.viewer.isSaved, true);
+assert.equal(
+  savedDetail.data.savedMutation.preferences.savedUpdatesEnabled,
+  false,
+);
+assert.equal(
+  savedDetail.data.savedMutation.preferences.externalUpdatesEnabled,
+  false,
+);
+savedDetail.onUnload();
+const savedPrivateId = '99999999-9999-4999-8999-999999999999';
+app.community.identityPrivacy = {
+  authorization: async () => ({
+    role: 'developer',
+    management: { global: true, operatingRegionIds: [] },
+    identityView: { allowed: true, maxBatchSize: 20 },
+  }),
+  identities: async (targets) =>
+    targets.map((target) => ({
+      target,
+      status: 'available',
+      authorMode: 'named',
+      identity: {
+        accountId: savedPrivateId,
+        nickname: 'synthetic-saved-private-name',
+        avatar: null,
+        studentNumber: null,
+        studentNumberStatus: 'unavailable',
+      },
+    })),
+};
+const savedPageModule = path.join(
+  dist,
+  'pages/community-saved/community-saved.js',
+);
+const savedPage = mountTradingPage(savedPageModule, {});
+await flushTrading();
+assert.equal(savedPage.data.items.length, 1);
+assert.equal(savedPage.data.items[0].post.trading.urgency, 'urgent');
+assert.equal(savedPage.data.visibleSavedCount, 1);
+assert.ok(savedPage.data.identityOverlay.items[pollPostId]);
+assert.equal(
+  JSON.stringify(savedPage.data.items).includes('synthetic-saved-private-name'),
+  false,
+);
+assert.equal(
+  JSON.stringify([...storage.values()]).includes(
+    'synthetic-saved-private-name',
+  ),
+  false,
+);
+savedPage.onReload();
+assert.deepEqual(savedPage.data.identityOverlay.items, {});
+await flushTrading();
+assert.ok(savedPage.data.identityOverlay.items[pollPostId]);
+savedPage.onUnsave({ currentTarget: { dataset: { id: pollPostId } } });
+await flushTrading();
+assert.equal(savedPage.data.visibleSavedCount, 0);
+assert.deepEqual(savedPage.data.items, []);
+assert.deepEqual(savedPage.data.identityOverlay.items, {});
+savedPage.onHide();
+assert.equal(savedPage.controller, undefined);
+assert.equal(savedPage.savedMutations, undefined);
+assert.equal(savedPage.identityOverlay, undefined);
+savedPage.onShow();
+await flushTrading();
+assert.equal(savedPage.data.visibleSavedCount, 0);
+app.onHide();
+assert.deepEqual(savedPage.data.items, []);
+assert.deepEqual(savedPage.data.identityOverlay.items, {});
+savedPage.onUnload();
+const savedTemplate = readFileSync(
+  path.join(dist, 'pages/community-saved/community-saved.wxml'),
+  'utf8',
+);
+assert.match(savedTemplate, /尚未接入/);
+assert.equal(
+  /requestSubscribeMessage|requestPermission|unread|badgeCount/.test(
+    savedTemplate,
+  ),
+  false,
+);
 app.community.identityPrivacy = originalIdentityPrivacy;
 app.community.profiles = originalProfiles;
 app.identity.sessions.logout();
@@ -1215,5 +1457,5 @@ app.onHide();
 assert.equal(privacyCleared, true);
 assert.equal(calls, 0);
 console.log(
-  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification durable-poll, reply-publication, discussion-interaction, private trading contacts, exact trading publication and immutable trading-resolution app-hide clearing/recovery, formation creation/join/member-contact fresh-copy/hidden-parent recovery/audited roster overlay, and configuration gating',
+  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification durable-poll, reply-publication, discussion-interaction, private trading contacts, exact trading publication and immutable trading-resolution app-hide clearing/recovery, formation creation/join/member-contact fresh-copy/hidden-parent recovery/audited roster overlay, Saved list, independent update preferences, original-intent hidden-parent recovery, separate audited Saved overlay, and configuration gating',
 );

@@ -83,12 +83,16 @@ export interface Post {
   readonly author: Author;
   readonly publishedAt: string;
   readonly likeCount: number;
+  readonly saveCount: number;
   readonly commentCount: number;
   readonly replyCount: number;
   readonly discussionCount: number;
   readonly viewer: {
     readonly isSelf: boolean;
     readonly isLiked: boolean;
+    readonly isSaved: boolean;
+    readonly canSave: boolean;
+    readonly canSetUpdatePreference: boolean;
     readonly canDelete: boolean;
     readonly canComment: boolean;
   };
@@ -387,6 +391,7 @@ export function decodePost(value: unknown): Post {
     'author',
     'publishedAt',
     'likeCount',
+    'saveCount',
     'commentCount',
     'replyCount',
     'discussionCount',
@@ -395,7 +400,15 @@ export function decodePost(value: unknown): Post {
     'component',
   ]);
   exact(value.space, ['id', 'kind', 'name']);
-  exact(value.viewer, ['isSelf', 'isLiked', 'canDelete', 'canComment']);
+  exact(value.viewer, [
+    'isSelf',
+    'isLiked',
+    'canDelete',
+    'canComment',
+    'isSaved',
+    'canSave',
+    'canSetUpdatePreference',
+  ]);
   if (
     !isUuid(value.id) ||
     !isUuid(value.space.id) ||
@@ -407,6 +420,8 @@ export function decodePost(value: unknown): Post {
     !value.text.trim() ||
     !timestamp(value.publishedAt) ||
     !integer(value.likeCount) ||
+    !integer(value.saveCount) ||
+    (value.viewer.isSaved && value.saveCount < 1) ||
     !integer(value.commentCount) ||
     !integer(value.replyCount) ||
     !integer(value.discussionCount) ||
@@ -445,6 +460,7 @@ export function decodePost(value: unknown): Post {
     author: decodeAuthor(value.author),
     publishedAt: value.publishedAt,
     likeCount: value.likeCount,
+    saveCount: value.saveCount,
     commentCount: value.commentCount,
     replyCount: value.replyCount,
     discussionCount: value.discussionCount,

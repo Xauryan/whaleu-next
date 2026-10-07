@@ -167,6 +167,9 @@ test('reply identity uses dedicated comment capability, never post category perm
         canDelete: false,
         isLiked: false,
         canComment: true,
+        isSaved: false,
+        canSave: true,
+        canSetUpdatePreference: true,
       },
     });
   s.gateway.commentCapabilitiesImpl = async () =>
