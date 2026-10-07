@@ -103,3 +103,12 @@ before explicit apply; it never deletes accounts or business data.
 
 See [migration contract](migrations/README.md) and the project feature-parity
 checklist for the remaining production data-migration and business work.
+
+## Local verification read-through
+
+`GET /v1/me/verification` exposes only the authenticated account's independent
+verification states. A local canonical ledger now backs the existing audited
+developer student-number read; unmapped accounts stay unavailable. There is no
+provider, application/review mutation, number-backfill or production-import flow.
+See [verification V1](../../docs/API_VERIFICATION.md) for the exact contract and
+preservation/reconciliation gates.

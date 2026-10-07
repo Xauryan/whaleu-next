@@ -40,3 +40,10 @@ unresolved public institution IDs are null. The separate `schools:migrate` tool
 is dry-run by default and only applies explicit reviewed mappings. See
 [school identifier migration](../../../docs/SCHOOL_IDENTIFIERS.md). It is not a
 complete legacy import or evidence that any production records were migrated.
+
+`0007_verification_ledger.sql` creates an empty local verification ledger with
+immutable assertions/snapshots/events, a versioned current head, and private raw
+staging envelopes. It does not import legacy records, infer student numbers,
+create applications, activate providers or grant roles. See
+[verification V1](../../../docs/API_VERIFICATION.md) for authority, preservation,
+expiry, lock ordering and deferred production migration requirements.

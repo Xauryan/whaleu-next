@@ -29,6 +29,10 @@ import type {
 } from '../../src/identity/contracts.js';
 import { preferenceDefaults } from '../../src/profile/contracts.js';
 import type { OwnProfile } from '../../src/profile/contracts.js';
+import {
+  setSyntheticSnapshot,
+  syntheticAssertion,
+} from '../support/verification-fixtures.js';
 
 // Load the actual native sources through tsx, not built artifacts or fake gateways.
 // Native is a CommonJS package; static TS imports would incorrectly compile all of
@@ -48,6 +52,10 @@ const { Cancellation } = require('../../../wechat/src/platform/contracts.ts');
 const {
   HttpProfileGateway,
 } = require('../../../wechat/src/profile/gateway.ts');
+
+const {
+  HttpVerificationGateway,
+} = require('../../../wechat/src/verification/gateway.ts');
 
 const nativeOrigin = 'https://native-contract.invalid';
 
@@ -230,7 +238,7 @@ test(
         'PostgreSQL 18.6+ required',
       );
       const existing = await pool.query<{ count: number }>(
-        "SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_community','whaleu_authorization')",
+        "SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_community','whaleu_authorization','whaleu_verification')",
       );
       assert.equal(
         existing.rows[0]?.count,
@@ -274,6 +282,7 @@ test(
       );
       const api = new ApiClient(nativeOrigin, transport, sessions, auth);
       const gateway = new HttpProfileGateway(api);
+      const verification = new HttpVerificationGateway(api);
       const cancellation = new Cancellation();
       let credentials: SessionCredentials;
       let profile: OwnProfile;
@@ -359,6 +368,66 @@ test(
           `Literal ${literalQuery} Campus`,
           unicodeQuery,
         ],
+      );
+
+      await t.test(
+        'real native verification gateway and strict decoder read unavailable, affiliation-only and revoked states over HTTP',
+        async () => {
+          assert.deepEqual(await verification.summary(cancellation), {
+            affiliation: { status: 'unavailable' },
+            studentNumber: { status: 'unavailable' },
+            phone: { status: 'unavailable' },
+            application: { status: 'unavailable' },
+          });
+          for (const status of [
+            'unavailable',
+            'unverified',
+            'revoked',
+            'expired',
+            'verified',
+          ] as const) {
+            await setSyntheticSnapshot(
+              pool,
+              credentials.accountId,
+              [
+                syntheticAssertion(
+                  credentials.accountId,
+                  institutionId,
+                  'affiliation',
+                ),
+                ...(status === 'unavailable'
+                  ? []
+                  : [
+                      syntheticAssertion(
+                        credentials.accountId,
+                        institutionId,
+                        'student_number',
+                        {
+                          assertion_state: status,
+                          student_number:
+                            status === 'unverified' ? null : '00004721',
+                        },
+                      ),
+                    ]),
+              ],
+              'pending',
+            );
+            const summary = await verification.summary(cancellation);
+            assert.deepEqual(summary, {
+              affiliation: { status: 'verified' },
+              studentNumber: { status },
+              phone: { status: 'unavailable' },
+              application: { status: 'pending' },
+            });
+            assert.equal(JSON.stringify(summary).includes('00004721'), false);
+            assert.deepEqual(transport.exchanges.at(-1), {
+              path: '/v1/me/verification',
+              method: 'GET',
+              authorized: true,
+              status: 200,
+            });
+          }
+        },
       );
 
       await t.test(
@@ -677,6 +746,9 @@ test(
       } finally {
         try {
           if (ownsSchemas) {
+            await pool.query(
+              'DROP SCHEMA IF EXISTS whaleu_verification CASCADE',
+            );
             await pool.query(
               'DROP SCHEMA IF EXISTS whaleu_authorization CASCADE',
             );

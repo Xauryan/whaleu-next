@@ -47,6 +47,12 @@ assert.equal(config.pages[0], 'pages/login/login');
 for (const route of config.pages) {
   for (const extension of ['js', 'json', 'wxml', 'wxss'])
     assert.ok(statSync(path.join(dist, `${route}.${extension}`)).size > 0);
+  const template = readFileSync(path.join(dist, `${route}.wxml`), 'utf8');
+  for (const match of template.matchAll(/url="\/([^"]+)"/g))
+    assert.ok(
+      config.pages.includes(match[1].split('?')[0]),
+      `Unregistered navigation: ${match[1]}`,
+    );
 }
 require(path.join(dist, 'pages/login/login.js'));
 assert.ok(page);
@@ -98,6 +104,92 @@ for (const route of config.pages.filter(
   assert.ok(current.controller);
   current.onUnload();
 }
+// The compiled own-account page must honor the root app-hide boundary even
+// before its own onHide callback arrives. Fixtures never call an API/provider.
+assert.ok(app.verification);
+let verificationCleared = false;
+app.verification.privateViews.subscribe(() => {
+  verificationCleared = true;
+});
+const originalGateway = app.verification.gateway;
+let summaryCalls = 0;
+let pendingSummary;
+let pendingCancellation;
+app.verification.gateway = {
+  summary(cancellation) {
+    summaryCalls += 1;
+    pendingCancellation = cancellation;
+    return new Promise((resolve) => {
+      pendingSummary = resolve;
+    });
+  },
+};
+app.identity.sessions.completeLogin(app.identity.sessions.beginLogin(), {
+  accountId: '12345678-1234-4123-8123-123456789abc',
+  sessionId: '22345678-1234-4123-8123-123456789abc',
+  accessToken: `wu_a_${'a'.repeat(43)}`,
+  refreshToken: `wu_r_${'a'.repeat(43)}`,
+  expiresAt: 1900000000000,
+  refreshExpiresAt: 1900600000000,
+});
+const ownSummary = {
+  affiliation: { status: 'verified' },
+  studentNumber: { status: 'unverified' },
+  phone: { status: 'unavailable' },
+  application: { status: 'pending' },
+};
+const verificationModule = path.join(
+  dist,
+  'pages/verification/verification.js',
+);
+delete require.cache[require.resolve(verificationModule)];
+require(verificationModule);
+const verificationPage = page;
+verificationPage.setData = (data) => {
+  verificationPage.data = { ...verificationPage.data, ...data };
+};
+verificationPage.onShow();
+for (let i = 0; i < 12; i += 1) await Promise.resolve();
+assert.equal(summaryCalls, 1);
+app.onHide();
+assert.equal(verificationCleared, true);
+assert.equal(pendingCancellation.isCancelled, true);
+assert.equal(verificationPage.data.loaded, false);
+assert.deepEqual(verificationPage.data.rows, []);
+pendingSummary(ownSummary);
+for (let i = 0; i < 12; i += 1) await Promise.resolve();
+assert.equal(verificationPage.data.loaded, false);
+verificationPage.onReload();
+assert.equal(summaryCalls, 1);
+verificationPage.onShow();
+for (let i = 0; i < 12; i += 1) await Promise.resolve();
+assert.equal(summaryCalls, 2);
+pendingSummary(ownSummary);
+for (let i = 0; i < 12; i += 1) await Promise.resolve();
+assert.equal(verificationPage.data.loaded, true);
+assert.deepEqual(
+  verificationPage.data.rows.map((row) => row.value),
+  ['已验证', '未验证', '状态未知或暂不可用', '等待审核'],
+);
+app.onHide();
+assert.equal(verificationPage.data.loaded, false);
+assert.deepEqual(verificationPage.data.rows, []);
+verificationPage.onUnload();
+assert.equal(verificationPage.controller, undefined);
+app.identity.sessions.logout();
+app.verification.gateway = originalGateway;
+const verificationTemplate = readFileSync(
+  path.join(dist, 'pages/verification/verification.wxml'),
+  'utf8',
+);
+assert.match(verificationTemplate, /实际操作仍由服务端实时校验/);
+assert.match(verificationTemplate, /尚未开放/);
+assert.equal(
+  /getPhoneNumber|bindgetphonenumber|chooseImage|<input|<textarea/.test(
+    verificationTemplate,
+  ),
+  false,
+);
 let privacyCleared = false;
 app.community.privateViews.subscribe(() => {
   privacyCleared = true;
@@ -106,5 +198,5 @@ app.onHide();
 assert.equal(privacyCleared, true);
 assert.equal(calls, 0);
 console.log(
-  'Native build smoke passed: local bootstrap, all identity/campus/profile/community handlers, hide/show cancellation, assets, navigation, private-overlay app-hide clearing, and configuration gating',
+  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay and own-verification app-hide clearing, and configuration gating',
 );

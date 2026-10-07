@@ -16,6 +16,7 @@ import {
   identityBatchSchema,
   UnavailableStudentIdentitySource,
 } from '../src/identity-privacy/contracts.js';
+import type { StudentIdentitySource } from '../src/identity-privacy/contracts.js';
 import { PrivateIdentityRepository } from '../src/identity-privacy/private-identity.repository.js';
 
 const region = randomUUID();
@@ -23,16 +24,19 @@ const school: ActiveGrant = {
   id: randomUUID(),
   role: 'school_admin',
   operatingRegionId: region,
+  validUntil: null,
 };
 const superAdmin: ActiveGrant = {
   id: randomUUID(),
   role: 'super_admin',
   operatingRegionId: null,
+  validUntil: null,
 };
 const developer: ActiveGrant = {
   id: randomUUID(),
   role: 'developer',
   operatingRegionId: null,
+  validUntil: null,
 };
 test('hierarchy grants global management only to top roles and identity views only to developer', () => {
   for (const [grants, role, global, privateIdentity] of [
@@ -153,7 +157,11 @@ test('default student source reports unavailable and never derives student numbe
   });
   const verified = new PrivateIdentityRepository(
     {
-      resolve: async () => ({ status: 'verified', studentNumber: '00001234' }),
+      resolve: async () => ({
+        status: 'verified',
+        studentNumber: '00001234',
+        validUntil: null,
+      }),
     },
     profiles,
   );
@@ -176,7 +184,13 @@ test('default student source reports unavailable and never derives student numbe
   );
   for (const number of ['', ' ', 'bad\nvalue', 'x'.repeat(101)]) {
     const malformed = new PrivateIdentityRepository(
-      { resolve: async () => ({ status: 'verified', studentNumber: number }) },
+      {
+        resolve: async () => ({
+          status: 'verified',
+          studentNumber: number,
+          validUntil: null,
+        }),
+      },
       profiles,
     );
     await assert.rejects(
@@ -186,4 +200,41 @@ test('default student source reports unavailable and never derives student numbe
         error.code === 'IDENTITY_VIEW_UNAVAILABLE',
     );
   }
+});
+
+test('verified sources must supply a finite bound or explicit non-expiring policy; metadata never joins identity DTO', async () => {
+  const profiles = {
+    find: async () => null,
+  } as unknown as AccountIdentityProfileService;
+  for (const bound of [undefined, NaN, Infinity, '9999999999999']) {
+    const source = {
+      resolve: async () => ({
+        status: 'verified',
+        studentNumber: '00001234',
+        validUntil: bound,
+      }),
+    } as unknown as StudentIdentitySource;
+    await assert.rejects(
+      new PrivateIdentityRepository(source, profiles).snapshot(
+        randomUUID(),
+        {} as PoolClient,
+      ),
+      (error) =>
+        error instanceof ApplicationError &&
+        error.code === 'IDENTITY_VIEW_UNAVAILABLE',
+    );
+  }
+  const source: StudentIdentitySource = {
+    resolve: async () => ({
+      status: 'verified',
+      studentNumber: '00001234',
+      validUntil: 1000,
+    }),
+  };
+  const snapshot = await new PrivateIdentityRepository(
+    source,
+    profiles,
+  ).snapshot(randomUUID(), {} as PoolClient);
+  assert.equal(snapshot.validUntil, 1000);
+  assert.equal('validUntil' in snapshot.identity, false);
 });

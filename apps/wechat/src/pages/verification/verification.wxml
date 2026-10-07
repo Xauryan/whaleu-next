@@ -1,0 +1,27 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 我的认证</view>
+  <view class="title">分别确认，安心使用</view>
+  <view class="intro">仅查询当前登录账号的认证状态。本页不展示学号、手机号、真实姓名或证明材料，也不在设备中保存认证结果。</view>
+  <view class="status-panel">
+    <view class="status" aria-role="status">{{status}}</view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+    <view wx:if="{{requestId}}" class="request-id" selectable="true">问题编号：{{requestId}}</view>
+    <button wx:if="{{loading}}" class="secondary" bindtap="onCancel">取消查询</button>
+    <button wx:else class="secondary" bindtap="onReload" disabled="{{!hasSession || !configured}}">{{loaded ? '重新查询当前状态' : '查询认证状态'}}</button>
+    <navigator wx:if="{{!hasSession}}" class="text-link" url="/pages/login/login" open-type="reLaunch">前往登录</navigator>
+  </view>
+  <block wx:if="{{loaded}}">
+    <view wx:for="{{rows}}" wx:key="key" class="card">
+      <view class="card-title">{{item.label}}</view>
+      <view class="verification-value">{{item.value}}</view>
+      <view class="detail">{{item.detail}}</view>
+    </view>
+    <view class="footnote">以上是本次查询结果。认证状态不代表操作权限，实际操作仍由服务端实时校验。选择浏览校园、账号编号或管理角色均不构成学生认证。</view>
+  </block>
+  <view class="card pending-feature">
+    <view class="card-title">认证办理功能待接入</view>
+    <view class="detail">此版本仅支持状态查询。学生认证申请、证明材料上传、审核、重新申请及手机号授权绑定尚未开放，不能在此提交或办理。</view>
+  </view>
+  <navigator class="text-link" url="/pages/profile/profile">查看我的资料</navigator>
+  <navigator class="text-link" url="/pages/login/login" open-type="reLaunch">返回登录与会话管理</navigator>
+</view>

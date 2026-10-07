@@ -11,6 +11,8 @@ export interface ActiveGrant {
   readonly id: string;
   readonly role: PrivilegedRole;
   readonly operatingRegionId: string | null;
+  /** Internal locked-grant deadline, never an HTTP capability field. */
+  readonly validUntil: number | null;
 }
 export interface AuthorizationCapabilities {
   readonly role: EffectiveRole;

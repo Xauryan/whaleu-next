@@ -132,7 +132,7 @@ test(
       assert.equal(
         (
           await pool.query<{ count: number }>(
-            "SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_community','whaleu_authorization','whaleu_community_test')",
+            "SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_community','whaleu_authorization','whaleu_verification','whaleu_community_test')",
           )
         ).rows[0]!.count,
         0,
@@ -1203,6 +1203,7 @@ test(
         if (owns) {
           for (const schema of [
             'whaleu_community_test',
+            'whaleu_verification',
             'whaleu_authorization',
             'whaleu_community',
             'whaleu_profile',

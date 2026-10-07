@@ -89,7 +89,7 @@ test(
       ).rows[0]!.version;
       assert.ok(supportedPostgresVersion(version), 'PostgreSQL 18.6+ required');
       const existing = await pool.query<{ count: number }>(
-        "SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_community','whaleu_authorization')",
+        "SELECT count(*)::integer AS count FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_community','whaleu_authorization','whaleu_verification')",
       );
       assert.equal(
         existing.rows[0]?.count,
@@ -572,6 +572,7 @@ test(
       try {
         await app?.close();
         if (ownsSchemas) {
+          await pool.query('DROP SCHEMA IF EXISTS whaleu_verification CASCADE');
           await pool.query(
             'DROP SCHEMA IF EXISTS whaleu_authorization CASCADE',
           );

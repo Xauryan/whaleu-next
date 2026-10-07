@@ -3,4 +3,5 @@
   <view class="title">{{title}}</view>
   <view class="description">{{summary}}</view>
   <view class="notice">{{notice}}</view>
+  <navigator url="/pages/verification/verification">查看我的认证状态（只读） →</navigator>
 </view>

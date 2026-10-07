@@ -1,6 +1,6 @@
-# Native WeChat community C1, identity, campus and own-profile slices
+# Native WeChat community C1, identity, campus, own-profile and verification-summary slices
 
-This is a greenfield TypeScript/WXML/WXSS Mini Program. It is **not a complete WhaleU app** and must not replace production. Login and session management now have native pages and a concrete new-API gateway. Campus search/selection and own nickname, bio and eleven explicit preferences have native forms. Community C1 now has native regional/global feed, detail/root comments, text composer, desired-state likes, own deletion and durable publication recovery. It remains a partial slice: production authorization, phone/student verification, moderation, binary media upload and all retained later business features are unfinished. Ordinary runtime gates fail closed.
+This is a greenfield TypeScript/WXML/WXSS Mini Program. It is **not a complete WhaleU app** and must not replace production. Login and session management now have native pages and a concrete new-API gateway. Campus search/selection and own nickname, bio and eleven explicit preferences have native forms. Community C1 now has native regional/global feed, detail/root comments, text composer, desired-state likes, own deletion and durable publication recovery. It remains a partial slice: production authorization, phone/student verification applications and binding, moderation, binary media upload and all retained later business features are unfinished. Ordinary runtime gates fail closed.
 
 ## Community C1 and recovery
 
@@ -24,6 +24,18 @@ The foreground feed/detail pages automatically request fresh server authorizatio
 
 Every target change and request begins by clearing the old overlay. Permission denial, incomplete/failed batches, logout, login-epoch/account replacement, page hide/unload and the root app-hide boundary cancel and clear it. Late callbacks cannot repopulate a new view. A 30-second display TTL clears sensitive values until the user refreshes content and authorization is checked again. This is bounded client retention, not a claim of instant remote revocation notification. Role grants are never seeded or user-selectable.
 
+## Own-account verification summary (read-only)
+
+- `WhaleuApp.verification` has a real authenticated `GET /v1/me/verification` gateway and a dedicated native Chinese page, linked from profile/status. Returning to the page always starts a fresh read. Startup never calls a provider or requests verification
+- The exact response contains only four nested status records: `affiliation`, `studentNumber`, `phone` and `application`. Facts independently support `verified`, `unverified`, `unavailable`, `expired` and `revoked`; applications support `none`, `pending`, `rejected` and `unavailable`. Unknown fields/statuses, private values and non-200 success responses are rejected
+- Unknown/unavailable is visibly distinct from unverified. Verified affiliation with no verified student number is valid and expected; missing or overloaded historical number fields are preserved for later reconciliation, never interpreted as failed affiliation or a reason to force re-verification. Improving student-number coverage and any future institutional sign-in integration are deferred, with no backfill or provider activation in this slice. Phone ownership stays independent. Pending or rejected applications never imply verification. Browsing campus, public UID and administrative role do not supply verification facts or permissions
+- The page receives no student number, phone value, legal name, institution guess, evidence, provenance or arbitrary account selector. Neither raw summaries nor rendered status are persisted, logged, placed in share state or added to ordinary community DTOs. The developer-only overlay remains on its existing separately authorized/audited endpoint
+- Every query clears the previous snapshot before dispatch. Login-epoch/account replacement, logout, page hide/unload, root app-hide and cancellation synchronously clear the display, abort work and reject late results. Background reload is suppressed until the page is reopened. Repeated taps cannot duplicate an active query; one expired-access refresh is allowed for this read only, and a delayed old-token failure cannot erase a newer credential
+- All permission/error/absence paths keep verification unconfirmed. Status snapshots are not operation permissions: actual capabilities are checked by the server at use time
+- This is **only a read-only status slice**. Student application, evidence upload, reviewer UI, reapplication and native phone authorization/binding are visibly pending, with no pretend submission or success buttons. No real provider is enabled by this page
+
+The ledger API contract is documented in `../../docs/API_VERIFICATION.md`. Synthetic decoder, gateway, controller and compiled-page smoke tests cover independent states, affiliation-only approval, revoked/expired records, cancellation, auth refresh, account switching, app/page hide, late callbacks and no persistence. Actual WeChat DevTools/device layout and real provider acceptance remain unverified.
+
 ## Campus and own-profile forms
 
 - Native campus catalog search, optional district filter, pagination, active/inactive states, honest empty state, explicit selection confirmation and save. Public institution identifiers are canonical five-digit business-code strings, or `null` when unresolved; private institution UUIDs are never fallback business codes. Physical-campus, operating-region and community-space IDs stay separate UUIDs. The selected campus is only browsing context; it never represents student verification, identity-campus authority or administrator scope
@@ -36,7 +48,7 @@ Every target change and request begins by clearing the old overlay. Permission d
 
 Contracts and remaining business scope are documented in `../../docs/API_PROFILE.md`. Relevant endpoints are `GET /v1/campuses`, `GET/PATCH /v1/me/profile`, `PATCH /v1/me/preferences`, and `PUT /v1/me/campus`.
 
-Preferences here store intent only. C1 post/comment identity controls apply current server capabilities; notification delivery/consent, broader identity-default behavior, anonymous DMs and public-profile privacy enforcement remain pending. Theme/comment-banner settings, avatars/media, verification, roles and all other old business features remain in the full parity plan.
+Preferences here store intent only. C1 post/comment identity controls apply current server capabilities; notification delivery/consent, broader identity-default behavior, anonymous DMs and public-profile privacy enforcement remain pending. Theme/comment-banner settings, avatars/media, verification applications and binding, roles and all other old business features remain in the full parity plan.
 
 ## Identity foundation
 
@@ -78,9 +90,9 @@ Open `apps/wechat` as a Mini Program project in WeChat DevTools; generated outpu
 ## Remaining gates
 
 - Implement every old **business feature** in the new modules and native pages, tracked in the root feature-parity plan
-- Implement privacy authorization, phone/student verification, remaining personal/public-profile features, device/session management and the remaining identity/business contracts
+- Implement remaining privacy authorization, phone/student verification applications and binding, remaining personal/public-profile features, device/session management and the remaining identity/business contracts
 - Add upload/download/WebSocket adapters, remaining feature pagination/query contracts, idempotency and feature-specific DTO validation alongside corresponding backend features
 - Validate WeChat DevTools compilation, native layout, accessibility, back-navigation and interrupted flows on actual devices
 - Exercise provider integrations only with authorized staging credentials and synthetic accounts
 
-Local checks verify TypeScript, build output and synthetic adapter/controller behavior, including every registered community/campus/profile handler, navigation destination, configuration gating, root app-hide privacy clearing and hide/show recreation. Tests cover invalid fields, empty/inactive catalogs, query encoding, pagination, distinct section drafts, mutual defaults, duplicate actions, stale reads/saves, account switches, conflict barriers and uncertain-save reconciliation. They do not verify actual WeChat runtime rendering, real authentication, deployed domain settings, full feature parity or production readiness. No real provider, production destination or paid API is used by tests. This package has no runtime npm dependencies.
+Local checks verify TypeScript, build output and synthetic adapter/controller behavior, including every registered community/campus/profile/verification handler, navigation destination, configuration gating, root app-hide identity and verification-status clearing and hide/show recreation. Tests cover invalid fields, empty/inactive catalogs, query encoding, pagination, distinct section drafts, mutual defaults, duplicate actions, stale reads/saves, account switches, conflict barriers and uncertain-save reconciliation. They do not verify actual WeChat runtime rendering, real authentication, deployed domain settings, full feature parity or production readiness. No real provider, production destination or paid API is used by tests. This package has no runtime npm dependencies.

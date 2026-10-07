@@ -1,19 +1,30 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import type { PoolClient } from 'pg';
 import { AuthorizationService } from '../authorization/authorization.service.js';
 import { CommunityContentIdentityService } from '../community/content-identity.service.js';
 import { DatabaseService } from '../database/database.js';
 import { ApplicationError } from '../http/application-error.js';
 import { IdentityService } from '../identity/identity.service.js';
-import { identityBatchSchema } from './contracts.js';
+import { identityAt, identityBatchSchema } from './contracts.js';
 import type {
   IdentityBatch,
   IdentityBatchItem,
   IdentityBatchView,
+  PrivateIdentitySnapshot,
 } from './contracts.js';
 import { IdentityAuditRepository } from './identity-audit.repository.js';
 import type { IdentityAuditEntry } from './identity-audit.repository.js';
 import { PrivateIdentityRepository } from './private-identity.repository.js';
+
+async function databaseTime(transaction: PoolClient): Promise<number> {
+  return (
+    await transaction.query<{ now: Date }>('SELECT clock_timestamp() AS now')
+  ).rows[0]!.now.getTime();
+}
+function elapsed(deadline: number | null, now: number): boolean {
+  return deadline !== null && deadline <= now;
+}
 
 @Injectable()
 export class IdentityPrivacyService {
@@ -40,6 +51,8 @@ export class IdentityPrivacyService {
     const targets = parsed.data.targets;
     const batchId = randomUUID();
     const outcome = await this.database.transaction(async (transaction) => {
+      // These facades hold session/account/token and grant/scope locks until COMMIT.
+      // Their captured deadlines permit a pure final decision without reopening rows.
       const actor = await this.identity.session(token, transaction);
       const grant = (
         await this.authorization.grants(actor.accountId, transaction)
@@ -61,26 +74,36 @@ export class IdentityPrivacyService {
         await this.audit.append(entries('denied'), transaction);
         return { error: 'AUTHORIZATION_REQUIRED' } as const;
       }
+      if (
+        typeof actor.expiresAt !== 'number' ||
+        !Number.isFinite(actor.expiresAt) ||
+        (grant.validUntil !== null &&
+          (typeof grant.validUntil !== 'number' ||
+            !Number.isFinite(grant.validUntil)))
+      ) {
+        throw new ApplicationError('AUTHORIZATION_UNAVAILABLE');
+      }
       const items: IdentityBatchItem[] = [];
+      const snapshots: (PrivateIdentitySnapshot | null)[] = [];
       try {
         for (const target of targets) {
-          // The content module resolves the owner from stored content and enforces ordinary visibility.
-          // The caller can never supply an account ID, student number, region, or author mode.
+          // Only stored content resolves owner IDs; no caller-supplied identity inputs.
           const owner = await this.owners.resolve(
             target,
             actor.accountId,
             transaction,
           );
-          const identity = owner
-            ? await this.identities.resolve(owner.accountId, transaction)
+          const snapshot = owner
+            ? await this.identities.snapshot(owner.accountId, transaction)
             : null;
+          snapshots.push(snapshot);
           items.push(
-            owner && identity
+            owner && snapshot
               ? {
                   target,
                   status: 'available',
                   authorMode: owner.authorMode,
-                  identity,
+                  identity: snapshot.identity,
                 }
               : { target, status: 'unavailable' },
           );
@@ -89,15 +112,24 @@ export class IdentityPrivacyService {
         await this.audit.append(entries('unavailable'), transaction);
         return { error: 'IDENTITY_VIEW_UNAVAILABLE' } as const;
       }
-      // Bounded batch work may still cross an expiry: authenticate and check current grant again.
-      await this.identity.session(token, transaction);
-      if (
-        !(await this.authorization.grants(actor.accountId, transaction)).some(
-          (current) => current.id === grant.id && current.role === 'developer',
-        )
-      ) {
+      const beforeAudit = await databaseTime(transaction);
+      if (elapsed(actor.expiresAt, beforeAudit)) {
+        await this.audit.append(entries('denied'), transaction);
+        return { error: 'ACCESS_TOKEN_EXPIRED' } as const;
+      }
+      if (elapsed(grant.validUntil, beforeAudit)) {
         await this.audit.append(entries('denied'), transaction);
         return { error: 'AUTHORIZATION_REQUIRED' } as const;
+      }
+      // Later target waits may have crossed an earlier number's expiry. Project
+      // the held snapshot at one common time; never reread profiles/missing heads.
+      for (let index = 0; index < items.length; index++) {
+        const item = items[index]!;
+        if (item.status === 'available')
+          items[index] = {
+            ...item,
+            identity: identityAt(snapshots[index]!, beforeAudit),
+          };
       }
       await this.audit.append(
         items.map((item): IdentityAuditEntry => ({
@@ -123,10 +155,30 @@ export class IdentityPrivacyService {
         })),
         transaction,
       );
+      // Flush deferred audit/foreign-key work BEFORE the final clock, including
+      // any associated lock waits. No SQL/read/provider operation follows this
+      // clock except transaction COMMIT; all eligibility checks below are pure.
+      await transaction.query('SET CONSTRAINTS ALL IMMEDIATE');
+      const decisionAt = await databaseTime(transaction);
+      if (elapsed(actor.expiresAt, decisionAt))
+        throw new ApplicationError('ACCESS_TOKEN_EXPIRED');
+      if (elapsed(grant.validUntil, decisionAt))
+        throw new ApplicationError('AUTHORIZATION_REQUIRED');
+      for (let index = 0; index < items.length; index++) {
+        const item = items[index]!;
+        if (
+          item.status === 'available' &&
+          item.identity.studentNumberStatus === 'verified' &&
+          elapsed(snapshots[index]!.validUntil, decisionAt)
+        ) {
+          // Abort, rather than silently alter an already-audited field selection.
+          throw new ApplicationError('IDENTITY_VIEW_UNAVAILABLE');
+        }
+      }
       return { items };
     });
-    // Wait for the audit transaction COMMIT before returning any identity, including partial batches.
-    // Denials are thrown outside the transaction so denial metadata is committed rather than rolled back.
+    // Only committed metadata can accompany a returned payload. Pre-disclosure
+    // denials persist attempt metadata; final elapsed authority aborts its audit.
     if ('error' in outcome) throw new ApplicationError(outcome.error);
     return outcome;
   }

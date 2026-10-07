@@ -10,6 +10,7 @@
     <button wx:if="{{!loading &amp;&amp; !saving &amp;&amp; (!loaded || error)}}" class="secondary" bindtap="onReload" disabled="{{!hasSession || !configured}}">{{needsReload || profileDirty || preferencesDirty ? '重新加载并放弃未保存编辑' : '重新加载'}}</button>
     <navigator wx:if="{{!hasSession}}" class="text-link" url="/pages/login/login" open-type="reLaunch">前往登录</navigator>
   </view>
+  <navigator wx:if="{{!profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/verification/verification">查看我的认证状态 →</navigator>
   <block wx:if="{{loaded}}">
     <view class="card">
       <view class="card-title">我的校园</view>
@@ -43,6 +44,6 @@
     </view>
     <button wx:if="{{profileDirty || preferencesDirty}}" class="secondary" bindtap="onCancelEdits" disabled="{{loading || saving}}">取消未保存的修改</button>
   </block>
-  <view class="footnote">头像与媒体上传、手机号与学生认证、公开主页、主题外观及其他业务功能待接入。此开发构建不代表完整功能对齐。</view>
+  <view class="footnote">头像与媒体上传、手机号与学生认证办理、公开主页、主题外观及其他业务功能待接入。此开发构建不代表完整功能对齐。</view>
   <navigator class="text-link" url="/pages/login/login" open-type="reLaunch">返回登录与会话管理</navigator>
 </view>

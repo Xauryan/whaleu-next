@@ -3,7 +3,11 @@ import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import { AccountIdentityProfileService } from '../profile/account-identity-profile.service.js';
 import { STUDENT_IDENTITY_SOURCE } from './contracts.js';
-import type { PrivateIdentity, StudentIdentitySource } from './contracts.js';
+import type {
+  PrivateIdentity,
+  PrivateIdentitySnapshot,
+  StudentIdentitySource,
+} from './contracts.js';
 
 @Injectable()
 export class PrivateIdentityRepository {
@@ -17,6 +21,12 @@ export class PrivateIdentityRepository {
     accountId: string,
     transaction: PoolClient,
   ): Promise<PrivateIdentity | null> {
+    return (await this.snapshot(accountId, transaction)).identity;
+  }
+  async snapshot(
+    accountId: string,
+    transaction: PoolClient,
+  ): Promise<PrivateIdentitySnapshot> {
     // accountId is supplied only by the trusted content-owner facade; its account FK
     // is authoritative. Profile facts stay owned by the profile module.
     const profile = await this.profiles.find(accountId, transaction);
@@ -29,7 +39,10 @@ export class PrivateIdentityRepository {
       throw new ApplicationError('IDENTITY_VIEW_UNAVAILABLE');
     if (
       student.status === 'verified' &&
-      (typeof student.studentNumber !== 'string' ||
+      ((student.validUntil !== null &&
+        (typeof student.validUntil !== 'number' ||
+          !Number.isFinite(student.validUntil))) ||
+        typeof student.studentNumber !== 'string' ||
         student.studentNumber.length < 1 ||
         student.studentNumber.length > 100 ||
         [...student.studentNumber].some((character) => {
@@ -40,12 +53,15 @@ export class PrivateIdentityRepository {
     )
       throw new ApplicationError('IDENTITY_VIEW_UNAVAILABLE');
     return {
-      accountId,
-      nickname: profile?.nickname ?? null,
-      avatar: null,
-      studentNumber:
-        student.status === 'verified' ? student.studentNumber : null,
-      studentNumberStatus: student.status,
+      validUntil: student.status === 'verified' ? student.validUntil : null,
+      identity: {
+        accountId,
+        nickname: profile?.nickname ?? null,
+        avatar: null,
+        studentNumber:
+          student.status === 'verified' ? student.studentNumber : null,
+        studentNumberStatus: student.status,
+      },
     };
   }
 }

@@ -80,7 +80,7 @@ test(
         'PostgreSQL 18.6+ (18.x) is required',
       );
       const existing = await pool.query<{ present: boolean }>(
-        "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'whaleu_meta') AS present",
+        "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname IN ('whaleu_meta','whaleu_identity','whaleu_campus','whaleu_profile','whaleu_community','whaleu_authorization','whaleu_verification')) AS present",
       );
       assert.equal(
         existing.rows[0]?.present,

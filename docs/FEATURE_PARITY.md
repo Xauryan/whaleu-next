@@ -7,7 +7,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 ## Accounts, schools and personal settings
 
 - [ ] PARTIAL — Login/session: WeChat login, account creation/profile loading, access/refresh lifecycle, retry recovery, account switching, sign-out and session-scoped client state. The new server login/refresh/session/logout flow and native login controller have passed synthetic and PostgreSQL tests; real provider/device acceptance and complete profile loading remain outstanding
-- [ ] NOT IMPLEMENTED — Identity verification: student application, application detail/status, image submission and review; email verification; institutional sign-in; phone verification/binding; verification guidance
+- [ ] PARTIAL — Identity verification: student application, application detail/status, image submission and review; email verification; institutional sign-in; phone verification/binding; verification guidance
 - [ ] PARTIAL — School identity: school search and district selection; selected school versus verified institution; identity campus; related campuses; global university-city context; permission-sensitive switching
 - [ ] PARTIAL — Public/personal profile: nickname, biography, avatar/default avatar, profile banner, school/UID display, titles, public profile, posts and trading listings, profile-post privacy
 - [ ] PARTIAL — Preferences: system/manual theme, anonymous posting/comment defaults, anonymous-private-message preference, notification controls, guide/button settings, remembered publish contact/location choices
@@ -73,6 +73,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 
 - Foundation and identity snapshot `806a2b00429e12ef4eacc3ab1574746393937edb`: 60 API tests, 96 native-client tests, and 22 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37628632248). This is not full product parity or a production rollout.
 - Campus/profile snapshot `417b1847b14895e46519925709ee96e471897330`: 66 API tests, 130 native-client tests and 43 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37636428025), including native gateway → Nest HTTP → PostgreSQL contracts. The commit signature is verified.
+- Community/developer/school-code snapshot `cc3ef8bb3904b7b7b369b0f3110418a9a60cd775`: 88 API tests, 182 native-client tests and 93 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37642626842), including community/privacy native gateway → Nest HTTP → PostgreSQL contracts and school-code migration tooling. The commit signature is verified.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -102,3 +103,17 @@ still fail-closed/unavailable. Student-number data has no authoritative producti
 source yet. No real account has received a role grant. Polls, trading, nested replies,
 subscriptions, related-region distribution, hot/search and the other listed business
 capabilities remain required. See [community scope and gates](API_COMMUNITY.md).
+
+Legacy verification preservation decision: retain overloaded historical identity
+fields and their provenance without forced student-number backfill. Missing or
+ambiguous student numbers must not downgrade an otherwise established school
+affiliation. Future verification methods and number completion are deferred;
+extension interfaces do not activate a new provider or require reverification.
+
+Verification V1 development checkpoint: an immutable local assertion/history
+ledger, provenance-aware developer student-number read-through and native
+own-account status summary are implemented. Affiliation, number, phone and
+application coverage remain independent. Unmapped accounts remain unavailable;
+no production import, forced backfill, new authentication provider, application
+submission/review, attestation or private-evidence flow is delivered by this slice.
+See [verification V1 scope](API_VERIFICATION.md).

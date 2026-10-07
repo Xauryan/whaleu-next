@@ -208,7 +208,11 @@ class FixtureStudents implements StudentIdentitySource {
       )
     ).rows[0];
     return row
-      ? { status: 'verified', studentNumber: row.student_number }
+      ? {
+          status: 'verified',
+          studentNumber: row.student_number,
+          validUntil: null,
+        }
       : { status: 'unverified' };
   }
 }
@@ -994,6 +998,7 @@ test(
           if (ownsSchemas) {
             for (const schema of [
               'whaleu_community_test',
+              'whaleu_verification',
               'whaleu_authorization',
               'whaleu_community',
               'whaleu_profile',

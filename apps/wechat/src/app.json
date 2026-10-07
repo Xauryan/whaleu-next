@@ -3,6 +3,7 @@
     "pages/login/login",
     "pages/status/status",
     "pages/profile/profile",
+    "pages/verification/verification",
     "pages/campus/campus",
     "pages/community-feed/community-feed",
     "pages/community-detail/community-detail",

@@ -68,10 +68,11 @@ export class AuthorizationRepository {
             grant.validFrom <= now &&
             (grant.expiresAt === null || grant.expiresAt > now),
         )
-        .map(({ id, role, operatingRegionId }) => ({
+        .map(({ id, role, operatingRegionId, expiresAt }) => ({
           id,
           role,
           operatingRegionId,
+          validUntil: expiresAt?.getTime() ?? null,
         }));
     } catch {
       throw new ApplicationError('AUTHORIZATION_UNAVAILABLE');

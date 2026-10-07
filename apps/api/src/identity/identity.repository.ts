@@ -238,7 +238,15 @@ export class IdentityRepository {
     if (row.status !== 'active') throw new ApplicationError('ACCOUNT_BLOCKED');
     if (row.token_expires_at <= row.now || row.absolute_expires_at <= row.now)
       throw new ApplicationError('ACCESS_TOKEN_EXPIRED');
-    return view(row);
+    return {
+      ...view(row),
+      // The locked presented token, not a newer token in the same session, is
+      // the authority deadline. Preserve absolute lifetime in deferred decisions.
+      expiresAt: Math.min(
+        row.token_expires_at.getTime(),
+        row.absolute_expires_at.getTime(),
+      ),
+    };
   }
 
   async revoke(accessHash: string): Promise<void> {

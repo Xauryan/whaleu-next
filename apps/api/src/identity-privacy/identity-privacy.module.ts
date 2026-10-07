@@ -13,16 +13,14 @@ import {
 import type { Response } from 'express';
 import { AuthorizationModule } from '../authorization/authorization.module.js';
 import { CommunityModule } from '../community/community.module.js';
+import { VerificationModule } from '../verification/verification.module.js';
+import { LocalStudentIdentitySource } from '../verification/student-identity.source.js';
 import { DatabaseModule } from '../database/database.js';
 import { SchemaValidationPipe } from '../http/validation.js';
 import { ProfileModule } from '../profile/profile.module.js';
 import { IdentityModule } from '../identity/identity.module.js';
 import { bearerToken } from '../identity/tokens.js';
-import {
-  identityBatchSchema,
-  STUDENT_IDENTITY_SOURCE,
-  UnavailableStudentIdentitySource,
-} from './contracts.js';
+import { identityBatchSchema, STUDENT_IDENTITY_SOURCE } from './contracts.js';
 import type { IdentityBatch } from './contracts.js';
 import { IdentityAuditRepository } from './identity-audit.repository.js';
 import { IdentityPrivacyService } from './identity-privacy.service.js';
@@ -60,6 +58,7 @@ export class IdentityPrivacyController {
     AuthorizationModule,
     CommunityModule,
     ProfileModule,
+    VerificationModule,
   ],
   controllers: [IdentityPrivacyController],
   providers: [
@@ -68,7 +67,7 @@ export class IdentityPrivacyController {
     IdentityAuditRepository,
     {
       provide: STUDENT_IDENTITY_SOURCE,
-      useClass: UnavailableStudentIdentitySource,
+      useExisting: LocalStudentIdentitySource,
     },
   ],
 })

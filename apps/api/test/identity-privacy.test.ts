@@ -23,21 +23,33 @@ const grant: ActiveGrant = {
   id: randomUUID(),
   role: 'developer',
   operatingRegionId: null,
+  validUntil: 900,
 };
 function fixture() {
   let commits = 0,
     rollbacks = 0,
-    ownerReads = 0,
-    checks = 0;
+    ownerReads = 0;
   const audits: IdentityAuditEntry[] = [];
+  const statements: string[] = [];
+  let snapshotReads = 0;
   const state = {
     grants: [grant] as ActiveGrant[],
     expireOnRecheck: false,
     auditFails: false,
     commitFails: false,
     sourceFails: false,
+    now: 500,
+    auditNow: null as number | null,
+    numberValidUntil: null as number | null,
   };
-  const client = {} as PoolClient;
+  const client = {
+    query: async (sql: string) => {
+      statements.push(sql);
+      return {
+        rows: [{ now: new Date(state.expireOnRecheck ? 950 : state.now) }],
+      };
+    },
+  } as unknown as PoolClient;
   const database = {
     transaction: async <T>(
       operation: (transaction: PoolClient) => Promise<T>,
@@ -63,8 +75,7 @@ function fixture() {
   } as unknown as IdentityService;
   const authorization = {
     grants: async () => {
-      checks++;
-      return state.expireOnRecheck && checks > 1 ? [] : state.grants;
+      return state.grants;
     },
   } as unknown as AuthorizationService;
   const owners = {
@@ -78,14 +89,18 @@ function fixture() {
     },
   } as unknown as CommunityContentIdentityService;
   const identities = {
-    resolve: async () => {
+    snapshot: async () => {
+      snapshotReads++;
       if (state.sourceFails) throw new Error('private payload must not escape');
       return {
-        accountId: ownerId,
-        nickname: 'PrivateNickname',
-        avatar: null,
-        studentNumber: '00004721',
-        studentNumberStatus: 'verified',
+        validUntil: state.numberValidUntil,
+        identity: {
+          accountId: ownerId,
+          nickname: 'PrivateNickname',
+          avatar: null,
+          studentNumber: '00004721',
+          studentNumberStatus: 'verified',
+        },
       };
     },
   } as unknown as PrivateIdentityRepository;
@@ -94,11 +109,14 @@ function fixture() {
       if (state.auditFails)
         throw new ApplicationError('IDENTITY_AUDIT_UNAVAILABLE');
       audits.push(...entries);
+      if (state.auditNow !== null) state.now = state.auditNow;
     },
   } as IdentityAuditRepository;
   return {
     state,
     audits,
+    statements,
+    snapshotReads: () => snapshotReads,
     committed: () => commits,
     rolledBack: () => rollbacks,
     ownerReads: () => ownerReads,
@@ -222,5 +240,37 @@ test('audit must insert exactly one metadata row per target, including silent tr
       repository.append([entry], transaction),
       errorIs('IDENTITY_AUDIT_UNAVAILABLE'),
     );
+  }
+});
+
+test('single final clock is the last query and locked snapshots are never re-opened', async () => {
+  const f = fixture();
+  await f.service.view('synthetic', { targets: [target] }, randomUUID());
+  assert.deepEqual(f.statements, [
+    'SELECT clock_timestamp() AS now',
+    'SET CONSTRAINTS ALL IMMEDIATE',
+    'SELECT clock_timestamp() AS now',
+  ]);
+  assert.equal(f.snapshotReads(), 1);
+});
+test('post-audit pure deadline checks abort number, grant and session expiry without rereads', async () => {
+  for (const kind of ['number', 'grant', 'session'] as const) {
+    const f = fixture();
+    f.state.numberValidUntil = kind === 'number' ? 600 : null;
+    f.state.auditNow = kind === 'number' ? 700 : kind === 'grant' ? 950 : 1000;
+    await assert.rejects(
+      f.service.view('synthetic', { targets: [target] }, randomUUID()),
+      errorIs(
+        kind === 'number'
+          ? 'IDENTITY_VIEW_UNAVAILABLE'
+          : kind === 'grant'
+            ? 'AUTHORIZATION_REQUIRED'
+            : 'ACCESS_TOKEN_EXPIRED',
+      ),
+    );
+    assert.equal(f.snapshotReads(), 1);
+    assert.equal(f.statements.at(-1), 'SELECT clock_timestamp() AS now');
+    assert.equal(f.committed(), 0);
+    assert.equal(f.rolledBack(), 1);
   }
 });

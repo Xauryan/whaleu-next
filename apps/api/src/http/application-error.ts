@@ -11,6 +11,10 @@ const conditions = {
     status: 503,
     message: 'Authorization is unavailable',
   },
+  VERIFICATION_UNAVAILABLE: {
+    status: 503,
+    message: 'Verification is unavailable',
+  },
   IDENTITY_VIEW_UNAVAILABLE: {
     status: 503,
     message: 'Identity view is unavailable',

@@ -123,15 +123,20 @@ ordinary privacy-safe DTO and do not gain private identity properties.
 ## Authoritative student identity gate
 
 `STUDENT_IDENTITY_SOURCE` is a transaction-bound interface. Its normal runtime
-implementation returns `{status: "unavailable"}`; the identity response therefore
-contains `studentNumber: null` and `studentNumberStatus: "unavailable"`.
+implementation is now the narrow local canonical verification facade described in
+[verification V1](API_VERIFICATION.md). Empty or unreconciled real accounts remain
+`unavailable`, with a null student number. No real provider or production import
+has been activated.
 
-A future real adapter must read a verified local identity record belonging to the
-resolved account, honor its revocation and validity, and lock that record until
-the audit transaction commits. It must distinguish verified, unverified and
-unavailable records. Unverified and unavailable records expose no number, even if
-stale source text exists. Verified student numbers remain strings, preserving
-leading zeroes. Malformed adapter values fail closed.
+The adapter reads only the resolved account's provenance-qualified assertions and
+holds its current-head lock through the disclosure transaction. Explicit
+unverified/revoked/expired records expose no number, even if historical text
+exists. Unknown provenance, missing coverage and conflicting records remain
+unavailable. Verified student numbers remain strings, preserving leading zeroes;
+malformed adapter values fail closed. Locked validity bounds are checked against
+one final database clock after audit/constraint waits, with no row rereads after
+that clock. Elapsed authority rolls back the batch and its provisional disclosure
+audit before any identity is returned.
 
 Legacy verification status alone is insufficient evidence of a student number:
 manual image approval can verify school affiliation without a number; legacy SSO
