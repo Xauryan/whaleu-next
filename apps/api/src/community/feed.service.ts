@@ -9,7 +9,10 @@ import type {
 } from './community.repository.js';
 import { CommunityAccessService } from './community-access.service.js';
 import { CommunitySerializer } from './community-serialization.js';
-import { requirePublication } from './community-policy.js';
+import {
+  requirePublication,
+  requireCommentControl,
+} from './community-policy.js';
 import type {
   CommentCapabilities,
   Capabilities,
@@ -48,6 +51,7 @@ export class FeedService {
         actor,
         space,
         tx,
+        { publication: true },
       );
       const result: Capabilities = {
         publish: {
@@ -79,13 +83,25 @@ export class FeedService {
           result.authorModes.push(mode);
         } catch (error) {
           if (error instanceof ApplicationError)
-            result.publish = { availability: 'denied', reason: error.code };
+            result.publish = {
+              availability:
+                error.code === 'COMMUNITY_UNAVAILABLE'
+                  ? 'unavailable'
+                  : 'denied',
+              reason: error.code,
+            };
           else throw error;
         }
       if (result.authorModes.length)
-        result.publish = { availability: 'allowed', reason: null };
+        result.publish = decision.value.runtime
+          ? {
+              availability: 'unavailable',
+              reason: 'CONTENT_REVIEW_UNAVAILABLE',
+            }
+          : { availability: 'allowed', reason: null };
       result.canDisableComments =
-        result.authorModes.length > 0 && decision.value.canManage;
+        result.authorModes.length > 0 &&
+        (decision.value.canDisableComments ?? decision.value.canManage);
       return result;
     });
   }
@@ -97,7 +113,9 @@ export class FeedService {
       const authority = await this.access.advisory(actor, space, tx);
       if (query.cursor) {
         if (!actor) throw new ApplicationError('AUTHENTICATION_REQUIRED');
-        const current = await this.access.authority(actor, space, tx);
+        const current = await this.access.authority(actor, space, tx, {
+          phoneOnly: true,
+        });
         if (!current.phoneVerified)
           throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
       }
@@ -141,7 +159,15 @@ export class FeedService {
           nextCursor: null,
           continuation: hasMore ? 'login_required' : 'end',
         };
-      if (!authority?.phoneVerified)
+      const continuationAuthority = await this.access.advisory(
+        actor,
+        space,
+        tx,
+        { phoneOnly: true },
+      );
+      if (hasMore && continuationAuthority === null)
+        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      if (!continuationAuthority?.phoneVerified)
         return {
           items: page,
           nextCursor: null,
@@ -190,6 +216,7 @@ export class FeedService {
         actor,
         space,
         tx,
+        { publication: true, targetPostId: post.id },
       );
       if (decision.kind === 'deny') {
         result.availability = 'denied';
@@ -208,23 +235,27 @@ export class FeedService {
             'publish_comment',
             post.author_mode,
           );
-          if (
-            post.comments_policy === 'restricted' &&
-            post.account_id !== actor &&
-            !decision.value.canManage
-          )
-            throw new ApplicationError('COMMENTS_DISABLED');
+          requireCommentControl(
+            decision.value,
+            post.account_id === actor,
+            post.comments_policy === 'restricted',
+          );
           result.authorModes.push(mode);
         } catch (error) {
           if (error instanceof ApplicationError) {
-            result.availability = 'denied';
+            result.availability =
+              error.code === 'COMMUNITY_UNAVAILABLE' ? 'unavailable' : 'denied';
             result.reason = error.code;
           } else throw error;
         }
       }
       if (result.authorModes.length) {
-        result.availability = 'allowed';
-        result.reason = null;
+        result.availability = decision.value.runtime
+          ? 'unavailable'
+          : 'allowed';
+        result.reason = decision.value.runtime
+          ? 'CONTENT_REVIEW_UNAVAILABLE'
+          : null;
       }
       return result;
     });

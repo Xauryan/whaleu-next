@@ -5,7 +5,7 @@
   <view class="card">
     <view class="field-label">当前选择的校园</view>
     <view class="campus-name">{{selectedName}}</view>
-    <view class="hint">选择校园不会授予认证身份或管理权限；身份认证功能待接入</view>
+    <view class="hint">这里只选择浏览校园，不会授予认证身份或管理权限；身份认证办理与身份校区选择尚未开放</view>
   </view>
   <view class="card">
     <label class="field-label" for="campus-search">校园名称</label>

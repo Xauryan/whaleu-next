@@ -1,3 +1,7 @@
+import {
+  checkpointTransactionDeadlines,
+  restoreTransactionDeadlines,
+} from '../../database/transaction-deadlines.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { ApplicationError } from '../../http/application-error.js';
@@ -51,6 +55,7 @@ export class DiscussionMutationService {
       if (row.payload_hash !== hash)
         throw new ApplicationError('REQUEST_CONFLICT');
       if (row.receipt) return row.receipt;
+      const deadlineCheckpoint = checkpointTransactionDeadlines(tx);
       await tx.query('SAVEPOINT discussion_work');
       let receipt: DiscussionReceipt;
       try {
@@ -147,6 +152,7 @@ export class DiscussionMutationService {
         if (!(error instanceof ApplicationError) || !terminal.has(error.code))
           throw error;
         await tx.query('ROLLBACK TO SAVEPOINT discussion_work');
+        restoreTransactionDeadlines(tx, deadlineCheckpoint);
         receipt = {
           requestId,
           operation,

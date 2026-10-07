@@ -82,6 +82,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Saved snapshot `88d8a785daf8161e80a295f291a900e7e50f04af`: 115 API tests, 444 native-client tests and 244 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37673805090), including exact Saved visibility, preference independence and durable recovery. The commit signature is verified.
 - Local Updates snapshot `43faae3927ee1c81a42a9b00fa94bc79b866425b`: 125 API tests, 482 native-client tests and 261 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37682737147), including persisted notices, owner read state and durable automatic processing. The commit signature is verified.
 - Named-block snapshot `b3fb9c283f69bc776b4e71fd11e2d8a43769df6d`: 165 API tests, 515 native-client tests and 291 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37688226424), including directional policy, immutable recovery, anonymous isolation and native state invalidation. The commit signature is verified.
+- Reports/jury snapshot `0f8e1d07bb4cedcd55a99b7188b77a0c1e8bc067`: 183 API tests, 575 native-client tests and 325 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37693021034), including deterministic removal, durable settlement and owner-only system notices. The commit signature is verified.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -106,8 +107,9 @@ post detail, text post/root-comment composition, thread-local anonymous identiti
 desired-state post likes, own soft deletion and durable account-isolated publication
 receipts have backend and native-client tests. The developer-only identity overlay
 has separate authorization, append-only access auditing and transient client state.
-Normal runtime verification, safety, moderation, visibility and media adapters are
-still fail-closed/unavailable. Student-number data has no authoritative production
+At this initial checkpoint, runtime verification, safety, moderation, visibility
+and media adapters were unavailable; later increments below add owned sources
+while preserving fail-closed behavior for missing canonical facts. Student-number data has no authoritative production
 source yet. No real account has received a role grant. Trading, subscriptions, related-region distribution, hot/search and the other listed business
 capabilities remain required. See [community scope and gates](API_COMMUNITY.md).
 
@@ -211,3 +213,16 @@ progress and system-notice read state are tested. Historical report coverage,
 related/global school-admin scope, external review, post-pin administration,
 ban/restriction issuance, appeals and production/device acceptance remain
 incomplete. See [reporting and jury scope](REPORTING_JURY.md).
+
+Canonical runtime policy checkpoint: normal application providers now compose
+phone, affiliation, current identity-campus/topology/configuration, grants and
+safety facts without policy-test overrides. Verified related-region anonymous
+posts and cross-region anonymous comments have distinct source-grounded rules;
+management and new-post comment-control are separate. Exact versioned approval
+records bind actor, operation, effective content, assets, scope and ancestry to
+accepted resources; ordinary visibility reconstructs and validates those bindings.
+Unknown history is not backfilled. Publication capability remains unavailable
+without a review issuance workflow, even when preapproved exact local intents
+can publish. Identity selection controls, configuration/review administration,
+media, real verification/providers, historical reconciliation and physical-device
+acceptance remain outstanding. See [runtime policy scope](COMMUNITY_RUNTIME_POLICY.md).

@@ -1,3 +1,7 @@
+import {
+  checkpointTransactionDeadlines,
+  restoreTransactionDeadlines,
+} from '../../database/transaction-deadlines.js';
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -61,6 +65,7 @@ export class BallotRequestsRepository {
       if (row.payload_hash !== hash)
         throw new ApplicationError('REQUEST_CONFLICT');
       if (row.receipt) return row.receipt;
+      const deadlineCheckpoint = checkpointTransactionDeadlines(tx);
       await tx.query('SAVEPOINT ballot_work');
       let receipt: BallotReceipt;
       try {
@@ -77,6 +82,7 @@ export class BallotRequestsRepository {
         )
           throw error;
         await tx.query('ROLLBACK TO SAVEPOINT ballot_work');
+        restoreTransactionDeadlines(tx, deadlineCheckpoint);
         receipt = {
           requestId: requestId.toLowerCase(),
           operation: 'cast_poll_ballot',

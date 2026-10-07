@@ -5,10 +5,13 @@ It implements explicit operating-region mapping, chronological regional/global
 feeds, detail, text publication, thread-local anonymous personas, root comments,
 desired-state post likes, own deletion, durable publication recovery, poll composition/reads and immutable
 ballots with owner-only recovery, flat replies, discussion ordering/context,
-author root pins and recoverable discussion reactions. Normal
-runtime authorization, visibility, moderation and media adapters are unavailable.
-No environment switch, campus selection or client flag enables them. Synthetic
-fixtures are injected only from test modules.
+author root pins and recoverable discussion reactions. Normal runtime now composes
+canonical phone/affiliation/safety/grant and identity-scope facts, consumes exact
+immutable text approvals, and verifies bound content through the real named-block
+visibility wrapper. No environment switch, browse-campus selection or client flag
+enables authority. Review issuance and media remain unavailable; ordinary native
+compose capabilities remain unavailable. See [runtime policy increment 1](COMMUNITY_RUNTIME_POLICY.md)
+for the text-only boundary and normal-AppModule synthetic acceptance.
 
 Image references and attachment/moderation ports are tested with synthetic local
 fixtures. Binary upload, preview, media recovery, real review and delivery are
@@ -35,8 +38,9 @@ A fresh migration contains no regions, mappings, spaces or synthetic users.
 
 Production import must preserve separate institution, physical-campus and
 operating-region crosswalks, reconcile unresolved mappings without guessing and
-validate historical post origin independently. Identity campus, related regions,
-fixed school-administrator grants and verified affiliation remain separate work.
+validate historical post origin independently. Current local identity-campus,
+related topology, fixed school-admin grants and affiliation records are consumed
+independently; production issuance, administration and reconciliation remain work.
 
 ## Transport and exact data shapes
 
@@ -104,18 +108,21 @@ comment permission and same-parent visibility. It returns
 restrictions are not accidentally used to disable otherwise allowed comments.
 Capabilities are advisory; every mutation re-evaluates authority under locks.
 
-Authorization requires authoritative phone proof, current student verification,
-identity region, per-action restrictions, explicit unverified category exceptions,
-cross-region policy and scoped management permission. Runtime has no adapter for
-these facts yet. Phone-unverified actors cannot write/like or continue feeds.
+Publication authorization composes authoritative phone proof, independent current
+affiliation, identity selection, per-action restrictions, explicit unverified
+exceptions, scope relation and applicable management permission. These are now
+read from canonical owner facades. Phone-unverified actors cannot write/like or
+continue feeds; phone-only interactions do not require affiliation or selection.
 Student-unverified actors can publish named posts in explicitly enabled regional
 categories. Root/reply publication instead uses the independent authoritative
 regional unverifiedCommentsAllowed switch and requires named identity and a named
 parent post; the new-post category allowlist does not govern comments/replies. Global
 publishing has no unverified exception. Student-verified actors need a current
-identity region; cross-region anonymity is denied. Restricted comments require
-scoped management for creation, and permit comments only by the true post author
-or a scoped manager, in addition to all other verification and safety checks.
+identity selection. Related posts may be anonymous; foreign posts are named-only,
+while verified roots/replies may be anonymous across regions. Restricted new-post
+comments require the distinct canDisableComments permission; existing restricted
+content permits comments only by the true post author or a target manager, in
+addition to all other verification and safety checks.
 Own anonymous posts force the same anonymous persona for their author's comments.
 Deletion and likes each have distinct phone/action checks.
 
@@ -227,8 +234,8 @@ viewer-specific counts remain a production-scale gate.
 
 ## C2A poll contract
 
-C2A is an end-to-end development slice with synthetic local approval/authority
-fixtures. Ordinary runtime safety adapters remain unavailable. It does not add a
+C2A is an end-to-end development slice. Canonical runtime acceptance now covers
+approved text polls and phone-only voting without policy overrides. It does not add a
 provider, student-verification method, institutional SSO, student-number backfill,
 production import or physical-device acceptance.
 
@@ -380,7 +387,8 @@ release gates.
 
 C2B extends the same development-only boundaries. It creates no provider, production
 account, real moderation adapter or media upload. Its normal runtime remains
-fail-closed; synthetic fixtures are injected only by tests. Anonymous subjects
+fail-closed on missing facts; canonical synthetic records also exercise normal
+providers without overrides. Anonymous subjects
 never carry their underlying account into the visibility adapter. No new student
 verification, campus selection, SSO or student-number backfill is required.
 
@@ -586,9 +594,10 @@ C2C adds regional named listings, exact money text, chosen contact disclosures,
 subtype filtering, visible own listings and durable author resolution. It remains
 partial: no checkout, escrow, payment, order, fulfillment, production import,
 external group push, real review/media integration or physical-device acceptance.
-Existing runtime authorization, visibility, review and media gates remain
-unavailable. Neither a native category selection nor an environment flag grants
-permission. All successful automated acceptance uses isolated synthetic fixtures.
+Canonical runtime authorization, approved text visibility and exact review
+consumption now work with explicit owned facts; review issuance and media remain
+unavailable. Neither native category selection nor environment flags grant
+permission. Real-provider acceptance uses isolated canonical synthetic records.
 
 ### Strict publication input and review
 
@@ -896,8 +905,10 @@ join/contact capability. Historical-unconfirmed contacts are not exposed. This
 is a safe schema/read boundary, not a completed import or reconciliation claim.
 
 There are no leave, kick, contact-edit, transfer, creator-close/reopen or scheduled
-expiry operations. Live authorization/visibility/content/media adapters remain
-fail-closed; injected synthetic fixtures are test-only. PostgreSQL tests cover
+expiry operations. Live authority and accepted text visibility remain fail-closed
+on missing facts; media and review issuance remain unavailable. Normal runtime
+acceptance now covers reviewed formation definitions, membership and contacts.
+PostgreSQL tests cover
 last-seat/duplicate-key races, hidden/deleted/inactive parent, block and permission
 races, rollback, owner recovery, immutable database constraints, safe historical
 reads and final-token expiry. Device acceptance and all remaining full-parity
@@ -987,8 +998,9 @@ Ordinary save/unsave uses the independent `save_post` action. Ordinary preferenc
 changes use `set_post_update_preference`. Both require active account/session,
 authoritative phone proof, current action restrictions and current parent/scope
 visibility. Neither reuses publication-category, student verification,
-identity-campus, comments-open or formation membership rules. Safety adapters
-remain unavailable by default. Local tests inject synthetic adapters only.
+identity-campus, comments-open or formation membership rules. The real safety
+wrapper and canonical runtime adapters are used in the new no-override local
+acceptance; isolated injected ports remain only in earlier focused suites.
 
 Read/list/batch/preferences use the established authenticated post-read policy:
 current active parent/scope and named/anonymous visibility policy. Phone proof

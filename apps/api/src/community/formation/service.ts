@@ -1,3 +1,7 @@
+import {
+  checkpointTransactionDeadlines,
+  restoreTransactionDeadlines,
+} from '../../database/transaction-deadlines.js';
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -107,19 +111,9 @@ export class FormationService {
   ) {
     // The anonymous creator is the parent thread persona. Named joiners are
     // independently safety/block-filtered without making identity IDs public.
-    return this.access.visible(
-      viewer,
-      member.is_creator
-        ? post
-        : {
-            ...post,
-            id: member.id,
-            account_id: member.account_id,
-            author_mode: 'named',
-          },
-      tx,
-      'list_projection',
-    );
+    return member.is_creator
+      ? this.access.visible(viewer, post, tx, 'list_projection')
+      : this.access.namedMemberVisible(viewer, post, member.account_id, tx);
   }
   private async memberView(
     member: StoredFormationMember,
@@ -317,6 +311,7 @@ export class FormationService {
         await this.access.actor(token, tx);
         return row.receipt;
       }
+      const deadlineCheckpoint = checkpointTransactionDeadlines(tx);
       await tx.query('SAVEPOINT formation_work');
       let receipt: FormationReceipt;
       try {
@@ -369,6 +364,7 @@ export class FormationService {
         if (!(error instanceof ApplicationError) || !terminal.has(error.code))
           throw error;
         await tx.query('ROLLBACK TO SAVEPOINT formation_work');
+        restoreTransactionDeadlines(tx, deadlineCheckpoint);
         receipt = {
           requestId,
           operation: 'join_formation',

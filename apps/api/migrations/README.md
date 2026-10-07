@@ -100,3 +100,13 @@ require exact completed receipts and matching owner transition audit. Inactive
 relationships and receipts remain retained to prevent stale-request resurrection.
 No moderation, ban/grant issuance, provider, production import or verification
 assertion is created. See [S1A named blocking](../../../docs/API_SAFETY.md).
+
+`0016_community_runtime_policy.sql` adds empty immutable topology, identity-selection,
+regional policy and exact-content review ledgers with versioned heads and atomic
+publication approval bindings. It preserves all prior migrations and publication
+receipt hashes. Existing approved/native content gains no review evidence; unknown
+history remains unavailable. Statement-level safety writer gates, canonical digest
+checks, immutable reviewed definitions, and consumption/visibility lifetime separation
+are documented in [runtime policy](../../../docs/COMMUNITY_RUNTIME_POLICY.md). No
+startup records, grants, runtime approval writer, provider, production import or
+identity-selector endpoint are installed.

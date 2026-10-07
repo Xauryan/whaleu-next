@@ -1,3 +1,7 @@
+import {
+  checkpointTransactionDeadlines,
+  restoreTransactionDeadlines,
+} from '../database/transaction-deadlines.js';
 import { lockSafetyPolicy } from '../safety/locks.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -10,6 +14,7 @@ import {
 } from './community-policy.js';
 import type {
   Authority,
+  AuthorizationContext,
   CommunityAuthorizationPort,
   CommunityVisibilityPort,
   VisibilitySubject,
@@ -38,19 +43,33 @@ export class CommunityAccessService {
     accountId: string,
     space: CommunitySpace,
     tx: PoolClient,
+    context: AuthorizationContext = {},
   ): Promise<Authority> {
     return requireDecision(
-      await this.authorization.resolve(accountId, space, tx),
+      await this.authorization.resolve(accountId, space, tx, context),
     );
   }
   async advisory(
     accountId: string | null,
     space: CommunitySpace,
     tx: PoolClient,
+    context: AuthorizationContext = {},
   ): Promise<Authority | null> {
     if (!accountId) return null;
-    const decision = await this.authorization.resolve(accountId, space, tx);
-    return decision.kind === 'allow' ? decision.value : null;
+    const checkpoint = checkpointTransactionDeadlines(tx);
+    try {
+      const decision = await this.authorization.resolve(
+        accountId,
+        space,
+        tx,
+        context,
+      );
+      return decision.kind === 'allow' ? decision.value : null;
+    } finally {
+      // Rendering action hints must not turn optional phone/safety eligibility
+      // into an ordinary read requirement. Preserve earlier visibility deadlines.
+      restoreTransactionDeadlines(tx, checkpoint);
+    }
   }
   async visibilityDecision(
     viewer: string | null,
@@ -60,14 +79,25 @@ export class CommunityAccessService {
   ): Promise<Decision> {
     if (content.visibility !== 'approved' || content.deleted_at)
       return { kind: 'deny', reason: 'POST_NOT_FOUND' };
+    const contentKind =
+      'root_comment_id' in content
+        ? 'reply'
+        : 'post_id' in content
+          ? 'comment'
+          : 'post';
+    const reference = {
+      contentId: content.id,
+      contentKind,
+      contentVersion: 1,
+    } as const;
     const subject: VisibilitySubject =
       content.author_mode === 'named'
         ? {
-            contentId: content.id,
+            ...reference,
             authorMode: 'named',
             namedAccountId: content.account_id,
           }
-        : { contentId: content.id, authorMode: 'anonymous' };
+        : { ...reference, authorMode: 'anonymous' };
     const result = await this.visibility.check(viewer, subject, tx, purpose);
     if (result.kind === 'unavailable')
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
@@ -91,6 +121,37 @@ export class CommunityAccessService {
   ) {
     if (!(await this.visible(viewer, content, tx, 'named_interaction')))
       throw new ApplicationError('POST_NOT_FOUND');
+  }
+  async namedMemberVisible(
+    viewer: string | null,
+    post: StoredPost,
+    memberAccountId: string,
+    tx: PoolClient,
+  ): Promise<boolean> {
+    if (!(await this.visible(viewer, post, tx, 'list_projection')))
+      return false;
+    const result = this.visibility.checkNamedRelationship
+      ? await this.visibility.checkNamedRelationship(
+          viewer,
+          memberAccountId,
+          tx,
+          'list_projection',
+        )
+      : await this.visibility.check(
+          viewer,
+          {
+            contentId: post.id,
+            contentKind: 'post',
+            contentVersion: 1,
+            authorMode: 'named',
+            namedAccountId: memberAccountId,
+          },
+          tx,
+          'list_projection',
+        );
+    if (result.kind === 'unavailable')
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    return result.kind === 'allow';
   }
   async accessiblePost(
     id: string,

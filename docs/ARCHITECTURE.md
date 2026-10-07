@@ -48,3 +48,13 @@ Use versioned API contracts with semantic error codes, stable identifier seriali
 Every feature needs a mapped original business behavior, implementation, positive and negative authorization tests, concurrency/recovery tests where relevant, and a verified native-client flow. Unit test success is not proof of device behavior or migration correctness. Build/test CI runs against isolated fixtures and cannot deploy or touch production automatically.
 
 Database migration work requires authoritative schema-only evidence, reversible mappings, restore rehearsal, reconciliation at a defined watermark and an explicit recovery plan for data written after cutover. A complete source-to-target data mapping must be reviewed before any production operation.
+
+## Community runtime authority increment
+
+The implemented [canonical community policy](COMMUNITY_RUNTIME_POLICY.md) composes
+narrow verification, campus, authorization and safety owner facades. A leaf review
+module supplies exact-content approval consumption and typed base visibility;
+SafetyPolicyModule retains the real named-block wrapper. Phone-only interactions
+and feed continuation do not acquire publication affiliation/selection requirements.
+Normal AppModule text acceptance uses disposable canonical records with no provider
+overrides; production issuers and controls remain intentionally absent.

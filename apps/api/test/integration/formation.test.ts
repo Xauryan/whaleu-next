@@ -569,11 +569,16 @@ test(
           const input = join();
           const receipt = await formations.join(voter.accessToken, id, input);
           const own = await formations.own(voter.accessToken, id);
-          const check = visibility.check.bind(visibility);
-          visibility.check = async (viewer, subject, tx, purpose) =>
-            viewer === voter.accountId && subject.contentId === own.membershipId
+          const check = visibility.checkNamedRelationship.bind(visibility);
+          visibility.checkNamedRelationship = async (
+            viewer,
+            memberAccountId,
+            tx,
+            purpose,
+          ) =>
+            viewer === voter.accountId && memberAccountId === voter.accountId
               ? { kind: 'deny', reason: 'POST_NOT_FOUND' }
-              : check(viewer, subject, tx, purpose);
+              : check(viewer, memberAccountId, tx, purpose);
           try {
             const view = await formations.get(voter.accessToken, id);
             assert.equal(view.viewer.isMember, true);
@@ -592,7 +597,7 @@ test(
               receipt,
             );
           } finally {
-            visibility.check = check;
+            visibility.checkNamedRelationship = check;
           }
         },
       );

@@ -142,7 +142,7 @@ export class CommunitySerializer {
           throw new ApplicationError('COMMUNITY_UNAVAILABLE');
       }
     let canComment = false;
-    if (authority)
+    if (authority && !authority.runtime)
       for (const mode of ['named', 'anonymous'] as const) {
         if (
           post.author_mode === 'anonymous' &&

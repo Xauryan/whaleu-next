@@ -9,7 +9,10 @@ import {
   publicationHash,
 } from '../publication.repository.js';
 import { PublicationService } from '../publication.service.js';
-import { requirePublication } from '../community-policy.js';
+import {
+  requirePublication,
+  requireCommentControl,
+} from '../community-policy.js';
 import type { AuthorMode, PublicationReceipt } from '../contracts.js';
 import type { PublishReply } from './contracts.js';
 export function replyIntent(rootCommentId: string, body: PublishReply) {
@@ -61,10 +64,15 @@ export class ReplyPublicationService {
           post,
           space,
           comment: root,
-          authority,
         } = await this.access.accessibleComment(rootId, actor, tx, true);
         await this.access.interaction(actor, post, tx);
         await this.access.interaction(actor, root, tx);
+        const authority = await this.access.authority(actor, space, tx, {
+          publication: true,
+          targetPostId: post.id,
+          managementRequired:
+            post.comments_policy === 'restricted' && post.account_id !== actor,
+        });
         const mode =
           post.author_mode === 'anonymous' && post.account_id === actor
             ? 'anonymous'
@@ -77,12 +85,11 @@ export class ReplyPublicationService {
           'publish_comment',
           post.author_mode,
         );
-        if (
-          post.comments_policy === 'restricted' &&
-          post.account_id !== actor &&
-          !authority!.canManage
-        )
-          throw new ApplicationError('COMMENTS_DISABLED');
+        requireCommentControl(
+          authority!,
+          post.account_id === actor,
+          post.comments_policy === 'restricted',
+        );
         let targetAccount = root.account_id;
         if (body.targetReplyId) {
           const target = await this.repository.reply(
@@ -99,7 +106,7 @@ export class ReplyPublicationService {
           await this.access.interaction(actor, target, tx);
           targetAccount = target.account_id;
         }
-        const assets = await this.approval.approved(
+        const { images: assets, approval } = await this.approval.approved(
           actor,
           'publish_reply',
           body.text,
@@ -118,6 +125,26 @@ export class ReplyPublicationService {
             targetReplyId: body.targetReplyId,
             effectiveAuthorMode: mode,
           },
+          {
+            version: 1,
+            accountId: actor,
+            purpose: 'publish_reply',
+            spaceId: space.id,
+            category: post.category,
+            authorMode: mode,
+            commentsPolicy: post.comments_policy,
+            postId: post.id,
+            rootCommentId: root.id,
+            targetReplyId: body.targetReplyId,
+            text: body.text,
+            component: { kind: 'none' },
+            trading: null,
+            scope: this.approval.scope(
+              authority,
+              space.id,
+              space.operatingRegionId,
+            ),
+          },
         );
         if (mode === 'named') await this.profiles.prepare(actor, tx);
         else await this.repository.persona(post.id, actor, tx);
@@ -127,6 +154,7 @@ export class ReplyPublicationService {
           [id, post.id, root.id, body.targetReplyId, actor, body.text, mode],
         );
         await this.repository.attach('reply', id, assets, tx);
+        await this.approval.bind(approval, 'reply', id, tx);
         await this.repository.event(
           `reply:${id}:created`,
           'reply_created',

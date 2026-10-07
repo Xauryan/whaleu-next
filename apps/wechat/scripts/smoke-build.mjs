@@ -1,3 +1,4 @@
+import { smokeRuntimePolicy } from './smoke-runtime-policy.mjs';
 import { smokeReporting } from './smoke-reporting.mjs';
 import { smokeSystemNotices } from './smoke-system-notices.mjs';
 import { smokeNamedBlocks } from './smoke-blocks.mjs';
@@ -1722,6 +1723,13 @@ await smokeSystemNotices({
   mountPage: mountTradingPage,
   flush: flushTrading,
 });
+await smokeRuntimePolicy({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
+  postWire: pollPostWire,
+});
 app.community.identityPrivacy = originalIdentityPrivacy;
 app.community.profiles = originalProfiles;
 app.identity.sessions.logout();
@@ -1744,5 +1752,5 @@ app.onHide();
 assert.equal(privacyCleared, true);
 assert.equal(calls, 0);
 console.log(
-  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification durable-poll, reply-publication, discussion-interaction, private trading contacts, exact trading publication and immutable trading-resolution app-hide clearing/recovery, formation creation/join/member-contact fresh-copy/hidden-parent recovery/audited roster overlay, Saved list, independent update preferences, original-intent hidden-parent recovery, separate audited Saved overlay, local Updates exact read state, authorized off-page reply navigation, unavailable previews, audited Updates overlay, owner badge clearing, and configuration gating',
+  'Native build smoke passed: local bootstrap, all identity/campus/profile/community/verification handlers, hide/show cancellation, assets, navigation, private-overlay, own-verification durable-poll, reply-publication, discussion-interaction, private trading contacts, exact trading publication and immutable trading-resolution app-hide clearing/recovery, formation creation/join/member-contact fresh-copy/hidden-parent recovery/audited roster overlay, Saved list, independent update preferences, original-intent hidden-parent recovery, separate audited Saved overlay, local Updates exact read state, authorized off-page reply navigation, unavailable previews, audited Updates overlay, owner badge clearing, unavailable runtime publication with independent readable/like paths and preserved receipts, and configuration gating',
 );

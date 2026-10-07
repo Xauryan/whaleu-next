@@ -19,17 +19,20 @@ export const initialCommunityView = (): CommunityView => ({
 });
 export const reasonMessage = (code: string | null): string =>
   ({
-    COMMUNITY_UNAVAILABLE: '社区授权与安全服务尚未就绪，请稍后重试',
-    COMMUNITY_SCOPE_UNAVAILABLE: '此社区地区暂不可用，请重新选择校园',
+    COMMUNITY_UNAVAILABLE: '此操作所需的服务端状态暂不能确认，请稍后重试',
+    COMMUNITY_SCOPE_UNAVAILABLE:
+      '当前社区范围不适用于此操作；切换浏览校园不会授予发布权限',
     PHONE_VERIFICATION_REQUIRED: '需要已验证的手机号；当前版本尚未接入验证流程',
     STUDENT_VERIFICATION_REQUIRED:
-      '此操作需要有效的学生认证；当前版本尚未接入认证流程',
-    IDENTITY_CAMPUS_REQUIRED: '需要已认证的身份校区；浏览校区不能代替身份认证',
+      '此操作需要有效的所属机构认证，不要求学号认证；认证办理尚未开放',
+    IDENTITY_CAMPUS_REQUIRED:
+      '需要确认身份校区；当前版本尚未开放身份校区选择，浏览校区不能代替',
     COMMUNITY_ACTION_RESTRICTED: '当前账号暂不能执行此操作',
     AUTHOR_MODE_NOT_ALLOWED: '所选身份暂不可用，请自行确认身份选择后再发布',
     COMMENTS_DISABLED: '此帖暂不开放普通评论',
     CONTENT_REJECTED: '内容未通过安全审核，请修改后再提交',
-    CONTENT_REVIEW_UNAVAILABLE: '内容审核服务尚未就绪，暂不能发布',
+    CONTENT_REVIEW_UNAVAILABLE:
+      '尚不能确认此内容的有效审核，暂不能发布；当前版本尚未开放审核提交流程',
     MEDIA_NOT_READY: '图片尚未完成上传与审核，暂不能发布',
     MEDIA_UNAVAILABLE: '图片上传与审核服务尚未接入',
     NOTICE_NOT_FOUND: '此更新不存在或不属于当前账号，请刷新列表',

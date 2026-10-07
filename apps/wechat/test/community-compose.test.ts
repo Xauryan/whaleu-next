@@ -355,7 +355,7 @@ test('unverified named comments and denied/unavailable policy have honest effect
   await blocked.controller.load();
   blocked.controller.setText('cannot publish');
   assert.equal(blocked.view().canSubmit, false);
-  assert.match(blocked.view().blocker, /尚未就绪/);
+  assert.match(blocked.view().blocker, /服务端状态暂不能确认/);
 });
 test('frozen intent survives recovery from another target without creating or editing a new draft', async () => {
   const s = composer({ operation: 'publish_comment', postId });

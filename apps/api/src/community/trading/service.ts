@@ -1,3 +1,7 @@
+import {
+  checkpointTransactionDeadlines,
+  restoreTransactionDeadlines,
+} from '../../database/transaction-deadlines.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { ApplicationError } from '../../http/application-error.js';
@@ -64,6 +68,7 @@ export class TradingService {
         throw new ApplicationError('REQUEST_CONFLICT');
       // Immutable replay is BEFORE current parent/authority. Never reapply old intent.
       if (row.receipt) return row.receipt;
+      const deadlineCheckpoint = checkpointTransactionDeadlines(tx);
       await tx.query('SAVEPOINT trading_work');
       let receipt: TradingReceipt;
       try {
@@ -103,6 +108,7 @@ export class TradingService {
         if (!(error instanceof ApplicationError) || !terminal.has(error.code))
           throw error;
         await tx.query('ROLLBACK TO SAVEPOINT trading_work');
+        restoreTransactionDeadlines(tx, deadlineCheckpoint);
         receipt = {
           requestId,
           operation,

@@ -49,19 +49,14 @@ export class CommunityContentIdentityService {
         ).rows[0];
         if (
           !member ||
-          !(await this.access.visible(
-            viewerAccountId,
-            member.is_creator
-              ? post
-              : {
-                  ...post,
-                  id: target.id,
-                  account_id: member.account_id,
-                  author_mode: 'named',
-                },
-            tx,
-            'list_projection',
-          ))
+          !(await (member.is_creator
+            ? this.access.visible(viewerAccountId, post, tx, 'list_projection')
+            : this.access.namedMemberVisible(
+                viewerAccountId,
+                post,
+                member.account_id,
+                tx,
+              )))
         )
           return null;
         return {

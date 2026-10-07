@@ -26,6 +26,17 @@ export type Action =
   | 'save_post'
   | 'set_post_update_preference';
 export interface Authority {
+  /** Present on the canonical runtime adapter. Omitted only by isolated test ports. */
+  runtime?: true;
+  affiliationStatus?: 'verified' | 'unverified' | 'unavailable';
+  identityStatus?: 'valid' | 'selection_required' | 'unavailable';
+  scopeRelation?: 'home' | 'related' | 'foreign' | 'global' | 'unavailable';
+  configurationStatus?: 'known' | 'unavailable';
+  canDisableComments?: boolean;
+  managementStatus?: 'known' | 'unavailable';
+  publicationScope?: import('./content-review/contracts.js').PublicationScope;
+}
+export interface Authority {
   phoneVerified: boolean;
   studentVerified: boolean;
   identityRegionId: string | null;
@@ -38,21 +49,38 @@ export interface Authority {
 /** Implementations must read LOCAL authoritative state and lock it until commit.
  * No HTTP/provider/remote work is permitted in any transactional port. These are
  * dependency-injection boundaries, never client flags or environment allowlists. */
+export interface AuthorizationContext {
+  phoneOnly?: boolean;
+  managementRequired?: boolean;
+  publication?: boolean;
+  targetPostId?: string;
+}
 export interface CommunityAuthorizationPort {
   resolve(
     accountId: string,
     space: CommunitySpace,
     transaction: PoolClient,
+    context?: AuthorizationContext,
   ): Promise<Decision<Authority>>;
 }
 export type VisibilityPurpose =
   'list_projection' | 'direct_post' | 'named_interaction';
-export type VisibilitySubject = { contentId: string } & (
+export type VisibilitySubject = {
+  contentId: string;
+  contentKind: 'post' | 'comment' | 'reply';
+  contentVersion: 1;
+} & (
   | { authorMode: 'named'; namedAccountId: string }
   | { authorMode: 'anonymous'; namedAccountId?: never }
 );
 /** Anonymous subjects deliberately carry no underlying account or profile ID. */
 export interface CommunityVisibilityPort {
+  checkNamedRelationship?(
+    viewerAccountId: string | null,
+    namedAccountId: string,
+    transaction: PoolClient,
+    purpose: VisibilityPurpose,
+  ): Promise<Decision>;
   check(
     viewerAccountId: string | null,
     subject: VisibilitySubject,
@@ -65,12 +93,19 @@ export interface ApprovedAsset {
   digest: string;
 }
 export interface ContentPublicationGate {
+  bind?(
+    accepted: import('./content-review/contracts.js').AcceptedApproval,
+    kind: 'post' | 'comment' | 'reply',
+    id: string,
+    transaction: PoolClient,
+  ): Promise<void>;
   check(
     input: {
       accountId: string;
       purpose: PublicationOperation;
       text: string;
       images: ApprovedAsset[];
+      envelope?: import('./content-review/contracts.js').EffectiveContentEnvelope;
       structuredContent?:
         | {
             version: 5;
@@ -97,7 +132,11 @@ export interface ContentPublicationGate {
           };
     },
     transaction: PoolClient,
-  ): Promise<Decision>;
+  ): Promise<
+    Decision<
+      import('./content-review/contracts.js').AcceptedApproval | undefined
+    >
+  >;
 }
 export interface MediaAttachmentPort {
   resolveOwned(
@@ -166,9 +205,18 @@ export function requirePublication(
     throw new ApplicationError('AUTHOR_MODE_NOT_ALLOWED');
   if (space.kind === 'global' && category !== 'discussion')
     throw new ApplicationError('COMMUNITY_SCOPE_UNAVAILABLE');
+  if (authority.runtime && authority.affiliationStatus === 'unavailable')
+    throw new ApplicationError('COMMUNITY_UNAVAILABLE');
   if (!authority.studentVerified) {
     if (
+      space.kind === 'regional' &&
+      authority.runtime &&
+      authority.configurationStatus === 'unavailable'
+    )
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    if (
       space.kind !== 'regional' ||
+      (action === 'publish_post' && category === 'trading') ||
       !(action === 'publish_comment'
         ? authority.unverifiedCommentsAllowed
         : authority.unverifiedCategories.includes(category))
@@ -181,17 +229,32 @@ export function requirePublication(
       throw new ApplicationError('AUTHOR_MODE_NOT_ALLOWED');
     return;
   }
+  if (authority.runtime && authority.identityStatus === 'unavailable')
+    throw new ApplicationError('COMMUNITY_UNAVAILABLE');
   if (!authority.identityRegionId)
     throw new ApplicationError('IDENTITY_CAMPUS_REQUIRED');
   if (
+    action === 'publish_post' &&
     space.kind === 'regional' &&
-    authority.identityRegionId !== space.operatingRegionId
+    (authority.runtime
+      ? authority.scopeRelation === 'foreign'
+      : authority.identityRegionId !== space.operatingRegionId)
   ) {
     if (mode === 'anonymous')
       throw new ApplicationError('AUTHOR_MODE_NOT_ALLOWED');
-    if (!authority.crossRegionAllowed)
+    if (!authority.runtime && !authority.crossRegionAllowed)
       throw new ApplicationError('COMMUNITY_SCOPE_UNAVAILABLE');
   }
+}
+export function requireCommentControl(
+  authority: Authority,
+  isAuthor: boolean,
+  restricted: boolean,
+): void {
+  if (!restricted || isAuthor || authority.canManage) return;
+  if (authority.runtime && authority.managementStatus === 'unavailable')
+    throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+  throw new ApplicationError('COMMENTS_DISABLED');
 }
 export function actionAllowed(
   authority: Authority | null,

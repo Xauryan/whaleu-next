@@ -1,3 +1,4 @@
+import { LocalPublicationEligibilitySource } from './publication-eligibility.source.js';
 import { LocalReportEligibilitySource } from './report-eligibility.source.js';
 import {
   Controller,
@@ -35,6 +36,7 @@ export class VerificationController {
   providers: [
     VerificationRepository,
     LocalReportEligibilitySource,
+    LocalPublicationEligibilitySource,
     VerificationService,
     LocalStudentIdentitySource,
     LocalSafetyPhoneSource,
@@ -43,6 +45,7 @@ export class VerificationController {
     LocalStudentIdentitySource,
     LocalSafetyPhoneSource,
     LocalReportEligibilitySource,
+    LocalPublicationEligibilitySource,
   ],
 })
 export class VerificationModule {}

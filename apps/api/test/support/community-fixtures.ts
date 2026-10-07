@@ -50,16 +50,30 @@ export class FixtureVisibility implements CommunityVisibilityPort {
     _purpose: VisibilityPurpose,
   ): Promise<Decision> {
     this.seen.push(subject);
-    if (subject.authorMode === 'named') {
-      // Synthetic local guard also serializes absent block rows against inserts.
-      await tx.query('LOCK TABLE whaleu_community_test.blocks IN SHARE MODE');
-      const result = await tx.query(
-        'SELECT 1 FROM whaleu_community_test.blocks WHERE viewer=$1 AND author=$2 FOR SHARE',
-        [viewer, subject.namedAccountId],
+    if (subject.authorMode === 'named')
+      return this.checkNamedRelationship(
+        viewer,
+        subject.namedAccountId,
+        tx,
+        _purpose,
       );
-      if (result.rowCount) return { kind: 'deny', reason: 'POST_NOT_FOUND' };
-    }
     return { kind: 'allow', value: undefined };
+  }
+  async checkNamedRelationship(
+    viewer: string | null,
+    namedAccountId: string,
+    tx: PoolClient,
+    _purpose: VisibilityPurpose,
+  ): Promise<Decision> {
+    // Named members use a relationship boundary, never a fake content UUID.
+    await tx.query('LOCK TABLE whaleu_community_test.blocks IN SHARE MODE');
+    const result = await tx.query(
+      'SELECT 1 FROM whaleu_community_test.blocks WHERE viewer=$1 AND author=$2 FOR SHARE',
+      [viewer, namedAccountId],
+    );
+    return result.rowCount
+      ? { kind: 'deny', reason: 'POST_NOT_FOUND' }
+      : { kind: 'allow', value: undefined };
   }
 }
 export class FixtureContent implements ContentPublicationGate {

@@ -14,7 +14,9 @@ and independent verification-status summaries. Tested community increments inclu
 polls, flat discussion threads, trading listings, post-based group formation,
 Saved preferences, local Updates, named-content blocking, reports and local
 post-jury outcomes with owner-only system notices. The remaining business modules and complete
-end-to-end policy/provider integration are still being implemented.
+end-to-end onboarding/provider integration are still being implemented. Normal
+runtime text access now consumes canonical policy and exact review records;
+review issuance and configuration controls remain unfinished.
 This is **not the completed rewrite** and is **not production-ready**. Remaining
 business modules, real-provider and native-device acceptance, production schema
 mapping, and reconciled data migration are still required. No production rollout

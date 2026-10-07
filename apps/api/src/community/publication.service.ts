@@ -1,3 +1,7 @@
+import type {
+  AcceptedApproval,
+  EffectiveContentEnvelope,
+} from './content-review/contracts.js';
 import { FormationRepository } from './formation/repository.js';
 import { TradingRepository } from './trading/repository.js';
 import { PollRepository } from './polls/poll.repository.js';
@@ -16,9 +20,11 @@ import {
   MEDIA_ATTACHMENT,
   requireDecision,
   requirePublication,
+  requireCommentControl,
 } from './community-policy.js';
 import type {
   ApprovedAsset,
+  Authority,
   ContentPublicationGate,
   MediaAttachmentPort,
 } from './community-policy.js';
@@ -56,7 +62,11 @@ export class PublicationService {
     structuredContent?: Parameters<
       ContentPublicationGate['check']
     >[0]['structuredContent'],
-  ): Promise<ApprovedAsset[]> {
+    envelope?: Omit<EffectiveContentEnvelope, 'images'>,
+  ): Promise<{
+    images: ApprovedAsset[];
+    approval: AcceptedApproval | undefined;
+  }> {
     const images = ids.length
       ? requireDecision(
           await this.media.resolveOwned(actor, purpose, ids, tx),
@@ -71,7 +81,7 @@ export class PublicationService {
       )
     )
       throw new ApplicationError('MEDIA_NOT_READY');
-    requireDecision(
+    const approval = requireDecision(
       await this.content.check(
         {
           accountId: actor,
@@ -79,12 +89,38 @@ export class PublicationService {
           text,
           images,
           ...(structuredContent ? { structuredContent } : {}),
+          ...(envelope ? { envelope: { ...envelope, images } } : {}),
         },
         tx,
       ),
       'CONTENT_REVIEW_UNAVAILABLE',
     );
-    return images;
+    return { images, approval };
+  }
+  async bind(
+    approval: AcceptedApproval | undefined,
+    kind: 'post' | 'comment' | 'reply',
+    id: string,
+    tx: PoolClient,
+  ) {
+    if (this.content.bind) {
+      if (!approval) throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      await this.content.bind(approval, kind, id, tx);
+    }
+  }
+  scope(authority: Authority, spaceId: string, regionId: string | null) {
+    if (authority.runtime && !authority.publicationScope)
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    return (
+      authority.publicationScope ?? {
+        originalSpaceId: spaceId,
+        originalRegionId: regionId,
+        authorOriginRegionId: null,
+        identityRegionId: null,
+        topologySnapshotId: null,
+        sync: 'none' as const,
+      }
+    );
   }
   post(token: string, body: PublishPost): Promise<PublicationReceipt> {
     const {
@@ -104,7 +140,10 @@ export class PublicationService {
       intent,
       async (actor, tx) => {
         const space = await this.repository.space(spaceId, tx);
-        const authority = await this.access.authority(actor, space, tx);
+        const authority = await this.access.authority(actor, space, tx, {
+          publication: true,
+          managementRequired: commentsPolicy === 'restricted',
+        });
         requirePublication(
           authority,
           space,
@@ -112,9 +151,12 @@ export class PublicationService {
           authorMode,
           'publish_post',
         );
-        if (commentsPolicy === 'restricted' && !authority.canManage)
+        if (
+          commentsPolicy === 'restricted' &&
+          !(authority.canDisableComments ?? authority.canManage)
+        )
           throw new ApplicationError('COMMUNITY_ACTION_RESTRICTED');
-        const images = await this.approved(
+        const { images, approval } = await this.approved(
           actor,
           'publish_post',
           text,
@@ -145,6 +187,22 @@ export class PublicationService {
                     component: body.component,
                   }
                 : undefined,
+          {
+            version: 1,
+            accountId: actor,
+            purpose: 'publish_post',
+            spaceId,
+            category,
+            authorMode,
+            commentsPolicy,
+            postId: null,
+            rootCommentId: null,
+            targetReplyId: null,
+            text,
+            component: body.component ?? { kind: 'none' },
+            trading: body.trading ?? null,
+            scope: this.scope(authority, space.id, space.operatingRegionId),
+          },
         );
         if (authorMode === 'named') await this.profiles.prepare(actor, tx);
         const id = randomUUID();
@@ -161,6 +219,7 @@ export class PublicationService {
         if (body.component?.kind === 'formation') {
           await this.formations.create(id, actor, body.component, tx);
         }
+        await this.bind(approval, 'post', id, tx);
         await this.repository.event(
           `post:${id}:created`,
           'post_created',
@@ -195,7 +254,12 @@ export class PublicationService {
           true,
         );
         await this.access.interaction(actor, post, tx);
-        const authority = await this.access.authority(actor, space, tx);
+        const authority = await this.access.authority(actor, space, tx, {
+          publication: true,
+          targetPostId: post.id,
+          managementRequired:
+            post.comments_policy === 'restricted' && post.account_id !== actor,
+        });
         const effectiveMode =
           post.author_mode === 'anonymous' && post.account_id === actor
             ? 'anonymous'
@@ -208,18 +272,34 @@ export class PublicationService {
           'publish_comment',
           post.author_mode,
         );
-        if (
-          post.comments_policy === 'restricted' &&
-          post.account_id !== actor &&
-          !authority.canManage
-        )
-          throw new ApplicationError('COMMENTS_DISABLED');
-        const images = await this.approved(
+        requireCommentControl(
+          authority!,
+          post.account_id === actor,
+          post.comments_policy === 'restricted',
+        );
+        const { images, approval } = await this.approved(
           actor,
           'publish_comment',
           text,
           imageAssetIds,
           tx,
+          undefined,
+          {
+            version: 1,
+            accountId: actor,
+            purpose: 'publish_comment',
+            spaceId: space.id,
+            category: post.category,
+            authorMode: effectiveMode,
+            commentsPolicy: post.comments_policy,
+            postId: post.id,
+            rootCommentId: null,
+            targetReplyId: null,
+            text,
+            component: { kind: 'none' },
+            trading: null,
+            scope: this.scope(authority, space.id, space.operatingRegionId),
+          },
         );
         if (effectiveMode === 'named') await this.profiles.prepare(actor, tx);
         const id = randomUUID();
@@ -230,6 +310,7 @@ export class PublicationService {
         if (effectiveMode === 'anonymous')
           await this.repository.persona(postId, actor, tx);
         await this.repository.attach('comment', id, images, tx);
+        await this.bind(approval, 'comment', id, tx);
         await this.repository.event(
           `comment:${id}:created`,
           'comment_created',

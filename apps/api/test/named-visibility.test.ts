@@ -187,6 +187,8 @@ test('named-block directions have an explicit one-way list and two-way direct/in
         f.state.blocks.set('author', { outgoing, incoming });
         const subject: VisibilitySubject = {
           contentId: 'content',
+          contentKind: 'post',
+          contentVersion: 1,
           authorMode: 'named',
           namedAccountId: 'author',
         };
@@ -224,7 +226,13 @@ test('base denial and unavailability short-circuit every named-block purpose', a
       assert.equal(
         await f.visibility.check(
           viewer,
-          { contentId: 'post', authorMode: 'named', namedAccountId: 'author' },
+          {
+            contentId: 'post',
+            contentKind: 'post',
+            contentVersion: 1,
+            authorMode: 'named',
+            namedAccountId: 'author',
+          },
           f.tx,
           purpose,
         ),
@@ -240,6 +248,8 @@ test('anonymous visibility never reads even a forged hidden named account or cal
   // @ts-expect-error Anonymous subjects cannot carry the underlying account ID.
   const malformed: VisibilitySubject = {
     contentId: 'anonymous',
+    contentKind: 'post',
+    contentVersion: 1,
     authorMode: 'anonymous',
     namedAccountId: 'secret',
   };
@@ -267,6 +277,8 @@ test('guest and self checks retain the base policy without looking up a named pa
       const f = fixture();
       const subject: VisibilitySubject = {
         contentId: 'post',
+        contentKind: 'post',
+        contentVersion: 1,
         authorMode: 'named',
         namedAccountId: 'author',
       };
@@ -314,6 +326,8 @@ test('access constructs anonymous subjects without any stored private account or
     f.checks.map(({ subject }) => subject),
     purposes.map(() => ({
       contentId: f.state.post.id,
+      contentKind: 'post',
+      contentVersion: 1,
       authorMode: 'anonymous',
     })),
   );
@@ -570,13 +584,30 @@ test('formation roster checks the parent directly then projects members without 
   assert.deepEqual(
     f.checks.map(({ subject, purpose }) => [subject, purpose]),
     [
-      [{ contentId: 'post', authorMode: 'anonymous' }, 'direct_post'],
-      [{ contentId: 'post', authorMode: 'anonymous' }, 'list_projection'],
       [
         {
-          contentId: 'joiner',
-          authorMode: 'named',
-          namedAccountId: 'joiner-account',
+          contentId: 'post',
+          contentKind: 'post',
+          contentVersion: 1,
+          authorMode: 'anonymous',
+        },
+        'direct_post',
+      ],
+      [
+        {
+          contentId: 'post',
+          contentKind: 'post',
+          contentVersion: 1,
+          authorMode: 'anonymous',
+        },
+        'list_projection',
+      ],
+      [
+        {
+          contentId: 'post',
+          contentKind: 'post',
+          contentVersion: 1,
+          authorMode: 'anonymous',
         },
         'list_projection',
       ],
@@ -679,15 +710,22 @@ test('formation identity resolution projects a creator persona or named joiner w
     assert.deepEqual(
       f.checks.map(({ subject, purpose }) => [subject, purpose]),
       [
-        [{ contentId: 'post', authorMode: 'anonymous' }, 'direct_post'],
         [
-          isCreator
-            ? { contentId: 'post', authorMode: 'anonymous' }
-            : {
-                contentId: 'membership',
-                authorMode: 'named',
-                namedAccountId: accountId,
-              },
+          {
+            contentId: 'post',
+            contentKind: 'post',
+            contentVersion: 1,
+            authorMode: 'anonymous',
+          },
+          'direct_post',
+        ],
+        [
+          {
+            contentId: 'post',
+            contentKind: 'post',
+            contentVersion: 1,
+            authorMode: 'anonymous',
+          },
           'list_projection',
         ],
       ],

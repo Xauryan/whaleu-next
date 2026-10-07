@@ -1,3 +1,8 @@
+import { VerificationModule } from '../verification/verification.module.js';
+import { AuthorizationModule } from '../authorization/authorization.module.js';
+import { ContentReviewModule } from './content-review/content-review.module.js';
+import { LocalContentPublicationGate } from './content-review/local-content-publication-gate.js';
+import { RuntimeCommunityAuthorization } from './runtime-authorization.js';
 import { CommunityReportTargetFacade } from './report-target.facade.js';
 import { CommunityModerationRemovalFacade } from './moderation-removal.facade.js';
 import { SafetyPolicyModule } from '../safety/policy.module.js';
@@ -85,8 +90,6 @@ import {
   COMMUNITY_VISIBILITY,
   CONTENT_PUBLICATION_GATE,
   MEDIA_ATTACHMENT,
-  UnavailableAuthorization,
-  UnavailableContentGate,
   UnavailableMedia,
 } from './community-policy.js';
 import { CommunityRepository } from './community.repository.js';
@@ -237,6 +240,9 @@ export class CommunityRecoveryController {
     ProfileModule,
     IdentityModule,
     SafetyPolicyModule,
+    VerificationModule,
+    AuthorizationModule,
+    ContentReviewModule,
   ],
   controllers: [
     SavedController,
@@ -289,9 +295,15 @@ export class CommunityRecoveryController {
     PublicationService,
     ReactionsService,
     DeletionService,
-    { provide: COMMUNITY_AUTHORIZATION, useClass: UnavailableAuthorization },
+    {
+      provide: COMMUNITY_AUTHORIZATION,
+      useClass: RuntimeCommunityAuthorization,
+    },
     { provide: COMMUNITY_VISIBILITY, useExisting: NamedBlockVisibility },
-    { provide: CONTENT_PUBLICATION_GATE, useClass: UnavailableContentGate },
+    {
+      provide: CONTENT_PUBLICATION_GATE,
+      useExisting: LocalContentPublicationGate,
+    },
     { provide: MEDIA_ATTACHMENT, useClass: UnavailableMedia },
   ],
 })

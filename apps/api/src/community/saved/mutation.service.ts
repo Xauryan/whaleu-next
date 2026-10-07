@@ -1,3 +1,7 @@
+import {
+  checkpointTransactionDeadlines,
+  restoreTransactionDeadlines,
+} from '../../database/transaction-deadlines.js';
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { ApplicationError } from '../../http/application-error.js';
@@ -72,6 +76,7 @@ export class SavedMutationService {
         await this.access.actor(token, tx);
         return row.receipt;
       }
+      const deadlineCheckpoint = checkpointTransactionDeadlines(tx);
       await tx.query('SAVEPOINT saved_work');
       let receipt: SavedReceipt;
       try {
@@ -153,6 +158,7 @@ export class SavedMutationService {
         if (!(error instanceof ApplicationError) || !terminal.has(error.code))
           throw error;
         await tx.query('ROLLBACK TO SAVEPOINT saved_work');
+        restoreTransactionDeadlines(tx, deadlineCheckpoint);
         receipt = {
           requestId,
           ...intent,

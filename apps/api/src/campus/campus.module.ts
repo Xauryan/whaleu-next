@@ -5,6 +5,8 @@ import { campusQuerySchema, operatingRegionQuerySchema } from './contracts.js';
 import type { CampusPage, CampusQuery } from './contracts.js';
 import { CampusRepository } from './campus.repository.js';
 import { CampusService } from './campus.service.js';
+import { CampusCommunityPolicyService } from './community-policy/campus-community-policy.service.js';
+import { RegionalCommunityPolicyService } from './community-policy/regional-community-policy.service.js';
 
 @Controller('v1/campuses')
 export class CampusController {
@@ -39,7 +41,16 @@ export class OperatingRegionController {
 @Module({
   imports: [DatabaseModule],
   controllers: [CampusController, OperatingRegionController],
-  providers: [CampusRepository, CampusService],
-  exports: [CampusService],
+  providers: [
+    CampusRepository,
+    CampusService,
+    CampusCommunityPolicyService,
+    RegionalCommunityPolicyService,
+  ],
+  exports: [
+    CampusService,
+    CampusCommunityPolicyService,
+    RegionalCommunityPolicyService,
+  ],
 })
 export class CampusModule {}

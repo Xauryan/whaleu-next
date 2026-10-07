@@ -29,9 +29,24 @@ export class NamedBlockVisibility implements CommunityVisibilityPort {
       viewer === subject.namedAccountId
     )
       return base;
-    const directions = await this.records.directions(
+    return this.checkNamedRelationship(
       viewer,
       subject.namedAccountId,
+      tx,
+      purpose,
+    );
+  }
+  async checkNamedRelationship(
+    viewer: string | null,
+    namedAccountId: string,
+    tx: PoolClient,
+    purpose: VisibilityPurpose,
+  ): Promise<Decision> {
+    const base: Decision = { kind: 'allow', value: undefined };
+    if (!viewer || viewer === namedAccountId) return base;
+    const directions = await this.records.directions(
+      viewer,
+      namedAccountId,
       purpose,
       tx,
     );

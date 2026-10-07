@@ -1,3 +1,4 @@
+import type { PublicationAffiliation } from './publication-eligibility.source.js';
 import type { ReportEligibility } from './report-eligibility.source.js';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -24,6 +25,51 @@ function unavailable(): VerificationRead {
 
 @Injectable()
 export class VerificationRepository {
+  async publicationAffiliation(
+    accountId: string,
+    tx: PoolClient,
+  ): Promise<PublicationAffiliation> {
+    const head = (
+      await tx.query<{ snapshot_id: string | null }>(
+        'SELECT snapshot_id FROM whaleu_verification.account_heads WHERE account_id=$1 FOR SHARE',
+        [accountId],
+      )
+    ).rows[0];
+    if (!head?.snapshot_id) return { status: 'unavailable' };
+    const snapshot = (
+      await tx.query<{ affiliation_assertion_id: string | null }>(
+        'SELECT affiliation_assertion_id FROM whaleu_verification.snapshots WHERE id=$1 AND account_id=$2',
+        [head.snapshot_id, accountId],
+      )
+    ).rows[0];
+    if (!snapshot?.affiliation_assertion_id) return { status: 'unavailable' };
+    const assertion = (
+      await tx.query<Omit<AssertionRecord, 'student_number'>>(
+        `SELECT id,account_id,fact_kind,assertion_state,coverage_state,provenance_state,method,source_reference,policy_reference,source_account_id,
+       issuer_institution_id,source_issuer_institution_id,origin_region_id,phone_binding_reference,verified_at,expiry_kind,expires_at
+       FROM whaleu_verification.assertions WHERE id=$1 AND account_id=$2 AND fact_kind='affiliation'`,
+        [snapshot.affiliation_assertion_id, accountId],
+      )
+    ).rows[0];
+    const now = (
+      await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
+    ).rows[0]!.now;
+    const status = assertionStatus(assertion, accountId, 'affiliation', now);
+    if (status !== 'verified')
+      return {
+        status: status === 'unavailable' ? 'unavailable' : 'unverified',
+      };
+    if (!assertion!.origin_region_id || !assertion!.issuer_institution_id)
+      return { status: 'unavailable' };
+    return {
+      status,
+      assertionId: assertion!.id,
+      snapshotId: head.snapshot_id,
+      institutionId: assertion!.issuer_institution_id,
+      originRegionId: assertion!.origin_region_id,
+      validUntil: assertion!.expires_at?.getTime() ?? null,
+    };
+  }
   reportEligibility(accountId: string, tx: PoolClient) {
     return readReportEligibility(accountId, tx);
   }
