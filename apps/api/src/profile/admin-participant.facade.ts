@@ -17,13 +17,42 @@ const participantSchema = z.strictObject({
 export type AdminParticipant =
   | { status: 'available'; profileId: string; displayName: string }
   | { status: 'unavailable' };
+/** Internal join result only; accountId must never be serialized into an admin DTO. */
+export type ResolvedAdminParticipant = z.infer<typeof participantSchema>;
 
 /** Public display facts only. Keys are internal account joins and must never be
  * serialized. Missing profiles stay explicit; reads never manufacture profiles,
  * names, references or numeric-UID mappings. Caller owns management authority
- * and final consistency; this bounded snapshot takes no row locks. */
+ * and final consistency for the nonlocking bounded batch snapshot. The separate
+ * exact-reference resolver retains its existing row through transaction end. */
 @Injectable()
 export class ProfileAdminParticipantFacade {
+  /** Resolve existing public references under a stable owner row lock during
+   * ordinary work, before final proofs. Missing references never create rows. */
+  async resolve(
+    profileId: string,
+    tx: PoolClient,
+  ): Promise<ResolvedAdminParticipant | null> {
+    try {
+      idSchema.parse(profileId);
+      const result = await tx.query<ResolvedAdminParticipant>(
+        `SELECT account_id AS "accountId", public_id AS "profileId",
+         coalesce(nickname,'鲸鱼用户') AS "displayName"
+         FROM whaleu_profile.profiles WHERE public_id=$1 FOR SHARE`,
+        [profileId],
+      );
+      if (result.rows.length > 1)
+        throw new ApplicationError('ERRAND_UNAVAILABLE');
+      if (!result.rows.length) return null;
+      const participant = participantSchema.parse(result.rows[0]);
+      if (participant.profileId !== profileId)
+        throw new ApplicationError('ERRAND_UNAVAILABLE');
+      return participant;
+    } catch {
+      throw new ApplicationError('ERRAND_UNAVAILABLE');
+    }
+  }
+
   async batch(
     accountIds: readonly string[],
     tx: PoolClient,

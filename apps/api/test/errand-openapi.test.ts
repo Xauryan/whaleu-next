@@ -1,3 +1,9 @@
+import {
+  errandAdminReceiptSchema,
+  errandRestrictionReceiptSchema,
+  errandRestrictionsPageSchema,
+  errandRestrictionHistorySchema,
+} from '../src/errands/admin-command-contracts.js';
 import { errandAdminPageSchema } from '../src/errands/admin-contracts.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
@@ -51,6 +57,30 @@ test('every errand/notice route requires auth, strict output, no-store/Vary and 
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
     ['/v1/admin/errands', 'get', errandAdminPageSchema],
+    ['/v1/admin/errands/{orderId}/delete', 'post', errandAdminReceiptSchema],
+    [
+      '/v1/admin/errands/{orderId}/restrict-accepter',
+      'post',
+      errandAdminReceiptSchema,
+    ],
+    ['/v1/admin/errand-requests/{requestId}', 'get', errandAdminReceiptSchema],
+    ['/v1/admin/errand-restrictions', 'post', errandRestrictionReceiptSchema],
+    ['/v1/admin/errand-restrictions', 'get', errandRestrictionsPageSchema],
+    [
+      '/v1/admin/errand-restrictions/{restrictionId}/release',
+      'post',
+      errandRestrictionReceiptSchema,
+    ],
+    [
+      '/v1/admin/errand-restrictions/{restrictionId}/history',
+      'get',
+      errandRestrictionHistorySchema,
+    ],
+    [
+      '/v1/admin/errand-restriction-requests/{requestId}',
+      'get',
+      errandRestrictionReceiptSchema,
+    ],
     ['/v1/errands', 'get', errandPageSchema],
     ['/v1/errands', 'post', errandReceiptSchema],
     ['/v1/errands/{orderId}', 'get', errandDetailSchema],

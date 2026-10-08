@@ -27,6 +27,8 @@ export interface ErrandAdminRow {
   completed_at: Date | null;
   cancelled_at: Date | null;
   deleted_at: Date | null;
+  deletion_reason: string | null;
+  admin_delete_event_id: string | null;
 }
 export const adminSeek = (row: ErrandAdminRow): ErrandAdminSeek =>
   errandAdminSeekSchema.parse({ id: row.id, createdAt: row.scan_at });
@@ -34,6 +36,24 @@ export const adminSeek = (row: ErrandAdminRow): ErrandAdminSeek =>
 /** Administrative queries never join, select or hydrate private_details. */
 @Injectable()
 export class ErrandAdminRepository {
+  async target(
+    orderId: string,
+    tx: PoolClient,
+    lock = false,
+  ): Promise<ErrandAdminRow | null> {
+    const row = (
+      await tx.query<ErrandAdminRow>(
+        `SELECT id,revision,publisher_id,accepter_id,target_region_id,source_region_id,
+       title,public_text,expected_time_text,reward::text,state,created_at,
+       to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS scan_at,
+       accepted_at,completed_at,cancelled_at,deleted_at,deletion_reason,admin_delete_event_id
+       FROM whaleu_errands.orders WHERE id=$1 ${lock ? 'FOR UPDATE' : ''}`,
+        [orderId],
+      )
+    ).rows[0];
+    if (row) adminSeek(row);
+    return row ?? null;
+  }
   async candidates(
     regionId: string,
     status: ErrandAdminQuery['status'],
@@ -64,7 +84,7 @@ export class ErrandAdminRepository {
        title,public_text,expected_time_text,reward::text,state,created_at,
        CASE WHEN isfinite(created_at) AND EXTRACT(YEAR FROM created_at AT TIME ZONE 'UTC') BETWEEN 1 AND 9999
        THEN to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') END AS scan_at,
-       accepted_at,completed_at,cancelled_at,deleted_at
+       accepted_at,completed_at,cancelled_at,deleted_at,deletion_reason,admin_delete_event_id
        FROM whaleu_errands.orders WHERE ${filters.join(' AND ')}
        ORDER BY created_at DESC,id DESC LIMIT $${params.length}`,
         params,

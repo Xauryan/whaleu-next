@@ -8,6 +8,19 @@ import {
   errandTimeSchema,
 } from './contracts.js';
 
+export const errandDeletionReasonSchema = z.discriminatedUnion('status', [
+  z.strictObject({ status: z.literal('unavailable') }),
+  z.strictObject({ status: z.literal('not_provided') }),
+  z.strictObject({
+    status: z.literal('provided'),
+    value: z
+      .string()
+      .min(1)
+      .max(1000)
+      .refine((v) => [...v].length <= 500),
+  }),
+]);
+
 const publicId = z.uuid().refine((value) => value === value.toLowerCase());
 export const errandAdminStatusSchema = z.enum([
   'all',
@@ -75,10 +88,8 @@ export const errandAdminOrderSchema = z
     completedAt: errandTimeSchema.nullable(),
     cancelledAt: errandTimeSchema.nullable(),
     deletedAt: errandTimeSchema.nullable(),
-    // E1 did not collect a reason. Unavailable is not an invented empty reason.
-    deletionReason: z
-      .strictObject({ status: z.literal('unavailable') })
-      .nullable(),
+    // E1 tombstones retain unknown reasons; new administrative reasons are explicit.
+    deletionReason: errandDeletionReasonSchema.nullable(),
     publisher: errandAdminParticipantSchema,
     accepter: errandAdminParticipantSchema.nullable(),
     relation: z.enum(['publisher', 'accepter', 'none']),

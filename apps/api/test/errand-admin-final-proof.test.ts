@@ -118,6 +118,8 @@ function fixture() {
     completed_at: null,
     cancelled_at: null,
     deleted_at: null,
+    deletion_reason: null,
+    admin_delete_event_id: null,
   };
   const list = (keyword = '') =>
     service.list('synthetic', { status: 'all', keyword, limit: 20 });

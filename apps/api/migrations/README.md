@@ -179,3 +179,13 @@ under the mature try-only slot protocol. Final page validation also requires
 owner-local SHARE NOWAIT table fences after cursor/deferred waits. This metadata
 creates no profiles, users, grants, restrictions, notices, numeric UID mappings,
 providers or imported coverage, and leaves E1 lifecycle/receipt rules unchanged.
+
+Migrations 0039–0041 add empty causal errand restriction administration, explicit
+scoped command/context/receipt branches, and durable typed local notices. They
+retain old E1 intent/receipt semantics and publisher-only deletion except for an
+exact matched administrative audit. No privilege, user baseline, historical audit,
+restriction or provider is seeded. Adopted feature snapshots must reconcile local
+restriction causes and retain independent source coverage. Final target-role
+absence is an Authorization-owned managed-transaction proof, not an early SQL
+EXISTS assertion or a newly assumed grant-writer lock protocol. See
+[administrative scope](../../../docs/API_ERRANDS.md#administrative-mutations-and-recorded-history-e2b).

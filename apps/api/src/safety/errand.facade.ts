@@ -62,47 +62,45 @@ export class SafetyErrandFacade {
     action: 'publish' | 'accept',
     tx: PoolClient,
   ) {
-    const row = (
-      await tx.query<{
-        account_id: string;
-        coverage: string;
-        provenance: string;
-        source_reference: string;
-        policy_reference: string;
-        effective_at: Date;
-        valid_until: Date | null;
-        restrictions: unknown;
-      }>(
-        `SELECT s.* FROM whaleu_safety.errand_feature_heads h JOIN whaleu_safety.errand_feature_snapshots s ON s.id=h.snapshot_id AND s.account_id=h.account_id WHERE h.account_id=$1 FOR SHARE OF h`,
+    // Lock the pointer before loading the immutable snapshot. PostgreSQL retains
+    // microsecond precision for all effectiveness and coverage predicates.
+    const head = (
+      await tx.query<{ snapshot_id: string }>(
+        'SELECT snapshot_id FROM whaleu_safety.errand_feature_heads WHERE account_id=$1 FOR SHARE',
         [accountId],
       )
     ).rows[0];
-    const now = (
-      await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
-    ).rows[0]!.now.getTime();
-    if (
-      !row ||
-      row.account_id !== accountId ||
-      row.coverage !== 'complete' ||
-      row.provenance !== 'accepted' ||
-      !row.source_reference?.trim() ||
-      !row.policy_reference?.trim() ||
-      !Number.isFinite(row.effective_at.getTime()) ||
-      row.effective_at.getTime() > now ||
-      (row.valid_until !== null &&
-        (!Number.isFinite(row.valid_until.getTime()) ||
-          row.valid_until.getTime() <= now))
-    )
-      throw new ApplicationError('SAFETY_UNAVAILABLE');
-    const decision = evaluateErrandRestrictions(row.restrictions, now, action);
-    if (decision === 'unavailable')
-      throw new ApplicationError('SAFETY_UNAVAILABLE');
+    if (!head) throw new ApplicationError('SAFETY_UNAVAILABLE');
+    let row: { restricted: boolean; valid_until: Date | null } | undefined;
+    try {
+      row = (
+        await tx.query<{ restricted: boolean; valid_until: Date | null }>(
+          `WITH instant AS MATERIALIZED (SELECT clock_timestamp() now)
+ SELECT whaleu_safety.require_errand_restriction_snapshot(s.id,s.account_id,instant.now) verified,s.valid_until,
+ EXISTS(SELECT 1 FROM jsonb_array_elements(s.restrictions) f
+ WHERE f->>'action' IN ($3,'all') AND whaleu_safety.errand_restriction_effective(f,instant.now)) restricted
+ FROM whaleu_safety.errand_feature_snapshots s CROSS JOIN instant WHERE s.id=$1 AND s.account_id=$2`,
+          [head.snapshot_id, accountId, action],
+        )
+      ).rows[0];
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (String(error.code).startsWith('22') ||
+          ('constraint' in error &&
+            error.constraint === 'errand_restriction_unavailable'))
+      )
+        throw new ApplicationError('SAFETY_UNAVAILABLE');
+      throw error;
+    }
+    if (!row) throw new ApplicationError('SAFETY_UNAVAILABLE');
     registerTransactionDeadline(
       tx,
       row.valid_until?.getTime() ?? null,
       'SAFETY_UNAVAILABLE',
     );
-    if (decision === 'restricted')
-      throw new ApplicationError('ERRAND_ACTION_RESTRICTED');
+    if (row.restricted) throw new ApplicationError('ERRAND_ACTION_RESTRICTED');
   }
 }

@@ -1,9 +1,42 @@
 <view class="screen"><view class="title">跑腿通知</view>
   <navigator class="link" url="/pages/errand-mine/errand-mine">我的订单 →</navigator>
-  <view class="notice">当前为本地接单与完成通知。打开订单会重新核验当前状态；通知不含私密说明或联系方式。</view>
+  <view class="notice">本地跑腿通知。接单与完成通知可打开订单并重新核验当前状态；删除和限制通知直接显示处理记录。</view>
   <view class="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
   <view wx:if="{{loaded}}">未读 {{unreadCount}}</view>
   <button bindtap="onRefresh" disabled="{{busy}}">刷新通知</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
-  <view wx:for="{{items}}" wx:key="noticeId" class="card"><view class="section-title">{{item.kind === 'accepted' ? '你发布的跑腿已有人接单' : '你接取的跑腿已由发布者确认完成'}}</view><view>{{item.createdAt}}</view><view>{{item.readAt ? '已读' : '未读'}}</view><button data-id="{{item.noticeId}}" bindtap="onOrder" disabled="{{busy}}">查看订单当前状态</button><button wx:if="{{!item.readAt}}" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy}}">标记此条已读</button></view>
+  <view wx:for="{{items}}" wx:key="noticeId" class="card">
+    <view wx:if="{{item.kind === 'accepted'}}" class="section-title">你发布的跑腿已有人接单</view>
+    <view wx:elif="{{item.kind === 'completed'}}" class="section-title">你接取的跑腿已由发布者确认完成</view>
+    <block wx:elif="{{item.kind === 'admin_deleted'}}">
+      <view class="section-title">你发布的跑腿已被管理员删除</view>
+      <view class="notice-reference">订单编号：{{item.orderId}}</view>
+      <view wx:if="{{item.deletionReason.status === 'provided'}}" class="notice-reason">删除原因：{{item.deletionReason.value}}</view>
+      <view wx:else>管理员未填写删除原因</view>
+      <view class="notice">订单详情不可查看时，仍可在此查看删除记录。</view>
+    </block>
+    <block wx:elif="{{item.kind === 'feature_restricted'}}">
+      <view class="section-title">跑腿功能限制记录</view>
+      <view>限制操作：{{item.action === 'publish' ? '发布跑腿' : item.action === 'accept' ? '接取跑腿' : '发布与接取跑腿'}}</view>
+      <view>适用范围：所有地区</view>
+      <view class="notice-reference">限制编号：{{item.restrictionId}}</view>
+      <view>开始时间：{{item.startsAt}}</view>
+      <view wx:if="{{item.endsAt !== null}}">结束时间：{{item.endsAt}}</view>
+      <view wx:else>期限：永久</view>
+      <view class="notice-reason">限制原因：{{item.reason}}</view>
+      <view class="notice">此通知记录发出时的处理内容，当前能否操作由服务端重新核验。</view>
+    </block>
+    <block wx:elif="{{item.kind === 'feature_released'}}">
+      <view class="section-title">一条跑腿功能限制已解除</view>
+      <view>本条解除的限制操作：{{item.action === 'publish' ? '发布跑腿' : item.action === 'accept' ? '接取跑腿' : '发布与接取跑腿'}}</view>
+      <view class="notice-reference">解除的限制编号：{{item.restrictionId}}</view>
+      <view>解除时间：{{item.releasedAt}}</view>
+      <view class="notice-reason">解除原因：{{item.reason}}</view>
+      <view class="notice">仅解除上述编号对应的一条限制。其他限制仍可能生效；当前能否发布或接取跑腿由服务端重新核验。</view>
+    </block>
+    <view>通知时间：{{item.createdAt}}</view>
+    <view>{{item.readAt ? '已读' : '未读'}}</view>
+    <button wx:if="{{item.kind === 'accepted' || item.kind === 'completed'}}" data-id="{{item.noticeId}}" bindtap="onOrder" disabled="{{busy}}">查看订单当前状态</button>
+    <button wx:if="{{!item.readAt}}" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy}}">标记此条已读</button>
+  </view>
   <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">暂无跑腿通知</view><button wx:if="{{canMore}}" bindtap="onMore" disabled="{{busy}}">加载更多</button>
 </view>

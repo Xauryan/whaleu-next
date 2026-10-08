@@ -151,7 +151,16 @@ export async function smokeErrandAdmin({ app, dist, flush }) {
     'utf8',
   );
   const tree = parse(source);
-  const text = (page) => JSON.stringify(render(tree.children, page.data, {}));
+  const common = parse(
+    readFileSync(path.join(dist, 'errands/admin-command.wxml'), 'utf8'),
+  );
+  const templates = Object.fromEntries(
+    common.children
+      .filter((node) => typeof node !== 'string' && node.attrs?.name)
+      .map((node) => [node.attrs.name, node]),
+  );
+  const text = (page) =>
+    JSON.stringify(render(tree.children, page.data, templates));
   const mount = (route = {}) => {
     let page;
     const old = globalThis.Page;
@@ -181,7 +190,6 @@ export async function smokeErrandAdmin({ app, dist, flush }) {
   const status = (page, value) =>
     page.onStatus({ currentTarget: { dataset: { value } } });
   for (const pattern of [
-    /onDelete|onRestrict|onRelease|onBan|onAccept|onComplete/,
     /requestPayment|subscribeMessage|chooseImage|eventChannel|<image|rich-text/,
     /contacts|privateText|studentNumber|grantId/,
   ])
@@ -410,6 +418,6 @@ export async function smokeErrandAdmin({ app, dist, flush }) {
   }
   app.community.errandAdmin = original.admin;
   console.log(
-    'Errand administration emitted smoke passed: fresh school/global grants, deep-link denial, six historical states, public-only participant references, exact decimal/count knownness, numeric UID limitation, sparse fresh Previous/Next, scope/query/status/session/Safety/hide/expiry clearing and zero mutation UI; synthetic WXML model, not device acceptance',
+    'Errand administration emitted smoke passed: fresh school/global grants, deep-link denial, six historical states, public-only participant references, exact decimal/count knownness, numeric UID limitation, sparse fresh Previous/Next, scope/query/status/session/Safety/hide/expiry clearing with separate command confirmation; synthetic WXML model, not device acceptance',
   );
 }

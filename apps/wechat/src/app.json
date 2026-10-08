@@ -33,7 +33,8 @@
     "pages/errand-detail/errand-detail",
     "pages/errand-compose/errand-compose",
     "pages/errand-notices/errand-notices",
-    "pages/errand-admin/errand-admin"
+    "pages/errand-admin/errand-admin",
+    "pages/errand-restrictions/errand-restrictions"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

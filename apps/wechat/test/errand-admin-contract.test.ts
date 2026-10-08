@@ -262,3 +262,25 @@ test('historical region labels retain 200 Unicode code points without a UTF-16 t
     }),
   );
 });
+
+test('new administrative tombstones preserve reason provided/not-provided while E1 historical reason stays unavailable', () => {
+  for (const deletionReason of [
+    { status: 'unavailable' },
+    { status: 'not_provided' },
+    { status: 'provided', value: '合成删除原因' },
+  ]) {
+    assert.deepEqual(
+      decodeErrandAdminOrder({ ...adminOrder(), deletionReason })
+        .deletionReason,
+      deletionReason,
+    );
+  }
+  for (const deletionReason of [
+    { status: 'provided', value: '' },
+    { status: 'provided', value: 'x'.repeat(501) },
+    { status: 'provided', value: ' reason ' },
+    { status: 'not_provided', value: '' },
+  ]) {
+    invalid(() => decodeErrandAdminOrder({ ...adminOrder(), deletionReason }));
+  }
+});

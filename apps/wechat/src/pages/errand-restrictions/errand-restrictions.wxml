@@ -1,0 +1,54 @@
+<import src="../../errands/admin-command.wxml" />
+<view class="screen">
+  <view class="title">全局跑腿限制管理</view>
+  <view class="notice">签发、记录、历史和解除均需当前全局管理员权限。功能限制对所有地区生效。</view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <button bindtap="onRefresh" disabled="{{busy || adminCommand.busy}}">重新核验权限与记录</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+  <template is="errand-admin-command" data="{{command:adminCommand,durationLabels,actionLabels,actionOptions}}" />
+  <view wx:if="{{access === 'global'}}">
+    <button bindtap="onIssue" disabled="{{busy || !loaded || adminCommand.busy || adminCommand.frozen}}">签发新跑腿限制</button>
+    <view wx:if="{{mode === 'list'}}" class="card">
+      <input value="{{profileDraft}}" bindinput="onProfile" bindconfirm="onSearch" maxlength="36" placeholder="目标公开资料 UUID，留空查看已记录范围" />
+      <button bindtap="onSearch" disabled="{{busy || adminCommand.busy}}">查询记录</button>
+      <view class="chips"><button class="chip {{actionFilter === '' ? 'active' : ''}}" data-value="" bindtap="onActionFilter">全部动作</button><button wx:for="{{actionOptions}}" wx:key="value" class="chip {{actionFilter === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="onActionFilter">{{item.label}}</button></view>
+      <view class="chips"><button wx:for="{{stateOptions}}" wx:key="value" class="chip {{stateFilter === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="onState">{{item.label}}</button></view>
+    </view>
+    <button wx:if="{{mode === 'history'}}" bindtap="onBackToList">返回记录列表并重新读取</button>
+  </view>
+  <view wx:if="{{loaded}}">
+    <view wx:if="{{historyCoverage === 'unknown_before_boundary'}}" class="notice">这里只展示已记录的本地及已知基线事实。迁移边界之前的完整历史未知；没有记录不能解释为从未受限。</view>
+    <view wx:if="{{mode === 'list'}}">
+      <view wx:if="{{recordedTotal.status === 'known'}}" class="section-title">已记录结果精确总数：{{recordedTotal.value}}</view>
+      <view wx:else class="notice">已记录结果总数暂不可用。</view>
+      <view wx:for="{{items}}" wx:key="restrictionId" class="card">
+        <view class="section-title">{{item.subject.status === 'available' ? item.subject.displayName : '公开资料暂不可用'}} · {{actionLabels[item.action]}}</view>
+        <view class="meta">{{stateLabels[item.state]}} · {{item.origin === 'baseline' ? '已知基线' : '本地记录'}}</view>
+        <view class="meta">限制编号：{{item.restrictionId}}</view>
+        <view wx:if="{{item.subject.status === 'available'}}" class="meta">公开资料：{{item.subject.profileId}}</view>
+        <view class="body">原因：{{item.reason}}</view>
+        <view class="meta">起始：{{item.startsAt}} · {{item.endsAt ? '结束：' + item.endsAt : '永久限制'}}</view>
+        <view class="meta">记录时间：{{item.recordedAt}}</view>
+        <view wx:if="{{item.terminal &amp;&amp; item.terminal.kind === 'baseline_released'}}" class="notice">基线已知解除时间：{{item.terminal.effectiveAt}}；原操作人与解除原因未知。</view>
+        <view wx:if="{{item.terminal &amp;&amp; item.terminal.kind === 'manually_released'}}" class="meta">手动解除：{{item.terminal.effectiveAt}} · {{item.terminal.reason || '解除原因资料未知'}}</view>
+        <view wx:if="{{item.terminal &amp;&amp; item.terminal.kind === 'superseded'}}" class="meta">由限制 {{item.terminal.replacementRestrictionId}} 替代 · {{item.terminal.effectiveAt}}</view>
+        <view class="meta">操作人：{{item.operator.status === 'available' ? item.operator.displayName : item.operator.status === 'unknown' ? '原操作人未知' : '公开资料暂不可用'}}</view>
+        <view class="meta">来源：{{item.source.kind === 'order' ? '订单 ' + item.source.orderId : item.source.kind === 'global' ? '全局签发' : '原来源未知'}}</view>
+        <button data-id="{{item.restrictionId}}" bindtap="onHistory" disabled="{{busy || adminCommand.busy}}">查看此项历史</button>
+        <button wx:if="{{item.state === 'active'}}" data-id="{{item.restrictionId}}" bindtap="onRelease" disabled="{{busy || adminCommand.busy || adminCommand.frozen}}">仅解除此项限制</button>
+      </view>
+      <view wx:if="{{!items.length}}" class="empty">本页没有已记录的匹配项，完整历史仍未知{{continuation === 'more' ? '；可以继续查找' : '；已到本次记录查询末尾'}}。</view>
+    </view>
+    <view wx:if="{{mode === 'history' &amp;&amp; restriction}}">
+      <view class="card"><view class="section-title">此项{{actionLabels[restriction.action]}}限制</view><view class="meta">{{restriction.restrictionId}} · {{stateLabels[restriction.state]}}</view><view class="body">原限制原因：{{restriction.reason}}</view><view class="meta">{{restriction.startsAt}} 至 {{restriction.endsAt || '永久'}}</view><button wx:if="{{restriction.state === 'active'}}" data-id="{{restriction.restrictionId}}" bindtap="onRelease" disabled="{{busy || adminCommand.busy || adminCommand.frozen}}">仅解除此项限制</button></view>
+      <view wx:if="{{restriction.terminal &amp;&amp; restriction.terminal.kind === 'baseline_released'}}" class="notice">基线已知解除时间：{{restriction.terminal.effectiveAt}}；原操作人与解除原因未知。没有凭此补造历史事件。</view>
+      <view wx:for="{{events}}" wx:key="eventId" class="card"><view class="section-title">{{eventLabels[item.kind]}}</view><view class="meta">生效时间：{{item.effectiveAt}}</view><view class="meta">实际记录：{{item.recordedAt}}</view><view wx:if="{{item.reason}}" class="body">原因：{{item.reason}}</view><view class="meta">操作人：{{item.operator.status === 'available' ? item.operator.displayName : item.operator.status === 'unknown' ? '原操作人未知' : '公开资料暂不可用'}}</view><view wx:if="{{item.replacementRestrictionId}}" class="meta">替代限制：{{item.replacementRestrictionId}}</view></view>
+      <view wx:if="{{!events.length}}" class="empty">本页没有已记录事件，原签发或更早历史仍未知。</view>
+      <view wx:if="{{restriction.state === 'expired'}}" class="notice">已到原定结束时间。到期由时间推导，不代表管理员执行了解除。</view>
+    </view>
+    <view class="meta">第 {{pageNumber}} 页{{continuation === 'end' ? ' · 已到本次末尾' : ''}}</view>
+    <button wx:if="{{canPrevious}}" bindtap="onPrevious" disabled="{{busy || adminCommand.busy}}">上一页（重新核验）</button>
+    <button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy || adminCommand.busy}}">下一页（继续查找）</button>
+  </view>
+</view>

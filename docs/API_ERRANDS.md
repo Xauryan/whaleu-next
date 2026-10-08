@@ -1,11 +1,12 @@
-# Errands: text-only lifecycle and read-only administration (E1/E2A)
+# Errands: text-only lifecycle and bounded administration (E1/E2A/E2B)
 
 This is a partial greenfield errand rewrite. It provides fresh, exactly reviewed
 text publication, discovery/detail, single-winner acceptance, publisher cleanup,
 owned history, remembered accepter contacts, recoverable receipts and durable
-local accepted/completed notices. E2A adds bounded read-only historical management.
-It does not implement an issuer, external provider, production import, administrative
-mutations, media or group delivery. Reward is
+local accepted/completed notices. E2A adds bounded historical management reads;
+E2B adds scoped deletion, account-wide feature restrictions, global audit/release
+and durable local administrative notices. It does not implement a grant or
+coverage issuer, external provider, production import, media or group delivery. Reward is
 an offered amount, not payment or settlement. No refund or runner rating exists.
 
 ## HTTP contract
@@ -168,7 +169,8 @@ The catalog has no three-day cutoff and intentionally includes held historical
 public-intended material. `all` includes tombstones; lifecycle filters exclude
 all tombstones; `deleted` selects only tombstones. Each row preserves original
 `state` plus separate `displayState` and deletion time. E1 did not record deletion
-reasons, so a tombstone's `deletionReason` is explicitly `{status:unavailable}`;
+reasons, so an E1 tombstone's `deletionReason` is `{status:unavailable}`. New
+administrative deletion uses `{status:not_provided}` or `{status:provided,value}`;
 live rows have `null`. Source/target IDs remain immutable. Current historical
 labels include `active:false` when retired, or explicit unavailable metadata.
 Retired school scope does not grant school administrators new authority.
@@ -177,8 +179,8 @@ Participants expose only current Profile-owned public UUID/display name or
 `{status:unavailable}`; an unassigned accepter is `null`. Reads never create a
 missing profile. Internal account IDs, identity/student numbers, contacts,
 private text, review evidence and profile preferences are neither selected into
-this administrative repository nor serialized. No management capability,
-restriction or mutation UI is included.
+this administrative repository nor serialized. Current row/relationship hints
+are not permission: every administrative command rechecks live authority.
 
 `context.search` identifies matcher `public-text-name-uuid-v1` and
 `legacyNumericReferences:unavailable`. The supported predicate is literal
@@ -218,17 +220,114 @@ cannot rescue stale page membership. Concurrent source writers can therefore
 produce a retryable `ERRAND_UNAVAILABLE` page rather than stale disclosure. Optional
 count failure alone preserves a valid page. No final owner row-lock wait is added.
 
+## Administrative mutations and recorded history (E2B)
+
+All administrative commands start with the exclusive common Safety gate before
+session, grant, request, target and notice locks. Reads use its shared entry.
+Every transaction explicitly uses READ COMMITTED. Ordinary contention is bounded;
+no shared-to-exclusive upgrade or external I/O is introduced.
+
+- `POST /v1/admin/errands/:orderId/delete`: `clientRequestId`, `expectedRevision`,
+  optional `deleteReason` (default empty), optional `publisherRestriction`
+  (default null). Duration is `{kind:permanent}` or
+  `{kind:finite,unit:hours|days,value:positive safe integer}`. Finite ends use
+  authoritative database time and reject overflow; UI presets are not a 365-day
+  backend ceiling. Deletion reason permits 0–500 Unicode code points; combined
+  publisher restriction requires the same reason to contain 1–255 code points.
+- `POST /v1/admin/errands/:orderId/restrict-accepter`: `clientRequestId`,
+  `expectedRevision`, `reason` (1–255 code points), `duration`. Only an undeleted
+  accepted/completed order with its stored accepter qualifies. The result retains
+  the exact order revision and has an administrative event, not a lifecycle edge.
+- `GET /v1/admin/errand-requests/:requestId`: owned scoped administrative receipt.
+  These operations reuse the E1 actor/request-key collision boundary but have
+  separate strict operation/intent domains. The E1 receipt endpoint excludes them.
+- Global-only `POST /v1/admin/errand-restrictions`: `clientRequestId`,
+  `targetProfileId`, `action:publish|accept|all`, `reason`, `duration`.
+- Global-only `POST /v1/admin/errand-restrictions/:restrictionId/release`:
+  `clientRequestId`, `reason`. It releases exactly one still-active immutable
+  restriction ID. Releasing `all` does not release an independent publish fact.
+- `GET /v1/admin/errand-restriction-requests/:requestId`: owned global receipt.
+- Global-only `GET /v1/admin/errand-restrictions`: `targetProfileId?`, `action?`,
+  `state:all|active|released|expired|superseded` (default all), bounded limit and
+  opaque cursor. `GET /v1/admin/errand-restrictions/:restrictionId/history` uses
+  bounded limit/cursor for causal events. School administrators have no standalone
+  issue, global history or release permission, including restrictions they issued.
+
+School issue authority is the exact order target; its resulting feature effect
+is account-wide across every region. Administrative deletion preserves prior
+lifecycle, completion timestamps and internal participant relationships. Self
+administrative deletion is rejected with `ERRAND_USE_OWNER_COMMAND`; native routes
+it to E1 with no sanction/deletion notice. A currently authorized publisher-admin
+may independently restrict the other stored accepter of accepted/completed work.
+No administrative permission grants contacts or participant-private text.
+
+New restrictions protect any active unrevoked school-admin, super-admin or
+developer target, including unrelated/inactive target management regions. Positive
+actor authority remains separate. After deferred constraints and all blocking
+work, Authorization obtains a final `SHARE NOWAIT` role-grant fence and rereads
+bounded facts using exact PostgreSQL timestamps. It retains the earliest future
+activation as a conservatively floored deadline. It assumes no cooperating raw
+role-grant writer. Contention/new protection rolls back the entire command,
+including optional deletion; the same key stays retryable. Delete-only and manual
+release do not require the subject to be unprotected. Promotion never fabricates
+an automatic release of an existing restriction.
+
+A restriction requires a complete accepted coherent current effective baseline.
+No administrative action seeds a missing baseline, renews its independent coverage
+expiry or fabricates old audit. Immutable relational definitions/events retain
+unbounded recorded history; only the effective snapshot is bounded to 256 facts.
+An unrepresentable active set fails unavailable and rolls back, rather than
+truncating baseline facts. Same-action replacement records explicit supersession;
+finite expiration is derived exactly from its end with no cleanup job or expiry
+notice. Later complete snapshot adoption must retain local effects and exact
+terminal causes rather than omit or resurrect them.
+
+`historyCoverage:unknown_before_boundary` remains explicit even with complete
+current enforcement coverage. `recordedTotal` counts only the recorded definition
+corpus, as a canonical decimal or unavailable. It is not complete source history.
+An `observed_baseline` event records the actual observation time and unknown
+original operator; it is never invented past issuance. A known historical release
+without a local event uses `terminal:{kind:baseline_released,effectiveAt}` and
+makes no claim about its operator or reason. Baseline terms remain unchanged.
+
+History keysets preserve microseconds. Cursors bind current actor/session/grant,
+filters/limit, five-minute lifetime, causal source version and the earliest
+relevant future end before state filtering. Thus an active fact entering an
+initially empty expired set invalidates its old result even without a write.
+Recorded-source changes restart continuation. A bounded optional scalar count
+runs under the shared owner gate; timeout means unavailable, never zero. Mutable
+Profile display has its own mandatory final NOWAIT reread proof.
+
+Scoped applied receipts retain six fields: request/operation/outcome/order/
+revision/occurrence time. Global receipts use restriction/event IDs instead of
+order/revision. Both require fresh current management authority on replay/lookup,
+without redoing committed effects or rechecking the subject's past eligibility.
+Reasons/private bodies are absent. New native journals freeze one account+origin
+intent/key before sending; unknown transport outcomes recover that exact key.
+Close/Back/account/scope changes invalidate display without falsely cancelling a
+possibly committed command.
+
+Notifications retain accepted/completed variants and add `admin_deleted`,
+`feature_restricted`, `feature_released`. Deletion reason remains locally readable
+when detail is hidden. Safety-event notices use their own table; a common immutable
+identity registry ensures unambiguous IDs across the feed. All notices commit with
+their causal event and exact recipient; retries cannot duplicate them. Shared
+owner read/unread methods use microsecond keysets and monotonic read markers.
+Release wording identifies the released restriction rather than promising every
+feature action is available.
+
 ## Explicit remaining parity
 
-Full E2 remains open. E2A covers read-only exact-target/global historical search;
-E2B still requires administrative deletion, protected-target sanctions,
-expiration/release/history controls, durable notices and native mutation/recovery. The E1 core
-already consumes separate typed feature restrictions; absent coverage is unavailable.
+E2A/E2B provide bounded historical management and text-only administrative
+mutations with local notices. Their implementation does not complete E3–E5 or
+prove deployment permissions, real administrative use, complete historical audit
+or native-device acceptance. See the acceptance record for passed versus pending
+gates. Missing current feature coverage remains unavailable.
 
 E3: public/private images, owned uploads, exact asset review and authorized delivery,
 re-review/removal and interruption recovery. Empty media is explicit in E1.
 
-E4: further local administrative/restriction notices, target-region QR/customer
+E4: target-region QR/customer
 service preferences, short links, per-destination durable errand-group then
 still-pending forum-group delivery and provider/scheduler acceptance.
 

@@ -26,12 +26,12 @@ export class ErrandAccessService {
     private readonly authorization: AuthorizationService,
     @Inject(SafetyErrandFacade) private readonly safety: SafetyErrandFacade,
   ) {}
-  async authenticate(token: string, tx: PoolClient) {
-    await lockSafetyPolicy(tx);
+  async authenticate(token: string, tx: PoolClient, write = false) {
+    await lockSafetyPolicy(tx, write);
     return this.identity.session(token, tx);
   }
-  async common(token: string, tx: PoolClient) {
-    const session = await this.authenticate(token, tx);
+  async common(token: string, tx: PoolClient, write = false) {
+    const session = await this.authenticate(token, tx, write);
     const phone = await this.phones.resolve(session.accountId, tx);
     if (phone.status === 'unverified')
       throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');

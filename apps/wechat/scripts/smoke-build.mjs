@@ -1,3 +1,5 @@
+import { smokeErrandAdminNotices } from './smoke-errand-admin-notices.mjs';
+import { smokeErrandAdminMutations } from './smoke-errand-admin-mutations.mjs';
 import { smokeErrandAdmin } from './smoke-errand-admin.mjs';
 import { smokeErrands } from './smoke-errands.mjs';
 import { smokeActivities } from './smoke-activities.mjs';
@@ -1833,6 +1835,8 @@ await smokeViewReporting({
 });
 await smokeErrands({ app, dist, flush: flushTrading });
 await smokeErrandAdmin({ app, dist, flush: flushTrading });
+await smokeErrandAdminMutations({ app, dist, flush: flushTrading });
+await smokeErrandAdminNotices({ app, dist, flush: flushTrading });
 await smokeActivities({ app, dist, flush: flushTrading });
 await smokeAnnouncements({
   app,

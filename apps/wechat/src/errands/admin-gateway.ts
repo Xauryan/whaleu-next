@@ -19,7 +19,7 @@ export interface ErrandAdminGateway {
     limit?: number,
   ): Promise<ErrandAdminPage>;
 }
-/** Isolated read-only surface: no administrative mutation transport exists in E2A. */
+/** Public-only E2A browsing transport; administrative commands use a separate strict gateway. */
 export class HttpErrandAdminGateway implements ErrandAdminGateway {
   constructor(private readonly api: ApiClient) {}
   authorization(cancel: Cancellation): Promise<Authorization> {

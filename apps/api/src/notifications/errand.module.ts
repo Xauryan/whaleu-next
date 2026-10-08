@@ -61,7 +61,7 @@ export class ErrandNoticesController {
   @ApiOperation({
     operationId: 'listErrandNotices',
     description:
-      'Durable private-free accepted/completed local notices; retains outcome even after order hides. Detail always reauthorizes.',
+      'Durable owner-only accepted/completed, administrative deletion and feature restriction/release local notices. Deletion reasons remain readable after order hiding; only participant notices navigate to freshly authorized detail.',
   })
   @ApiOkResponse({
     standardSchema: errandNoticesPageSchema,

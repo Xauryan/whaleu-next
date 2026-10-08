@@ -18,7 +18,8 @@ export interface OptionalTransactionProof {
 }
 const optionalProofs = new WeakMap<PoolClient, OptionalTransactionProof[]>();
 
-/** An owner opts a managed read into one bounded, set-oriented mandatory proof.
+/** An owner opts a managed read or tentative mutation into one bounded,
+ * set-oriented mandatory proof. A failed proof rolls back all tentative writes.
  * Facts are append-only and immutable; rollback prunes facts and their dedupe
  * keys together. Owner validators may fence NOWAIT and read, never mutate data. */
 export interface RequiredTransactionProof<T> {

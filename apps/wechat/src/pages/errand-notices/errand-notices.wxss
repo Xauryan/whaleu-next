@@ -1,1 +1,8 @@
 @import '../../errands/errands.wxss';
+.notice-reason {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.notice-reference {
+  word-break: break-all;
+}

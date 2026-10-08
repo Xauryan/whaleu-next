@@ -7,6 +7,7 @@ import { IdentityService } from '../identity/identity.service.js';
 import { AuthorizationRepository } from './authorization.repository.js';
 import { capabilitiesFromGrants, canManageRegion } from './contracts.js';
 import type { ActiveGrant, AuthorizationCapabilities } from './contracts.js';
+import { requireUnprotectedErrandTarget } from './errand-target-protection.js';
 
 @Injectable()
 export class AuthorizationService {
@@ -105,6 +106,23 @@ export class AuthorizationService {
     );
     if (!grant) throw new ApplicationError('AUTHORIZATION_REQUIRED');
     return this.retainSelected(grant, transaction);
+  }
+
+  /** Standalone errand restriction management has no school-scoped variant. */
+  async requireGlobalErrandManagement(
+    accountId: string,
+    tx: PoolClient,
+  ): Promise<ActiveGrant> {
+    const grant = this.selectedGlobal(await this.grants(accountId, tx));
+    if (!grant) throw new ApplicationError('AUTHORIZATION_REQUIRED');
+    return this.retainSelected(grant, tx);
+  }
+
+  requireUnprotectedErrandTarget(
+    subjectId: string,
+    tx: PoolClient,
+  ): Promise<void> {
+    return requireUnprotectedErrandTarget(subjectId, tx);
   }
 
   async requireRegionManagement(

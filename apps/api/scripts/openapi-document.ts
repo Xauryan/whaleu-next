@@ -393,6 +393,12 @@ export async function renderActivitiesOpenApiDocument(): Promise<string> {
 
 /** Tooling-only errand controllers. Never execute application or provider work. */
 export async function createErrandsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { ErrandAdminCommandController } =
+    await import('../src/errands/admin-command-controller.js');
+  const { ErrandAdminCommandService } =
+    await import('../src/errands/admin-command-service.js');
+  const { ErrandRestrictionService } =
+    await import('../src/errands/restriction-service.js');
   const { ErrandAdminController } =
     await import('../src/errands/admin-controller.js');
   const { ErrandAdminService } =
@@ -435,10 +441,13 @@ export async function createErrandsOpenApiDocument(): Promise<OpenAPIObject> {
       ErrandsController,
       ErrandNoticesController,
       ErrandAdminController,
+      ErrandAdminCommandController,
     ],
     providers: [
       { provide: ErrandsService, useValue: {} },
       { provide: ErrandAdminService, useValue: {} },
+      { provide: ErrandAdminCommandService, useValue: {} },
+      { provide: ErrandRestrictionService, useValue: {} },
       { provide: ErrandNoticesService, useValue: {} },
     ],
   })

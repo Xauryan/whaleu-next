@@ -1,10 +1,13 @@
+<import src="../../errands/admin-command.wxml" />
 <view class="screen">
-  <view class="title">跑腿管理浏览</view>
-  <view class="notice">当前提供公开订单和历史状态的只读浏览。管理范围由服务端核验。</view>
+  <view class="title">跑腿管理</view>
+  <view class="notice">管理公开订单与历史状态。管理权限绑定订单目标地区，由服务端每次核验。</view>
   <view class="status" aria-role="status">{{status}}</view>
   <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">重新核验权限与列表</button>
+  <button bindtap="onRefresh" disabled="{{busy || adminCommand.busy}}" loading="{{busy}}">重新核验权限与列表</button>
   <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+  <template is="errand-admin-command" data="{{command:adminCommand,durationLabels,actionLabels,actionOptions}}" />
+  <navigator wx:if="{{access === 'global'}}" class="link" url="/pages/errand-restrictions/errand-restrictions">全局跑腿限制、历史与解除 →</navigator>
   <view wx:if="{{access === 'fixed'}}" class="card">
     <view class="section-title">固定管理地区</view>
     <view class="body">{{regionLabel || '地区名称暂不可用'}}</view>
@@ -14,14 +17,14 @@
   <view wx:if="{{access === 'global'}}" class="card">
     <view class="section-title">选择管理目标地区</view>
     <input value="{{regionInput}}" bindinput="onRegion" bindconfirm="onSelectRegion" placeholder="填写目标地区 UUID 编号" maxlength="36" />
-    <button bindtap="onSelectRegion" disabled="{{busy}}">核验并查看此地区</button>
+    <button bindtap="onSelectRegion" disabled="{{busy || adminCommand.busy}}">核验并查看此地区</button>
     <view wx:if="{{regionId}}" class="meta">当前地区：{{regionLabel || '地区名称暂不可用'}} · {{regionId}}</view>
     <view class="notice">可填写保留的历史地区编号；目标能否查看由本次服务端授权决定。</view>
   </view>
   <view wx:if="{{(access === 'fixed' || access === 'global') &amp;&amp; regionId}}" class="card">
     <view class="section-title">查询订单</view>
     <input value="{{keywordDraft}}" bindinput="onKeyword" bindconfirm="onSearch" placeholder="标题、公开描述、公开昵称或完整公开资料 UUID" maxlength="200" />
-    <button bindtap="onSearch" disabled="{{busy}}">查询</button>
+    <button bindtap="onSearch" disabled="{{busy || adminCommand.busy}}">查询</button>
     <view class="chips"><button wx:for="{{statusOptions}}" wx:key="value" class="chip {{filter === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="onStatus">{{item.label}}</button></view>
     <view class="meta">当前条件：{{statusLabels[filter]}}{{keyword ? ' · ' + keyword : ''}}</view>
     <view class="notice">历史订单不设三天期限。全部包含已删除记录；生命周期筛选不包含已删除记录。</view>
@@ -51,12 +54,18 @@
       <view wx:if="{{item.acceptedAt}}" class="meta">接单：{{item.acceptedAt}}</view>
       <view wx:if="{{item.completedAt}}" class="meta">完成：{{item.completedAt}}</view>
       <view wx:if="{{item.cancelledAt}}" class="meta">取消：{{item.cancelledAt}}</view>
-      <view wx:if="{{item.deletedAt}}" class="meta">删除：{{item.deletedAt}} · 删除原因资料暂不可用</view>
+      <view wx:if="{{item.deletedAt}}" class="meta">删除：{{item.deletedAt}}</view>
+      <view wx:if="{{item.deletionReason}}" class="body">{{item.deletionReason.status === 'provided' ? '删除原因：' + item.deletionReason.value : item.deletionReason.status === 'not_provided' ? '删除时未填写原因' : '删除原因资料暂不可用'}}</view>
+      <view wx:if="{{!item.deletedAt}}">
+        <button wx:if="{{item.relation === 'publisher'}}" data-id="{{item.id}}" bindtap="onOwnerOrder" disabled="{{busy || adminCommand.busy}}">按发布者流程管理自己的订单</button>
+        <button wx:else data-id="{{item.id}}" bindtap="onAdminDelete" disabled="{{busy || adminCommand.busy || adminCommand.frozen}}">管理删除订单</button>
+        <button wx:if="{{item.accepter &amp;&amp; (item.state === 'accepted' || item.state === 'completed')}}" data-id="{{item.id}}" bindtap="onAdminRestrictAccepter" disabled="{{busy || adminCommand.busy || adminCommand.frozen}}">限制此订单接单者</button>
+      </view>
     </view>
     <view wx:if="{{!items.length &amp;&amp; continuation === 'more'}}" class="empty">本批没有匹配项，扫描尚未结束，请继续查找。</view>
     <view wx:if="{{!items.length &amp;&amp; continuation === 'end'}}" class="empty">本页没有匹配项，已到本次查询末尾。</view>
     <view class="meta">第 {{pageNumber}} 页{{continuation === 'end' ? ' · 已到末尾' : ''}}</view>
-    <button wx:if="{{canPrevious}}" bindtap="onPrevious" disabled="{{busy}}">上一页（重新读取）</button>
-    <button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页（继续查找）</button>
+    <button wx:if="{{canPrevious}}" bindtap="onPrevious" disabled="{{busy || adminCommand.busy}}">上一页（重新读取）</button>
+    <button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy || adminCommand.busy}}">下一页（继续查找）</button>
   </view>
 </view>

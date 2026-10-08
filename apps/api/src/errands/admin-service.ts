@@ -184,7 +184,13 @@ export class ErrandAdminService {
         completedAt: row.completed_at?.toISOString() ?? null,
         cancelledAt: row.cancelled_at?.toISOString() ?? null,
         deletedAt: row.deleted_at?.toISOString() ?? null,
-        deletionReason: row.deleted_at ? { status: 'unavailable' } : null,
+        deletionReason: !row.deleted_at
+          ? null
+          : row.deletion_reason === null
+            ? { status: 'unavailable' }
+            : row.deletion_reason === ''
+              ? { status: 'not_provided' }
+              : { status: 'provided', value: row.deletion_reason },
         publisher,
         accepter,
         relation:

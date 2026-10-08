@@ -10,13 +10,8 @@ import {
 import type { CommunityRuntime } from '../community/runtime';
 import type { Cancellation } from '../platform/contracts';
 import { errandCursor, errandId, invalidErrand } from './contract';
-export interface ErrandNotice {
-  readonly noticeId: string;
-  readonly kind: 'accepted' | 'completed';
-  readonly orderId: string;
-  readonly createdAt: string;
-  readonly readAt: string | null;
-}
+import { decodeErrandNotice, type ErrandNotice } from './admin-notice-contract';
+export { decodeErrandNotice, type ErrandNotice } from './admin-notice-contract';
 export interface ErrandNoticesPage {
   readonly items: readonly ErrandNotice[];
   readonly nextCursor: string | null;
@@ -32,24 +27,6 @@ const count = (value: unknown): value is number =>
   Number.isSafeInteger(value) &&
   value >= 0 &&
   value <= 2147483647;
-export function decodeErrandNotice(value: unknown): ErrandNotice {
-  exact(value, ['noticeId', 'kind', 'orderId', 'createdAt', 'readAt']);
-  if (
-    !errandId(value.noticeId) ||
-    !errandId(value.orderId) ||
-    !['accepted', 'completed'].includes(String(value.kind)) ||
-    !activityTimestamp(value.createdAt) ||
-    !(value.readAt === null || activityTimestamp(value.readAt))
-  )
-    invalidErrand();
-  return Object.freeze({
-    noticeId: value.noticeId,
-    kind: value.kind as 'accepted' | 'completed',
-    orderId: value.orderId,
-    createdAt: value.createdAt,
-    readAt: value.readAt,
-  });
-}
 export function decodeErrandNoticesPage(value: unknown): ErrandNoticesPage {
   exact(value, ['items', 'nextCursor', 'unreadCount']);
   if (
@@ -315,7 +292,7 @@ export class ErrandNoticesController extends CommunityController<ErrandNoticesVi
   orderPath(noticeId: string): string | null {
     if (!this.view.loaded || this.view.busy || !this.accountId()) return null;
     const item = this.view.items.find((row) => row.noticeId === noticeId);
-    return item
+    return item && (item.kind === 'accepted' || item.kind === 'completed')
       ? `/pages/errand-detail/errand-detail?orderId=${item.orderId}`
       : null;
   }

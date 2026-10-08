@@ -43,6 +43,11 @@ export function responseError(response: HttpResponse): ClientError | null {
     ...(requestId ? { requestId } : {}),
   };
   const expectedStatus: Readonly<Record<string, number>> = {
+    ERRAND_USE_OWNER_COMMAND: 409,
+    ERRAND_RESTRICTION_TARGET_PROTECTED: 403,
+    ERRAND_RESTRICTION_TARGET_NOT_FOUND: 404,
+    ERRAND_RESTRICTION_NOT_FOUND: 404,
+    ERRAND_RESTRICTION_NOT_ACTIVE: 409,
     AUTHENTICATION_REQUIRED: 401,
     ACCESS_TOKEN_EXPIRED: 401,
     SESSION_REVOKED: 401,

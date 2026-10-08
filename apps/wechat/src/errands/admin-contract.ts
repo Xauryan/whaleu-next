@@ -46,6 +46,24 @@ export type ErrandAdminRegion =
       readonly active: boolean;
     }
   | { readonly id: string; readonly status: 'unavailable' };
+export type ErrandAdminDeletionReason =
+  | { readonly status: 'unavailable' | 'not_provided' }
+  | { readonly status: 'provided'; readonly value: string };
+export function decodeErrandAdminDeletionReason(
+  value: unknown,
+): ErrandAdminDeletionReason {
+  if (!isRecord(value)) invalidErrand();
+  if (value.status === 'provided') {
+    exact(value, ['status', 'value']);
+    const text = canonicalErrandText(value.value, 500);
+    if (text !== value.value) invalidErrand();
+    return Object.freeze({ status: 'provided', value: text });
+  }
+  exact(value, ['status']);
+  if (value.status !== 'unavailable' && value.status !== 'not_provided')
+    invalidErrand();
+  return Object.freeze({ status: value.status });
+}
 export interface ErrandAdminOrder {
   readonly id: string;
   readonly revision: string;
@@ -60,7 +78,7 @@ export interface ErrandAdminOrder {
   readonly completedAt: string | null;
   readonly cancelledAt: string | null;
   readonly deletedAt: string | null;
-  readonly deletionReason: { readonly status: 'unavailable' } | null;
+  readonly deletionReason: ErrandAdminDeletionReason | null;
   readonly publisher: ErrandAdminParticipant;
   readonly accepter: ErrandAdminParticipant | null;
   readonly relation: 'publisher' | 'accepter' | 'none';
@@ -114,7 +132,9 @@ export function decodeErrandAdminQuery(value: unknown): ErrandAdminQuery {
     keyword: canonicalErrandAdminKeyword(value.keyword),
   });
 }
-function participant(value: unknown): ErrandAdminParticipant {
+export function decodeErrandAdminParticipant(
+  value: unknown,
+): ErrandAdminParticipant {
   if (!isRecord(value)) invalidErrand();
   if (value.status === 'unavailable') {
     exact(value, ['status']);
@@ -238,8 +258,7 @@ export function decodeErrandAdminOrder(value: unknown): ErrandAdminOrder {
   if (value.deletedAt === null) {
     if (value.deletionReason !== null) invalidErrand();
   } else {
-    exact(value.deletionReason, ['status']);
-    if (value.deletionReason.status !== 'unavailable') invalidErrand();
+    decodeErrandAdminDeletionReason(value.deletionReason);
   }
   const reward = exactErrandReward(value.reward);
   if (reward !== value.reward) invalidErrand();
@@ -260,9 +279,12 @@ export function decodeErrandAdminOrder(value: unknown): ErrandAdminOrder {
     deletionReason:
       value.deletedAt === null
         ? null
-        : Object.freeze({ status: 'unavailable' }),
-    publisher: participant(value.publisher),
-    accepter: value.accepter === null ? null : participant(value.accepter),
+        : decodeErrandAdminDeletionReason(value.deletionReason),
+    publisher: decodeErrandAdminParticipant(value.publisher),
+    accepter:
+      value.accepter === null
+        ? null
+        : decodeErrandAdminParticipant(value.accepter),
     relation: value.relation as ErrandAdminOrder['relation'],
     sourceRegion: region(value.sourceRegion),
     targetRegion: region(value.targetRegion),

@@ -1,4 +1,4 @@
-# Errands E1/E2A acceptance status
+# Errands E1/E2A/E2B acceptance status
 
 This increment is text-only and PARTIAL. See [API contract](../API_ERRANDS.md) and
 [feature parity](../FEATURE_PARITY.md). No production issuer, real-provider call,
@@ -183,3 +183,114 @@ No administrative mutation/capability, ban, restriction issue/release/history,
 notice writer, external provider or production action is present in E2A. E2B and
 all E3–E5 limitations remain open. Legacy numeric UID mapping is unavailable;
 public UUIDs are not aliases for internal account IDs.
+
+### E2A hosted verification
+
+Verified SSH-signed commit `7536756156dbf225a05e3a4bc8a0b837e84f6636` passed
+[GitHub Actions run 37846874412](https://github.com/Xauryan/whaleu-next/actions/runs/37846874412),
+job 113549816152. Actual logs confirm 5 statistics, 735 API, 1,082 native and 1,242
+PostgreSQL tests: 3,064 passed with zero failures/skips/cancellations. PostgreSQL
+took 1,162.369387767 seconds. Seven OpenAPI checks, full check/format, emitted
+administration-page smoke and container/network deletion passed. All 1,068
+published source files and seven OpenAPI artifacts match the tested freeze.
+[Automatic statistics publication](https://github.com/Xauryan/whaleu-next/actions/runs/37846874522)
+also succeeded; the live SVG matches the exact commit. This verifies E2A only;
+E2B mutations and all remaining provider/device/import gates stay separate.
+
+## Frozen complete local gate (E2B)
+
+Validated 2026-10-08 against base commit
+`7536756156dbf225a05e3a4bc8a0b837e84f6636` plus this E2B increment.
+Independent focused review found no remaining material blocker before the final
+freeze. The final native verification used the same DTOs and unchanged source.
+
+- Frozen source/config/test files: 1,115; source-manifest SHA-256
+  `dedbf399877cd742b8691478eb348b417c25be5e10d78c0699a5e69ba4ea9471`
+- Seven generated OpenAPI artifacts, independently frozen; manifest SHA-256
+  `58807bc2520fb800c9384694667e1a4c6d23aa5f47aea0ffc581f6b71f1aa984`
+- Complete `npm run check`: exit 0, 22:43:01–22:44:10 UTC, including lint, strict
+  types, all seven OpenAPI drift checks, unit tests, builds and emitted native
+  WXML/gateway smokes
+- Complete `npm run format:check`: exit 0, 22:44:10–22:44:24 UTC
+- Unit totals: 5 root statistics + 758 API + 1,125 native = 1,888 passed
+- Required real-cloc integration: 1/1 passed separately at 22:44:25 UTC using the
+  existing checksum-verified cloc 2.10; no install or dependency change
+- Complete serialized `npm run test:integration`: 1,305 passed,
+  22:44:26–22:59:33 UTC, duration 907.276981379 seconds
+- Main combined denominator: 3,193 passed, zero failures/skips/cancellations.
+  The separate cloc test and focused development runs are not counted again.
+- PostgreSQL 18.6 (`180006`), isolated disposable loopback `whaleu_test`, actual
+  launch-only `max_connections=100`; zero application schemas before and after
+- Final runner/gate exit 0 at 22:59:34 UTC; server stopped, PID absent and exclusive
+  runner lock released; persistent PostgreSQL configuration unchanged
+- All 1,115 source files and all seven OpenAPI artifacts match the same freeze
+  before, during and after the full gate. Whitespace checks pass.
+
+### E2B implementation and focused evidence
+
+Scoped deletion retains the original lifecycle and completion history. Optional
+publisher restriction is atomic with deletion, audit, materialization, notices
+and receipt. Restricting an accepter leaves the order revision unchanged and does
+not manufacture a lifecycle transition. Exact school/global authority is distinct
+from the resulting account-wide feature effect; global history/release remain
+global-only. Own deletion uses E1, while a publisher-admin may independently
+restrict another accepter under current exact-target authority.
+
+The 106-test affected PostgreSQL regression passed before the full freeze,
+including ordinary AppModule HTTP and actual native gateways. It covered:
+
+- Direct, noncooperating role-grant writers before/during/after the final NOWAIT
+  fence, future activation, selected-grant expiry, insufficient lock privilege,
+  unchanged target-row locks and bounded target-account/Safety inversion
+- Combined-command rollback after late role changes, expiry, notice faults and
+  receipt faults; original-key recovery with no partial lifecycle/ledger/notice
+  effects; multiple managers and competing E1 acceptance/cancellation
+- Immutable request/intent/event/transition/materialization/notice linkage;
+  wrong target/action/reason/duration, missing obligations, stale/late predecessor
+  claims and later sanctions appended to an old delete-only request are rejected
+- Unknown historical audit independent of current effective coverage; baseline
+  terms and release times retained; no invented operator or past issuance;
+  independent actions, exact release, supersession and derived expiration
+- 256 effective-fact capacity fails closed without truncation, while 257 recorded
+  definitions remain pageable. Missing/conflicting/future/currently expired
+  coverage cannot be reset or renewed by an administrative action.
+- Legacy baseline UTF-16 acceptance remains unchanged. New 255-code-point local
+  reasons, including astral characters, require real local definition and
+  materialization evidence; mixed snapshots immediately enforce through E1.
+  Copying a known restriction UUID to another subject fails unavailable.
+- Exact PostgreSQL microsecond effectiveness and scheduled-role deadlines.
+  Deterministic one-microsecond probes explicitly substitute the database instant
+  in the actual owner query; separate races and ordinary HTTP use unmodified
+  clocks. These probes are not claims of wall-clock scheduling precision.
+- Expired filters initially returning zero still retain the upcoming active end
+  as a deadline. Profile display changes fail final proof; changed public-reference
+  ownership or committed source versions restart opaque continuation. Independent
+  raw event writers cannot hide committed changes using an overridden sequence;
+  rolled-back events do not create a visible source version.
+- Original-session cleanup followed by freshly authorized receipt recovery;
+  actual native issue/list/history/release/replay/receipt and baseline-release
+  decoding; all five durable notice variants, monotonic read/unread and hidden
+  order-detail recovery without private participant fields
+
+### Development failures retained and corrected
+
+Focused attempts before the final freeze were not all green. The record retains
+an initial runner PATH failure before tests, a PL/pgSQL CASE syntax error, an SQL
+alias/record-variable ambiguity and invalid synthetic fixture fields. Later
+focused tests exposed existing-local Unicode facts being checked as new baseline
+inserts before `ON CONFLICT`, unrelated copied baseline identities interfering
+with known-ID release, and a stale Profile-bound cursor returning a generic error
+instead of explicit restart. Each was corrected and its affected paths rerun.
+No lock/proof constraint was disabled, legacy baseline acceptance was not widened,
+and the final complete gate used one unchanged source freeze.
+
+### Remaining acceptance boundaries
+
+This closes the bounded text-only E2B implementation and local verification. It
+is not complete errand parity or production readiness. E3 media, E4 external/group/
+QR/help delivery, E5 authoritative migration, complete historical identity/audit
+reconciliation and real-device/provider acceptance remain open. No production
+account data, real grants/restrictions/deletions, provider calls or dependency
+changes were used. Deployment must separately verify the actual application
+role's final table-lock privileges; no persistent privilege expansion was made.
+Hosted CI for this E2B publication commit remains separate from this local gate.

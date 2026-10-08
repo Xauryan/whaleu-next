@@ -3,6 +3,26 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  ERRAND_USE_OWNER_COMMAND: {
+    status: 409,
+    message: 'Use the publisher command for your own errand',
+  },
+  ERRAND_RESTRICTION_TARGET_PROTECTED: {
+    status: 403,
+    message: 'This target cannot receive an errand restriction',
+  },
+  ERRAND_RESTRICTION_TARGET_NOT_FOUND: {
+    status: 404,
+    message: 'Restriction target is unavailable',
+  },
+  ERRAND_RESTRICTION_NOT_FOUND: {
+    status: 404,
+    message: 'Restriction is unavailable',
+  },
+  ERRAND_RESTRICTION_NOT_ACTIVE: {
+    status: 409,
+    message: 'Restriction is no longer active',
+  },
   ERRAND_UNAVAILABLE: { status: 503, message: 'Errands are unavailable' },
   ERRAND_MEDIA_UNAVAILABLE: {
     status: 503,

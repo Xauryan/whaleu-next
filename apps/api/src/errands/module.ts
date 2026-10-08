@@ -1,3 +1,7 @@
+import { ErrandAdminCommandController } from './admin-command-controller.js';
+import { ErrandAdminCommandService } from './admin-command-service.js';
+import { ErrandRestrictionService } from './restriction-service.js';
+import { SafetyErrandManagementModule } from '../safety/errand-management/module.js';
 import { ErrandAdminController } from './admin-controller.js';
 import { ErrandAdminService } from './admin-service.js';
 import { ErrandAdminRepository } from './admin-repository.js';
@@ -21,6 +25,7 @@ import { ErrandRequests } from './requests.js';
 @Module({
   imports: [
     DatabaseModule,
+    SafetyErrandManagementModule,
     IdentityModule,
     VerificationModule,
     AuthorizationModule,
@@ -32,8 +37,14 @@ import { ErrandRequests } from './requests.js';
     ErrandNotificationsModule,
     ErrandRequestThrottlingModule,
   ],
-  controllers: [ErrandsController, ErrandAdminController],
+  controllers: [
+    ErrandsController,
+    ErrandAdminController,
+    ErrandAdminCommandController,
+  ],
   providers: [
+    ErrandAdminCommandService,
+    ErrandRestrictionService,
     ErrandAdminService,
     ErrandAdminRepository,
     ErrandsService,

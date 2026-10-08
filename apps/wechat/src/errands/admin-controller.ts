@@ -20,6 +20,10 @@ import {
   type ErrandAdminTotal,
 } from './admin-contract';
 import { errandId, invalidErrand } from './contract';
+import {
+  errandAdminAuthority,
+  type ErrandAdminAuthority,
+} from './admin-authority';
 
 export interface ErrandAdminRoute {
   readonly regionId?: string;
@@ -109,6 +113,7 @@ export class ErrandAdminController extends CommunityController<ErrandAdminView> 
   private route: ErrandAdminRoute = {};
   private inactive = false;
   private authorizationKey: string | null = null;
+  private currentAuthorization: Authorization | null = null;
   private nextCursor: string | null = null;
   private cursors: (string | null)[] = [null];
   private pageIndex = 0;
@@ -161,6 +166,7 @@ export class ErrandAdminController extends CommunityController<ErrandAdminView> 
   protected override resetPrivate(): void {
     this.route = {};
     this.authorizationKey = null;
+    this.currentAuthorization = null;
     this.resetPaging();
   }
   protected override onSafetyInvalidated(): void {
@@ -209,6 +215,7 @@ export class ErrandAdminController extends CommunityController<ErrandAdminView> 
   }
   async reload(): Promise<void> {
     this.authorizationKey = null;
+    this.currentAuthorization = null;
     this.resetPaging();
     await this.read(null, 0);
   }
@@ -254,6 +261,7 @@ export class ErrandAdminController extends CommunityController<ErrandAdminView> 
       },
       ({ auth, page, regionId }) => {
         this.authorizationKey = fingerprint(auth);
+        this.currentAuthorization = auth;
         const access =
           auth.role === 'member'
             ? 'denied'
@@ -315,6 +323,7 @@ export class ErrandAdminController extends CommunityController<ErrandAdminView> 
       (error) => {
         this.clearBody();
         this.authorizationKey = null;
+        this.currentAuthorization = null;
         this.resetPaging();
         this.update({
           access: 'unknown',
@@ -385,6 +394,39 @@ export class ErrandAdminController extends CommunityController<ErrandAdminView> 
     this.update({ keyword: '', keywordDraft: '', filter: 'all' });
     await this.read(null, 0);
   }
+  commandContext(orderId: string): {
+    readonly authority: ErrandAdminAuthority;
+    readonly order: ErrandAdminOrder;
+  } | null {
+    if (
+      this.inactive ||
+      this.view.busy ||
+      !this.view.loaded ||
+      !this.accountId() ||
+      !this.currentAuthorization
+    )
+      return null;
+    const order = this.view.items.find((item) => item.id === orderId);
+    if (
+      !order ||
+      order.deletedAt !== null ||
+      order.targetRegion.id !== this.view.regionId
+    )
+      return null;
+    return {
+      authority: errandAdminAuthority(
+        this.currentAuthorization,
+        order.targetRegion.id,
+      ),
+      order,
+    };
+  }
+  ownerOrderPath(orderId: string): string | null {
+    const context = this.commandContext(orderId);
+    return context?.order.relation === 'publisher'
+      ? `/pages/errand-detail/errand-detail?orderId=${context.order.id}`
+      : null;
+  }
   async next(): Promise<void> {
     if (!this.view.busy && this.view.loaded && this.nextCursor)
       await this.read(this.nextCursor, this.pageIndex + 1);
@@ -396,6 +438,7 @@ export class ErrandAdminController extends CommunityController<ErrandAdminView> 
   override cancel(): void {
     this.clearBody();
     this.authorizationKey = null;
+    this.currentAuthorization = null;
     this.resetPaging();
     this.update({
       access: 'unknown',
