@@ -77,3 +77,11 @@ exports query parameters individually, the disjoint space/scope selector and
 cross-field restrictions remain explicit runtime union rules and operation prose.
 The schema shows lightweight hits, original-text segments, exact-time navigation,
 effective types and safe errors; it exposes no PostView or private cursor data.
+
+## Activities
+
+`docs/openapi/activities.json` is generated from the required-auth activity
+controllers and strict Zod schemas. It covers current member context, list/detail,
+opaque first-page replay and continuation, and owner visit receipts. The offline
+metadata build and drift checks are part of the existing root commands. See
+[Activities](API_ACTIVITIES.md) for selection, replay and deferred parity boundaries.

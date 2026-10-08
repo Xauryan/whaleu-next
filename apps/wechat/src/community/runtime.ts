@@ -1,4 +1,9 @@
 import {
+  HttpActivitiesGateway,
+  type ActivitiesGateway,
+} from '../activities/gateway';
+import { PendingActivityVisitStore } from '../activities/pending';
+import {
   HttpAnnouncementsGateway,
   type AnnouncementsGateway,
 } from '../announcements/gateway';
@@ -46,6 +51,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly activities?: ActivitiesGateway;
+  readonly pendingActivityVisits?: PendingActivityVisitStore;
   readonly announcements?: AnnouncementsGateway;
   readonly browsingScopeChanges?: PrivateViewLifecycle;
   readonly hot?: HotGateway;
@@ -88,6 +95,10 @@ export function createCommunityRuntime(
   const browsingScopeChanges = new PrivateViewLifecycle();
   const runtime: CommunityRuntime = {
     sessions: identity.sessions,
+    ...(identity.api
+      ? { activities: new HttpActivitiesGateway(identity.api) }
+      : {}),
+    pendingActivityVisits: new PendingActivityVisitStore(storage, origin),
     browsingScopeChanges,
     ...(identity.api
       ? { announcements: new HttpAnnouncementsGateway(identity.api) }

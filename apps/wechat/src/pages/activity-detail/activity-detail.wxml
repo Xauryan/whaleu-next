@@ -1,0 +1,17 @@
+<import src="../../activities/facts.wxml" />
+<view class="screen">
+  <view class="title">活动详情</view>
+  <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录 →</navigator>
+  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">重新核验活动</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+  <view wx:if="{{loaded &amp;&amp; detail}}" class="card">
+    <view class="subtitle exact">{{detail.title}}</view>
+    <template is="activity-facts" data="{{item:detail}}" />
+    <view class="label">活动时间</view><text class="exact">{{detail.activityTime === null ? '活动时间资料未确认' : detail.activityTime}}</text>
+    <view class="label">活动地点</view><text class="exact">{{detail.activityLocation === null ? '活动地点资料未确认' : detail.activityLocation}}</text>
+    <view class="label">活动介绍</view><text class="exact">{{detail.bodyText}}</text>
+    <view class="media-state">{{detail.gallery.status === 'known_empty' ? '无介绍图片' : '介绍图片暂不可用，尚不能确认是否有图片'}}</view>
+    <view class="media-state">{{detail.organizerQr.status === 'absent' ? '无主办方二维码' : '主办方二维码暂不可用'}}</view>
+  </view>
+</view>

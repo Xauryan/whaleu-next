@@ -272,3 +272,12 @@ controller and native Zod schema metadata through a separate TypeScript tooling
 build. The exporter does not start AppModule, PostgreSQL, jobs or HTTP routes.
 Only the two view-reporting operations are covered. See [contract tooling and
 installation policy](../../docs/OPENAPI.md).
+
+### Activity member read and visit slice
+
+[Activity API](../../docs/API_ACTIVITIES.md) and
+[generated OpenAPI](../../docs/openapi/activities.json) cover authenticated
+identity-home list/detail, source-backed entry selection, opaque replay/continuation
+and immutable global owner visit receipts. Profile still owns activity reminder
+preferences. Migration 0036 is empty canonical storage; no issuer, import,
+creation/media/admin/provider, enrollment or badge functionality is implied.

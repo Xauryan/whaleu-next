@@ -1,3 +1,4 @@
+import { ActivitiesModule } from './activities/module.js';
 import { AnnouncementsModule } from './announcements/module.js';
 import { HotFeedRunnerModule } from './community/hot-score/runner.js';
 import { DirectoryModule } from './organizations/directory/module.js';
@@ -56,6 +57,7 @@ export class AppModule {
         CommunityModule,
         DirectoryModule,
         AnnouncementsModule,
+        ActivitiesModule,
         SafetyModule,
         NotificationsModule,
         IdentityPrivacyModule,

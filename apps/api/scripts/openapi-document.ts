@@ -328,3 +328,65 @@ export async function createSearchOpenApiDocument(): Promise<OpenAPIObject> {
 export async function renderSearchOpenApiDocument(): Promise<string> {
   return renderDocument(await createSearchOpenApiDocument());
 }
+
+/** Tooling-only activity controllers. No application, database or provider work. */
+export async function createActivitiesOpenApiDocument(): Promise<OpenAPIObject> {
+  const { ActivitiesController } =
+    await import('../src/activities/controller.js');
+  const { ActivitiesService } = await import('../src/activities/service.js');
+  const { ActivityRequestGuard } =
+    await import('../src/request-throttling/activity-request.guard.js');
+  for (const method of ['context', 'list', 'detail', 'visit'])
+    if (
+      !Reflect.hasMetadata(
+        PARAMTYPES_METADATA,
+        ActivitiesController.prototype,
+        method,
+      )
+    )
+      throw new Error(
+        'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+      );
+  const fail = () => {
+    throw new Error('OpenAPI must not execute application work');
+  };
+  const testing = await Test.createTestingModule({
+    controllers: [ActivitiesController],
+    providers: [
+      {
+        provide: ActivitiesService,
+        useValue: { context: fail, list: fail, detail: fail, visit: fail },
+      },
+    ],
+  })
+    .overrideGuard(ActivityRequestGuard)
+    .useValue({ canActivate: fail })
+    .compile();
+  const app = testing.createNestApplication({ logger: false });
+  try {
+    return SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setOpenAPIVersion('3.0.3')
+        .setTitle('WhaleU activities')
+        .setVersion('1')
+        .addSecurity('accessToken', {
+          type: 'http',
+          scheme: 'bearer',
+          description:
+            'Current opaque WhaleU access token required for every route.',
+        })
+        .build(),
+      {
+        deepScanRoutes: false,
+        autoTagControllers: false,
+        excludeDynamicDefaults: true,
+      },
+    );
+  } finally {
+    await app.close();
+  }
+}
+export async function renderActivitiesOpenApiDocument(): Promise<string> {
+  return renderDocument(await createActivitiesOpenApiDocument());
+}

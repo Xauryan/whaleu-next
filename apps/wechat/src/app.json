@@ -25,7 +25,9 @@
     "pages/directory-list/directory-list",
     "pages/directory-detail/directory-detail",
     "pages/announcements/announcements",
-    "pages/announcement-detail/announcement-detail"
+    "pages/announcement-detail/announcement-detail",
+    "pages/activity-list/activity-list",
+    "pages/activity-detail/activity-detail"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

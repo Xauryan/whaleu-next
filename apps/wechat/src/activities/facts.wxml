@@ -1,0 +1,6 @@
+<template name="activity-facts">
+  <view class="meta">主办方：<text class="exact">{{item.organizerLabel}}</text></view>
+  <view class="meta">{{item.reward.status === 'known' ? (item.reward.value ? '有奖励' : '无奖励') : '奖励信息未确认'}} · {{item.online.status === 'known' ? (item.online.value === 'online' ? '线上活动' : '线下活动') : '线上／线下未确认'}}</view>
+  <view class="meta">{{item.createdAt.status === 'known' ? '发布时间：' + item.createdAt.value : '发布时间暂不可用'}}</view>
+  <view class="media-state">{{item.cover.status === 'absent' ? '无封面' : '封面暂不可用'}} · {{item.organizerAvatar.status === 'absent' ? '无主办方头像' : '主办方头像暂不可用'}}</view>
+</template>

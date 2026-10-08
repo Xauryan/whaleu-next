@@ -1,3 +1,4 @@
+import { renderActivitiesOpenApiDocument } from './openapi-document.js';
 import { renderAnnouncementsOpenApiDocument } from './openapi-document.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import {
@@ -120,4 +121,25 @@ if (args[0] === '--check') {
 } else {
   await writeFile(searchArtifact, searchRendered, 'utf8');
   console.log('Generated docs/openapi/community-search.json.');
+}
+
+const activitiesArtifact = new URL(
+  '../../../../docs/openapi/activities.json',
+  import.meta.url,
+);
+const activitiesRendered = await renderActivitiesOpenApiDocument();
+if (args[0] === '--check') {
+  const existing = await readFile(activitiesArtifact, 'utf8').catch(() => {
+    throw new Error(
+      'Activities OpenAPI artifact missing; run npm run openapi:generate.',
+    );
+  });
+  if (existing !== activitiesRendered)
+    throw new Error(
+      'Activities OpenAPI artifact is stale; run npm run openapi:generate.',
+    );
+  console.log('Activities OpenAPI artifact is current.');
+} else {
+  await writeFile(activitiesArtifact, activitiesRendered, 'utf8');
+  console.log('Generated docs/openapi/activities.json.');
 }

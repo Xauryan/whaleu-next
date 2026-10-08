@@ -130,3 +130,14 @@ explicit approval, the expected call gained only a fifth `undefined`, preserving
 all original actor/purpose/client values and complete call-count assertions.
 After 97/97 focused regressions and an independent 20/20 named-visibility rerun,
 the freeze was refreshed and the entire aggregate passed. Production behavior was not changed.
+
+## Hosted verification
+
+Verified SSH-signed commit `2ae0113fae5913280b86aae70668c011fc0575dd` passed
+[GitHub Actions run 37822191364](https://github.com/Xauryan/whaleu-next/actions/runs/37822191364),
+job 113465779953. Actual logs confirm 5 statistics, 685 API, 914 native and 1,151
+PostgreSQL tests: 2,755 passed with zero failures/skips/cancellations. PostgreSQL
+took 868.438460016 seconds. Root check, formatting and container/network cleanup
+passed. All 937 published source files and five OpenAPI artifacts match the freeze.
+[Automatic statistics publication](https://github.com/Xauryan/whaleu-next/actions/runs/37822191271)
+also succeeded; the served SVG displays the exact committed SHA.

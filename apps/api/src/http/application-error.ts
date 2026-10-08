@@ -3,6 +3,24 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  ACTIVITY_UNAVAILABLE: { status: 503, message: 'Activities are unavailable' },
+  ACTIVITY_ENTRY_SELECTION_UNAVAILABLE: {
+    status: 503,
+    message: 'Activity entry selection is unavailable; choose all activities',
+  },
+  ACTIVITY_SCOPE_UNAVAILABLE: {
+    status: 403,
+    message: 'Activity scope is unavailable',
+  },
+  ACTIVITY_NOT_FOUND: { status: 404, message: 'Activity is unavailable' },
+  ACTIVITY_REVISION_CHANGED: {
+    status: 409,
+    message: 'Activity catalog changed; refresh before recording a visit',
+  },
+  ACTIVITY_VISIT_CONFLICT: {
+    status: 409,
+    message: 'Activity visit request conflicts',
+  },
   ANNOUNCEMENTS_UNAVAILABLE: {
     status: 503,
     message: 'Announcements are unavailable',

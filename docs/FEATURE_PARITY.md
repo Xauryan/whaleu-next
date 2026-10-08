@@ -26,7 +26,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 ## Community, errands and reviews
 
 - [ ] PARTIAL — Groups/official accounts: category list/search, details, application and approval, image/QR presentation, editing, owners/managers, administrator add/remove/transfer and my groups
-- [ ] NOT IMPLEMENTED — Activities: list/detail, organizer/group selection, create with images/time/location, my activities, subscriptions, last-view/new-activity indicators and school permission rules
+- [ ] PARTIAL — Activities: current member-scoped list/detail, source-backed entry selection, successful-entry visit receipt and existing Profile reminder preference UI are implemented. Organizer/group authority, creation, media/QR, own activity history/lifecycle, scoped administration, dormant newness/badges, provider delivery, schema/data preservation and trusted import/cutover, physical devices and other platforms remain open
 - [ ] NOT IMPLEMENTED — Errands: publish/list/detail, region and contact fields, my published/accepted orders, accept/cancel/delete/complete, legal state transitions, publisher/accepter private information and administrator restrictions
 - [ ] NOT IMPLEMENTED — Ratings: categories/tree/subcategories, targets and random selection, score submission/statistics, own score, comments/replies, likes, subscriptions and authorized deletions
 - [ ] NOT IMPLEMENTED — Rating administration: category/target create/edit/delete, per-school visibility/permissions/order/overrides, batch subcategory maintenance, system categories, image and description assistance
@@ -460,3 +460,12 @@ heat. Default processing remains disabled. Related distribution, historical
 coverage, auxiliary home/search hot widgets, production load/activation and device
 acceptance remain open. See [scope](unified-public-hot-feed.md) and
 [local acceptance](acceptance/unified-hot-feed.md).
+
+Activities now have a locally accepted first vertical slice: current member-scoped
+list/detail, source-backed entry selection, successful-entry visit receipt and
+existing Profile reminder preference UI. Creation, organizers, media/QR, own
+history/lifecycle, administration, dormant badges/newness, provider delivery,
+source preservation and trusted import/cutover, physical devices and other
+platforms remain open. See [scope](API_ACTIVITIES.md) and
+[local acceptance](acceptance/activities.md). The whole activity feature remains
+PARTIAL; no production-ready or full-parity claim is made.

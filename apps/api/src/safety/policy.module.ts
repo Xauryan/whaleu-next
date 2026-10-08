@@ -1,3 +1,4 @@
+import { SafetyActivityReadFacade } from './activity-read.facade.js';
 import { SafetyAnnouncementReadFacade } from './announcement-read.facade.js';
 import { SafetyDirectoryReadFacade } from './directory-read.facade.js';
 import { Module } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { SafetyContentVisibilityFacade } from './content-visibility.facade.js';
   providers: [
     SafetyRepository,
     SafetyDirectoryReadFacade,
+    SafetyActivityReadFacade,
     SafetyAnnouncementReadFacade,
     NamedBlockVisibility,
     ProfileVisibilityFacade,
@@ -25,6 +27,7 @@ import { SafetyContentVisibilityFacade } from './content-visibility.facade.js';
   exports: [
     SafetyRepository,
     SafetyDirectoryReadFacade,
+    SafetyActivityReadFacade,
     SafetyAnnouncementReadFacade,
     NamedBlockVisibility,
     ProfileVisibilityFacade,

@@ -1,0 +1,35 @@
+<import src="../../activities/facts.wxml" />
+<view class="screen">
+  <view class="title">校园活动</view>
+  <view class="notice">按当前身份校区核验访问权限；浏览校园选择不会授予活动访问权限。</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录 →</navigator>
+  <navigator class="link" url="/pages/identity-campus/identity-campus">身份校区 →</navigator>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">{{restartRequired ? '重新开始浏览' : '重新加载活动'}}</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+  <button wx:if="{{window !== 'all'}}" bindtap="onAll" disabled="{{busy}}">查看全部活动</button>
+  <view wx:if="{{loaded}}" class="notice">{{selectionMessage}}</view>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">当前已核验范围内没有活动。</view>
+  <view wx:for="{{items}}" wx:key="id" class="card">
+    <view class="subtitle exact">{{item.title}}</view>
+    <template is="activity-facts" data="{{item:item}}" />
+    <button data-id="{{item.id}}" bindtap="onActivity" disabled="{{busy}}">查看活动详情</button>
+  </view>
+  <view wx:if="{{loaded}}" class="meta">第 {{pageNumber}} 页</view>
+  <button wx:if="{{canPrevious}}" bindtap="onPrevious" disabled="{{busy}}">上一页（重新核验）</button>
+  <button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button>
+  <view class="card">
+    <view class="meta">{{visit.status}}</view><view wx:if="{{visit.error}}" class="error">{{visit.error}}</view>
+    <button wx:if="{{visit.pending}}" bindtap="onVisitRetry" disabled="{{visit.busy}}" loading="{{visit.busy}}">重试原访问记录</button>
+    <view class="meta">访问记录仅表示进入活动中心，不表示逐项阅读。</view>
+  </view>
+  <view class="card">
+    <view class="subtitle">活动提醒偏好</view>
+    <view class="notice">仅保存提醒选择，消息投递尚未接入。</view>
+    <switch wx:if="{{preference.loaded}}" checked="{{preference.checked}}" disabled="{{preference.busy || preference.needsReload}}" bindchange="onPreference" />
+    <view class="meta">{{preference.status}}</view><view wx:if="{{preference.error}}" class="error">{{preference.error}}</view>
+    <button wx:if="{{preference.dirty &amp;&amp; !preference.needsReload}}" bindtap="onPreferenceSave" disabled="{{preference.busy}}">保存提醒偏好</button>
+    <button bindtap="onPreferenceReload" disabled="{{preference.busy}}">重新加载提醒偏好</button>
+  </view>
+</view>

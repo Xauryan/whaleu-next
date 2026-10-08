@@ -1,3 +1,4 @@
+import { smokeActivities } from './smoke-activities.mjs';
 import { smokeAnnouncements } from './smoke-announcements.mjs';
 import { smokeDirectory } from './smoke-directory.mjs';
 import { smokeViewReporting } from './smoke-view-reporting.mjs';
@@ -93,14 +94,18 @@ for (const route of config.pages.filter(
   current.setData = (data) => {
     current.data = { ...current.data, ...data };
   };
-  current.onLoad?.({
-    postId: '66666666-6666-4666-8666-666666666666',
-    spaceId: '55555555-5555-4555-8555-555555555555',
-    category: 'discussion',
-    ...(route.endsWith('community-thread')
-      ? { rootCommentId: '88888888-8888-4888-8888-888888888888' }
-      : {}),
-  });
+  current.onLoad?.(
+    route === 'pages/activity-list/activity-list'
+      ? {}
+      : {
+          postId: '66666666-6666-4666-8666-666666666666',
+          spaceId: '55555555-5555-4555-8555-555555555555',
+          category: 'discussion',
+          ...(route.endsWith('community-thread')
+            ? { rootCommentId: '88888888-8888-4888-8888-888888888888' }
+            : {}),
+        },
+  );
   current.onShow();
   assert.equal(current.data.loaded, false);
   assert.ok(current.data.error);
@@ -1824,6 +1829,7 @@ await smokeViewReporting({
   flush: flushTrading,
   postWire: pollPostWire,
 });
+await smokeActivities({ app, dist, flush: flushTrading });
 await smokeAnnouncements({
   app,
   dist,
