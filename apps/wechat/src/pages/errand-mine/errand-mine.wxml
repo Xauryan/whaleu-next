@@ -1,0 +1,12 @@
+<import src="../../errands/common.wxml" />
+<view class="screen"><navigator class="link" url="/pages/errand-notices/errand-notices">跑腿接单与完成通知 →</navigator><view class="title">我的跑腿</view>
+  <navigator class="link" url="/pages/errand-list/errand-list">返回跑腿发现 →</navigator>
+  <view class="notice">包含所有地区、时间与状态的本人订单，已删除订单不显示。无需重新选择身份校区。</view>
+  <button data-field="relation" data-value="published" bindtap="onChoice" disabled="{{busy}}">我发布的</button>
+  <button data-field="relation" data-value="accepted" bindtap="onChoice" disabled="{{busy}}">我接取的</button>
+  <view class="section-title">{{relation === 'published' ? '我发布的' : '我接取的'}}</view>
+  <template is="errand-status" data="{{status,error,receiptStatus,frozen,recoveryOperation,busy,confirmedOrderId}}" />
+  <view wx:for="{{items}}" wx:key="id" class="card"><template is="errand-summary" data="{{order:item,errandStateLabels}}" /><button data-id="{{item.id}}" bindtap="onOrder" disabled="{{busy}}">查看当前详情</button></view>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">当前没有此类订单</view>
+  <button wx:if="{{canMore}}" bindtap="onMore" disabled="{{busy}}">加载更多</button>
+</view>

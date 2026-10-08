@@ -4,6 +4,7 @@
  * that suite has claimed ownership. Keep suite-specific fixture schemas local.
  */
 export const migrationSchemaNames = [
+  'whaleu_errands',
   'whaleu_activities',
   'whaleu_announcements',
   'whaleu_organizations',

@@ -1,0 +1,33 @@
+<template name="errand-status">
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{receiptStatus}}" class="notice">{{receiptStatus}}</view>
+  <view wx:if="{{frozen}}" class="card recovery">
+    <view class="section-title">原{{recoveryOperation}}请求待确认</view>
+    <view>保留原编号与原内容。未查到回执也不能换编号重发。</view>
+    <button bindtap="onRecover" disabled="{{busy}}">查询原回执</button>
+    <button bindtap="onRetry" disabled="{{busy}}">重试完全相同的请求</button>
+  </view>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+  <button class="secondary" bindtap="onRefresh" disabled="{{busy}}">重新加载</button>
+  <button wx:if="{{confirmedOrderId}}" data-id="{{confirmedOrderId}}" bindtap="onOrder" disabled="{{busy}}">重新查看已确认订单</button>
+</template>
+<template name="errand-campus">
+  <view class="card"><view class="section-title">目标校园</view>
+    <view class="meta">{{regionLabel || '请选择目标校园'}}。其他地区也可发布；非本地区发现列表只显示自己的订单。</view>
+    <input value="{{campusQuery}}" bindinput="onCampusQuery" bindconfirm="onCampusSearch" maxlength="100" placeholder="搜索目标学校或校区" disabled="{{busy || frozen}}" />
+    <button bindtap="onCampusSearch" disabled="{{busy || frozen || !configured}}">搜索校园</button>
+    <button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bindtap="onCampus" disabled="{{busy || frozen || !item.isActive}}">{{item.fullName}}{{item.isActive ? '' : '（不可用）'}}</button>
+  </view>
+</template>
+<template name="errand-summary">
+  <view class="section-title">{{order.title}}</view>
+  <view class="badge">{{errandStateLabels[order.state]}}</view>
+  <view class="body">{{order.publicText}}</view>
+  <view>报酬 {{order.reward}} 元</view><view>期望时间：{{order.expectedTimeText}}</view>
+  <view class="meta">目标：{{order.targetRegion.label}} · 来源：{{order.sourceRegion.label}} · {{order.scope === 'home' ? '本地区' : order.scope === 'related' ? '关联地区' : '跨地区'}}</view>
+  <view class="meta">发布于 {{order.createdAt}}</view>
+  <view wx:if="{{order.acceptedAt}}" class="meta">接单于 {{order.acceptedAt}}</view>
+  <view wx:if="{{order.completedAt}}" class="meta">完成于 {{order.completedAt}}</view>
+  <view wx:if="{{order.cancelledAt}}" class="meta">取消于 {{order.cancelledAt}}</view>
+</template>

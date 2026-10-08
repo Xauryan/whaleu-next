@@ -1,3 +1,4 @@
+import { SafetyErrandFacade } from './errand.facade.js';
 import { SafetyActivityReadFacade } from './activity-read.facade.js';
 import { SafetyAnnouncementReadFacade } from './announcement-read.facade.js';
 import { SafetyDirectoryReadFacade } from './directory-read.facade.js';
@@ -12,6 +13,7 @@ import { SafetyContentVisibilityFacade } from './content-visibility.facade.js';
 @Module({
   imports: [ContentReviewModule],
   providers: [
+    SafetyErrandFacade,
     SafetyRepository,
     SafetyDirectoryReadFacade,
     SafetyActivityReadFacade,
@@ -25,6 +27,7 @@ import { SafetyContentVisibilityFacade } from './content-visibility.facade.js';
     },
   ],
   exports: [
+    SafetyErrandFacade,
     SafetyRepository,
     SafetyDirectoryReadFacade,
     SafetyActivityReadFacade,

@@ -1,4 +1,10 @@
 import {
+  HttpErrandNoticesGateway,
+  type ErrandNoticesGateway,
+} from '../errands/notices';
+import { HttpErrandsGateway, type ErrandsGateway } from '../errands/gateway';
+import { PendingErrandStore } from '../errands/pending';
+import {
   HttpActivitiesGateway,
   type ActivitiesGateway,
 } from '../activities/gateway';
@@ -51,6 +57,9 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly errands?: ErrandsGateway;
+  readonly errandNotices?: ErrandNoticesGateway;
+  readonly pendingErrands?: PendingErrandStore;
   readonly activities?: ActivitiesGateway;
   readonly pendingActivityVisits?: PendingActivityVisitStore;
   readonly announcements?: AnnouncementsGateway;
@@ -95,6 +104,11 @@ export function createCommunityRuntime(
   const browsingScopeChanges = new PrivateViewLifecycle();
   const runtime: CommunityRuntime = {
     sessions: identity.sessions,
+    ...(identity.api
+      ? { errandNotices: new HttpErrandNoticesGateway(identity.api) }
+      : {}),
+    ...(identity.api ? { errands: new HttpErrandsGateway(identity.api) } : {}),
+    pendingErrands: new PendingErrandStore(storage, origin),
     ...(identity.api
       ? { activities: new HttpActivitiesGateway(identity.api) }
       : {}),

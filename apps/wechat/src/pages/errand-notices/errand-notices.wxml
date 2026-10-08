@@ -1,0 +1,9 @@
+<view class="screen"><view class="title">跑腿通知</view>
+  <navigator class="link" url="/pages/errand-mine/errand-mine">我的订单 →</navigator>
+  <view class="notice">当前为本地接单与完成通知。打开订单会重新核验当前状态；通知不含私密说明或联系方式。</view>
+  <view class="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
+  <view wx:if="{{loaded}}">未读 {{unreadCount}}</view>
+  <button bindtap="onRefresh" disabled="{{busy}}">刷新通知</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+  <view wx:for="{{items}}" wx:key="noticeId" class="card"><view class="section-title">{{item.kind === 'accepted' ? '你发布的跑腿已有人接单' : '你接取的跑腿已由发布者确认完成'}}</view><view>{{item.createdAt}}</view><view>{{item.readAt ? '已读' : '未读'}}</view><button data-id="{{item.noticeId}}" bindtap="onOrder" disabled="{{busy}}">查看订单当前状态</button><button wx:if="{{!item.readAt}}" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy}}">标记此条已读</button></view>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">暂无跑腿通知</view><button wx:if="{{canMore}}" bindtap="onMore" disabled="{{busy}}">加载更多</button>
+</view>

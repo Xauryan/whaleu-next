@@ -1,0 +1,18 @@
+<import src="../../errands/common.wxml" />
+<view class="screen"><view class="title">发布文字跑腿</view>
+  <view class="notice">公开信息供符合条件的读者查看。私密说明仅供你和最终接单者查看，结束后双方仍可查看；对方联系方式仅在订单进行中显示。这里不会进行线上付款。</view>
+  <template is="errand-campus" data="{{regionLabel,campusQuery,campuses,busy,frozen,configured}}" />
+  <template is="errand-status" data="{{status,error,receiptStatus,frozen,recoveryOperation,busy,confirmedOrderId}}" />
+  <view wx:if="{{loaded &amp;&amp; !frozen}}" class="card">
+    <view>标题（最多50字）</view><input data-field="title" value="{{form.title}}" bindinput="onForm" maxlength="-1" disabled="{{busy}}" />
+    <view>公开描述（最多500字）</view><textarea data-field="publicText" value="{{form.publicText}}" bindinput="onForm" maxlength="-1" disabled="{{busy}}" />
+    <view>私密说明（选填，最多200字）</view><textarea data-field="privateText" value="{{form.privateText}}" bindinput="onForm" maxlength="-1" disabled="{{busy}}" />
+    <view>期望时间（最多50字，自由文字）</view><input data-field="expectedTimeText" value="{{form.expectedTimeText}}" bindinput="onForm" maxlength="-1" disabled="{{busy}}" placeholder="例如：今晚八点前" />
+    <view>报酬（1–500元）</view><input data-field="reward" value="{{form.reward}}" bindinput="onForm" maxlength="101" disabled="{{busy}}" placeholder="精确十进制金额，不自动四舍五入" />
+    <view>你的微信（必填，最多50字）</view><input data-field="wechat" value="{{form.wechat}}" bindinput="onForm" maxlength="-1" disabled="{{busy}}" />
+    <view>你的电话（必填，最多11位数字）</view><input data-field="phone" value="{{form.phone}}" bindinput="onForm" maxlength="11" type="number" disabled="{{busy}}" />
+    <button bindtap="onPublisherContacts" disabled="{{busy}}">使用此账号上次成功发布的联系方式</button>
+    <view class="notice">联系方式由你自行填写，不代表已通过手机号认证。发布与接单仍需服务端核验账号权限和内容审核。图片上传尚未接入。</view>
+    <button bindtap="onPublish" disabled="{{busy || !regionId}}" loading="{{busy}}">确认发布文字订单</button>
+  </view>
+</view>

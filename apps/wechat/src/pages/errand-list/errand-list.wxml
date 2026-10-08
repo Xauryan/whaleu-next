@@ -1,0 +1,22 @@
+<import src="../../errands/common.wxml" />
+<view class="screen"><navigator class="link" url="/pages/errand-notices/errand-notices">跑腿接单与完成通知 →</navigator><view class="title">校园跑腿</view>
+  <navigator class="link" url="/pages/errand-mine/errand-mine">我的发布、接单与结果恢复 →</navigator>
+  <template is="errand-campus" data="{{regionLabel,campusQuery,campuses,busy,frozen,configured}}" />
+  <view class="chips">
+    <button data-field="filter" data-value="all" bindtap="onChoice" disabled="{{busy}}">全部待接单与进行中</button>
+    <button data-field="filter" data-value="pending" bindtap="onChoice" disabled="{{busy}}">只看待接单</button>
+    <button data-field="sort" data-value="created" bindtap="onChoice" disabled="{{busy}}">按发布时间</button>
+    <button data-field="sort" data-value="reward" bindtap="onChoice" disabled="{{busy}}">按报酬</button>
+    <button data-field="direction" data-value="desc" bindtap="onChoice" disabled="{{busy}}">降序</button>
+    <button data-field="direction" data-value="asc" bindtap="onChoice" disabled="{{busy}}">升序</button>
+  </view>
+  <view class="meta">{{filter === 'pending' ? '只看待接单' : '待接单与进行中'}} · {{sort === 'reward' ? '按报酬' : '按发布时间'}} · {{direction === 'asc' ? '升序' : '降序'}}</view>
+  <view wx:if="{{discoveryMode === 'own_only'}}" class="notice">正在浏览其他地区，仅显示自己最近三天的订单。可通过分享链接查看或接取跨地区订单。</view>
+  <view wx:if="{{discoveryMode === 'home'}}" class="notice">本地区最近三天的订单。三天只限制发现列表，不代表订单自动过期。</view>
+  <template is="errand-status" data="{{status,error,receiptStatus,frozen,recoveryOperation,busy,confirmedOrderId}}" />
+  <button wx:if="{{regionId}}" bindtap="onCompose" disabled="{{busy || frozen}}">在此地区发布文字跑腿</button>
+  <view wx:for="{{items}}" wx:key="id" class="card"><template is="errand-summary" data="{{order:item,errandStateLabels}}" /><button data-id="{{item.id}}" bindtap="onOrder" disabled="{{busy}}">查看订单</button></view>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">当前已核验范围内没有订单</view>
+  <button wx:if="{{canMore}}" bindtap="onMore" disabled="{{busy}}">加载更多</button>
+  <view class="notice">当前支持文字订单，图片发布暂不可用。外部群投递、管理功能与真实设备验收仍待完成。</view>
+</view>

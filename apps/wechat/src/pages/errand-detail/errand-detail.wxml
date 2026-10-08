@@ -1,0 +1,29 @@
+<import src="../../errands/common.wxml" />
+<view class="screen"><view class="title">跑腿详情</view>
+  <navigator class="link" url="/pages/errand-mine/errand-mine">我的订单与结果恢复 →</navigator>
+  <template is="errand-status" data="{{status,error,receiptStatus,frozen,recoveryOperation,busy,confirmedOrderId}}" />
+  <view wx:if="{{loaded &amp;&amp; detail}}">
+    <view class="card"><template is="errand-summary" data="{{order:detail,errandStateLabels}}" /><view class="meta">{{detail.relation === 'publisher' ? '我是发布者' : detail.relation === 'accepter' ? '我是接单者' : '尚未参与此订单'}}</view></view>
+    <view wx:if="{{detail.relation !== 'none'}}" class="card private"><view class="section-title">双方私密说明</view><view class="body">{{detail.privateText || '发布者未填写私密说明'}}</view><view class="meta">已结束订单仍向原参与双方保留此说明。</view></view>
+    <view wx:if="{{detail.state === 'accepted' &amp;&amp; detail.relation !== 'none' &amp;&amp; detail.oppositeContact}}" class="card private"><view class="section-title">{{detail.relation === 'publisher' ? '接单者' : '发布者'}}联系方式</view><view>{{detail.oppositeContact.display.status === 'available' ? detail.oppositeContact.display.displayName : '对方展示名称暂不可用'}}</view><view wx:if="{{detail.oppositeContact.contacts.wechat}}">微信：{{detail.oppositeContact.contacts.wechat}}</view><view wx:if="{{detail.oppositeContact.contacts.phone}}">电话：{{detail.oppositeContact.contacts.phone}}</view><view class="meta">对方为此订单填写的联系方式，不代表已认证；结束后隐藏。</view></view>
+    <view wx:if="{{detail.relation !== 'none' &amp;&amp; detail.state !== 'accepted'}}" class="notice">当前状态不显示对方联系方式。</view>
+    <button wx:if="{{detail.capabilities.accept}}" bindtap="onAccept" disabled="{{busy || frozen}}">接取此订单</button>
+    <button wx:if="{{detail.capabilities.cancel}}" data-action="cancel" bindtap="onConfirm" disabled="{{busy || frozen}}">取消订单</button>
+    <button wx:if="{{detail.capabilities.complete}}" data-action="complete" bindtap="onConfirm" disabled="{{busy || frozen}}">确认完成</button>
+    <button wx:if="{{detail.capabilities.delete}}" data-action="delete" bindtap="onConfirm" disabled="{{busy || frozen}}">删除订单</button>
+    <view wx:if="{{detail.relation === 'accepter'}}" class="notice">只有发布者可以取消或确认完成，请先与发布者沟通。</view>
+  </view>
+  <view wx:if="{{acceptModal}}" class="modal-mask"><view class="modal">
+    <view class="section-title">确认接单与联系方式</view><view class="notice">至少填写一种联系方式。接单后只有发布者可以取消或确认完成；请确认自己能够履约。</view>
+    <view>{{historyStatus}}</view><button bindtap="onToggleLast" disabled="{{busy}}">{{useLast ? '不使用上次信息并清空' : '使用上次成功接单信息'}}</button>
+    <input data-field="wechat" value="{{contacts.wechat}}" bindinput="onContact" maxlength="-1" placeholder="微信，最多50字" disabled="{{busy || frozen}}" />
+    <input data-field="phone" value="{{contacts.phone}}" bindinput="onContact" type="number" maxlength="11" placeholder="电话，最多11位数字" disabled="{{busy || frozen}}" />
+    <button bindtap="onConfirmAccept" disabled="{{busy || frozen}}">确认接单</button><button bindtap="onCloseAccept">关闭并清空</button>
+  </view></view>
+  <view wx:if="{{confirmAction}}" class="card private"><view class="section-title">{{confirmAction === 'cancel' ? '确认取消订单？' : confirmAction === 'complete' ? '确认订单已完成？' : '确认删除订单？'}}</view>
+    <view wx:if="{{confirmAction === 'cancel' &amp;&amp; detail &amp;&amp; detail.state === 'accepted'}}">已有接单者，请先与对方协商。取消后双方不再显示对方联系方式。</view>
+    <view wx:if="{{confirmAction === 'complete'}}">请确认工作已经完成。完成后隐藏双方联系方式，不产生线上付款。</view>
+    <view wx:if="{{confirmAction === 'delete'}}">删除后订单与私密说明将不再显示；历史状态和审计记录仍保留。</view>
+    <button bindtap="onConfirmCommand" disabled="{{busy || frozen}}">确认{{confirmAction === 'cancel' ? '取消' : confirmAction === 'complete' ? '完成' : '删除'}}</button><button bindtap="onDismiss" disabled="{{busy}}">返回</button>
+  </view>
+</view>

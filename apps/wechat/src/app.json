@@ -27,7 +27,12 @@
     "pages/announcements/announcements",
     "pages/announcement-detail/announcement-detail",
     "pages/activity-list/activity-list",
-    "pages/activity-detail/activity-detail"
+    "pages/activity-detail/activity-detail",
+    "pages/errand-list/errand-list",
+    "pages/errand-mine/errand-mine",
+    "pages/errand-detail/errand-detail",
+    "pages/errand-compose/errand-compose",
+    "pages/errand-notices/errand-notices"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

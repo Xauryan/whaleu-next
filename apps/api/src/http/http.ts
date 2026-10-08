@@ -78,7 +78,11 @@ export function configureHttp(app: INestApplication): void {
     response.setHeader('cache-control', 'no-store');
     // Announcement parser failures occur before guards; keep optional-auth
     // cache separation on these error responses too.
-    if (/^\/v1\/(?:me\/)?announcements(?:\/|$)/.test(request.path))
+    if (
+      /^\/v1\/(?:me\/)?(?:announcements|errands|errand-notices|errand-requests)(?:\/|$)/.test(
+        request.path,
+      )
+    )
       response.vary('Authorization');
     response.once('finish', () => {
       logger.structured.info({

@@ -117,3 +117,16 @@ access or operation is certified here. No commit, push, hosted activity CI or
 production deployment was performed by this local gate. The complete activities
 feature is not finished. See [API scope](../API_ACTIVITIES.md) and
 [feature parity](../FEATURE_PARITY.md).
+
+## Hosted verification
+
+Verified SSH-signed commit `ad438a304a452da90aee7de1c7ca26616533eec1` passed
+[GitHub Actions run 37829890284](https://github.com/Xauryan/whaleu-next/actions/runs/37829890284),
+job 113492196412. Actual logs confirm 5 statistics, 693 API, 930 native and 1,199
+PostgreSQL tests: 2,827 passed with zero failures/skips/cancellations. PostgreSQL
+took 1,114.525087966 seconds. Root check, formatting, emitted activity smoke and
+container/network cleanup passed. All 977 published source files and six OpenAPI
+artifacts match the tested freeze.
+[Automatic statistics publication](https://github.com/Xauryan/whaleu-next/actions/runs/37829890289)
+also succeeded, with the exact committed SHA in the served SVG. Activity parity
+remains partial; no device, provider, source-import or production acceptance is implied.

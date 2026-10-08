@@ -1,3 +1,4 @@
+import { ErrandsModule } from './errands/module.js';
 import { ActivitiesModule } from './activities/module.js';
 import { AnnouncementsModule } from './announcements/module.js';
 import { HotFeedRunnerModule } from './community/hot-score/runner.js';
@@ -58,6 +59,7 @@ export class AppModule {
         DirectoryModule,
         AnnouncementsModule,
         ActivitiesModule,
+        ErrandsModule,
         SafetyModule,
         NotificationsModule,
         IdentityPrivacyModule,

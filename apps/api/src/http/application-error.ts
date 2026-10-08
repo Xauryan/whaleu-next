@@ -3,6 +3,29 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  ERRAND_UNAVAILABLE: { status: 503, message: 'Errands are unavailable' },
+  ERRAND_MEDIA_UNAVAILABLE: {
+    status: 503,
+    message: 'Errand media is not supported in this text-only slice',
+  },
+  ERRAND_NOT_FOUND: { status: 404, message: 'Errand is unavailable' },
+  ERRAND_REVISION_CONFLICT: {
+    status: 409,
+    message: 'Errand changed; refresh before continuing',
+  },
+  ERRAND_STATE_CONFLICT: {
+    status: 409,
+    message: 'Errand transition is not permitted',
+  },
+  ERRAND_ACTION_RESTRICTED: {
+    status: 403,
+    message: 'Errand action is restricted',
+  },
+  ERRAND_SELF_ACCEPT: {
+    status: 403,
+    message: 'Publishers cannot accept their own errand',
+  },
+
   ACTIVITY_UNAVAILABLE: { status: 503, message: 'Activities are unavailable' },
   ACTIVITY_ENTRY_SELECTION_UNAVAILABLE: {
     status: 503,

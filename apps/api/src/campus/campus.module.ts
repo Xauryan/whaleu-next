@@ -1,3 +1,4 @@
+import { CampusErrandScopeFacade } from './errand-scope.facade.js';
 import { CampusSearchRegionFacade } from './search-region.facade.js';
 import { IdentitySelectionRepository } from './community-policy/identity-selection.repository.js';
 import { Controller, Get, Inject, Module, Query } from '@nestjs/common';
@@ -45,6 +46,7 @@ export class OperatingRegionController {
   imports: [DatabaseModule],
   controllers: [CampusController, OperatingRegionController],
   providers: [
+    CampusErrandScopeFacade,
     CampusRepository,
     CampusService,
     CampusCommunityPolicyService,
@@ -54,6 +56,7 @@ export class OperatingRegionController {
     CampusSearchRegionFacade,
   ],
   exports: [
+    CampusErrandScopeFacade,
     CampusService,
     CampusCommunityPolicyService,
     IdentitySelectionRepository,

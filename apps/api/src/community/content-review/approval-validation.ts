@@ -1,3 +1,5 @@
+import { validateApprovalMetadata } from './approval-metadata.js';
+import type { ApprovalMetadata } from './approval-metadata.js';
 import type { Decision } from '../community-policy.js';
 import {
   approvalDigest,
@@ -12,37 +14,13 @@ import type {
   EffectiveContentEnvelope,
 } from './contracts.js';
 
-export interface ApprovalRow {
+export interface ApprovalRow extends ApprovalMetadata {
   id: string;
   account_id: string;
   operation: string;
   envelope_version: number;
   digest: string;
   envelope: unknown;
-  policy_revision_id: string;
-  result: 'allow' | 'reject' | 'pending' | 'failed';
-  coverage: string;
-  provenance: string;
-  issuer: string;
-  provenance_ref: string;
-  evaluated_at: Date;
-  consume_until: Date;
-  visibility_model: string;
-  visibility_until: Date | null;
-  policy_key: string;
-  policy_version: number;
-  policy_coverage: string;
-  policy_provenance: string;
-  policy_issuer: string;
-  policy_provenance_ref: string;
-  policy_valid_from: Date;
-  policy_valid_until: Date | null;
-  state: 'allow' | 'held' | 'revoked';
-  event_at: Date;
-  event_coverage: string;
-  event_provenance: string;
-  event_issuer: string;
-  event_provenance_ref: string;
 }
 export interface ApprovalBinding {
   content_kind: ContentKind;
@@ -66,99 +44,40 @@ export function validateApprovalRow(
   decision: Decision<AcceptedApproval>;
   optionalUntil: number | null;
 } {
-  let optionalUntil: number | null = null;
-  const retain = (until: number | null) => {
-    if (until !== null)
-      optionalUntil = Math.min(optionalUntil ?? Infinity, until);
-  };
-  const evaluate = (): Decision<AcceptedApproval> => {
-    if (!row) return { kind: 'unavailable' };
-    let envelope: EffectiveContentEnvelope;
-    try {
-      envelope = canonicalEnvelope(row.envelope);
-      if (
-        !canonicalEqual(row.envelope, envelope) ||
-        row.digest !== approvalDigest(envelope)
-      )
-        return { kind: 'unavailable' };
-    } catch {
-      return { kind: 'unavailable' };
-    }
+  if (!row) return { decision: { kind: 'unavailable' }, optionalUntil: null };
+  let envelope: EffectiveContentEnvelope;
+  try {
+    envelope = canonicalEnvelope(row.envelope);
     if (
-      row.envelope_version !== 1 ||
-      row.account_id !== envelope.accountId ||
-      row.operation !== envelope.purpose ||
-      row.policy_key !== 'local-explicit-v1' ||
-      row.policy_version !== 1 ||
-      row.coverage !== 'complete' ||
-      row.policy_coverage !== 'complete' ||
-      row.event_coverage !== 'complete' ||
-      row.provenance !== 'accepted' ||
-      row.policy_provenance !== 'accepted' ||
-      row.event_provenance !== 'accepted' ||
-      !row.issuer?.trim() ||
-      !row.provenance_ref?.trim() ||
-      !row.policy_issuer?.trim() ||
-      !row.policy_provenance_ref?.trim() ||
-      !row.event_issuer?.trim() ||
-      !row.event_provenance_ref?.trim()
+      !canonicalEqual(row.envelope, envelope) ||
+      row.digest !== approvalDigest(envelope)
     )
-      return { kind: 'unavailable' };
-    const evaluated = row.evaluated_at?.getTime();
-    const policyFrom = row.policy_valid_from?.getTime();
-    const policyUntil =
-      row.policy_valid_until === null
-        ? null
-        : row.policy_valid_until?.getTime();
-    const eventAt = row.event_at?.getTime();
-    const consumeUntil = row.consume_until?.getTime();
-    const visibilityUntil =
-      row.visibility_until === null ? null : row.visibility_until?.getTime();
-    if (
-      !Number.isFinite(now) ||
-      !Number.isFinite(evaluated) ||
-      !Number.isFinite(eventAt) ||
-      !Number.isFinite(policyFrom) ||
-      evaluated > now! ||
-      eventAt > now! ||
-      eventAt < evaluated ||
-      policyFrom > evaluated ||
-      (policyUntil !== null &&
-        (!Number.isFinite(policyUntil) || policyUntil <= now!)) ||
-      !Number.isFinite(consumeUntil) ||
-      consumeUntil <= evaluated ||
-      (row.visibility_model !== 'durable' &&
-        row.visibility_model !== 'until') ||
-      (row.visibility_model === 'durable'
-        ? visibilityUntil !== null
-        : visibilityUntil === null || !Number.isFinite(visibilityUntil)) ||
-      (visibilityUntil !== null && visibilityUntil <= now!)
-    )
-      return { kind: 'unavailable' };
-    retain(policyUntil);
-    retain(visibilityUntil);
-    if (row.result === 'reject' || row.state === 'revoked')
-      return {
-        kind: 'deny',
-        reason: consume ? 'CONTENT_REJECTED' : 'POST_NOT_FOUND',
-      };
-    if (row.state === 'held')
-      return consume
-        ? { kind: 'unavailable' }
-        : { kind: 'deny', reason: 'POST_NOT_FOUND' };
-    if (row.result !== 'allow' || row.state !== 'allow')
-      return { kind: 'unavailable' };
-    if (consume) {
-      if (consumeUntil <= now!) return { kind: 'unavailable' };
-      retain(consumeUntil);
-    }
-    return {
-      kind: 'allow',
-      value: { decisionId: row.id, digest: row.digest, version: 1, envelope },
-    };
+      return { decision: { kind: 'unavailable' }, optionalUntil: null };
+  } catch {
+    return { decision: { kind: 'unavailable' }, optionalUntil: null };
+  }
+  if (
+    row.envelope_version !== 1 ||
+    row.account_id !== envelope.accountId ||
+    row.operation !== envelope.purpose
+  )
+    return { decision: { kind: 'unavailable' }, optionalUntil: null };
+  const result = validateApprovalMetadata(row, consume, now);
+  return {
+    optionalUntil: result.optionalUntil,
+    decision:
+      result.decision.kind === 'allow'
+        ? {
+            kind: 'allow',
+            value: {
+              decisionId: row.id,
+              digest: row.digest,
+              version: 1,
+              envelope,
+            },
+          }
+        : result.decision,
   };
-  const decision = evaluate();
-  return { decision, optionalUntil };
 }
 
 export function validateApprovalBinding(

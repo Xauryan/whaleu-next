@@ -1,3 +1,4 @@
+import { LocalErrandBaseEligibilitySource } from './errand-base.source.js';
 import { LocalPublicationEligibilitySource } from './publication-eligibility.source.js';
 import { LocalReportEligibilitySource } from './report-eligibility.source.js';
 import {
@@ -34,6 +35,7 @@ export class VerificationController {
   imports: [DatabaseModule, IdentityModule],
   controllers: [VerificationController],
   providers: [
+    LocalErrandBaseEligibilitySource,
     VerificationRepository,
     LocalReportEligibilitySource,
     LocalPublicationEligibilitySource,
@@ -42,6 +44,7 @@ export class VerificationController {
     LocalSafetyPhoneSource,
   ],
   exports: [
+    LocalErrandBaseEligibilitySource,
     LocalStudentIdentitySource,
     LocalSafetyPhoneSource,
     LocalReportEligibilitySource,

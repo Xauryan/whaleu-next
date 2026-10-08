@@ -390,3 +390,77 @@ export async function createActivitiesOpenApiDocument(): Promise<OpenAPIObject> 
 export async function renderActivitiesOpenApiDocument(): Promise<string> {
   return renderDocument(await createActivitiesOpenApiDocument());
 }
+
+/** Tooling-only errand controllers. Never execute application or provider work. */
+export async function createErrandsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { ErrandsController } = await import('../src/errands/controller.js');
+  const { ErrandsService } = await import('../src/errands/service.js');
+  const { ErrandNoticesController } =
+    await import('../src/notifications/errand.module.js');
+  const { ErrandNoticesService } =
+    await import('../src/notifications/errand.service.js');
+  const { ErrandRequestGuard } =
+    await import('../src/request-throttling/errand-request.guard.js');
+  for (const method of [
+    'publish',
+    'list',
+    'own',
+    'contacts',
+    'receipt',
+    'detail',
+    'accept',
+    'cancel',
+    'complete',
+    'delete',
+  ])
+    if (
+      !Reflect.hasMetadata(
+        PARAMTYPES_METADATA,
+        ErrandsController.prototype,
+        method,
+      )
+    )
+      throw new Error(
+        'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+      );
+  const fail = () => {
+    throw new Error('OpenAPI must not execute application work');
+  };
+  const testing = await Test.createTestingModule({
+    controllers: [ErrandsController, ErrandNoticesController],
+    providers: [
+      { provide: ErrandsService, useValue: {} },
+      { provide: ErrandNoticesService, useValue: {} },
+    ],
+  })
+    .overrideGuard(ErrandRequestGuard)
+    .useValue({ canActivate: fail })
+    .compile();
+  const app = testing.createNestApplication({ logger: false });
+  try {
+    return SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setOpenAPIVersion('3.0.3')
+        .setTitle('WhaleU text-only errands')
+        .setVersion('1')
+        .addSecurity('accessToken', {
+          type: 'http',
+          scheme: 'bearer',
+          description:
+            'Current opaque owner session required. Receipts prove outcomes only; every fresh content/contact read reauthorizes.',
+        })
+        .build(),
+      {
+        deepScanRoutes: false,
+        autoTagControllers: false,
+        excludeDynamicDefaults: true,
+      },
+    );
+  } finally {
+    await app.close();
+  }
+}
+export async function renderErrandsOpenApiDocument(): Promise<string> {
+  return renderDocument(await createErrandsOpenApiDocument());
+}

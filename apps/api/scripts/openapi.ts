@@ -143,3 +143,25 @@ if (args[0] === '--check') {
   await writeFile(activitiesArtifact, activitiesRendered, 'utf8');
   console.log('Generated docs/openapi/activities.json.');
 }
+
+const { renderErrandsOpenApiDocument } = await import('./openapi-document.js');
+const errandsArtifact = new URL(
+  '../../../../docs/openapi/errands.json',
+  import.meta.url,
+);
+const errandsRendered = await renderErrandsOpenApiDocument();
+if (args[0] === '--check') {
+  const existing = await readFile(errandsArtifact, 'utf8').catch(() => {
+    throw new Error(
+      'Errands OpenAPI artifact missing; run npm run openapi:generate.',
+    );
+  });
+  if (existing !== errandsRendered)
+    throw new Error(
+      'Errands OpenAPI artifact stale; run npm run openapi:generate.',
+    );
+  console.log('Errands OpenAPI artifact is current.');
+} else {
+  await writeFile(errandsArtifact, errandsRendered, 'utf8');
+  console.log('Generated docs/openapi/errands.json.');
+}

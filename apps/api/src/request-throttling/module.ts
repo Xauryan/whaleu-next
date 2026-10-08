@@ -1,3 +1,4 @@
+import { ErrandRequestGuard } from './errand-request.guard.js';
 import { ActivityRequestGuard } from './activity-request.guard.js';
 import { AnnouncementRequestGuard } from './announcement-request.guard.js';
 import { DirectoryRequestGuard } from './directory-request.guard.js';
@@ -98,3 +99,24 @@ export class AnnouncementRequestThrottlingModule {}
   exports: [ActivityRequestGuard],
 })
 export class ActivityRequestThrottlingModule {}
+
+@Module({
+  imports: [
+    IdentityModule,
+    PostgresRequestThrottlingModule,
+    ThrottlerModule.forRootAsync({
+      imports: [PostgresRequestThrottlingModule],
+      inject: [PostgresThrottlerStorage],
+      useFactory: (storage: PostgresThrottlerStorage) => ({
+        storage,
+        setHeaders: false,
+        throttlers: [
+          { name: 'default', ttl: 60000, limit: 120, blockDuration: 60000 },
+        ],
+      }),
+    }),
+  ],
+  providers: [ErrandRequestGuard],
+  exports: [ErrandRequestGuard],
+})
+export class ErrandRequestThrottlingModule {}
