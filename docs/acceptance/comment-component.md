@@ -52,3 +52,11 @@ Effective formula/version, all-component consistent freshness, historical
 coverage, ranking privacy, hot-feed pagination, production throughput and device
 acceptance remain open. Installed-schema guards do not protect against a database
 administrator disabling them. No deployment is claimed.
+
+## Hosted verification
+
+Verified SSH-signed commit `3857e48dd54368cf015e94ed4ad0787d8d19cce5` passed
+[GitHub Actions run 37765968165](https://github.com/Xauryan/whaleu-next/actions/runs/37765968165):
+568 API, 842 native and 974 PostgreSQL tests, 2,384 total with zero failures/skips.
+PostgreSQL took 564.241 seconds. Lint, types, OpenAPI drift, builds, emitted smokes
+and formatting passed. No deployment is implied.

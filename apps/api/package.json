@@ -22,7 +22,8 @@
     "openapi:generate": "npm run openapi:build && node .openapi-build/scripts/openapi.js",
     "openapi:check": "npm run openapi:build && node .openapi-build/scripts/openapi.js --check",
     "openapi:build": "tsc -p tsconfig.openapi.json",
-    "comments:process": "node --env-file-if-exists=../../.env --import tsx src/community/comment-component/process-comments.ts"
+    "comments:process": "node --env-file-if-exists=../../.env --import tsx src/community/comment-component/process-comments.ts",
+    "hot-score:compute": "node --env-file-if-exists=../../.env --import tsx src/community/hot-score/compute-score.ts"
   },
   "dependencies": {
     "@nestjs/common": "12.1.2",

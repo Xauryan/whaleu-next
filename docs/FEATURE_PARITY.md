@@ -436,3 +436,10 @@ Deleted-root descendants follow source accounting internally while existing read
 visibility is unchanged. This does not complete hot score/feed or decide author
 received-interaction deletion policy. See [component scope](POST_COMMENT_COMPONENT.md)
 and [local acceptance](acceptance/comment-component.md).
+
+Internal selected-post score composition now checks all independent component
+baselines and caught-up capture, then evaluates verified source-formula metadata
+with an explicitly versioned PostgreSQL numeric profile. It is disabled-by-default,
+local/manual, nonmutating and has no public ranking or score field. Formula bit
+parity, public ordering privacy, population/freshness/ties and hot-feed UI remain
+open. See [internal score scope](INTERNAL_HOT_SCORE.md).

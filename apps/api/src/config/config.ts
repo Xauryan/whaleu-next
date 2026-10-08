@@ -49,6 +49,9 @@ const schema = z.object({
   LIKE_COMPONENT_PROCESSING: z
     .enum(['disabled', 'manual_only'])
     .default('manual_only'),
+  HOT_SCORE_COMPUTATION: z
+    .enum(['disabled', 'manual_only'])
+    .default('disabled'),
   // Automatic retention is mounted only in the explicit HTTP runtime.
   VIEW_REPORTING_RETENTION_PROCESSING: z
     .enum(['disabled', 'manual_only', 'automatic'])
