@@ -15,7 +15,10 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { AppLogger } from '../observability/logger.js';
-import { ApplicationError } from './application-error.js';
+import {
+  ApplicationError,
+  TitleMaintenanceContinuationConflict,
+} from './application-error.js';
 
 const messages: Record<number, { code: string; message: string }> = {
   400: { code: 'BAD_REQUEST', message: 'Invalid request' },
@@ -64,7 +67,15 @@ export class SafeExceptionFilter implements ExceptionFilter {
       this.logger.structured.error({ event: 'http_error', status, requestId });
     }
     if (!response.headersSent)
-      response.status(status).json({ error: { ...description, requestId } });
+      response.status(status).json({
+        error: {
+          ...description,
+          requestId,
+          ...(exception instanceof TitleMaintenanceContinuationConflict
+            ? { successorRequestId: exception.successorRequestId }
+            : {}),
+        },
+      });
   }
 }
 

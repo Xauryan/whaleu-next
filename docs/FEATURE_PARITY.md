@@ -11,7 +11,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 - [ ] PARTIAL — School identity: school search and district selection; selected school versus verified institution; identity campus; related campuses; global university-city context; permission-sensitive switching
 - [ ] PARTIAL — Public/personal profile: nickname, biography, avatar/default avatar, profile banner, school/UID display, titles, public profile, posts and trading listings, profile-post privacy
 - [ ] PARTIAL — Preferences: system/manual theme, anonymous posting/comment defaults, anonymous-private-message preference, notification controls, guide/button settings, remembered publish contact/location choices
-- [ ] PARTIAL — Experience: local owner ledger, daily sign-in, records, daily limits/tasks, levels, owned title/color selection and durable unlock notices are implemented with fresh source enrollment. Named public projections and bounded known-participant ranking are implemented. Limited-title catalog and inactive redemption infrastructure have passed local acceptance; administrator title maintenance, real campaign activation, complete historical population/import and production-scale processing remain open
+- [ ] PARTIAL — Experience: local owner ledger, daily sign-in, records, daily limits/tasks, levels, owned title/color selection and durable unlock notices are implemented with fresh source enrollment. Named public projections and bounded known-participant ranking are implemented. Limited-title catalog and inactive redemption infrastructure have passed local acceptance; bounded default/level-title maintenance has passed local acceptance. Actual role-title appointment, real campaign activation, complete historical population/import and production-scale processing remain open
 
 ## Campus feed and publishing
 
@@ -371,3 +371,14 @@ campaign restoration is included. Existing unknown balances, undated ownership
 and unsaved appearance drafts remain intact. See
 [acceptance evidence](acceptance/title-redemption.md). Real provisioning/abuse
 protection/activation and historical import remain separate gates.
+
+Authorized title-maintenance checkpoint: explicit developer/superadministrator
+commands now repair missing default or currently earned level titles through
+one-owner transactions and immutable resumable receipts. Live authority and
+session deadlines protect normal results and actor-scoped recovery errors after
+all waits. Unknown history is skipped; original undated ownership, higher titles
+and selections remain untouched. Local aggregate gates pass 1,956 tests. No
+operator role, real-account grant, automatic job or role_admin cosmetic was issued.
+This completes the bounded backend repair capability, not historical import,
+large-scale throughput or actual administrator appointment. See
+[acceptance evidence](acceptance/title-maintenance.md).

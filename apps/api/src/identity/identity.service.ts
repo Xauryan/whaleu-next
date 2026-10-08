@@ -6,6 +6,10 @@ import type {
   SessionCredentials,
   SessionView,
 } from './contracts.js';
+import type {
+  TitleMaintenanceCursor,
+  TitleMaintenanceSweep,
+} from './title-maintenance.contract.js';
 import { IdentityRepository } from './identity.repository.js';
 import { hashToken, mintToken, requireToken } from './tokens.js';
 
@@ -17,6 +21,27 @@ export class IdentityService {
   ) {}
   activeAccount(accountId: string, tx: PoolClient): Promise<boolean> {
     return this.repository.activeAccount(accountId, tx);
+  }
+  beginTitleMaintenanceSweep(tx: PoolClient): Promise<TitleMaintenanceSweep> {
+    return this.repository.beginTitleMaintenanceSweep(tx);
+  }
+  titleMaintenanceCandidateWindow(
+    cursor: TitleMaintenanceCursor,
+    tx: PoolClient,
+  ): Promise<readonly string[]> {
+    return this.repository.titleMaintenanceCandidateWindow(cursor, tx);
+  }
+  lockTitleMaintenanceAccount(
+    accountId: string,
+    tx: PoolClient,
+  ): Promise<boolean> {
+    return this.repository.lockTitleMaintenanceAccount(accountId, tx);
+  }
+  canonicalWechatTitleEligibility(
+    accountId: string,
+    tx: PoolClient,
+  ): Promise<boolean> {
+    return this.repository.canonicalWechatTitleEligibility(accountId, tx);
   }
   async login(code: string): Promise<SessionCredentials> {
     const identity = await this.provider.exchange(code);

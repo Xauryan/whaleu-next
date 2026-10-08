@@ -330,3 +330,58 @@ explicitly guarded development databases. New SQL decision, entitlement and rece
 proofs must agree atomically and reject incomplete or forged records. That test
 path is not a production activation mechanism or evidence that any real campaign
 has been restored. No real redemption code is included in source or fixtures.
+
+## Authorized title maintenance
+
+The administrative maintenance capability repairs missing default or earned-level
+titles through explicit authenticated requests. It does not run on startup,
+migration, login, reads or worker ticks. Only a current global developer or
+superadministrator grant qualifies; regional/school administration and cosmetic
+titles provide no authority. Existing approved role grants remain a prerequisite;
+this capability does not create operators or provision roles.
+
+`POST /v1/admin/experience/title-maintenance/batches` starts with a request ID and
+`repair_level_titles` or `repair_default_title`. A continuation supplies a new
+request ID and the previous committed request ID instead. The server retains the
+operation, run boundary and cursor; callers cannot provide owners, title keys,
+points, grant time, role IDs or arbitrary filters. Each transaction processes at
+most one candidate, with bounded indexed selection and no unbounded server loop.
+A complete sweep requires subsequent explicit continuation requests.
+
+Receipts contain actor-owned request/run references, operation, predecessor,
+batch counts and `done`, without affected account identifiers or provider data.
+`GET /v1/admin/experience/title-maintenance/requests/:requestId` recovers a committed
+receipt after fresh session and global-authority checks. Replay is immutable.
+A consumed predecessor cannot branch into another committed successor; an
+actor-scoped continuation conflict supplies the existing successor request ID for
+recovery. This is the only allowlisted additional error metadata for that exception.
+
+A sweep is bounded by its initial timestamp and upper identity key. It is a live
+bounded sweep, not a historical population snapshot: late account commits or
+eligibility changes behind its cursor can require a later sweep. Lock failure
+rolls back that candidate without advancing progress; it is not silently skipped.
+Each continuation reauthenticates rather than inheriting run-long authority.
+
+Level repair uses a proved current balance under the owner lock, including known
+zero. Unknown baseline/state is skipped without fabricating level one or creating
+history. It grants missing supported level titles at or below that level and
+retains already-owned higher titles. Default repair requires the identity owner's
+canonical WeChat-provider eligibility proof, independent of experience balance.
+A target's blocked-login status does not erase cosmetic eligibility; the operator
+must still be active and authorized. No provider subject is exposed to the title
+module's application contract or receipt.
+
+New grants record their actual maintenance time and explicit maintenance origin,
+not an invented historical achievement date. Existing entitlement rows, including
+undated ownership, remain unchanged. There is no auto-equip, revocation, point or
+streak adjustment, notice award, profile creation, color change or coverage
+promotion. Limited/special titles and actual administrator appointment remain
+outside maintenance.
+
+Immutable SQL request/item/key evidence binds each granted entitlement to the
+same transaction, target, supported operation, current eligibility and selected
+operator authority. Counts and continuation facts must agree with evidence.
+The existing transaction wrapper flushes deferred constraints before its final
+session/grant clock checks; expiry during a later owner/proof wait cannot authorize
+a stale batch. Shared authority locks serialize revocation with a completed batch.
+Operational execution on actual accounts is separate from development acceptance.

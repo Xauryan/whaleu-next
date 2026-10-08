@@ -179,6 +179,13 @@ test(
         ),
         { mode: 'up' },
       );
+      // Positive race cases control every conflicting writer. Background vacuum/
+      // analyze takes SHARE UPDATE EXCLUSIVE and can legitimately defeat the
+      // mandatory NOWAIT fence after this fixture's repeated block transitions.
+      // Isolate this disposable table only; cover that maintenance lock below.
+      await pool.query(
+        'ALTER TABLE whaleu_safety.blocks SET (autovacuum_enabled=false)',
+      );
       app = await NestFactory.create(AppModule.register(config), {
         logger: false,
       });
@@ -1092,6 +1099,45 @@ test(
             observer!.setHook(null);
             await writer.query('ROLLBACK');
             writer.release();
+          }
+          success(await read.run(), read.expect);
+        },
+      );
+
+      await t.test(
+        'maintenance lock makes the mandatory fence fail closed and release restores disclosure',
+        async () => {
+          const actor = await makeActor(),
+            read = await makeCase('TradingService.contacts', actor);
+          success(await read.run(), read.expect);
+          const maintenance = await pool.connect();
+          let fenceRejected = false;
+          observer!.setFailureHook(async (event) => {
+            if (event.sql === fence) {
+              assert.equal(event.code, '55P03');
+              fenceRejected = true;
+            }
+          });
+          try {
+            await maintenance.query('BEGIN');
+            // Same table lock held by VACUUM and ANALYZE, without an actual
+            // background worker whose scheduling would make the test probabilistic.
+            await maintenance.query(
+              'LOCK TABLE whaleu_safety.blocks IN SHARE UPDATE EXCLUSIVE MODE',
+            );
+            const begin = performance.now(),
+              result = await read.run();
+            unavailable(result);
+            assert.equal(result.body.error.code, 'SAFETY_UNAVAILABLE');
+            assert.equal(fenceRejected, true);
+            for (const value of read.expect)
+              assert.equal(serialized(result.body).includes(value), false);
+            const elapsed = performance.now() - begin;
+            assert.ok(elapsed < 1500, `NOWAIT proof took ${elapsed}ms`);
+          } finally {
+            observer!.setFailureHook(null);
+            await maintenance.query('ROLLBACK');
+            maintenance.release();
           }
           success(await read.run(), read.expect);
         },

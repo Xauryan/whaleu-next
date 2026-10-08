@@ -3,6 +3,22 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  EXPERIENCE_MAINTENANCE_REQUEST_CONFLICT: {
+    status: 409,
+    message: 'Title maintenance request conflicts',
+  },
+  EXPERIENCE_MAINTENANCE_CONTINUATION_CONFLICT: {
+    status: 409,
+    message: 'Title maintenance continuation is already consumed',
+  },
+  EXPERIENCE_MAINTENANCE_REQUEST_NOT_FOUND: {
+    status: 404,
+    message: 'Title maintenance request not found',
+  },
+  EXPERIENCE_MAINTENANCE_UNAVAILABLE: {
+    status: 503,
+    message: 'Title maintenance is unavailable',
+  },
   EXPERIENCE_REDEMPTION_UNAVAILABLE: {
     status: 503,
     message: 'Title redemption is unavailable',
@@ -256,5 +272,21 @@ export class ApplicationError extends HttpException {
     const condition = conditions[code];
     super(condition.message, condition.status);
     this.code = code;
+  }
+}
+
+/** Only the authorized maintenance owner may supply this recovery reference. */
+export class TitleMaintenanceContinuationConflict extends ApplicationError {
+  readonly successorRequestId: string;
+
+  constructor(successorRequestId: string) {
+    super('EXPERIENCE_MAINTENANCE_CONTINUATION_CONFLICT');
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+        successorRequestId,
+      )
+    )
+      throw new ApplicationError('EXPERIENCE_MAINTENANCE_UNAVAILABLE');
+    this.successorRequestId = successorRequestId;
   }
 }

@@ -2,6 +2,10 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.js';
 import { IdentityModule } from '../identity/identity.module.js';
 import { CommunityModule } from '../community/community.module.js';
+import { AuthorizationModule } from '../authorization/authorization.module.js';
+import { ExperienceTitleMaintenanceController } from './maintenance.controller.js';
+import { ExperienceTitleMaintenanceService } from './maintenance.service.js';
+import { TitleMaintenanceRepository } from './maintenance.repository.js';
 import {
   ExperienceCatalogController,
   ExperienceController,
@@ -18,8 +22,17 @@ import {
   RedemptionAttemptBudget,
 } from './redemption.provider.js';
 @Module({
-  imports: [DatabaseModule, IdentityModule, CommunityModule],
-  controllers: [ExperienceCatalogController, ExperienceController],
+  imports: [
+    DatabaseModule,
+    IdentityModule,
+    CommunityModule,
+    AuthorizationModule,
+  ],
+  controllers: [
+    ExperienceCatalogController,
+    ExperienceController,
+    ExperienceTitleMaintenanceController,
+  ],
   providers: [
     ExperienceClock,
     ExperienceRepository,
@@ -31,6 +44,8 @@ import {
     RedemptionRepository,
     RedemptionProvider,
     RedemptionAttemptBudget,
+    ExperienceTitleMaintenanceService,
+    TitleMaintenanceRepository,
   ],
   exports: [ExperienceService, ExperienceWorker, ExperienceDispatcher],
 })

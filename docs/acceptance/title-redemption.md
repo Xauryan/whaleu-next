@@ -66,3 +66,11 @@ redemption. Historical import, complete population reconciliation, administrativ
 title maintenance, received-interaction policy, real providers/devices and
 production processing remain open. No real account grant or production write was
 performed.
+
+## Hosted verification
+
+Commit `7be98239da1fedb4866b9177f180828ebdfcffe1` was pushed with a valid
+Verified SSH signature. [GitHub CI run 37728000697](https://github.com/Xauryan/whaleu-next/actions/runs/37728000697)
+completed successfully: 421 API, 784 native and 682 real PostgreSQL tests, totaling
+1,887 with zero failures/skips. Hosted PostgreSQL test duration was 511.519 seconds.
+Lint/types/build/emitted smokes and formatting passed for that exact commit.

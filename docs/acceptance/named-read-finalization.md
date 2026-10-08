@@ -68,3 +68,22 @@ post to 1,024 visible replies, and native root navigation rereads that parent.
 Worker materialization, external delivery, universal raw-writer mutation
 linearizability, previously returned responses and broader scale/import/provider
 release gates remain separate.
+
+## Subsequent fixture isolation and maintenance boundary
+
+The 2026-10-08 title-maintenance aggregate exposed a positive baseline returning
+`SAFETY_UNAVAILABLE`; the database log recorded `55P03` at the required relationship
+`SHARE MODE NOWAIT` fence, not a proof-budget expiry. A separate diagnostic run
+reproduced that failure with a real autovacuum worker holding
+`ShareUpdateExclusiveLock` on `whaleu_safety.blocks`. The historical worker identity
+was not logged, so autovacuum is the supported explanation rather than an observed
+identity for that original failure.
+
+The named-read suite now disables autovacuum only for its disposable blocks table
+so positive cases control conflicting writers. An additional deterministic case
+holds the VACUUM/ANALYZE lock mode, requires the exact `55P03` fence rejection and
+minimal `SAFETY_UNAVAILABLE` response, then verifies successful disclosure after
+release. Production locking and proof budgets are unchanged: concurrent database
+maintenance may legitimately fail a read closed; universal read availability is
+not guaranteed. The frozen gates above describe the earlier tree; this follow-up
+is verified and recorded separately with the title-maintenance increment.

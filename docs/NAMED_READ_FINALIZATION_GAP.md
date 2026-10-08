@@ -124,8 +124,15 @@ opt-out or a way to discard earlier facts while returning an identity item.
   computed preview and has no available external delivery channel. Any future
   cached preview or external sender needs an explicit final disclosure boundary.
 - A raw SQL writer already holding the blocks table can cause bounded NOWAIT
-  unavailability. The short final table fence must be measured honestly; this
-  proof does not promise zero contention or universal writer linearizability.
+  unavailability. PostgreSQL vacuum/analyze also holds SHARE UPDATE EXCLUSIVE,
+  which conflicts with this final SHARE fence. A controlled local autovacuum
+  reproduction observed the actual worker and lock mode while a baseline read
+  returned 503 in 34–48 ms. This is fail-closed behavior, not a proof-budget timeout.
+  Timing-sensitive positive fixtures disable background autovacuum only on their
+  disposable blocks table; an explicit maintenance-lock test retains the negative
+  guarantee. Production settings and the mandatory fence are unchanged. The short
+  final table fence must be measured honestly; this proof does not promise zero
+  contention, universal availability or universal writer linearizability.
 - The proof does not revoke already committed responses, inspect production,
   activate providers/jobs, or establish complete production readiness. Native
   privacy invalidation and broader scale/import/provider gates remain separate.

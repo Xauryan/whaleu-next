@@ -7,6 +7,10 @@ import type { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.js';
 import { ApplicationError } from '../http/application-error.js';
 import type { ApplicationErrorCode } from '../http/application-error.js';
+import type {
+  TitleMaintenanceCursor,
+  TitleMaintenanceSweep,
+} from './title-maintenance.contract.js';
 import type { ProviderIdentity, SessionView } from './contracts.js';
 
 const ACCESS_MS = 10 * 60 * 1000;
@@ -62,6 +66,80 @@ export class IdentityRepository {
           [accountId],
         )
       ).rows[0]?.status === 'active'
+    );
+  }
+
+  /** No population materialization and no locks during candidate selection. */
+  async beginTitleMaintenanceSweep(
+    tx: PoolClient,
+  ): Promise<TitleMaintenanceSweep> {
+    const runStartedAt = (
+      await tx.query<{ now: Date }>(
+        "SELECT date_trunc('milliseconds', clock_timestamp()) AS now",
+      )
+    ).rows[0]!.now;
+    const upper = await tx.query<{ id: string }>(
+      `SELECT id FROM whaleu_identity.accounts
+       WHERE created_at <= $1 ORDER BY id DESC LIMIT 1`,
+      [runStartedAt],
+    );
+    return { runStartedAt, upperAccountId: upper.rows[0]?.id ?? null };
+  }
+
+  /** One owner plus one lookahead; callers must never process the lookahead. */
+  async titleMaintenanceCandidateWindow(
+    cursor: TitleMaintenanceCursor,
+    tx: PoolClient,
+  ): Promise<readonly string[]> {
+    if (cursor.upperAccountId === null) return [];
+    const result = await tx.query<{ id: string }>(
+      `SELECT id FROM whaleu_identity.accounts
+       WHERE ($1::uuid IS NULL OR id > $1) AND id <= $2::uuid
+         AND created_at <= $3 ORDER BY id LIMIT 2`,
+      [cursor.cursorAccountId, cursor.upperAccountId, cursor.runStartedAt],
+    );
+    return result.rows.map(({ id }) => id);
+  }
+
+  /** Cosmetic repair preserves blocked users' ownership. Actor login is checked separately.
+   * SHARE only: two administrators targeting each other must never upgrade account locks. */
+  async lockTitleMaintenanceAccount(
+    accountId: string,
+    tx: PoolClient,
+  ): Promise<boolean> {
+    const result = await tx.query<{ id: string }>(
+      'SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE',
+      [accountId],
+    );
+    return result.rows.length === 1;
+  }
+
+  /** All authoritative identity locks/rechecks finish before the experience owner lock.
+   * Provider identifiers stay in this owner; only a boolean crosses the facade. */
+  async canonicalWechatTitleEligibility(
+    accountId: string,
+    tx: PoolClient,
+  ): Promise<boolean> {
+    if (!(await this.lockTitleMaintenanceAccount(accountId, tx))) return false;
+    const proof = (
+      await tx.query<{ app_id: string; subject: string }>(
+        `SELECT app_id, subject FROM whaleu_identity.provider_identities
+         WHERE account_id=$1 AND provider='wechat'
+         ORDER BY app_id, subject LIMIT 1 FOR SHARE`,
+        [accountId],
+      )
+    ).rows[0];
+    if (!proof) return false;
+    // A fresh statement after the lock wait revalidates this exact locked proof,
+    // never a different, unlocked provider row. No external provider lookup occurs.
+    return (
+      (
+        await tx.query<{ eligible: boolean }>(
+          `SELECT EXISTS (SELECT 1 FROM whaleu_identity.provider_identities
+         WHERE account_id=$1 AND provider='wechat' AND app_id=$2 AND subject=$3) AS eligible`,
+          [accountId, proof.app_id, proof.subject],
+        )
+      ).rows[0]?.eligible === true
     );
   }
 

@@ -9,10 +9,28 @@ import { AppModule } from '../src/app.module.js';
 import { loadConfig } from '../src/config/config.js';
 import { DatabaseService } from '../src/database/database.js';
 import { configureHttp } from '../src/http/http.js';
-import { ApplicationError } from '../src/http/application-error.js';
+import {
+  ApplicationError,
+  TitleMaintenanceContinuationConflict,
+} from '../src/http/application-error.js';
 
 @Controller('test-only')
 class ErrorController {
+  @Get('maintenance-continuation')
+  maintenanceContinuation(): never {
+    throw new TitleMaintenanceContinuationConflict(
+      '00000000-0000-4000-8000-000000000123',
+    );
+  }
+  @Get('fake-maintenance-detail')
+  fakeMaintenanceDetail(): never {
+    throw Object.assign(
+      new ApplicationError('EXPERIENCE_MAINTENANCE_REQUEST_CONFLICT'),
+      {
+        successorRequestId: 'private-untrusted-value',
+      },
+    );
+  }
   @Get('crash')
   crash(): never {
     throw new Error('private-password-in-stack');
@@ -33,6 +51,36 @@ class ErrorController {
 
 let app: INestApplication;
 let databaseReady = true;
+
+test('maintenance recovery metadata is allowlisted to its exact typed exception', async () => {
+  const result = await request(app.getHttpServer())
+    .get('/test-only/maintenance-continuation')
+    .expect(409);
+  const resultBody = result.body as { error: Record<string, unknown> };
+  assert.deepEqual(
+    Object.keys(resultBody.error).sort(),
+    ['code', 'message', 'requestId', 'successorRequestId'].sort(),
+  );
+  assert.equal(
+    resultBody.error['successorRequestId'],
+    '00000000-0000-4000-8000-000000000123',
+  );
+  const unrelated = await request(app.getHttpServer())
+    .get('/test-only/fake-maintenance-detail')
+    .expect(409);
+  const unrelatedBody = unrelated.body as { error: Record<string, unknown> };
+  assert.equal('successorRequestId' in unrelatedBody.error, false);
+  assert.equal(
+    JSON.stringify(unrelated.body).includes('private-untrusted-value'),
+    false,
+  );
+  assert.throws(
+    () => new TitleMaintenanceContinuationConflict('private-bad-reference'),
+    (error: unknown) =>
+      error instanceof ApplicationError &&
+      error.code === 'EXPERIENCE_MAINTENANCE_UNAVAILABLE',
+  );
+});
 
 before(async () => {
   const config = loadConfig({
