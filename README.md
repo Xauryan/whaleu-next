@@ -30,6 +30,38 @@ or production data changes are part of these development milestones.
 
 See the [feature-parity checklist](docs/FEATURE_PARITY.md) for the required scope.
 
+## Code statistics
+
+![Code statistics for every repository branch](https://xauryan.github.io/whaleu-next/code-stats.svg)
+
+Each repository branch is shown separately with its own code-line, file and
+language totals, language breakdown and source commit. The actual default branch
+is marked. Branches are never added together, so shared code is not double-counted
+in a misleading repository-wide total. Tags and branches in forks are not included.
+
+[GitHub Actions](.github/workflows/code-stats.yml) refreshes all branch snapshots
+after pushes to `main` or `rewrite/backend-foundation`, or a manual run on either
+of those branches. Other branches are read as immutable Git data; their code is
+never executed. Changes or deletions on those branches appear on the next allowed
+run, rather than immediately after every branch push. The workflow must exist on
+a publishing branch to run there; merging this feature into `main` enables its
+push trigger. Manual dispatch also requires the workflow to exist on the default
+branch. GitHub's image cache may also delay visible refreshes.
+
+[cloc 2.10](https://github.com/AlDanial/cloc/releases/tag/v2.10) counts nonblank,
+non-comment code lines in committed, Git-tracked regular files. Scope: source,
+tests, scripts, migrations and configuration under `apps`, `packages`, `scripts`,
+`tests`, `test`, `migrations`, `config` and `.github`, plus root configuration.
+WXML and WXSS are counted natively; identical files within a branch count separately.
+Dependencies, build/coverage output, documentation (including JSON reports),
+generated directories/files and OpenAPI schemas, lockfiles, Markdown, source maps
+and minified files are excluded. The extension allowlist and exclusions live in
+[`scripts/code-stats.mjs`](scripts/code-stats.mjs). File and language totals include
+only files recognized by cloc. Branches without counted source show zero explicitly.
+
+Only the aggregate SVG is published to GitHub Pages. No source snapshots, JSON
+reports, credentials or generated commits are published by this workflow.
+
 ## Repository
 
 - [`apps/api`](apps/api/README.md): NestJS API, safe errors, health probes,
