@@ -76,7 +76,7 @@ test('sign-in preview shares reset, saturation and confirmed-day semantics', () 
 test('safe catalog retains all titles, colors, thresholds without source identifiers or CSS', () => {
   const catalog = experienceCatalog();
   assert.equal(catalog.levels.length, 30);
-  assert.equal(catalog.titles.length, 16);
+  assert.equal(catalog.titles.length, 17);
   assert.equal(catalog.colors.length, 26);
   assert.equal(catalog.colors[0]!.unlockLevel, 0);
   assert.equal(catalog.colors[25]!.unlockLevel, 30);

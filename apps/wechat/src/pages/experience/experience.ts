@@ -26,6 +26,18 @@ Page({
   onReload() {
     void this.controller?.load();
   },
+  onRedemptionInput(event: { detail: { value: string } }) {
+    this.controller?.setRedemptionCode(event.detail.value);
+  },
+  onRedeemTitle() {
+    void this.controller?.redeemTitle();
+  },
+  onRecoverRedemption() {
+    void this.controller?.recoverRedemption();
+  },
+  onRetryRedemption() {
+    void this.controller?.recoverRedemption(true);
+  },
   onSignIn() {
     void this.controller?.signIn();
   },

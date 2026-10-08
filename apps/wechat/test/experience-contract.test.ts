@@ -156,18 +156,23 @@ test('catalog preserves complete thresholds, reward values, distinct default and
   assert.equal(experienceColorStyle(26), '');
   assert.equal(experienceColorStyle(Number.NaN), '');
 });
-test('undated owned titles and records stay readable without baseline, and display-name collisions retain keys', () => {
+test('undated owned titles and records stay readable without baseline, and unsupported labels cannot replace reviewed keys', () => {
   const a = appearance({
     coverage: 'partial',
     titles: appearance().titles.map((t) => ({
       ...t,
-      name: '同名头衔',
       earnedAt: null,
     })),
     titleKey: 'level_1',
     colorId: 25,
   });
   assert.deepEqual(decodeExperienceAppearance(a), a);
+  assert.throws(() =>
+    decodeExperienceAppearance({
+      ...a,
+      titles: a.titles.map((t) => ({ ...t, name: '同名头衔' })),
+    }),
+  );
   const records = {
     items: [
       {

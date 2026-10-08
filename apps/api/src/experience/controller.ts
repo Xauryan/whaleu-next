@@ -19,8 +19,11 @@ import {
   experienceIdSchema,
   experiencePageSchema,
   signInSchema,
+  redemptionSchema,
 } from './contracts.js';
 import type { AppearanceIntent, ExperiencePageQuery } from './contracts.js';
+import type { RedemptionIntent } from './contracts.js';
+import { ExperienceRedemptionService } from './redemption.service.js';
 import { ExperienceService } from './service.js';
 @Controller('v1/experience')
 export class ExperienceCatalogController {
@@ -35,7 +38,24 @@ export class ExperienceCatalogController {
 export class ExperienceController {
   constructor(
     @Inject(ExperienceService) private readonly service: ExperienceService,
+    @Inject(ExperienceRedemptionService)
+    private readonly redemption: ExperienceRedemptionService,
   ) {}
+  @Get('redemption') capability(
+    @Headers('authorization') auth: unknown,
+    @Query(new SchemaValidationPipe(experienceEmptySchema))
+    _query: Record<string, never>,
+  ) {
+    return this.redemption.capability(bearerToken(auth));
+  }
+  @Post('redemptions') @HttpCode(200) redeem(
+    @Headers('authorization') auth: unknown,
+    @Body(new SchemaValidationPipe(redemptionSchema)) body: RedemptionIntent,
+    @Query(new SchemaValidationPipe(experienceEmptySchema))
+    _query: Record<string, never>,
+  ) {
+    return this.redemption.redeem(bearerToken(auth), body);
+  }
   @Get() summary(
     @Headers('authorization') auth: unknown,
     @Query(new SchemaValidationPipe(experienceEmptySchema))

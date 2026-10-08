@@ -56,3 +56,11 @@ Complete historical population/baseline import, public received-interaction poli
 limited/special-title activation, production processing and provider/device
 acceptance remain incomplete. No production writes, campaign activation, real
 account grants or historical import occurred.
+
+## Hosted verification
+
+Commit `9e6a049ba626b32638fd59bf202b0d16a0599f35` was pushed with a valid
+Verified SSH signature. [GitHub CI run 37726303920](https://github.com/Xauryan/whaleu-next/actions/runs/37726303920)
+completed successfully: 415 API, 770 native and 664 real PostgreSQL tests, totaling
+1,849 with zero failures/skips. Hosted PostgreSQL test duration was 509.047 seconds.
+Lint/types/build/emitted smokes and formatting passed for that exact commit.

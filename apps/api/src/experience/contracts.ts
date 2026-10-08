@@ -31,6 +31,35 @@ export const experiencePageSchema = z.strictObject({
     .regex(/^[A-Za-z0-9_-]+$/)
     .optional(),
 });
+export const redemptionSchema = z.strictObject({
+  requestId: experienceIdSchema,
+  code: z
+    .string()
+    .min(1)
+    .refine(
+      (value) =>
+        Buffer.byteLength(value, 'utf8') <= 128 &&
+        Array.from(value).every((character) => {
+          const point = character.codePointAt(0)!;
+          return point > 31 && (point < 127 || point > 159);
+        }) &&
+        Buffer.from(value, 'utf8').toString('utf8') === value,
+    ),
+});
+export type RedemptionIntent = z.infer<typeof redemptionSchema>;
+export type RedemptionReceipt =
+  | {
+      requestId: string;
+      operation: 'redeem_title';
+      outcome: 'granted';
+      titleKey: 'redeem_liangchenmeijing';
+    }
+  | {
+      requestId: string;
+      operation: 'redeem_title';
+      outcome: 'rejected';
+      code: 'EXPERIENCE_REDEMPTION_INVALID' | 'EXPERIENCE_TITLE_ALREADY_OWNED';
+    };
 export type AppearanceIntent = z.infer<typeof appearanceSchema>;
 export type ExperiencePageQuery = z.infer<typeof experiencePageSchema>;
 export type AppearanceRejection =
@@ -38,6 +67,7 @@ export type AppearanceRejection =
   | 'EXPERIENCE_TITLE_INELIGIBLE'
   | 'EXPERIENCE_COLOR_INELIGIBLE';
 export type ExperienceReceipt =
+  | RedemptionReceipt
   | {
       requestId: string;
       operation: 'sign_in';

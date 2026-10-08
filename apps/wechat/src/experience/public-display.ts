@@ -1,3 +1,4 @@
+import { titleNames } from './title-manifest';
 import { ClientError, isRecord } from '../api/errors';
 import { experienceColorStyle } from './colors';
 
@@ -22,24 +23,6 @@ export const PUBLIC_EXPERIENCE_COLOR_STYLES = Object.freeze(
   Array.from({ length: 26 }, (_, id) => experienceColorStyle(id)),
 );
 
-const titleNames: Readonly<Record<string, string>> = Object.freeze({
-  default_jingxiaoyu: '鲸小语',
-  level_1: '萌新小白',
-  level_3: '初来乍到',
-  level_5: '崭露头角',
-  level_7: '小有名气',
-  level_9: '活跃分子',
-  level_11: '社区新星',
-  level_13: '人气达人',
-  level_15: '校园红人',
-  level_17: '意见领袖',
-  level_19: '社区元老',
-  level_21: '校园名人',
-  level_23: '风云人物',
-  level_25: '传奇人物',
-  level_27: '校园之光',
-  level_29: '一代宗师',
-});
 function invalid(): never {
   throw new ClientError('protocol', 'Invalid public experience display');
 }

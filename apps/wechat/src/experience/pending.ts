@@ -1,3 +1,4 @@
+import { PendingRedemptionStore } from './redemption-pending';
 import { ClientError } from '../api/errors';
 import { normalizeOrigin } from '../api/origin';
 import type { Storage } from '../platform/contracts';
@@ -40,11 +41,13 @@ function decode(
 /** Separate lanes allow a blocked sign-in and a valid owned-title selection to coexist. */
 export class PendingExperienceStore {
   private readonly namespace: string;
+  readonly redemption: PendingRedemptionStore;
   constructor(
     private readonly storage: Storage,
     origin: string,
   ) {
     this.namespace = origin;
+    this.redemption = new PendingRedemptionStore(storage, origin);
   }
   private key(accountId: string, operation: ExperienceOperation): string {
     if (

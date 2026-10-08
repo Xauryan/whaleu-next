@@ -1,3 +1,8 @@
+import {
+  decodeRedemptionCapability,
+  validRedemptionCode,
+  type RedemptionReceipt,
+} from './redemption-contract';
 import { ClientError, clientError } from '../api/errors';
 import type { IdentityRuntime } from '../auth/runtime';
 import type { SessionStore, SessionTicket } from '../auth/session';
@@ -14,7 +19,7 @@ import {
 import { HttpExperienceGateway, type ExperienceGateway } from './gateway';
 import { PendingExperienceStore, type PendingExperience } from './pending';
 export interface ExperienceChange {
-  readonly operation: ExperienceOperation;
+  readonly operation: ExperienceOperation | 'redeem_title';
   readonly phase: 'pending' | 'settled' | 'failed';
 }
 interface Flight {
@@ -28,7 +33,10 @@ export class ExperienceRuntime {
   private owner: SessionTicket;
   private visible = false;
   private generation = 0;
-  private readonly flights = new Map<ExperienceOperation, Flight>();
+  private readonly flights = new Map<
+    ExperienceOperation | 'redeem_title',
+    Flight
+  >();
   private foregroundFlight:
     | { generation: number; cancel: Cancellation; promise: Promise<void> }
     | undefined;
@@ -74,6 +82,7 @@ export class ExperienceRuntime {
     }
   }
   private invalidate(): void {
+    this.clearRedemptionInput();
     this.generation += 1;
     this.foregroundFlight?.cancel.cancel();
     this.foregroundFlight = undefined;
@@ -291,6 +300,135 @@ export class ExperienceRuntime {
       retry ? true : 'lookup',
       cancel,
     );
+  }
+  /** Recovery always reads the original receipt before any deliberate re-entry. */
+  redeemTitle(code: string, cancel?: Cancellation): Promise<RedemptionReceipt> {
+    return this.redemptionCommand(code, false, cancel);
+  }
+  recoverRedemption(
+    code?: string,
+    cancel?: Cancellation,
+  ): Promise<RedemptionReceipt> {
+    return this.redemptionCommand(code, true, cancel);
+  }
+  clearRedemptionInput(): void {
+    this.redemptionInput = '';
+  }
+  private redemptionInput = '';
+  private redemptionCommand(
+    code: string | undefined,
+    recovery: boolean,
+    external?: Cancellation,
+  ): Promise<RedemptionReceipt> {
+    const owner = this.sessions.snapshot(),
+      generation = this.generation;
+    const old = this.flights.get('redeem_title');
+    if (
+      old &&
+      old.owner.epoch === owner.epoch &&
+      old.owner.credentials?.accountId === owner.credentials?.accountId
+    )
+      return cancellable(old.promise, external) as Promise<RedemptionReceipt>;
+    this.redemptionInput = code ?? '';
+    // Drop this argument reference; only the lifecycle-cleared buffer is retained.
+    // eslint-disable-next-line no-useless-assignment
+    code = undefined;
+    const cancel = new Cancellation(),
+      unsubscribe = external?.subscribe(() => cancel.cancel());
+    let sent = owner;
+    const promise = Promise.resolve()
+      .then(async () => {
+        this.assert(owner, cancel, generation);
+        const accountId = owner.credentials!.accountId;
+        let handle = this.pending.redemption.load(accountId);
+        if (recovery) {
+          if (!handle)
+            throw new ClientError(
+              'storage',
+              'Original redemption handle missing',
+            );
+          try {
+            const receipt = await cancellable(
+              this.gateway!.receipt(handle.requestId, cancel),
+              cancel,
+            );
+            this.assert(owner, cancel, generation);
+            const result = this.pending.redemption.settle(handle, receipt);
+            this.emit({ operation: 'redeem_title', phase: 'settled' });
+            return result;
+          } catch (error) {
+            this.assert(owner, cancel, generation);
+            if (
+              clientError(error).details.serverCode !==
+              'EXPERIENCE_REQUEST_NOT_FOUND'
+            )
+              throw error;
+            if (!this.redemptionInput)
+              throw new ClientError(
+                'business',
+                'Original receipt not yet available; re-enter original input to retry',
+                { serverCode: 'EXPERIENCE_REDEMPTION_REENTRY_REQUIRED' },
+              );
+          }
+        } else if (handle)
+          throw new ClientError('business', 'Recovery required', {
+            serverCode: 'EXPERIENCE_RECOVERY_REQUIRED',
+          });
+        const capability = decodeRedemptionCapability(
+          await cancellable(this.gateway!.redemption(cancel), cancel),
+        );
+        this.assert(owner, cancel, generation);
+        if (capability.status !== 'available')
+          throw new ClientError('business', 'Redemption unavailable', {
+            serverCode: 'EXPERIENCE_REDEMPTION_UNAVAILABLE',
+          });
+        if (!validRedemptionCode(this.redemptionInput))
+          throw new ClientError('business', 'Invalid redemption input', {
+            serverCode: 'EXPERIENCE_REDEMPTION_INPUT_INVALID',
+          });
+        if (!handle) {
+          const requestId = await cancellable(this.newRequestId(), cancel);
+          this.assert(owner, cancel, generation);
+          handle = this.pending.redemption.freeze(accountId, requestId);
+        }
+        this.pending.redemption.assertOriginal(handle);
+        this.assert(owner, cancel, generation);
+        this.emit({ operation: 'redeem_title', phase: 'pending' });
+        sent = this.sessions.snapshot();
+        const dispatched = this.gateway!.redeemTitle(
+          { requestId: handle.requestId, code: this.redemptionInput },
+          cancel,
+        );
+        this.clearRedemptionInput();
+        const raw = await cancellable(dispatched, cancel);
+        this.assert(owner, cancel, generation);
+        const result = this.pending.redemption.settle(handle, raw);
+        this.emit({ operation: 'redeem_title', phase: 'settled' });
+        return result;
+      })
+      .catch((error: unknown) => {
+        if (generation === this.generation) {
+          const failure = clientError(error);
+          if (
+            failure.kind === 'auth-required' ||
+            (failure.kind === 'forbidden' &&
+              failure.details.serverCode === 'ACCOUNT_BLOCKED')
+          )
+            this.sessions.logoutIfCurrent(sent);
+          if (generation === this.generation)
+            this.emit({ operation: 'redeem_title', phase: 'failed' });
+        }
+        throw error;
+      })
+      .finally(() => {
+        unsubscribe?.();
+        if (this.flights.get('redeem_title')?.promise === promise) {
+          this.clearRedemptionInput();
+          this.flights.delete('redeem_title');
+        }
+      });
+    this.flights.set('redeem_title', { owner, cancellation: cancel, promise });
+    return promise;
   }
   closeNotice(noticeId: string): void {
     this.closedNotices.add(noticeId);

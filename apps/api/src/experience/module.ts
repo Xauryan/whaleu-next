@@ -11,6 +11,12 @@ import { ExperienceSettlementService } from './settlement.js';
 import { ExperienceService } from './service.js';
 import { ExperienceWorker } from './worker.js';
 import { ExperienceDispatcher } from './dispatcher.js';
+import { ExperienceRedemptionService } from './redemption.service.js';
+import { RedemptionRepository } from './redemption.repository.js';
+import {
+  RedemptionProvider,
+  RedemptionAttemptBudget,
+} from './redemption.provider.js';
 @Module({
   imports: [DatabaseModule, IdentityModule, CommunityModule],
   controllers: [ExperienceCatalogController, ExperienceController],
@@ -21,6 +27,10 @@ import { ExperienceDispatcher } from './dispatcher.js';
     ExperienceService,
     ExperienceWorker,
     ExperienceDispatcher,
+    ExperienceRedemptionService,
+    RedemptionRepository,
+    RedemptionProvider,
+    RedemptionAttemptBudget,
   ],
   exports: [ExperienceService, ExperienceWorker, ExperienceDispatcher],
 })

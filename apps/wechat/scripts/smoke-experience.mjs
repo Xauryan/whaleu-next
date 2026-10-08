@@ -19,6 +19,9 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
   const { experienceThresholds } = require(
     path.join(dist, 'experience/contract.js'),
   );
+  const { titleNames } = require(
+    path.join(dist, 'experience/title-manifest.js'),
+  );
   const original = app.experience,
     accountId = app.identity.sessions.snapshot().credentials.accountId;
   const records = new Map(),
@@ -27,7 +30,9 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
   let id = 0,
     signedIn = false,
     loseResponse = true,
-    unknown = false;
+    unknown = false,
+    redemptionAvailable = false,
+    redemptionLost = false;
   const at = '2026-10-08T01:00:00.000Z';
   const titles = [
     {
@@ -38,10 +43,16 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
     },
     ...Array.from({ length: 15 }, (_, i) => ({
       key: `level_${i * 2 + 1}`,
-      name: i === 0 ? '萌新小白' : `合成头衔${i}`,
+      name: titleNames[`level_${i * 2 + 1}`],
       kind: 'level',
       unlockLevel: i * 2 + 1,
     })),
+    {
+      key: 'redeem_liangchenmeijing',
+      name: '良辰美景',
+      kind: 'limited',
+      unlockLevel: null,
+    },
   ];
   const rules = [
     'publish',
@@ -149,7 +160,31 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
           .replace('https://experience-smoke.invalid', '')
           .split('?')[0];
         let body;
-        if (route === '/v1/me/experience/sign-in') {
+        if (route === '/v1/me/experience/redemptions') {
+          assert.equal(redemptionAvailable, true);
+          assert.ok(pending.redemption.load(accountId));
+          assert.deepEqual(Object.keys(request.body), ['requestId', 'code']);
+          assert.equal(request.body.code, 'SYNTHETIC-EMITTED-ONLY');
+          assert.equal(
+            JSON.stringify([...records]).includes(request.body.code),
+            false,
+          );
+          body = {
+            requestId: request.body.requestId,
+            operation: 'redeem_title',
+            outcome: 'granted',
+            titleKey: 'redeem_liangchenmeijing',
+          };
+          receipts.set(request.body.requestId, body);
+          appearance = {
+            ...appearance,
+            titles: [
+              ...appearance.titles,
+              { ...titles[16], earnedAt: at, recordedAt: at },
+            ],
+          };
+          if (redemptionLost) throw new ClientError('timeout', 'synthetic');
+        } else if (route === '/v1/me/experience/sign-in') {
           assert.equal(request.method, 'POST');
           assert.ok(pending.load(accountId, 'sign_in'));
           assert.deepEqual(Object.keys(request.body), ['requestId']);
@@ -197,6 +232,8 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
             nextCursor: null,
             coverage: unknown ? 'partial' : 'complete',
           };
+        else if (route === '/v1/me/experience/redemption')
+          body = { status: redemptionAvailable ? 'available' : 'unavailable' };
         else if (route === '/v1/me/experience/unlocks') body = { items: [] };
         else assert.fail(`Unexpected experience route ${route}`);
         return { status: 200, headers: {}, body };
@@ -217,6 +254,15 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
   assert.equal(page.data.balanceLabel, '0');
   assert.equal(page.data.appearance.titles.length, 2);
   assert.equal(requests.filter((r) => r.method === 'POST').length, 0);
+  assert.equal(page.data.redemptionStatus, 'unavailable');
+  page.onRedemptionInput({ detail: { value: 'SYNTHETIC-EMITTED-ONLY' } });
+  page.onRedeemTitle();
+  await flush();
+  assert.equal(page.data.redemptionCode, '');
+  assert.equal(
+    requests.filter((r) => r.url.endsWith('/redemptions')).length,
+    0,
+  );
   const template = readFileSync(
     path.join(dist, 'pages/experience/experience.wxml'),
     'utf8',
@@ -268,12 +314,49 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
   assert.equal(appearance.titleKey, 'level_1');
   assert.equal(appearance.colorId, 0);
   assert.equal(page.data.appearance.titles[0].earnedAt, null);
+  redemptionAvailable = true;
+  page.onReload();
+  await flush();
+  page.onRedemptionInput({ detail: { value: 'SYNTHETIC-EMITTED-ONLY' } });
+  page.onHide();
+  assert.equal(page.data.redemptionCode, '');
+  page = mountPage(path.join(dist, 'pages/experience/experience.js'));
+  await flush();
+  redemptionLost = true;
+  page.onRedemptionInput({ detail: { value: 'SYNTHETIC-EMITTED-ONLY' } });
+  page.onRedeemTitle();
+  await flush();
+  assert.equal(page.data.redemptionCode, '');
+  assert.equal(page.data.redemptionPending, true);
+  const handle = pending.redemption.load(accountId);
+  assert.deepEqual(Object.keys(handle).sort(), [
+    'accountId',
+    'operation',
+    'origin',
+    'requestId',
+    'version',
+  ]);
+  page.onHide();
+  redemptionAvailable = false;
+  page = mountPage(path.join(dist, 'pages/experience/experience.js'));
+  await flush();
+  page.onRecoverRedemption();
+  await flush();
+  assert.equal(pending.redemption.load(accountId), null);
+  assert.match(page.data.receiptStatus, /良辰美景/);
+  assert.equal(page.data.titleGroups[0].label, '限定头衔');
+  assert.equal(appearance.titleKey, 'level_1');
+  assert.equal(page.data.summary.balance, null);
+  assert.equal(
+    requests.filter((r) => r.url.endsWith('/redemptions')).length,
+    1,
+  );
   app.onHide();
   assert.equal(page.data.appearance, null);
   page.onUnload();
   runtime.dispose();
   app.experience = original;
   console.log(
-    'Experience compiled native smoke passed: read-only GET, known zero/two owned defaults, explicit coalesced foreground POST, loss/hide/reopen/manual receipt recovery, unknown baseline and undated title/base-color selection',
+    'Experience compiled native smoke passed: read-only GET, known zero/two owned defaults, explicit coalesced foreground POST, loss/hide/reopen/manual receipt recovery, unknown baseline and undated title/base-color selection, strict17 grouped title inventory, unavailable redemption gating, hide input clearing and lost-reply handle-only redemption recovery without auto-equip',
   );
 }

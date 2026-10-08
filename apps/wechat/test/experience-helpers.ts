@@ -1,3 +1,4 @@
+import { titleNames } from '../src/experience/title-manifest';
 import { SessionStore } from '../src/auth/session';
 import {
   ExperienceController,
@@ -53,10 +54,16 @@ export function catalog(): ExperienceCatalog {
       },
       ...Array.from({ length: 15 }, (_, i) => ({
         key: `level_${i * 2 + 1}`,
-        name: i === 0 ? '萌新小白' : `合成头衔${i}`,
+        name: titleNames[`level_${i * 2 + 1}`]!,
         kind: 'level' as const,
         unlockLevel: i * 2 + 1,
       })),
+      {
+        key: 'redeem_liangchenmeijing',
+        name: '良辰美景',
+        kind: 'limited',
+        unlockLevel: null,
+      },
     ],
     colors: Array.from({ length: 26 }, (_, id) => ({
       id,
@@ -160,6 +167,26 @@ export function receipt(overrides: Partial<SignInReceipt> = {}): SignInReceipt {
 }
 export class FakeExperienceGateway implements ExperienceGateway {
   readonly calls: Array<{ method: string; body?: unknown }> = [];
+  redemptionImpl: ExperienceGateway['redemption'] = async () => ({
+    status: 'unavailable',
+  });
+  redeemTitleImpl: ExperienceGateway['redeemTitle'] = async (input) => ({
+    requestId: input.requestId,
+    operation: 'redeem_title',
+    outcome: 'granted',
+    titleKey: 'redeem_liangchenmeijing',
+  });
+  redemption(c: Parameters<ExperienceGateway['summary']>[0]) {
+    this.calls.push({ method: 'redemption' });
+    return this.redemptionImpl(c);
+  }
+  redeemTitle(
+    i: Parameters<ExperienceGateway['redeemTitle']>[0],
+    c: Parameters<ExperienceGateway['summary']>[0],
+  ) {
+    this.calls.push({ method: 'redeemTitle' });
+    return this.redeemTitleImpl(i, c);
+  }
   currentSummary = summary();
   currentAppearance = appearance();
   currentRecords: ExperienceRecords = {

@@ -16,6 +16,8 @@ test('structured logging redacts credential fields and token headers', () => {
     WECHAT_APP_SECRET: 'secret-provider',
     AUTH_RATE_LIMIT_KEY: 'secret-risk-key',
     code: 'secret-code',
+    redemptionCode: 'secret-redemption-input',
+    body: { nested: { code: 'secret-body-input' } },
     session_key: 'secret-provider-session',
     openid: 'secret-provider-subject',
     unionid: 'secret-provider-union',
@@ -26,12 +28,14 @@ test('structured logging redacts credential fields and token headers', () => {
       refresh_token: 'secret-refresh',
     },
     req: {
+      body: { nested: { code: 'secret-request-body-input' } },
       headers: {
         authorization: 'secret-auth',
         cookie: 'secret-cookie',
         token: 'secret-token',
       },
     },
+    request: { body: { code: 'secret-alternate-request-input' } },
   });
   assert.ok(!output.includes('secret-'));
   assert.ok(output.includes('[REDACTED]'));

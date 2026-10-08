@@ -271,3 +271,62 @@ mandatory. These bounds are not an end-to-end HTTP latency SLA. SQL/proof failur
 fail closed; only clean between-statement selection exhaustion yields
 `scan_limited`. Production historical reconciliation and complete-population
 ranking remain separate gates.
+
+## Limited titles and inactive redemption infrastructure
+
+The reviewed catalog includes the source-declared limited title
+`redeem_liangchenmeijing` / 良辰美景, alongside the existing default and level titles.
+This is nonsecret cosmetic metadata. Catalog presence does not establish a valid
+campaign, current ownership or permission to grant it. The supported kind union
+also accommodates special cosmetics; no administrator title or role grant is
+introduced here. Registration still grants only its existing two titles.
+
+Owner inventory groups default titles with level titles and separates limited and
+special titles. Exact catalog key/name/kind agreement remains required across SQL,
+API and native decoding. Public named display exposes only the selected supported
+title; anonymous authors never acquire public experience display. Known ownership
+and unknown balance remain independent, and original null earned dates stay null.
+
+The production redemption provider is concretely unavailable. There is no example
+code, shared default key, environment activation switch or production grant proof.
+The native page reports unavailability instead of offering a form that declares
+all real codes invalid. Real provisioning, guarded production grant authority,
+cryptographic key lifecycle, distributed abuse protection and campaign activation
+remain separate operational gates.
+
+Owner contracts:
+
+- `GET /v1/me/experience/redemption`: capability `available` or `unavailable`
+- `POST /v1/me/experience/redemptions`: strict request ID plus exact input code;
+  the owner comes only from the authenticated session
+- Existing owner request-recovery GET supports operation `redeem_title`
+- Granted receipt: request ID, operation, `outcome: "granted"`, supported title key
+- Rejected receipt: request ID, operation, `outcome: "rejected"`, fixed invalid or
+  already-owned condition; it never returns the entered code
+
+Unavailable infrastructure, exhausted attempt budget and unknown network outcome
+are not terminal invalid-code receipts. Recovery GET remains independent of
+provider availability. A supported successful grant refreshes owned inventory;
+it does not equip the title, award points, create a known historical balance or
+promote partial entitlement coverage to complete.
+
+The exercised implementation binds exact input to its owner/request using keyed,
+domain-separated cryptographic fingerprints. It does not use an unkeyed digest of
+a guessable code. Raw input and key material never reach SQL parameters, receipts,
+URLs, persisted native state or intended logs. Metadata-only logging and defensive
+body redaction supplement this boundary; transient JavaScript memory clearing is
+not a secure-erasure guarantee.
+
+The isolated native recovery record stores only a request handle scoped to its
+owner and API origin. Input stays transient and is cleared on hide, navigation or
+account/session change. Recovery first asks for the existing receipt. A missing
+receipt does not prove an earlier request cannot still commit; after losing the
+transient input, deliberate re-entry is needed for another submission under that
+handle. A committed different input conflicts instead of creating another grant.
+Stale responses cannot update another account, and repeated taps are coalesced.
+
+Synthetic tests inject a provider and attempt-budget implementation in disposable,
+explicitly guarded development databases. New SQL decision, entitlement and receipt
+proofs must agree atomically and reject incomplete or forged records. That test
+path is not a production activation mechanism or evidence that any real campaign
+has been restored. No real redemption code is included in source or fixtures.

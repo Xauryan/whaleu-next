@@ -11,7 +11,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 - [ ] PARTIAL — School identity: school search and district selection; selected school versus verified institution; identity campus; related campuses; global university-city context; permission-sensitive switching
 - [ ] PARTIAL — Public/personal profile: nickname, biography, avatar/default avatar, profile banner, school/UID display, titles, public profile, posts and trading listings, profile-post privacy
 - [ ] PARTIAL — Preferences: system/manual theme, anonymous posting/comment defaults, anonymous-private-message preference, notification controls, guide/button settings, remembered publish contact/location choices
-- [ ] PARTIAL — Experience: local owner ledger, daily sign-in, records, daily limits/tasks, levels, owned title/color selection and durable unlock notices are implemented with fresh source enrollment. Public projections, rankings, administrator title maintenance, redemption, historical reconciliation/import and production-scale processing remain open
+- [ ] PARTIAL — Experience: local owner ledger, daily sign-in, records, daily limits/tasks, levels, owned title/color selection and durable unlock notices are implemented with fresh source enrollment. Named public projections and bounded known-participant ranking are implemented. Limited-title catalog and inactive redemption infrastructure have passed local acceptance; administrator title maintenance, real campaign activation, complete historical population/import and production-scale processing remain open
 
 ## Campus feed and publishing
 
@@ -359,3 +359,15 @@ native leaderboard UI or historical zero is invented. Migration 0023 adds the
 ordered index only. Local aggregate gates pass 1,849 tests; see
 [ranking acceptance](acceptance/experience-ranking.md). This supersedes the generic
 ranking-backend gap above; complete-population ranking remains unavailable.
+
+Limited-title/redemption checkpoint: SQL/API/native/public projections now share
+17 reviewed nonsecret catalog entries, with grouped inventory and a strict limited
+title selection/display path. Owner redemption infrastructure has exact-byte keyed
+intent binding, immutable atomic decision/entitlement/receipt proofs and a
+nonsecret native recovery handle. Full local gates pass 1,887 tests. Production
+provider/budget remain unavailable; only explicitly guarded synthetic fixtures
+exercise grants. No real code, default key, activation switch, account grant or
+campaign restoration is included. Existing unknown balances, undated ownership
+and unsaved appearance drafts remain intact. See
+[acceptance evidence](acceptance/title-redemption.md). Real provisioning/abuse
+protection/activation and historical import remain separate gates.

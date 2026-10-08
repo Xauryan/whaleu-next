@@ -1,3 +1,8 @@
+import { titleNames, supportedTitleCount } from './title-manifest';
+import {
+  decodeRedemptionReceipt,
+  type RedemptionReceipt,
+} from './redemption-contract';
 import { ClientError, isRecord } from '../api/errors';
 import { isUuid } from '../profile/contract';
 
@@ -58,7 +63,7 @@ export interface ExperienceSummary {
 export interface ExperienceTitle {
   readonly key: string;
   readonly name: string;
-  readonly kind: 'default' | 'level';
+  readonly kind: 'default' | 'level' | 'limited' | 'special';
   readonly unlockLevel: number | null;
 }
 export interface ExperienceColor {
@@ -153,7 +158,8 @@ export type AppearanceReceipt =
       readonly outcome: 'rejected';
       readonly code: AppearanceRejection;
     };
-export type ExperienceReceipt = SignInReceipt | AppearanceReceipt;
+export type ExperienceReceipt =
+  SignInReceipt | AppearanceReceipt | RedemptionReceipt;
 export interface ExperienceUnlock {
   readonly noticeId: string;
   readonly fromLevel: number;
@@ -214,6 +220,7 @@ const label = (v: unknown): v is string =>
   v.trim().length > 0 &&
   Array.from(v).every((c) => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127);
 const titleKey = (v: unknown): v is string =>
+  v === 'redeem_liangchenmeijing' ||
   v === 'default_jingxiaoyu' ||
   (typeof v === 'string' &&
     /^level_(1|3|5|7|9|11|13|15|17|19|21|23|25|27|29)$/.test(v));
@@ -446,11 +453,13 @@ function checkTitle(value: unknown, owned = false): void {
   );
   if (
     !titleKey(value.key) ||
-    !label(value.name) ||
+    value.name !== titleNames[value.key as string] ||
     (value.key === 'default_jingxiaoyu'
       ? value.kind !== 'default' || value.unlockLevel !== null
-      : value.kind !== 'level' ||
-        value.unlockLevel !== Number(value.key.slice(6)))
+      : value.key === 'redeem_liangchenmeijing'
+        ? value.kind !== 'limited' || value.unlockLevel !== null
+        : value.kind !== 'level' ||
+          value.unlockLevel !== Number(value.key.slice(6)))
   )
     invalidExperience();
   if (
@@ -479,7 +488,7 @@ export function decodeExperienceCatalog(value: unknown): ExperienceCatalog {
     !Array.isArray(value.signInRewards) ||
     JSON.stringify(value.signInRewards) !== JSON.stringify(signInRewards) ||
     !Array.isArray(value.titles) ||
-    value.titles.length !== 16 ||
+    value.titles.length !== supportedTitleCount ||
     !Array.isArray(value.colors) ||
     value.colors.length !== 26
   )
@@ -624,7 +633,7 @@ export function decodeExperienceAppearance(
   if (
     !coverage(value.coverage) ||
     !Array.isArray(value.titles) ||
-    value.titles.length > 16 ||
+    value.titles.length > supportedTitleCount ||
     !nullable(value.titleKey, titleKey) ||
     !nullable(value.colorId, colorId) ||
     !Array.isArray(value.eligibleColorIds) ||
@@ -695,6 +704,7 @@ export function decodeExperienceIntent(value: unknown): ExperienceIntent {
 }
 export function decodeExperienceReceipt(value: unknown): ExperienceReceipt {
   if (!isRecord(value)) invalidExperience();
+  if (value.operation === 'redeem_title') return decodeRedemptionReceipt(value);
   if (value.operation === 'sign_in') {
     exactExperience(value, [
       'requestId',
@@ -791,7 +801,9 @@ export function decodeExperienceUnlocks(value: unknown): ExperienceUnlocks {
       !integer(v.toLevel, 2, 30) ||
       v.toLevel <= v.fromLevel ||
       !Array.isArray(v.titleKeys) ||
-      !v.titleKeys.every(titleKey) ||
+      !v.titleKeys.every(
+        (key: unknown) => titleKey(key) && key.startsWith('level_'),
+      ) ||
       !unique(v.titleKeys) ||
       !Array.isArray(v.colorIds) ||
       !v.colorIds.every((n) => integer(n, 11, 25)) ||

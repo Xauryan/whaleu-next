@@ -1,3 +1,11 @@
+import {
+  decodeRedemptionCapability,
+  decodeRedemptionInput,
+  decodeRedemptionReceipt,
+  type RedemptionCapability,
+  type RedemptionInput,
+  type RedemptionReceipt,
+} from './redemption-contract';
 import type { ApiClient } from '../api/client';
 import type { Cancellation, Json } from '../platform/contracts';
 import {
@@ -28,6 +36,11 @@ import {
   type SignInReceipt,
 } from './contract';
 export interface ExperienceGateway {
+  redemption(cancel: Cancellation): Promise<RedemptionCapability>;
+  redeemTitle(
+    input: RedemptionInput,
+    cancel: Cancellation,
+  ): Promise<RedemptionReceipt>;
   summary(cancel: Cancellation): Promise<ExperienceSummary>;
   catalog(cancel: Cancellation): Promise<ExperienceCatalog>;
   records(
@@ -54,13 +67,14 @@ export class HttpExperienceGateway implements ExperienceGateway {
     decode: (v: unknown) => T,
     cancel: Cancellation,
     query?: Readonly<Record<string, string | number>>,
+    authReplay: 'once' | 'never' = 'once',
   ): Promise<T> {
     return this.api.request(
       {
         path,
         method: 'GET',
         authentication: 'required',
-        authReplay: 'once',
+        authReplay,
         successStatus: 200,
         decode,
       },
@@ -84,6 +98,37 @@ export class HttpExperienceGateway implements ExperienceGateway {
         decode,
       },
       { body, cancellation: cancel },
+    );
+  }
+  redemption(cancel: Cancellation) {
+    return this.api.request(
+      {
+        path: '/v1/me/experience/redemption',
+        method: 'GET',
+        authentication: 'required',
+        authReplay: 'never',
+        successStatus: 200,
+        decode: decodeRedemptionCapability,
+      },
+      { cancellation: cancel },
+    );
+  }
+  redeemTitle(
+    raw: RedemptionInput,
+    cancel: Cancellation,
+  ): Promise<RedemptionReceipt> {
+    const input = decodeRedemptionInput(raw),
+      requestId = input.requestId;
+    return this.write(
+      '/v1/me/experience/redemptions',
+      'POST',
+      { requestId, code: input.code },
+      (v) => {
+        const receipt = decodeRedemptionReceipt(v);
+        if (receipt.requestId !== requestId) invalidExperience();
+        return receipt;
+      },
+      cancel,
     );
   }
   summary(cancel: Cancellation) {
@@ -151,6 +196,8 @@ export class HttpExperienceGateway implements ExperienceGateway {
         return r;
       },
       cancel,
+      undefined,
+      'never',
     );
   }
   unlocks(cancel: Cancellation) {

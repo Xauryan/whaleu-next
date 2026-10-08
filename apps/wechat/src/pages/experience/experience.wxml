@@ -19,6 +19,20 @@
     <button bindtap="onRecover" data-operation="appearance" disabled="{{busy}}">查询外观回执</button>
     <button bindtap="onRecover" data-operation="appearance" data-retry="{{true}}" disabled="{{busy}}">重试完全相同的外观请求</button>
   </view>
+  <view wx:if="{{hasSession}}" class="card">
+    <view class="card-title">兑换头衔</view>
+    <view wx:if="{{redemptionStatus !== 'available'}}" class="hint">兑换暂未配置；已拥有的头衔仍可查看和选择。</view>
+    <block wx:if="{{redemptionStatus === 'available'}}">
+      <input value="{{redemptionCode}}" bindinput="onRedemptionInput" password="{{true}}" maxlength="128" placeholder="输入兑换码（区分大小写，不自动去空格）" disabled="{{busy}}" />
+      <button wx:if="{{!redemptionPending}}" bindtap="onRedeemTitle" disabled="{{busy || !redemptionCode}}">兑换头衔</button>
+    </block>
+    <block wx:if="{{redemptionPending}}">
+      <view>原兑换结果待确认。请先查询回执；退出页面后需重新输入原兑换码。未查到回执不代表原请求不会完成。</view>
+      <button bindtap="onRecoverRedemption" disabled="{{busy}}">查询原兑换回执</button>
+      <button wx:if="{{redemptionStatus === 'available'}}" bindtap="onRetryRedemption" disabled="{{busy || !redemptionCode}}">先查询，再用重新输入的兑换码重试原编号</button>
+      <view class="hint">若原请求尚未提交成功，重新输入的内容可能成为此编号首次接受的内容；请使用原兑换码。</view>
+    </block>
+  </view>
   <block wx:if="{{loaded}}">
     <view class="card">
       <view class="card-title">当前经验</view><view class="balance">{{balanceLabel}}</view>
@@ -44,7 +58,7 @@
       <view wx:if="{{appearance.coverage === 'partial'}}" class="hint">头衔历史覆盖不完整；这里只列出能确认属于你的头衔。</view>
       <view wx:if="{{appearance.titles.length === 0}}" class="hint">{{appearance.coverage === 'complete' ? '当前没有已拥有的头衔' : '暂未确认更多已拥有的头衔'}}</view>
       <button class="choice {{titleKey === null ? 'selected' : ''}}" bindtap="onTitle" data-key="" disabled="{{busy || appearancePending}}">清除头衔</button>
-      <button wx:for="{{appearance.titles}}" wx:key="key" class="choice {{titleKey === item.key ? 'selected' : ''}}" bindtap="onTitle" data-key="{{item.key}}" disabled="{{busy || appearancePending}}">{{item.name}} · {{item.earnedAt ? item.earnedAt : '获得日期不可用'}}</button>
+      <block wx:for="{{titleGroups}}" wx:key="label" wx:for-item="group"><view class="section-label">{{group.label}}</view><button wx:for="{{group.titles}}" wx:key="key" class="choice {{titleKey === item.key ? 'selected' : ''}}" bindtap="onTitle" data-key="{{item.key}}" disabled="{{busy || appearancePending}}">{{item.name}} · {{item.earnedAt ? item.earnedAt : '获得日期不可用'}}</button></block>
       <view class="section-label">颜色</view><button class="choice {{colorId === null ? 'selected' : ''}}" bindtap="onColor" data-id="" disabled="{{busy || appearancePending}}">清除颜色</button>
       <view class="colors"><view wx:for="{{colors}}" wx:key="id" class="color-option"><button class="swatch {{item.selected ? 'selected' : ''}}" style="{{item.style}}" bindtap="onColor" data-id="{{item.id}}" disabled="{{busy || appearancePending || !item.selectable}}" aria-label="{{item.name}}">{{item.selected ? '✓' : ''}}</button><view>{{item.name}}</view><view class="hint">{{item.retained ? '已装备，可保留' : item.unlockLevel > 0 ? '等级 ' + item.unlockLevel : '基础颜色'}}</view></view></view>
       <button class="primary" bindtap="onSave" disabled="{{busy || appearancePending || !appearanceDirty}}">保存头衔与颜色</button>
@@ -57,5 +71,5 @@
       <button wx:if="{{hasMore}}" class="secondary" bindtap="onMore" disabled="{{busy}}">加载更多记录</button>
     </view>
   </block>
-  <view class="footnote">当前为本地经验与已拥有外观功能。历史经验恢复、公开主页等级与统计、排行和兑换仍待接入。</view>
+  <view class="footnote">历史经验与头衔恢复仍需可靠来源；兑换基础功能已接入，实际兑换配置暂不可用。</view>
 </view>

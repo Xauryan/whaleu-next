@@ -107,10 +107,11 @@ export class ExperienceRepository {
       (
         await tx.query<{
           intent_hash: string;
+          intent_key_version: string | null;
           operation: string;
           receipt: ExperienceReceipt;
         }>(
-          'SELECT intent_hash,operation,receipt FROM whaleu_experience.requests WHERE owner_id=$1 AND request_id=$2',
+          'SELECT intent_hash,intent_key_version,operation,receipt FROM whaleu_experience.requests WHERE owner_id=$1 AND request_id=$2',
           [owner, request],
         )
       ).rows[0] ?? null
@@ -126,15 +127,17 @@ export class ExperienceRepository {
     hash: string,
     receipt: ExperienceReceipt,
     tx: PoolClient,
+    keyVersion: string | null = null,
   ) {
     await tx.query(
-      'INSERT INTO whaleu_experience.requests(owner_id,request_id,operation,intent_hash,receipt) VALUES($1,$2,$3,$4,$5::jsonb)',
+      'INSERT INTO whaleu_experience.requests(owner_id,request_id,operation,intent_hash,receipt,intent_key_version) VALUES($1,$2,$3,$4,$5::jsonb,$6)',
       [
         owner,
         receipt.requestId,
         receipt.operation,
         hash,
         JSON.stringify(receipt),
+        keyVersion,
       ],
     );
   }

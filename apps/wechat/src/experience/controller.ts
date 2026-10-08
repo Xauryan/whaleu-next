@@ -1,3 +1,5 @@
+import { decodeRedemptionCapability } from './redemption-contract';
+import { titleNames } from './title-manifest';
 import { ClientError, clientError } from '../api/errors';
 import type { SessionTicket } from '../auth/session';
 import { communityError } from '../community/controller';
@@ -50,6 +52,13 @@ interface ColorRow {
   readonly retained: boolean;
 }
 export interface ExperienceView {
+  readonly redemptionStatus: 'available' | 'unavailable';
+  readonly redemptionCode: string;
+  readonly redemptionPending: boolean;
+  readonly titleGroups: readonly {
+    label: string;
+    titles: ExperienceAppearance['titles'];
+  }[];
   readonly configured: boolean;
   readonly hasSession: boolean;
   readonly busy: boolean;
@@ -87,6 +96,10 @@ export interface ExperienceView {
   readonly acknowledgementIds: readonly string[];
 }
 export const initialExperienceView = (): ExperienceView => ({
+  redemptionStatus: 'unavailable',
+  redemptionCode: '',
+  redemptionPending: false,
+  titleGroups: [],
   configured: false,
   hasSession: false,
   busy: false,
@@ -118,6 +131,17 @@ export const initialExperienceView = (): ExperienceView => ({
 export function experienceError(error: unknown): string {
   const failure = clientError(error),
     messages: Readonly<Record<string, string>> = {
+      EXPERIENCE_REDEMPTION_UNAVAILABLE:
+        '兑换暂未配置；已拥有的头衔仍可查看和选择',
+      EXPERIENCE_REDEMPTION_RATE_LIMITED:
+        '兑换尝试过于频繁，请稍后查询原回执再重试',
+      EXPERIENCE_REDEMPTION_INVALID: '兑换码无效',
+      EXPERIENCE_TITLE_ALREADY_OWNED:
+        '已经拥有这个头衔；原获得日期与外观选择保持不变',
+      EXPERIENCE_REDEMPTION_INPUT_INVALID:
+        '请输入不含控制字符且不超过 128 字节的兑换码',
+      EXPERIENCE_REDEMPTION_REENTRY_REQUIRED:
+        '暂未查到回执，原请求仍可能完成。请稍后查询，或重新输入原兑换码后重试原编号',
       EXPERIENCE_BASELINE_UNAVAILABLE:
         '历史经验基准尚未确认，暂不能签到或确认余额；已知拥有的头衔仍可选择',
       EXPERIENCE_PENDING:
@@ -165,6 +189,7 @@ export class ExperienceController {
   private cursor: string | null = null;
   private refreshQueued = false;
   private refreshDeferred = false;
+  private preserveSelection = false;
   private readonly unsubscribe: () => void;
   private readonly unsubscribeVisibility: () => void;
   private readonly unsubscribeChanges: () => void;
@@ -190,6 +215,8 @@ export class ExperienceController {
       if (this.disposed || this.paused) return;
       this.syncPending();
       if (event.phase === 'settled') {
+        if (event.operation === 'redeem_title' && this.view.appearanceDirty)
+          this.preserveSelection = true;
         if (event.operation === 'sign_in' && this.view.appearanceDirty) {
           this.refreshDeferred = true;
           this.update({
@@ -216,6 +243,7 @@ export class ExperienceController {
     this.refreshQueued = false;
   }
   private clear(status: string): void {
+    this.runtime.clearRedemptionInput();
     this.stop();
     this.cursor = null;
     this.update({
@@ -250,11 +278,13 @@ export class ExperienceController {
     try {
       const id = this.owner.credentials.accountId;
       this.update({
+        redemptionPending: !!this.runtime.pending.redemption.load(id),
         signInPending: !!this.runtime.pending.load(id, 'sign_in'),
         appearancePending: !!this.runtime.pending.load(id, 'appearance'),
       });
     } catch (error) {
       this.update({
+        redemptionPending: true,
         signInPending: true,
         appearancePending: true,
         error: experienceError(error),
@@ -323,6 +353,10 @@ export class ExperienceController {
   /** A snapshot read only. App foreground is a separate explicit command. */
   async load(): Promise<void> {
     if (this.disposed || this.view.busy) return;
+    const selection = this.preserveSelection
+      ? { titleKey: this.view.titleKey, colorId: this.view.colorId }
+      : null;
+    this.preserveSelection = false;
     const receiptStatus = this.view.receiptStatus,
       acknowledgementIds = this.view.acknowledgementIds;
     this.refreshDeferred = false;
@@ -333,15 +367,17 @@ export class ExperienceController {
     await this.run(
       async (cancel) => {
         const gateway = this.runtime.gateway!;
-        const [summary, appearance, catalog, records, unlocks] =
+        const [summary, appearance, catalog, records, unlocks, redemption] =
           await Promise.all([
             gateway.summary(cancel),
             gateway.appearance(cancel),
             gateway.catalog(cancel),
             gateway.records(null, cancel),
             gateway.unlocks(cancel),
+            gateway.redemption(cancel),
           ]);
         return {
+          redemption: decodeRedemptionCapability(redemption),
           summary: decodeExperienceSummary(summary),
           appearance: decodeExperienceAppearance(appearance),
           catalog: decodeExperienceCatalog(catalog),
@@ -349,10 +385,27 @@ export class ExperienceController {
           unlocks: decodeExperienceUnlocks(unlocks),
         };
       },
-      ({ summary, appearance, catalog, records, unlocks }) => {
+      ({ summary, appearance, catalog, records, unlocks, redemption }) => {
         this.cursor = records.nextCursor;
         this.update({
           loaded: true,
+          redemptionStatus: redemption.status,
+          titleGroups: [
+            {
+              label: '限定头衔',
+              titles: appearance.titles.filter((t) => t.kind === 'limited'),
+            },
+            {
+              label: '等级头衔',
+              titles: appearance.titles.filter(
+                (t) => t.kind === 'default' || t.kind === 'level',
+              ),
+            },
+            {
+              label: '特殊头衔',
+              titles: appearance.titles.filter((t) => t.kind === 'special'),
+            },
+          ].filter((group) => group.titles.length > 0),
           summary,
           appearance,
           catalog,
@@ -362,8 +415,8 @@ export class ExperienceController {
             records.coverage === 'complete'
               ? '完整的已知本地经验记录'
               : '记录覆盖不完整；空列表不代表从未有过经验记录',
-          titleKey: appearance.titleKey,
-          colorId: appearance.colorId,
+          titleKey: selection ? selection.titleKey : appearance.titleKey,
+          colorId: selection ? selection.colorId : appearance.colorId,
           appearanceDirty: false,
           balanceLabel:
             summary.balance === null ? '历史经验基准未确认' : summary.balance,
@@ -512,22 +565,79 @@ export class ExperienceController {
   }
   private receipt(receipt: ExperienceReceipt): void {
     const message =
-      receipt.operation === 'sign_in'
-        ? receipt.outcome === 'awarded'
-          ? `${receipt.rewardDay} 签到已确认，获得 ${receipt.appliedDelta} 经验`
-          : `${receipt.rewardDay} 已签到，未重复增加经验`
-        : receipt.outcome === 'applied'
-          ? '原外观请求已完成，当前外观将重新查询'
+      receipt.operation === 'redeem_title'
+        ? receipt.outcome === 'granted'
+          ? `已获得头衔「${titleNames[receipt.titleKey]}」，可在已拥有的头衔中另行选择`
           : experienceError(
-              new ClientError('business', 'Appearance rejected', {
+              new ClientError('business', 'Redemption rejected', {
                 serverCode: receipt.code,
               }),
-            );
+            )
+        : receipt.operation === 'sign_in'
+          ? receipt.outcome === 'awarded'
+            ? `${receipt.rewardDay} 签到已确认，获得 ${receipt.appliedDelta} 经验`
+            : `${receipt.rewardDay} 已签到，未重复增加经验`
+          : receipt.outcome === 'applied'
+            ? '原外观请求已完成，当前外观将重新查询'
+            : experienceError(
+                new ClientError('business', 'Appearance rejected', {
+                  serverCode: receipt.code,
+                }),
+              );
     this.update({
       receiptStatus: message,
       status: '原请求已确认；正在刷新当前状态',
     });
     this.syncPending();
+  }
+  setRedemptionCode(code: string): void {
+    if (
+      this.disposed ||
+      this.view.busy ||
+      this.view.redemptionStatus !== 'available'
+    )
+      return;
+    this.update({ redemptionCode: code });
+  }
+  async redeemTitle(): Promise<void> {
+    if (
+      this.view.busy ||
+      !this.available() ||
+      this.view.redemptionStatus !== 'available'
+    )
+      return;
+    this.syncPending();
+    if (this.view.redemptionPending) return;
+    let input = this.view.redemptionCode;
+    this.update({ redemptionCode: '' });
+    await this.run(
+      (cancel) => {
+        const result = this.runtime.redeemTitle(input, cancel);
+        input = '';
+        return result;
+      },
+      (receipt) => this.receipt(receipt),
+    );
+    input = '';
+  }
+  async recoverRedemption(retry = false): Promise<void> {
+    if (
+      this.view.busy ||
+      !this.available() ||
+      (retry && this.view.redemptionStatus !== 'available')
+    )
+      return;
+    let input = retry ? this.view.redemptionCode : undefined;
+    this.update({ redemptionCode: '' });
+    await this.run(
+      (cancel) => {
+        const result = this.runtime.recoverRedemption(input, cancel);
+        input = undefined;
+        return result;
+      },
+      (receipt) => this.receipt(receipt),
+    );
+    input = undefined;
   }
   async signIn(): Promise<void> {
     if (this.view.busy || !this.available()) return;

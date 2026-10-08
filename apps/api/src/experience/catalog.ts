@@ -44,7 +44,7 @@ const titleNames = [
 export interface TitleDefinition {
   key: string;
   name: string;
-  kind: 'default' | 'level';
+  kind: 'default' | 'level' | 'limited' | 'special';
   unlockLevel: number | null;
 }
 export const titles: TitleDefinition[] = [
@@ -52,6 +52,12 @@ export const titles: TitleDefinition[] = [
     key: 'default_jingxiaoyu',
     name: '鲸小语',
     kind: 'default',
+    unlockLevel: null,
+  },
+  {
+    key: 'redeem_liangchenmeijing',
+    name: '良辰美景',
+    kind: 'limited',
     unlockLevel: null,
   },
   ...titleNames.map((name, i): TitleDefinition => ({
