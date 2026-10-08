@@ -1,3 +1,4 @@
+import { errandAdminPageSchema } from '../src/errands/admin-contracts.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
@@ -49,6 +50,7 @@ test('errand official Swagger is deterministic, offline and artifact-current', a
 test('every errand/notice route requires auth, strict output, no-store/Vary and documented sanitized failures', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
+    ['/v1/admin/errands', 'get', errandAdminPageSchema],
     ['/v1/errands', 'get', errandPageSchema],
     ['/v1/errands', 'post', errandReceiptSchema],
     ['/v1/errands/{orderId}', 'get', errandDetailSchema],

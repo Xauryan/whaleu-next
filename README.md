@@ -21,7 +21,9 @@ post-jury outcomes with owner-only system notices. Local owner experience, sign-
 fresh-source rewards and owned title/color selection are described in the
 [experience contract](docs/API_EXPERIENCE.md); unproven old balances remain unknown. A [text-only errand lifecycle](docs/API_ERRANDS.md) adds exact reviewed publication,
 cross-region acceptance, private participant detail, owned history, replay-safe
-commands and local accepted/completed notices; errand administration, media, group
+commands and local accepted/completed notices. Read-only exact-target/global historical
+errand administration adds public-only search and exact-or-unavailable totals; administrative
+mutations, media, group
 delivery and migration remain open. The remaining business modules and complete
 end-to-end onboarding/provider integration are still being implemented. Normal
 runtime text access now consumes canonical policy and exact review records;

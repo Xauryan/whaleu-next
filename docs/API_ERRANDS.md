@@ -1,10 +1,11 @@
-# Errands: text-only lifecycle (E1)
+# Errands: text-only lifecycle and read-only administration (E1/E2A)
 
 This is a partial greenfield errand rewrite. It provides fresh, exactly reviewed
 text publication, discovery/detail, single-winner acceptance, publisher cleanup,
 owned history, remembered accepter contacts, recoverable receipts and durable
-local accepted/completed notices. It does not implement an issuer, external
-provider, production import, administration, media or group delivery. Reward is
+local accepted/completed notices. E2A adds bounded read-only historical management.
+It does not implement an issuer, external provider, production import, administrative
+mutations, media or group delivery. Reward is
 an offered amount, not payment or settlement. No refund or runner rating exists.
 
 ## HTTP contract
@@ -143,10 +144,85 @@ minutes. Opaque shared-owner quota creation is the last blocking domain operatio
 managed deadlines are checked after it and deferred constraints. No exact total
 is invented from page length.
 
+## Read-only historical administration (E2A)
+
+`GET /v1/admin/errands` accepts `regionId?`,
+`status=all|pending|accepted|completed|cancelled|deleted` (default `all`),
+`keyword` (trimmed, at most 100 Unicode code points, default empty),
+`limit=1..50` (default 20), and an opaque cursor. It rejects every GET body,
+including `{}`. The same shared errand request budget and no-store/Vary headers
+apply, including malformed/oversized parser errors.
+
+A current locked school grant fixes the exact order target region. Omission
+derives that unique binding; a mismatched target is denied. Conflicting school
+evidence is unavailable. Global super-administrator/developer authority requires
+an explicit target UUID. Native reads the existing authorization projection for
+scope selection; neither that advisory projection nor a campus picker authorizes
+the request. Browse campus, current identity, institution and related regions
+never widen scope. Only the deterministically selected grant's expiry limits the
+request; irrelevant shorter-lived grants do not. Current session, verified phone
+and whole-account Safety remain mandatory, while publication affiliation and the
+administrator's errand publish/accept restrictions do not gate management reads.
+
+The catalog has no three-day cutoff and intentionally includes held historical
+public-intended material. `all` includes tombstones; lifecycle filters exclude
+all tombstones; `deleted` selects only tombstones. Each row preserves original
+`state` plus separate `displayState` and deletion time. E1 did not record deletion
+reasons, so a tombstone's `deletionReason` is explicitly `{status:unavailable}`;
+live rows have `null`. Source/target IDs remain immutable. Current historical
+labels include `active:false` when retired, or explicit unavailable metadata.
+Retired school scope does not grant school administrators new authority.
+
+Participants expose only current Profile-owned public UUID/display name or
+`{status:unavailable}`; an unassigned accepter is `null`. Reads never create a
+missing profile. Internal account IDs, identity/student numbers, contacts,
+private text, review evidence and profile preferences are neither selected into
+this administrative repository nor serialized. No management capability,
+restriction or mutation UI is included.
+
+`context.search` identifies matcher `public-text-name-uuid-v1` and
+`legacyNumericReferences:unavailable`. The supported predicate is literal
+case-insensitive title/public-text/current-name substring OR exact public profile
+UUID. `%` and `_` are literal characters. No internal account-ID or guessed numeric
+UID lookup exists. Numeric keywords produce clearly labeled text/name matches,
+with total unavailable; old numeric-UID lookup awaits verified Profile-owned
+mapping. A missing participant fact cannot prove an unmatched keyword negative:
+uncertain page membership fails unavailable, while a count-only uncertainty can
+leave the separately valid page intact.
+
+Pages retain at most 50 items, scanning at most 100 candidates plus one continuation
+witness in `(created_at DESC,id DESC)` order. Microsecond seek coordinates prevent
+tied timestamps from skipping rows. Sparse pages may be empty with `more`; totals
+never determine continuation. Cursors bind account/session, selected grant,
+target, exact filters, limit, matcher capability/version and five-minute anchor.
+Changing any scope requires restarting; no raw query or participant ID is in the
+wire token.
+
+`total` is `{status:known,value:"canonical decimal"}` (up to 100 digits) or
+`{status:unavailable}`. It counts the anchored supported predicate before seek,
+not page size. The shared optional-count runner has pool-scoped admission, finite
+elapsed and statement budgets, rollbackable savepoints, bounded 256-row batches,
+and bigint accumulation. Errands and Profile own separate 128-slot epoch vectors
+covering insert/update/delete/truncate of their relevant source tables. Capture
+precedes both count and page reads. No history-size ceiling applies when epoch
+proof is available. Writer capacity at least 128 disables the epoch proof; the
+final-only bounded 1024-candidate table-fence fallback can still prove small totals.
+Missing/corrupt coverage, timeout or failed proof yields unavailable, never zero.
+
+After cursor quota and deferred waits, a mandatory bounded final proof obtains
+only owner SHARE NOWAIT table fences and rereads the entire candidate slice from
+the original seek. Public projections, negative candidates, precise coordinates,
+consumed seek and continuation must all remain identical, including empty/end
+pages. Count proof follows this mandatory page proof; unchanged scalar count alone
+cannot rescue stale page membership. Concurrent source writers can therefore
+produce a retryable `ERRAND_UNAVAILABLE` page rather than stale disclosure. Optional
+count failure alone preserves a valid page. No final owner row-lock wait is added.
+
 ## Explicit remaining parity
 
-E2: exact-target/global administrative search and deletion, protected-target
-sanctions, expiration/release/history controls and native management. The E1 core
+Full E2 remains open. E2A covers read-only exact-target/global historical search;
+E2B still requires administrative deletion, protected-target sanctions,
+expiration/release/history controls, durable notices and native mutation/recovery. The E1 core
 already consumes separate typed feature restrictions; absent coverage is unavailable.
 
 E3: public/private images, owned uploads, exact asset review and authorized delivery,

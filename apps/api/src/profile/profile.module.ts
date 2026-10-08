@@ -1,6 +1,7 @@
 import { AccountIdentityProfileService } from './account-identity-profile.service.js';
 import { PublicProfileFacade } from './public-profile.facade.js';
 import { AuthorDisplayService } from './author-display.service.js';
+import { ProfileAdminParticipantFacade } from './admin-participant.facade.js';
 import {
   Body,
   Controller,
@@ -87,11 +88,13 @@ export class ProfileController {
     AuthorDisplayService,
     AccountIdentityProfileService,
     PublicProfileFacade,
+    ProfileAdminParticipantFacade,
   ],
   exports: [
     AuthorDisplayService,
     AccountIdentityProfileService,
     PublicProfileFacade,
+    ProfileAdminParticipantFacade,
   ],
 })
 export class ProfileModule {}

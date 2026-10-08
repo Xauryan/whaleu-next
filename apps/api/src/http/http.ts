@@ -81,7 +81,8 @@ export function configureHttp(app: INestApplication): void {
     if (
       /^\/v1\/(?:me\/)?(?:announcements|errands|errand-notices|errand-requests)(?:\/|$)/.test(
         request.path,
-      )
+      ) ||
+      /^\/v1\/admin\/errands(?:\/|$)/.test(request.path)
     )
       response.vary('Authorization');
     response.once('finish', () => {

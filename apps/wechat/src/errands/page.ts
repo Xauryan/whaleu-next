@@ -1,3 +1,4 @@
+import { ErrandAdminEntryController } from './admin-entry';
 import type { WhaleuApp } from '../app';
 import { DirectoryNavigator } from '../directory/navigation';
 import { errandStateLabels } from './contract';
@@ -20,7 +21,8 @@ type Input = {
 /** Native controls only; route intent may survive hide, never private content or form values. */
 export function registerErrandPage(mode: ErrandMode): void {
   Page({
-    data: { ...initialErrandView(), errandStateLabels },
+    data: { ...initialErrandView(), errandStateLabels, adminAvailable: false },
+    adminEntry: undefined as ErrandAdminEntryController | undefined,
     route: null as ErrandRoute | null,
     controller: undefined as ErrandController | undefined,
     navigator: undefined as DirectoryNavigator | undefined,
@@ -50,6 +52,8 @@ export function registerErrandPage(mode: ErrandMode): void {
       });
     },
     onShow() {
+      this.adminEntry?.dispose();
+      this.adminEntry = undefined;
       this.controller?.dispose();
       this.controller = undefined;
       this.navigator?.dispose();
@@ -69,6 +73,12 @@ export function registerErrandPage(mode: ErrandMode): void {
         this.setData({ ...view }),
       );
       void this.controller.load(this.route);
+      if (mode === 'list') {
+        this.adminEntry = new ErrandAdminEntryController(runtime, (view) =>
+          this.setData({ adminAvailable: view.allowed }),
+        );
+        void this.adminEntry.load();
+      }
     },
     onRefresh() {
       void this.controller?.reload();
@@ -149,6 +159,8 @@ export function registerErrandPage(mode: ErrandMode): void {
       void this.controller?.confirmCommand();
     },
     onHide() {
+      this.adminEntry?.dispose();
+      this.adminEntry = undefined;
       this.controller?.dispose();
       this.controller = undefined;
       this.navigator?.dispose();

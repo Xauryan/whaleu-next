@@ -1,10 +1,10 @@
-# Errands E1 acceptance status
+# Errands E1/E2A acceptance status
 
 This increment is text-only and PARTIAL. See [API contract](../API_ERRANDS.md) and
 [feature parity](../FEATURE_PARITY.md). No production issuer, real-provider call,
 real privilege grant, production data, dependency addition or deployment was used.
 
-## Frozen complete local gate
+## Frozen complete local gate (E1)
 
 Validated 2026-10-08 against base commit
 `ad438a304a452da90aee7de1c7ca26616533eec1` plus this E1 increment.
@@ -102,9 +102,84 @@ was used to obtain a passing result.
 
 ## Open parity and release gates
 
-Administrative listing/search/exact totals/delete and sanctions/release/history;
+Read-only historical listing/search with exact-or-unavailable totals is covered
+by E2A below. Full E2 still requires administrative delete and
+sanctions/release/history;
 private/public media ownership/review/delivery and re-review; group/help/QR
 preferences, short links and per-destination two-stage promotion; external issuer,
 provider and scheduler readiness; source schema/precision/timezone/data mapping and
 restore rehearsal; native-device acceptance across independent accounts/regions.
 No payment, refund, commission settlement or runner-rating claim is added.
+
+## Hosted verification
+
+Verified SSH-signed commit `07370757703610f1a530f050275b706f0a11f36e` passed
+[GitHub Actions run 37837837903](https://github.com/Xauryan/whaleu-next/actions/runs/37837837903),
+job 113519343748. Actual logs confirm 5 statistics, 711 API, 1,063 native and 1,222
+PostgreSQL tests: 3,001 passed with zero failures/skips/cancellations. PostgreSQL
+took 922.065057595 seconds. All seven OpenAPI checks, emitted errand smoke, full
+check, formatting and Docker container/network cleanup passed. All 1,039 published
+source files and seven OpenAPI artifacts match the tested freeze.
+[Automatic statistics publication](https://github.com/Xauryan/whaleu-next/actions/runs/37837837806)
+also passed its five offline tests and separate real-cloc test; the live SVG
+matches the exact committed SHA. E1 remains partial; production issuer, device,
+provider, administration, media and migration gates remain separate.
+
+## E2A read-only increment: complete local gate
+
+Validated against base commit `07370757703610f1a530f050275b706f0a11f36e` plus
+this E2A read-only historical administration increment. Existing E1 hosted
+evidence above is not an E2A CI claim; hosted verification is separate from
+these local results.
+
+Final E2A source freeze: 1,068 tracked/untracked source, configuration and test
+files (documentation excluded), SHA-256
+`7fb9b064427e1ab80696623bb81d8ac53f286fd594bd2346ea06adbcdf15a98d`.
+All seven generated OpenAPI artifacts were independently frozen; manifest SHA-256
+`1282c4f8145e03e158bb076fc9a5a87233db9aa33c2c7f067ed370e8c1724f35`.
+The focused source/privacy review had no unresolved material findings.
+
+- Complete `npm run check`: exit 0, 21:05:08–21:06:17 UTC, covering root lint,
+  all strict types, seven offline OpenAPI checks, unit suites and emitted native
+  builds/smokes, including the read-only errand administration page
+- Complete `npm run format:check`: exit 0, 21:06:17–21:06:31 UTC
+- Unit totals: 5 root statistics + 735 API + 1,082 native = 1,822 passed
+- Complete serialized `npm run test:integration`: 1,242 passed,
+  21:06:32–21:21:31 UTC, duration 897.792348623 seconds
+- Main combined denominator: 3,064 passed; zero failures, skips, cancellations
+  or pending tests. Focused development runs are not counted again.
+- Required real-cloc integration: 1/1 passed separately using existing
+  checksum-verified cloc 2.10; no download/install or dependency change
+- PostgreSQL 18.6 (`180006`), disposable loopback database, actual launch-only
+  `max_connections=100`; zero application schemas before and after
+- Final runner exit 0; server stopped, PID file absent and runner lease released
+- Source freeze, all seven OpenAPI artifacts and persistent PostgreSQL/HBA
+  configurations remained byte-identical throughout the complete gate
+- Actual native gateway→ordinary AppModule E2A roundtrip and existing E1
+  lifecycle/concurrency/native regressions passed. A separate focused launch-only
+  `max_connections=128` run proved small-count fallback with epoch proofs disabled.
+
+### E2A focused development evidence
+
+- Ordinary AppModule focused scope/privacy suite: 9 tests passed, including all
+  six statuses, exact school/global authority, current names/public UUIDs,
+  numeric-mapping unavailability, selected-grant expiry, ignored irrelevant
+  short grants, profile creation/rename and E1 tombstone races after cursor waits
+- Supplemental ordinary AppModule proof suite: 10 tests passed, including 1,032
+  canonical service publications with old tied microsecond timestamps; >1,024
+  exact streaming; sparse empty-more negative facts; equal-cardinality name swap
+  and count change beyond the first 101 candidates; legal E1 status-entry race;
+  deferred-constraint barrier; active Profile writer NOWAIT failure and completion;
+  malformed old coordinate degrading only the total; parser/privacy headers
+- Unit proof coverage includes empty/end membership changing at finalization,
+  no count capacity with a valid page, large bigint values, shared mixed-domain
+  admission and savepoint capacity recovery. Existing discovery/count owner and
+  finalization tests are retained through the mechanical shared-runner extraction.
+- Focused PostgreSQL runs used isolated 18.6 with zero application schemas after
+  cleanup and a stopped runner afterward; these support, and are not added to,
+  the complete aggregate above.
+
+No administrative mutation/capability, ban, restriction issue/release/history,
+notice writer, external provider or production action is present in E2A. E2B and
+all E3–E5 limitations remain open. Legacy numeric UID mapping is unavailable;
+public UUIDs are not aliases for internal account IDs.

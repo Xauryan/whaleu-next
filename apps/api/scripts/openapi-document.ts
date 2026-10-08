@@ -393,6 +393,10 @@ export async function renderActivitiesOpenApiDocument(): Promise<string> {
 
 /** Tooling-only errand controllers. Never execute application or provider work. */
 export async function createErrandsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { ErrandAdminController } =
+    await import('../src/errands/admin-controller.js');
+  const { ErrandAdminService } =
+    await import('../src/errands/admin-service.js');
   const { ErrandsController } = await import('../src/errands/controller.js');
   const { ErrandsService } = await import('../src/errands/service.js');
   const { ErrandNoticesController } =
@@ -427,9 +431,14 @@ export async function createErrandsOpenApiDocument(): Promise<OpenAPIObject> {
     throw new Error('OpenAPI must not execute application work');
   };
   const testing = await Test.createTestingModule({
-    controllers: [ErrandsController, ErrandNoticesController],
+    controllers: [
+      ErrandsController,
+      ErrandNoticesController,
+      ErrandAdminController,
+    ],
     providers: [
       { provide: ErrandsService, useValue: {} },
+      { provide: ErrandAdminService, useValue: {} },
       { provide: ErrandNoticesService, useValue: {} },
     ],
   })

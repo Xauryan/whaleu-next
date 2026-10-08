@@ -1,5 +1,5 @@
 <import src="../../errands/common.wxml" />
-<view class="screen"><navigator class="link" url="/pages/errand-notices/errand-notices">跑腿接单与完成通知 →</navigator><view class="title">校园跑腿</view>
+<view class="screen"><navigator wx:if="{{adminAvailable}}" class="link" url="/pages/errand-admin/errand-admin">跑腿管理浏览 →</navigator><navigator class="link" url="/pages/errand-notices/errand-notices">跑腿接单与完成通知 →</navigator><view class="title">校园跑腿</view>
   <navigator class="link" url="/pages/errand-mine/errand-mine">我的发布、接单与结果恢复 →</navigator>
   <template is="errand-campus" data="{{regionLabel,campusQuery,campuses,busy,frozen,configured}}" />
   <view class="chips">
@@ -18,5 +18,5 @@
   <view wx:for="{{items}}" wx:key="id" class="card"><template is="errand-summary" data="{{order:item,errandStateLabels}}" /><button data-id="{{item.id}}" bindtap="onOrder" disabled="{{busy}}">查看订单</button></view>
   <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">当前已核验范围内没有订单</view>
   <button wx:if="{{canMore}}" bindtap="onMore" disabled="{{busy}}">加载更多</button>
-  <view class="notice">当前支持文字订单，图片发布暂不可用。外部群投递、管理功能与真实设备验收仍待完成。</view>
+  <view class="notice">当前支持文字订单，图片发布暂不可用。外部群投递、管理操作与真实设备验收仍待完成。</view>
 </view>

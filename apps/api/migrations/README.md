@@ -171,3 +171,11 @@ Migration 0034 adds empty announcement identities, immutable accepted publicatio
 audience/order revisions, current catalog coverage and append-only owner popup
 markers with explicit history coverage. It creates no announcement issuer, admin
 grant, source import or media provider. See [read and acknowledgement scope](../../../docs/API_ANNOUNCEMENTS.md).
+
+Migration 0038 adds fixed 128-slot Errands/Profile mutation epochs for bounded
+administrative read proofs and historical target/state/tombstone keyset indexes.
+Every order/profile INSERT, UPDATE, DELETE and TRUNCATE advances owner metadata
+under the mature try-only slot protocol. Final page validation also requires
+owner-local SHARE NOWAIT table fences after cursor/deferred waits. This metadata
+creates no profiles, users, grants, restrictions, notices, numeric UID mappings,
+providers or imported coverage, and leaves E1 lifecycle/receipt rules unchanged.

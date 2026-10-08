@@ -1,3 +1,6 @@
+import { ErrandAdminController } from './admin-controller.js';
+import { ErrandAdminService } from './admin-service.js';
+import { ErrandAdminRepository } from './admin-repository.js';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.js';
 import { IdentityModule } from '../identity/identity.module.js';
@@ -29,8 +32,10 @@ import { ErrandRequests } from './requests.js';
     ErrandNotificationsModule,
     ErrandRequestThrottlingModule,
   ],
-  controllers: [ErrandsController],
+  controllers: [ErrandsController, ErrandAdminController],
   providers: [
+    ErrandAdminService,
+    ErrandAdminRepository,
     ErrandsService,
     ErrandAccessService,
     ErrandsRepository,

@@ -1,3 +1,4 @@
+import { smokeErrandAdmin } from './smoke-errand-admin.mjs';
 import { smokeErrands } from './smoke-errands.mjs';
 import { smokeActivities } from './smoke-activities.mjs';
 import { smokeAnnouncements } from './smoke-announcements.mjs';
@@ -1831,6 +1832,7 @@ await smokeViewReporting({
   postWire: pollPostWire,
 });
 await smokeErrands({ app, dist, flush: flushTrading });
+await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeActivities({ app, dist, flush: flushTrading });
 await smokeAnnouncements({
   app,

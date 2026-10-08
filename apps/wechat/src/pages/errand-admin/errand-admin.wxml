@@ -1,0 +1,62 @@
+<view class="screen">
+  <view class="title">跑腿管理浏览</view>
+  <view class="notice">当前提供公开订单和历史状态的只读浏览。管理范围由服务端核验。</view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">重新核验权限与列表</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+  <view wx:if="{{access === 'fixed'}}" class="card">
+    <view class="section-title">固定管理地区</view>
+    <view class="body">{{regionLabel || '地区名称暂不可用'}}</view>
+    <view class="meta">地区编号：{{regionId}}</view>
+    <view class="notice">固定授权与浏览校园、当前身份分开核验。</view>
+  </view>
+  <view wx:if="{{access === 'global'}}" class="card">
+    <view class="section-title">选择管理目标地区</view>
+    <input value="{{regionInput}}" bindinput="onRegion" bindconfirm="onSelectRegion" placeholder="填写目标地区 UUID 编号" maxlength="36" />
+    <button bindtap="onSelectRegion" disabled="{{busy}}">核验并查看此地区</button>
+    <view wx:if="{{regionId}}" class="meta">当前地区：{{regionLabel || '地区名称暂不可用'}} · {{regionId}}</view>
+    <view class="notice">可填写保留的历史地区编号；目标能否查看由本次服务端授权决定。</view>
+  </view>
+  <view wx:if="{{(access === 'fixed' || access === 'global') &amp;&amp; regionId}}" class="card">
+    <view class="section-title">查询订单</view>
+    <input value="{{keywordDraft}}" bindinput="onKeyword" bindconfirm="onSearch" placeholder="标题、公开描述、公开昵称或完整公开资料 UUID" maxlength="200" />
+    <button bindtap="onSearch" disabled="{{busy}}">查询</button>
+    <view class="chips"><button wx:for="{{statusOptions}}" wx:key="value" class="chip {{filter === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="onStatus">{{item.label}}</button></view>
+    <view class="meta">当前条件：{{statusLabels[filter]}}{{keyword ? ' · ' + keyword : ''}}</view>
+    <view class="notice">历史订单不设三天期限。全部包含已删除记录；生命周期筛选不包含已删除记录。</view>
+  </view>
+  <view wx:if="{{loaded}}">
+    <view wx:if="{{total.status === 'known'}}" class="section-title">精确总数：{{total.value}}</view>
+    <view wx:else class="notice">精确总数暂不可用，可刷新重试。</view>
+    <view wx:if="{{legacyNumericUnavailable}}" class="notice">旧数字 UID 对照资料暂不可用。搜索支持公开文字、昵称及完整公开资料 UUID；数字关键词仅按公开文字与昵称匹配。</view>
+    <view wx:if="{{numericSearch}}" class="notice">当前为数字文字查询，无法确认旧数字 UID 对应结果，因此不提供精确总数。</view>
+    <view wx:for="{{items}}" wx:key="id" class="card">
+      <view class="section-title">{{item.title}}</view>
+      <view class="meta">{{statusLabels[item.displayState]}} · 报酬 {{item.reward}} 元</view>
+      <view wx:if="{{item.displayState === 'deleted'}}" class="notice">删除前生命周期：{{statusLabels[item.state]}}</view>
+      <view class="body">{{item.publicText}}</view>
+      <view class="meta">期望时间：{{item.expectedTimeText}}</view>
+      <view class="meta">订单编号：{{item.id}}</view>
+      <view class="body">发布者：{{item.publisher.status === 'available' ? item.publisher.displayName : '公开资料暂不可用'}}{{item.relation === 'publisher' ? '（我）' : ''}}</view>
+      <view wx:if="{{item.publisher.status === 'available'}}" class="meta">公开资料编号：{{item.publisher.profileId}}</view>
+      <view wx:if="{{item.accepter}}">
+        <view class="body">接单者：{{item.accepter.status === 'available' ? item.accepter.displayName : '公开资料暂不可用'}}{{item.relation === 'accepter' ? '（我）' : ''}}</view>
+        <view wx:if="{{item.accepter.status === 'available'}}" class="meta">公开资料编号：{{item.accepter.profileId}}</view>
+      </view>
+      <view wx:else class="meta">接单者：无接单记录</view>
+      <view class="meta">来源地区：{{item.sourceRegion.status === 'available' ? item.sourceRegion.label : '名称暂不可用'}}{{item.sourceRegion.status === 'available' ? (item.sourceRegion.active ? '' : '（已停用）') : ''}} · {{item.sourceRegion.id}}</view>
+      <view class="meta">目标地区：{{item.targetRegion.status === 'available' ? item.targetRegion.label : '名称暂不可用'}}{{item.targetRegion.status === 'available' ? (item.targetRegion.active ? '' : '（已停用）') : ''}} · {{item.targetRegion.id}}</view>
+      <view class="meta">发布：{{item.createdAt}}</view>
+      <view wx:if="{{item.acceptedAt}}" class="meta">接单：{{item.acceptedAt}}</view>
+      <view wx:if="{{item.completedAt}}" class="meta">完成：{{item.completedAt}}</view>
+      <view wx:if="{{item.cancelledAt}}" class="meta">取消：{{item.cancelledAt}}</view>
+      <view wx:if="{{item.deletedAt}}" class="meta">删除：{{item.deletedAt}} · 删除原因资料暂不可用</view>
+    </view>
+    <view wx:if="{{!items.length &amp;&amp; continuation === 'more'}}" class="empty">本批没有匹配项，扫描尚未结束，请继续查找。</view>
+    <view wx:if="{{!items.length &amp;&amp; continuation === 'end'}}" class="empty">本页没有匹配项，已到本次查询末尾。</view>
+    <view class="meta">第 {{pageNumber}} 页{{continuation === 'end' ? ' · 已到末尾' : ''}}</view>
+    <button wx:if="{{canPrevious}}" bindtap="onPrevious" disabled="{{busy}}">上一页（重新读取）</button>
+    <button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页（继续查找）</button>
+  </view>
+</view>

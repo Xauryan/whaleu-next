@@ -672,3 +672,6 @@ export async function smokeErrands({ app, dist, flush }) {
     'Errand emitted smoke passed: native text publish, exact decimal/contact snapshots, campus operating-region resolution, home/foreign-own discovery, current participant/private/contact branches, modal dismissal, repeated commands, frozen identical recovery, storage failure, publisher completion, own histories, local accepted/completed notice navigation/read/unread, session/root-hide clearing; synthetic WXML model, not device acceptance',
   );
 }
+
+// Shared only by repository-owned emitted errand-page smoke checks.
+export { parse as parseErrandWxml, render as renderErrandWxml };
