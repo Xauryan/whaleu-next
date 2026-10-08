@@ -48,6 +48,11 @@ export async function smokeTradingContacts({
     component: { kind: 'none' },
     author: {
       kind: 'named',
+      experienceDisplay: {
+        title: { status: 'unavailable', value: null },
+        color: { status: 'unavailable', value: null },
+        level: { status: 'unavailable', value: null },
+      },
       profileId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
       displayName: 'Synthetic seller',
       avatar: null,

@@ -73,13 +73,14 @@ export class CommunitySerializer {
           content.account_id === post.account_id,
       };
     }
-    const display = await this.profiles.find(content.account_id, tx);
+    const display = await this.profiles.findPublic(content.account_id, tx);
     if (!display) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     return {
       kind: 'named',
       profileId: display.profileId,
       displayName: display.displayName,
       avatar: null,
+      experienceDisplay: display.experienceDisplay,
     };
   }
   async images(

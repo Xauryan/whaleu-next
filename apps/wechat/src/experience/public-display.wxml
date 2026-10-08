@@ -1,0 +1,12 @@
+<template name="public-experience-display">
+  <view wx:if="{{detailed || (display.title.status === 'known' &amp;&amp; display.title.value !== null) || (display.color.status === 'known' &amp;&amp; display.color.value !== null) || display.level.status === 'known'}}" class="public-experience">
+    <view wx:if="{{display.title.status === 'known' &amp;&amp; display.title.value !== null}}" class="public-experience-title" style="{{display.color.status === 'known' &amp;&amp; display.color.value !== null ? colors[display.color.value] : ''}}"><text class="public-experience-title-text">{{display.title.value.name}}</text></view>
+    <text wx:elif="{{detailed &amp;&amp; display.title.status === 'known'}}" class="public-experience-status">未选择头衔</text>
+    <text wx:elif="{{detailed}}" class="public-experience-status">头衔暂不可用</text>
+    <view wx:if="{{display.color.status === 'known' &amp;&amp; display.color.value !== null &amp;&amp; (display.title.status !== 'known' || display.title.value === null)}}" class="public-experience-color"><view class="public-experience-swatch" style="{{colors[display.color.value]}}"></view><text>头衔色 {{display.color.value}}</text></view>
+    <text wx:elif="{{detailed &amp;&amp; display.color.status === 'known' &amp;&amp; display.color.value === null}}" class="public-experience-status">未选择颜色</text>
+    <text wx:elif="{{detailed &amp;&amp; display.color.status === 'unavailable'}}" class="public-experience-status">颜色暂不可用</text>
+    <text wx:if="{{display.level.status === 'known'}}" class="public-experience-level">Lv.{{display.level.value}}</text>
+    <text wx:elif="{{detailed}}" class="public-experience-status">等级暂不可用</text>
+  </view>
+</template>

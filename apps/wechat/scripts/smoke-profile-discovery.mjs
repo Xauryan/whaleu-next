@@ -48,6 +48,11 @@ export async function smokeProfileDiscovery({
     anonymousId = 'aeaeaeae-aeae-4eae-8eae-aeaeaeaeaeae';
   const author = {
     kind: 'named',
+    experienceDisplay: {
+      title: { status: 'unavailable', value: null },
+      color: { status: 'unavailable', value: null },
+      level: { status: 'unavailable', value: null },
+    },
     profileId,
     displayName: '合成公开昵称',
     avatar: null,
@@ -72,10 +77,9 @@ export async function smokeProfileDiscovery({
     avatar: null,
     affiliation: null,
     publicUid: null,
-    title: null,
-    level: null,
+    experienceDisplay: author.experienceDisplay,
     totalInteractions: null,
-    displayAvailability: 'unavailable',
+    totalInteractionsStatus: 'unavailable',
     postsHidden: hidden,
     postCount: hidden ? 0 : scanMode ? null : 2,
     postCountStatus: hidden || !scanMode ? 'known' : 'unavailable',

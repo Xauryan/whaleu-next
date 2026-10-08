@@ -90,6 +90,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Scalable discovery-page snapshot `23002cbbcfbeb482b8758cf2ba67a81de8eb20d1`: 234 API tests, 684 native-client tests and 478 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37705245053), including long and undated histories, hidden-only scan continuation, exact microsecond cursor positions and fresh native page replacement. The commit signature is verified. Large-history exact counts remain an explicit unfinished gate at this snapshot.
 - Exact-count development snapshot `8f22600dc1e75b76fded79dbe1dd4da6b5c72b10` was signed and published after 1,511 local tests passed. Its [CI run](https://github.com/Xauryan/whaleu-next/actions/runs/37713167590) passed 297 API and 685 native tests but only 520/529 PostgreSQL tests: mixed-liked positive assertions exceeded the 1,500 ms optional scan budget on the hosted runner. This snapshot is **not CI-green**; its local performance evidence does not establish the same budget on slower machines.
 - Named-read/discussion and count-budget repair snapshot `ca7dbd8eef35af041995e331b83508b1a5d7bc9e`: 308 API tests, 702 native-client tests and 583 real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37715113656), with zero failures/skips. The commit signature is verified. This supersedes the failed 1,500 ms hosted-count budget in `8f22600` with a finite 2,000 ms per-count budget while preserving all exactness checks. Named finalization, v3 page replacement and audit recovery passed; documented scale, concurrency, provider/device and production gaps remain open.
+- Local experience snapshot `8f4eee24bff7fb35608b9bb56e50685fad8800d6`: 356 API tests, 763 native-client tests and 623 PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37720411199), zero failures/skips; signature verified. Fresh reward provenance, independent settlement, owned appearance and recoverable post-like intents are a partial local slice. A separate [10,000-unit warm-history observation](acceptance/experience-history-capacity.md) passed bounded development latency checks without establishing production or default dispatcher throughput.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -333,3 +334,17 @@ throughput, production processing, public experience fields/received totals,
 rankings, redemption, global maintenance, device/provider acceptance and history
 reconciliation remain separate gates. See [experience contract](API_EXPERIENCE.md)
 and [local acceptance](acceptance/experience-stage1.md).
+
+Public experience display and dispatcher checkpoint: named community surfaces and
+available public profiles now expose independently known title, color and level
+through one narrow read-only projection. Anonymous/unavailable shapes remain
+unchanged, and native shared templates preserve unknown versus known-none values.
+Final named-disclosure policy proofs still apply; cosmetic display confers no
+identity or role authority. Local full gates pass 1,821 tests. The dispatcher now
+uses one bounded attempt budget across successive owner frontiers without
+revisiting failed units or overtaking blocked predecessors; this is round-bounded
+fairness, not a global starvation-free guarantee. Public experience fields are
+therefore implemented locally, superseding that part of the Stage1 gap list above.
+Received totals, rankings, limited/special titles, historical coverage and
+production/device acceptance remain open. See
+[acceptance evidence](acceptance/experience-public-display.md).

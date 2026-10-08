@@ -65,12 +65,17 @@ Publication accepts only ordered distinct asset UUIDs, never remote URLs.
 
 Author is an exact tagged union:
 
-- Named: `{kind:"named",profileId,displayName,avatar}`. Public profile UUID is
+- Named: `{kind:"named",profileId,displayName,avatar,experienceDisplay}`. Public profile UUID is
   separately generated, never the account or session UUID. Avatar is currently null
 - Anonymous: `{kind:"anonymous",personaId,displayName,avatar,isPostAuthor}`. Persona
   is a random persisted identity unique to `(post,account)`; avatar is null and
   display name is a server-owned persona snapshot. No account/profile/campus ID,
   named avatar or original-author field is included, even in the author's response
+
+Named experience cosmetics use the same independent evidence contract as public
+profiles; see [public experience](API_EXPERIENCE.md#public-experience-projection).
+Anonymous/unavailable variants never carry that block, including all-null values.
+Balances, ownership dates, source history and grant provenance remain private.
 
 Anonymous visibility evaluation never receives the underlying author account.
 Ownership UI uses `viewer.isSelf`. Anonymous comments on a named parent never

@@ -45,10 +45,13 @@ Available basics have exactly:
   "avatar": null,
   "affiliation": null,
   "publicUid": null,
-  "title": null,
-  "level": null,
+  "experienceDisplay": {
+    "title": { "status": "known", "value": null },
+    "color": { "status": "known", "value": null },
+    "level": { "status": "known", "value": 1 }
+  },
   "totalInteractions": null,
-  "displayAvailability": "unavailable",
+  "totalInteractionsStatus": "unavailable",
   "postsHidden": false,
   "postCount": 0,
   "postCountStatus": "known",
@@ -57,12 +60,17 @@ Available basics have exactly:
 }
 ```
 
-The example identifier is synthetic. `displayAvailability` describes the optional
-avatar/affiliation/public UID/title/level/received-interaction fields only. These
-fields remain explicitly unavailable until their suitable owners provide a
-reviewed public projection. A selected browsing campus, student number or default
-level cannot supply them. Legacy public UID is school-scoped, distinct from both
-private student identity and the globally routed public profile UUID.
+The example identifier and known-new-account display are synthetic. Public
+experience has independent title/color/level evidence: a proven selected undated
+title can be known while level is unavailable; a retained high color is not level
+proof. Known null selection differs from unavailable evidence. No grant date,
+balance, source history, owner ID or appearance receipt/revision is public. See
+[the public experience projection](API_EXPERIENCE.md#public-experience-projection).
+
+Avatar, affiliation and public UID remain explicitly unavailable. A selected
+browsing campus, student number or displayed level cannot supply those facts.
+Legacy public UID is school-scoped, distinct from both private student identity
+and the globally routed public profile UUID.
 `totalInteractions` retains the intended received “获赞与码住” display slot. Source
 updates include unlike/unsave reductions, but live and rebuilt accounting disagree
 on deleted contributions and some anonymous/child cases. Its accounting owner and
@@ -261,7 +269,7 @@ separate; public-profile hiding does not destroy any of these histories.
 
 The self-only [liked-history contract](API_LIKED_HISTORY.md) is described separately. Public profiles do not enumerate another user's
 likes. Avatar/background media, public affiliation and school-scoped UID issuance/
-reviewed migration, selected owned titles/colors, experience/unlocks/redemption,
+reviewed migration, redemption, global title administration and
 received-interaction accounting, messaging/group/organization links and complete
 provider/device/migration acceptance remain required separate parity work.
 

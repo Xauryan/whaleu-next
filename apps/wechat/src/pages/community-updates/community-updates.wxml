@@ -1,3 +1,4 @@
+<import src="../../experience/public-display.wxml" />
 <import src="../../identity-privacy/view.wxml" />
 <view class="screen">
   <view class="eyebrow">WHALEU · 社区更新</view><view class="title">我的站内更新</view>
@@ -11,7 +12,7 @@
     <view class="meta">{{item.createdAt}} · {{item.readAt ? '已读' : '未读'}}</view>
     <block wx:if="{{item.status === 'available'}}">
       <view class="section-title">{{item.reason === 'saved' ? '收藏帖的新评论' : item.kind === 'root' ? '你的帖子有新评论' : '与你有关的新回复'}}</view>
-      <view class="author">{{item.preview.author.displayName}}<text class="badge">{{item.preview.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text></view>
+      <view class="author">{{item.preview.author.displayName}}<template wx:if="{{item.preview.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.preview.author.experienceDisplay,colors:experienceColorStyles}}" /><text class="badge">{{item.preview.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text></view>
       <view class="body">{{item.preview.text}}</view><template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[item.target.replyId || item.target.commentId]}}" />
       <view class="image-grid"><image wx:for="{{item.preview.images}}" wx:for-item="media" wx:key="assetId" src="{{media.thumbnailUrl}}" mode="aspectFill" /></view>
       <button data-id="{{item.noticeId}}" bindtap="onOpen" disabled="{{busy}}">{{item.kind === 'reply' ? '查看这条新回复' : '查看这条新评论'}}</button>

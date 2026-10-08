@@ -32,8 +32,7 @@ the applied delta smaller, and separately refunds today's eligible opportunity.
 `/v1/me/experience` exposes truthful baseline/coverage, nullable unknown balance
 and streak, progress, informational tasks and own pending count. Records use
 owner-scoped immutable keyset cursors and generic action metadata: no source body,
-counterparty, content preview or navigation link. Public profile display remains
-outside this slice. Catalog IDs never grant authority.
+counterparty, content preview or navigation link. Catalog IDs never grant authority.
 
 Sign-in and full appearance selection use exact request-ID/intent receipts.
 Sign-in refuses unavailable baselines or preceding own pending work without a
@@ -53,9 +52,24 @@ Explicit `automatic` configuration processes only durable fresh-enrolled work,
 with bounded per-unit retries and stop/restart recovery. Dry-run changes no row.
 There is no public credit, processing, baseline adoption or repair endpoint.
 
-Historical reconciliation/import, public profile badges/received totals,
+Historical reconciliation/import, received-interaction totals,
 rankings, redemption, special-grant/admin maintenance and noncommunity rewards
 remain separate work. Real providers and physical-device acceptance have not
 been established. The SQL conservation checks deliberately reconcile immutable
 history; representative large-history throughput remains a release gate. This
 slice is not production-ready.
+
+## Public display leaf
+
+`ExperiencePublicDisplayModule` has no reverse dependency on Community or the
+private Experience service. Its caller-owned single statement projects selected
+owned catalog title, safe palette ID and independently evidenced current level.
+No owner locks, source/history scans, row initialization or public private fields
+are added. Existing named/profile application policy and final safety proof remain
+unchanged; anonymous/unavailable variants remain minimal.
+
+Automatic cycles refresh earliest owner frontiers within one shared attempt
+budget, completing each selected round before advancing a hot owner again.
+Attempted heads remain predecessor blockers; failures do not spin or admit later
+work. Default processing remains manual-only. See the current API and acceptance
+documents for exact contracts, bounded history observations and remaining limits.

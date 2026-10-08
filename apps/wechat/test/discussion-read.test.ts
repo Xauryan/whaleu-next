@@ -1,3 +1,4 @@
+import { publicExperienceDisplay } from './community-helpers';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ClientError } from '../src/api/errors';
@@ -108,6 +109,7 @@ test('same-post wrong-root reply and named-parent anonymous linkage fail closed'
     post({
       author: {
         kind: 'named',
+        experienceDisplay: publicExperienceDisplay(),
         profileId: otherId,
         displayName: 'named',
         avatar: null,

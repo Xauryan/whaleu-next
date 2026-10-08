@@ -1,3 +1,4 @@
+import { publicExperienceDisplay } from './community-helpers';
 import { PostLikeMutationController } from '../src/community/post-like-controller';
 import type { PostLikeReceipt } from '../src/community/post-like-contract';
 import assert from 'node:assert/strict';
@@ -340,6 +341,7 @@ test('anonymous comment cannot expose its author through a named-parent isPostAu
     post({
       author: {
         kind: 'named',
+        experienceDisplay: publicExperienceDisplay(),
         profileId: otherId,
         displayName: '合成公开作者',
         avatar: null,

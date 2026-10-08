@@ -1,3 +1,4 @@
+import type { PublicExperienceDisplay } from '../src/experience/public-display';
 import { PendingPostLikeStore } from '../src/community/post-like-pending';
 import { PendingSavedStore } from '../src/community/saved-pending';
 import type { PostUpdatePreferences } from '../src/community/saved-contract';
@@ -53,6 +54,14 @@ export const space = (
   isActive: true,
   operatingRegionId: otherId,
   ...overrides,
+});
+export const publicExperienceDisplay = (
+  patch: Partial<PublicExperienceDisplay> = {},
+): PublicExperienceDisplay => ({
+  title: { status: 'unavailable', value: null },
+  color: { status: 'unavailable', value: null },
+  level: { status: 'unavailable', value: null },
+  ...patch,
 });
 export const anonymous = (): Author => ({
   kind: 'anonymous',
@@ -737,6 +746,7 @@ export const tradingPost = (overrides: Partial<Post> = {}): Post =>
     trading: tradingView(),
     author: {
       kind: 'named',
+      experienceDisplay: publicExperienceDisplay(),
       profileId: otherId,
       displayName: '合成卖家',
       avatar: null,

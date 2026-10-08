@@ -139,13 +139,14 @@ export class FormationService {
         isPostAuthor: true,
       };
     } else {
-      const profile = await this.profiles.find(member.account_id, tx);
+      const profile = await this.profiles.findPublic(member.account_id, tx);
       if (!profile) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
       author = {
         kind: 'named',
         profileId: profile.profileId,
         displayName: profile.displayName,
         avatar: null,
+        experienceDisplay: profile.experienceDisplay,
       };
     }
     return {

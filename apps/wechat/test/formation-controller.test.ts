@@ -1,3 +1,4 @@
+import { publicExperienceDisplay } from './community-helpers';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ClientError } from '../src/api/errors';
@@ -39,6 +40,7 @@ const joined = (): Formation =>
         id: ballotId,
         author: {
           kind: 'named',
+          experienceDisplay: publicExperienceDisplay(),
           profileId: requestId,
           displayName: '合成成员',
           avatar: null,
@@ -426,6 +428,7 @@ test('creator publicly remains anonymous and contact controller rejects roster i
             ...m,
             author: {
               kind: 'named',
+              experienceDisplay: publicExperienceDisplay(),
               profileId: requestId,
               displayName: 'leaked',
               avatar: null,

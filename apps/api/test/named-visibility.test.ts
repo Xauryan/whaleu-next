@@ -568,7 +568,15 @@ test('formation roster checks the parent directly then projects members without 
     members: async () => members,
   } as unknown as FormationRepository;
   const profiles = {
-    find: async () => ({ profileId: 'joiner-profile', displayName: 'Joiner' }),
+    findPublic: async () => ({
+      profileId: 'joiner-profile',
+      displayName: 'Joiner',
+      experienceDisplay: {
+        title: { status: 'unavailable', value: null },
+        color: { status: 'unavailable', value: null },
+        level: { status: 'unavailable', value: null },
+      },
+    }),
   } as unknown as AuthorDisplayService;
   const service = new FormationService(
     f.repository,
@@ -640,7 +648,7 @@ test('a reverse-only named block keeps the formation feed card visible but withh
     },
   } as unknown as FormationRepository;
   const profiles = {
-    find: async () => assert.fail('No member profile may be loaded'),
+    findPublic: async () => assert.fail('No member profile may be loaded'),
   } as unknown as AuthorDisplayService;
   const service = new FormationService(
     f.repository,

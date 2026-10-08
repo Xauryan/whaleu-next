@@ -505,6 +505,7 @@ test(
           assert.deepEqual(Object.keys(namedPost.author).sort(), [
             'avatar',
             'displayName',
+            'experienceDisplay',
             'kind',
             'profileId',
           ]);

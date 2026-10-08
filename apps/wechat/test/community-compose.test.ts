@@ -1,3 +1,4 @@
+import { publicExperienceDisplay } from './community-helpers';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ClientError } from '../src/api/errors';
@@ -326,6 +327,7 @@ test('unverified named comments and denied/unavailable policy have honest effect
     post({
       author: {
         kind: 'named',
+        experienceDisplay: publicExperienceDisplay(),
         profileId: otherId,
         displayName: '合成昵称',
         avatar: null,

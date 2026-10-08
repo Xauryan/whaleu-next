@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { CampusModule } from '../campus/campus.module.js';
 import { DatabaseModule } from '../database/database.js';
+import { ExperiencePublicDisplayModule } from '../experience/public-display.module.js';
 import { SchemaValidationPipe } from '../http/validation.js';
 import { IdentityModule } from '../identity/identity.module.js';
 import { IdentityService } from '../identity/identity.service.js';
@@ -73,7 +74,12 @@ export class ProfileController {
 }
 
 @Module({
-  imports: [DatabaseModule, IdentityModule, CampusModule],
+  imports: [
+    DatabaseModule,
+    IdentityModule,
+    CampusModule,
+    ExperiencePublicDisplayModule,
+  ],
   controllers: [ProfileController],
   providers: [
     ProfileRepository,

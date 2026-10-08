@@ -1,3 +1,4 @@
+import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import { AuthorNavigator } from '../../profile/author-navigation';
 import {
   ReportMutationController,
@@ -22,6 +23,7 @@ import {
 import { ThreadController, initialThreadView } from './controller';
 Page({
   data: {
+    experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     report: initialReportMutationView(),
     block: initialBlockMutationView(),
     ...initialThreadView(),

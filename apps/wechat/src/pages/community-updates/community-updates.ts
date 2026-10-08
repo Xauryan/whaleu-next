@@ -1,3 +1,4 @@
+import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import {
   IdentityOverlayController,
   initialOverlayView,
@@ -8,7 +9,11 @@ import { ClientError } from '../../api/errors';
 import type { WhaleuApp } from '../../app';
 import { UpdatesController, initialUpdatesView } from './controller';
 Page({
-  data: { ...initialUpdatesView(), identityOverlay: initialOverlayView() },
+  data: {
+    experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
+    ...initialUpdatesView(),
+    identityOverlay: initialOverlayView(),
+  },
   identityOverlay: undefined as IdentityOverlayController | undefined,
   overlayTargets: '',
   controller: undefined as UpdatesController | undefined,

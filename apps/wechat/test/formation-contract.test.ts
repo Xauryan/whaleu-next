@@ -1,3 +1,4 @@
+import { publicExperienceDisplay } from './community-helpers';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -98,6 +99,7 @@ test('public formation rejects raw actor/contact leaks recursively, creator pers
               ...creator,
               author: {
                 kind: 'named',
+                experienceDisplay: publicExperienceDisplay(),
                 profileId: otherId,
                 displayName: 'leak',
                 avatar: null,

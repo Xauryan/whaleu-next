@@ -51,9 +51,36 @@ export class ExperienceDispatcher
     this.timer.unref();
   }
   private async cycle() {
-    for (const unitId of await this.worker.due()) {
-      if (this.stopping) break;
-      await this.worker.run({ mode: 'apply', unitIds: [unitId] });
+    const attempted = new Set<string>();
+    while (
+      !this.stopping &&
+      attempted.size < this.config.EXPERIENCE_BATCH_SIZE
+    ) {
+      // Each frontier contains at most one head per owner. Finish this round
+      // before refreshing, so an independent owner gets a turn before a hot
+      // owner advances again. The remaining budget is shared across all rounds.
+      const frontier = (await this.worker.due([...attempted])).filter(
+        (id) => !attempted.has(id),
+      );
+      if (!frontier.length) break;
+      for (const unitId of frontier) {
+        if (
+          this.stopping ||
+          attempted.size >= this.config.EXPERIENCE_BATCH_SIZE
+        )
+          break;
+        if (attempted.has(unitId)) continue;
+        // Even an unavailable source or a failed retry write gets at most one
+        // attempt this cycle, without admitting that owner's later units.
+        attempted.add(unitId);
+        try {
+          await this.worker.run({ mode: 'apply', unitIds: [unitId] });
+        } catch {
+          await this.worker
+            .retry(unitId, 'local_processing_failed')
+            .catch(() => undefined);
+        }
+      }
     }
   }
   async stop(): Promise<void> {

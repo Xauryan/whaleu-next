@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
+import { ExperiencePublicDisplayFacade } from '../experience/public-display.facade.js';
 import { ApplicationError } from '../http/application-error.js';
 import { preferencesSchema } from './contracts.js';
 import { ProfileRepository } from './profile.repository.js';
@@ -17,6 +18,8 @@ export interface PublicProfileRecord {
 export class PublicProfileFacade {
   constructor(
     @Inject(ProfileRepository) private readonly profiles: ProfileRepository,
+    @Inject(ExperiencePublicDisplayFacade)
+    private readonly experience: ExperiencePublicDisplayFacade,
   ) {}
 
   async find(
@@ -39,5 +42,9 @@ export class PublicProfileFacade {
 
   ownReference(accountId: string, tx: PoolClient): Promise<string | null> {
     return this.profiles.publicReference(accountId, tx);
+  }
+
+  experienceDisplay(accountId: string, tx: PoolClient) {
+    return this.experience.read(accountId, tx);
   }
 }

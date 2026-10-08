@@ -190,14 +190,19 @@ export class ExperienceWorker {
       );
     });
   }
-  async due(): Promise<string[]> {
+  async due(attemptedUnitIds: readonly string[] = []): Promise<string[]> {
     assertLocalExperienceWorker(this.config);
+    const attempted = ids.parse(attemptedUnitIds);
+    const remaining = this.config.EXPERIENCE_BATCH_SIZE - attempted.length;
+    if (remaining <= 0) return [];
     return this.database.transaction(async (tx) => {
       await assertLocalExperienceConnection(tx);
       return (
         await tx.query<{ unit_id: string }>(
-          "SELECT w.unit_id FROM whaleu_experience.work w WHERE w.state<>'completed' AND w.next_attempt_at<=clock_timestamp() AND (w.state<>'blocked_baseline' OR EXISTS(SELECT 1 FROM whaleu_experience.baselines b WHERE b.owner_id=w.beneficiary_id)) AND NOT EXISTS(SELECT 1 FROM whaleu_experience.work earlier WHERE earlier.beneficiary_id=w.beneficiary_id AND earlier.state<>'completed' AND (earlier.enrollment_order,earlier.unit_id)<(w.enrollment_order,w.unit_id)) ORDER BY w.enrollment_order,w.unit_id LIMIT $1",
-          [this.config.EXPERIENCE_BATCH_SIZE],
+          // Excluded attempts still participate in the predecessor check: an
+          // unresolved head must never make its successor eligible.
+          "SELECT w.unit_id FROM whaleu_experience.work w WHERE w.state<>'completed' AND w.unit_id<>ALL($2::uuid[]) AND w.next_attempt_at<=clock_timestamp() AND (w.state<>'blocked_baseline' OR EXISTS(SELECT 1 FROM whaleu_experience.baselines b WHERE b.owner_id=w.beneficiary_id)) AND NOT EXISTS(SELECT 1 FROM whaleu_experience.work earlier WHERE earlier.beneficiary_id=w.beneficiary_id AND earlier.state<>'completed' AND (earlier.enrollment_order,earlier.unit_id)<(w.enrollment_order,w.unit_id)) ORDER BY w.enrollment_order,w.unit_id LIMIT $1",
+          [remaining, attempted],
         )
       ).rows.map((r) => r.unit_id);
     });

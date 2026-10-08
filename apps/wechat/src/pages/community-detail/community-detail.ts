@@ -1,3 +1,4 @@
+import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import {
   PostLikeMutationController,
   initialPostLikeMutationView,
@@ -50,6 +51,7 @@ import {
 } from '../../community/poll-controller';
 Page({
   data: {
+    experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     report: initialReportMutationView(),
     juryVote: initialReportMutationView('vote'),
     reportProgress: initialReportProgressView(),

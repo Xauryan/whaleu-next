@@ -81,6 +81,10 @@ export class ProfileDiscoveryService {
         const session = token ? await this.identity.session(token, tx) : null;
         const target = await this.target(profileId, session, tx);
         if (target.status !== 'available') return target;
+        const experienceDisplay = await this.profiles.experienceDisplay(
+          target.record.accountId,
+          tx,
+        );
         const postCount = target.hidden
           ? { value: 0, status: 'known' as const, optionalUntil: null }
           : await this.community.count(
@@ -107,10 +111,9 @@ export class ProfileDiscoveryService {
           avatar: null,
           affiliation: null,
           publicUid: null,
-          title: null,
-          level: null,
+          experienceDisplay,
           totalInteractions: null,
-          displayAvailability: 'unavailable',
+          totalInteractionsStatus: 'unavailable',
           postsHidden: target.hidden,
           postCount: postCount.value,
           postCountStatus: postCount.status,

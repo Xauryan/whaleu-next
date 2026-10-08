@@ -97,6 +97,7 @@ function unavailable(result: Result) {
     'studentNumber',
     'displayName',
     'reportCapability',
+    'experienceDisplay',
   ])
     assert.equal(serialized(result.body).includes(`"${key}"`), false);
 }
@@ -222,6 +223,19 @@ test(
           .set('Authorization', `Bearer ${actor.accessToken}`)
           .send({ expectedRevision: 0, nickname, bio: '' });
         assert.equal(changed.status, 200, serialized(changed.body));
+        // Distinctive, genuinely owned cosmetics must not escape any of the
+        // existing raw INSERT/reactivation/final-wait relationship races below.
+        const selected = await request(http)
+          .put('/v1/me/experience/appearance')
+          .set('Authorization', `Bearer ${actor.accessToken}`)
+          .send({
+            requestId: randomUUID(),
+            expectedRevision: '0',
+            titleKey: 'default_jingxiaoyu',
+            colorId: 7,
+          });
+        assert.equal(selected.status, 200, serialized(selected.body));
+        assert.equal(selected.body.outcome, 'applied');
         const reference = await request(http)
           .get('/v1/me/public-profile-ref')
           .set('Authorization', `Bearer ${actor.accessToken}`);

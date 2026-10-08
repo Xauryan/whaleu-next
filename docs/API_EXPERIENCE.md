@@ -3,7 +3,7 @@
 This is a partial development implementation. It adds an owner-only experience
 ledger, fresh community reward enrollment, daily sign-in, informational tasks,
 levels, owned titles and color selection. Production processing, historical
-balance reconciliation/import, public profile projections, received-interaction
+balance reconciliation/import, received-interaction
 metrics, rankings, redemption, global title administration and physical-device
 acceptance remain separate gates. Test evidence is recorded independently.
 
@@ -130,7 +130,13 @@ automatic processing require nonproduction configuration, a verified loopback
 connection and database `whaleu_dev` or `whaleu_test`. There is no public credit or
 processing endpoint. Automatic processing discovers only durable fresh work,
 uses bounded batches/backoff, skips independently blocked owners and survives
-shutdown/restart without adopting historical events.
+shutdown/restart without adopting historical events. One total per-cycle attempt
+budget spans refreshed owner-head frontiers. The dispatcher finishes each selected
+round before revisiting a hot owner; successful owners can advance more than one
+unit per tick. An already-attempted failing head is not retried in that cycle and
+still blocks its own successors. Per-owner order, durable retry backoff, local-only
+guards and stop/restart behavior remain unchanged. This is bounded round fairness,
+not a production-wide maximum-wait guarantee for every workload.
 
 Defaults are a 5,000 ms interval and batch size 20, bounded at 60,000 ms and 50.
 The CLI defaults to read-only dry-run; apply requires explicit unit/group IDs.
@@ -144,6 +150,52 @@ npm run experience:process -- apply --group-id=<uuid>
 All three local processing CLIs disable unrelated automatic dispatchers while
 creating their application context. Dry-run does not modify balances, work,
 queues, receipts, grants or progress. CLI output is aggregate counts only.
+
+## Public experience projection
+
+Named author responses and available public profiles carry a required
+`experienceDisplay` block with independent dimensions:
+
+```json
+{
+  "title": {
+    "status": "known",
+    "value": { "key": "level_1", "name": "萌新小白" }
+  },
+  "color": { "status": "known", "value": 0 },
+  "level": { "status": "unavailable", "value": null }
+}
+```
+
+For title/color, known null means an evidenced cleared choice; unavailable always
+has null value. Known level is an integer 1–30, derived only from known owner state
+and baseline. A selected proven-owned title does not require a known earned date
+or current level. Retained high colors are valid displays after downgrade, but do
+not establish a level. Ownership without selection never auto-equips a title.
+Absent appearance and absent level evidence remain independently unavailable.
+
+The DB-only projection leaf executes one nonlocking parameterized snapshot SELECT
+per emitted named-author projection. It reads no history/settlement inventory,
+acquires no owner/advisory lock, performs no writes and maintains no cross-request
+cache. The whole private ExperienceModule is not imported into Profile, avoiding
+a dependency cycle. Plain author lookup for Safety block snapshots is unchanged.
+
+Each display triple is one committed statement snapshot. It is not an authority
+or final-freshness proof; concurrent selection/settlement can make an earlier
+cosmetic snapshot older than response completion. Existing account, content,
+directional block, final relationship and session checks stay with their original
+owners. No display read happens after final proof validation. Public-profile
+active-account policy is retained; this does not silently impose that separate
+policy on historical named cards.
+
+Anonymous authors, unavailable targets and denied profiles keep their exact
+minimal shapes with no display block. Public JSON/native data contain no balance,
+login/streak, ownership dates, grant/source provenance, owner IDs, history, pending
+work or private appearance revision. Fixed catalog text and palette IDs 0–25 are
+rendered only in named/available branches across profile, cards, discussion,
+formation, Saved, liked history and Updates. Server-supplied CSS is not accepted.
+Affiliation/public UID and received-interaction totals remain unavailable;
+cross-campus contextual labels are not guessed from titles or colors.
 
 ## Native behavior and remaining limits
 
@@ -160,7 +212,8 @@ late callbacks cannot act as a newer login or overwrite another account. An
 unrelated sign-in refresh preserves an unsaved appearance selection. Closed
 unlock notices stay closed while failed acknowledgement remains retryable.
 
-This slice does not establish representative production-history throughput for
-ledger reconciliation checks, production worker activation, old balance adoption,
-public appearance/interaction totals, rankings, campaigns or global maintenance.
+A separate [bounded warm-history measurement](acceptance/experience-history-capacity.md)
+covers 1,000/10,000 settled units on the Stage1 snapshot. This slice does not
+establish broader production-history throughput, production worker activation, old balance adoption,
+public received-interaction totals, rankings, campaigns or global maintenance.
 Compiled-page tests do not establish physical WeChat/device rendering.

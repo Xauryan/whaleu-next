@@ -1,3 +1,4 @@
+import { publicExperienceDisplay } from './community-helpers';
 import { PostLikeMutationController } from '../src/community/post-like-controller';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -274,6 +275,7 @@ test('root and reply identity choices follow their own capability result, withou
       views: ComposeView[] = [];
     const named = {
       kind: 'named' as const,
+      experienceDisplay: publicExperienceDisplay(),
       profileId: otherId,
       displayName: '合成公开作者',
       avatar: null,

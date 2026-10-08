@@ -1,3 +1,4 @@
+import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import type { WhaleuApp } from '../../app';
 import {
   BlockMutationController,
@@ -14,6 +15,7 @@ import {
 } from './controller';
 Page({
   data: {
+    experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     ...initialPublicProfileView(),
     block: initialBlockMutationView(),
     tradingCategories,

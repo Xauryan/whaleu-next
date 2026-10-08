@@ -748,13 +748,16 @@ test(
             assert.equal(profile.isOwn, actor === author);
             assert.equal(profile.postCount, eligiblePosts.length);
             assert.equal(profile.tradeCount, eligibleTrades.length);
-            assert.equal(profile.displayAvailability, 'unavailable');
+            assert.equal(profile.totalInteractionsStatus, 'unavailable');
+            assert.deepEqual(profile.experienceDisplay, {
+              title: { status: 'known', value: null },
+              color: { status: 'known', value: null },
+              level: { status: 'known', value: 1 },
+            });
             for (const field of [
               'avatar',
               'affiliation',
               'publicUid',
-              'title',
-              'level',
               'totalInteractions',
             ])
               assert.equal(profile[field], null, field);

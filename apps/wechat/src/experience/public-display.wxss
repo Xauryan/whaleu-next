@@ -1,0 +1,48 @@
+.public-experience {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10rpx;
+  max-width: 100%;
+  margin: 4rpx 0 4rpx 12rpx;
+  vertical-align: middle;
+  font-size: 22rpx;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.public-experience-title {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 5rpx;
+  border-radius: 10rpx;
+  background: #e0e9ee;
+}
+.public-experience-title-text {
+  padding: 2rpx 8rpx;
+  border-radius: 5rpx;
+  background: #ffffff;
+  color: #173a46;
+  word-break: break-all;
+}
+.public-experience-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  color: #496570;
+}
+.public-experience-swatch {
+  width: 26rpx;
+  height: 26rpx;
+  flex-shrink: 0;
+  border: 1rpx solid #71838b;
+  border-radius: 6rpx;
+}
+.public-experience-level {
+  padding: 4rpx 8rpx;
+  border-radius: 8rpx;
+  background: #edf3f5;
+  color: #335867;
+}
+.public-experience-status {
+  color: #496570;
+}

@@ -13,6 +13,10 @@ import { decodeReplies, type Replies } from './discussion-contract';
 import { ClientError, isRecord } from '../api/errors';
 import { isUuid } from '../profile/contract';
 import {
+  decodePublicExperienceDisplay,
+  type PublicExperienceDisplay,
+} from '../experience/public-display';
+import {
   decodePollComponent,
   decodePostComponent,
   type PollComponent,
@@ -60,6 +64,7 @@ export type Author =
       readonly profileId: string;
       readonly displayName: string;
       readonly avatar: MediaView | null;
+      readonly experienceDisplay: PublicExperienceDisplay;
     }
   | {
       readonly kind: 'anonymous';
@@ -348,7 +353,13 @@ function mediaList(value: unknown, max: number): readonly MediaView[] {
 export function decodeAuthor(value: unknown): Author {
   if (!isRecord(value)) invalid();
   if (value.kind === 'named') {
-    exact(value, ['kind', 'profileId', 'displayName', 'avatar']);
+    exact(value, [
+      'kind',
+      'profileId',
+      'displayName',
+      'avatar',
+      'experienceDisplay',
+    ]);
     if (!isUuid(value.profileId) || !boundedText(value.displayName, 1, 100))
       invalid();
     return Object.freeze({
@@ -356,6 +367,7 @@ export function decodeAuthor(value: unknown): Author {
       profileId: value.profileId,
       displayName: value.displayName,
       avatar: value.avatar === null ? null : decodeMedia(value.avatar),
+      experienceDisplay: decodePublicExperienceDisplay(value.experienceDisplay),
     });
   }
   exact(value, ['kind', 'personaId', 'displayName', 'avatar', 'isPostAuthor']);

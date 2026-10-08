@@ -39,6 +39,11 @@ export async function smokeNamedBlocks({
     replyId = replyWire().id;
   const named = (digit) => ({
     kind: 'named',
+    experienceDisplay: {
+      title: { status: 'unavailable', value: null },
+      color: { status: 'unavailable', value: null },
+      level: { status: 'unavailable', value: null },
+    },
     profileId: `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`,
     displayName: `合成公开名称 ${digit}`,
     avatar: null,

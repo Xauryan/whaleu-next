@@ -1,3 +1,4 @@
+import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import { AuthorNavigator } from '../../profile/author-navigation';
 import {
   IdentityOverlayController,
@@ -13,6 +14,7 @@ import { tradingLabels } from '../../community/trading-contract';
 import { SavedController, initialSavedView } from './controller';
 Page({
   data: {
+    experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     ...initialSavedView(),
     identityOverlay: initialOverlayView(),
     savedMutation: initialSavedMutationView(),

@@ -75,3 +75,12 @@ Production worker activation, historical baseline reconciliation/import, public
 experience and received-interaction displays, rankings, redemption, global title
 maintenance and provider/device acceptance remain outstanding. See the
 [experience API boundaries](../API_EXPERIENCE.md).
+
+## Subsequent verification
+
+Signed snapshot `8f4eee24bff7fb35608b9bb56e50685fad8800d6` also passed
+[hosted CI](https://github.com/Xauryan/whaleu-next/actions/runs/37720411199):
+356 API, 763 native and 623 PostgreSQL tests, zero failures/skips. A separate
+[bounded history benchmark](experience-history-capacity.md) subsequently measured
+1,000/10,000 settled units with all constraints enabled. Its warm-cache worker
+latencies do not establish production or automatic backlog-drain capacity.

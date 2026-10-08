@@ -15,6 +15,10 @@ import {
   type Post,
 } from '../community/contract';
 import { bioError, isUuid } from './contract';
+import {
+  decodePublicExperienceDisplay,
+  type PublicExperienceDisplay,
+} from '../experience/public-display';
 
 export type DiscoveryCountStatus = 'known' | 'unavailable';
 export type DiscoveryContinuation = 'more' | 'scan_pending' | 'end';
@@ -34,10 +38,9 @@ export interface AvailableProfile {
   readonly avatar: null;
   readonly affiliation: null;
   readonly publicUid: null;
-  readonly title: null;
-  readonly level: null;
+  readonly experienceDisplay: PublicExperienceDisplay;
   readonly totalInteractions: null;
-  readonly displayAvailability: 'unavailable';
+  readonly totalInteractionsStatus: 'unavailable';
   readonly postsHidden: boolean;
   readonly postCount: number | null;
   readonly postCountStatus: DiscoveryCountStatus;
@@ -124,10 +127,9 @@ export function decodePublicProfile(value: unknown): PublicProfile {
     'avatar',
     'affiliation',
     'publicUid',
-    'title',
-    'level',
+    'experienceDisplay',
     'totalInteractions',
-    'displayAvailability',
+    'totalInteractionsStatus',
     'postsHidden',
     'postCount',
     'postCountStatus',
@@ -143,10 +145,8 @@ export function decodePublicProfile(value: unknown): PublicProfile {
     value.avatar !== null ||
     value.affiliation !== null ||
     value.publicUid !== null ||
-    value.title !== null ||
-    value.level !== null ||
     value.totalInteractions !== null ||
-    value.displayAvailability !== 'unavailable' ||
+    value.totalInteractionsStatus !== 'unavailable' ||
     typeof value.postsHidden !== 'boolean' ||
     !countState(value.postCount, value.postCountStatus) ||
     !countState(value.tradeCount, value.tradeCountStatus) ||
@@ -154,7 +154,10 @@ export function decodePublicProfile(value: unknown): PublicProfile {
       (value.isOwn || value.postCount !== 0 || value.tradeCount !== 0))
   )
     invalid();
-  return Object.freeze({ ...value }) as unknown as AvailableProfile;
+  return Object.freeze({
+    ...value,
+    experienceDisplay: decodePublicExperienceDisplay(value.experienceDisplay),
+  }) as unknown as AvailableProfile;
 }
 export function decodeProfileList(value: unknown): ProfileList {
   if (!isRecord(value)) invalid();

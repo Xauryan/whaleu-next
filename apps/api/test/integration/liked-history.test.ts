@@ -102,7 +102,13 @@ function exactItem(item: LikedItem) {
   assert.deepEqual(
     Object.keys(item.preview.author).sort(),
     item.preview.author.kind === 'named'
-      ? ['kind', 'profileId', 'displayName', 'avatar'].sort()
+      ? [
+          'kind',
+          'profileId',
+          'displayName',
+          'avatar',
+          'experienceDisplay',
+        ].sort()
       : ['kind', 'personaId', 'displayName', 'avatar', 'isPostAuthor'].sort(),
   );
 }

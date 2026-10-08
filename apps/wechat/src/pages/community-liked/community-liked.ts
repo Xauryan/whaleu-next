@@ -1,8 +1,12 @@
+import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import type { WhaleuApp } from '../../app';
 import { AuthorNavigator } from '../../profile/author-navigation';
 import { LikedController, initialLikedView } from './controller';
 Page({
-  data: { ...initialLikedView() },
+  data: {
+    experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
+    ...initialLikedView(),
+  },
   controller: undefined as LikedController | undefined,
   authorNavigator: undefined as AuthorNavigator | undefined,
   onShow() {

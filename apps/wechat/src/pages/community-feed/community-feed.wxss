@@ -1,1 +1,2 @@
+@import '../../experience/public-display.wxss';
 @import '../../community/forms.wxss';

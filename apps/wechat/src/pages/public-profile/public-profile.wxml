@@ -1,3 +1,4 @@
+<import src="../../experience/public-display.wxml" />
 <import src="../../community/block-recovery.wxml" />
 <import src="../../community/trading-summary.wxml" />
 <view class="screen">
@@ -10,8 +11,8 @@
   <view wx:if="{{profile.status === 'blocked_by_you'}}" class="card"><view class="notice">你已拉黑此用户，资料与主页内容已隐藏。</view><button bindtap="onUnblockProfile" disabled="{{busy || block.busy || block.frozen}}">解除我的拉黑</button></view>
   <view wx:if="{{profile.status === 'unavailable'}}" class="notice">此主页当前不可查看。可稍后重新加载。</view>
   <block wx:if="{{profile.status === 'available'}}">
-    <view class="card"><view class="author"><text>{{profile.displayName}}</text><text wx:if="{{profile.isOwn}}" class="badge">我</text></view><view class="body"><text selectable="true">{{profile.bio || '尚未填写简介'}}</text></view>
-      <view class="meta">头像、认证机构、公开 UID、头衔、等级及获赞与码住：暂不可用</view>
+    <view class="card"><view class="author"><text>{{profile.displayName}}</text><text wx:if="{{profile.isOwn}}" class="badge">我</text><template is="public-experience-display" data="{{display:profile.experienceDisplay,colors:experienceColorStyles,detailed:true}}" /></view><view class="body"><text selectable="true">{{profile.bio || '尚未填写简介'}}</text></view>
+      <view class="meta">头像、认证机构、公开 UID：暂不可用</view><view class="meta">获赞与码住：暂不可用</view>
       <view wx:if="{{!profile.postsHidden}}" class="meta">当前公开帖子 {{profile.postCountStatus === 'known' ? profile.postCount : '总数暂不可用'}} · 当前公开交易 {{profile.tradeCountStatus === 'known' ? profile.tradeCount : '总数暂不可用'}}</view>
       <view wx:else class="notice">对方已隐藏主页帖子与交易。普通信息流与可用直接链接的访问另行核验。</view>
       <button wx:if="{{hasSession &amp;&amp; !profile.isOwn}}" bindtap="onBlockProfile" disabled="{{busy || block.busy || block.frozen}}">拉黑此用户</button>
@@ -21,7 +22,7 @@
       <view wx:if="{{tab === 'trading'}}" class="chips"><view class="chip {{!tradingSubtype ? 'active' : ''}}" data-key="" bindtap="onTradingSubtype">全部交易</view><view wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingSubtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onTradingSubtype">{{item.label}}</view></view>
       <view wx:if="{{total !== null}}" class="meta">此列表当前可查看 {{total}} 条</view>
       <view wx:elif="{{loaded &amp;&amp; totalStatus === 'unavailable'}}" class="meta">此列表的准确总数暂不可用，不代表没有记录。</view>
-      <view wx:for="{{items}}" wx:key="id" class="card"><view class="meta">{{item.space.name}} · {{item.publishedAt}}</view><view class="body"><text>{{item.text}}</text></view><template wx:if="{{item.trading}}" is="trading-summary" data="{{listing:item.trading,tradingLabels}}" /><view class="image-grid"><image wx:for="{{item.images}}" wx:for-item="media" wx:key="assetId" src="{{media.thumbnailUrl}}" mode="aspectFill" /></view><navigator wx:if="{{hasSession}}" class="link" url="/pages/community-detail/community-detail?postId={{item.id}}">查看帖子与讨论 →</navigator><navigator wx:else class="link" url="/pages/login/login">登录后查看详情 →</navigator></view>
+      <view wx:for="{{items}}" wx:key="id" class="card"><view wx:if="{{item.author.kind === 'named'}}" class="author"><text>{{item.author.displayName}}</text><template wx:if="{{item.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.author.experienceDisplay,colors:experienceColorStyles}}" /></view><view class="meta">{{item.space.name}} · {{item.publishedAt}}</view><view class="body"><text>{{item.text}}</text></view><template wx:if="{{item.trading}}" is="trading-summary" data="{{listing:item.trading,tradingLabels}}" /><view class="image-grid"><image wx:for="{{item.images}}" wx:for-item="media" wx:key="assetId" src="{{media.thumbnailUrl}}" mode="aspectFill" /></view><navigator wx:if="{{hasSession}}" class="link" url="/pages/community-detail/community-detail?postId={{item.id}}">查看帖子与讨论 →</navigator><navigator wx:else class="link" url="/pages/login/login">登录后查看详情 →</navigator></view>
       <view wx:if="{{loaded &amp;&amp; total === 0 &amp;&amp; continuation === 'end'}}" class="empty">当前没有可展示的公开身份内容。</view>
       <view wx:elif="{{continuation === 'scan_pending'}}" class="notice">本次核验尚未到历史末尾。点击继续查看，核验下一批；暂未显示记录不代表历史为空。</view>
       <view wx:elif="{{continuation === 'end'}}" class="meta">已到本次浏览末尾。新发布或状态变化请重新加载查看。</view>

@@ -221,8 +221,13 @@ private durable opaque cursor coordinates; hidden-only batches return explicit
 scan continuation. Exact current-policy counts now use bounded canonical streaming and final owner
 mutation proofs independently of pages; unavailable counts remain null and do
 not block authorized pages. Count availability under representative concurrent
-load, optional public UID/title/media/affiliation/experience/received-interaction
+load, public UID/media/affiliation/received-interaction
 owners and full native-device/provider/migration acceptance remain explicit
 release/parity gates. See
 [public profiles](../../docs/API_PUBLIC_PROFILES.md) and
 [own liked history](../../docs/API_LIKED_HISTORY.md).
+
+Named author/profile cosmetics now consume a DB-only, nonlocking experience leaf
+with independent title/color/level evidence. This exposes no private balances or
+history and preserves anonymous and final safety boundaries. See
+[experience projection](../../docs/API_EXPERIENCE.md#public-experience-projection).

@@ -1,3 +1,4 @@
+import { publicExperienceDisplay } from './community-helpers';
 import type {
   AvailableProfile,
   LikedItem,
@@ -18,6 +19,7 @@ import { SafetyChanges } from '../src/community/safety-changes';
 export const profileId = otherId;
 export const namedAuthor = () => ({
   kind: 'named' as const,
+  experienceDisplay: publicExperienceDisplay(),
   profileId,
   displayName: '合成公开昵称',
   avatar: null,
@@ -33,10 +35,9 @@ export const publicProfile = (
   avatar: null,
   affiliation: null,
   publicUid: null,
-  title: null,
-  level: null,
+  experienceDisplay: publicExperienceDisplay(),
   totalInteractions: null,
-  displayAvailability: 'unavailable',
+  totalInteractionsStatus: 'unavailable',
   postsHidden: false,
   postCount: 1,
   postCountStatus: 'known',

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { PublicExperienceDisplay } from '../experience/public-display.contract.js';
 import type { PostView } from '../community/contracts.js';
 import { tradingSubtypeSchema } from '../community/trading/contracts.js';
 import type { BlockState } from '../safety/contracts.js';
@@ -43,10 +44,9 @@ export type PublicProfile =
       avatar: null;
       affiliation: null;
       publicUid: null;
-      title: null;
-      level: null;
+      experienceDisplay: PublicExperienceDisplay;
       totalInteractions: null;
-      displayAvailability: 'unavailable';
+      totalInteractionsStatus: 'unavailable';
       postsHidden: boolean;
       postCount: number | null;
       postCountStatus: 'known' | 'unavailable';

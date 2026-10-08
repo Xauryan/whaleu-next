@@ -1,3 +1,4 @@
+import { publicExperienceDisplay } from './community-helpers';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ClientError } from '../src/api/errors';
@@ -406,6 +407,7 @@ test('notice target is never a visibility grant: parent denial, wrong current an
         post({
           author: {
             kind: 'named',
+            experienceDisplay: publicExperienceDisplay(),
             profileId: otherId,
             displayName: '合成具名作者',
             avatar: null,

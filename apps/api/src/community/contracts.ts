@@ -9,6 +9,7 @@ import { textSchema } from './text.js';
 import { postComponentSchema } from './polls/contracts.js';
 import type { PollView } from './polls/contracts.js';
 import type { ApplicationErrorCode } from '../http/application-error.js';
+import type { PublicExperienceDisplay } from '../experience/public-display.contract.js';
 
 export const categorySchema = z.enum([
   'discussion',
@@ -119,6 +120,7 @@ export type AuthorView =
       profileId: string;
       displayName: string;
       avatar: MediaView | null;
+      experienceDisplay: PublicExperienceDisplay;
     }
   | {
       kind: 'anonymous';

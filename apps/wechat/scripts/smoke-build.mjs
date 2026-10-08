@@ -1,3 +1,4 @@
+import { smokePublicExperience } from './smoke-public-experience.mjs';
 import { smokeExperience } from './smoke-experience.mjs';
 import { smokeProfileDiscovery } from './smoke-profile-discovery.mjs';
 import { smokeIdentityCampus } from './smoke-identity-campus.mjs';
@@ -565,6 +566,11 @@ const tradingPostWire = () => ({
     profileId: '99999999-9999-4999-8999-999999999999',
     displayName: '合成交易作者',
     avatar: null,
+    experienceDisplay: {
+      title: { status: 'unavailable', value: null },
+      color: { status: 'unavailable', value: null },
+      level: { status: 'unavailable', value: null },
+    },
   },
   trading: {
     subtype: { kind: 'known', key: 'shuma', legacyText: null },
@@ -988,6 +994,11 @@ const formationWire = () => ({
               profileId: pollOptionOne,
               displayName: '合成加入者',
               avatar: null,
+              experienceDisplay: {
+                title: { status: 'unavailable', value: null },
+                color: { status: 'unavailable', value: null },
+                level: { status: 'unavailable', value: null },
+              },
             },
             isCreator: false,
             joinedAt: pollReceipt.createdAt,
@@ -1772,6 +1783,13 @@ await smokeProfileDiscovery({
   postWire: pollPostWire,
   rootWire,
   replyWire,
+});
+await smokePublicExperience({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
+  postWire: pollPostWire,
 });
 app.community.identityPrivacy = originalIdentityPrivacy;
 app.community.profiles = originalProfiles;

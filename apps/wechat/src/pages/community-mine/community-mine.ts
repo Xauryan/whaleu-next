@@ -1,3 +1,4 @@
+import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import { AuthorNavigator } from '../../profile/author-navigation';
 import {
   tradingCategories,
@@ -6,7 +7,12 @@ import {
 import type { WhaleuApp } from '../../app';
 import { MineController, initialMineView } from './controller';
 Page({
-  data: { ...initialMineView(), tradingCategories, tradingLabels },
+  data: {
+    experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
+    ...initialMineView(),
+    tradingCategories,
+    tradingLabels,
+  },
   controller: undefined as MineController | undefined,
   authorNavigator: undefined as AuthorNavigator | undefined,
   onShow() {
