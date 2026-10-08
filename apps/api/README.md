@@ -263,3 +263,12 @@ and expiry times, with bounded cleanup in the same retention sweep. They contain
 no tokens, IP addresses, post IDs, or request payloads. These safeguards are
 separate from transactional view batch/event capacities and do not activate
 external providers or authorize a deployment.
+
+## Static API contract export
+
+Run `npm run openapi:generate` or `npm run openapi:check` from the root (equivalent
+workspace scripts are available). Official Swagger reads the actual view-reporting
+controller and native Zod schema metadata through a separate TypeScript tooling
+build. The exporter does not start AppModule, PostgreSQL, jobs or HTTP routes.
+Only the two view-reporting operations are covered. See [contract tooling and
+installation policy](../../docs/OPENAPI.md).

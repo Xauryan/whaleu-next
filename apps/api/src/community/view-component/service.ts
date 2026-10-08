@@ -11,6 +11,8 @@ import {
   VIEW_LIMITS,
   viewPayloadFingerprint,
   viewPostMultiset,
+  viewReportingEpochSchema,
+  viewReportReceiptSchema,
 } from './contracts.js';
 import type {
   ViewReport,
@@ -76,14 +78,14 @@ export class ViewReportingService {
         epoch.collection_until.getTime(),
         'VIEW_REPORTING_UNAVAILABLE',
       );
-      return {
+      return viewReportingEpochSchema.parse({
         version: 1,
         epochId: epoch.id,
         issuedAt: epoch.issued_at.toISOString(),
         collectionUntil: epoch.collection_until.toISOString(),
         expiresAt: epoch.expires_at.toISOString(),
         serverNow: now.toISOString(),
-      };
+      });
     });
   }
   report(token: string, input: ViewReport): Promise<ViewReportReceipt> {
@@ -110,7 +112,7 @@ export class ViewReportingService {
         )
           throw new ApplicationError('VIEW_REPORT_CONFLICT');
         await this.access.actor(token, tx);
-        return previous;
+        return viewReportReceiptSchema.parse(previous);
       }
       if (
         epoch.expires_at.getTime() - now.getTime() <
@@ -173,14 +175,14 @@ export class ViewReportingService {
           acceptedCount += delta;
         }
       }
-      const receipt: ViewReportReceipt = {
+      const receipt = viewReportReceiptSchema.parse({
         version: 1,
         epochId,
         batchId,
         kind: input.kind,
         payloadFingerprint: fingerprint,
         acceptedCount,
-      };
+      });
       await this.records.accept(receipt, input.postIds.length, tx);
       await this.access.actor(token, tx);
       return receipt;

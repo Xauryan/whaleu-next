@@ -478,3 +478,56 @@ test('issuance final fence never returns an already-closed collection descriptor
   );
   assert.equal(f.calls.at(-1), 'ROLLBACK');
 });
+
+test('invalid constructed epoch output fails before commit with sanitized owner unavailability', async () => {
+  for (const corrupt of [
+    (row: StoredViewEpoch) => {
+      row.id = 'ABCDEFAB-CDEF-4ABC-8DEF-ABCDEFABCDEF';
+    },
+    (row: StoredViewEpoch) => {
+      row.expires_at = new Date(+row.expires_at + 1);
+    },
+    (row: StoredViewEpoch) => {
+      row.collection_until = new Date(+row.collection_until + 1);
+    },
+  ]) {
+    const f = fixture();
+    corrupt(f.epoch());
+    await assert.rejects(
+      f.service.issueEpoch('token'),
+      code('VIEW_REPORTING_UNAVAILABLE'),
+    );
+    assert.equal(f.calls.at(-1), 'ROLLBACK');
+    assert.equal(f.calls.includes('COMMIT'), false);
+  }
+});
+
+test('invalid newly constructed receipt rolls back already-applied aggregate changes before commit', async () => {
+  const f = fixture();
+  // Bypass the HTTP decoder to exercise the service output boundary independently.
+  await assert.rejects(
+    f.service.report('token', { ...intent, postIds: Array(51).fill(post) }),
+    code('VIEW_REPORTING_UNAVAILABLE'),
+  );
+  assert.deepEqual(f.state(), { count: 0, batches: 0, events: 0, prior: null });
+  assert.equal(f.calls.at(-1), 'ROLLBACK');
+  assert.equal(f.calls.includes('COMMIT'), false);
+  assert.equal(f.calls.includes('accept'), false);
+});
+
+test('corrupt stored replay is rejected inside its transaction without acknowledging or rewriting it', async () => {
+  const f = fixture();
+  await f.service.report('token', intent);
+  const stored = f.state().prior!;
+  stored.acceptedCount = 51;
+  f.calls.length = 0;
+  await assert.rejects(
+    f.service.report('token', intent),
+    code('VIEW_REPORTING_UNAVAILABLE'),
+  );
+  assert.equal(f.calls.at(-1), 'ROLLBACK');
+  assert.equal(f.calls.includes('COMMIT'), false);
+  assert.equal(f.calls.includes('accept'), false);
+  assert.equal(f.state().count, 2);
+  assert.equal(f.state().prior, stored);
+});

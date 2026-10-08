@@ -274,6 +274,11 @@ const conditions = {
 
 export type ApplicationErrorCode = keyof typeof conditions;
 
+/** Readonly business descriptions for transport metadata without a second inventory. */
+export function applicationErrorCondition(code: ApplicationErrorCode) {
+  return conditions[code];
+}
+
 export class ApplicationError extends HttpException {
   readonly code: ApplicationErrorCode;
 

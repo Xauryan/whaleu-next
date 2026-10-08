@@ -19,23 +19,11 @@ import {
   ApplicationError,
   TitleMaintenanceContinuationConflict,
 } from './application-error.js';
-
-const messages: Record<number, { code: string; message: string }> = {
-  400: { code: 'BAD_REQUEST', message: 'Invalid request' },
-  401: { code: 'UNAUTHORIZED', message: 'Authentication required' },
-  403: { code: 'FORBIDDEN', message: 'Access denied' },
-  404: { code: 'NOT_FOUND', message: 'Resource not found' },
-  405: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' },
-  409: { code: 'CONFLICT', message: 'Request conflicts with current state' },
-  413: { code: 'PAYLOAD_TOO_LARGE', message: 'Request is too large' },
-  415: {
-    code: 'UNSUPPORTED_MEDIA_TYPE',
-    message: 'Unsupported request format',
-  },
-  422: { code: 'UNPROCESSABLE_ENTITY', message: 'Invalid request' },
-  429: { code: 'RATE_LIMITED', message: 'Too many requests' },
-  503: { code: 'NOT_READY', message: 'Service is not ready' },
-};
+import { safeHttpErrorDescription } from './error-contracts.js';
+import type {
+  SafeErrorResponse,
+  TitleMaintenanceContinuationError,
+} from './error-contracts.js';
 
 @Catch()
 export class SafeExceptionFilter implements ExceptionFilter {
@@ -53,10 +41,7 @@ export class SafeExceptionFilter implements ExceptionFilter {
     const description =
       exception instanceof ApplicationError
         ? { code: exception.code, message: exception.message }
-        : (messages[status] ?? {
-            code: 'INTERNAL_ERROR',
-            message: 'Request failed',
-          });
+        : safeHttpErrorDescription(status);
     const existingRequestId = response.getHeader('x-request-id');
     const requestId =
       typeof existingRequestId === 'string' ? existingRequestId : randomUUID();
@@ -66,16 +51,19 @@ export class SafeExceptionFilter implements ExceptionFilter {
     if (status >= 500) {
       this.logger.structured.error({ event: 'http_error', status, requestId });
     }
-    if (!response.headersSent)
-      response.status(status).json({
-        error: {
-          ...description,
-          requestId,
-          ...(exception instanceof TitleMaintenanceContinuationConflict
-            ? { successorRequestId: exception.successorRequestId }
-            : {}),
-        },
-      });
+    // Typed construction, never a throw-prone decoder in the emergency filter.
+    const body: SafeErrorResponse | TitleMaintenanceContinuationError =
+      exception instanceof TitleMaintenanceContinuationConflict
+        ? {
+            error: {
+              code: 'EXPERIENCE_MAINTENANCE_CONTINUATION_CONFLICT',
+              message: exception.message,
+              requestId,
+              successorRequestId: exception.successorRequestId,
+            },
+          }
+        : { error: { ...description, requestId } };
+    if (!response.headersSent) response.status(status).json(body);
   }
 }
 

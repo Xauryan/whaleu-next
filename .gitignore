@@ -10,3 +10,5 @@ coverage/
 .vscode/
 apps/wechat/project.private.config.json
 
+# Offline metadata-emitting OpenAPI tooling build.
+.openapi-build

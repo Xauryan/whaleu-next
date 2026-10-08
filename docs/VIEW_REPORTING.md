@@ -107,3 +107,10 @@ Logical expiry is immediate for admission; physical cleanup normally follows the
 next healthy sweep. Downtime, backups/WAL and suspended clients need separate
 operational retention verification. No exact-instant physical erasure or
 production deployment is claimed. See [API operations](../apps/api/README.md).
+
+## Generated transport contract
+
+The two reporting POST operations now have a [generated OpenAPI artifact](openapi/view-reporting.json)
+from their real controller and owner schemas. CI checks deterministic drift.
+[Tooling scope](OPENAPI.md) explains why native runtime validation and transaction
+semantics remain necessary alongside that artifact.

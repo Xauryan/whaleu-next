@@ -21,14 +21,16 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "check": "npm run lint && npm run typecheck && npm run openapi:check && npm test && npm run build",
     "db:up": "docker compose up -d --wait",
     "db:stop": "docker compose stop",
     "db:status": "npm run db:status -w @whaleu/api",
     "db:migrate": "npm run db:migrate -w @whaleu/api",
     "experience:process": "npm run experience:process -w @whaleu/api --",
     "subscriptions:process": "npm run subscriptions:process -w @whaleu/api --",
-    "likes:process": "npm run likes:process -w @whaleu/api --"
+    "likes:process": "npm run likes:process -w @whaleu/api --",
+    "openapi:generate": "npm run openapi:generate -w @whaleu/api",
+    "openapi:check": "npm run openapi:check -w @whaleu/api"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -39,5 +41,8 @@
     "tsx": "4.23.15",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.1"
+  },
+  "scarfSettings": {
+    "enabled": false
   }
 }

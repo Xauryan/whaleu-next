@@ -79,3 +79,11 @@ exact-instant physical erasure from suspended clients, stopped services or
 backups/WAL. Deployment retention verification remains open. No public view count,
 hot score, search exposure, historical view reconstruction or author received-total
 policy is delivered by this slice.
+
+## Hosted verification
+
+Verified SSH-signed commit `d20a0880d75e69e4ed536c83772930b5664f7810` passed
+[GitHub Actions run 37756410832](https://github.com/Xauryan/whaleu-next/actions/runs/37756410832):
+525 API, 842 native and 891 PostgreSQL tests, 2,258 total with zero failures/skips.
+PostgreSQL acceptance took 746.849 seconds. Lint, typecheck, builds, emitted native
+smokes and formatting passed. This is hosted acceptance, not a production rollout.

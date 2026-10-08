@@ -3,3 +3,9 @@ dist
 package-lock.json
 coverage
 
+
+# Deterministic generated JSON uses the OpenAPI exporter formatter.
+docs/openapi/view-reporting.json
+
+# Offline metadata-emitting OpenAPI tooling build.
+.openapi-build
