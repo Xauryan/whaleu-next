@@ -1,0 +1,106 @@
+name: Publish code statistics
+
+on:
+  push:
+    branches: [main, rewrite/backend-foundation]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: code-statistics-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: >-
+      github.repository == 'Xauryan/whaleu-next' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/rewrite/backend-foundation') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Refresh all public branch tips without executing branch files
+        run: git fetch --force --prune --no-tags --depth=1 origin '+refs/heads/*:refs/remotes/origin/*'
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24.19.0
+          package-manager-cache: false
+      - name: Download and verify cloc 2.10
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            --proto '=https' --proto-redir '=https' --tlsv1.2 \
+            https://github.com/AlDanial/cloc/releases/download/v2.10/cloc-2.10.pl \
+            --output "$RUNNER_TEMP/cloc-2.10.pl"
+          printf '%s  %s\n' \
+            bf59272455172108072a0a106379f7509fd4349bdcfd85203bac038ccd286d83 \
+            "$RUNNER_TEMP/cloc-2.10.pl" | sha256sum --check --strict
+      - name: Test offline statistics logic and SVG safety
+        run: node --test scripts/code-stats.test.mjs
+      - name: Test checksum-verified cloc integration
+        run: node --test scripts/code-stats.integration.test.mjs
+        env:
+          CLOC_PATH: ${{ runner.temp }}/cloc-2.10.pl
+      - name: Build only the public statistics image
+        run: node scripts/code-stats.mjs
+        env:
+          CLOC_PATH: ${{ runner.temp }}/cloc-2.10.pl
+          STATS_OUTPUT_DIR: ${{ runner.temp }}/code-statistics-site
+          STATS_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          STATS_SHA: ${{ github.sha }}
+      - name: Validate the SVG-only artifact
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          import os
+          from pathlib import Path
+          from xml.etree import ElementTree
+          site = Path(os.environ['STATS_OUTPUT_DIR'])
+          assert sorted(path.name for path in site.iterdir()) == ['code-stats.svg']
+          image = site / 'code-stats.svg'
+          assert image.is_file() and not image.is_symlink()
+          svg = image.read_text()
+          assert '<!DOCTYPE' not in svg and '<!ENTITY' not in svg
+          allowed = {'svg', 'title', 'desc', 'rect', 'g', 'text', 'tspan', 'path'}
+          for element in ElementTree.fromstring(svg).iter():
+              assert element.tag in {'{http://www.w3.org/2000/svg}' + tag for tag in allowed}
+              for key, value in element.attrib.items():
+                  assert 'href' not in key and not key.lower().startswith('on')
+                  assert 'url(' not in value.lower()
+          PYTHON
+        env:
+          STATS_OUTPUT_DIR: ${{ runner.temp }}/code-statistics-site
+      - name: Upload isolated Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          name: code-statistics-pages
+          path: ${{ runner.temp }}/code-statistics-site
+          retention-days: 1
+
+  deploy:
+    needs: build
+    if: >-
+      github.repository == 'Xauryan/whaleu-next' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/rewrite/backend-foundation') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy statistics image
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        with:
+          artifact_name: code-statistics-pages
