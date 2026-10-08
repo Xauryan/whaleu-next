@@ -71,3 +71,11 @@ privileged raw SQL increments. The partial-baseline rejection fixture is explici
 rollback-only, not evidence a committed partially enrolled population was accepted.
 Manual selected bootstrap remains fail-fast on a parent-lock/database error before
 later IDs; automatic retry isolation is a separate tested behavior.
+
+## Hosted verification
+
+Verified SSH-signed commit `637ecf3c73d1c51895f8d0b9b51a9925ab03e31c` passed
+[GitHub Actions run 37782713948](https://github.com/Xauryan/whaleu-next/actions/runs/37782713948):
+631 API, 890 native and 1,084 PostgreSQL tests, 2,605 total with zero failures/skips.
+PostgreSQL took 588.993 seconds. Lint, types, OpenAPI drift, builds, emitted smokes
+and formatting passed. This does not activate the production processing modes.

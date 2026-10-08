@@ -1,4 +1,5 @@
 <view class="screen">
+  <navigator class="link" url="/pages/announcements/announcements">公告（无需登录） →</navigator>
   <view class="eyebrow">WHALEU · 开发构建</view>
   <view class="title">连接你的鲸鱼校园</view>
   <view class="intro">原生微信登录、校园选择与个人资料。完整业务功能仍在开发中，此构建不可作为正式版本发布。</view>

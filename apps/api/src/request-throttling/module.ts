@@ -1,3 +1,4 @@
+import { AnnouncementRequestGuard } from './announcement-request.guard.js';
 import { DirectoryRequestGuard } from './directory-request.guard.js';
 import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -54,3 +55,24 @@ export class ViewRequestThrottlingModule {}
   exports: [DirectoryRequestGuard],
 })
 export class DirectoryRequestThrottlingModule {}
+
+@Module({
+  imports: [
+    IdentityModule,
+    PostgresRequestThrottlingModule,
+    ThrottlerModule.forRootAsync({
+      imports: [PostgresRequestThrottlingModule],
+      inject: [PostgresThrottlerStorage],
+      useFactory: (storage: PostgresThrottlerStorage) => ({
+        storage,
+        setHeaders: false,
+        throttlers: [
+          { name: 'default', ttl: 60000, limit: 120, blockDuration: 60000 },
+        ],
+      }),
+    }),
+  ],
+  providers: [AnnouncementRequestGuard],
+  exports: [AnnouncementRequestGuard],
+})
+export class AnnouncementRequestThrottlingModule {}

@@ -1,0 +1,21 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 公告</view>
+  <view class="title">公告详情</view>
+  <view class="scope">{{scopeLabel}}</view>
+  <view wx:if="{{campusId}}" class="meta">浏览校区编号：{{campusId}}</view>
+  <view class="meta">浏览范围不代表身份认证。查看公告不会记录弹窗确认。</view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <button class="secondary" bindtap="onRefresh" disabled="{{busy}}">{{restartRequired ? '重新开始浏览' : '重新加载'}}</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止读取</button>
+  <view wx:if="{{loaded &amp;&amp; detail}}" class="card {{detail.highlight ? 'announcement-highlight' : ''}}">
+    <view wx:if="{{detail.isLatest}}" class="badge">最新</view>
+    <text class="announcement-title" selectable="true">{{detail.title}}</text>
+    <text wx:if="{{detail.versionLabel}}" class="meta" selectable="true">版本：{{detail.versionLabel}}</text>
+    <view class="meta">公告日期：{{detail.announcementDate === null ? '时间未知' : detail.announcementDate}}</view>
+    <text class="announcement-body" selectable="true" space="nbsp">{{detail.bodyText}}</text>
+    <view wx:if="{{detail.media.status === 'unavailable'}}" class="notice">公告图片暂不可用</view>
+    <view class="meta">创建时间：{{detail.createdAt === null ? '时间未知' : detail.createdAt}}</view>
+    <view class="meta">更新时间：{{detail.updatedAt === null ? '时间未知' : detail.updatedAt}}</view>
+  </view>
+</view>

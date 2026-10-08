@@ -1,0 +1,23 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 公告</view>
+  <view class="title">公告</view>
+  <view class="scope">{{scopeLabel}}</view>
+  <view wx:if="{{campusId}}" class="meta">浏览校区编号：{{campusId}}</view>
+  <view class="meta">浏览范围不代表身份认证。查看公告不会记录弹窗确认。</view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <button class="secondary" bindtap="onRefresh" disabled="{{busy}}">{{restartRequired ? '重新开始浏览' : '重新加载'}}</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止读取</button>
+  <view wx:if="{{loaded &amp;&amp; changesNotice}}" class="notice">{{changesNotice}}</view>
+  <view wx:if="{{changes}}" class="meta">统计起点：{{changes.since}} · 核验时间：{{changes.checkedAt}}</view>
+  <view wx:for="{{items}}" wx:key="id" class="card {{item.highlight ? 'announcement-highlight' : ''}}">
+    <view wx:if="{{item.isLatest}}" class="badge">最新</view>
+    <text class="announcement-title" selectable="true">{{item.title}}</text>
+    <text wx:if="{{item.versionLabel}}" class="meta" selectable="true">版本：{{item.versionLabel}}</text>
+    <view class="meta">公告日期：{{item.announcementDate === null ? '时间未知' : item.announcementDate}}</view>
+    <button class="secondary" data-id="{{item.id}}" bindtap="onAnnouncement" disabled="{{busy}}">查看完整公告</button>
+  </view>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">当前浏览范围暂无公告。</view>
+  <view wx:if="{{pageNumber}}" class="meta">第 {{pageNumber}} 页</view>
+  <view class="actions"><button wx:if="{{canPrevious}}" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button></view>
+</view>

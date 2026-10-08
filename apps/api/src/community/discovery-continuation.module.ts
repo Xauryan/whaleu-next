@@ -25,7 +25,7 @@ export class DiscoveryContinuationFacade {
   }
   create(
     scope: string,
-    accountId: string,
+    accountId: string | null,
     position: DiscoveryPosition,
     tx: PoolClient,
   ) {

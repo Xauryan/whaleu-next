@@ -76,6 +76,10 @@ export function configureHttp(app: INestApplication): void {
     const started = performance.now();
     response.setHeader('x-request-id', requestId);
     response.setHeader('cache-control', 'no-store');
+    // Announcement parser failures occur before guards; keep optional-auth
+    // cache separation on these error responses too.
+    if (/^\/v1\/(?:me\/)?announcements(?:\/|$)/.test(request.path))
+      response.vary('Authorization');
     response.once('finish', () => {
       logger.structured.info({
         event: 'http_request',

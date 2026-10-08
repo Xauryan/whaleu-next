@@ -44,7 +44,10 @@ const profileEndpoint = (
   decode: decodeOwnProfile,
 });
 export class HttpProfileGateway implements ProfileGateway {
-  constructor(private readonly api: ApiClient) {}
+  constructor(
+    private readonly api: ApiClient,
+    private readonly browsingScopeChanged?: (accountId?: string) => void,
+  ) {}
   async campuses(
     query: CampusQuery,
     cancellation: Cancellation,
@@ -113,9 +116,12 @@ export class HttpProfileGateway implements ProfileGateway {
       )
     )
       throw new ClientError('business', 'Invalid campus selection');
-    return this.api.request(profileEndpoint('/v1/me/campus', 'PUT'), {
-      body: { ...patch },
-      cancellation,
-    });
+    this.browsingScopeChanged?.();
+    return this.api
+      .request(profileEndpoint('/v1/me/campus', 'PUT'), {
+        body: { ...patch },
+        cancellation,
+      })
+      .finally(() => this.browsingScopeChanged?.());
   }
 }

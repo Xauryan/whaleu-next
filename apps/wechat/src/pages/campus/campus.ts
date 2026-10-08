@@ -1,5 +1,4 @@
 import type { WhaleuApp } from '../../app';
-import { HttpProfileGateway } from '../../profile/gateway';
 import { CampusController, initialCampusView } from './controller';
 Page({
   data: { ...initialCampusView() },
@@ -13,7 +12,7 @@ Page({
     }
     this.controller = new CampusController(
       runtime.sessions,
-      runtime.api ? new HttpProfileGateway(runtime.api) : undefined,
+      getApp<WhaleuApp>().community?.profiles,
       (view) => this.setData({ ...view }),
     );
     void this.controller.load();

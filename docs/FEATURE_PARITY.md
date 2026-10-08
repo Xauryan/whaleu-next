@@ -41,7 +41,8 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 - [ ] PARTIAL — Moderation: post status/category/visibility, pins/read markers, content/image review, profile moderation, bans/unbans, feature restrictions and moderation history
 - [ ] PARTIAL — School/super administration: scoped user lookup, identity changes, admin appointment/scope, roles and expiry, school changes, UID management, user/post rankings and data overview
 - [ ] NOT IMPLEMENTED — School configuration: community/official-account/admin contact settings, review channels, unverified-post settings, push configuration and authorized test delivery
-- [ ] NOT IMPLEMENTED — Announcements/feedback: announcement list/new checks/popups, school targeting, create/edit/delete, reading layout, feedback submission/viewing and responsible-admin notifications
+- [ ] PARTIAL — Announcements: public list/detail/newness/latest-popup reads and authenticated per-ID popup acknowledgement with native pages; targeting authority is explicit. Publication/admin/media/history import remain open
+- [ ] NOT IMPLEMENTED — Feedback: submission, viewing and responsible-admin notifications
 
 ## Campus tools and service operations
 

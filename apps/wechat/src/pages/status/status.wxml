@@ -1,4 +1,5 @@
 <view class="screen">
+  <navigator class="link" url="/pages/announcements/announcements">公告（无需登录） →</navigator>
   <view class="label">{{stage}}</view>
   <view class="title">{{title}}</view>
   <view class="description">{{summary}}</view>

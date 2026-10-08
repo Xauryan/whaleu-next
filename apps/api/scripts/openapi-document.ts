@@ -206,3 +206,74 @@ export async function createHotOpenApiDocument(): Promise<OpenAPIObject> {
 export async function renderHotOpenApiDocument(): Promise<string> {
   return renderDocument(await createHotOpenApiDocument());
 }
+
+/** Offline-only announcement contract export, using the official controllers. */
+export async function createAnnouncementsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { AnnouncementsController, OwnAnnouncementsController } =
+    await import('../src/announcements/controller.js');
+  const { AnnouncementsService } =
+    await import('../src/announcements/service.js');
+  const { AnnouncementRequestGuard } =
+    await import('../src/request-throttling/announcement-request.guard.js');
+  for (const [controller, methods] of [
+    [AnnouncementsController, ['list', 'popup', 'changes', 'detail']],
+    [OwnAnnouncementsController, ['popup', 'acknowledge']],
+  ] as const) {
+    for (const method of methods)
+      if (
+        !Reflect.hasMetadata(PARAMTYPES_METADATA, controller.prototype, method)
+      )
+        throw new Error(
+          'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+        );
+  }
+  const fail = () => {
+    throw new Error('OpenAPI must not execute application work');
+  };
+  const testing = await Test.createTestingModule({
+    controllers: [AnnouncementsController, OwnAnnouncementsController],
+    providers: [
+      {
+        provide: AnnouncementsService,
+        useValue: {
+          list: fail,
+          popup: fail,
+          changes: fail,
+          detail: fail,
+          ownerPopup: fail,
+          acknowledge: fail,
+        },
+      },
+    ],
+  })
+    .overrideGuard(AnnouncementRequestGuard)
+    .useValue({ canActivate: fail })
+    .compile();
+  const app = testing.createNestApplication({ logger: false });
+  try {
+    return SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setOpenAPIVersion('3.0.3')
+        .setTitle('WhaleU announcements')
+        .setVersion('1')
+        .addSecurity('accessToken', {
+          type: 'http',
+          scheme: 'bearer',
+          description:
+            'Opaque WhaleU access token. Optional for public content; required for own popup state and acknowledgement. Supplied invalid credentials fail.',
+        })
+        .build(),
+      {
+        deepScanRoutes: false,
+        autoTagControllers: false,
+        excludeDynamicDefaults: true,
+      },
+    );
+  } finally {
+    await app.close();
+  }
+}
+export async function renderAnnouncementsOpenApiDocument(): Promise<string> {
+  return renderDocument(await createAnnouncementsOpenApiDocument());
+}

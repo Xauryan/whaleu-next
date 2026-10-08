@@ -1,0 +1,17 @@
+<template name="announcement-popup">
+  <view wx:if="{{popup}}" class="announcement-modal">
+    <view class="announcement-dialog">
+      <view class="eyebrow">公告提醒</view>
+      <scroll-view scroll-y="true" class="announcement-scroll">
+        <text class="announcement-title" selectable="true">{{popup.title}}</text>
+      <text wx:if="{{popup.versionLabel}}" class="meta" selectable="true">版本：{{popup.versionLabel}}</text>
+      <view class="meta">公告日期：{{popup.announcementDate === null ? '时间未知' : popup.announcementDate}}</view>
+        <text class="announcement-body" selectable="true" space="nbsp">{{popup.bodyText}}</text>
+        <view wx:if="{{popup.media.status === 'unavailable'}}" class="notice">公告图片暂不可用</view>
+      </scroll-view>
+      <button bindtap="onCloseAnnouncement">我知道了</button>
+    </view>
+  </view>
+  <view wx:if="{{!popup &amp;&amp; status}}" class="notice">{{status}}</view>
+  <view wx:if="{{!popup &amp;&amp; error}}" class="error">{{error}}</view>
+</template>

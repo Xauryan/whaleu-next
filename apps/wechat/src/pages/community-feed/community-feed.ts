@@ -1,3 +1,7 @@
+import {
+  AnnouncementPopupController,
+  initialAnnouncementPopupView,
+} from '../../announcements/popup-controller';
 import { ViewObserver } from '../../community/view-observer';
 import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import { AuthorNavigator } from '../../profile/author-navigation';
@@ -30,6 +34,7 @@ import type { WhaleuApp } from '../../app';
 import { FeedController, initialFeedView } from './controller';
 Page({
   data: {
+    announcementPopup: initialAnnouncementPopupView(),
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     report: initialReportMutationView(),
     block: initialBlockMutationView(),
@@ -53,6 +58,7 @@ Page({
       { key: 'deep_sea', label: '深海树洞' },
     ],
   },
+  announcementPopup: undefined as AnnouncementPopupController | undefined,
   reportMutations: undefined as ReportMutationController | undefined,
   blockMutations: undefined as BlockMutationController | undefined,
   blockTargets: '',
@@ -64,6 +70,8 @@ Page({
   authorNavigator: undefined as AuthorNavigator | undefined,
   viewObserver: undefined as ViewObserver | undefined,
   onShow() {
+    this.announcementPopup?.dispose();
+    this.announcementPopup = undefined;
     this.viewObserver?.dispose();
     this.viewObserver = undefined;
     this.authorNavigator?.dispose();
@@ -89,6 +97,9 @@ Page({
       this.setData({ error: '环境未初始化，请重新打开小程序' });
       return;
     }
+    this.announcementPopup = new AnnouncementPopupController(runtime, (view) =>
+      this.setData({ announcementPopup: view }),
+    );
     if (runtime.views)
       this.viewObserver = new ViewObserver(
         wx,
@@ -133,42 +144,54 @@ Page({
       (view) => this.setData({ identityOverlay: view }),
       runtime.privateViews,
     );
-    this.controller = new FeedController(runtime, (view) => {
-      const presented = this.viewObserver?.render(
-        view.loaded && view.hasSession ? view.posts.map((post) => post.id) : [],
-        `${view.space?.id ?? ''}:${view.campusId}:${view.category}:${view.tradingSubtype}`,
-      );
-      this.setData({ ...view }, presented);
-      const key = view.posts
-        .map((item) => item.id + ':' + item.author.kind)
-        .join(',');
-      if (view.busy || !view.loaded || key !== this.blockTargets) {
-        this.reportMutations?.dismiss();
-        this.blockMutations?.dismissBlock();
-      }
-      this.blockTargets = key;
-      if (
-        view.busy ||
-        !view.loaded ||
-        this.data.report.busy ||
-        this.data.report.frozen ||
-        this.data.block.busy ||
-        this.data.block.frozen
-      ) {
-        this.identityOverlay?.clear();
-        this.overlayTargets = '';
-      } else if (key !== this.overlayTargets) {
-        this.overlayTargets = key;
-        void this.identityOverlay?.show(
-          view.posts.map((item) => ({
-            kind: 'post',
-            id: item.id,
-            authorMode: item.author.kind,
-          })),
+    this.controller = new FeedController(
+      runtime,
+      (view) => {
+        const presented = this.viewObserver?.render(
+          view.loaded && view.hasSession
+            ? view.posts.map((post) => post.id)
+            : [],
+          `${view.space?.id ?? ''}:${view.campusId}:${view.category}:${view.tradingSubtype}`,
         );
-      }
-    });
+        this.setData({ ...view }, presented);
+        const key = view.posts
+          .map((item) => item.id + ':' + item.author.kind)
+          .join(',');
+        if (view.busy || !view.loaded || key !== this.blockTargets) {
+          this.reportMutations?.dismiss();
+          this.blockMutations?.dismissBlock();
+        }
+        this.blockTargets = key;
+        if (
+          view.busy ||
+          !view.loaded ||
+          this.data.report.busy ||
+          this.data.report.frozen ||
+          this.data.block.busy ||
+          this.data.block.frozen
+        ) {
+          this.identityOverlay?.clear();
+          this.overlayTargets = '';
+        } else if (key !== this.overlayTargets) {
+          this.overlayTargets = key;
+          void this.identityOverlay?.show(
+            view.posts.map((item) => ({
+              kind: 'post',
+              id: item.id,
+              authorMode: item.author.kind,
+            })),
+          );
+        }
+      },
+      (campusId) => {
+        if (campusId === undefined) this.announcementPopup?.prepareScope();
+        else void this.announcementPopup?.load(campusId);
+      },
+    );
     void this.controller.load();
+  },
+  onCloseAnnouncement() {
+    void this.announcementPopup?.close();
   },
   onQuery(event: { detail: { value: string } }) {
     this.controller?.setQuery(event.detail.value);
@@ -177,7 +200,12 @@ Page({
     void this.controller?.search();
   },
   onCampus(event: { currentTarget: { dataset: { id: string } } }) {
-    void this.controller?.chooseCampus(event.currentTarget.dataset.id);
+    const campus = this.data.campuses.find(
+      (item) => item.id === event.currentTarget.dataset.id,
+    );
+    if (!campus?.isActive) return;
+    void this.controller?.chooseCampus(campus.id);
+    void this.announcementPopup?.load(campus.id);
   },
   onGlobal(event: { currentTarget: { dataset: { id: string } } }) {
     void this.controller?.chooseGlobal(event.currentTarget.dataset.id);
@@ -262,6 +290,8 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.announcementPopup?.dispose();
+    this.announcementPopup = undefined;
     this.viewObserver?.dispose();
     this.viewObserver = undefined;
     this.authorNavigator?.dispose();
@@ -281,6 +311,8 @@ Page({
     this.identityOverlay = undefined;
   },
   onUnload() {
+    this.announcementPopup?.dispose();
+    this.announcementPopup = undefined;
     this.viewObserver?.dispose();
     this.viewObserver = undefined;
     this.authorNavigator?.dispose();

@@ -1,3 +1,4 @@
+import { AnnouncementsModule } from './announcements/module.js';
 import { HotFeedRunnerModule } from './community/hot-score/runner.js';
 import { DirectoryModule } from './organizations/directory/module.js';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -54,6 +55,7 @@ export class AppModule {
         ProfileDiscoveryModule,
         CommunityModule,
         DirectoryModule,
+        AnnouncementsModule,
         SafetyModule,
         NotificationsModule,
         IdentityPrivacyModule,

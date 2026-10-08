@@ -1,4 +1,8 @@
 import {
+  HttpAnnouncementsGateway,
+  type AnnouncementsGateway,
+} from '../announcements/gateway';
+import {
   HttpDirectoryGateway,
   type DirectoryGateway,
 } from '../directory/gateway';
@@ -42,6 +46,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly announcements?: AnnouncementsGateway;
+  readonly browsingScopeChanges?: PrivateViewLifecycle;
   readonly hot?: HotGateway;
   readonly directory?: DirectoryGateway;
   readonly directoryScopeChanges?: PrivateViewLifecycle;
@@ -79,8 +85,13 @@ export function createCommunityRuntime(
 ): CommunityRuntime {
   const storage = new WechatStorage(wx);
   const privateViews = new PrivateViewLifecycle();
+  const browsingScopeChanges = new PrivateViewLifecycle();
   const runtime: CommunityRuntime = {
     sessions: identity.sessions,
+    browsingScopeChanges,
+    ...(identity.api
+      ? { announcements: new HttpAnnouncementsGateway(identity.api) }
+      : {}),
     ...(identity.api ? { hot: new HttpHotGateway(identity.api) } : {}),
     directoryScopeChanges: new PrivateViewLifecycle(),
     ...(identity.api
@@ -104,7 +115,11 @@ export function createCommunityRuntime(
       ? { identityPrivacy: new HttpIdentityPrivacyGateway(identity.api) }
       : {}),
     gateway: identity.api ? new HttpCommunityGateway(identity.api) : undefined,
-    profiles: identity.api ? new HttpProfileGateway(identity.api) : undefined,
+    profiles: identity.api
+      ? new HttpProfileGateway(identity.api, (accountId) =>
+          browsingScopeChanges.clear(accountId),
+        )
+      : undefined,
     pending: new PendingAttemptStore(storage, origin),
     pendingFormations: new PendingFormationJoinStore(storage, origin),
     pendingBallots: new PendingBallotStore(storage, origin),

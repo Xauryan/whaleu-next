@@ -166,3 +166,8 @@ remain prerequisites; no old data receives a fabricated zero. Existing settlemen
 owners retain their receipts and obligations. No public score input, actor ledger,
 provider, automatic deployment or historical reconstruction is created. See
 [unified hot-feed controls](../../../docs/unified-public-hot-feed.md).
+
+Migration 0034 adds empty announcement identities, immutable accepted publication/
+audience/order revisions, current catalog coverage and append-only owner popup
+markers with explicit history coverage. It creates no announcement issuer, admin
+grant, source import or media provider. See [read and acknowledgement scope](../../../docs/API_ANNOUNCEMENTS.md).

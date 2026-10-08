@@ -63,3 +63,7 @@ public documentation route.
 The separate [community-hot contract](openapi/community-hot.json) covers unified
 hot discovery. It retains strict optional-auth/query/error metadata without adding
 scores, private certificate fields or a documentation route.
+
+The [announcements artifact](openapi/announcements.json) covers public content
+reads and authenticated own popup acknowledgement. Public and owner authentication
+metadata remain distinct; export does not register live content issuers or jobs.

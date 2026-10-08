@@ -1,3 +1,4 @@
+import { smokeAnnouncements } from './smoke-announcements.mjs';
 import { smokeDirectory } from './smoke-directory.mjs';
 import { smokeViewReporting } from './smoke-view-reporting.mjs';
 import { smokeSearch } from './smoke-search.mjs';
@@ -1822,6 +1823,12 @@ await smokeViewReporting({
   mountPage: mountTradingPage,
   flush: flushTrading,
   postWire: pollPostWire,
+});
+await smokeAnnouncements({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
 });
 app.community.identityPrivacy = originalIdentityPrivacy;
 app.community.profiles = originalProfiles;

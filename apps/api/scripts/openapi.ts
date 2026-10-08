@@ -1,3 +1,4 @@
+import { renderAnnouncementsOpenApiDocument } from './openapi-document.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import {
   renderHotOpenApiDocument,
@@ -76,4 +77,25 @@ if (args[0] === '--check') {
 } else {
   await writeFile(hotArtifact, hotRendered, 'utf8');
   console.log('Generated docs/openapi/community-hot.json.');
+}
+
+const announcementsArtifact = new URL(
+  '../../../../docs/openapi/announcements.json',
+  import.meta.url,
+);
+const announcementsRendered = await renderAnnouncementsOpenApiDocument();
+if (args[0] === '--check') {
+  const existing = await readFile(announcementsArtifact, 'utf8').catch(() => {
+    throw new Error(
+      'Announcements OpenAPI artifact is missing; run npm run openapi:generate.',
+    );
+  });
+  if (existing !== announcementsRendered)
+    throw new Error(
+      'Announcements OpenAPI artifact is stale; run npm run openapi:generate.',
+    );
+  console.log('Announcements OpenAPI artifact is current.');
+} else {
+  await writeFile(announcementsArtifact, announcementsRendered, 'utf8');
+  console.log('Generated docs/openapi/announcements.json.');
 }

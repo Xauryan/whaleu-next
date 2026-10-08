@@ -49,7 +49,13 @@ export const initialFeedView = (): FeedView => ({
 export class FeedController extends CommunityController<FeedView> {
   private nextCursor: string | null = null;
   private regional: CommunitySpace | null = null;
-  constructor(runtime: CommunityRuntime, render: (view: FeedView) => void) {
+  constructor(
+    runtime: CommunityRuntime,
+    render: (view: FeedView) => void,
+    private readonly browsingContext?: (
+      campusId: string | null | undefined,
+    ) => void,
+  ) {
     super(runtime, initialFeedView, render);
   }
   protected override resetPrivate(): void {
@@ -129,11 +135,15 @@ export class FeedController extends CommunityController<FeedView> {
     );
   }
   async load(): Promise<void> {
+    this.browsingContext?.(undefined);
     if (!this.available(false) || !this.runtime.profiles) return;
     const owner = this.owner;
+    const previousCampusId = this.view.campusId;
     this.nextCursor = null;
     this.regional = null;
     this.update({
+      campusId: '',
+      campusName: '',
       posts: [],
       space: null,
       loaded: false,
@@ -153,6 +163,16 @@ export class FeedController extends CommunityController<FeedView> {
         if (profile && profile.accountId !== this.accountId())
           throw new ClientError('protocol', 'Profile owner mismatch');
         const campus = profile?.selectedCampus ?? null;
+        this.runtime.sessions.assertCurrent(owner);
+        if (cancel.isCancelled)
+          throw new ClientError('cancelled', 'Browsing scope replaced');
+        this.update({
+          campusId: campus?.id ?? '',
+          campusName: campus?.fullName ?? '',
+        });
+        if (previousCampusId !== (campus?.id ?? ''))
+          this.runtime.browsingScopeChanges?.clear();
+        this.browsingContext?.(campus?.id ?? null);
         const spaces = campus
           ? await this.runtime.gateway!.spaces(campus.id, cancel)
           : null;
@@ -223,6 +243,7 @@ export class FeedController extends CommunityController<FeedView> {
     if (!this.available(false)) return;
     const campus = this.view.campuses.find((item) => item.id === campusId);
     if (!campus?.isActive) return;
+    this.runtime.browsingScopeChanges?.clear();
     const owner = this.owner;
     this.nextCursor = null;
     this.regional = null;
