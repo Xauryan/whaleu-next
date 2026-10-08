@@ -420,3 +420,12 @@ Urgent/resolved aggregate trading, complete catalog membership and restart-on-sc
 change are covered. Related opt-in distribution, unsupported historical category
 population, import, search history/hot suggestions and real-device acceptance
 remain open. See [federated acceptance](acceptance/federated-search.md).
+
+Bounded view-reporting increment: fresh native posts acquire independent view
+coverage; authenticated feed/detail reporting has atomic replay, a fixed detail
+cooldown and immutable 24-hour epoch expiry. Native viewport observation and
+account-scoped bounded queues are implemented. Official Nest scheduling/request
+throttling and vetted native hashing are reused. Historical views, public count
+projection, hot-score/ranking, search exposures, production/device acceptance and
+full parity remain open. See [view scope](VIEW_REPORTING.md) and
+[local acceptance](acceptance/view-reporting.md).

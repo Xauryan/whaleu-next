@@ -39,9 +39,11 @@ App<WhaleuApp>({
   },
   onShow() {
     void this.experience?.foreground();
+    void this.community?.views?.foreground();
   },
   onHide() {
     this.experience?.hide();
+    this.community?.views?.hide();
     this.community?.privateViews?.clear();
     this.verification?.privateViews.clear();
     this.identityCampus?.privateViews.clear();

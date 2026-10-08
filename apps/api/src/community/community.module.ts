@@ -1,3 +1,7 @@
+import { CommunityViewComponentModule } from './view-component/module.js';
+import { ViewReportingService } from './view-component/service.js';
+import { ViewReportingController } from './view-component/controller.js';
+import { ViewRequestThrottlingModule } from '../request-throttling/module.js';
 import { CommunitySearchScopeResolver } from './search/scope.js';
 import { CommunityPhoneContinuation } from './phone-continuation.js';
 import { SearchController } from './search/controller.js';
@@ -237,6 +241,8 @@ export class CommunityRecoveryController {
 }
 @Module({
   imports: [
+    CommunityViewComponentModule,
+    ViewRequestThrottlingModule,
     CommunitySubscriptionComponentModule,
     CommunityLikeComponentModule,
     ExperienceIngressModule,
@@ -250,6 +256,7 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    ViewReportingController,
     SearchController,
     LikedHistoryController,
     SavedController,
@@ -278,6 +285,7 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    ViewReportingService,
     SearchService,
     CommunitySearchScopeResolver,
     CommunityPhoneContinuation,

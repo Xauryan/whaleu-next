@@ -1,3 +1,4 @@
+import { ViewObserver } from '../../community/view-observer';
 import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import {
   PostLikeMutationController,
@@ -108,7 +109,10 @@ Page({
         : null;
   },
   authorNavigator: undefined as AuthorNavigator | undefined,
+  viewObserver: undefined as ViewObserver | undefined,
   onShow() {
+    this.viewObserver?.dispose();
+    this.viewObserver = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = new AuthorNavigator(
       wx,
@@ -144,6 +148,14 @@ Page({
       this.setData({ error: '帖子地址无效或环境尚未初始化' });
       return;
     }
+    if (runtime.views)
+      this.viewObserver = new ViewObserver(
+        wx,
+        this,
+        systemClock,
+        runtime.views,
+        'detail_visit',
+      );
     this.reportMutations = new ReportMutationController(
       runtime,
       'report',
@@ -340,7 +352,11 @@ Page({
       runtime,
       this.postId,
       (view) => {
-        this.setData({ ...view });
+        const presented = this.viewObserver?.render(
+          view.loaded && view.post && !view.needsReload ? [view.post.id] : [],
+          this.postId,
+        );
+        this.setData({ ...view }, presented);
         if (view.busy || !view.loaded || view.needsReload)
           this.tradingContactsController?.load(null);
         else if (
@@ -788,6 +804,8 @@ Page({
     this.savedMutations?.cancel();
   },
   onHide() {
+    this.viewObserver?.dispose();
+    this.viewObserver = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = undefined;
     this.reportMutations?.dispose();
@@ -823,6 +841,8 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.viewObserver?.dispose();
+    this.viewObserver = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = undefined;
     this.reportMutations?.dispose();

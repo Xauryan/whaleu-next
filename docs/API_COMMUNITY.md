@@ -1213,3 +1213,10 @@ Search also accepts `scope=all|regional|global` instead of `spaceId`. Only regio
 aggregate requests accept category/subtype filters; all/global reject them.
 Aggregate scope is revalidated from complete owner-held catalog facts and changes
 restart navigation. See [federated contract](COMMUNITY_SEARCH.md#federated-allregionalglobal-search-increment).
+
+## Explicit bounded view reporting
+
+Authenticated `POST /v1/me/community/view-reporting-epoch` and
+`POST /v1/me/community/view-reports` record eligible fresh-post feed/detail events
+with immutable bounded recovery. They require no phone/student gate. Existing GET
+reads and PostView fields are unchanged. See [contracts and retention](VIEW_REPORTING.md).

@@ -64,3 +64,11 @@ TRUNCATE/DDL writers remain subject to documented outer-gate-first coordination.
 Related opt-in distribution, unsupported historical populations/import, history,
 hot suggestions and full product parity remain open. Pending view-expiry and
 author received-total decisions are unaffected.
+
+## Hosted verification
+
+Verified SSH-signed commit `83230f92ae6f49ec91d6d0d02d041615033918db` passed
+[GitHub Actions run 37748630211](https://github.com/Xauryan/whaleu-next/actions/runs/37748630211).
+The run passed 500 API, 817 native and 860 PostgreSQL tests, 2,177 total with zero
+failures/skips. PostgreSQL took 522.774 seconds; lint, typecheck, build, emitted
+smoke and formatting also passed. No production deployment is implied.

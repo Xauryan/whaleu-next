@@ -140,3 +140,11 @@ TRUNCATE/DDL requires outer-gate-first maintenance coordination. It also adds a
 nontext chronological partial post index. It seeds no catalog, grants, content,
 topology or distribution evidence. See [search catalog protocol and measured
 limits](../../../docs/COMMUNITY_SEARCH.md#catalog-writer-protocol).
+
+Migration 0029 adds fresh-only view baselines/aggregate state, expiring owner epochs
+and batch receipts, plus short-lived detail cooldowns. It creates no historical
+zero or permanent browsing-event ledger. Migration 0030 adds shared request-limit
+buckets, independent of transactional event capacity. Retention deletes expired
+metadata while preserving committed aggregates. Neither migration activates a
+provider, seeds production content or imports historical data. See
+[view scope and operations](../../../docs/VIEW_REPORTING.md).

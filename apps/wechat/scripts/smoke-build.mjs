@@ -1,3 +1,4 @@
+import { smokeViewReporting } from './smoke-view-reporting.mjs';
 import { smokeSearch } from './smoke-search.mjs';
 import { smokePublicExperience } from './smoke-public-experience.mjs';
 import { smokeExperience } from './smoke-experience.mjs';
@@ -1794,6 +1795,13 @@ await smokeSearch({
   tradingWire: tradingPostWire,
 });
 await smokePublicExperience({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
+  postWire: pollPostWire,
+});
+await smokeViewReporting({
   app,
   dist,
   mountPage: mountTradingPage,

@@ -1,3 +1,4 @@
+import { CommunityViewEnrollment } from './view-component/enrollment.js';
 import { CommunityLikeEnrollment } from './like-component/enrollment.js';
 import { CommunitySubscriptionEnrollment } from './subscription-component/enrollment.js';
 import {
@@ -51,6 +52,8 @@ export class PublicationRepository {
     private readonly subscriptions: CommunitySubscriptionEnrollment,
     @Inject(CommunityLikeEnrollment)
     private readonly likes: CommunityLikeEnrollment,
+    @Inject(CommunityViewEnrollment)
+    private readonly views: CommunityViewEnrollment,
   ) {}
   execute(
     token: string,
@@ -128,6 +131,14 @@ export class PublicationRepository {
       );
       if (operation === 'publish_post' && receipt.outcome === 'created') {
         await this.subscriptions.enrollPublishedPost(
+          {
+            postId: receipt.resourceId,
+            ownerId: actor,
+            publicationRequestId: requestId,
+          },
+          tx,
+        );
+        await this.views.enrollPublishedPost(
           {
             postId: receipt.resourceId,
             ownerId: actor,

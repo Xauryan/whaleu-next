@@ -22,6 +22,8 @@ for (const owner of Object.keys(fields) as (keyof typeof fields)[]) {
       LIKE_COMPONENT_PROCESSING: 'manual_only',
     });
     const selected = manualProcessingConfig(config, owner);
+    assert.equal(config.VIEW_REPORTING_RETENTION_PROCESSING, 'automatic');
+    assert.equal(selected.VIEW_REPORTING_RETENTION_PROCESSING, 'disabled');
     for (const [name, field] of Object.entries(fields)) {
       assert.equal(
         selected[field],

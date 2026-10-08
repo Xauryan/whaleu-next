@@ -74,9 +74,13 @@ function fixture(
   return {
     calls,
     intent,
-    repository: new PublicationRepository(repository, access, enrollment, {
-      enrollPublishedPost: async () => {},
-    }),
+    repository: new PublicationRepository(
+      repository,
+      access,
+      enrollment,
+      { enrollPublishedPost: async () => {} },
+      { enrollPublishedPost: async () => {} },
+    ),
   };
 }
 test('fresh post enrollment follows persisted origin and receipt on the existing transaction', async () => {

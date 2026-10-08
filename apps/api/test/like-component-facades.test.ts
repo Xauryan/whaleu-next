@@ -83,6 +83,7 @@ function fixture(
         },
       },
       enrollment,
+      { enrollPublishedPost: async () => {} },
     ),
   };
 }

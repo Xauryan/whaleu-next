@@ -1,3 +1,4 @@
+import { ViewObserver } from '../../community/view-observer';
 import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import { AuthorNavigator } from '../../profile/author-navigation';
 import {
@@ -61,7 +62,10 @@ Page({
   identityOverlay: undefined as IdentityOverlayController | undefined,
   overlayTargets: '',
   authorNavigator: undefined as AuthorNavigator | undefined,
+  viewObserver: undefined as ViewObserver | undefined,
   onShow() {
+    this.viewObserver?.dispose();
+    this.viewObserver = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = new AuthorNavigator(
       wx,
@@ -85,6 +89,14 @@ Page({
       this.setData({ error: '环境未初始化，请重新打开小程序' });
       return;
     }
+    if (runtime.views)
+      this.viewObserver = new ViewObserver(
+        wx,
+        this,
+        systemClock,
+        runtime.views,
+        'list_exposure',
+      );
     this.systemNoticesBadge = new SystemNoticesBadgeController(
       runtime,
       (view) => this.setData({ systemNoticesBadge: view }),
@@ -122,7 +134,11 @@ Page({
       runtime.privateViews,
     );
     this.controller = new FeedController(runtime, (view) => {
-      this.setData({ ...view });
+      const presented = this.viewObserver?.render(
+        view.loaded && view.hasSession ? view.posts.map((post) => post.id) : [],
+        `${view.space?.id ?? ''}:${view.campusId}:${view.category}:${view.tradingSubtype}`,
+      );
+      this.setData({ ...view }, presented);
       const key = view.posts
         .map((item) => item.id + ':' + item.author.kind)
         .join(',');
@@ -246,6 +262,8 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.viewObserver?.dispose();
+    this.viewObserver = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = undefined;
     this.reportMutations?.dispose();
@@ -263,6 +281,8 @@ Page({
     this.identityOverlay = undefined;
   },
   onUnload() {
+    this.viewObserver?.dispose();
+    this.viewObserver = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = undefined;
     this.reportMutations?.dispose();

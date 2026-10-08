@@ -14,7 +14,7 @@ declare global {
     options: T &
       ThisType<
         T & {
-          setData(data: Record<string, unknown>): void;
+          setData(data: Record<string, unknown>, callback?: () => void): void;
         }
       >,
   ): void;

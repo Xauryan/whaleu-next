@@ -1,3 +1,4 @@
+import { CommunityViewEnrollment } from '../../src/community/view-component/enrollment.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +42,8 @@ test(
       )
     ).rows[0]!.locked;
     let owns = false;
+    let currentViewSchema = false;
+    const views = new CommunityViewEnrollment();
     const owner = randomUUID(),
       actor = randomUUID(),
       other = randomUUID(),
@@ -91,6 +94,13 @@ test(
         'INSERT INTO whaleu_post_hotness.subscription_states(post_id) VALUES($1)',
         [post],
       );
+      // Satisfy only the newly independent view hook for current fresh origins;
+      // keep the pre-0027 historical publication genuinely view-unknown.
+      if (currentViewSchema)
+        await views.enrollPublishedPost(
+          { postId: post, ownerId: owner, publicationRequestId: request },
+          tx,
+        );
       if (change.priorLike)
         await tx.query(
           'INSERT INTO whaleu_community.post_likes(account_id,post_id) VALUES($1,$2)',
@@ -245,6 +255,7 @@ test(
       const historical = await inTransaction(pool, (tx) => native(tx, false));
       await insert(historical.post);
       await runMigrations(pool, migrations, { mode: 'up' });
+      currentViewSchema = true;
       await t.test(
         'pre-slice subscription-known native post remains like-unknown, including later real deletion',
         async () => {

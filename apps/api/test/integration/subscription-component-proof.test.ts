@@ -1,3 +1,4 @@
+import { CommunityViewEnrollment } from '../../src/community/view-component/enrollment.js';
 import { CommunityLikeEnrollment } from '../../src/community/like-component/enrollment.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -45,6 +46,7 @@ test(
     let owns = false;
     let currentLikeSchema = false;
     const likes = new CommunityLikeEnrollment();
+    const views = new CommunityViewEnrollment();
     const owner = randomUUID(),
       actor = randomUUID(),
       other = randomUUID(),
@@ -89,6 +91,13 @@ test(
       // Historical pre-0026 native publications intentionally remain untouched.
       if (currentLikeSchema)
         await likes.enrollPublishedPost(
+          { postId: post, ownerId: owner, publicationRequestId: request },
+          tx,
+        );
+      // Current-schema fresh origins must also satisfy the independent view
+      // invariant. This does not enroll the intentional pre-migration history.
+      if (currentLikeSchema)
+        await views.enrollPublishedPost(
           { postId: post, ownerId: owner, publicationRequestId: request },
           tx,
         );

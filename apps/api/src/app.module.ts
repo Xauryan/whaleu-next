@@ -1,3 +1,5 @@
+import { ScheduleModule } from '@nestjs/schedule';
+import { ViewRetentionModule } from './community/view-component/retention-runner.js';
 import { ExperienceRankingModule } from './experience-ranking/module.js';
 import { ExperienceModule } from './experience/module.js';
 import { IdentityCampusModule } from './identity-campus/module.js';
@@ -18,11 +20,25 @@ import { ObservabilityModule } from './observability/logger.js';
 
 @Module({})
 export class AppModule {
-  static register(config: RuntimeConfig): DynamicModule {
+  static register(
+    config: RuntimeConfig,
+    options: { httpRuntime?: boolean } = {},
+  ): DynamicModule {
     return {
       module: AppModule,
       imports: [
         ConfigurationModule.register(config),
+        ...(options.httpRuntime
+          ? [
+              ScheduleModule.forRoot({
+                cronJobs: false,
+                timeouts: false,
+                intervals:
+                  config.VIEW_REPORTING_RETENTION_PROCESSING === 'automatic',
+              }),
+              ViewRetentionModule,
+            ]
+          : []),
         ObservabilityModule,
         HealthModule,
         IdentityModule,

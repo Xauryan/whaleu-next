@@ -7,5 +7,8 @@
     "typecheck": "tsc --project tsconfig.json --noEmit && tsc --project tsconfig.test.json --noEmit",
     "build": "node scripts/build.mjs",
     "test": "node --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "js-sha256": "1.0.0"
   }
 }

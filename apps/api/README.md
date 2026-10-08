@@ -231,3 +231,35 @@ Named author/profile cosmetics now consume a DB-only, nonlocking experience leaf
 with independent title/color/level evidence. This exposes no private balances or
 history and preserves anonymous and final safety boundaries. See
 [experience projection](../../docs/API_EXPERIENCE.md#public-experience-projection).
+
+## Bounded view-reporting infrastructure
+
+The explicit HTTP entry point registers `@nestjs/schedule` for a startup view
+retention sweep and a 60-second interval, including when there is no reporting
+traffic. `VIEW_REPORTING_RETENTION_PROCESSING` defaults to `automatic`; `disabled`
+and `manual_only` prevent automatic cleanup and keep new HTTP view-reporting
+admission closed. Ordinary browsing and live receipt recovery remain available.
+`AppModule.register(config)` does not mount this runner; only the HTTP entry point
+passes `{ httpRuntime: true }`. Manual maintenance commands additionally disable
+retention in their isolated configuration, so inherited automatic settings cannot
+start hidden background work in CLI/test application contexts.
+
+The runner prevents overlapping local sweeps, while database locks and bounded
+`SKIP LOCKED` cleanup make concurrent processes safe. A failed, lagging, or stale
+retention sweep closes new reporting admission. Shutdown waits for active cleanup
+in the before-shutdown phase before the database pool closes. Retention removes
+expired recovery metadata and cooldowns, never committed aggregate views. Exact
+physical deletion during service/database downtime is not guaranteed; deployment
+must separately verify backup/WAL retention.
+
+`@nestjs/throttler` supplies the reporting request guard. Its PostgreSQL adapter
+uses independently committed account/operation counters, rather than process-local
+memory, so failed validation and rolled-back business work still consume attempts.
+The initial limits are 20 epoch requests and 120 report requests per account per
+60-second fixed window. The first over-limit attempt starts a fixed 60-second
+block; rejected retries do not extend it. Responses preserve the existing safe
+`RATE_LIMITED` envelope and `Retry-After: 60`. Request counters contain hashed keys
+and expiry times, with bounded cleanup in the same retention sweep. They contain
+no tokens, IP addresses, post IDs, or request payloads. These safeguards are
+separate from transactional view batch/event capacities and do not activate
+external providers or authorize a deployment.

@@ -22,6 +22,7 @@ export function manualProcessingConfig(
     EXPERIENCE_PROCESSING: 'disabled',
     SUBSCRIPTION_COMPONENT_PROCESSING: 'disabled',
     LIKE_COMPONENT_PROCESSING: 'disabled',
+    VIEW_REPORTING_RETENTION_PROCESSING: 'disabled',
     [field]: config[field] === 'disabled' ? 'disabled' : 'manual_only',
   });
 }

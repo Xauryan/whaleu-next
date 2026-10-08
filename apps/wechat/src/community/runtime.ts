@@ -1,3 +1,6 @@
+import { ViewRuntime } from './view-runtime';
+import { PendingViewStore } from './view-pending';
+import { HttpViewGateway } from './view-gateway';
 import { HttpSearchGateway, type SearchGateway } from './search-gateway';
 import { PendingPostLikeStore } from './post-like-pending';
 import {
@@ -34,6 +37,7 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly views?: ViewRuntime;
   readonly search?: SearchGateway;
   readonly discovery?: DiscoveryGateway;
   readonly sessions: SessionStore;
@@ -67,7 +71,7 @@ export function createCommunityRuntime(
 ): CommunityRuntime {
   const storage = new WechatStorage(wx);
   const privateViews = new PrivateViewLifecycle();
-  return {
+  const runtime: CommunityRuntime = {
     sessions: identity.sessions,
     ...(identity.api ? { search: new HttpSearchGateway(identity.api) } : {}),
     ...(identity.api
@@ -142,5 +146,19 @@ export function createCommunityRuntime(
         5000,
         clock,
       ),
+  };
+  return {
+    ...runtime,
+    ...(identity.api
+      ? {
+          views: new ViewRuntime(
+            identity.sessions,
+            new HttpViewGateway(identity.api),
+            new PendingViewStore(storage, origin, clock.now()),
+            runtime.newRequestId,
+            clock,
+          ),
+        }
+      : {}),
   };
 }

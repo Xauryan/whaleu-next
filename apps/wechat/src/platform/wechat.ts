@@ -11,7 +11,20 @@ import type {
 export interface WxRequestTask {
   abort(): void;
 }
+export interface WxIntersectionObserver {
+  relativeToViewport(): WxIntersectionObserver;
+  observe(
+    selector: string,
+    callback: (result: { intersectionRatio: number }) => void,
+  ): void;
+  disconnect(): void;
+}
 export interface WxApi {
+  nextTick?(callback: () => void): void;
+  createIntersectionObserver?(
+    page: object,
+    options: { thresholds: number[]; initialRatio: number },
+  ): WxIntersectionObserver;
   stopPullDownRefresh?: () => void;
   navigateTo?(options: {
     url: string;

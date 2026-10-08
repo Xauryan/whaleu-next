@@ -9,7 +9,7 @@ import { AppLogger } from './observability/logger.js';
 async function bootstrap(): Promise<void> {
   const config = loadConfig(process.env);
   const app = await NestFactory.create<NestExpressApplication>(
-    AppModule.register(config),
+    AppModule.register(config, { httpRuntime: true }),
     {
       bufferLogs: true,
       abortOnError: false,

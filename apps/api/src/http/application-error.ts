@@ -3,6 +3,15 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  VIEW_REPORTING_EPOCH_CLOSED: {
+    status: 410,
+    message: 'View reporting epoch is closed',
+  },
+  VIEW_REPORT_CONFLICT: { status: 409, message: 'View report conflicts' },
+  VIEW_REPORTING_UNAVAILABLE: {
+    status: 503,
+    message: 'View reporting is unavailable',
+  },
   EXPERIENCE_MAINTENANCE_REQUEST_CONFLICT: {
     status: 409,
     message: 'Title maintenance request conflicts',
