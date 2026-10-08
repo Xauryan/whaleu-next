@@ -1,3 +1,6 @@
+import { SearchController } from './search/controller.js';
+import { SearchService } from './search/service.js';
+import { SearchRepository } from './search/repository.js';
 import { CommunityLikeComponentModule } from './like-component/module.js';
 import { CommunitySubscriptionComponentModule } from './subscription-component/module.js';
 import { ExperienceIngressModule } from '../experience/ingress.js';
@@ -245,6 +248,7 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    SearchController,
     LikedHistoryController,
     SavedController,
     SavedRecoveryController,
@@ -272,6 +276,8 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    SearchService,
+    SearchRepository,
     CommunityExperienceSourceCapture,
     CommunityExperienceSourceFacade,
     CommunityDiscoveryCounts,

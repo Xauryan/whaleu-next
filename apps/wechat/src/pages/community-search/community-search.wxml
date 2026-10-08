@@ -1,0 +1,52 @@
+<import src="../../experience/public-display.wxml" />
+<import src="../../community/trading-summary.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 帖子搜索</view>
+  <view class="title">找一找校园里的话题</view>
+  <view class="subtitle">搜索帖子正文，不区分大小写，按发布时间排序。每次只搜索当前选定的一个社区。</view>
+  <view class="card">
+    <view class="scope">{{space ? (space.kind === 'global' ? '全站社区 · ' : '地区社区 · ') + space.name : '尚未确认可用的搜索范围'}}</view>
+    <view class="chips">
+      <view wx:if="{{regional}}" class="chip {{selectedSpaceId === regional.id ? 'active' : ''}}" data-id="{{regional.id}}" bindtap="onScope">{{regional.name}}</view>
+      <view wx:for="{{globalSpaces}}" wx:key="id" class="chip {{selectedSpaceId === item.id ? 'active' : ''}}" data-id="{{item.id}}" bindtap="onScope">全站 · {{item.name}}</view>
+    </view>
+    <view class="chips" wx:if="{{space}}">
+      <block wx:for="{{categories}}" wx:key="key"><view wx:if="{{space &amp;&amp; space.kind === 'regional' || item.key === 'all' || item.key === 'discussion'}}" class="chip {{category === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onCategory">{{item.label}}</view></block>
+    </view>
+    <view class="chips" wx:if="{{category === 'trading'}}">
+      <view class="chip {{!tradingSubtype ? 'active' : ''}}" data-key="" bindtap="onTradingSubtype">全部交易</view>
+      <view wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingSubtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onTradingSubtype">{{item.label}}</view>
+    </view>
+    <textarea class="search-input" value="{{inputDraft}}" bindinput="onInput" bindconfirm="onSubmit" placeholder="输入帖子正文中的关键词" maxlength="400" auto-height="true" />
+    <button bindtap="onSubmit" disabled="{{!space || !configured}}">搜索</button>
+    <view wx:if="{{submittedQuery}}" class="meta">本次关键词：{{submittedQuery}}</view>
+    <view wx:if="{{submittedQuery &amp;&amp; inputDraft !== submittedQuery}}" class="notice">输入尚未提交，翻页和切换分类仍使用本次关键词。</view>
+    <view wx:if="{{category === 'all' &amp;&amp; space &amp;&amp; space.kind === 'regional'}}" class="meta">全部分类不含急出交易；校园交易分类包含普通、急出和已完成的交易。</view>
+    <view wx:if="{{space &amp;&amp; space.kind === 'global'}}" class="meta">全站社区仅搜索该社区的帖子，不合并各地校园。</view>
+  </view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <button class="secondary" bindtap="onRefresh" disabled="{{busy || !campusId}}" loading="{{busy}}">{{submittedQuery ? '重新搜索' : '重新确认范围'}}</button>
+  <button wx:if="{{busy}}" class="secondary" bindtap="onCancel">停止搜索</button>
+  <navigator class="link" url="/pages/community-feed/community-feed">返回社区选择校园 →</navigator>
+  <navigator class="link" open-type="navigateBack">返回上一页</navigator>
+  <view wx:for="{{posts}}" wx:key="id" class="card">
+    <view class="author"><text wx:if="{{item.author.kind === 'named'}}" class="link" data-id="{{item.id}}" bindtap="onAuthor">{{item.author.displayName}} →</text><text wx:else>{{item.author.displayName}}</text><template wx:if="{{item.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.author.experienceDisplay,colors:experienceColorStyles}}" /><text class="badge">{{item.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text><text wx:if="{{item.viewer.isSelf}}" class="badge">我</text></view>
+    <view class="meta">{{item.space.name}} · {{item.publishedAt}}</view>
+    <view class="body">{{item.text}}</view>
+    <template wx:if="{{item.trading}}" is="trading-summary" data="{{listing:item.trading,tradingLabels}}" />
+    <view wx:if="{{item.component.kind === 'poll'}}" class="scope">投票 · {{item.component.poll.selectionMode === 'single' ? '单选' : '多选'}} · {{item.component.poll.question}}<view class="meta">{{item.component.poll.expired ? '已结束' : '进入帖子参与'}}</view></view>
+    <view wx:if="{{item.component.kind === 'formation'}}" class="notice">组队：{{item.component.formation.theme}} · {{item.component.formation.memberCount}} / {{item.component.formation.capacity}} 人 · {{item.component.formation.status === 'full' ? '已满员' : '进入帖子查看'}}</view>
+    <view class="image-grid"><image wx:for="{{item.images}}" wx:for-item="media" wx:key="assetId" src="{{media.thumbnailUrl}}" mode="aspectFill" /></view>
+    <view class="meta">{{item.likeCount}} 赞 · {{item.saveCount}} 收藏{{item.viewer.isSaved ? '（已收藏）' : ''}} · {{item.commentCount}} 条根评论</view>
+    <navigator wx:if="{{hasSession}}" class="link" url="/pages/community-detail/community-detail?postId={{item.id}}">查看讨论与收藏设置 →</navigator>
+    <navigator wx:else class="link" url="/pages/login/login">登录后重新搜索并查看详情 →</navigator>
+  </view>
+  <view wx:if="{{continuation === 'scan_pending'}}" class="notice">本批尚未查完，暂时没有显示匹配项也不代表没有结果。</view>
+  <view wx:if="{{continuation === 'login_required'}}" class="notice">访客可预览本次首批结果；继续查找还需登录及手机号验证。这里不表示后面一定有匹配项。</view>
+  <navigator wx:if="{{continuation === 'login_required'}}" class="link" url="/pages/login/login">前往登录 →</navigator>
+  <view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">当前版本尚未接入手机号验证流程，无法继续查找。验证状态更新后请重新搜索。</view>
+  <view wx:if="{{loaded}}" class="meta">第 {{pageNumber}} 页 · 翻页会重新核验当前可查看内容</view>
+  <view class="actions"><button wx:if="{{canPrevious}}" class="secondary" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{canNext}}" class="secondary" bindtap="onNext" disabled="{{busy}}">{{continuation === 'scan_pending' ? '继续查找' : '下一页'}}</button></view>
+  <view class="notice">搜索历史、热门建议、跨校园聚合及关联校区同步尚未完成。历史未知发布时间的帖子导入与真实设备体验仍待验收。</view>
+</view>

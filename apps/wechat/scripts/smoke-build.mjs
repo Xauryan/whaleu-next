@@ -1,3 +1,4 @@
+import { smokeSearch } from './smoke-search.mjs';
 import { smokePublicExperience } from './smoke-public-experience.mjs';
 import { smokeExperience } from './smoke-experience.mjs';
 import { smokeProfileDiscovery } from './smoke-profile-discovery.mjs';
@@ -1783,6 +1784,13 @@ await smokeProfileDiscovery({
   postWire: pollPostWire,
   rootWire,
   replyWire,
+});
+await smokeSearch({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
+  postWire: pollPostWire,
 });
 await smokePublicExperience({
   app,

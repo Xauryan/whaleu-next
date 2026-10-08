@@ -1200,3 +1200,11 @@ independent urgency/resolution/deletion, notification/read history and unknown
 delivery/consent/reward outcomes for explicit reconciliation. Do not replay
 historic rewards/notices or fabricate missing epochs. Full parity, actual device
 acceptance and real provider verification remain outstanding.
+
+## Explicit-space search
+
+The partial `GET /v1/community/search` endpoint and native page use the existing
+PostView and current visibility authorities. Query-only outer whitespace trimming
+is intentional; stored post text remains untouched. See [search contract and
+limits](COMMUNITY_SEARCH.md) for matching, filters, continuation and remaining
+parity work.

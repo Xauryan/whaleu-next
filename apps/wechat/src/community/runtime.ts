@@ -1,3 +1,4 @@
+import { HttpSearchGateway, type SearchGateway } from './search-gateway';
 import { PendingPostLikeStore } from './post-like-pending';
 import {
   HttpDiscoveryGateway,
@@ -33,6 +34,7 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly search?: SearchGateway;
   readonly discovery?: DiscoveryGateway;
   readonly sessions: SessionStore;
   readonly safetyChanges?: SafetyChanges;
@@ -67,6 +69,7 @@ export function createCommunityRuntime(
   const privateViews = new PrivateViewLifecycle();
   return {
     sessions: identity.sessions,
+    ...(identity.api ? { search: new HttpSearchGateway(identity.api) } : {}),
     ...(identity.api
       ? { discovery: new HttpDiscoveryGateway(identity.api) }
       : {}),

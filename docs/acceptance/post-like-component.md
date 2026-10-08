@@ -24,6 +24,15 @@ The first gate invocation stopped at lint because two newly added rejection-test
 callbacks used explicit `any`. They now use guarded `unknown` with identical
 SQLSTATE assertions. It did not run PostgreSQL or count as an aggregate pass.
 
+## Hosted verification
+
+Commit `c133b653df89374d336dfe155119c8165dda06a6` was published with a verified
+SSH signature. [GitHub Actions run 37738871459](https://github.com/Xauryan/whaleu-next/actions/runs/37738871459)
+succeeded: 468 API, 784 native and 824 PostgreSQL tests, 2,076 total with zero
+failures/skips. PostgreSQL tests took 598.357 seconds. Lint, types, builds, emitted
+native smokes and formatting also passed. This is hosted test evidence, not a
+production deployment or throughput claim.
+
 ## Source and causal proof
 
 Only fresh native publication establishes the independent like baseline. Old

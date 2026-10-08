@@ -403,3 +403,13 @@ read-only CLI behavior are verified. Local aggregate gates pass 2,076 tests. Thi
 is another internal score input, not full hotness, view tracking or production
 history reconciliation. See [component contract](POST_LIKE_COMPONENT.md) and
 [acceptance evidence](acceptance/post-like-component.md).
+
+## Explicit-space search increment
+
+Backend and native WeChat search now cover one selected active regional/global
+space, literal Unicode lowercase substring matching, privacy-first bounded
+structural traversal and opaque continuation. Fresh page navigation, scope and
+account invalidation, and no persistent query history are tested. This is PARTIAL:
+cross-school/related-campus modes, remaining historical categories, history, hot
+suggestions, complete import and physical-device acceptance remain open. See
+[scope](COMMUNITY_SEARCH.md) and [local acceptance](acceptance/community-search.md).
