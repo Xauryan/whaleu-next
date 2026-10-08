@@ -1,16 +1,14 @@
+import {
+  searchPost as post,
+  searchTradingPost as tradingPost,
+} from './search-helpers';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ApiClient } from '../src/api/client';
 import { SessionStore } from '../src/auth/session';
 import { Cancellation } from '../src/platform/contracts';
 import { HttpSearchGateway } from '../src/community/search-gateway';
-import {
-  post,
-  spaceId,
-  otherId,
-  tradingPost,
-  tradingView,
-} from './community-helpers';
+import { spaceId, otherId, tradingView } from './community-helpers';
 import { deferred, flush, response, ScriptedTransport } from './helpers';
 import { wireCredentials } from './identity-helpers';
 import { searchPage, searchToken } from './search-helpers';

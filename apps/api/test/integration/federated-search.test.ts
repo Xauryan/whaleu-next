@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import request from 'supertest';
-import type { PostView } from '../../src/community/contracts.js';
+import type { SearchHit } from '../../src/community/search/contracts.js';
 import { categorySchema } from '../../src/community/contracts.js';
 import {
   createRuntimeActor,
@@ -39,6 +39,7 @@ test(
             const result = await search(h, { scope });
             ok(result);
             assert.deepEqual(result.body, {
+              effectiveTypes: ['post'],
               items: [],
               nextCursor: null,
               continuation: 'end',
@@ -203,9 +204,11 @@ test(
               ids(result.body),
               expected.map((row) => row.id),
             );
-            for (const item of result.body.items as PostView[]) {
+            for (const item of result.body.items as SearchHit[]) {
               const source =
-                definitions[rows.findIndex((row) => row.id === item.id)]!;
+                definitions[
+                  rows.findIndex((row) => row.id === item.contentId)
+                ]!;
               assert.equal(
                 item.space.id,
                 source.spaceId,
@@ -300,7 +303,11 @@ test(
           ok(first);
           pageShape(first.body, 1);
           const original = await position(h, first.body.nextCursor);
-          assert.deepEqual(original.after, { id: rows[0]!.id, at: times[0] });
+          assert.deepEqual(original.after, {
+            id: rows[0]!.id,
+            kind: 'post',
+            at: times[0],
+          });
           let cursor = first.body.nextCursor as string;
           const seen = ids(first.body);
           for (let i = 1; i < rows.length; i++) {
@@ -573,6 +580,7 @@ test(
             const guest = await w.aggregate({}, null);
             ok(guest);
             assert.deepEqual(guest.body, {
+              effectiveTypes: ['post'],
               items: [],
               nextCursor: null,
               continuation: 'login_required',
@@ -595,6 +603,7 @@ test(
           const unverified = await w.aggregate({}, reader);
           ok(unverified);
           assert.deepEqual(unverified.body, {
+            effectiveTypes: ['post'],
             items: [],
             nextCursor: null,
             continuation: 'phone_verification_required',
@@ -638,6 +647,7 @@ test(
           const empty = await w.aggregate({}, reader);
           ok(empty);
           assert.deepEqual(empty.body, {
+            effectiveTypes: ['post'],
             items: [],
             nextCursor: null,
             continuation: 'end',
@@ -756,7 +766,7 @@ test(
       );
 
       await t.test(
-        'incoming named versus anonymous list policy and comments never create a body match',
+        'incoming named versus anonymous list policy and post-only type excludes comments',
         async () => {
           const w = await freshWorld(h);
           const named = await w.publish({

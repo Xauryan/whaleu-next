@@ -1,3 +1,7 @@
+import {
+  searchPost as post,
+  searchTradingPost as tradingPost,
+} from './search-helpers';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -7,7 +11,7 @@ import {
   searchCursor,
 } from '../src/community/search-contract';
 import { decodeSearchRoute } from '../src/pages/community-search/controller';
-import { post, spaceId, tradingPost, tradingView } from './community-helpers';
+import { spaceId, tradingView } from './community-helpers';
 import { searchPage, searchRoute, searchToken } from './search-helpers';
 
 test('query canonicalization preserves literal Unicode/text and checks raw controls before trim', () => {
@@ -92,7 +96,7 @@ test('opaque search refs require canonical 32-byte unpadded base64url', () => {
   ])
     assert.equal(searchCursor(value), false);
 });
-test('strict search page union preserves unchanged Post decoder, unknown cosmetics and plain text', () => {
+test('strict lightweight search page union preserves approved author display and plain text', () => {
   for (const continuation of [
     'end',
     'login_required',

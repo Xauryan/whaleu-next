@@ -14,11 +14,14 @@ import type { ApplicationErrorCode } from '../src/http/application-error.js';
 import type { IdentityService } from '../src/identity/identity.service.js';
 import type { CommunityAccessService } from '../src/community/community-access.service.js';
 import type { CommunitySerializer } from '../src/community/community-serialization.js';
+import { SearchHitSerializer } from '../src/community/search/serializer.js';
 import type {
   CommunityRepository,
   StoredPost,
+  StoredComment,
+  StoredReply,
 } from '../src/community/community.repository.js';
-import type { CommunitySpace, PostView } from '../src/community/contracts.js';
+import type { CommunitySpace } from '../src/community/contracts.js';
 import type { DiscoveryCursorRepository } from '../src/community/discovery-cursors.js';
 import {
   searchAnchorFollows,
@@ -33,6 +36,7 @@ import type {
 import type {
   SearchQuery,
   SearchSelector,
+  SearchKind,
 } from '../src/community/search/contracts.js';
 import type {
   SearchCandidate,
@@ -52,6 +56,7 @@ interface Fixture {
   post: StoredPost;
   at: string;
   allowed: boolean | 'unavailable';
+  directAllowed?: boolean | 'unavailable';
   listing: {
     subtype: string;
     urgency: 'normal' | 'urgent';
@@ -80,7 +85,16 @@ function fixtures(count: number): Fixture[] {
     };
   });
 }
-function harness(rows: Fixture[], extraSpaces: CommunitySpace[] = []) {
+interface ChildFixture {
+  content: StoredComment | StoredReply;
+  at: string;
+  allowed: boolean | 'unavailable';
+}
+function harness(
+  rows: Fixture[],
+  extraSpaces: CommunitySpace[] = [],
+  children: ChildFixture[] = [],
+) {
   const session = {
     accountId: randomUUID(),
     sessionId: randomUUID(),
@@ -117,6 +131,9 @@ function harness(rows: Fixture[], extraSpaces: CommunitySpace[] = []) {
   const inspected: string[] = [];
   const serialized: string[] = [];
   const locked: string[] = [];
+  const lockOrder: string[] = [];
+  const purposes: { id: string; purpose: string }[] = [];
+  const bodyReads: string[] = [];
   const records = new Map<
     string,
     { scope: string; position: SearchPosition | FederatedSearchPosition }
@@ -174,9 +191,23 @@ function harness(rows: Fixture[], extraSpaces: CommunitySpace[] = []) {
     },
     post: async (id: string) => {
       events.push('post');
+      bodyReads.push(id);
       const row = rows.find((item) => item.post.id === id);
       if (!row) throw new ApplicationError('POST_NOT_FOUND');
       return row.post;
+    },
+    comment: async (id: string) => {
+      bodyReads.push(id);
+      return children.find(
+        (item) =>
+          item.content.id === id && !('root_comment_id' in item.content),
+      )!.content;
+    },
+    reply: async (id: string) => {
+      bodyReads.push(id);
+      return children.find(
+        (item) => item.content.id === id && 'root_comment_id' in item.content,
+      )!.content;
     },
   } as unknown as CommunityRepository;
   const identity = {
@@ -209,39 +240,42 @@ function harness(rows: Fixture[], extraSpaces: CommunitySpace[] = []) {
     ) => {
       events.push('visible');
       inspected.push(post.id);
-      assert.equal(purpose, 'list_projection');
-      const row = rows.find((item) => item.post.id === post.id)!;
-      if (row.allowed === 'unavailable')
+      purposes.push({ id: post.id, purpose });
+      const row = rows.find((item) => item.post.id === post.id);
+      const child = children.find((item) => item.content.id === post.id);
+      const allowed = row
+        ? purpose === 'direct_post'
+          ? (row.directAllowed ?? row.allowed)
+          : row.allowed
+        : child!.allowed;
+      if (allowed === 'unavailable')
         throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-      if (
-        row.allowed &&
-        state.namedProof &&
-        actor &&
-        post.author_mode === 'named'
-      )
+      if (allowed && state.namedProof && actor && post.author_mode === 'named')
         requireAllowedSafetyRelationship(
           actor,
           post.account_id,
-          'list_projection',
+          purpose as 'list_projection' | 'direct_post',
           client,
         );
-      return row.allowed;
+      return (
+        allowed && post.visibility === 'approved' && post.deleted_at === null
+      );
     },
   } as unknown as CommunityAccessService;
-  const serializer = {
-    post: async (post: StoredPost, source: CommunitySpace) => {
-      assert.equal(source.id, post.space_id);
+  const serializer = new SearchHitSerializer({
+    author: async (post: StoredPost) => {
       events.push('serialize');
       serialized.push(post.id);
       state.afterSerialize?.();
       return {
-        id: post.id,
-        space: { id: source.id, kind: source.kind, name: source.name },
-        text: post.text,
-        publishedAt: post.published_at.toISOString(),
-      } as PostView;
+        kind: 'anonymous',
+        personaId: ownerId,
+        displayName: 'Synthetic author',
+        avatar: null,
+        isPostAuthor: false,
+      };
     },
-  } as unknown as CommunitySerializer;
+  } as unknown as CommunitySerializer);
   const cursors = {
     get: async (
       token: string,
@@ -272,6 +306,38 @@ function harness(rows: Fixture[], extraSpaces: CommunitySpace[] = []) {
       return token;
     },
   } as unknown as DiscoveryCursorRepository;
+  function metadata(kind: SearchKind, id: string): SearchCandidate | null {
+    const row = rows.find((r) => kind === 'post' && r.post.id === id);
+    if (row)
+      return {
+        id,
+        kind,
+        postId: id,
+        rootCommentId: null,
+        at: row.at,
+        spaceId: row.post.space_id,
+      };
+    const child = children.find(
+      (r) =>
+        r.content.id === id &&
+        (kind === 'reply') === 'root_comment_id' in r.content,
+    );
+    const parent =
+      child && rows.find((r) => r.post.id === child.content.post_id);
+    return child && parent
+      ? {
+          id,
+          kind,
+          postId: parent.post.id,
+          rootCommentId:
+            'root_comment_id' in child.content
+              ? child.content.root_comment_id
+              : child.content.id,
+          at: child.at,
+          spaceId: parent.post.space_id,
+        }
+      : null;
+  }
   const searches = {
     candidates: async (
       scope: SearchStructuralScope,
@@ -280,40 +346,74 @@ function harness(rows: Fixture[], extraSpaces: CommunitySpace[] = []) {
       events.push('candidates');
       state.beforeCandidates?.(++state.candidateCalls);
       if (state.corruptCandidates) return state.corruptCandidates;
-      return rows
-        .filter(
-          (row) =>
-            ('spaceId' in scope
-              ? row.post.space_id === scope.spaceId
-              : scope.regionalSpaceIds.includes(row.post.space_id) ||
-                (scope.globalSpaceIds.includes(row.post.space_id) &&
-                  row.post.category === 'discussion')) &&
-            row.post.visibility === 'approved' &&
-            row.post.deleted_at === null &&
-            (scope.category === null || row.post.category === scope.category) &&
-            (scope.tradingSubtype === null ||
-              row.listing?.subtype === scope.tradingSubtype) &&
-            (!scope.excludeUrgentTrading || row.listing?.urgency !== 'urgent'),
-        )
-        .map((row) => ({
+      const eligibleParents = rows.filter(
+        (row) =>
+          ('spaceId' in scope
+            ? row.post.space_id === scope.spaceId
+            : scope.regionalSpaceIds.includes(row.post.space_id) ||
+              (scope.globalSpaceIds.includes(row.post.space_id) &&
+                row.post.category === 'discussion')) &&
+          row.post.visibility === 'approved' &&
+          row.post.deleted_at === null &&
+          (scope.category === null || row.post.category === scope.category) &&
+          (scope.tradingSubtype === null ||
+            row.listing?.subtype === scope.tradingSubtype) &&
+          (!scope.excludeUrgentTrading || row.listing?.urgency !== 'urgent') &&
+          (scope.postId === null || row.post.id === scope.postId),
+      );
+      return [
+        ...eligibleParents.map((row) => ({
           id: row.post.id,
+          kind: 'post' as const,
+          postId: row.post.id,
+          rootCommentId: null,
           at: row.at,
           spaceId: row.post.space_id,
-        }))
-        .filter((row) => after === null || searchAnchorFollows(row, after))
+        })),
+        ...children
+          .filter(
+            (item) =>
+              item.content.visibility === 'approved' &&
+              !item.content.deleted_at &&
+              eligibleParents.some((p) => p.post.id === item.content.post_id),
+          )
+          .map((item) => ({
+            id: item.content.id,
+            kind:
+              'root_comment_id' in item.content
+                ? ('reply' as const)
+                : ('comment' as const),
+            postId: item.content.post_id,
+            rootCommentId:
+              'root_comment_id' in item.content
+                ? item.content.root_comment_id
+                : item.content.id,
+            at: item.at,
+            spaceId: rows.find((r) => r.post.id === item.content.post_id)!.post
+              .space_id,
+          })),
+      ]
+        .filter(
+          (row) =>
+            scope.types.includes(row.kind) &&
+            (scope.from === null || row.at >= scope.from) &&
+            (scope.to === null || row.at < scope.to) &&
+            (after === null || searchAnchorFollows(row, after)),
+        )
         .sort((a, b) =>
           searchAnchorFollows(a, b) ? 1 : searchAnchorFollows(b, a) ? -1 : 0,
         )
         .slice(0, 129);
     },
-    lockCandidate: async (id: string) => {
+    reference: async (anchor: SearchAnchor) => metadata(anchor.kind, anchor.id),
+    lockCandidate: async (kind: SearchKind, id: string) => {
       locked.push(id);
+      lockOrder.push(`${kind}:${id}`);
       state.beforeLock?.(id);
-      const row = rows.find((item) => item.post.id === id);
-      return row ? { id, at: row.at, spaceId: row.post.space_id } : null;
+      return metadata(kind, id);
     },
     exactAnchor: async (anchor: SearchAnchor) =>
-      rows.find((row) => row.post.id === anchor.id)?.at === anchor.at,
+      metadata(anchor.kind, anchor.id)?.at === anchor.at,
     tradingFilter: async (id: string) =>
       rows.find((row) => row.post.id === id)?.listing ?? null,
   } as unknown as SearchRepository;
@@ -371,10 +471,13 @@ function harness(rows: Fixture[], extraSpaces: CommunitySpace[] = []) {
     inspected,
     serialized,
     locked,
+    lockOrder,
+    purposes,
+    bodyReads,
     records,
   };
 }
-const query: SearchQuery = { spaceId, q: 'whale', limit: 10 };
+const query: SearchQuery = { type: 'post', spaceId, q: 'whale', limit: 10 };
 
 // A denied body is a trap: even reading it, not just matching it, fails the test.
 function privateBody(row: Fixture) {
@@ -395,22 +498,28 @@ test('search authorizes before matching; nonmatching and sentinel cards never se
   const result = await h.service.search('token', query);
   assert.equal(result.continuation, 'scan_pending');
   assert.equal(result.items.length, 1);
-  assert.equal(result.items[0]!.text, '  WhAlE\r\n原样  ');
+  assert.equal(
+    result.items[0]!.snippet.segments.map((s) => s.text).join(''),
+    '  WhAlE\r\n原样  ',
+  );
   assert.deepEqual(h.serialized, [rows[1]!.post.id]);
   assert.equal(h.inspected.length, 128);
   assert.equal(h.inspected.includes(rows[128]!.post.id), false);
   assert.deepEqual([...new Set(h.locked)], [...new Set(h.locked)].sort());
   const record = h.records.get(result.nextCursor!)!;
   assert.deepEqual(record.position.after, {
+    kind: 'post',
     id: rows[127]!.post.id,
     at: rows[127]!.at,
   });
   assert.deepEqual(record.position.visible, {
+    kind: 'post',
     id: rows[1]!.post.id,
     at: rows[1]!.at,
   });
   assert.deepEqual(Object.keys(result).sort(), [
     'continuation',
+    'effectiveTypes',
     'items',
     'nextCursor',
   ]);
@@ -463,13 +572,14 @@ test('sparse matches beyond the old 1024 cap progress in bounded structural batc
   assert.equal(pages, 9);
   assert.equal(final.continuation, 'end');
   assert.deepEqual(
-    final.items.map((item) => item.id),
+    final.items.map((item) => item.contentId),
     [rows[1099]!.post.id],
   );
   assert.equal(h.serialized.length, 1);
   const exact = harness(fixtures(128));
   assert.deepEqual(await exact.service.search(null, query), {
     items: [],
+    effectiveTypes: ['post'],
     nextCursor: null,
     continuation: 'end',
   });
@@ -508,6 +618,7 @@ test('guests and known unverified users get no successor even for empty scan bat
     h.state.phone = phone;
     assert.deepEqual(await h.service.search(token, query), {
       items: [],
+      effectiveTypes: ['post'],
       nextCursor: null,
       continuation: expected,
     });
@@ -657,6 +768,9 @@ test('noncanonical, oversized and nonprogressing candidate sequences fail closed
   const rows = fixtures(130);
   const candidates = rows.map((row) => ({
     id: row.post.id,
+    kind: 'post' as const,
+    postId: row.post.id,
+    rootCommentId: null,
     at: row.at,
     spaceId: row.post.space_id,
   }));
@@ -705,13 +819,13 @@ test('aggregate urgency exclusion differs from explicit trading; resolved listin
   rows[2]!.listing!.subtype = 'qiugou';
   const h = harness(rows);
   assert.deepEqual(
-    (await h.service.search('token', query)).items.map((p) => p.id),
+    (await h.service.search('token', query)).items.map((p) => p.contentId),
     rows.slice(1).map((r) => r.post.id),
   );
   assert.deepEqual(
     (
       await h.service.search('token', { ...query, category: 'trading' })
-    ).items.map((p) => p.id),
+    ).items.map((p) => p.contentId),
     rows.map((r) => r.post.id),
   );
   assert.deepEqual(
@@ -721,7 +835,7 @@ test('aggregate urgency exclusion differs from explicit trading; resolved listin
         category: 'trading',
         tradingSubtype: 'shuma',
       })
-    ).items.map((p) => p.id),
+    ).items.map((p) => p.contentId),
     rows.slice(0, 2).map((r) => r.post.id),
   );
   rows[1]!.listing = null;
@@ -820,7 +934,7 @@ test('federated all includes all sources and urgent/resolved trading; regional e
   }
   rows[5]!.post.space_id = regional.id;
   const h = harness(rows, [regional, globalA, globalB]);
-  const aggregate = { q: 'whale', limit: 10 };
+  const aggregate = { type: 'post' as const, q: 'whale', limit: 10 };
   for (const [scope, category, indices] of [
     ['all', undefined, [0, 1, 2, 3, 4, 5]],
     ['regional', undefined, [0, 1, 4, 5]],
@@ -834,13 +948,13 @@ test('federated all includes all sources and urgent/resolved trading; regional e
       ...(category ? { category } : {}),
     });
     assert.deepEqual(
-      result.items.map((p) => p.id),
+      result.items.map((p) => p.contentId),
       indices.map((i) => rows[i]!.post.id),
     );
     for (const post of result.items)
       assert.equal(
         post.space.id,
-        rows.find((r) => r.post.id === post.id)!.post.space_id,
+        rows.find((r) => r.post.id === post.contentId)!.post.space_id,
       );
   }
   assert.equal(h.events.includes('space'), false);
@@ -852,15 +966,21 @@ test('federated fingerprint changes restart before scan; names and unrelated reg
   const rows = fixtures(129);
   for (const row of rows) row.post.space_id = global.id;
   const h = harness(rows, [global]);
-  const q = { scope: 'global' as const, q: 'whale', limit: 10 };
+  const q = {
+    type: 'post' as const,
+    scope: 'global' as const,
+    q: 'whale',
+    limit: 10,
+  };
   const first = await h.service.search('token', q);
   const saved = h.records.get(first.nextCursor!)!;
-  assert.equal(saved.position.v, 2);
+  assert.equal(saved.position.v, 4);
   assert.deepEqual(Object.keys(saved.position).sort(), [
     'after',
     'kind',
     'matcherId',
     'membershipFingerprint',
+    'orderId',
     'v',
     'visible',
   ]);
@@ -890,18 +1010,38 @@ test('aggregate unavailable phone on sparse preview fails without fake-space aut
   const h = harness(fixtures(129));
   h.state.phone = 'unavailable';
   await assert.rejects(
-    h.service.search('token', { scope: 'all', q: 'whale', limit: 10 }),
+    h.service.search('token', {
+      type: 'post',
+      scope: 'all',
+      q: 'whale',
+      limit: 10,
+    }),
     errorCode('COMMUNITY_UNAVAILABLE'),
   );
   assert.equal(h.events.includes('space'), false);
   h.catalog.splice(0);
   assert.deepEqual(
-    await h.service.search('token', { scope: 'all', q: 'whale', limit: 10 }),
-    { items: [], nextCursor: null, continuation: 'end' },
+    await h.service.search('token', {
+      type: 'post',
+      scope: 'all',
+      q: 'whale',
+      limit: 10,
+    }),
+    {
+      items: [],
+      effectiveTypes: ['post'],
+      nextCursor: null,
+      continuation: 'end',
+    },
   );
   h.state.sessionError = 'SESSION_REVOKED';
   await assert.rejects(
-    h.service.search('token', { scope: 'all', q: 'whale', limit: 10 }),
+    h.service.search('token', {
+      type: 'post',
+      scope: 'all',
+      q: 'whale',
+      limit: 10,
+    }),
     errorCode('SESSION_REVOKED'),
   );
 });
@@ -911,20 +1051,342 @@ test('candidate source mismatch and changed exact structural coordinate fail bef
   h.state.corruptCandidates = [
     {
       id: '00000000-0000-4000-8000-000000000001',
+      kind: 'post',
+      postId: '00000000-0000-4000-8000-000000000001',
+      rootCommentId: null,
       at: '2026-10-08T00:00:00.999999Z',
       spaceId: randomUUID(),
     },
   ];
   await assert.rejects(
-    h.service.search('token', { scope: 'all', q: 'whale', limit: 10 }),
+    h.service.search('token', {
+      type: 'post',
+      scope: 'all',
+      q: 'whale',
+      limit: 10,
+    }),
     errorCode('COMMUNITY_UNAVAILABLE'),
   );
   assert.equal(h.inspected.length, 0);
   h.state.corruptCandidates[0]!.spaceId = spaceId;
   h.state.corruptCandidates[0]!.at = '2026-10-08T00:00:00.123456Z';
   await assert.rejects(
-    h.service.search('token', { scope: 'all', q: 'whale', limit: 10 }),
+    h.service.search('token', {
+      type: 'post',
+      scope: 'all',
+      q: 'whale',
+      limit: 10,
+    }),
     errorCode('COMMUNITY_UNAVAILABLE'),
   );
   assert.equal(h.inspected.length, 0);
+});
+
+function discussionFixture(
+  post: Fixture,
+  kind: 'comment' | 'reply',
+  id: string,
+  at: string,
+  rootId?: string,
+): ChildFixture {
+  return {
+    allowed: true,
+    at,
+    content: {
+      id,
+      post_id: post.post.id,
+      account_id: randomUUID(),
+      author_mode: 'named',
+      text: 'whale original child',
+      visibility: 'approved',
+      deleted_at: null,
+      created_at: new Date(at),
+      ...(kind === 'reply'
+        ? {
+            root_comment_id: rootId!,
+            target_reply_id: randomUUID(),
+            sequence: '1',
+          }
+        : {}),
+    },
+  };
+}
+
+test('comment and reply own bodies match independently and lightweight hits carry exact navigation without target disclosure', async () => {
+  const rows = fixtures(1);
+  const root = discussionFixture(
+    rows[0]!,
+    'comment',
+    randomUUID(),
+    '2026-10-08T01:00:00.123456Z',
+  );
+  const reply = discussionFixture(
+    rows[0]!,
+    'reply',
+    randomUUID(),
+    '2026-10-08T02:00:00.123456Z',
+    root.content.id,
+  );
+  const h = harness(rows, [], [root, reply]);
+  const page = await h.service.search('token', { ...query, type: 'all' });
+  assert.deepEqual(page.effectiveTypes, ['post', 'comment', 'reply']);
+  assert.deepEqual(
+    page.items.map((i) => i.kind),
+    ['reply', 'comment'],
+  );
+  assert.equal(page.items[0]!.createdAt, reply.at);
+  assert.deepEqual(page.items[0]!.target, {
+    kind: 'reply',
+    postId: rows[0]!.post.id,
+    rootCommentId: root.content.id,
+    replyId: reply.content.id,
+  });
+  assert.equal(page.items[0]!.postSummary, 'no match');
+  assert.equal(
+    JSON.stringify(page).includes(
+      (reply.content as StoredReply).target_reply_id!,
+    ),
+    false,
+  );
+  assert.equal(
+    h.bodyReads.includes((reply.content as StoredReply).target_reply_id!),
+    false,
+  );
+  for (const forbidden of [
+    'text',
+    'images',
+    'commentCount',
+    'replyCount',
+    'discussionCount',
+    'component',
+    'viewer',
+  ])
+    assert.equal(forbidden in page.items[0]!, false);
+  assert.deepEqual(h.lockOrder, [
+    `post:${rows[0]!.post.id}`,
+    `comment:${root.content.id}`,
+    `reply:${reply.content.id}`,
+  ]);
+  assert.ok(
+    h.purposes.some(
+      (p) => p.id === rows[0]!.post.id && p.purpose === 'direct_post',
+    ),
+  );
+});
+
+test('child parent direct visibility differs from post list visibility and denied ancestry is never matched or serialized', async () => {
+  for (const blocked of ['parent', 'root', 'reply'] as const) {
+    const rows = fixtures(1);
+    rows[0]!.post.text = 'whale parent';
+    const root = discussionFixture(
+      rows[0]!,
+      'comment',
+      randomUUID(),
+      '2026-10-08T01:00:00.000000Z',
+    );
+    const reply = discussionFixture(
+      rows[0]!,
+      'reply',
+      randomUUID(),
+      '2026-10-08T02:00:00.000000Z',
+      root.content.id,
+    );
+    if (blocked === 'parent') rows[0]!.directAllowed = false;
+    else (blocked === 'root' ? root : reply).allowed = false;
+    const hidden =
+      blocked === 'parent'
+        ? [root, reply]
+        : blocked === 'root'
+          ? [root, reply]
+          : [reply];
+    for (const item of hidden)
+      Object.defineProperty(item.content, 'text', {
+        get() {
+          throw new Error('denied child text read');
+        },
+      });
+    const h = harness(rows, [], [root, reply]);
+    const page = await h.service.search('token', { ...query, type: 'all' });
+    assert.equal(
+      page.items.some((i) => i.kind === 'reply'),
+      false,
+    );
+    assert.equal(
+      page.items.some((i) => i.kind === 'post'),
+      true,
+    );
+    for (const item of hidden)
+      assert.equal(h.serialized.includes(item.content.id), false);
+    if (blocked === 'parent')
+      assert.equal(
+        h.bodyReads.some(
+          (id) => id === root.content.id || id === reply.content.id,
+        ),
+        false,
+      );
+  }
+});
+
+test('anonymous parent never bypasses root or reply unknown evidence, even for nonmatching child bodies', async () => {
+  for (const unknown of ['root', 'reply'] as const)
+    for (const body of ['whale', 'different']) {
+      const rows = fixtures(1);
+      rows[0]!.post.author_mode = 'anonymous';
+      const root = discussionFixture(
+        rows[0]!,
+        'comment',
+        randomUUID(),
+        '2026-10-08T01:00:00.000000Z',
+      );
+      const reply = discussionFixture(
+        rows[0]!,
+        'reply',
+        randomUUID(),
+        '2026-10-08T02:00:00.000000Z',
+        root.content.id,
+      );
+      const item = unknown === 'root' ? root : reply;
+      item.allowed = 'unavailable';
+      item.content.text = body;
+      await assert.rejects(
+        harness(rows, [], [root, reply]).service.search('token', {
+          ...query,
+          type: 'reply',
+        }),
+        errorCode('COMMUNITY_UNAVAILABLE'),
+      );
+    }
+});
+
+test('guest all is explicitly post-only and explicit child search requires login before metadata or body reads', async () => {
+  const rows = fixtures(1);
+  rows[0]!.post.text = 'whale';
+  const root = discussionFixture(
+    rows[0]!,
+    'comment',
+    randomUUID(),
+    '2026-10-08T01:00:00.000000Z',
+  );
+  const h = harness(rows, [], [root]);
+  const page = await h.service.search(null, { ...query, type: 'all' });
+  assert.deepEqual(page.effectiveTypes, ['post']);
+  assert.equal(page.items.length, 1);
+  assert.equal(page.items[0]!.kind, 'post');
+  const calls = h.state.candidateCalls,
+    reads = h.bodyReads.length;
+  for (const type of ['comment', 'reply'] as const)
+    await assert.rejects(
+      h.service.search(null, { ...query, type }),
+      errorCode('AUTHENTICATION_REQUIRED'),
+    );
+  assert.equal(h.state.candidateCalls, calls);
+  assert.equal(h.bodyReads.length, reads);
+});
+
+test('cross-kind timestamp and UUID ties paginate once each; filters use the hit time and exact topic', async () => {
+  const rows = fixtures(2);
+  for (const row of rows) {
+    row.at = '2026-10-08T01:00:00.123456Z';
+    row.post.text = 'whale';
+  }
+  const root = discussionFixture(
+    rows[0]!,
+    'comment',
+    rows[0]!.post.id,
+    rows[0]!.at,
+  );
+  const reply = discussionFixture(
+    rows[0]!,
+    'reply',
+    rows[0]!.post.id,
+    rows[0]!.at,
+    root.content.id,
+  );
+  const h = harness(rows, [], [root, reply]);
+  const hits = [];
+  let cursor: string | undefined;
+  do {
+    const page = await h.service.search('token', {
+      ...query,
+      type: 'all',
+      limit: 1,
+      ...(cursor ? { cursor } : {}),
+    });
+    hits.push(...page.items.map((i) => `${i.kind}:${i.contentId}`));
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor);
+  assert.deepEqual(hits, [
+    `post:${rows[1]!.post.id}`,
+    `post:${rows[0]!.post.id}`,
+    `comment:${root.content.id}`,
+    `reply:${reply.content.id}`,
+  ]);
+  const filtered = await h.service.search('token', {
+    ...query,
+    type: 'reply',
+    postId: rows[0]!.post.id,
+    from: rows[0]!.at,
+    to: '2026-10-08T01:00:00.123457Z',
+  });
+  assert.equal(filtered.items.length, 1);
+  assert.equal(
+    (
+      await h.service.search('token', {
+        ...query,
+        type: 'reply',
+        to: rows[0]!.at,
+      })
+    ).items.length,
+    0,
+  );
+});
+
+test('reply sentinel metadata neither reads its body nor its root, and revoked visible root guard restarts', async () => {
+  const rows = fixtures(128);
+  const root = discussionFixture(
+    rows[0]!,
+    'comment',
+    randomUUID(),
+    '2026-10-07T00:00:00.000001Z',
+  );
+  const reply = discussionFixture(
+    rows[0]!,
+    'reply',
+    randomUUID(),
+    '2026-10-07T00:00:00.000002Z',
+    root.content.id,
+  );
+  Object.defineProperty(reply.content, 'text', {
+    get() {
+      throw new Error('sentinel body accessed');
+    },
+  });
+  const h = harness(rows, [], [root, reply]);
+  const page = await h.service.search('token', { ...query, type: 'all' });
+  assert.equal(page.continuation, 'scan_pending');
+  assert.equal(h.bodyReads.includes(root.content.id), false);
+  assert.equal(h.bodyReads.includes(reply.content.id), false);
+  const one = fixtures(1);
+  const visible = discussionFixture(
+    one[0]!,
+    'comment',
+    randomUUID(),
+    '2026-10-08T01:00:00.000000Z',
+  );
+  const guard = harness(one, [], [visible]);
+  const first = await guard.service.search('token', {
+    ...query,
+    type: 'all',
+    limit: 1,
+  });
+  visible.content.deleted_at = new Date();
+  await assert.rejects(
+    guard.service.search('token', {
+      ...query,
+      type: 'all',
+      limit: 1,
+      cursor: first.nextCursor!,
+    }),
+    errorCode('DISCOVERY_RESTART_REQUIRED'),
+  );
 });

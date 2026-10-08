@@ -187,3 +187,51 @@ test('publication, ballot and desired-state receipt operations remain disjoint',
     decodeReply({ ...reply(), rootCommentId: commentId, replies: [] }),
   );
 });
+
+test('cross-table UUID reuse preserves root/reply ancestry while same-kind reply self-targets stay invalid', () => {
+  const root = comment({ id: postId, postId });
+  const item = reply({
+    id: postId,
+    postId,
+    rootCommentId: postId,
+    target: {
+      kind: 'comment',
+      id: postId,
+      status: 'available',
+      author: root.author,
+    },
+  });
+  assert.deepEqual(decodeReply(item), item);
+  assert.equal(
+    decodeDiscussionContext({
+      comment: root,
+      reply: item,
+      replies: { items: [item], nextCursor: null },
+    }).reply?.id,
+    postId,
+  );
+  assert.throws(() =>
+    decodeReply({ ...item, target: { ...item.target, kind: 'reply' } }),
+  );
+  assert.throws(() =>
+    decodeReply({ ...item, target: { ...item.target, id: otherId } }),
+  );
+  assert.throws(() =>
+    decodeDiscussionContext({
+      comment: root,
+      reply: { ...item, postId: otherId },
+      replies: { items: [], nextCursor: null },
+    }),
+  );
+  assert.throws(() =>
+    decodeDiscussionContext({
+      comment: root,
+      reply: {
+        ...item,
+        rootCommentId: otherId,
+        target: { status: 'unavailable' },
+      },
+      replies: { items: [], nextCursor: null },
+    }),
+  );
+});

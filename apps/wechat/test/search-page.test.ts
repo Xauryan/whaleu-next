@@ -72,19 +72,19 @@ test('native lifecycle clears hidden DTOs, freshly resumes intent, fences accoun
     page.onSubmit();
     await flush();
     assert.equal(page.data.loaded, true);
-    assert.equal(page.data.posts.length, 1);
+    assert.equal(page.data.hits.length, 1);
     page.onInput({ detail: { value: 'editing' } });
     page.onHide();
-    assert.equal(page.data.posts.length, 0);
+    assert.equal(page.data.hits.length, 0);
     assert.equal(page.data.inputDraft, '');
     assert.equal(page.resume?.submittedQuery, 'private-query');
-    assert.equal('posts' in page.resume!, false);
+    assert.equal('hits' in page.resume!, false);
     s.behavior.search = async () => searchPage({ items: [] });
     page.onShow();
     await flush();
     assert.equal(page.data.submittedQuery, 'private-query');
     assert.equal(page.data.inputDraft, 'editing');
-    assert.deepEqual(page.data.posts, []);
+    assert.deepEqual(page.data.hits, []);
     assert.equal(s.calls[s.calls.length - 1]![1], null);
     // App root-hide runs before the mini-program's page onHide callback.
     s.runtime.privateViews?.clear();
@@ -123,7 +123,7 @@ test('native lifecycle clears hidden DTOs, freshly resumes intent, fences accoun
     page.onUnload();
     pending.resolve(searchPage());
     await flush();
-    assert.deepEqual(page.data.posts, []);
+    assert.deepEqual(page.data.hits, []);
     assert.equal(page.resume, null);
     assert.equal(page.data.submittedQuery, '');
     const final = page.data,
@@ -142,7 +142,7 @@ test('native lifecycle clears hidden DTOs, freshly resumes intent, fences accoun
     s.controller.dispose();
   }
 });
-test('native registration, explicit feed link and plain result rendering contain no keyword URL, history, totals or highlighting', () => {
+test('native registration, explicit feed link and plain result rendering contain no keyword URL, history, totals or HTML highlighting', () => {
   const read = (path: string) =>
     readFileSync(join(__dirname, '../src', path), 'utf8');
   const app = JSON.parse(read('app.json')) as { pages: string[] };
@@ -152,8 +152,10 @@ test('native registration, explicit feed link and plain result rendering contain
   assert.match(feed, /tradingSubtype=/);
   assert.match(feed, /community-search\/community-search\?scope=all/);
   const page = read('pages/community-search/community-search.wxml');
-  assert.match(page, /\{\{item.text\}\}/);
+  assert.match(page, /\{\{segment.text\}\}/);
   assert.match(page, /继续查找/);
+  assert.match(page, /effectiveTypes\[0\] === 'post'/);
+  assert.match(page, /本次仅搜索帖子/);
   assert.match(page, /data-scope="all" bindtap="onAggregateScope"/);
   assert.match(page, /data-scope="regional" bindtap="onAggregateScope"/);
   assert.match(page, /data-scope="global" bindtap="onAggregateScope"/);
@@ -164,7 +166,11 @@ test('native registration, explicit feed link and plain result rendering contain
     /wx:if="\{\{selectedScope === 'all' \|\| selectedScope === 'regional' \|\| selectedScope === 'explicit'/,
   );
   assert.doesNotMatch(page, /每次只搜索|跨校园聚合及/);
-  assert.match(page, /community-detail\/community-detail\?postId=/);
+  assert.match(page, /bindtap="onHit"/);
+  assert.match(
+    read('community/search-contract.ts'),
+    /community-thread\/community-thread\?postId=/,
+  );
   assert.doesNotMatch(page, /rich-text|highlight|total|[?&]q=/i);
   for (const path of [
     'community/search-contract.ts',
@@ -225,7 +231,7 @@ test('actual native aggregate route and scope/category bindings preserve frozen 
     page.onInput({ detail: { value: 'UNSENT' } });
     page.onCategory({ currentTarget: { dataset: { key: 'trading' } } });
     assert.equal(page.data.selectedScope, 'regional');
-    assert.deepEqual(page.data.posts, []);
+    assert.deepEqual(page.data.hits, []);
     await flush();
     page.onTradingSubtype({ currentTarget: { dataset: { key: 'shuma' } } });
     await flush();
@@ -308,7 +314,7 @@ test('actual native aggregate route and scope/category bindings preserve frozen 
     await flush();
     assert.equal(page.data.inputDraft, '');
     assert.equal(page.data.submittedQuery, '');
-    assert.deepEqual(page.data.posts, []);
+    assert.deepEqual(page.data.hits, []);
   } finally {
     page?.onUnload();
     globalThis.getApp = prior.getApp;

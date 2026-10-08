@@ -1,3 +1,4 @@
+import { searchPageSchema } from './response-schema.js';
 import { categorySchema } from '../contracts.js';
 import type { CommunitySpace } from '../contracts.js';
 import { CommunityPhoneContinuation } from '../phone-continuation.js';
@@ -10,20 +11,27 @@ import { IdentityService } from '../../identity/identity.service.js';
 import { lockSafetyPolicy } from '../../safety/locks.js';
 import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
 import { CommunityAccessService } from '../community-access.service.js';
-import { CommunitySerializer } from '../community-serialization.js';
+import { SearchHitSerializer } from './serializer.js';
+import { tradingSubtypeSchema } from '../trading/contracts.js';
+import type { TradingSubtype } from '../trading/contracts.js';
 import { CommunityRepository } from '../community.repository.js';
-import type { StoredPost } from '../community.repository.js';
-import type { PostView } from '../contracts.js';
+import type { StoredPost, StoredComment } from '../community.repository.js';
 import {
   DiscoveryCursorRepository,
   discoveryCursorBucket,
 } from '../discovery-cursors.js';
-import type { SearchPage, SearchQuery } from './contracts.js';
+import type {
+  SearchPage,
+  SearchQuery,
+  SearchHit,
+  SearchKind,
+} from './contracts.js';
 import {
   searchAnchorFollows,
   federatedSearchPositionSchema,
   searchCursorScope,
   searchPositionSchema,
+  SEARCH_ORDER_ID,
 } from './cursor.js';
 import type {
   SearchAnchor,
@@ -39,6 +47,7 @@ import {
   SearchRepository,
   SEARCH_SCAN_BATCH,
   searchCandidateSchema,
+  searchCandidateKey,
 } from './repository.js';
 import type { SearchCandidate, SearchStructuralScope } from './repository.js';
 
@@ -49,8 +58,8 @@ export class SearchService {
     private readonly repository: CommunityRepository,
     @Inject(CommunityAccessService)
     private readonly access: CommunityAccessService,
-    @Inject(CommunitySerializer)
-    private readonly serializer: CommunitySerializer,
+    @Inject(SearchHitSerializer)
+    private readonly serializer: SearchHitSerializer,
     @Inject(IdentityService) private readonly identity: IdentityService,
     @Inject(DiscoveryCursorRepository)
     private readonly cursors: DiscoveryCursorRepository,
@@ -62,11 +71,18 @@ export class SearchService {
   ) {}
 
   private async allowed(
-    post: StoredPost,
+    candidate: SearchCandidate,
     scope: SearchStructuralScope,
     actor: string | null,
     tx: PoolClient,
-  ): Promise<boolean> {
+  ): Promise<{
+    post: StoredPost;
+    content: StoredPost | StoredComment;
+    listing: { subtype: TradingSubtype; urgency: 'normal' | 'urgent' } | null;
+  } | null> {
+    const post = await this.repository.post(candidate.postId, tx);
+    if (post.space_id !== candidate.spaceId)
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     if (
       ('spaceId' in scope
         ? post.space_id !== scope.spaceId
@@ -77,24 +93,65 @@ export class SearchService {
               post.category === 'discussion')
           )) ||
       (scope.category !== null && post.category !== scope.category) ||
+      (scope.postId !== null && post.id !== scope.postId) ||
       post.deleted_at !== null ||
       post.visibility !== 'approved'
     )
-      return false;
+      return null;
+    let listing: {
+      subtype: TradingSubtype;
+      urgency: 'normal' | 'urgent';
+    } | null = null;
     if (post.category === 'trading') {
-      const listing = await this.searches.tradingFilter(post.id, tx);
-      if (!listing || !['normal', 'urgent'].includes(listing.urgency))
+      const facts = await this.searches.tradingFilter(post.id, tx);
+      if (
+        !facts ||
+        !['normal', 'urgent'].includes(facts.urgency) ||
+        !tradingSubtypeSchema.safeParse(facts.subtype).success
+      )
         throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      listing = {
+        subtype: tradingSubtypeSchema.parse(facts.subtype),
+        urgency: facts.urgency,
+      };
       if (
         (scope.tradingSubtype !== null &&
           listing.subtype !== scope.tradingSubtype) ||
         (scope.excludeUrgentTrading && listing.urgency === 'urgent')
       )
-        return false;
-    } else if (scope.tradingSubtype !== null) return false;
-    // Includes canonical review reconstruction before named list policy. The
-    // direct-post path is deliberately not used: reverse-only blocks differ.
-    return this.access.visible(actor, post, tx, 'list_projection');
+        return null;
+    } else if (scope.tradingSubtype !== null) return null;
+    // Posts retain list semantics; children require authenticated direct parent
+    // visibility, then each independently named ancestry node's list proof.
+    if (candidate.kind !== 'post' && actor === null)
+      throw new ApplicationError('AUTHENTICATION_REQUIRED');
+    if (
+      !(await this.access.visible(
+        actor,
+        post,
+        tx,
+        candidate.kind === 'post' ? 'list_projection' : 'direct_post',
+      ))
+    )
+      return null;
+    if (candidate.kind === 'post') return { post, content: post, listing };
+    const root = await this.repository.comment(
+      candidate.rootCommentId!,
+      tx,
+      true,
+    );
+    if (root.post_id !== post.id)
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    if (!(await this.access.visible(actor, root, tx, 'list_projection')))
+      return null;
+    if (candidate.kind === 'comment') return { post, content: root, listing };
+    const reply = await this.repository.reply(candidate.id, tx, true);
+    if (reply.post_id !== post.id || reply.root_comment_id !== root.id)
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    if (!(await this.access.visible(actor, reply, tx, 'list_projection')))
+      return null;
+    // Target reply identities and bodies are deliberately never loaded.
+    return { post, content: reply, listing };
   }
 
   private validateCandidates(
@@ -108,6 +165,10 @@ export class SearchService {
     for (const candidate of candidates) {
       if (
         !searchCandidateSchema.safeParse(candidate).success ||
+        !scope.types.includes(candidate.kind) ||
+        (scope.from !== null && candidate.at < scope.from) ||
+        (scope.to !== null && candidate.at >= scope.to) ||
+        (scope.postId !== null && candidate.postId !== scope.postId) ||
         ('spaceId' in scope
           ? candidate.spaceId !== scope.spaceId
           : !scope.regionalSpaceIds.includes(candidate.spaceId) &&
@@ -125,26 +186,64 @@ export class SearchService {
     tx: PoolClient,
   ) {
     const held = new Map<string, SearchCandidate>();
-    for (const id of [
-      ...new Set([
-        ...candidates.map((item) => item.id),
-        ...(guard ? [guard.id] : []),
-      ]),
-    ].sort()) {
-      // The lookahead is locked as structural metadata only. No peek body or
-      // visibility proof is fetched, even when every examined row is denied.
-      const candidate = await this.searches.lockCandidate(id, tx);
-      if (!candidate) {
-        if (id === guard?.id)
-          throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
-        continue;
+    const reference = guard ? await this.searches.reference(guard, tx) : null;
+    if (guard && !reference)
+      throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+    if (
+      reference &&
+      (!searchCandidateSchema.safeParse(reference).success ||
+        reference.kind !== guard!.kind ||
+        reference.id !== guard!.id)
+    )
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    const all = [...candidates, ...(reference ? [reference] : [])];
+    // Preserve the canonical post -> root -> reply hierarchy across the whole
+    // union, including sentinel and guard. Every lock reads metadata only.
+    for (const kind of ['post', 'comment', 'reply'] as const) {
+      const ids = new Set(
+        all.flatMap((item) =>
+          kind === 'post'
+            ? [item.postId]
+            : kind === 'comment'
+              ? item.rootCommentId
+                ? [item.rootCommentId]
+                : []
+              : item.kind === 'reply'
+                ? [item.id]
+                : [],
+        ),
+      );
+      for (const id of [...ids].sort()) {
+        const candidate = await this.searches.lockCandidate(kind, id, tx);
+        if (!candidate) continue;
+        if (
+          !searchCandidateSchema.safeParse(candidate).success ||
+          candidate.id !== id ||
+          candidate.kind !== kind
+        )
+          throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+        held.set(searchCandidateKey(candidate), candidate);
       }
+    }
+    for (const item of all) {
+      const locked = held.get(searchCandidateKey(item));
+      if (!locked) continue; // The stable reread excludes deleted source rows.
+      const parent = held.get(
+        searchCandidateKey({ kind: 'post', id: locked.postId }),
+      );
+      const root = locked.rootCommentId
+        ? held.get(
+            searchCandidateKey({ kind: 'comment', id: locked.rootCommentId }),
+          )
+        : null;
       if (
-        !searchCandidateSchema.safeParse(candidate).success ||
-        candidate.id !== id
+        locked.postId !== item.postId ||
+        locked.rootCommentId !== item.rootCommentId ||
+        !parent ||
+        parent.spaceId !== locked.spaceId ||
+        (locked.rootCommentId !== null && (!root || root.postId !== parent.id))
       )
         throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-      held.set(id, candidate);
     }
     return held;
   }
@@ -158,6 +257,17 @@ export class SearchService {
         const session =
           token === null ? null : await this.identity.session(token, tx);
         const actor = session?.accountId ?? null;
+        if (
+          actor === null &&
+          (query.type === 'comment' || query.type === 'reply')
+        )
+          throw new ApplicationError('AUTHENTICATION_REQUIRED');
+        const effectiveTypes: SearchKind[] =
+          query.type === 'all'
+            ? actor === null
+              ? ['post']
+              : ['post', 'comment', 'reply']
+            : [query.type];
         const explicitSpace =
           'spaceId' in query
             ? await this.repository.space(query.spaceId, tx)
@@ -186,11 +296,15 @@ export class SearchService {
         const resolved: ResolvedSearchScope | null =
           'scope' in query ? await this.scopes.resolve(query.scope, tx) : null;
         if (
-          position?.v === 2 &&
+          position?.v === 4 &&
           position.membershipFingerprint !== resolved?.membershipFingerprint
         )
           throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
         const scope: SearchStructuralScope = {
+          types: effectiveTypes,
+          from: query.from ?? null,
+          to: query.to ?? null,
+          postId: query.postId ?? null,
           ...(explicitSpace
             ? { spaceId: explicitSpace.id }
             : {
@@ -214,14 +328,18 @@ export class SearchService {
         this.validateCandidates(candidates, seek, scope);
         const held = await this.lockCandidates(candidates, guard, tx);
         if (guard) {
-          const post = held.has(guard.id)
-            ? await this.repository.post(guard.id, tx)
-            : null;
+          const candidate = held.get(searchCandidateKey(guard));
           if (
-            !post ||
-            !(await this.allowed(post, scope, actor, tx)) ||
+            !candidate ||
+            candidate.at !== guard.at ||
+            candidate.kind !== guard.kind
+          )
+            throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+          const allowed = await this.allowed(candidate, scope, actor, tx);
+          if (
+            !allowed ||
             !(await this.searches.exactAnchor(guard, tx)) ||
-            !searchMatches(post.text, query.q)
+            !searchMatches(allowed.content.text, query.q)
           )
             throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
         }
@@ -230,33 +348,40 @@ export class SearchService {
         if (
           current.some(
             (item) =>
-              !held.has(item.id) ||
-              held.get(item.id)!.spaceId !== item.spaceId ||
-              held.get(item.id)!.at !== item.at,
+              !held.has(searchCandidateKey(item)) ||
+              held.get(searchCandidateKey(item))!.spaceId !== item.spaceId ||
+              held.get(searchCandidateKey(item))!.at !== item.at ||
+              held.get(searchCandidateKey(item))!.postId !== item.postId ||
+              held.get(searchCandidateKey(item))!.rootCommentId !==
+                item.rootCommentId,
           )
         )
           throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-        const items: PostView[] = [];
+        const items: SearchHit[] = [];
         let consumed = 0;
         let lastVisible = guard;
         for (const candidate of current.slice(0, SEARCH_SCAN_BATCH)) {
           consumed++;
-          const post = await this.repository.post(candidate.id, tx);
-          if (post.space_id !== candidate.spaceId)
-            throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-          if (!(await this.allowed(post, scope, actor, tx))) continue;
-          if (!searchMatches(post.text, query.q)) continue;
+          const allowed = await this.allowed(candidate, scope, actor, tx);
+          if (!allowed || !searchMatches(allowed.content.text, query.q))
+            continue;
           const space = sourceSpace(candidate.spaceId);
           items.push(
-            await this.serializer.post(
-              post,
+            await this.serializer.hit(
+              candidate,
+              allowed.post,
+              allowed.content,
               space,
-              actor,
-              await this.access.advisory(actor, space, tx),
+              query.q,
+              allowed.listing,
               tx,
             ),
           );
-          lastVisible = { at: candidate.at, id: candidate.id };
+          lastVisible = {
+            at: candidate.at,
+            kind: candidate.kind,
+            id: candidate.id,
+          };
           if (items.length === query.limit) break;
         }
         const exhausted = consumed === current.length;
@@ -291,19 +416,28 @@ export class SearchService {
                 {
                   ...(resolved
                     ? {
-                        v: 2,
+                        v: 4,
                         membershipFingerprint: resolved.membershipFingerprint,
                       }
-                    : { v: 1 }),
+                    : { v: 3 }),
                   kind: 'search',
                   matcherId: SEARCH_MATCHER_ID,
-                  after: { at: next.at, id: next.id },
+                  orderId: SEARCH_ORDER_ID,
+                  after: { at: next.at, kind: next.kind, id: next.id },
                   visible: lastVisible,
                 },
                 tx,
               )
             : null;
-        return { items, nextCursor, continuation };
+        const result = searchPageSchema.safeParse({
+          items,
+          effectiveTypes,
+          nextCursor,
+          continuation,
+        });
+        if (!result.success)
+          throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+        return result.data;
       },
       { isolationLevel: 'read committed' },
     );

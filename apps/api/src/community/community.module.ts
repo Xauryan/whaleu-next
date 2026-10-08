@@ -1,3 +1,4 @@
+import { SearchHitSerializer } from './search/serializer.js';
 import { HotFeedProcessingModule } from './hot-score/runtime-module.js';
 import { HotController } from './hot/controller.js';
 import { HotFeedService } from './hot/service.js';
@@ -297,6 +298,7 @@ export class CommunityRecoveryController {
     HotRepository,
     ViewReportingService,
     SearchService,
+    SearchHitSerializer,
     CommunitySearchScopeResolver,
     CommunityPhoneContinuation,
     SearchRepository,

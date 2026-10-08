@@ -9,11 +9,17 @@ import {
   invalid,
   type Category,
   type CommunitySpace,
-  type Post,
 } from '../../community/contract';
 import type { CommunityRuntime } from '../../community/runtime';
 import {
   canonicalSearchQuery,
+  canonicalSearchTimestamp,
+  isSearchType,
+  searchTargetPath,
+  type SearchFilters,
+  type SearchHit,
+  type SearchKind,
+  type SearchType,
   decodeSearchIntent,
   isSearchScope,
   type SearchScope,
@@ -28,13 +34,15 @@ import {
 import { isUuid } from '../../profile/contract';
 import type { Cancellation } from '../../platform/contracts';
 
-export type SearchRoute =
+export type SearchRoute = (
   | (Extract<SearchSelector, { spaceId: string }> & {
       readonly campusId: string;
     })
   | (Extract<SearchSelector, { scope: SearchScope }> & {
       readonly campusId?: string;
-    });
+    })
+) &
+  SearchFilters;
 /** Routes carry only public scope selectors. Queries never enter navigation URLs. */
 export function decodeSearchRoute(value: unknown): SearchRoute {
   if (
@@ -47,6 +55,10 @@ export function decodeSearchRoute(value: unknown): SearchRoute {
           'scope',
           'category',
           'tradingSubtype',
+          'type',
+          'from',
+          'to',
+          'postId',
         ].includes(key),
     ) ||
     (Object.prototype.hasOwnProperty.call(value, 'campusId') &&
@@ -56,9 +68,12 @@ export function decodeSearchRoute(value: unknown): SearchRoute {
   )
     invalid();
   const { campusId, ...selector } = value;
-  decodeSearchIntent({ ...selector, q: 'route' });
+  const decoded = {
+    ...decodeSearchIntent({ ...selector, q: 'route' }),
+  } as Record<string, unknown>;
+  delete decoded.q;
   return Object.freeze({
-    ...selector,
+    ...decoded,
     ...(campusId !== undefined ? { campusId: campusId as string } : {}),
   }) as SearchRoute;
 }
@@ -79,7 +94,14 @@ export interface SearchView extends CommunityView {
   readonly globalSpaces: readonly CommunitySpace[];
   readonly category: Category | 'all';
   readonly tradingSubtype: TradingSubtype | '';
-  readonly posts: readonly Post[];
+  readonly hits: readonly (SearchHit & { readonly key: string })[];
+  readonly effectiveTypes: readonly SearchKind[];
+  readonly searchType: SearchType;
+  readonly from: string;
+  readonly to: string;
+  readonly fromDay: string;
+  readonly toDay: string;
+  readonly withinPostId: string;
   readonly continuation: SearchContinuation | null;
   readonly loaded: boolean;
   readonly scopeLoaded: boolean;
@@ -101,7 +123,14 @@ export const initialSearchView = (): SearchView => ({
   globalSpaces: [],
   category: 'all',
   tradingSubtype: '',
-  posts: [],
+  hits: [],
+  effectiveTypes: [],
+  searchType: 'all',
+  from: '',
+  to: '',
+  fromDay: '',
+  toDay: '',
+  withinPostId: '',
   continuation: null,
   loaded: false,
   scopeLoaded: false,
@@ -110,6 +139,16 @@ export const initialSearchView = (): SearchView => ({
   canPrevious: false,
   pageNumber: 0,
 });
+function filterView(filters: SearchFilters) {
+  return {
+    searchType: filters.type ?? 'all',
+    from: filters.from ?? '',
+    to: filters.to ?? '',
+    fromDay: filters.from?.slice(0, 10) ?? '',
+    toDay: filters.to?.slice(0, 10) ?? '',
+    withinPostId: filters.postId ?? '',
+  };
+}
 const MAX_CURSOR_TRAIL = 32;
 /** Only this live page's intent/cursors are kept in memory; no body snapshots or query storage. */
 export class SearchController extends CommunityController<SearchView> {
@@ -143,6 +182,10 @@ export class SearchController extends CommunityController<SearchView> {
     if (!previous.selectedScope) return;
     void this.load(
       {
+        ...(previous.searchType !== 'all' ? { type: previous.searchType } : {}),
+        ...(previous.from ? { from: previous.from } : {}),
+        ...(previous.to ? { to: previous.to } : {}),
+        ...(previous.withinPostId ? { postId: previous.withinPostId } : {}),
         ...(previous.campusId ? { campusId: previous.campusId } : {}),
         ...(previous.selectedScope === 'explicit'
           ? { spaceId: previous.selectedSpaceId }
@@ -175,7 +218,8 @@ export class SearchController extends CommunityController<SearchView> {
     this.stop();
     this.nextCursor = null;
     this.update({
-      posts: [],
+      hits: [],
+      effectiveTypes: [],
       continuation: null,
       loaded: false,
       restartRequired: false,
@@ -199,6 +243,7 @@ export class SearchController extends CommunityController<SearchView> {
         : '';
       if (q) this.submitted = this.intent(q);
       this.update({
+        ...filterView(this.selected),
         campusId: this.selected.campusId ?? '',
         selectedSpaceId: this.selected.spaceId ?? '',
         selectedScope: this.selected.scope ?? 'explicit',
@@ -228,9 +273,18 @@ export class SearchController extends CommunityController<SearchView> {
   setInput(inputDraft: string): void {
     this.update({ inputDraft });
   }
+  private filters(): SearchFilters {
+    return {
+      ...(this.selected?.type ? { type: this.selected.type } : {}),
+      ...(this.selected?.from ? { from: this.selected.from } : {}),
+      ...(this.selected?.to ? { to: this.selected.to } : {}),
+      ...(this.selected?.postId ? { postId: this.selected.postId } : {}),
+    };
+  }
   private intent(q: string): SearchIntent {
     if (!this.selected) invalid();
     return decodeSearchIntent({
+      ...this.filters(),
       ...(this.selected.scope !== undefined
         ? { scope: this.selected.scope }
         : { spaceId: this.selected.spaceId }),
@@ -273,6 +327,7 @@ export class SearchController extends CommunityController<SearchView> {
     this.clearPage();
     const q = this.submitted?.q;
     this.selected = Object.freeze({
+      ...this.filters(),
       campusId: this.selected.campusId,
       spaceId,
     });
@@ -292,6 +347,7 @@ export class SearchController extends CommunityController<SearchView> {
     this.clearPage();
     const q = this.submitted?.q;
     this.selected = decodeSearchRoute({
+      ...this.filters(),
       ...(this.selected.campusId ? { campusId: this.selected.campusId } : {}),
       scope,
     });
@@ -322,6 +378,7 @@ export class SearchController extends CommunityController<SearchView> {
     const q = this.submitted?.q;
     // A category from all communities deliberately selects cross-campus regional scope.
     this.selected = decodeSearchRoute({
+      ...this.filters(),
       ...(this.selected.campusId ? { campusId: this.selected.campusId } : {}),
       ...(this.selected.scope === undefined
         ? { spaceId: this.selected.spaceId }
@@ -351,6 +408,7 @@ export class SearchController extends CommunityController<SearchView> {
     this.clearPage();
     const q = this.submitted?.q;
     this.selected = decodeSearchRoute({
+      ...this.filters(),
       ...(this.selected.campusId ? { campusId: this.selected.campusId } : {}),
       ...(this.selected.scope === undefined
         ? { spaceId: this.selected.spaceId }
@@ -361,6 +419,91 @@ export class SearchController extends CommunityController<SearchView> {
     this.submitted = q ? this.intent(q) : null;
     this.update({ tradingSubtype: subtype });
     await this.refresh();
+  }
+  private async changeFilters(filters: SearchFilters): Promise<void> {
+    if (!this.selected) return;
+    const scope = { ...this.selected };
+    delete scope.type;
+    delete scope.from;
+    delete scope.to;
+    delete scope.postId;
+    let selected: SearchRoute;
+    try {
+      selected = decodeSearchRoute({ ...scope, ...filters });
+    } catch {
+      this.clearPage();
+      this.resetPaging();
+      this.update({
+        error: '日期范围无效，开始时间必须早于结束时间',
+        status: '筛选尚未更新',
+      });
+      return;
+    }
+    this.clearPage();
+    const q = this.submitted?.q;
+    this.selected = selected;
+    this.submitted = q ? this.intent(q) : null;
+    this.update(filterView(selected));
+    await this.refresh();
+  }
+  async setType(type: string): Promise<void> {
+    if (!isSearchType(type)) return;
+    await this.changeFilters({ ...this.filters(), type });
+  }
+  async setDate(bound: 'from' | 'to', day: string): Promise<void> {
+    if (!/^\d{4}-\d\d-\d\d$/.test(day)) return;
+    let value: string;
+    try {
+      value = canonicalSearchTimestamp(`${day}T00:00:00Z`);
+    } catch {
+      return;
+    }
+    await this.changeFilters({ ...this.filters(), [bound]: value });
+  }
+  async clearDates(): Promise<void> {
+    const filters = { ...this.filters() };
+    delete filters.from;
+    delete filters.to;
+    await this.changeFilters(filters);
+  }
+  async withinPost(postId: string): Promise<void> {
+    if (
+      !this.view.loaded ||
+      this.view.busy ||
+      !this.view.hits.some((hit) => hit.postId === postId)
+    )
+      return;
+    await this.changeFilters({ ...this.filters(), postId });
+  }
+  async clearPost(): Promise<void> {
+    const filters = { ...this.filters() };
+    delete filters.postId;
+    await this.changeFilters(filters);
+  }
+  /** Navigation carries IDs only. Detail/thread owners freshly prove current content on show. */
+  async openHit(
+    kind: string,
+    contentId: string,
+    navigate: (url: string) => Promise<void>,
+  ): Promise<void> {
+    if (!this.view.loaded || this.view.busy || !this.available()) return;
+    const hit = this.view.hits.find(
+      (item) => item.kind === kind && item.contentId === contentId,
+    );
+    if (!hit) return;
+    const url = searchTargetPath(hit.target);
+    this.clearPage();
+    this.update({ status: '正在打开内容，进入后会重新确认当前可查看状态' });
+    await this.run(
+      () => navigate(url),
+      () => undefined,
+      () =>
+        this.update({
+          hits: [],
+          status: '暂不能打开，请重新搜索后重试',
+          error: '暂不能打开，请重新搜索后重试',
+        }),
+    );
   }
   async refresh(): Promise<void> {
     this.resetPaging();
@@ -473,7 +616,10 @@ export class SearchController extends CommunityController<SearchView> {
         }
         const pageNumber = this.firstPageNumber + this.pageIndex;
         this.update({
-          posts: page.items,
+          hits: page.items.map((item) =>
+            Object.freeze({ ...item, key: `${item.kind}:${item.contentId}` }),
+          ),
+          effectiveTypes: page.effectiveTypes,
           continuation: page.continuation,
           loaded: true,
           canNext: !!page.nextCursor,
@@ -488,9 +634,9 @@ export class SearchController extends CommunityController<SearchView> {
                   ? '继续查找需要手机号验证；当前版本尚未接入验证流程'
                   : page.continuation === 'end'
                     ? pageNumber === 1 && !page.items.length
-                      ? '当前范围没有可查看的匹配帖子'
+                      ? '当前范围没有可查看的匹配内容'
                       : '已到本次搜索末尾'
-                    : '已加载当前可查看的匹配帖子',
+                    : '已加载当前可查看的匹配内容',
         });
       },
       (error) => {
@@ -499,7 +645,7 @@ export class SearchController extends CommunityController<SearchView> {
           error.details.serverCode === 'DISCOVERY_RESTART_REQUIRED' ||
           (after !== null && error.details.serverCode === 'BAD_REQUEST');
         this.update({
-          posts: [],
+          hits: [],
           continuation: null,
           loaded: false,
           canNext: false,
@@ -509,7 +655,7 @@ export class SearchController extends CommunityController<SearchView> {
           ...(restart
             ? {
                 status: '分页已失效，请重新搜索',
-                error: '旧分页已清除，请重新搜索当前可查看的帖子',
+                error: '旧分页已清除，请重新搜索当前可查看的内容',
               }
             : {}),
         });

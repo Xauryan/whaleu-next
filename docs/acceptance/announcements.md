@@ -49,3 +49,11 @@ content issuer, admin writer, media provider, production announcement, reviewed
 historical import or feedback module is added. Unknown coverage never becomes
 empty or unread. Native emitted tests are synthetic and do not establish physical
 WeChat rendering. No production deployment is claimed.
+
+## Hosted verification
+
+Verified SSH-signed commit `54d2bd731f502dd5a5b856a966847dcf160af8b5` passed
+[GitHub Actions run 37790945962](https://github.com/Xauryan/whaleu-next/actions/runs/37790945962):
+641 API, 903 native and 1,116 PostgreSQL tests, 2,660 total with zero failures/skips.
+PostgreSQL took 979.175 seconds. Lint, types, OpenAPI drift, builds, emitted native
+smokes and formatting passed. No production content issuer or deployment is implied.

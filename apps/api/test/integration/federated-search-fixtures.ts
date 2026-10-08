@@ -1,24 +1,29 @@
-/** Federated-only disposable fixtures. Existing explicit search coverage is kept
- * unchanged. Synthetic approvals use the same guarded canonical fixture owners. */
+/** Federated disposable fixtures exercise the upgraded post-only search facet.
+ * Synthetic approvals use the same guarded canonical fixture owners. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { Pool, PoolClient } from 'pg';
 import request from 'supertest';
-import type { PostView } from '../../src/community/contracts.js';
+import type { SearchHit } from '../../src/community/search/contracts.js';
 import type { SearchHarness, SearchWorld } from './search-fixtures.js';
 
 export type SearchSelector = 'all' | 'regional' | 'global';
 export interface AggregatePosition {
-  v: 2;
+  v: 4;
   kind: string;
   matcherId: string;
+  orderId: string;
   membershipFingerprint: string;
-  after: { at: string; id: string };
-  visible: { at: string; id: string } | null;
+  after: { at: string; kind: 'post' | 'comment' | 'reply'; id: string };
+  visible: {
+    at: string;
+    kind: 'post' | 'comment' | 'reply';
+    id: string;
+  } | null;
 }
-export const ids = (body: { items: PostView[] }) =>
-  body.items.map((item) => item.id);
+export const ids = (body: { items: SearchHit[] }) =>
+  body.items.map((item) => item.contentId);
 export const instant = (index: number) =>
   new Date(Date.UTC(2026, 9, 1) - index * 1000).toISOString();
 export const trading = {
@@ -29,11 +34,12 @@ export const trading = {
   contacts: { wechat: 'private-federated-contact', qq: '', phone: '' },
 };
 export function pageShape(
-  body: { items: PostView[]; nextCursor: string | null; continuation: string },
+  body: { items: SearchHit[]; nextCursor: string | null; continuation: string },
   limit = 10,
 ) {
   assert.deepEqual(Object.keys(body).sort(), [
     'continuation',
+    'effectiveTypes',
     'items',
     'nextCursor',
   ]);
@@ -61,7 +67,7 @@ export function search(
 ) {
   const call = request(h.http)
     .get('/v1/community/search')
-    .query({ scope: 'all', q: 'needle', ...query });
+    .query({ scope: 'all', q: 'needle', type: 'post', ...query });
   return viewer
     ? call.set('Authorization', `Bearer ${viewer.accessToken}`)
     : call;
@@ -98,11 +104,13 @@ export async function position(
     'kind',
     'matcherId',
     'membershipFingerprint',
+    'orderId',
     'v',
     'visible',
   ]);
-  assert.equal(row.position.v, 2);
+  assert.equal(row.position.v, 4);
   assert.equal(row.position.kind, 'search');
+  assert.equal(row.position.orderId, 'created-desc-kind-asc-id-desc-v1');
   assert.equal(
     row.position.matcherId,
     `unicode-lower-substring-v1:${process.versions['unicode']}`,
@@ -114,7 +122,7 @@ export async function position(
   );
   for (const coordinate of [row.position.after, row.position.visible])
     if (coordinate) {
-      assert.deepEqual(Object.keys(coordinate).sort(), ['at', 'id']);
+      assert.deepEqual(Object.keys(coordinate).sort(), ['at', 'id', 'kind']);
       assert.match(coordinate.at, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}Z$/);
     }
   return row.position;

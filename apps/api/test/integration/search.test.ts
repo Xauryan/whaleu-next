@@ -11,7 +11,7 @@ import {
   discoveryScopeHash,
 } from '../../src/community/discovery-cursors.js';
 import { DatabaseService } from '../../src/database/database.js';
-import type { PostView } from '../../src/community/contracts.js';
+import type { SearchHit } from '../../src/community/search/contracts.js';
 import { categorySchema } from '../../src/community/contracts.js';
 import {
   setRuntimeVerification,
@@ -26,7 +26,8 @@ import type { PrivateSearchPosition } from './search-fixtures.js';
 
 const finalRows = 'WITH ORDINALITY AS r(viewer,author,bilateral,ordinality)';
 const textOf = (value: unknown) => JSON.stringify(value);
-const ids = (body: { items: PostView[] }) => body.items.map((item) => item.id);
+const ids = (body: { items: SearchHit[] }) =>
+  body.items.map((item) => item.contentId);
 const trading = {
   subtype: 'shuma' as const,
   price: '12.5',
@@ -39,11 +40,12 @@ const trading = {
 const instant = (index: number) =>
   new Date(Date.UTC(2026, 9, 1) - index * 1000).toISOString();
 function pageShape(
-  body: { items: PostView[]; nextCursor: string | null; continuation: string },
+  body: { items: SearchHit[]; nextCursor: string | null; continuation: string },
   limit = 10,
 ) {
   assert.deepEqual(Object.keys(body).sort(), [
     'continuation',
+    'effectiveTypes',
     'items',
     'nextCursor',
   ]);
@@ -124,10 +126,10 @@ test(
               expected.map((i) => rows[i]!.id),
               `literal query ${JSON.stringify(q)}`,
             );
-            for (const item of result.body.items as PostView[])
+            for (const item of result.body.items as SearchHit[])
               assert.equal(
-                item.text,
-                bodies[rows.findIndex((row) => row.id === item.id)],
+                item.snippet.segments.map((segment) => segment.text).join(''),
+                bodies[rows.findIndex((row) => row.id === item.contentId)],
               );
           }
           const accent = await w.seed(1, () => ({ ...base, text: 'é' }), {
@@ -281,9 +283,10 @@ test(
             new Set([normal.id, urgent.id, subtype.id]),
           );
           assert.equal(
-            explicit.body.items.find((item: PostView) => item.id === normal.id)
-              .trading.resolution,
-            'resolved',
+            explicit.body.items.find(
+              (item: SearchHit) => item.contentId === normal.id,
+            ).tradingSubtype,
+            'shuma',
           );
           assert.deepEqual(
             new Set(
@@ -406,14 +409,15 @@ test(
             [0, 6, 7, 8].map((i) => rows[i]!.id),
           );
           const anonymous = result.body.items.find(
-            (item: PostView) => item.id === rows[7]!.id,
+            (item: SearchHit) => item.contentId === rows[7]!.id,
           );
           assert.equal(anonymous.author.kind, 'anonymous');
           assert.equal(anonymous.author.profileId, undefined);
           assert.equal(
-            result.body.items.find((item: PostView) => item.id === rows[8]!.id)
-              .viewer.isSelf,
-            true,
+            result.body.items.find(
+              (item: SearchHit) => item.contentId === rows[8]!.id,
+            ).author.profileId,
+            w.reader.profileId,
           );
           const detail = await request(h.http)
             .get(`/v1/community/posts/${rows[6]!.id}`)
@@ -524,6 +528,7 @@ test(
                   assert.equal(result.body.continuation, 'scan_pending');
                   assert.deepEqual(coordinate!.after, {
                     at: instant(127).replace('.000Z', '.000000Z'),
+                    kind: 'post',
                     id: rows[127]!.id,
                   });
                   assert.equal(coordinate!.visible!.id, rows[0]!.id);
@@ -688,6 +693,7 @@ test(
           const firstPosition = await h.position(first.body.nextCursor);
           assert.deepEqual(firstPosition.after, {
             id: rows[0]!.id,
+            kind: 'post',
             at: times[0],
           });
           let cursor = first.body.nextCursor as string;
@@ -793,6 +799,7 @@ test(
           const guest = await w.search({}, null);
           ok(guest);
           assert.deepEqual(guest.body, {
+            effectiveTypes: ['post'],
             items: [],
             nextCursor: null,
             continuation: 'login_required',
@@ -809,6 +816,7 @@ test(
           const first = await w.search({}, unverified);
           ok(first);
           assert.deepEqual(first.body, {
+            effectiveTypes: ['post'],
             items: [],
             nextCursor: null,
             continuation: 'phone_verification_required',
@@ -866,6 +874,7 @@ test(
           const restored = await w.search({ cursor: initial.body.nextCursor });
           ok(restored);
           assert.deepEqual(restored.body, {
+            effectiveTypes: ['post'],
             items: [],
             nextCursor: null,
             continuation: 'end',
@@ -994,7 +1003,7 @@ test(
       );
 
       await t.test(
-        'comments, author names, private contacts and anonymous metadata do not create body matches',
+        'post-only type excludes comment bodies, author names, private contacts and anonymous metadata',
         async () => {
           const w = await h.world();
           const post = await w.publish({ text: 'plain body' });
@@ -1144,6 +1153,7 @@ test(
           const exact = await w.search();
           ok(exact);
           assert.deepEqual(exact.body, {
+            effectiveTypes: ['post'],
             items: [],
             nextCursor: null,
             continuation: 'end',
@@ -1177,7 +1187,7 @@ test(
           const waitForParent = async () => {
             for (let i = 0; i < 200; i++) {
               const value = await h.pool.query<{ waiting: boolean }>(
-                "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE query LIKE '%FROM whaleu_community.posts WHERE id=$1 FOR SHARE%' AND wait_event_type='Lock') AS waiting",
+                "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE query LIKE '%FROM whaleu_community.posts p WHERE p.id=$1 FOR SHARE OF p%' AND wait_event_type='Lock') AS waiting",
               );
               if (value.rows[0]!.waiting) return;
               await sleep(5);
@@ -1232,96 +1242,66 @@ test(
       );
 
       await t.test(
-        'selected anonymous formations retain independent named-child final proofs and direct roster policy',
+        'lightweight named and anonymous formation hits never expose roster or private contacts',
         async () => {
           const w = await h.world(),
             child = await w.actor();
-          const formation = await w.publish({
-            text: 'needle formation',
-            authorMode: 'anonymous',
-            component: {
-              kind: 'formation',
-              capacity: 20,
-              theme: '合成组局',
-              contacts: trading.contacts,
-              contactSharing: 'members_v1',
-            },
-          });
-          const joined = await request(h.http)
-            .post(`/v1/community/posts/${formation.id}/formation/memberships`)
-            .set('Authorization', `Bearer ${child.accessToken}`)
-            .send({
-              clientRequestId: randomUUID(),
-              contacts: trading.contacts,
-              contactSharing: 'members_v1',
+          for (const authorMode of ['anonymous', 'named'] as const) {
+            const formation = await w.publish({
+              text: `needle ${authorMode} formation`,
+              authorMode,
+              component: {
+                kind: 'formation',
+                capacity: 20,
+                theme: '合成组局',
+                contacts: trading.contacts,
+                contactSharing: 'members_v1',
+              },
             });
-          assert.equal(joined.status, 201, textOf(joined.body));
-          assert.equal(joined.body.outcome, 'created');
-          const base = await w.envelope({ text: 'needle older' });
-          await w.seed(2, () => base, { time: instant });
-          const baseline = await w.search({ limit: '1' });
-          ok(baseline);
-          assert.equal(baseline.body.items[0].author.kind, 'anonymous');
-          assert.ok(textOf(baseline.body).includes(child.profileId));
-          assert.equal(
-            textOf(baseline.body).includes(trading.contacts.wechat),
-            false,
-          );
-          // A distinct query gives a new cursor insert for the finalization race.
-          let crossed = false,
-            relation: string | undefined,
-            childProof = false;
-          h.observer.setHook(async (event) => {
-            if (
-              event.sql.includes(finalRows) &&
-              (event.values[1] as string[]).includes(child.accountId)
-            )
-              childProof = true;
-            if (
-              !crossed &&
-              event.sql.includes(
-                'INSERT INTO whaleu_community.discovery_cursors',
-              )
-            ) {
-              crossed = true;
-              relation = await h.writeBlock(w.reader, child);
-            }
-          });
-          try {
-            failure(
-              await w.search({ limit: '1', q: 'formation' }),
-              503,
-              'COMMUNITY_UNAVAILABLE',
-            );
-            assert.equal(crossed, true);
-            assert.equal(childProof, true);
-          } finally {
-            h.observer.setHook(null);
+            const joined = await request(h.http)
+              .post(`/v1/community/posts/${formation.id}/formation/memberships`)
+              .set('Authorization', `Bearer ${child.accessToken}`)
+              .send({
+                clientRequestId: randomUUID(),
+                contacts: trading.contacts,
+                contactSharing: 'members_v1',
+              });
+            assert.equal(joined.status, 201, textOf(joined.body));
+            assert.equal(joined.body.outcome, 'created');
           }
-          const hiddenChild = await w.search({ limit: '1' });
-          ok(hiddenChild);
-          assert.equal(
-            textOf(hiddenChild.body).includes(child.profileId),
-            false,
+          const baseline = await w.search();
+          ok(baseline);
+          assert.equal(baseline.body.items.length, 2);
+          for (const forbidden of [
+            child.profileId,
+            child.accountId,
+            trading.contacts.wechat,
+            'component',
+            'discussionCount',
+          ])
+            assert.equal(
+              textOf(baseline.body).includes(forbidden),
+              false,
+              forbidden,
+            );
+          await h.writeBlock(w.reader, child);
+          const hidden = await w.search();
+          ok(hidden);
+          assert.deepEqual(
+            hidden.body,
+            baseline.body,
+            'Unprojected roster cannot influence lightweight results',
           );
-          await h.writeBlock(w.reader, child, false, relation);
-          // A named formation parent with only an incoming block remains a list
-          // card, but its stronger direct-parent roster is omitted.
-          const named = await w.publish({
-            text: 'needle named formation',
-            component: {
-              kind: 'formation',
-              capacity: 20,
-              theme: '具名组局',
-              contacts: trading.contacts,
-              contactSharing: 'members_v1',
-            },
-          });
           await h.writeBlock(w.author, w.reader);
           const reverse = await w.search({ q: 'named formation' });
           ok(reverse);
-          assert.deepEqual(ids(reverse.body), [named.id]);
-          assert.deepEqual(reverse.body.items[0].component, { kind: 'none' });
+          assert.equal(
+            reverse.body.items.length,
+            1,
+            'Reverse-only parent block preserves list hit',
+          );
+          assert.equal(reverse.body.items[0].author.kind, 'named');
+          assert.equal(reverse.body.items[0].component, undefined);
         },
       );
 

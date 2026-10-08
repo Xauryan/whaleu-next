@@ -1,3 +1,4 @@
+import { searchPost as post } from './search-helpers';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ClientError } from '../src/api/errors';
@@ -6,7 +7,7 @@ import {
   SearchController,
   initialSearchView,
 } from '../src/pages/community-search/controller';
-import { otherId, post, requestId, space, spaceId } from './community-helpers';
+import { otherId, requestId, space, spaceId } from './community-helpers';
 import { deferred, flush } from './helpers';
 import { wireCredentials } from './identity-helpers';
 import {
@@ -111,13 +112,13 @@ test('input edits during requests preserve current submitted query, and new subm
     await flush();
     assert.equal(s.view().busy, true);
     assert.equal(s.view().error, '');
-    assert.deepEqual(s.view().posts, []);
+    assert.deepEqual(s.view().hits, []);
     s.controller.setInput('still editing');
     newer.resolve(searchPage({ items: [post({ id: requestId })] }));
     await second;
     assert.equal(s.view().submittedQuery, 'new');
     assert.equal(s.view().inputDraft, 'still editing');
-    assert.equal(s.view().posts[0]?.id, requestId);
+    assert.equal(s.view().hits[0]?.contentId, requestId);
     assert.equal(s.view().busy, false);
   }
 });
@@ -141,7 +142,7 @@ test('rapid scope and category changes suppress stale scope lookup, request erro
   await s.controller.load({ ...searchRoute, campusId: otherId });
   assert.equal(s.view().submittedQuery, '');
   assert.equal(s.view().inputDraft, '');
-  assert.deepEqual(s.view().posts, []);
+  assert.deepEqual(s.view().hits, []);
 });
 test('Next/Previous are fresh bounded reads, double Next is ignored and trailing end is not a global zero', async () => {
   const s = searchHarness(),
@@ -155,7 +156,7 @@ test('Next/Previous are fresh bounded reads, double Next is ignored and trailing
   const twice = s.controller.next();
   await flush();
   assert.equal(s.calls.length, 2);
-  assert.deepEqual(s.view().posts, []);
+  assert.deepEqual(s.view().hits, []);
   next.resolve(searchPage({ items: [] }));
   await Promise.all([pending, twice]);
   assert.equal(s.view().pageNumber, 2);
@@ -164,7 +165,7 @@ test('Next/Previous are fresh bounded reads, double Next is ignored and trailing
   s.behavior.search = async () => searchPage({ items: [] });
   await s.controller.previous();
   assert.equal(s.calls[s.calls.length - 1]![1], null);
-  assert.deepEqual(s.view().posts, []);
+  assert.deepEqual(s.view().hits, []);
   assert.equal(s.view().pageNumber, 1);
   assert.match(s.view().status, /没有可查看的匹配/);
   assert.equal(
@@ -231,7 +232,7 @@ test('expired/mismatched cursors clear trails and expose a fresh restart, other 
       throw new ClientError('business', 'server message', { serverCode });
     };
     await s.controller.next();
-    assert.deepEqual(s.view().posts, []);
+    assert.deepEqual(s.view().hits, []);
     assert.equal(s.view().canNext, false);
     assert.equal(s.view().canPrevious, false);
     assert.equal(
@@ -254,19 +255,19 @@ test('same-account safety changes clear immediately then re-resolve scope using 
   s.behavior.search = async () => pending.promise;
   s.runtime.safetyChanges.invalidate(s.accountId);
   await flush();
-  assert.deepEqual(s.view().posts, []);
+  assert.deepEqual(s.view().hits, []);
   assert.equal(s.view().submittedQuery, '校园');
   assert.equal(s.calls[s.calls.length - 1]![0].q, '校园');
   assert.equal(s.calls[s.calls.length - 1]![1], null);
   pending.resolve(searchPage({ items: [] }));
   await flush();
-  assert.deepEqual(s.view().posts, []);
+  assert.deepEqual(s.view().hits, []);
   assert.equal(s.view().inputDraft, 'draft');
   s.gateway.spacesImpl = async () => ({ regional: null, global: [] });
   s.runtime.safetyChanges.invalidate(s.accountId);
   await flush();
   assert.equal(s.view().space, null);
-  assert.deepEqual(s.view().posts, []);
+  assert.deepEqual(s.view().hits, []);
 });
 test('logout, same-account replacement, account switch, auth rejection and disposal remove query and stale results', async () => {
   for (const action of [
@@ -296,7 +297,7 @@ test('logout, same-account replacement, account switch, auth rejection and dispo
       pending.reject(new ClientError('auth-required', 'unauthorized'));
     else pending.resolve(searchPage());
     await work;
-    assert.deepEqual(s.view().posts, []);
+    assert.deepEqual(s.view().hits, []);
     assert.equal(s.view().inputDraft, '');
     assert.equal(s.view().submittedQuery, '');
     assert.equal(s.controller.snapshot(), null);
@@ -312,7 +313,7 @@ test('cancel stops the spinner and late replies; query-only resume re-reads chan
   s.controller.setInput('draft');
   const resume = s.controller.snapshot();
   assert.ok(resume);
-  assert.equal('posts' in resume, false);
+  assert.equal('hits' in resume, false);
   assert.equal('nextCursor' in resume, false);
   s.behavior.search = async () => pending.promise;
   const wait = s.controller.refresh();
@@ -321,7 +322,7 @@ test('cancel stops the spinner and late replies; query-only resume re-reads chan
   pending.resolve(searchPage());
   await wait;
   assert.equal(s.view().busy, false);
-  assert.deepEqual(s.view().posts, []);
+  assert.deepEqual(s.view().hits, []);
   assert.equal(s.view().submittedQuery, '校园');
   s.controller.dispose();
   let view = initialSearchView();
@@ -330,7 +331,7 @@ test('cancel stops the spinner and late replies; query-only resume re-reads chan
   });
   s.behavior.search = async () => searchPage({ items: [] });
   await fresh.load(resume.route, resume);
-  assert.deepEqual(view.posts, []);
+  assert.deepEqual(view.hits, []);
   assert.equal(view.inputDraft, 'draft');
   assert.equal(view.submittedQuery, '校园');
   assert.equal(s.calls[s.calls.length - 1]![1], null);
@@ -356,7 +357,7 @@ test('invalid resubmit cancels the old request without adopting a new intent or 
   assert.equal(s.view().submittedQuery, 'original');
   pending.resolve(searchPage());
   await work;
-  assert.deepEqual(s.view().posts, []);
+  assert.deepEqual(s.view().hits, []);
   assert.equal(s.view().loaded, false);
   assert.match(s.view().error, /1–200/);
   assert.equal(s.calls.length, 1);
@@ -424,7 +425,7 @@ test('missing, failed or pending optional browse choices cannot block aggregate 
     // This must finish while the optional campus request is still unresolved.
     await s.controller.submit();
     assert.equal(s.view().loaded, true);
-    assert.equal(s.view().posts.length, 1);
+    assert.equal(s.view().hits.length, 1);
     assert.deepEqual(s.calls[0]![0], { scope: 'all', q: 'x' });
     assert.equal(s.view().error, '');
     if (outcome !== 'pending') assert.match(s.view().browseNotice, /仍可使用/);
@@ -432,7 +433,7 @@ test('missing, failed or pending optional browse choices cannot block aggregate 
     delayed.resolve({ regional: space(), global: [] });
     await flush();
     assert.equal(s.view().regional, null);
-    assert.deepEqual(s.view().posts, []);
+    assert.deepEqual(s.view().hits, []);
   }
 });
 
@@ -454,7 +455,7 @@ test('aggregate switches visibly select regional categories, preserve submitted 
   const pending = s.controller.setCategory('trading');
   assert.equal(s.view().selectedScope, 'regional');
   assert.equal(s.view().category, 'trading');
-  assert.deepEqual(s.view().posts, []);
+  assert.deepEqual(s.view().hits, []);
   assert.equal(s.view().canNext, false);
   delayed.resolve(searchPage());
   await pending;
@@ -520,7 +521,7 @@ test('late cross-mode responses and optional browse lookups cannot overwrite a n
     await old;
     assert.equal(s.view(), final);
     assert.equal(s.view().selectedScope, 'regional');
-    assert.deepEqual(s.view().posts, []);
+    assert.deepEqual(s.view().hits, []);
   }
   const s = searchHarness(),
     delayed = deferred<Awaited<ReturnType<typeof s.gateway.spacesImpl>>>();
@@ -563,7 +564,7 @@ test('aggregate continuation restarts after membership changes, with fresh Previ
   assert.equal(s.view().restartRequired, true);
   assert.equal(s.view().canPrevious, false);
   assert.equal(s.view().canNext, false);
-  assert.deepEqual(s.view().posts, []);
+  assert.deepEqual(s.view().hits, []);
   s.behavior.search = async () => searchPage();
   await s.controller.refresh();
   assert.deepEqual(s.calls[s.calls.length - 1]!.slice(0, 2), [
@@ -606,13 +607,13 @@ test('no-campus aggregate safety refresh preserves only same-account query while
     if (action === 'cancel') s.controller.cancel();
     if (action === 'dispose') s.controller.dispose();
     if (action === 'root-hide') s.runtime.privateViews?.clear();
-    assert.deepEqual(s.view().posts, []);
+    assert.deepEqual(s.view().hits, []);
     if (action === 'auth')
       delayed.reject(new ClientError('auth-required', 'private'));
     else delayed.resolve(searchPage({ items: [] }));
     await work;
     await flush();
-    assert.deepEqual(s.view().posts, []);
+    assert.deepEqual(s.view().hits, []);
     if (action === 'safety' || action === 'cancel') {
       assert.equal(s.view().submittedQuery, 'submitted');
       assert.equal(s.view().inputDraft, 'draft');

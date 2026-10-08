@@ -1,0 +1,313 @@
+{
+  "feature": "README code statistics",
+  "recorded_at": "2026-10-08T15:30:10.010956+00:00",
+  "status": "Statistics published; implementation and README-only foundation CI verified successful",
+  "repository": "https://github.com/Xauryan/whaleu-next",
+  "commits": {
+    "implementation": {
+      "sha": "ac57699eb8df8d6a4f15719e11bdaf35f275613c",
+      "url": "https://github.com/Xauryan/whaleu-next/commit/ac57699eb8df8d6a4f15719e11bdaf35f275613c",
+      "signature_type": "SSH",
+      "github_signature_status": "verified"
+    },
+    "readme": {
+      "sha": "ab2171a76f77bd8fa3f0514a14089275f91b68f9",
+      "url": "https://github.com/Xauryan/whaleu-next/commit/ab2171a76f77bd8fa3f0514a14089275f91b68f9",
+      "signature_type": "SSH",
+      "github_signature_status": "verified",
+      "changed_files": ["README.md"]
+    }
+  },
+  "verified_files": [
+    {
+      "path": ".github/workflows/code-stats.yml",
+      "sha256": "35e0fd065121fbc720ee002d7bd8c7f77407b47280a5baa128db57bf3e4c0017"
+    },
+    {
+      "path": "package.json",
+      "sha256": "6bdf7ecb63b99cae0d873882b60d17a32534d7803c6731bc3df06f281b0c299d"
+    },
+    {
+      "path": "scripts/code-stats.mjs",
+      "sha256": "612583ebc0374229bc6defdf9f12232e3440c4358e97244cbc6e08b43caef073"
+    },
+    {
+      "path": "scripts/code-stats.test.mjs",
+      "sha256": "99a6d2a12c122dbf64ef71602ef10ecaa3e2ce24e1dc0c3da06ae247dfe0494e"
+    },
+    {
+      "path": "scripts/code-stats.integration.test.mjs",
+      "sha256": "bef80080c25c7afc8fa21d07eb8647258940cd24373c2a2e278c7c5dce01786b"
+    },
+    {
+      "path": "scripts/code-stats.fixtures.mjs",
+      "sha256": "caa16d1b83519f7d0b04950662b919b3a84352fe987a8d42f2f1baf91c13056a"
+    }
+  ],
+  "local_statistics_gates": {
+    "offline": {
+      "command": "npm run stats:test",
+      "cloc_path_required": false,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    "real_cloc": {
+      "command": "npm run stats:test:integration",
+      "cloc_path_required": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    "missing_cloc_negative_test": {
+      "command": "env -u CLOC_PATH npm run stats:test:integration",
+      "expected_exit_code": 1,
+      "observed_exit_code": 1,
+      "result": "passed"
+    },
+    "scoped_lint": "passed",
+    "scoped_format": "passed",
+    "repeat_snapshot_builds": "Byte-identical SVG output for unchanged immutable branch snapshots"
+  },
+  "hosted_runs": {
+    "implementation_foundation": {
+      "head_sha": "ac57699eb8df8d6a4f15719e11bdaf35f275613c",
+      "run_id": 37796511212,
+      "job_id": 113377234022,
+      "url": "https://github.com/Xauryan/whaleu-next/actions/runs/37796511212",
+      "job_url": "https://github.com/Xauryan/whaleu-next/actions/runs/37796511212/job/113377234022",
+      "status": "completed",
+      "conclusion": "success",
+      "tests": {
+        "statistics_offline": 5,
+        "api": 641,
+        "native": 903,
+        "postgresql": 1116,
+        "total_passed": 2665,
+        "failed": 0,
+        "skipped": 0
+      },
+      "other_gates": {
+        "lint": "passed",
+        "typecheck": "passed",
+        "openapi_drift": "passed",
+        "build": "passed",
+        "emitted_native_smoke": "passed",
+        "format": "passed"
+      }
+    },
+    "implementation_pages": {
+      "head_sha": "ac57699eb8df8d6a4f15719e11bdaf35f275613c",
+      "run_id": 37796511133,
+      "url": "https://github.com/Xauryan/whaleu-next/actions/runs/37796511133",
+      "status": "completed",
+      "conclusion": "success",
+      "offline_tests": {
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0
+      },
+      "real_cloc_integration": {
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    "readme_pages": {
+      "head_sha": "ab2171a76f77bd8fa3f0514a14089275f91b68f9",
+      "run_id": 37799209010,
+      "url": "https://github.com/Xauryan/whaleu-next/actions/runs/37799209010",
+      "status": "completed",
+      "conclusion": "success",
+      "offline_tests": {
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0
+      },
+      "real_cloc_integration": {
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    "readme_foundation": {
+      "head_sha": "ab2171a76f77bd8fa3f0514a14089275f91b68f9",
+      "run_id": 37799209037,
+      "url": "https://github.com/Xauryan/whaleu-next/actions/runs/37799209037",
+      "status": "completed",
+      "conclusion": "success",
+      "acceptance": "passed",
+      "job_id": 113386601941,
+      "job_url": "https://github.com/Xauryan/whaleu-next/actions/runs/37799209037/job/113386601941",
+      "duration_seconds": 764,
+      "tests": {
+        "statistics_offline": 5,
+        "api": 641,
+        "native": 903,
+        "postgresql": 1116,
+        "total_passed": 2665,
+        "failed": 0,
+        "skipped": 0
+      },
+      "other_gates": {
+        "lint": "passed",
+        "typecheck": "passed",
+        "openapi_drift": "passed",
+        "build": "passed",
+        "emitted_native_smoke": "passed",
+        "format": "passed"
+      },
+      "test_evidence": "Exact totals confirmed from this run logs"
+    }
+  },
+  "publication": {
+    "url": "https://xauryan.github.io/whaleu-next/code-stats.svg",
+    "http_status": 200,
+    "content_type": "image/svg+xml",
+    "xml_validation": "passed",
+    "visual_validation": "passed",
+    "github_readme_image": "verified live",
+    "readme_url": "https://github.com/Xauryan/whaleu-next/blob/ab2171a76f77bd8fa3f0514a14089275f91b68f9/README.md",
+    "artifact_files": ["code-stats.svg"],
+    "branches": [
+      {
+        "name": "main",
+        "default": true,
+        "source_sha": "f1a8579e15c5a94ca56fd067aee3b36d63994e9c",
+        "code_lines": 0,
+        "files": 0,
+        "languages": 0
+      },
+      {
+        "name": "rewrite/backend-foundation",
+        "default": false,
+        "source_sha": "ab2171a76f77bd8fa3f0514a14089275f91b68f9",
+        "code_lines": 202192,
+        "files": 909,
+        "languages": 7
+      }
+    ],
+    "readme_only_republication": {
+      "previous_rewrite_source_sha": "ac57699eb8df8d6a4f15719e11bdaf35f275613c",
+      "current_rewrite_source_sha": "ab2171a76f77bd8fa3f0514a14089275f91b68f9",
+      "counts_unchanged": true,
+      "svg_comparison": "Only the rewrite branch source SHA metadata changed"
+    },
+    "application_deployment": false,
+    "latest_recheck": {
+      "pages_run_id": 37799209010,
+      "http_status": 200,
+      "rewrite_source_sha": "ab2171a76f77bd8fa3f0514a14089275f91b68f9",
+      "counts_unchanged": true
+    }
+  },
+  "counting_contract": {
+    "cloc_version": "2.10",
+    "cloc_source_url": "https://github.com/AlDanial/cloc/releases/download/v2.10/cloc-2.10.pl",
+    "cloc_sha256": "bf59272455172108072a0a106379f7509fd4349bdcfd85203bac038ccd286d83",
+    "source": "Regular files read from immutable Git blobs at fetched origin branch tips",
+    "all_origin_branches": true,
+    "branch_counts_summed": false,
+    "identical_files_within_each_branch_counted_separately": true,
+    "identical_commit_count_calculation_reused": true,
+    "actual_default_branch_marked": true,
+    "native_languages_verified": ["WXML", "WXSS"],
+    "scope_roots": [
+      "apps",
+      "packages",
+      "scripts",
+      "tests",
+      "test",
+      "migrations",
+      "config",
+      ".github"
+    ],
+    "root_files": "Eligible root files selected by the extension and Dockerfile allowlist",
+    "exclusions": [
+      "dependencies",
+      "build and coverage output",
+      "documentation including JSON acceptance reports",
+      "generated directories and generated files",
+      "OpenAPI schemas",
+      "lockfiles",
+      "Markdown",
+      "source maps",
+      "minified files",
+      "symlinks",
+      "submodules",
+      "working-tree edits",
+      "staged changes",
+      "untracked files",
+      "tags",
+      "fork branches"
+    ],
+    "file_and_language_totals": "Only files recognized by cloc",
+    "empty_result": "Empty trees and branches containing only empty or binary eligible files display zero explicitly"
+  },
+  "workflow_boundary": {
+    "repository": "Xauryan/whaleu-next",
+    "publishing_branches": ["main", "rewrite/backend-foundation"],
+    "events": [
+      "push to a publishing branch",
+      "workflow_dispatch on a publishing branch"
+    ],
+    "other_branch_refresh": "Updates and deletions appear on the next allowed run, not after every branch push",
+    "fetch_prunes_deleted_branches": true,
+    "other_branch_code_executed": false,
+    "workflow_must_exist_on_publishing_branch": true,
+    "manual_dispatch_requires_workflow_on_default_branch": true,
+    "build_permissions": {
+      "contents": "read"
+    },
+    "deploy_permissions": {
+      "pages": "write",
+      "id-token": "write"
+    },
+    "checkout_persist_credentials": false,
+    "pages_environment": "github-pages",
+    "pages_environment_branch_policies": ["main", "rewrite/backend-foundation"],
+    "published_content": "Aggregate SVG only; no source snapshots, JSON reports, credentials or generated commits",
+    "svg_safety": [
+      "Dynamic text XML escaped",
+      "Allowed SVG elements only",
+      "No scripts, links, external resources, entities or event handlers",
+      "Isolated artifact directory contains only code-stats.svg"
+    ],
+    "action_pins": {
+      "actions/checkout": {
+        "version": "v6.0.3",
+        "sha": "df4cb1c069e1874edd31b4311f1884172cec0e10"
+      },
+      "actions/setup-node": {
+        "version": "v6.4.0",
+        "sha": "48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"
+      },
+      "actions/upload-pages-artifact": {
+        "version": "v5.0.0",
+        "sha": "fc324d3547104276b827a68afc52ff2a11cc49c9"
+      },
+      "actions/deploy-pages": {
+        "version": "v5.0.1",
+        "sha": "368f82528645a54fb793d4d04e342629a3f51346"
+      }
+    }
+  },
+  "regression_coverage": [
+    "Path allowlist and exclusions",
+    "Validated language totals and deterministic ordering",
+    "XML escaping of hostile language and branch names",
+    "Immutable committed content despite working-tree, staged and untracked changes",
+    "Native WXML and WXSS counting",
+    "Duplicate files retained within each branch",
+    "Independent branches without a combined total",
+    "Actual default branch and symbolic origin HEAD handling",
+    "Deleted origin branches removed after fetch and prune",
+    "Empty tree and committed empty/binary-only branches",
+    "Checksum mismatch and invalid source SHA rejection",
+    "Existing output directory rejection",
+    "Publisher commit mismatch rejection",
+    "SVG-only artifact",
+    "Required real-cloc gate fails without CLOC_PATH"
+  ],
+  "release_boundary": "Public GitHub Pages statistics image only. No application deployment or broader search acceptance is established by this record."
+}

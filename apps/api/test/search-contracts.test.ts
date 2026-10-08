@@ -14,6 +14,7 @@ import {
   searchAnchorFollows,
   searchCursorScope,
   searchPositionSchema,
+  SEARCH_ORDER_ID,
 } from '../src/community/search/cursor.js';
 import {
   SEARCH_MATCHER_ID,
@@ -33,7 +34,7 @@ const valid = { spaceId, q: '海鲸' };
 test('search validates canonical Unicode query without SQL-pattern restrictions or coercion', () => {
   assert.deepEqual(
     searchQuerySchema.parse({ ...valid, q: '\u3000\t0\r\n\u00a0' }),
-    { spaceId, q: '0', limit: 10 },
+    { spaceId, q: '0', type: 'all', limit: 10 },
   );
   for (const q of [
     '%',
@@ -203,12 +204,21 @@ test('search scope binds canonical query, every filter, matcher version, explici
 
 test('strict private positions preserve exact microseconds and descending UUID ties', () => {
   const id = '00000000-0000-4000-8000-000000000001';
-  const visible = { id, at: '2026-10-08T00:00:00.123457Z' };
-  const after = { id, at: '2026-10-08T00:00:00.123456Z' };
+  const visible = {
+    kind: 'post' as const,
+    id,
+    at: '2026-10-08T00:00:00.123457Z',
+  };
+  const after = {
+    kind: 'post' as const,
+    id,
+    at: '2026-10-08T00:00:00.123456Z',
+  };
   const position = {
-    v: 1,
+    v: 3,
     kind: 'search',
     matcherId: SEARCH_MATCHER_ID,
+    orderId: SEARCH_ORDER_ID,
     after,
     visible,
   };
@@ -260,6 +270,10 @@ test('structural repository selects bounded exact coordinates with no query, bod
     category: null,
     tradingSubtype: null,
     excludeUrgentTrading: true,
+    types: ['post'] as const,
+    from: null,
+    to: null,
+    postId: null,
   };
   await new SearchRepository().candidates(scope, null, tx);
   assert.equal(SEARCH_SCAN_BATCH, 128);
@@ -270,7 +284,21 @@ test('structural repository selects bounded exact coordinates with no query, bod
     calls[0]!.sql,
     /ILIKE|\bLIKE\b|p\.text|\bbody\b|contacts|resolution|whaleu_(?:safety|identity|profile)|account_id/i,
   );
-  assert.deepEqual(calls[0]!.values, [spaceId, null, null, true, null, null]);
+  assert.deepEqual(calls[0]!.values.slice(0, 13), [
+    spaceId,
+    [],
+    [],
+    null,
+    null,
+    true,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    ['post'],
+  ]);
 });
 
 test('normal AppModule registers search HTTP parsing and supplied bearer never downgrades to guest', async () => {
@@ -312,7 +340,7 @@ test('normal AppModule registers search HTTP parsing and supplied bearer never d
     });
     assert.deepEqual(calls[0], {
       token: null,
-      query: { spaceId, q: '0', limit: 10 },
+      query: { spaceId, q: '0', type: 'all', limit: 10 },
     });
     const token = `wu_a_${randomBytes(32).toString('base64url')}`;
     await request(app.getHttpServer())
@@ -345,7 +373,7 @@ test('normal AppModule registers search HTTP parsing and supplied bearer never d
         .expect(200);
       assert.deepEqual(calls.at(-1), {
         token: null,
-        query: { scope, q: 'literal', limit: 10 },
+        query: { scope, q: 'literal', type: 'all', limit: 10 },
       });
     }
     for (const suffix of [

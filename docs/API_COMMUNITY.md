@@ -1201,18 +1201,25 @@ delivery/consent/reward outcomes for explicit reconciliation. Do not replay
 historic rewards/notices or fabricate missing epochs. Full parity, actual device
 acceptance and real provider verification remain outstanding.
 
-## Explicit-space search
+## Community content search
 
-The partial `GET /v1/community/search` endpoint and native page use the existing
-PostView and current visibility authorities. Query-only outer whitespace trimming
-is intentional; stored post text remains untouched. See [search contract and
-limits](COMMUNITY_SEARCH.md) for matching, filters, continuation and remaining
-parity work.
+`GET /v1/community/search` now searches posts, root comments and replies and returns
+lightweight SearchHit cards with original-text highlighted snippets, true source,
+own time, minimal author and typed detail/thread navigation. It replaces the
+post-only v1 PostView contract without a second legacy engine. Query-only outer
+whitespace trimming remains intentional; approved stored text is unchanged.
 
-Search also accepts `scope=all|regional|global` instead of `spaceId`. Only regional
-aggregate requests accept category/subtype filters; all/global reject them.
-Aggregate scope is revalidated from complete owner-held catalog facts and changes
-restart navigation. See [federated contract](COMMUNITY_SEARCH.md#federated-allregionalglobal-search-increment).
+Choose `spaceId` or `scope=all|regional|global`; only regional aggregate requests
+accept category/subtype filters. Add `type=all|post|comment|reply`, inclusive `from`,
+exclusive `to` and optional `postId`. Guests searching all receive post-only
+`effectiveTypes`; explicit child searches require login. Current purpose-specific
+parent/root/reply visibility and mandatory final proof precede delivery. Exact
+microsecond/kind/ID cursors bind all filters and current membership. Sparse scans
+remain explicit; no semantic or relevance capability is claimed.
+
+See [current search contract and limits](COMMUNITY_SEARCH.md) and the
+[static OpenAPI contract](openapi/community-search.json). Earlier post-only
+acceptance documents remain historical checkpoints, not the current DTO.
 
 ## Explicit bounded view reporting
 

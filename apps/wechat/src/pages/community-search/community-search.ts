@@ -1,10 +1,5 @@
 import type { WhaleuApp } from '../../app';
-import {
-  tradingCategories,
-  tradingLabels,
-} from '../../community/trading-contract';
-import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
-import { AuthorNavigator } from '../../profile/author-navigation';
+import { tradingCategories } from '../../community/trading-contract';
 import {
   SearchController,
   decodeSearchRoute,
@@ -16,9 +11,25 @@ import {
 Page({
   data: {
     ...initialSearchView(),
-    experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     tradingCategories,
-    tradingLabels,
+    searchTypes: [
+      { key: 'all', label: '全部内容' },
+      { key: 'post', label: '帖子' },
+      { key: 'comment', label: '评论' },
+      { key: 'reply', label: '回复' },
+    ],
+    categoryLabels: {
+      discussion: '校园日常',
+      confession: '表白心事',
+      companions: '找搭子',
+      pets: '校园萌宠',
+      internships: '实习工作',
+      scenery: '校园风景',
+      dorms: '宿舍生活',
+      research: '学术科研',
+      deep_sea: '深海树洞',
+      trading: '校园交易',
+    },
     categories: [
       { key: 'all', label: '全部分类' },
       { key: 'discussion', label: '校园日常' },
@@ -36,7 +47,6 @@ Page({
   route: null as SearchRoute | null,
   resume: null as SearchResume | null,
   controller: undefined as SearchController | undefined,
-  authorNavigator: undefined as AuthorNavigator | undefined,
   unsubscribeSession: undefined as (() => void) | undefined,
   unsubscribeHide: undefined as (() => void) | undefined,
   onLoad(query: unknown = {}) {
@@ -72,18 +82,12 @@ Page({
   onShow() {
     const resume = this.controller?.snapshot() ?? this.resume;
     this.controller?.dispose();
-    this.authorNavigator?.dispose();
     const runtime = getApp<WhaleuApp>().community;
     if (!runtime) {
       this.setData({ error: '环境未初始化，请重新打开小程序' });
       return;
     }
     this.resume = null;
-    this.authorNavigator = new AuthorNavigator(
-      wx,
-      () => this.setData({ error: '暂不能打开主页，请重试' }),
-      runtime,
-    );
     this.controller = new SearchController(runtime, (view) =>
       this.setData({ ...view }),
     );
@@ -119,25 +123,47 @@ Page({
   onCancel() {
     this.controller?.cancel();
   },
-  onAuthor(event: { currentTarget: { dataset: { id: string } } }) {
-    if (!this.data.loaded || this.data.busy) return;
-    this.authorNavigator?.open(
-      this.data.posts.find((item) => item.id === event.currentTarget.dataset.id)
-        ?.author,
+  onType(event: { currentTarget: { dataset: { key: string } } }) {
+    void this.controller?.setType(event.currentTarget.dataset.key);
+  },
+  onFromDate(event: { detail: { value: string } }) {
+    void this.controller?.setDate('from', event.detail.value);
+  },
+  onToDate(event: { detail: { value: string } }) {
+    void this.controller?.setDate('to', event.detail.value);
+  },
+  onClearDates() {
+    void this.controller?.clearDates();
+  },
+  onWithinPost(event: { currentTarget: { dataset: { postId: string } } }) {
+    void this.controller?.withinPost(event.currentTarget.dataset.postId);
+  },
+  onClearPost() {
+    void this.controller?.clearPost();
+  },
+  onHit(event: { currentTarget: { dataset: { kind: string; id: string } } }) {
+    const { kind, id } = event.currentTarget.dataset;
+    void this.controller?.openHit(
+      kind,
+      id,
+      (url) =>
+        new Promise<void>((resolve, reject) => {
+          if (!wx.navigateTo) {
+            reject(new Error('Navigation unavailable'));
+            return;
+          }
+          wx.navigateTo({ url, success: () => resolve(), fail: reject });
+        }),
     );
   },
   onHide() {
     this.resume = this.controller?.snapshot() ?? this.resume;
     this.controller?.dispose();
     this.controller = undefined;
-    this.authorNavigator?.dispose();
-    this.authorNavigator = undefined;
   },
   onUnload() {
     this.controller?.dispose();
     this.controller = undefined;
-    this.authorNavigator?.dispose();
-    this.authorNavigator = undefined;
     this.unsubscribeSession?.();
     this.unsubscribeSession = undefined;
     this.unsubscribeHide?.();

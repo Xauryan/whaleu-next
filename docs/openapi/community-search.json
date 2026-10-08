@@ -1,0 +1,1478 @@
+{
+  "components": {
+    "schemas": {
+      "CommunitySearchHit": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "author": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "avatar": {
+                        "enum": [null],
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      },
+                      "experienceDisplay": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "color": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["known"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": -9007199254740991,
+                                    "nullable": true,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["unavailable"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": [null],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "level": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["known"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["unavailable"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": [null],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "title": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["known"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "additionalProperties": false,
+                                    "nullable": true,
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["key", "name"],
+                                    "type": "object"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["unavailable"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": [null],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["title", "color", "level"],
+                        "type": "object"
+                      },
+                      "kind": {
+                        "enum": ["named"],
+                        "type": "string"
+                      },
+                      "profileId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "profileId",
+                      "displayName",
+                      "avatar",
+                      "experienceDisplay"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "avatar": {
+                        "enum": [null],
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      },
+                      "isPostAuthor": {
+                        "type": "boolean"
+                      },
+                      "kind": {
+                        "enum": ["anonymous"],
+                        "type": "string"
+                      },
+                      "personaId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "personaId",
+                      "displayName",
+                      "avatar",
+                      "isPostAuthor"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "category": {
+                "enum": [
+                  "discussion",
+                  "confession",
+                  "companions",
+                  "pets",
+                  "internships",
+                  "scenery",
+                  "dorms",
+                  "research",
+                  "deep_sea",
+                  "trading"
+                ],
+                "type": "string"
+              },
+              "contentId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "createdAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$",
+                "type": "string"
+              },
+              "kind": {
+                "enum": ["post"],
+                "type": "string"
+              },
+              "postId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "postSummary": {
+                "maxLength": 160,
+                "type": "string"
+              },
+              "replyId": {
+                "enum": [null],
+                "nullable": true,
+                "type": "string"
+              },
+              "rootCommentId": {
+                "enum": [null],
+                "nullable": true,
+                "type": "string"
+              },
+              "snippet": {
+                "additionalProperties": false,
+                "properties": {
+                  "segments": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "matched": {
+                          "type": "boolean"
+                        },
+                        "text": {
+                          "maxLength": 480,
+                          "type": "string"
+                        }
+                      },
+                      "required": ["text", "matched"],
+                      "type": "object"
+                    },
+                    "maxItems": 240,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "truncatedAfter": {
+                    "type": "boolean"
+                  },
+                  "truncatedBefore": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["segments", "truncatedBefore", "truncatedAfter"],
+                "type": "object"
+              },
+              "space": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": ["regional", "global"],
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": ["id", "kind", "name"],
+                "type": "object"
+              },
+              "target": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": ["post"],
+                    "type": "string"
+                  },
+                  "postId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  }
+                },
+                "required": ["kind", "postId"],
+                "type": "object"
+              },
+              "tradingSubtype": {
+                "enum": [
+                  "qiugou",
+                  "shuma",
+                  "shujia",
+                  "yifu",
+                  "meizhuang",
+                  "yundong",
+                  "riyong",
+                  "shipin",
+                  "kaquan",
+                  "xiangbao",
+                  "zixingche",
+                  "diandongche",
+                  "xianshiqi"
+                ],
+                "nullable": true,
+                "type": "string"
+              },
+              "tradingUrgency": {
+                "enum": ["normal", "urgent"],
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "required": [
+              "contentId",
+              "postId",
+              "space",
+              "category",
+              "tradingSubtype",
+              "tradingUrgency",
+              "createdAt",
+              "author",
+              "postSummary",
+              "snippet",
+              "kind",
+              "rootCommentId",
+              "replyId",
+              "target"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "author": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "avatar": {
+                        "enum": [null],
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      },
+                      "experienceDisplay": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "color": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["known"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": -9007199254740991,
+                                    "nullable": true,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["unavailable"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": [null],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "level": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["known"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["unavailable"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": [null],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "title": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["known"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "additionalProperties": false,
+                                    "nullable": true,
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["key", "name"],
+                                    "type": "object"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["unavailable"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": [null],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["title", "color", "level"],
+                        "type": "object"
+                      },
+                      "kind": {
+                        "enum": ["named"],
+                        "type": "string"
+                      },
+                      "profileId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "profileId",
+                      "displayName",
+                      "avatar",
+                      "experienceDisplay"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "avatar": {
+                        "enum": [null],
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      },
+                      "isPostAuthor": {
+                        "type": "boolean"
+                      },
+                      "kind": {
+                        "enum": ["anonymous"],
+                        "type": "string"
+                      },
+                      "personaId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "personaId",
+                      "displayName",
+                      "avatar",
+                      "isPostAuthor"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "category": {
+                "enum": [
+                  "discussion",
+                  "confession",
+                  "companions",
+                  "pets",
+                  "internships",
+                  "scenery",
+                  "dorms",
+                  "research",
+                  "deep_sea",
+                  "trading"
+                ],
+                "type": "string"
+              },
+              "contentId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "createdAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$",
+                "type": "string"
+              },
+              "kind": {
+                "enum": ["comment"],
+                "type": "string"
+              },
+              "postId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "postSummary": {
+                "maxLength": 160,
+                "type": "string"
+              },
+              "replyId": {
+                "enum": [null],
+                "nullable": true,
+                "type": "string"
+              },
+              "rootCommentId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "snippet": {
+                "additionalProperties": false,
+                "properties": {
+                  "segments": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "matched": {
+                          "type": "boolean"
+                        },
+                        "text": {
+                          "maxLength": 480,
+                          "type": "string"
+                        }
+                      },
+                      "required": ["text", "matched"],
+                      "type": "object"
+                    },
+                    "maxItems": 240,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "truncatedAfter": {
+                    "type": "boolean"
+                  },
+                  "truncatedBefore": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["segments", "truncatedBefore", "truncatedAfter"],
+                "type": "object"
+              },
+              "space": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": ["regional", "global"],
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": ["id", "kind", "name"],
+                "type": "object"
+              },
+              "target": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": ["comment"],
+                    "type": "string"
+                  },
+                  "postId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "rootCommentId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  }
+                },
+                "required": ["kind", "postId", "rootCommentId"],
+                "type": "object"
+              },
+              "tradingSubtype": {
+                "enum": [
+                  "qiugou",
+                  "shuma",
+                  "shujia",
+                  "yifu",
+                  "meizhuang",
+                  "yundong",
+                  "riyong",
+                  "shipin",
+                  "kaquan",
+                  "xiangbao",
+                  "zixingche",
+                  "diandongche",
+                  "xianshiqi"
+                ],
+                "nullable": true,
+                "type": "string"
+              },
+              "tradingUrgency": {
+                "enum": ["normal", "urgent"],
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "required": [
+              "contentId",
+              "postId",
+              "space",
+              "category",
+              "tradingSubtype",
+              "tradingUrgency",
+              "createdAt",
+              "author",
+              "postSummary",
+              "snippet",
+              "kind",
+              "rootCommentId",
+              "replyId",
+              "target"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "author": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "avatar": {
+                        "enum": [null],
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      },
+                      "experienceDisplay": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "color": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["known"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": -9007199254740991,
+                                    "nullable": true,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["unavailable"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": [null],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "level": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["known"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["unavailable"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": [null],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "title": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["known"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "additionalProperties": false,
+                                    "nullable": true,
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["key", "name"],
+                                    "type": "object"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["unavailable"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": [null],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["title", "color", "level"],
+                        "type": "object"
+                      },
+                      "kind": {
+                        "enum": ["named"],
+                        "type": "string"
+                      },
+                      "profileId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "profileId",
+                      "displayName",
+                      "avatar",
+                      "experienceDisplay"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "avatar": {
+                        "enum": [null],
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      },
+                      "isPostAuthor": {
+                        "type": "boolean"
+                      },
+                      "kind": {
+                        "enum": ["anonymous"],
+                        "type": "string"
+                      },
+                      "personaId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "personaId",
+                      "displayName",
+                      "avatar",
+                      "isPostAuthor"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "category": {
+                "enum": [
+                  "discussion",
+                  "confession",
+                  "companions",
+                  "pets",
+                  "internships",
+                  "scenery",
+                  "dorms",
+                  "research",
+                  "deep_sea",
+                  "trading"
+                ],
+                "type": "string"
+              },
+              "contentId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "createdAt": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$",
+                "type": "string"
+              },
+              "kind": {
+                "enum": ["reply"],
+                "type": "string"
+              },
+              "postId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "postSummary": {
+                "maxLength": 160,
+                "type": "string"
+              },
+              "replyId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "rootCommentId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "snippet": {
+                "additionalProperties": false,
+                "properties": {
+                  "segments": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "matched": {
+                          "type": "boolean"
+                        },
+                        "text": {
+                          "maxLength": 480,
+                          "type": "string"
+                        }
+                      },
+                      "required": ["text", "matched"],
+                      "type": "object"
+                    },
+                    "maxItems": 240,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "truncatedAfter": {
+                    "type": "boolean"
+                  },
+                  "truncatedBefore": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["segments", "truncatedBefore", "truncatedAfter"],
+                "type": "object"
+              },
+              "space": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": ["regional", "global"],
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": ["id", "kind", "name"],
+                "type": "object"
+              },
+              "target": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": ["reply"],
+                    "type": "string"
+                  },
+                  "postId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "replyId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "rootCommentId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  }
+                },
+                "required": ["kind", "postId", "rootCommentId", "replyId"],
+                "type": "object"
+              },
+              "tradingSubtype": {
+                "enum": [
+                  "qiugou",
+                  "shuma",
+                  "shujia",
+                  "yifu",
+                  "meizhuang",
+                  "yundong",
+                  "riyong",
+                  "shipin",
+                  "kaquan",
+                  "xiangbao",
+                  "zixingche",
+                  "diandongche",
+                  "xianshiqi"
+                ],
+                "nullable": true,
+                "type": "string"
+              },
+              "tradingUrgency": {
+                "enum": ["normal", "urgent"],
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "required": [
+              "contentId",
+              "postId",
+              "space",
+              "category",
+              "tradingSubtype",
+              "tradingUrgency",
+              "createdAt",
+              "author",
+              "postSummary",
+              "snippet",
+              "kind",
+              "rootCommentId",
+              "replyId",
+              "target"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "CommunitySearchPage": {
+        "additionalProperties": false,
+        "properties": {
+          "continuation": {
+            "enum": [
+              "more",
+              "scan_pending",
+              "end",
+              "login_required",
+              "phone_verification_required"
+            ],
+            "type": "string"
+          },
+          "effectiveTypes": {
+            "items": {
+              "enum": ["post", "comment", "reply"],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CommunitySearchHit"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "type": "string"
+          }
+        },
+        "required": ["items", "effectiveTypes", "nextCursor", "continuation"],
+        "type": "object"
+      },
+      "SafeErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              }
+            },
+            "required": ["code", "message", "requestId"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "accessToken": {
+        "description": "Opaque WhaleU access token. Optional for initial post preview only.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "",
+    "title": "WhaleU community content search",
+    "version": "1"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/v1/community/search": {
+      "get": {
+        "description": "Literal Unicode lowercase substring search of posts, root comments and replies, newest first by exact microsecond time, kind and ID. No semantic or relevance ranking. Choose exactly one spaceId or scope; all/global forbid category/subtype, regional allows them. Global explicit spaces support discussion only. Type defaults to all; guest all has effectiveTypes=[post], explicit child types require login before scanning. from is inclusive and to exclusive, UTC with up to six fractional digits; range applies to each hit itself. postId narrows one discussion. Query-independent 128-source window and metadata-only sentinel; sparse pages may return scan_pending. Current authorized ancestry is proved before matching and again at transaction finalization. Continued traversal requires current session and phone evidence. Opaque cursors bind every filter, ordering, matcher, session and federated membership; they contain no body. Existing v1 route is upgraded without a parallel legacy engine.",
+        "operationId": "searchCommunityContent",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "spaceId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "enum": ["all", "regional", "global"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": ["all", "post", "comment", "reply"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "postId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "enum": [
+                "discussion",
+                "confession",
+                "companions",
+                "pets",
+                "internships",
+                "scenery",
+                "dorms",
+                "research",
+                "deep_sea",
+                "trading"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tradingSubtype",
+            "required": false,
+            "schema": {
+              "enum": [
+                "qiugou",
+                "shuma",
+                "shujia",
+                "yifu",
+                "meizhuang",
+                "yundong",
+                "riyong",
+                "shipin",
+                "kaquan",
+                "xiangbao",
+                "zixingche",
+                "diandongche",
+                "xianshiqi"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "pattern": "^(?:[1-9]|10)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunitySearchPage"
+                }
+              }
+            },
+            "description": "Lightweight actual-source hits, bounded original text segments and structured navigation. No PostView, counts, images, full body, target-author details, raw scores or total. Post-summary and snippets are freshly authorized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict query, disjoint space/scope selector, date range, filter combination or cursor scope is invalid.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Explicit comments/replies and continuation require a current session; invalid supplied credentials never become guest access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current phone continuation or Safety permission is denied.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current scope or opaque navigation reference is unavailable; restart required after expiry, membership changes or inaccessible visible ancestry.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Required current source, approval, Safety or final proof is unknown. This is never an empty search.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Community content search"]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

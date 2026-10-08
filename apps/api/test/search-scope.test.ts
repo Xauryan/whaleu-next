@@ -11,6 +11,7 @@ import { searchQuerySchema } from '../src/community/search/contracts.js';
 import {
   federatedSearchPositionSchema,
   searchCursorScope,
+  SEARCH_ORDER_ID,
 } from '../src/community/search/cursor.js';
 import { SEARCH_MATCHER_ID } from '../src/community/search/matching.js';
 import { SearchRepository } from '../src/community/search/repository.js';
@@ -128,7 +129,7 @@ test('aggregate grammar is a strict disjoint union and does not coerce or accept
     );
 });
 
-test('aggregate cursor intents bind selector/query/filter/limit/account/session and preserve fixed-sized strict v2 metadata', () => {
+test('aggregate cursor intents bind selector/query/filter/limit/account/session and preserve fixed-sized strict v4 metadata', () => {
   const session = {
     accountId: randomUUID(),
     sessionId: randomUUID(),
@@ -157,15 +158,16 @@ test('aggregate cursor intents bind selector/query/filter/limit/account/session 
   const members = Array.from({ length: 5000 }, (_, i) => space(i + 1));
   const fingerprint = searchMembershipFingerprint('regional', members);
   const position = {
-    v: 2,
+    v: 4,
     kind: 'search',
     matcherId: SEARCH_MATCHER_ID,
+    orderId: SEARCH_ORDER_ID,
     membershipFingerprint: fingerprint,
-    after: { id: uuid(1), at: '2026-10-08T00:00:00.123456Z' },
+    after: { kind: 'post', id: uuid(1), at: '2026-10-08T00:00:00.123456Z' },
     visible: null,
   };
   assert.deepEqual(federatedSearchPositionSchema.parse(position), position);
-  assert.ok(JSON.stringify(position).length < 400);
+  assert.ok(JSON.stringify(position).length < 450);
   for (const patch of [
     { v: 1 },
     { membershipFingerprint: 'A'.repeat(64) },
@@ -320,18 +322,22 @@ test('aggregate SQL uses one129-coordinate body-independent global order and pee
       category: null,
       tradingSubtype: null,
       excludeUrgentTrading: false,
+      types: ['post', 'comment', 'reply'],
+      from: null,
+      to: null,
+      postId: null,
     },
     null,
     tx,
   );
-  await repository.lockCandidate(uuid(3), tx);
+  await repository.lockCandidate('post', uuid(3), tx);
   assert.match(
     calls[0]!.sql,
     /ORDER BY p.published_at DESC,p.id DESC LIMIT 129/,
   );
   assert.doesNotMatch(
     calls.map((c) => c.sql).join('\n'),
-    /SELECT \*|p\.text|body|ILIKE|LOWER|resolution|urgency|account_id|whaleu_(?:campus|safety|identity)/i,
+    /SELECT \*|p\.text|body|ILIKE|LOWER|resolution|account_id|whaleu_(?:campus|safety|identity)/i,
   );
   assert.match(calls[1]!.sql, /FOR SHARE/);
 });

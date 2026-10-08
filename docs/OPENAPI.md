@@ -67,3 +67,13 @@ scores, private certificate fields or a documentation route.
 The [announcements artifact](openapi/announcements.json) covers public content
 reads and authenticated own popup acknowledgement. Public and owner authentication
 metadata remain distinct; export does not register live content issuers or jobs.
+
+## Content search extension
+
+The [community-search artifact](openapi/community-search.json) covers the upgraded
+existing v1 post/comment/reply search endpoint. It is generated offline from the
+actual controller and owner query fields/strict response schemas. Since OpenAPI
+exports query parameters individually, the disjoint space/scope selector and
+cross-field restrictions remain explicit runtime union rules and operation prose.
+The schema shows lightweight hits, original-text segments, exact-time navigation,
+effective types and safe errors; it exposes no PostView or private cursor data.

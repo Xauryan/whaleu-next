@@ -50,8 +50,13 @@ export interface PrivateSearchPosition {
   v: number;
   kind: string;
   matcherId: string;
-  after: { at: string; id: string };
-  visible: { at: string; id: string } | null;
+  orderId: string;
+  after: { at: string; kind: 'post' | 'comment' | 'reply'; id: string };
+  visible: {
+    at: string;
+    kind: 'post' | 'comment' | 'reply';
+    id: string;
+  } | null;
 }
 export async function searchHarness() {
   const database = process.env['TEST_DATABASE_URL'];
@@ -226,7 +231,12 @@ export async function searchHarness() {
       ) => {
         const call = request(http)
           .get('/v1/community/search')
-          .query({ spaceId: scope.home.spaceId, q: 'needle', ...query });
+          .query({
+            spaceId: scope.home.spaceId,
+            q: 'needle',
+            type: 'post',
+            ...query,
+          });
         return viewer
           ? call.set('Authorization', `Bearer ${viewer.accessToken}`)
           : call;
@@ -256,18 +266,24 @@ export async function searchHarness() {
         'after',
         'kind',
         'matcherId',
+        'orderId',
         'v',
         'visible',
       ]);
       assert.equal(row.position.kind, 'search');
-      assert.equal(row.position.v, 1);
+      assert.equal(row.position.orderId, 'created-desc-kind-asc-id-desc-v1');
+      assert.equal(row.position.v, 3);
       assert.equal(
         row.position.matcherId,
         `unicode-lower-substring-v1:${process.versions['unicode']}`,
       );
       for (const coordinate of [row.position.after, row.position.visible])
         if (coordinate) {
-          assert.deepEqual(Object.keys(coordinate).sort(), ['at', 'id']);
+          assert.deepEqual(Object.keys(coordinate).sort(), [
+            'at',
+            'id',
+            'kind',
+          ]);
           assert.match(
             coordinate.at,
             /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}Z$/,

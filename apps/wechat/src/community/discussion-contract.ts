@@ -98,13 +98,12 @@ export function decodeReply(value: unknown): Reply {
   if (!available && value.target.status !== 'unavailable') invalid();
   if (
     !isUuid(value.rootCommentId) ||
-    value.id === value.rootCommentId ||
     (available &&
       (!isUuid(value.target.id) ||
         !['comment', 'reply'].includes(String(value.target.kind)) ||
         (value.target.kind === 'comment' &&
           value.target.id !== value.rootCommentId) ||
-        value.target.id === value.id))
+        (value.target.kind === 'reply' && value.target.id === value.id)))
   )
     invalid();
   const base = decodeComment({

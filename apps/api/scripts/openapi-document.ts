@@ -277,3 +277,54 @@ export async function createAnnouncementsOpenApiDocument(): Promise<OpenAPIObjec
 export async function renderAnnouncementsOpenApiDocument(): Promise<string> {
   return renderDocument(await createAnnouncementsOpenApiDocument());
 }
+
+/** Offline official controller/owner export; never starts application work. */
+export async function createSearchOpenApiDocument(): Promise<OpenAPIObject> {
+  const { SearchController } =
+    await import('../src/community/search/controller.js');
+  const { SearchService } = await import('../src/community/search/service.js');
+  if (
+    !Reflect.hasMetadata(
+      PARAMTYPES_METADATA,
+      SearchController.prototype,
+      'search',
+    )
+  )
+    throw new Error(
+      'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+    );
+  const fail = () => {
+    throw new Error('OpenAPI must not execute application work');
+  };
+  const testing = await Test.createTestingModule({
+    controllers: [SearchController],
+    providers: [{ provide: SearchService, useValue: { search: fail } }],
+  }).compile();
+  const app = testing.createNestApplication({ logger: false });
+  try {
+    return SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setOpenAPIVersion('3.0.3')
+        .setTitle('WhaleU community content search')
+        .setVersion('1')
+        .addSecurity('accessToken', {
+          type: 'http',
+          scheme: 'bearer',
+          description:
+            'Opaque WhaleU access token. Optional for initial post preview only.',
+        })
+        .build(),
+      {
+        deepScanRoutes: false,
+        autoTagControllers: false,
+        excludeDynamicDefaults: true,
+      },
+    );
+  } finally {
+    await app.close();
+  }
+}
+export async function renderSearchOpenApiDocument(): Promise<string> {
+  return renderDocument(await createSearchOpenApiDocument());
+}

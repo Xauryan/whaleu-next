@@ -23,6 +23,7 @@ export async function smokeSearch({
     search: app.community.search,
     gateway: app.community.gateway,
     credentials: app.identity.sessions.snapshot().credentials,
+    navigateTo: globalThis.wx.navigateTo,
   };
   const campusId = '33333333-3333-4333-8333-333333333333';
   const spaceId = postWire().space.id;
@@ -34,14 +35,73 @@ export async function smokeSearch({
     browseFails = false,
     aggregateSparse = false,
     aggregateLoginRequired = false,
+    discussionMode = false,
     page;
+  const hitWire = (source, kind = 'post') => {
+    const rootCommentId =
+      kind === 'post' ? null : '88888888-8888-4888-8888-888888888888';
+    const replyId =
+      kind === 'reply' ? 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' : null;
+    return {
+      kind,
+      contentId: kind === 'post' ? source.id : (replyId ?? rootCommentId),
+      postId: source.id,
+      rootCommentId,
+      replyId,
+      space: source.space,
+      category: source.category,
+      tradingSubtype:
+        source.trading?.subtype.kind === 'known'
+          ? source.trading.subtype.key
+          : null,
+      tradingUrgency: source.trading?.urgency ?? null,
+      createdAt: source.publishedAt.replace('.000Z', '.000000Z'),
+      author: source.author,
+      postSummary: [...source.text].slice(0, 80).join(''),
+      snippet: {
+        segments: [
+          {
+            text:
+              kind === 'post'
+                ? source.text
+                : '仅在子讨论命中的校园原文 <script>İ%_\\',
+            matched: true,
+          },
+        ],
+        truncatedBefore: false,
+        truncatedAfter: false,
+      },
+      target: {
+        kind,
+        postId: source.id,
+        ...(rootCommentId ? { rootCommentId } : {}),
+        ...(replyId ? { replyId } : {}),
+      },
+    };
+  };
   const api = new ApiClient(
     'https://api.example',
     {
       send: async (request) => {
         requests.push(request);
         const url = new URL(request.url);
-        const response = (body) => ({ status: 200, headers: {}, body });
+        const response = (body) => ({
+          status: 200,
+          headers: {},
+          body: body.continuation
+            ? {
+                ...body,
+                items: body.items.map((item) =>
+                  item.kind ? item : hitWire(item),
+                ),
+                effectiveTypes:
+                  body.effectiveTypes ??
+                  (request.headers.Authorization
+                    ? ['post', 'comment', 'reply']
+                    : ['post']),
+              }
+            : body,
+        });
         assert.equal(request.method, 'GET');
         assert.equal(request.body, undefined);
         if (url.pathname === '/v1/community/spaces') {
@@ -66,6 +126,19 @@ export async function smokeSearch({
           });
         }
         assert.equal(url.pathname, '/v1/community/search');
+        if (discussionMode) {
+          const type = url.searchParams.get('type') ?? 'all';
+          const items = ['post', 'comment', 'reply'].map((kind) =>
+            hitWire(postWire(), kind),
+          );
+          return response({
+            items: items.filter((item) => type === 'all' || item.kind === type),
+            continuation: 'end',
+            nextCursor: null,
+            effectiveTypes:
+              type === 'all' ? ['post', 'comment', 'reply'] : [type],
+          });
+        }
         const scope = url.searchParams.get('scope');
         assert.equal(url.searchParams.get('spaceId'), scope ? null : spaceId);
         assert.equal(url.searchParams.get('q'), '校园 İ%_\\');
@@ -170,19 +243,19 @@ export async function smokeSearch({
     page.onSubmit();
     await flush();
     assert.equal(page.data.continuation, 'scan_pending');
-    assert.deepEqual(page.data.posts, []);
+    assert.deepEqual(page.data.hits, []);
     page.onInput({ detail: { value: 'unsent' } });
     page.onNext();
     page.onNext();
     await flush();
     assert.equal(page.data.pageNumber, 2);
-    assert.equal(page.data.posts.length, 1);
+    assert.equal(page.data.hits.length, 1);
     assert.equal(page.data.submittedQuery, '校园 İ%_\\');
     assert.equal(page.data.inputDraft, 'unsent');
     page.onPrevious();
     await flush();
     assert.equal(page.data.pageNumber, 1);
-    assert.deepEqual(page.data.posts, []);
+    assert.deepEqual(page.data.hits, []);
     expired = true;
     page.onNext();
     await flush();
@@ -194,19 +267,19 @@ export async function smokeSearch({
     assert.equal(page.data.continuation, 'scan_pending');
     app.community.privateViews.clear();
     page.onHide();
-    assert.deepEqual(page.data.posts, []);
+    assert.deepEqual(page.data.hits, []);
     assert.equal(page.data.submittedQuery, '');
     deleted = true;
     page.onShow();
     await flush();
     assert.equal(page.data.submittedQuery, '校园 İ%_\\');
-    assert.deepEqual(page.data.posts, []);
+    assert.deepEqual(page.data.hits, []);
     assert.equal(page.data.continuation, 'end');
     unavailable = true;
     page.onRefresh();
     await flush();
     assert.equal(page.data.space, null);
-    assert.deepEqual(page.data.posts, []);
+    assert.deepEqual(page.data.hits, []);
     page.onHide();
     app.identity.sessions.logout();
     assert.equal(page.resume, null);
@@ -229,10 +302,10 @@ export async function smokeSearch({
     page.onSubmit();
     await flush();
     assert.equal(page.data.loaded, true);
-    assert.equal(page.data.posts.length, 3);
-    assert.equal(page.data.posts[0].trading.urgency, 'urgent');
-    assert.equal(page.data.posts[0].trading.resolution, 'resolved');
-    assert.equal(new Set(page.data.posts.map((p) => p.space.id)).size, 3);
+    assert.equal(page.data.hits.length, 3);
+    assert.equal(page.data.hits[0].tradingUrgency, 'urgent');
+    assert.equal(page.data.hits[0].category, 'trading');
+    assert.equal(new Set(page.data.hits.map((p) => p.space.id)).size, 3);
     assert.equal(
       requests.filter((r) => r.url.includes('/spaces?')).length,
       beforeBrowse,
@@ -240,20 +313,20 @@ export async function smokeSearch({
     page.onInput({ detail: { value: 'unsent aggregate' } });
     page.onCategory({ currentTarget: { dataset: { key: 'trading' } } });
     assert.equal(page.data.selectedScope, 'regional');
-    assert.deepEqual(page.data.posts, []);
+    assert.deepEqual(page.data.hits, []);
     await flush();
     page.onTradingSubtype({ currentTarget: { dataset: { key: 'shuma' } } });
     await flush();
     const tradingRequest = new URL(requests.at(-1).url);
     assert.equal(tradingRequest.searchParams.get('scope'), 'regional');
     assert.equal(tradingRequest.searchParams.get('tradingSubtype'), 'shuma');
-    assert.equal(page.data.posts[0].trading.resolution, 'resolved');
+    assert.equal(page.data.hits[0].category, 'trading');
     page.onAggregateScope({ currentTarget: { dataset: { scope: 'global' } } });
     await flush();
     assert.equal(page.data.category, 'all');
     assert.equal(page.data.tradingSubtype, '');
-    assert.equal(page.data.posts.length, 2);
-    assert.ok(page.data.posts.every((p) => p.space.kind === 'global'));
+    assert.equal(page.data.hits.length, 2);
+    assert.ok(page.data.hits.every((p) => p.space.kind === 'global'));
     assert.equal(page.data.inputDraft, 'unsent aggregate');
     const count = requests.length;
     page.onCategory({ currentTarget: { dataset: { key: 'discussion' } } });
@@ -263,7 +336,7 @@ export async function smokeSearch({
       currentTarget: { dataset: { scope: 'regional' } },
     });
     await flush();
-    assert.ok(page.data.posts.every((p) => p.space.kind === 'regional'));
+    assert.ok(page.data.hits.every((p) => p.space.kind === 'regional'));
     aggregateSparse = true;
     page.onRefresh();
     await flush();
@@ -272,7 +345,7 @@ export async function smokeSearch({
     page.onNext();
     await flush();
     assert.equal(page.data.restartRequired, true);
-    assert.deepEqual(page.data.posts, []);
+    assert.deepEqual(page.data.hits, []);
     assert.equal(page.data.canPrevious, false);
     expired = false;
     aggregateSparse = false;
@@ -285,13 +358,13 @@ export async function smokeSearch({
     await flush();
     assert.equal(page.data.selectedScope, 'regional');
     assert.equal(page.data.inputDraft, 'unsent aggregate');
-    assert.equal(page.data.posts.length, 1);
+    assert.equal(page.data.hits.length, 1);
     aggregateLoginRequired = true;
     page.onRefresh();
     await flush();
     assert.equal(page.data.continuation, 'login_required');
     assert.equal(page.data.canNext, false);
-    assert.deepEqual(page.data.posts, []);
+    assert.deepEqual(page.data.hits, []);
     aggregateLoginRequired = false;
     page.onUnload();
 
@@ -306,11 +379,91 @@ export async function smokeSearch({
     page.onSubmit();
     await flush();
     assert.equal(page.data.loaded, true);
-    assert.equal(page.data.posts.length, 3);
+    assert.equal(page.data.hits.length, 3);
     assert.equal(page.data.error, '');
     assert.match(page.data.browseNotice, /仍可使用/);
+    page.onUnload();
+    if (original.credentials)
+      app.identity.sessions.completeLogin(
+        app.identity.sessions.beginLogin(),
+        original.credentials,
+      );
+    discussionMode = true;
+    page = mountPage(
+      path.join(dist, 'pages/community-search/community-search.js'),
+      { scope: 'all' },
+    );
+    await flush();
+    page.onInput({ detail: { value: '校园 İ%_\\' } });
+    page.onSubmit();
+    await flush();
+    assert.deepEqual(
+      page.data.hits.map((item) => item.kind),
+      ['post', 'comment', 'reply'],
+    );
+    assert.ok(
+      page.data.hits.every(
+        (item) =>
+          !('images' in item) &&
+          !('viewer' in item) &&
+          !('commentCount' in item),
+      ),
+    );
+    page.onInput({ detail: { value: 'draft remains unsubmitted' } });
+    page.onType({ currentTarget: { dataset: { key: 'reply' } } });
+    await flush();
+    page.onFromDate({ detail: { value: '2026-10-01' } });
+    await flush();
+    page.onToDate({ detail: { value: '2026-10-08' } });
+    await flush();
+    page.onWithinPost({
+      currentTarget: { dataset: { postId: postWire().id } },
+    });
+    await flush();
+    const filtered = new URL(requests.at(-1).url);
+    assert.equal(filtered.searchParams.get('type'), 'reply');
+    assert.equal(
+      filtered.searchParams.get('from'),
+      '2026-10-01T00:00:00.000000Z',
+    );
+    assert.equal(
+      filtered.searchParams.get('to'),
+      '2026-10-08T00:00:00.000000Z',
+    );
+    assert.equal(filtered.searchParams.get('postId'), postWire().id);
+    assert.equal(page.data.inputDraft, 'draft remains unsubmitted');
+    const selected = page.data.hits[0];
+    const routes = [];
+    globalThis.wx.navigateTo = ({ url, success }) => {
+      routes.push(url);
+      success();
+    };
+    page.onHit({
+      currentTarget: {
+        dataset: { kind: selected.kind, id: selected.contentId },
+      },
+    });
+    assert.deepEqual(page.data.hits, []);
+    await flush();
+    assert.deepEqual(routes, [
+      `/pages/community-thread/community-thread?postId=${selected.postId}&rootCommentId=${selected.rootCommentId}&replyId=${selected.replyId}`,
+    ]);
+    assert.ok(!routes[0].includes('q=') && !routes[0].includes('snippet'));
+    page.onHide();
+    page.onShow();
+    await flush();
+    assert.equal(page.data.searchType, 'reply');
+    assert.equal(page.data.withinPostId, selected.postId);
+    assert.equal(page.data.hits.length, 1);
+    page.onClearDates();
+    await flush();
+    page.onClearPost();
+    await flush();
+    assert.equal(page.data.from, '');
+    assert.equal(page.data.withinPostId, '');
   } finally {
     page?.onUnload();
+    globalThis.wx.navigateTo = original.navigateTo;
     app.community.search = original.search;
     app.community.gateway = original.gateway;
     if (original.credentials)
@@ -320,6 +473,6 @@ export async function smokeSearch({
       );
   }
   console.log(
-    'Search compiled native smoke passed: explicit and all/regional/global scopes, no-campus entry, stale optional browse, urgent/resolved and source-space decoding, visible category transitions, frozen query, sparse continuation, fresh previous, membership restart, hide/reopen and account clearing. No physical-device claim.',
+    'Search compiled native smoke passed: lightweight mixed hits, structured reply navigation, type/date/within-post filters, plain server segments, explicit and all/regional/global scopes, no-campus entry, stale optional browse, urgent/resolved and source-space decoding, visible category transitions, frozen query, sparse continuation, fresh previous, membership restart, hide/reopen and account clearing. No physical-device claim.',
   );
 }

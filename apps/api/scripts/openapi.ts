@@ -99,3 +99,25 @@ if (args[0] === '--check') {
   await writeFile(announcementsArtifact, announcementsRendered, 'utf8');
   console.log('Generated docs/openapi/announcements.json.');
 }
+
+const { renderSearchOpenApiDocument } = await import('./openapi-document.js');
+const searchArtifact = new URL(
+  '../../../../docs/openapi/community-search.json',
+  import.meta.url,
+);
+const searchRendered = await renderSearchOpenApiDocument();
+if (args[0] === '--check') {
+  const existing = await readFile(searchArtifact, 'utf8').catch(() => {
+    throw new Error(
+      'Search OpenAPI artifact is missing; run npm run openapi:generate.',
+    );
+  });
+  if (existing !== searchRendered)
+    throw new Error(
+      'Search OpenAPI artifact is stale; run npm run openapi:generate.',
+    );
+  console.log('Community search OpenAPI artifact is current.');
+} else {
+  await writeFile(searchArtifact, searchRendered, 'utf8');
+  console.log('Generated docs/openapi/community-search.json.');
+}

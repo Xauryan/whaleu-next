@@ -57,20 +57,29 @@ export class HttpSearchGateway implements SearchGateway {
       (result.continuation === 'scan_pending' &&
         result.items.length >= limit) ||
       (after !== null && result.nextCursor === after) ||
+      (intent.type !== undefined &&
+        intent.type !== 'all' &&
+        (result.effectiveTypes.length !== 1 ||
+          result.effectiveTypes[0] !== intent.type)) ||
+      ((intent.type === undefined || intent.type === 'all') &&
+        !['post', 'post,comment,reply'].includes(
+          result.effectiveTypes.join(','),
+        )) ||
       result.items.some(
         (item) =>
           (intent.scope === undefined
             ? item.space.id !== intent.spaceId
             : intent.scope !== 'all' && item.space.kind !== intent.scope) ||
+          (intent.postId !== undefined && item.postId !== intent.postId) ||
+          (intent.from !== undefined && item.createdAt < intent.from) ||
+          (intent.to !== undefined && item.createdAt >= intent.to) ||
           (intent.category !== undefined &&
             item.category !== intent.category) ||
           (intent.scope === undefined &&
             intent.category === undefined &&
-            item.trading?.urgency === 'urgent') ||
+            item.tradingUrgency === 'urgent') ||
           (intent.tradingSubtype !== undefined &&
-            (!item.trading ||
-              item.trading.subtype.kind !== 'known' ||
-              item.trading.subtype.key !== intent.tradingSubtype)),
+            item.tradingSubtype !== intent.tradingSubtype),
       )
     )
       invalid();

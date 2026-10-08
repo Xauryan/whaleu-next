@@ -3,15 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test } from 'node:test';
 import type { PoolClient } from 'pg';
-import request from 'supertest';
 import { lockSafetyPolicy } from '../../src/safety/locks.js';
 import { hashToken } from '../../src/identity/tokens.js';
 import { discoveryCursorBucket } from '../../src/community/discovery-cursors.js';
-import {
-  setRuntimeVerification,
-  discussionApprovalEnvelope,
-} from '../support/community-runtime-fixtures.js';
-import { approveEnvelope } from '../support/community-approval-fixtures.js';
+import { setRuntimeVerification } from '../support/community-runtime-fixtures.js';
+import { childEnvelope, seedChildren } from './discussion-search-fixtures.js';
 import { searchHarness, ok, failure } from './search-fixtures.js';
 import {
   freshWorld,
@@ -19,7 +15,6 @@ import {
   addSpace,
   ids,
   instant,
-  trading,
   backendPid,
   waitForLock,
 } from './federated-search-fixtures.js';
@@ -470,7 +465,7 @@ test(
               let waited = false;
               for (let i = 0; i < 400; i++) {
                 const result = await h.pool.query<{ waiting: boolean }>(
-                  "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE query LIKE '%FROM whaleu_community.posts WHERE id=$1 FOR SHARE%' AND wait_event_type='Lock') AS waiting",
+                  "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE query LIKE '%FROM whaleu_community.posts p WHERE p.id=$1 FOR SHARE OF p%' AND wait_event_type='Lock') AS waiting",
                 );
                 if (result.rows[0]!.waiting) {
                   waited = true;
@@ -598,48 +593,67 @@ test(
       );
 
       await t.test(
-        'mandatory named and nested formation proofs roll back aggregate cursors after actual block insertion',
+        'mandatory named post and named child proofs roll back aggregate cursors after actual block insertion',
         async () => {
-          for (const nested of [false, true]) {
+          for (const subject of ['post', 'comment', 'reply'] as const) {
             const w = await freshWorld(h),
-              child = nested ? await w.actor() : w.author;
-            const created = await w.publish({
+              child = await w.actor();
+            const parent = await w.publish({
               spaceId: w.scope.global.spaceId,
-              text: 'needle protected',
-              ...(nested
-                ? {
-                    authorMode: 'anonymous' as const,
-                    component: {
-                      kind: 'formation' as const,
-                      capacity: 20,
-                      theme: '合成组局',
-                      contacts: trading.contacts,
-                      contactSharing: 'members_v1' as const,
-                    },
-                  }
-                : {}),
+              text:
+                subject === 'post'
+                  ? 'needle protected'
+                  : 'plain anonymous parent',
+              authorMode: subject === 'post' ? 'named' : 'anonymous',
             });
-            if (nested) {
-              const joined = await request(h.http)
-                .post(`/v1/community/posts/${created.id}/formation/memberships`)
-                .set('Authorization', `Bearer ${child.accessToken}`)
-                .send({
-                  clientRequestId: randomUUID(),
-                  contacts: trading.contacts,
-                  contactSharing: 'members_v1',
+            const author = subject === 'post' ? w.author : child;
+            if (subject === 'post') {
+              const base = await w.envelope({ text: 'needle older' });
+              await w.seed(2, () => base, { time: instant });
+            } else {
+              const rootEnvelope = await childEnvelope(
+                h,
+                w,
+                parent.id,
+                null,
+                subject === 'comment' ? child : w.author,
+                subject === 'comment'
+                  ? 'needle protected root'
+                  : 'plain anonymous root',
+                subject === 'comment' ? 'named' : 'anonymous',
+              );
+              const roots = await seedChildren(
+                h,
+                'comment',
+                subject === 'comment' ? 3 : 1,
+                () => rootEnvelope,
+                { time: instant },
+              );
+              if (subject === 'reply') {
+                const replyEnvelope = await childEnvelope(
+                  h,
+                  w,
+                  parent.id,
+                  roots[0]!.id,
+                  child,
+                  'needle protected reply',
+                );
+                await seedChildren(h, 'reply', 3, () => replyEnvelope, {
+                  time: instant,
                 });
-              assert.equal(joined.status, 201, JSON.stringify(joined.body));
-              assert.equal(joined.body.outcome, 'created');
+              }
             }
-            const base = await w.envelope({ text: 'needle older' });
-            await w.seed(2, () => base, { time: instant });
+            const baseline = await w.aggregate({ type: subject, limit: '1' });
+            ok(baseline);
+            assert.equal(baseline.body.items[0].kind, subject);
+            assert.equal(baseline.body.items[0].discussionCount, undefined);
             const before = await cursorCount();
             let inserted = false,
               proof = false;
             h.observer.setHook(async (event) => {
               if (
                 event.sql.includes(finalRows) &&
-                (event.values[1] as string[]).includes(child.accountId)
+                (event.values[1] as string[]).includes(author.accountId)
               )
                 proof = true;
               if (
@@ -649,12 +663,16 @@ test(
                 )
               ) {
                 inserted = true;
-                await h.writeBlock(w.reader, child);
+                await h.writeBlock(w.reader, author);
               }
             });
             try {
               failure(
-                await w.aggregate({ limit: '1' }),
+                await w.aggregate({
+                  type: subject,
+                  limit: '1',
+                  q: 'protected',
+                }),
                 503,
                 'COMMUNITY_UNAVAILABLE',
               );
@@ -664,118 +682,11 @@ test(
             } finally {
               h.observer.setHook(null);
             }
-          }
-        },
-      );
-      await t.test(
-        'selected cross-space cards retain final named comment and reply count proofs',
-        async () => {
-          for (const subject of ['comment', 'reply'] as const) {
-            const w = await freshWorld(h),
-              child = await w.actor();
-            const parent = await w.publish({
-              spaceId: w.scope.global.spaceId,
-              text: 'needle discussion',
-              authorMode: 'anonymous',
-            });
-            const rootBody = {
-              clientRequestId: randomUUID(),
-              text: 'Synthetic nested root',
-              imageAssetIds: [],
-              authorMode:
-                subject === 'comment'
-                  ? ('named' as const)
-                  : ('anonymous' as const),
-            };
-            const rootOwner = subject === 'comment' ? child : w.author;
-            await approveEnvelope(
-              h.pool,
-              await discussionApprovalEnvelope(
-                h.app,
-                h.pool,
-                rootOwner.accountId,
-                parent.id,
-                rootBody,
-              ),
-            );
-            const root = await request(h.http)
-              .post(`/v1/community/posts/${parent.id}/comments`)
-              .set('Authorization', `Bearer ${rootOwner.accessToken}`)
-              .send(rootBody);
-            assert.equal(root.status, 201, JSON.stringify(root.body));
-            assert.equal(root.body.outcome, 'created');
-            if (subject === 'reply') {
-              const replyBody = {
-                clientRequestId: randomUUID(),
-                text: 'Synthetic nested reply',
-                imageAssetIds: [],
-                authorMode: 'named' as const,
-                targetReplyId: null,
-              };
-              await approveEnvelope(
-                h.pool,
-                await discussionApprovalEnvelope(
-                  h.app,
-                  h.pool,
-                  child.accountId,
-                  parent.id,
-                  replyBody,
-                  root.body.resourceId as string,
-                ),
-              );
-              const reply = await request(h.http)
-                .post(
-                  `/v1/community/comments/${root.body.resourceId as string}/replies`,
-                )
-                .set('Authorization', `Bearer ${child.accessToken}`)
-                .send(replyBody);
-              assert.equal(reply.status, 201, JSON.stringify(reply.body));
-              assert.equal(reply.body.outcome, 'created');
-            }
-            const older = await w.envelope({ text: 'needle older regional' });
-            await w.seed(2, () => older, { time: instant });
-            const baseline = await w.aggregate({ limit: '1' });
-            ok(baseline);
-            assert.equal(
-              baseline.body.items[0].discussionCount,
-              subject === 'comment' ? 1 : 2,
-            );
-            const before = await cursorCount();
-            let inserted = false,
-              childProof = false;
-            h.observer.setHook(async (event) => {
-              if (
-                event.sql.includes(finalRows) &&
-                (event.values[1] as string[]).includes(child.accountId)
-              )
-                childProof = true;
-              if (
-                !inserted &&
-                event.sql.includes(
-                  'INSERT INTO whaleu_community.discovery_cursors',
-                )
-              ) {
-                inserted = true;
-                await h.writeBlock(w.reader, child);
-              }
-            });
-            try {
-              failure(
-                await w.aggregate({ limit: '1', q: 'discussion' }),
-                503,
-                'COMMUNITY_UNAVAILABLE',
-              );
-              assert.equal(inserted, true);
-              assert.equal(childProof, true);
-              assert.equal(await cursorCount(), before);
-            } finally {
-              h.observer.setHook(null);
-            }
-            const changed = await w.aggregate({ limit: '1' });
+            const changed = await w.aggregate({ type: subject, limit: '1' });
             ok(changed);
             assert.equal(
-              changed.body.items[0].discussionCount,
-              subject === 'comment' ? 0 : 1,
+              JSON.stringify(changed.body).includes(author.profileId),
+              false,
             );
           }
         },

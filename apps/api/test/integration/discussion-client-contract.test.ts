@@ -1546,6 +1546,20 @@ test(
             named.resourceId,
             cancel,
           );
+          // Root comments and replies have separate ID namespaces. Equal UUIDs
+          // across those tables are valid; only a reply targeting itself as a
+          // reply is forbidden. Parent/context ancestry checks remain below.
+          const crossKind = {
+            ...reply,
+            rootCommentId: reply.id,
+            target: {
+              kind: 'comment',
+              id: reply.id,
+              status: 'available',
+              author: root.author,
+            },
+          };
+          assert.deepEqual(decodeReply(crossKind), crossKind);
           for (const decode of [
             () =>
               decodeReply({
@@ -1571,7 +1585,16 @@ test(
                 },
               }),
             () => decodeReply({ ...reply, replies: [] }),
-            () => decodeReply({ ...reply, rootCommentId: reply.id }),
+            () =>
+              decodeReply({
+                ...reply,
+                target: {
+                  kind: 'reply',
+                  id: reply.id,
+                  status: 'available',
+                  author: reply.author,
+                },
+              }),
             () => decodeReplies({ items: [reply, reply], nextCursor: null }),
             () =>
               decodeComment({
