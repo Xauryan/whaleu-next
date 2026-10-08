@@ -1,3 +1,4 @@
+import { ExperienceRankingModule } from './experience-ranking/module.js';
 import { ExperienceModule } from './experience/module.js';
 import { IdentityCampusModule } from './identity-campus/module.js';
 import { ProfileDiscoveryModule } from './profile-discovery/module.js';
@@ -34,6 +35,7 @@ export class AppModule {
         NotificationsModule,
         IdentityPrivacyModule,
         ExperienceModule,
+        ExperienceRankingModule,
       ],
     };
   }

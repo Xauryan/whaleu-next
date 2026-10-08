@@ -63,3 +63,11 @@ Historical population/baseline reconciliation, received-interaction semantics,
 ranking, limited/special title workflows, real providers/devices and production
 processing remain incomplete. No production writes, campaign activation, real
 account grant or historical data import was performed.
+
+## Hosted verification
+
+Commit `f331a79eada5fc14b07e0f76aa6102c69563d20f` was pushed with a valid
+Verified SSH signature. [GitHub CI run 37724565359](https://github.com/Xauryan/whaleu-next/actions/runs/37724565359)
+completed successfully: 408 API, 770 native and 643 real PostgreSQL tests, totaling
+1,821 with zero failures/skips. Hosted PostgreSQL test duration was 440.730 seconds.
+Lint/types/build/emitted smokes and formatting also passed for that exact commit.

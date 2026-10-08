@@ -4,7 +4,7 @@ This is a partial development implementation. It adds an owner-only experience
 ledger, fresh community reward enrollment, daily sign-in, informational tasks,
 levels, owned titles and color selection. Production processing, historical
 balance reconciliation/import, received-interaction
-metrics, rankings, redemption, global title administration and physical-device
+metrics, complete-population ranking, redemption, global title administration and physical-device
 acceptance remain separate gates. Test evidence is recorded independently.
 
 ## Evidence and ownership
@@ -217,3 +217,57 @@ covers 1,000/10,000 settled units on the Stage1 snapshot. This slice does not
 establish broader production-history throughput, production worker activation, old balance adoption,
 public received-interaction totals, rankings, campaigns or global maintenance.
 Compiled-page tests do not establish physical WeChat/device rendering.
+
+## Bounded known-participant ranking
+
+`GET /v1/experience/ranking` is a read-only backend capability. Its optional `limit`
+is a canonical decimal string from 1 through 50, default 50. Unknown query keys,
+repeated values, nonempty bodies and malformed authorization are rejected. An
+absent Authorization header permits guest access; a supplied token must be valid
+and remains subject to current identity/session checks. Responses use `no-store`
+and vary by Authorization. No native ranking page is included in this increment.
+
+The response contains `scope: "global"`, `population: "known_participants"`,
+`populationCompleteness: "incomplete"`, `selectionStatus` and `items`. Each item
+contains only `profileId`, `displayName` and the existing safe `experienceDisplay`.
+There are no public exact scores, rank numbers, own-rank calculations, population
+counts, individual coverage details, internal account identifiers or timestamps.
+Global describes the absence of campus partitioning, not complete historical
+coverage or an unfiltered competition rank.
+
+Known balances, including zero, are internally ordered by PostgreSQL bigint balance
+descending and a deterministic owner-key tie break. One statement captures the
+ordering and corresponding public level/appearance. Later changes do not trigger
+mutable keyset refill. Unknown historical balances are omitted, and reads never
+create a profile, baseline, entitlement, reward or settlement.
+
+Selection considers at most 256 candidates from that captured window, with one
+extra row used only to detect a remaining suffix. Existing profiles and active accounts are required. Signed-in nonself viewers
+also require the current bilateral named-profile relationship; guest and self
+reads use their existing policy exceptions. A
+hidden post list does not itself hide the public profile's level or appearance.
+Denied candidates are skipped while selection continues within its work/time
+budget. The status is:
+
+- `limit_reached`: the requested number was selected; no promise of more rows
+- `available_candidates_exhausted`: the captured known-data source was exhausted
+- `scan_limited`: selection ended at a work/time bound before filling the request;
+  an empty list in this state is not a complete empty leaderboard
+
+Historical population completeness remains `incomplete` in every case. There is
+no cursor or invented rank-zero entry for missing accounts.
+
+The composition retains accepted active-account locks and required bilateral
+relationship facts through the existing transaction finalizer. Rejected attempts
+release their added locks and proof registrations without discarding earlier
+accepted facts. Mandatory policy/session failure aborts the response; it is not
+converted to a successful empty or partially authorized list. Selected cosmetics
+remain ordinary committed snapshots and confer no authority.
+
+Read statements and lock waits have bounded local settings that never relax
+stricter inherited settings. The selection loop has an elapsed budget and a
+separate completion-validity deadline, while final named-disclosure proof remains
+mandatory. These bounds are not an end-to-end HTTP latency SLA. SQL/proof failures
+fail closed; only clean between-statement selection exhaustion yields
+`scan_limited`. Production historical reconciliation and complete-population
+ranking remain separate gates.

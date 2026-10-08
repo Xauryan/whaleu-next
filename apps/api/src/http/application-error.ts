@@ -3,6 +3,10 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  EXPERIENCE_RANKING_UNAVAILABLE: {
+    status: 503,
+    message: 'Experience ranking is unavailable',
+  },
   EXPERIENCE_BASELINE_UNAVAILABLE: {
     status: 409,
     message: 'Experience baseline is unavailable',

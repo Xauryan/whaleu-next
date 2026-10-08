@@ -348,3 +348,14 @@ therefore implemented locally, superseding that part of the Stage1 gap list abov
 Received totals, rankings, limited/special titles, historical coverage and
 production/device acceptance remain open. See
 [acceptance evidence](acceptance/experience-public-display.md).
+
+Bounded experience ranking checkpoint: the backend now supports guest or strictly
+authenticated known-participant ordering, with a stable bigint snapshot and safe
+public level/title/color only. Existing profiles, active accounts and bilateral
+named-profile policy are enforced before disclosure and through finalization.
+The result always labels historical population completeness as incomplete and
+explicitly reports work/time truncation. No exact public score, ordinal/own rank,
+native leaderboard UI or historical zero is invented. Migration 0023 adds the
+ordered index only. Local aggregate gates pass 1,849 tests; see
+[ranking acceptance](acceptance/experience-ranking.md). This supersedes the generic
+ranking-backend gap above; complete-population ranking remains unavailable.
