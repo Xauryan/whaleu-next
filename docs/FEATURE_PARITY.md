@@ -393,3 +393,13 @@ hotness input, not a complete score, hot feed, search or exposure feature. Histo
 reconciliation, production throughput and the separate received-total policy remain
 open. See [component contract](POST_SUBSCRIPTION_COMPONENT.md) and
 [acceptance evidence](acceptance/post-subscription-component.md).
+
+Post-like component checkpoint: independent future-native-post baselines and
+actual INSERT/DELETE sources now retain like epochs through unlike/re-like, with
+causal membership and atomic receipt/effects. Existing subscription-known posts
+stay like-unknown; no reward, author-total or public hot-feed contract is changed.
+Parent NOWAIT capture, invisible-parent protection, TRUNCATE rejection and manual
+read-only CLI behavior are verified. Local aggregate gates pass 2,076 tests. This
+is another internal score input, not full hotness, view tracking or production
+history reconciliation. See [component contract](POST_LIKE_COMPONENT.md) and
+[acceptance evidence](acceptance/post-like-component.md).

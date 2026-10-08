@@ -8,6 +8,7 @@ const fields = {
   jury: 'SAFETY_JURY_PROCESSING',
   experience: 'EXPERIENCE_PROCESSING',
   subscriptions: 'SUBSCRIPTION_COMPONENT_PROCESSING',
+  likes: 'LIKE_COMPONENT_PROCESSING',
 } as const;
 for (const owner of Object.keys(fields) as (keyof typeof fields)[]) {
   test(`${owner} CLI isolates inherited automatic dispatchers`, () => {
@@ -18,6 +19,7 @@ for (const owner of Object.keys(fields) as (keyof typeof fields)[]) {
       SAFETY_JURY_PROCESSING: 'automatic',
       EXPERIENCE_PROCESSING: 'automatic',
       SUBSCRIPTION_COMPONENT_PROCESSING: 'manual_only',
+      LIKE_COMPONENT_PROCESSING: 'manual_only',
     });
     const selected = manualProcessingConfig(config, owner);
     for (const [name, field] of Object.entries(fields)) {
@@ -27,7 +29,9 @@ for (const owner of Object.keys(fields) as (keyof typeof fields)[]) {
       );
       assert.equal(
         config[field],
-        name === 'subscriptions' ? 'manual_only' : 'automatic',
+        name === 'subscriptions' || name === 'likes'
+          ? 'manual_only'
+          : 'automatic',
       );
     }
     assert.equal(selected.DATABASE_URL, config.DATABASE_URL);

@@ -70,3 +70,11 @@ open. Retained-source causal-head queries can grow with history; no fixed physic
 query-work bound or production throughput claim is made. The separate received-total
 deletion-policy decision is unaffected. No production data or real user action was
 processed by these tests.
+
+## Hosted verification
+
+Commit `ceda58f302482a2d02be5ac3d69692f7b1031307` was pushed with a valid
+Verified SSH signature. [GitHub CI run 37735274954](https://github.com/Xauryan/whaleu-next/actions/runs/37735274954)
+completed successfully: 453 API, 784 native and 767 real PostgreSQL tests, totaling
+2,004 with zero failures/skips. Hosted PostgreSQL test duration was 438.022 seconds.
+Lint/types/build/emitted smokes and formatting passed for that exact commit.

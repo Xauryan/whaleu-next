@@ -5,6 +5,7 @@ const processingFields = {
   jury: 'SAFETY_JURY_PROCESSING',
   experience: 'EXPERIENCE_PROCESSING',
   subscriptions: 'SUBSCRIPTION_COMPONENT_PROCESSING',
+  likes: 'LIKE_COMPONENT_PROCESSING',
 } as const;
 
 /** A selected CLI run must never start any background dispatcher, even when
@@ -20,6 +21,7 @@ export function manualProcessingConfig(
     SAFETY_JURY_PROCESSING: 'disabled',
     EXPERIENCE_PROCESSING: 'disabled',
     SUBSCRIPTION_COMPONENT_PROCESSING: 'disabled',
+    LIKE_COMPONENT_PROCESSING: 'disabled',
     [field]: config[field] === 'disabled' ? 'disabled' : 'manual_only',
   });
 }

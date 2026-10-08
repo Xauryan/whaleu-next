@@ -8,7 +8,7 @@ import {
 } from '../src/community/publication.repository.js';
 import type { CommunityRepository } from '../src/community/community.repository.js';
 import type { CommunityAccessService } from '../src/community/community-access.service.js';
-import { CommunitySubscriptionEnrollment } from '../src/community/subscription-component/enrollment.js';
+import { CommunityLikeEnrollment } from '../src/community/like-component/enrollment.js';
 import type {
   PublicationOperation,
   PublicationReceipt,
@@ -70,13 +70,20 @@ function fixture(
       calls.push('enroll');
       if (failHook) throw new Error('hook failed');
     },
-  } as CommunitySubscriptionEnrollment;
+  } as CommunityLikeEnrollment;
   return {
     calls,
     intent,
-    repository: new PublicationRepository(repository, access, enrollment, {
-      enrollPublishedPost: async () => {},
-    }),
+    repository: new PublicationRepository(
+      repository,
+      access,
+      {
+        enrollPublishedPost: async () => {
+          calls.push('subscription-enroll');
+        },
+      },
+      enrollment,
+    ),
   };
 }
 test('fresh post enrollment follows persisted origin and receipt on the existing transaction', async () => {
@@ -103,7 +110,7 @@ test('fresh post enrollment follows persisted origin and receipt on the existing
   );
   assert.deepEqual(f.calls.slice(at), ['enroll', 'actor', 'COMMIT']);
 });
-test('replay, rejected post, comment and reply never enroll a subscription baseline', async () => {
+test('replay, rejected post, comment and reply never enroll a like baseline', async () => {
   const replay = fixture('publish_post', {
     requestId: request,
     operation: 'publish_post',

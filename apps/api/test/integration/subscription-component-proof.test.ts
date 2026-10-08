@@ -1,3 +1,4 @@
+import { CommunityLikeEnrollment } from '../../src/community/like-component/enrollment.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -42,6 +43,8 @@ test(
       )
     ).rows[0]!.locked;
     let owns = false;
+    let currentLikeSchema = false;
+    const likes = new CommunityLikeEnrollment();
     const owner = randomUUID(),
       actor = randomUUID(),
       other = randomUUID(),
@@ -82,6 +85,13 @@ test(
         "INSERT INTO whaleu_community.report_origins(kind,target_id,owner_account_id,source_request_id,provenance) VALUES('post',$1,$2,$3,'native_publication')",
         [post, owner, request],
       );
+      // Only current-schema fresh fixtures satisfy the independent like contract.
+      // Historical pre-0026 native publications intentionally remain untouched.
+      if (currentLikeSchema)
+        await likes.enrollPublishedPost(
+          { postId: post, ownerId: owner, publicationRequestId: request },
+          tx,
+        );
       if (change.priorSave) await save(tx, post);
       if (enroll) {
         await tx.query(
@@ -271,6 +281,7 @@ test(
         save(tx, historical.post),
       );
       await runMigrations(pool, migrations, { mode: 'up' });
+      currentLikeSchema = true;
       await t.test(
         'genuine old native post and historical obligation remain unknown',
         async () => {

@@ -17,7 +17,8 @@
     "updates:process": "node --env-file-if-exists=../../.env --import tsx src/notifications/process-updates.ts",
     "juries:process": "node --env-file-if-exists=../../.env --import tsx src/safety/reporting/process-juries.ts",
     "experience:process": "node --env-file-if-exists=../../.env --import tsx src/experience/process-experience.ts",
-    "subscriptions:process": "node --env-file-if-exists=../../.env --import tsx src/community/subscription-component/process-subscriptions.ts"
+    "subscriptions:process": "node --env-file-if-exists=../../.env --import tsx src/community/subscription-component/process-subscriptions.ts",
+    "likes:process": "node --env-file-if-exists=../../.env --import tsx src/community/like-component/process-likes.ts"
   },
   "dependencies": {
     "@nestjs/common": "12.1.2",

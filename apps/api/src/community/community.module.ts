@@ -1,3 +1,4 @@
+import { CommunityLikeComponentModule } from './like-component/module.js';
 import { CommunitySubscriptionComponentModule } from './subscription-component/module.js';
 import { ExperienceIngressModule } from '../experience/ingress.js';
 import { CommunityExperienceSourceCapture } from './experience-source/capture.js';
@@ -232,6 +233,7 @@ export class CommunityRecoveryController {
 @Module({
   imports: [
     CommunitySubscriptionComponentModule,
+    CommunityLikeComponentModule,
     ExperienceIngressModule,
     DatabaseModule,
     CampusModule,
