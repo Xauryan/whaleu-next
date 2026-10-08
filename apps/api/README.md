@@ -217,9 +217,10 @@ reply authors and retains undated known-owned memberships without invented dates
 
 Pages now make bounded forward progress through arbitrary-length history using
 private durable opaque cursor coordinates; hidden-only batches return explicit
-scan continuation. Small safely proven basic counts remain exact; unavailable
-counts are null and do not block authorized pages. Scalable exact current-policy
-counts, optional public UID/title/media/affiliation/experience/received-interaction
+scan continuation. Exact current-policy counts now use bounded canonical streaming and final owner
+mutation proofs independently of pages; unavailable counts remain null and do
+not block authorized pages. Count availability under representative concurrent
+load, optional public UID/title/media/affiliation/experience/received-interaction
 owners and full native-device/provider/migration acceptance remain explicit
 release/parity gates. See
 [public profiles](../../docs/API_PUBLIC_PROFILES.md) and

@@ -6,6 +6,7 @@ import type { PoolClient } from 'pg';
 import {
   approvalDigest,
   canonicalEnvelope,
+  canonicalEqual,
   canonicalJson,
 } from '../src/community/content-review/contracts.js';
 import type {
@@ -549,4 +550,87 @@ test('binding uniqueness is a transient review failure', async () => {
     images: [],
   };
   assert.equal(legacy.envelope, undefined);
+});
+
+test('canonical weak caches recognize only internally validated roots and never cache mutable inputs', () => {
+  const input = raw(),
+    parsed = canonicalEnvelope(input);
+  assert.equal(canonicalEnvelope(parsed), parsed);
+  const before = approvalDigest(input);
+  input.text += ' changed';
+  assert.notEqual(approvalDigest(input), before);
+  assert.notEqual(canonicalJson(input), canonicalJson(parsed));
+  assert.equal(approvalDigest(parsed), before);
+  assert.equal(approvalDigest(parsed), before);
+  const external = Object.freeze(structuredClone(parsed));
+  const checked = canonicalEnvelope(external);
+  assert.notEqual(checked, external);
+  assert.ok(Object.isFrozen(checked.scope));
+  external.scope.authorOriginRegionId = randomUUID();
+  assert.notEqual(approvalDigest(external), approvalDigest(checked));
+  assert.throws(() =>
+    canonicalEnvelope(Object.freeze({ ...parsed, unexpected: true })),
+  );
+  assert.throws(() =>
+    canonicalEnvelope(Object.freeze({ ...parsed, version: 2 })),
+  );
+});
+
+test('canonical structural equality matches serialization for supported values without dropping keys or array order', () => {
+  const pairs: [unknown, unknown][] = [
+    [
+      { a: 1, b: [true, null, { x: '雪', y: -0 }] },
+      { b: [true, null, { y: 0, x: '雪' }], a: 1 },
+    ],
+    [{ a: 1 }, { a: 1, b: null }],
+    [
+      [1, 2],
+      [2, 1],
+    ],
+    [{ a: [1] }, { a: [1, 2] }],
+    ['same', 'same'],
+    ['same', 'different'],
+    [false, false],
+    [null, null],
+    [{ a: null }, { a: {} }],
+    [{ a: { b: 2 } }, { a: { b: 3 } }],
+    [1, 1.0],
+    [1, 2],
+    [canonicalEnvelope(raw()), canonicalEnvelope(raw())],
+  ];
+  for (const [left, right] of pairs)
+    assert.equal(
+      canonicalEqual(left, right),
+      canonicalJson(left) === canonicalJson(right),
+    );
+  assert.equal(canonicalEqual({ a: undefined }, { a: undefined }), false);
+  assert.equal(canonicalEqual(NaN, NaN), false);
+  assert.equal(canonicalEqual(Infinity, Infinity), false);
+  assert.equal(canonicalEqual(new Array(1), [null]), false);
+});
+
+test('cached canonical text retains the original V1 digest bytes', () => {
+  const id = '00000000-0000-4000-8000-000000000001',
+    space = '00000000-0000-4000-8000-000000000002',
+    region = '00000000-0000-4000-8000-000000000003';
+  const input = {
+    ...raw(),
+    accountId: id,
+    spaceId: space,
+    text: 'Reviewed canonical example text',
+    scope: {
+      originalSpaceId: space,
+      originalRegionId: region,
+      authorOriginRegionId: region,
+      identityRegionId: region,
+      topologySnapshotId: null,
+      sync: 'none' as const,
+    },
+  };
+  const expected =
+    'ec0d15f6900d34d327cb5c9b4d534f7d0ba00d9fa5eb4184dbb24de1189dce7f';
+  const parsed = canonicalEnvelope(input);
+  assert.equal(approvalDigest(input), expected);
+  assert.equal(approvalDigest(parsed), expected);
+  assert.equal(approvalDigest(canonicalEnvelope(parsed)), expected);
 });

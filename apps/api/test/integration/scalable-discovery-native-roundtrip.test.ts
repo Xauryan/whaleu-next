@@ -757,8 +757,8 @@ test(
         do {
           const page = await profileList(next, 50, actor, target);
           assert.equal(page.status, 'available');
-          assert.equal(page.total, null);
-          assert.equal(page.totalStatus, 'unavailable');
+          assert.equal(page.total, target === hiddenProfileId ? 0 : 1102);
+          assert.equal(page.totalStatus, 'known');
           for (const item of page.items) {
             if (previous)
               assert.ok(
@@ -789,8 +789,8 @@ test(
         async () => {
           const basic = await reader.discovery.profile(authorProfileId, cancel);
           assert.equal(basic.status, 'available');
-          assert.equal(basic.postCount, null);
-          assert.equal(basic.postCountStatus, 'unavailable');
+          assert.equal(basic.postCount, 1102);
+          assert.equal(basic.postCountStatus, 'known');
           assert.equal(basic.tradeCount, 0);
           assert.equal(basic.tradeCountStatus, 'known');
           const smallBasic = await reader.discovery.profile(
@@ -819,8 +819,8 @@ test(
             const page = await likedList(cursor);
             if (page.items.some((item) => item.likedAt === null))
               undatedPages++;
-            assert.equal(page.visibleLikedCount, null);
-            assert.equal(page.visibleLikedCountStatus, 'unavailable');
+            assert.equal(page.visibleLikedCount, 1102);
+            assert.equal(page.visibleLikedCountStatus, 'known');
             for (const item of page.items) {
               assert.ok(!seen.has(item.targetId));
               if (previous) {
@@ -864,7 +864,7 @@ test(
         },
       );
       await t.test(
-        'multiple held-only batches remain pending; all-held terminal is not a guessed exact zero',
+        'held-only pages keep scan continuation while an independent proof establishes exact zero',
         async () => {
           const first = await profileList(null, 1);
           assert.deepEqual(
@@ -892,8 +892,8 @@ test(
             const page = await likedList(next, 50, hiddenReader);
             hops++;
             assert.equal(page.items.length, 0);
-            assert.equal(page.visibleLikedCount, null);
-            assert.equal(page.visibleLikedCountStatus, 'unavailable');
+            assert.equal(page.visibleLikedCount, 0);
+            assert.equal(page.visibleLikedCountStatus, 'known');
             assert.equal(
               page.continuation,
               page.nextCursor ? 'scan_pending' : 'end',
@@ -1218,10 +1218,10 @@ test(
           const state = await pool.query(
             "SELECT table_name FROM information_schema.tables WHERE table_schema='whaleu_community' AND table_name LIKE 'discovery%'",
           );
-          assert.deepEqual(
-            state.rows.map((item) => item.table_name),
-            ['discovery_cursors'],
-          );
+          assert.deepEqual(state.rows.map((item) => item.table_name).sort(), [
+            'discovery_count_epochs',
+            'discovery_cursors',
+          ]);
         },
       );
       await t.test(
@@ -1406,7 +1406,7 @@ test(
           await page.controller.load();
           assert.equal(page.view().items.length, 1);
           assert.equal(page.view().continuation, 'scan_pending');
-          assert.equal(page.view().total, null);
+          assert.equal(page.view().total, 1102);
           const requestCount = transport.exchanges.length;
           await new Promise((resolve) => setTimeout(resolve, 20));
           assert.equal(
@@ -1481,12 +1481,12 @@ test(
           await likes.controller.load();
           assert.equal(likes.view().items.length, 0);
           assert.equal(likes.view().canLoadMore, true);
-          assert.equal(likes.view().visibleLikedCount, null);
+          assert.equal(likes.view().visibleLikedCount, 0);
           await likes.controller.more();
           await likes.controller.more();
           assert.equal(likes.view().continuation, 'end');
-          assert.equal(likes.view().visibleLikedCountStatus, 'unavailable');
-          assert.ok(!likes.view().status.includes('没有'));
+          assert.equal(likes.view().visibleLikedCountStatus, 'known');
+          assert.ok(likes.view().status.includes('没有'));
           assert.equal(likes.storage.values.size, 0);
           likes.controller.dispose();
           const session = await sameSession(reader),

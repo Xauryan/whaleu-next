@@ -8,6 +8,7 @@ import { CampusRepository } from './campus.repository.js';
 import { CampusService } from './campus.service.js';
 import { CampusCommunityPolicyService } from './community-policy/campus-community-policy.service.js';
 import { RegionalCommunityPolicyService } from './community-policy/regional-community-policy.service.js';
+import { CampusContentScopeFacade } from './content-scope.facade.js';
 
 @Controller('v1/campuses')
 export class CampusController {
@@ -48,12 +49,14 @@ export class OperatingRegionController {
     CampusCommunityPolicyService,
     IdentitySelectionRepository,
     RegionalCommunityPolicyService,
+    CampusContentScopeFacade,
   ],
   exports: [
     CampusService,
     CampusCommunityPolicyService,
     IdentitySelectionRepository,
     RegionalCommunityPolicyService,
+    CampusContentScopeFacade,
   ],
 })
 export class CampusModule {}

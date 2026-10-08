@@ -2,10 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
 import { ApplicationError } from '../http/application-error.js';
-import {
-  checkpointTransactionDeadlines,
-  restoreTransactionDeadlines,
-} from '../database/transaction-deadlines.js';
+import { CommunityDiscoveryCounts } from './discovery-counts.js';
+import type { CurrentDiscoveryCount } from './discovery-counts.js';
 import type { CommunitySpace, PostView } from './contracts.js';
 import type { StoredPost } from './community.repository.js';
 import { CommunityRepository } from './community.repository.js';
@@ -39,10 +37,7 @@ const positionSchema = z.strictObject({
 });
 type Anchor = z.infer<typeof anchorSchema>;
 export const DISCOVERY_SCAN_BATCH = 128;
-export const PROFILE_COUNT_BOUND = 1024;
-export type CurrentProfileCount =
-  | { status: 'known'; value: number; optionalUntil: number | null }
-  | { status: 'unavailable'; value: null; optionalUntil: null };
+export type CurrentProfileCount = CurrentDiscoveryCount;
 export interface ProfileContentPage {
   items: PostView[];
   total: number | null;
@@ -71,6 +66,8 @@ export class CommunityProfileDiscoveryFacade {
     @Inject(TradingRepository) private readonly trading: TradingRepository,
     @Inject(DiscoveryCursorRepository)
     private readonly cursors: DiscoveryCursorRepository,
+    @Inject(CommunityDiscoveryCounts)
+    private readonly counts: CommunityDiscoveryCounts,
   ) {}
 
   private async candidates(
@@ -151,68 +148,15 @@ export class CommunityProfileDiscoveryFacade {
     }
   }
 
-  /** Optional basics-only computation. Mandatory target policy was checked by
-   * the application before this savepoint. No page/anchor uses this fallback. */
-  async count(
+  /** Optional complete streaming count; mandatory target policy stays upstream. */
+  count(
     owner: string,
     viewer: string | null,
     kind: PublicContentKind,
     tx: PoolClient,
+    subtype?: TradingSubtype,
   ): Promise<CurrentProfileCount> {
-    const baseline = checkpointTransactionDeadlines(tx);
-    await tx.query('SAVEPOINT profile_optional_count');
-    const unavailable = async (): Promise<CurrentProfileCount> => {
-      await tx.query('ROLLBACK TO SAVEPOINT profile_optional_count');
-      await tx.query('RELEASE SAVEPOINT profile_optional_count');
-      restoreTransactionDeadlines(tx, baseline);
-      return { status: 'unavailable', value: null, optionalUntil: null };
-    };
-    try {
-      const candidates = await this.candidates(
-        owner,
-        kind,
-        null,
-        tx,
-        PROFILE_COUNT_BOUND,
-      );
-      if (candidates.length > PROFILE_COUNT_BOUND) return unavailable();
-      await this.lockCandidates(candidates, null, tx);
-      const current = await this.candidates(
-        owner,
-        kind,
-        null,
-        tx,
-        PROFILE_COUNT_BOUND,
-      );
-      const held = new Set(candidates.map((item) => item.id));
-      if (
-        current.length > PROFILE_COUNT_BOUND ||
-        current.some((item) => !held.has(item.id))
-      )
-        return unavailable();
-      let value = 0;
-      for (const item of current)
-        if (await this.eligible(item.id, owner, viewer, kind, undefined, tx))
-          value++;
-      const after = checkpointTransactionDeadlines(tx);
-      const optional = [...after].flatMap(([code, until]) =>
-        until < (baseline.get(code) ?? Infinity) ? [until] : [],
-      );
-      restoreTransactionDeadlines(tx, baseline);
-      await tx.query('RELEASE SAVEPOINT profile_optional_count');
-      return {
-        status: 'known',
-        value,
-        optionalUntil: optional.length ? Math.min(...optional) : null,
-      };
-    } catch (error) {
-      if (
-        error instanceof ApplicationError &&
-        error.code === 'COMMUNITY_UNAVAILABLE'
-      )
-        return unavailable();
-      throw error;
-    }
+    return this.counts.profile(owner, viewer, kind, tx, subtype);
   }
 
   async validateCursor(

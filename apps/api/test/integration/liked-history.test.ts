@@ -523,7 +523,7 @@ test(
           let cursor: string | undefined;
           do {
             const current = await page(1, cursor);
-            assert.equal(current.visibleLikedCount, null);
+            assert.equal(current.visibleLikedCount, 6);
             seen.push(...current.items.map((item) => item.likeId));
             if (current.nextCursor) {
               assert.match(current.nextCursor, /^[A-Za-z0-9_-]{43}$/);

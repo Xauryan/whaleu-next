@@ -87,6 +87,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Identity-campus selection snapshot `b987a71c2b249c5bffb756712fc69526e34d930f`: 219 API tests, 618 native-client tests and 410 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37699401447), including complete canonical candidate enumeration, immutable recovery, post-wait authority races and native draft preservation. The commit signature is verified.
 - Resolved-trading contact snapshot `5d49618f6b6ce13b5ee28f47e3a4865ff6817ca8`: 219 API tests, 631 native-client tests and 420 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37700745123), including resolved-owner suppression, reopen storage preservation, current-policy lock races and stale native disclosure barriers. The commit signature is verified.
 - Public-profile and liked-history snapshot `319fd3a96b8f4cd76721f8a4300fda8b6d23e917`: 226 API tests, 670 native-client tests and 456 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37702906848), including profile privacy, exact-target liked anonymity, historic null dates and native routing/lifecycle. The commit signature is verified. The documented 1,024-candidate capacity gate remains unfinished at this snapshot.
+- Scalable discovery-page snapshot `23002cbbcfbeb482b8758cf2ba67a81de8eb20d1`: 234 API tests, 684 native-client tests and 478 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37705245053), including long and undated histories, hidden-only scan continuation, exact microsecond cursor positions and fresh native page replacement. The commit signature is verified. Large-history exact counts remain an explicit unfinished gate at this snapshot.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -279,3 +280,18 @@ uncertainty or expiry can clear that field without weakening mandatory identity,
 privacy or safety checks. Exact totals for larger histories remain a separate
 release gate; an unavailable count is not zero or a claim that the history ended.
 No background cleanup job, provider or production migration was activated.
+
+Exact discovery-count development checkpoint: canonical nonlocking owner batches
+and final READ COMMITTED mutation proofs now replace the 1,024-row count ceiling.
+The same independently optional path supplies basic post/trade counts, exact
+subtype list totals and current visible liked memberships. Positive canonical
+4,097-post and mixed-liked results pass under the normal count budget;
+25,000-post/like results require a separately labeled benchmark budget. Operational
+availability remains incomplete: unrelated writer churn invalidates large counts,
+concurrent finalizers can conflict, and the supported PostgreSQL capacity envelope
+is bounded. Small complete sets retain an independently fenced fallback under
+unrelated committed churn; active writers or maintenance locks can still make
+that optional count unavailable. There are no rollups, background jobs, production imports or fabricated
+review/verification facts. `totalInteractions` remains a separate unavailable
+legacy received-interaction metric. See the [operating evidence](acceptance/exact-discovery-counts.md)
+for measured limits; positive fixtures are not a claim of universal count availability.

@@ -57,9 +57,10 @@ feed projection. An anonymous node does not resolve its underlying account to
 check named block relationships. A named parent/root can still deny a descendant.
 
 Hidden/deleted content, inactive scopes and authoritative review denial suppress
-the target and its contribution to the count. Missing/unknown/expired required
-review or named-block coverage returns `COMMUNITY_UNAVAILABLE` (503), never a
-success with a fabricated zero total. Required deadlines are rechecked at commit.
+the target and its contribution to the count. Missing/unknown/expired review or named-block coverage for required page facts
+returns `COMMUNITY_UNAVAILABLE` (503), never a success with a fabricated zero
+total. Uncertainty confined to the optional complete count makes only that count
+unavailable. Required deadlines are rechecked at commit.
 An empty history needs only the active session; it has no named subject whose
 relationship coverage must be consulted. Existing canonical content read policy
 is preserved; this endpoint introduces no new account-lifecycle inference for
@@ -71,11 +72,21 @@ maximum reachable page. The current required content/ancestor/review policy stil
 fails closed; an unavailable dependency is never silently skipped. Policy for an
 unscanned older target does not block an already authorized earlier page.
 
-`visibleLikedCount` is exact/known only when this same from-start scan establishes
-complete history exhaustion. Otherwise, including every continuation page, it is
-null/unavailable. It is never an unfiltered membership total, guessed zero or
-count copied from a prior cursor. Scalable exact current-policy counts remain an
-explicit subsequent release/parity gate.
+`visibleLikedCount` uses the same separately proven streaming count machinery as
+[public discovery](API_PUBLIC_PROFILES.md). Every current post/comment/reply
+membership contributes independently, including undated records, and its actual
+parent/root/exact-reply chain must pass canonical direct visibility. Counts use
+256-membership owner batches, with at most 768 reconstructed nodes per batch,
+not a scalar reader loop or a whole-history retained set. Repeated ancestors and
+named relationships are deduplicated only within a batch. Current membership
+identity and nullable date are checked without inventing historical timestamps.
+
+The count can be exact/known even when the requested page stops at its visible
+limit, when a page contains only hidden candidates, or on a continuation page.
+Count-only uncertainty outside the required page, budget exhaustion or a failed
+final mutation proof produces null/unavailable without erasing the independently
+authorized page. The mandatory session and selected page policy still fail
+closed. Count values never determine next/previous/end navigation.
 
 `continuation:'more'` means a visible page limit was filled with candidates left;
 `scan_pending` means the bounded scan ended before filling the page and may return

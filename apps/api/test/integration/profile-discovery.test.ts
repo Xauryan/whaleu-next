@@ -687,7 +687,7 @@ test(
             .get(`/v1/profiles/${publicId}/posts`)
             .query({ limit: '1' });
           assert.equal(page.status, 200, JSON.stringify(page.body));
-          assert.equal(page.body.total, null);
+          assert.equal(page.body.total, 200);
           assert.equal(page.body.items.length, 1);
           assert.equal(page.body.continuation, 'more');
         },
@@ -819,13 +819,13 @@ test(
             .get(`/v1/profiles/${publicId}/posts`)
             .query({ limit: '1' });
           assert.equal(first.status, 200, JSON.stringify(first.body));
-          assert.equal(first.body.total, null);
+          assert.equal(first.body.total, 2);
           assert.equal(first.body.items[0].id, newId);
           const last = await request(http)
             .get(`/v1/profiles/${publicId}/posts`)
             .query({ limit: '1', cursor: first.body.nextCursor });
           assert.equal(last.status, 200, JSON.stringify(last.body));
-          assert.equal(last.body.total, null);
+          assert.equal(last.body.total, 2);
           assert.equal(last.body.nextCursor, null);
           assert.equal(last.body.items[0].id, oldId);
           assert.equal(

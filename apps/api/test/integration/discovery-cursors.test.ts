@@ -128,7 +128,11 @@ test(
       const migrations = await readMigrations(
         fileURLToPath(new URL('../../migrations', import.meta.url)),
       );
-      assert.equal(migrations.at(-1)!.name, '0020_discovery_cursors.sql');
+      assert.ok(
+        migrations.some(
+          (migration) => migration.name === '0020_discovery_cursors.sql',
+        ),
+      );
       await runMigrations(pool, migrations, { mode: 'up' });
       await runMigrations(pool, migrations, { mode: 'up' });
 

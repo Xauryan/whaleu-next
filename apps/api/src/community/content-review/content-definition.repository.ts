@@ -7,19 +7,18 @@ import type {
   StoredPost,
   StoredReply,
 } from '../community.repository.js';
-import { canonicalEnvelope } from './contracts.js';
+import {
+  reconstructDefinition,
+  definitionNodeDecision,
+  definitionScopeDecision,
+} from './definition-validation.js';
 import type {
-  ContentKind,
-  ContentScopeSnapshot,
-  EffectiveContentEnvelope,
-} from './contracts.js';
+  CurrentContent,
+  DefinitionPayload,
+} from './definition-validation.js';
+export type { CurrentContent } from './definition-validation.js';
+import type { ContentKind, ContentScopeSnapshot } from './contracts.js';
 
-export interface CurrentContent {
-  envelope: EffectiveContentEnvelope;
-  authorAccountId: string;
-  authorMode: 'named' | 'anonymous';
-  parents: { kind: ContentKind; id: string }[];
-}
 @Injectable()
 export class ContentDefinitionRepository {
   constructor(
@@ -54,13 +53,9 @@ export class ContentDefinitionRepository {
         [postId],
       )
     ).rows[0];
-    if (!post || post.deleted_at || post.visibility === 'hidden')
-      return { kind: 'deny', reason: 'POST_NOT_FOUND' };
-    if (
-      post.visibility !== 'approved' ||
-      post.publication_state !== 'published'
-    )
-      return { kind: 'unavailable' };
+    const postDecision = definitionNodeDecision(post, true);
+    if (postDecision.kind !== 'allow') return postDecision;
+    if (!post) return { kind: 'unavailable' };
     const space = (
       await tx.query<{
         id: string;
@@ -81,13 +76,8 @@ export class ContentDefinitionRepository {
         return { kind: 'unavailable' };
       }
     }
-    if (
-      space.id !== scope.originalSpaceId ||
-      space.operating_region_id !== scope.originalRegionId ||
-      !['regional', 'global'].includes(space.kind) ||
-      scope.sync !== 'none'
-    )
-      return { kind: 'unavailable' };
+    const scopeDecision = definitionScopeDecision(space, scope, true);
+    if (scopeDecision.kind !== 'allow') return scopeDecision;
     let content: StoredPost | StoredComment | StoredReply = post;
     const parents: CurrentContent['parents'] = [];
     if (kind !== 'post') {
@@ -97,9 +87,9 @@ export class ContentDefinitionRepository {
           [rootId, post.id],
         )
       ).rows[0];
-      if (!root || root.deleted_at || root.visibility === 'hidden')
-        return { kind: 'deny', reason: 'POST_NOT_FOUND' };
-      if (root.visibility !== 'approved') return { kind: 'unavailable' };
+      const rootDecision = definitionNodeDecision(root);
+      if (rootDecision.kind !== 'allow') return rootDecision;
+      if (!root) return { kind: 'unavailable' };
       parents.push({ kind: 'post', id: post.id });
       content = root;
       if (kind === 'reply') {
@@ -122,10 +112,9 @@ export class ContentDefinitionRepository {
         [id],
       )
     ).rows;
+    const facts: DefinitionPayload = { images, options: [], creators: [] };
     if (images.some((image, position) => image.position !== position))
       return { kind: 'unavailable' };
-    let component: EffectiveContentEnvelope['component'] = { kind: 'none' };
-    let trading: EffectiveContentEnvelope['trading'] = null;
     if (kind === 'post') {
       const poll = (
         await tx.query<{
@@ -165,6 +154,9 @@ export class ContentDefinitionRepository {
           [id],
         )
       ).rows[0];
+      facts.poll = poll;
+      facts.formation = formation;
+      facts.listing = listing;
       if ([poll, formation, listing].filter(Boolean).length > 1)
         return { kind: 'unavailable' };
       if (poll) {
@@ -175,14 +167,7 @@ export class ContentDefinitionRepository {
             [poll.id],
           )
         ).rows;
-        if (options.some((option, position) => option.position !== position))
-          return { kind: 'unavailable' };
-        component = {
-          kind: 'poll',
-          question: poll.question,
-          selectionMode: poll.selection_mode,
-          options: options.map((option) => option.label),
-        };
+        facts.options = options;
       }
       if (formation) {
         const creators = (
@@ -197,83 +182,18 @@ export class ContentDefinitionRepository {
             [formation.id],
           )
         ).rows;
-        const creator = creators[0];
-        if (
-          formation.reconciliation !== 'current' ||
-          creators.length !== 1 ||
-          !creator ||
-          creator.account_id !== post.account_id ||
-          creator.contact_sharing !== 'members_v1'
-        )
-          return { kind: 'unavailable' };
-        component = {
-          kind: 'formation',
-          capacity: formation.capacity,
-          theme: formation.theme,
-          contacts: {
-            wechat: creator.wechat,
-            qq: creator.qq,
-            phone: creator.phone,
-          },
-          contactSharing: 'members_v1',
-        };
-      }
-      if (listing) {
-        if (
-          listing.legacy_raw_price !== null ||
-          listing.legacy_raw_subtype !== null
-        )
-          return { kind: 'unavailable' };
-        // The strict envelope parser validates the immutable known subtype,
-        // decimal normalization, contact fields and effective urgency below.
-        trading = {
-          subtype: listing.subtype,
-          price: listing.price,
-          urgency: listing.urgency,
-          location: listing.location,
-          contacts: {
-            wechat: listing.wechat,
-            qq: listing.qq,
-            phone: listing.phone,
-          },
-        } as EffectiveContentEnvelope['trading'];
+        facts.creators = creators;
       }
     }
-    try {
-      const envelope = canonicalEnvelope({
-        version: 1,
-        accountId: content.account_id,
-        purpose:
-          kind === 'post'
-            ? 'publish_post'
-            : kind === 'comment'
-              ? 'publish_comment'
-              : 'publish_reply',
-        spaceId: post.space_id,
-        category: post.category,
-        authorMode: content.author_mode,
-        commentsPolicy: post.comments_policy,
-        postId: kind === 'post' ? null : post.id,
-        rootCommentId: kind === 'reply' ? rootId : null,
-        targetReplyId:
-          kind === 'reply' ? (content as StoredReply).target_reply_id : null,
-        text: content.text,
-        images: images.map(({ assetId, digest }) => ({ assetId, digest })),
-        component,
-        trading,
-        scope,
-      });
-      return {
-        kind: 'allow',
-        value: {
-          envelope,
-          authorAccountId: content.account_id,
-          authorMode: content.author_mode,
-          parents,
-        },
-      };
-    } catch {
-      return { kind: 'unavailable' };
-    }
+
+    return reconstructDefinition(
+      kind,
+      post,
+      content,
+      rootId,
+      scope,
+      parents,
+      facts,
+    );
   }
 }

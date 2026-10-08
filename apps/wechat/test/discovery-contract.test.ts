@@ -359,3 +359,32 @@ test('empty scan continuation, exact end and unavailable counts are strict separ
       }),
     );
 });
+
+test('large exact counts and count-zero scan continuation remain independent of navigation', () => {
+  for (const value of [1025, 4097, 25000, Number.MAX_SAFE_INTEGER]) {
+    const basic = publicProfile({
+      postCount: value,
+      tradeCount: null,
+      tradeCountStatus: 'unavailable',
+    });
+    assert.deepEqual(decodePublicProfile(basic), basic);
+    for (const continuation of ['more', 'scan_pending', 'end'] as const) {
+      const nextCursor = continuation === 'end' ? null : 'opaque_next';
+      const posts = profileList({ total: value, continuation, nextCursor });
+      const likes = likedList({
+        visibleLikedCount: value,
+        continuation,
+        nextCursor,
+      });
+      assert.deepEqual(decodeProfileList(posts), posts);
+      assert.deepEqual(decodeLikedList(likes), likes);
+    }
+  }
+  const pending = likedList({
+    items: [],
+    visibleLikedCount: 0,
+    continuation: 'scan_pending',
+    nextCursor: 'opaque_next',
+  });
+  assert.deepEqual(decodeLikedList(pending), pending);
+});

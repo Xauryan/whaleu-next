@@ -133,22 +133,50 @@ Nested canonical serializers retain their independent bounded checks.
 Counts are separate from list availability. `postCount`/`tradeCount` and list
 `total` are `number|null`, paired respectively with `postCountStatus`,
 `tradeCountStatus` and `totalStatus` (`known|unavailable`). Known is an exact current
-policy-filtered value. Null is never zero or an unfiltered estimate. Basics retain
-positive exact counts when a bounded complete scan of at most 1,024 candidates
-proves them. Larger histories leave basics available with unavailable counts.
-Count-only current-review/dependency uncertainty may also make that count
-unavailable, without weakening mandatory profile privacy, active target, session
-or bilateral-safety checks. Each optional count has a savepoint and deadline
-checkpoint; classified count-only failure rolls back its work. Successful count
-source locks remain through commit, while separate optional expiry callbacks
-change only that count and status after deferred waits and the final database
-clock. Unexpected database/program errors still fail the request.
+policy-filtered value. Null is never zero, a partial sum or an unfiltered estimate.
+Basic and list counts use complete indexed streaming with 256-candidate canonical
+owner batches. List totals apply the exact requested trading subtype and can be
+known on continuation pages without controlling page navigation. Every candidate
+passes current canonical visibility before listing resolution/subtype filtering.
+There is no 1,024-row ceiling on the streaming path.
 
-List counts are known only when this same from-start page scan proves complete
-candidate exhaustion. A page that stops at its visible limit or scan budget, and
-every continuation page including a terminal one, returns null/unavailable.
-Scalable exact-count ownership and batching remain a separate unfinished phase;
-page traversal does not establish complete discovery parity.
+The normal optional attempt has a 1,500 ms monotonic work budget, at most two
+concurrent scans/final recounts per application instance, with at least one
+configured pool connection reserved for mandatory work. A one-connection pool
+skips optional counting. Each source statement is limited to the lesser of
+100 ms and the remaining attempt budget; a 4 MiB reconstructed wire-payload limit applies per batch. Source reads are nonlocking;
+retained proof metadata is fixed in size. All statements use explicit READ
+COMMITTED. Source-owner mutation epochs and nonblocking final fences establish
+that the exhausted traversal describes one current set after all mandatory
+reads, serialization and deferred constraints. The final database clock then
+checks required policy deadlines and each count's independent optional horizons.
+
+An initial complete scan of at most 1,024 candidates also has a bounded final
+fallback for unrelated committed epoch churn. It tries source-owner SHARE table
+fences without waiting, then reconstructs the complete current small set again
+in 256-row batches, within a separate 500 ms total final budget. It retains the
+integer only if the current recount agrees and exhausts within the small bound.
+This final-only fallback temporarily delays new source writers; active conflicting
+writers make the optional count unavailable immediately. It takes no scalar
+per-item locks and cannot bypass unknown review or safety facts. New horizons
+from that recount are checked at the same final database clock.
+
+Count-only uncertainty, resource cancellation or failed proof makes only its count
+unavailable. Mandatory profile privacy, active target, session and bilateral-safety
+checks still fail closed. Each optional attempt and final proof has a savepoint;
+failed recovery, an unexpected database error or mandatory expiry fails the whole
+request. Page candidate scans/cursors remain independent, so even an unavailable
+large count cannot cut off reachable history.
+
+The first proof has a deliberately conservative operating envelope: unrelated
+source mutations can invalidate a large count. Larger server concurrency and
+mutation-load availability require the documented acceptance measurements and
+further optimization; this implementation is not a universal low-latency counting
+guarantee. Optimistic large proofs require the actual postmaster-stable sum of
+connection, prepared-transaction, background-worker and WAL-sender capacities
+below 128; larger configurations keep ordinary writes and the independently
+fenced small fallback. See the [proof audit](EXACT_DISCOVERY_COUNT_PROOFS.md)
+and [exact-count operating evidence](acceptance/exact-discovery-counts.md).
 
 `continuation` explicitly separates `more` (visible page limit reached with
 remaining candidates), `scan_pending` (scan budget reached before the page filled,
@@ -205,10 +233,17 @@ profile projection.
 Reads acquire the safety policy gate, authenticate if present, lock the current
 profile privacy row, check/lock the target's active account, then evaluate bilateral
 coverage and community candidates. The profile share lock remains held through
-count/page projection, serializing concurrent preference changes. Parent/space/
-review/safety facts and transaction deadlines remain locked/rechecked through
-commit. Presented-token expiry is revalidated after long projection waits. No
+count/page projection, serializing concurrent preference changes. Selected-page parent/space/review/safety facts remain canonically locked;
+optional count facts use their separate owner epoch/fence proof through commit. Presented-token expiry is revalidated after long projection waits. No
 cached profile base can bypass current target activity or privacy.
+
+Discovery reads also register required named relationship facts separately from
+optional count proofs. After deferred work, the safety owner takes a nonblocking
+raw-block stability fence and rechecks only the consulted pair predicates. A raw
+block race can therefore fail the request rather than leak basics/items with null
+counts. This read-use-case opt-in does not change block/unblock mutations or claim
+all ordinary emitting routes have the same protection. The remaining boundary is
+listed in [named read finalization](NAMED_READ_FINALIZATION_GAP.md).
 
 ## Own history and retained scope
 

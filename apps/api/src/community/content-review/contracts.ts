@@ -113,26 +113,89 @@ export interface ContentApprovalInput {
   purpose: PublicationOperation;
   envelope: EffectiveContentEnvelope;
 }
+// Only objects produced by the strict parser enter these weak identity caches.
+// Object.isFrozen alone is not proof of canonical validation or deep immutability.
+// Weak keys cannot retain a previous count batch or grow with complete histories.
+const canonicalRoots = new WeakSet<object>();
+const canonicalTexts = new WeakMap<object, string>();
+const canonicalDigests = new WeakMap<object, string>();
+
 /** Stable object-key ordering, ordered arrays, and no omitted/undefined fields. */
 export function canonicalJson(value: unknown): string {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    canonicalRoots.has(value)
+  ) {
+    const cached = canonicalTexts.get(value);
+    if (cached !== undefined) return cached;
+    const encoded = encodeCanonicalJson(value);
+    canonicalTexts.set(value, encoded);
+    return encoded;
+  }
+  return encodeCanonicalJson(value);
+}
+function encodeCanonicalJson(value: unknown): string {
   if (value === null || typeof value === 'string' || typeof value === 'boolean')
     return JSON.stringify(value);
   if (typeof value === 'number' && Number.isFinite(value))
     return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (Array.isArray(value))
+    return `[${value.map(encodeCanonicalJson).join(',')}]`;
   if (typeof value === 'object' && value !== null) {
     const object = value as Record<string, unknown>;
     return `{${Object.keys(object)
       .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key])}`)
+      .map(
+        (key) => `${JSON.stringify(key)}:${encodeCanonicalJson(object[key])}`,
+      )
       .join(',')}}`;
   }
   throw new TypeError('Unsupported canonical content');
 }
+/** Equality of supported canonical JSON values without allocating/sorting two
+ * strings. Object-key order is irrelevant; array order and every own field are
+ * retained. Unsupported/nonfinite values never acquire canonical equivalence. */
+export function canonicalEqual(left: unknown, right: unknown): boolean {
+  if (left === null || right === null) return left === right;
+  if (typeof left !== typeof right) return false;
+  if (typeof left === 'string' || typeof left === 'boolean')
+    return left === right;
+  if (typeof left === 'number')
+    return Number.isFinite(left) && Number.isFinite(right) && left === right;
+  if (typeof left !== 'object' || typeof right !== 'object') return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (
+      !Array.isArray(left) ||
+      !Array.isArray(right) ||
+      left.length !== right.length
+    )
+      return false;
+    for (let index = 0; index < left.length; index++) {
+      if (
+        !Object.hasOwn(left, index) ||
+        !Object.hasOwn(right, index) ||
+        !canonicalEqual(left[index], right[index])
+      )
+        return false;
+    }
+    return true;
+  }
+  const a = left as Record<string, unknown>,
+    b = right as Record<string, unknown>;
+  const keys = Object.keys(a);
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((key) => Object.hasOwn(b, key) && canonicalEqual(a[key], b[key]))
+  );
+}
 export function canonicalEnvelope(value: unknown): EffectiveContentEnvelope {
+  if (typeof value === 'object' && value !== null && canonicalRoots.has(value))
+    return value as EffectiveContentEnvelope;
   const envelope = effectiveContentEnvelopeSchema.parse(value);
   // Transformations are the same normalizations used by the publication DTOs.
-  // Return a detached immutable value so later caller mutation cannot alter approval.
+  // New inputs are detached before freezing; only an internally proven result
+  // can reuse identity. A caller-frozen or subsequently mutated input is reparsed.
   const freeze = (item: unknown): void => {
     if (item && typeof item === 'object') {
       for (const child of Object.values(item)) freeze(child);
@@ -140,14 +203,18 @@ export function canonicalEnvelope(value: unknown): EffectiveContentEnvelope {
     }
   };
   freeze(envelope);
+  canonicalRoots.add(envelope);
   return envelope;
 }
 export function approvalDigest(value: EffectiveContentEnvelope): string {
-  return createHash('sha256')
-    .update(
-      `whaleu-content-approval:v1\n${canonicalJson(canonicalEnvelope(value))}`,
-    )
+  const envelope = canonicalEnvelope(value);
+  const cached = canonicalDigests.get(envelope);
+  if (cached !== undefined) return cached;
+  const digest = createHash('sha256')
+    .update(`whaleu-content-approval:v1\n${canonicalJson(envelope)}`)
     .digest('hex');
+  canonicalDigests.set(envelope, digest);
+  return digest;
 }
 export function operationForKind(kind: ContentKind): PublicationOperation {
   return kind === 'post'

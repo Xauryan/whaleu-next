@@ -3,13 +3,13 @@ import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import type { VisibilityPurpose } from '../community/community-policy.js';
-export interface SafetyHead {
+import { requireAllowedSafetyRelationship } from './relationship-proof.js';
+import { validateBlockCoverage } from './block-coverage.js';
+import type { BlockCoverageHead } from './block-coverage.js';
+export interface SafetyHead extends BlockCoverageHead {
   state_version?: string;
-  block_coverage: string;
   restriction_coverage: string;
-  provenance: string;
   actions_allowed: boolean | null;
-  valid_until: Date | null;
 }
 export interface StoredBlock {
   id: string;
@@ -96,16 +96,11 @@ export class SafetyRepository {
       const now = (
         await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
       ).rows[0]!.now.getTime();
-      if (
-        !head ||
-        (head.valid_until !== null && head.valid_until.getTime() <= now) ||
-        head.block_coverage !== 'complete' ||
-        head.provenance === 'unknown'
-      )
-        return null;
+      const coverage = validateBlockCoverage(head, now);
+      if (!coverage) return null;
       registerTransactionDeadline(
         tx,
-        head.valid_until?.getTime() ?? null,
+        coverage.validUntil,
         'COMMUNITY_UNAVAILABLE',
       );
     }
@@ -116,6 +111,8 @@ export class SafetyRepository {
         [viewer, author],
       )
     ).rows[0]!;
+    if (!row.outgoing && (purpose === 'list_projection' || !row.incoming))
+      requireAllowedSafetyRelationship(viewer, author, purpose, tx);
     return row;
   }
   async outgoingReference(viewer: string, target: string, tx: PoolClient) {

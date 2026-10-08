@@ -719,7 +719,10 @@ test(
             limit,
           );
           assert.equal(result.status, 'available');
-          assert.equal(result.total, null);
+          assert.equal(
+            result.total,
+            kind === 'posts' ? eligiblePosts.length : eligibleTrades.length,
+          );
           for (const item of result.items as PostView[]) {
             assert.ok(
               !seen.has(item.id),
@@ -826,47 +829,58 @@ test(
         'privacy hides both other-viewer lists and counts while preserving basics, direct posts, self and recovery',
         async () => {
           await setPrivacy(true);
-          for (const actor of [reader, guest]) {
-            const profile = await actor.discovery.profile(
-              authorProfileId,
+          try {
+            for (const actor of [reader, guest]) {
+              const profile = await actor.discovery.profile(
+                authorProfileId,
+                cancel,
+              );
+              assert.equal(profile.status, 'available');
+              assert.equal(profile.displayName, 'Renamed');
+              assert.equal(profile.postsHidden, true);
+              assert.equal(profile.postCount, 0);
+              assert.equal(profile.tradeCount, 0);
+              for (const kind of ['posts', 'trading'])
+                assert.deepEqual(
+                  await actor.discovery.list(
+                    authorProfileId,
+                    kind,
+                    null,
+                    cancel,
+                  ),
+                  {
+                    status: 'hidden',
+                    profileId: authorProfileId,
+                    items: [],
+                    total: 0,
+                    totalStatus: 'known',
+                    continuation: 'end',
+                    nextCursor: null,
+                  },
+                );
+            }
+            assert.deepEqual(
+              ids(await allPages(author, 'posts')),
+              eligiblePosts,
+            );
+            assert.deepEqual(
+              ids(await allPages(author, 'trading')),
+              eligibleTrades,
+            );
+            assert.equal(
+              (await reader.community.post(named.id, cancel)).id,
+              named.id,
+            );
+            const ordinary = await reader.community.feed(
+              { spaceId: scope.home.spaceId },
               cancel,
             );
-            assert.equal(profile.status, 'available');
-            assert.equal(profile.displayName, 'Renamed');
-            assert.equal(profile.postsHidden, true);
-            assert.equal(profile.postCount, 0);
-            assert.equal(profile.tradeCount, 0);
-            for (const kind of ['posts', 'trading'])
-              assert.deepEqual(
-                await actor.discovery.list(authorProfileId, kind, null, cancel),
-                {
-                  status: 'hidden',
-                  profileId: authorProfileId,
-                  items: [],
-                  total: 0,
-                  totalStatus: 'known',
-                  continuation: 'end',
-                  nextCursor: null,
-                },
-              );
+            assert.ok(
+              ordinary.items.some((item: PostView) => item.id === named.id),
+            );
+          } finally {
+            await setPrivacy(false);
           }
-          assert.deepEqual(ids(await allPages(author, 'posts')), eligiblePosts);
-          assert.deepEqual(
-            ids(await allPages(author, 'trading')),
-            eligibleTrades,
-          );
-          assert.equal(
-            (await reader.community.post(named.id, cancel)).id,
-            named.id,
-          );
-          const ordinary = await reader.community.feed(
-            { spaceId: scope.home.spaceId },
-            cancel,
-          );
-          assert.ok(
-            ordinary.items.some((item: PostView) => item.id === named.id),
-          );
-          await setPrivacy(false);
           assert.equal(
             (await reader.discovery.profile(authorProfileId, cancel))
               .postsHidden,
@@ -1365,7 +1379,7 @@ test(
               visibleLikedCount: number | null;
               nextCursor: string | null;
             } = await reader.discovery.liked(after, cancel, 1);
-            assert.equal(batch.visibleLikedCount, null);
+            assert.equal(batch.visibleLikedCount, 4);
             gathered.push(...batch.items);
             after = batch.nextCursor;
           } while (after);
@@ -1802,7 +1816,7 @@ test(
           const page = profilePage(reader);
           await page.controller.load();
           assert.equal(page.view().items.length, 20);
-          assert.equal(page.view().total, null);
+          assert.equal(page.view().total, eligiblePosts.length);
           assert.equal(page.view().pageNumber, 1);
           const previouslyVisible = page.view().items[0]!.id;
           const listPath = `${profilePath(authorProfileId)}/posts`;

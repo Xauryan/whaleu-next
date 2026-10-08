@@ -40,14 +40,24 @@ export function supportedPostgresVersion(version: number): boolean {
   );
 }
 
+export interface TransactionOptions {
+  /** Exact snapshot proofs require this explicit mode regardless of server defaults. */
+  isolationLevel?: 'read committed';
+}
+
 export async function inTransaction<T>(
   pool: Pick<Pool, 'connect'>,
   operation: (client: PoolClient) => Promise<T>,
+  options: TransactionOptions = {},
 ): Promise<T> {
   const client = await pool.connect();
   let destroy = false;
   try {
-    await client.query('BEGIN');
+    await client.query(
+      options.isolationLevel === 'read committed'
+        ? 'BEGIN ISOLATION LEVEL READ COMMITTED'
+        : 'BEGIN',
+    );
     startTransactionDeadlines(client);
     const result = await operation(client);
     await checkTransactionDeadlines(client);
@@ -90,8 +100,11 @@ export class DatabaseService
     return this.pool.query<T>(text, values);
   }
 
-  transaction<T>(operation: (client: PoolClient) => Promise<T>): Promise<T> {
-    return inTransaction(this.pool, operation);
+  transaction<T>(
+    operation: (client: PoolClient) => Promise<T>,
+    options: TransactionOptions = {},
+  ): Promise<T> {
+    return inTransaction(this.pool, operation, options);
   }
 
   async ready(): Promise<boolean> {

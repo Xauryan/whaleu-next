@@ -1,3 +1,4 @@
+import { ContentReviewCountRepository } from './count-snapshot.repository.js';
 import { Module } from '@nestjs/common';
 import { CampusModule } from '../../campus/campus.module.js';
 import { ApprovalRepository } from './approval.repository.js';
@@ -8,12 +9,14 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
 @Module({
   imports: [CampusModule],
   providers: [
+    ContentReviewCountRepository,
     ApprovalRepository,
     ContentDefinitionRepository,
     LocalContentPublicationGate,
     LocalApprovedContentVisibility,
   ],
   exports: [
+    ContentReviewCountRepository,
     ApprovalRepository,
     LocalContentPublicationGate,
     LocalApprovedContentVisibility,

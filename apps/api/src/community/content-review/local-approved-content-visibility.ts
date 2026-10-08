@@ -8,7 +8,7 @@ import type {
 } from '../community-policy.js';
 import { ApprovalRepository } from './approval.repository.js';
 import { ContentDefinitionRepository } from './content-definition.repository.js';
-import { approvalDigest, canonicalJson } from './contracts.js';
+import { definitionMatchesApproval } from './definition-validation.js';
 import type { ContentKind } from './contracts.js';
 @Injectable()
 export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
@@ -37,14 +37,8 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
       tx,
     );
     if (stored.kind !== 'allow') return stored;
-    if (
-      approvalDigest(stored.value.envelope) !== accepted.value.digest ||
-      canonicalJson(stored.value.envelope) !==
-        canonicalJson(accepted.value.envelope)
-    )
+    if (!definitionMatchesApproval(stored.value, accepted.value))
       return { kind: 'unavailable' };
-    // No owned media implementation exists. Text review is never render authority.
-    if (stored.value.envelope.images.length) return { kind: 'unavailable' };
     for (const parent of stored.value.parents) {
       // A post reached again via its root is already checked in this traversal.
       if (visited.has(`${parent.kind}:${parent.id}`)) continue;
