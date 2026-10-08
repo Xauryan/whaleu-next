@@ -1,3 +1,4 @@
+import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
 import {
   checkpointTransactionDeadlines,
   restoreTransactionDeadlines,
@@ -27,16 +28,20 @@ export class TradingService {
     @Inject(TradingRepository) private readonly trading: TradingRepository,
   ) {}
   contacts(token: string, postId: string) {
-    return this.repository.database.transaction(async (tx) => {
-      const actor = await this.access.actor(token, tx);
-      const { post } = await this.access.accessiblePost(postId, actor, tx);
-      if (post.category !== 'trading')
-        throw new ApplicationError('POST_NOT_FOUND');
-      return {
-        postId: post.id,
-        contacts: await this.trading.contacts(post.id, tx),
-      };
-    });
+    return this.repository.database.transaction(
+      async (tx) => {
+        enableSafetyRelationshipProof(tx);
+        const actor = await this.access.actor(token, tx);
+        const { post } = await this.access.accessiblePost(postId, actor, tx);
+        if (post.category !== 'trading')
+          throw new ApplicationError('POST_NOT_FOUND');
+        return {
+          postId: post.id,
+          contacts: await this.trading.contacts(post.id, tx),
+        };
+      },
+      { isolationLevel: 'read committed' },
+    );
   }
   setResolution(
     token: string,

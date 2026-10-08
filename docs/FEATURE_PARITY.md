@@ -88,6 +88,7 @@ All capabilities still need acceptance cases tied to real implementation commits
 - Resolved-trading contact snapshot `5d49618f6b6ce13b5ee28f47e3a4865ff6817ca8`: 219 API tests, 631 native-client tests and 420 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37700745123), including resolved-owner suppression, reopen storage preservation, current-policy lock races and stale native disclosure barriers. The commit signature is verified.
 - Public-profile and liked-history snapshot `319fd3a96b8f4cd76721f8a4300fda8b6d23e917`: 226 API tests, 670 native-client tests and 456 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37702906848), including profile privacy, exact-target liked anonymity, historic null dates and native routing/lifecycle. The commit signature is verified. The documented 1,024-candidate capacity gate remains unfinished at this snapshot.
 - Scalable discovery-page snapshot `23002cbbcfbeb482b8758cf2ba67a81de8eb20d1`: 234 API tests, 684 native-client tests and 478 reported real PostgreSQL integration tests passed in [CI](https://github.com/Xauryan/whaleu-next/actions/runs/37705245053), including long and undated histories, hidden-only scan continuation, exact microsecond cursor positions and fresh native page replacement. The commit signature is verified. Large-history exact counts remain an explicit unfinished gate at this snapshot.
+- Exact-count development snapshot `8f22600dc1e75b76fded79dbe1dd4da6b5c72b10` was signed and published after 1,511 local tests passed. Its [CI run](https://github.com/Xauryan/whaleu-next/actions/runs/37713167590) passed 297 API and 685 native tests but only 520/529 PostgreSQL tests: mixed-liked positive assertions exceeded the 1,500 ms optional scan budget on the hosted runner. This snapshot is **not CI-green**; its local performance evidence does not establish the same budget on slower machines.
 - PostgreSQL data import, real provider configuration, native device verification and the remaining business modules are not completed by these checkpoints.
 
 Campus/profile checkpoint: the target campus directory, physical-campus preference, own nickname/bio and 11 stored preferences are implemented and tested. Explicit operating-region mapping and regional/global space selection are now implemented in the community development slice. Real verification, operational authority configuration, avatar/media, public-profile enforcement and downstream preference consumers remain incomplete. A physical-campus selection grants no authority.
@@ -295,3 +296,21 @@ that optional count unavailable. There are no rollups, background jobs, producti
 review/verification facts. `totalInteractions` remains a separate unavailable
 legacy received-interaction metric. See the [operating evidence](acceptance/exact-discovery-counts.md)
 for measured limits; positive fixtures are not a claim of universal count availability.
+
+Named-read finalization and discussion v3 checkpoint: the remaining inventoried
+body/contact/identity read owners now explicitly use READ COMMITTED and a final
+mandatory block-relationship proof, including Saved status and audited identity
+POSTs. Directional child/member policies and intentional own-block/receipt
+exceptions remain distinct. Abandoned whole identity payloads preserve durable
+attempt metadata; actual disclosure failures roll back disclosure audits.
+Discussion v3 selects roots before rendering their replies, preserving ordering
+and pins without inspecting off-page reply bodies for cursor stability. Native
+Previous/Next navigation refetches current pages and context instead of restoring
+cached previews, while preserving compose targets and drafts. This does not remove
+the independent root/reply/PostView scale limits, certify mutation/raw-writer
+consistency, revoke previously committed responses, or complete provider/device
+and production acceptance. The same development increment adjusts the optional
+count scan budget to 2,000 ms per count after the recorded hosted-CI shortfall;
+it does not weaken exactness or enlarge final safety-proof budgets. See
+[named-read boundaries](NAMED_READ_FINALIZATION_GAP.md) and
+[count operating evidence](acceptance/exact-discovery-counts.md).

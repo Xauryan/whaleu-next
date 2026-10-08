@@ -140,7 +140,7 @@ known on continuation pages without controlling page navigation. Every candidate
 passes current canonical visibility before listing resolution/subtype filtering.
 There is no 1,024-row ceiling on the streaming path.
 
-The normal optional attempt has a 1,500 ms monotonic work budget, at most two
+The normal optional attempt has a 2,000 ms monotonic work budget, at most two
 concurrent scans/final recounts per application instance, with at least one
 configured pool connection reserved for mandatory work. A one-connection pool
 skips optional counting. Each source statement is limited to the lesser of
@@ -150,6 +150,13 @@ COMMITTED. Source-owner mutation epochs and nonblocking final fences establish
 that the exhausted traversal describes one current set after all mandatory
 reads, serialization and deferred constraints. The final database clock then
 checks required policy deadlines and each count's independent optional horizons.
+
+The budget is per count, not an HTTP timeout. Basic profiles can spend up to
+4 seconds in their two scans; lists have one 2-second scan. With the separate
+600 ms finalization allowance per count and 500 ms mandatory relationship proof,
+configured phase allowances total 5.7 seconds for basics and 3.1 seconds for lists,
+plus mandatory work, scheduling and recovery. Existing shared policy/row locks
+remain held until commit. The separate 15-second benchmark is not the default.
 
 An initial complete scan of at most 1,024 candidates also has a bounded final
 fallback for unrelated committed epoch churn. It tries source-owner SHARE table
@@ -241,9 +248,9 @@ Discovery reads also register required named relationship facts separately from
 optional count proofs. After deferred work, the safety owner takes a nonblocking
 raw-block stability fence and rechecks only the consulted pair predicates. A raw
 block race can therefore fail the request rather than leak basics/items with null
-counts. This read-use-case opt-in does not change block/unblock mutations or claim
-all ordinary emitting routes have the same protection. The remaining boundary is
-listed in [named read finalization](NAMED_READ_FINALIZATION_GAP.md).
+counts. This read-use-case opt-in does not change block/unblock mutations.
+Additional audited emitting routes and intentional exclusions are listed in
+[named read finalization](NAMED_READ_FINALIZATION_GAP.md).
 
 ## Own history and retained scope
 

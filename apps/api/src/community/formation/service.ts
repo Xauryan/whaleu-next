@@ -1,3 +1,4 @@
+import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
 import {
   checkpointTransactionDeadlines,
   restoreTransactionDeadlines,
@@ -208,71 +209,79 @@ export class FormationService {
     };
   }
   get(token: string, postId: string): Promise<FormationView> {
-    return this.community.database.transaction(async (tx) => {
-      const actor = await this.access.actor(token, tx);
-      const { post, space } = await this.access.accessiblePost(
-        postId,
-        actor,
-        tx,
-      );
-      const result = await this.project(
-        post,
-        actor,
-        await this.access.advisory(actor, space, tx),
-        tx,
-      );
-      if (!result) throw new ApplicationError('FORMATION_NOT_FOUND');
-      await this.access.actor(token, tx);
-      return result;
-    });
+    return this.community.database.transaction(
+      async (tx) => {
+        enableSafetyRelationshipProof(tx);
+        const actor = await this.access.actor(token, tx);
+        const { post, space } = await this.access.accessiblePost(
+          postId,
+          actor,
+          tx,
+        );
+        const result = await this.project(
+          post,
+          actor,
+          await this.access.advisory(actor, space, tx),
+          tx,
+        );
+        if (!result) throw new ApplicationError('FORMATION_NOT_FOUND');
+        await this.access.actor(token, tx);
+        return result;
+      },
+      { isolationLevel: 'read committed' },
+    );
   }
   contacts(token: string, postId: string): Promise<FormationContactsView> {
-    return this.community.database.transaction(async (tx) => {
-      const actor = await this.access.actor(token, tx);
-      const { post, space } = await this.access.accessiblePost(
-        postId,
-        actor,
-        tx,
-      );
-      const authority = await this.access.authority(actor, space, tx);
-      requireAction(authority, 'read_formation_contacts');
-      const formation = await this.formations.find(post.id, tx);
-      if (!formation) throw new ApplicationError('FORMATION_NOT_FOUND');
-      if (!formationAvailable(formation))
-        throw new ApplicationError('FORMATION_UNAVAILABLE');
-      const roster = await this.formations.members(formation.id, tx);
-      const own = roster.find((member) => member.account_id === actor);
-      if (!own || !(await this.visibleMember(own, post, actor, tx)))
-        throw new ApplicationError('FORMATION_MEMBERSHIP_REQUIRED');
-      const members: FormationContactsView['members'] = [];
-      for (const member of roster) {
-        if (
-          member.contact_sharing !== 'members_v1' ||
-          !(await this.visibleMember(member, post, actor, tx))
-        )
-          continue;
-        const supplied = await this.formations.contacts(member.id, tx);
-        // A future import may retain historical contacts but must never fabricate
-        // consent or expose invalid/unreconciled values through the current DTO.
-        if (
-          Object.values(supplied).every(safeFormationDisplayText) &&
-          Object.values(supplied).some((value) => value.trim())
-        )
-          members.push({ membershipId: member.id, contacts: supplied });
-      }
-      const result = { postId: post.id, members };
-      if (Buffer.byteLength(JSON.stringify(result), 'utf8') > 1024 * 1024)
-        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-      // After all potentially blocking locks, validate the presented token again.
-      // Permission/visibility rows are locked by their ports through commit.
-      await this.access.actor(token, tx);
-      requireAction(
-        await this.access.authority(actor, space, tx),
-        'read_formation_contacts',
-      );
-      await this.access.actor(token, tx);
-      return result;
-    });
+    return this.community.database.transaction(
+      async (tx) => {
+        enableSafetyRelationshipProof(tx);
+        const actor = await this.access.actor(token, tx);
+        const { post, space } = await this.access.accessiblePost(
+          postId,
+          actor,
+          tx,
+        );
+        const authority = await this.access.authority(actor, space, tx);
+        requireAction(authority, 'read_formation_contacts');
+        const formation = await this.formations.find(post.id, tx);
+        if (!formation) throw new ApplicationError('FORMATION_NOT_FOUND');
+        if (!formationAvailable(formation))
+          throw new ApplicationError('FORMATION_UNAVAILABLE');
+        const roster = await this.formations.members(formation.id, tx);
+        const own = roster.find((member) => member.account_id === actor);
+        if (!own || !(await this.visibleMember(own, post, actor, tx)))
+          throw new ApplicationError('FORMATION_MEMBERSHIP_REQUIRED');
+        const members: FormationContactsView['members'] = [];
+        for (const member of roster) {
+          if (
+            member.contact_sharing !== 'members_v1' ||
+            !(await this.visibleMember(member, post, actor, tx))
+          )
+            continue;
+          const supplied = await this.formations.contacts(member.id, tx);
+          // A future import may retain historical contacts but must never fabricate
+          // consent or expose invalid/unreconciled values through the current DTO.
+          if (
+            Object.values(supplied).every(safeFormationDisplayText) &&
+            Object.values(supplied).some((value) => value.trim())
+          )
+            members.push({ membershipId: member.id, contacts: supplied });
+        }
+        const result = { postId: post.id, members };
+        if (Buffer.byteLength(JSON.stringify(result), 'utf8') > 1024 * 1024)
+          throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+        // After all potentially blocking locks, validate the presented token again.
+        // Permission/visibility rows are locked by their ports through commit.
+        await this.access.actor(token, tx);
+        requireAction(
+          await this.access.authority(actor, space, tx),
+          'read_formation_contacts',
+        );
+        await this.access.actor(token, tx);
+        return result;
+      },
+      { isolationLevel: 'read committed' },
+    );
   }
   own(token: string, postId: string) {
     return this.community.database.transaction(async (tx) => {

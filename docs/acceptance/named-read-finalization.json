@@ -1,0 +1,95 @@
+{
+  "verifiedAt": "2026-10-08T01:51:12.484Z",
+  "base": "8f22600dc1e75b76fded79dbe1dd4da6b5c72b10",
+  "sourceTreeSha256": "cf9b84027f6bb8b345559e9f4ac15bc9d80ed736afa53bf4b4561ef40da60fe8",
+  "sourceFileCount": 563,
+  "commands": [
+    {
+      "command": "npm run check",
+      "exitCode": 0,
+      "apiUnitTests": 308,
+      "nativeUnitTests": 702,
+      "lint": true,
+      "typecheck": true,
+      "build": true,
+      "compiledNativeSmoke": true,
+      "log": "/tmp/whaleu-named-final-check.log"
+    },
+    {
+      "command": "npm run format:check",
+      "exitCode": 0,
+      "log": "/tmp/whaleu-named-final-format.log"
+    },
+    {
+      "command": "/tmp/whaleu-pg18/run-with-postgres.sh /tmp/whaleu-named-run-integration.sh",
+      "npmCommand": "npm run test:integration",
+      "exitCode": 0,
+      "tests": 583,
+      "passed": 583,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 330011.344096,
+      "log": "/tmp/whaleu-named-final-integration.log"
+    }
+  ],
+  "totalTests": 1593,
+  "cleanup": {
+    "verifiedWithinRunner": true,
+    "postgresVersion": 180006,
+    "maxConnections": 100,
+    "remainingWhaleUSchemas": 0,
+    "shutdownConfirmed": true
+  },
+  "includes": [
+    "21 explicit emitted-read owners, including dormant internal comments",
+    "53 named-read raw-writer/privacy/audit/receipt/fence/deadline acceptance tests",
+    "v3 real native gateway pagination case",
+    "2,000ms per-count budget CI repair and retained count assertions"
+  ],
+  "limitations": [
+    "No source edits during final gates",
+    "No commit or push by this worker",
+    "Previous8f22600 CI failed at1,500ms; this local pass is not remote CI success",
+    "Discussion lazy envelope is endpoint-local; native parent PostView still has1,024 visible-replies aggregate limit",
+    "Worker materialization, external delivery and universal mutation/raw-writer consistency remain outside emitted-read proof scope"
+  ],
+  "measurements": [
+    {
+      "label": "profile-4097-0",
+      "durationMs": 731.3910130000004,
+      "postCount": 4097,
+      "postCountStatus": "known"
+    },
+    {
+      "label": "likes-4097-0",
+      "durationMs": 1336.1026859999984,
+      "visibleLikedCount": 4097,
+      "visibleLikedCountStatus": "known"
+    },
+    {
+      "label": "profile-4097-1",
+      "durationMs": 685.0680190000003,
+      "postCount": 4097,
+      "postCountStatus": "known"
+    },
+    {
+      "label": "likes-4097-1",
+      "durationMs": 1345.8711299999995,
+      "visibleLikedCount": 4097,
+      "visibleLikedCountStatus": "known"
+    },
+    {
+      "label": "profile-4097-server-default-repeatable-read",
+      "durationMs": 695.0090280000004,
+      "postCount": 4097,
+      "postCountStatus": "known"
+    }
+  ],
+  "sourceHashAlgorithm": "SHA256 of sorted unique nonignored git ls-files -c -o paths under apps/, packages/, scripts/, .github/ or repository root, excluding Markdown and docs/. Each record is path + NUL + SHA256(file bytes) + LF.",
+  "logsSha256": {
+    "check": "58520cc88d2e648abad11930c430376196d5c2b06c126c78c40e7c18f37f70a4",
+    "format": "c4f5978c10fb076a1def30a319f139a87944e1e684da45e2fb425ebe02d35631",
+    "integration": "341b4f709b7c5e40ba026d20d6e1bd75933aea58039ab134d8acadb287467658"
+  },
+  "namedReadAcceptanceTestSha256": "1104426f20facfc3327a211fde7b6689a97c27f6a3eface0cd35a0b7c79ebc82"
+}

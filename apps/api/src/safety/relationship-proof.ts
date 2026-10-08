@@ -27,8 +27,9 @@ const proof: RequiredTransactionProof<RequiredRelationship> = {
   validate: validateRelationships,
 };
 
-/** Opt-in only for profile discovery and own liked READ COMMITTED reads.
- * Mutation consumers retain their existing authorization/receipt behavior. */
+/** Explicit opt-in at audited READ COMMITTED emitted-read owners, including
+ * POST reads and privileged audited disclosure. Shared helpers and mutation
+ * consumers retain their existing authorization/receipt behavior. */
 export function enableSafetyRelationshipProof(tx: PoolClient): void {
   enableRequiredTransactionProof(tx, proof);
 }

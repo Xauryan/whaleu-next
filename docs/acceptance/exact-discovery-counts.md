@@ -136,21 +136,69 @@ Low-level epoch and fence coverage is separately owned by
 `count-snapshot.test.ts`. The complete serial integration aggregate and native
 regressions remain required in addition to this focused suite.
 
-## Observed results on the frozen source
+## Hosted CI failure and the 2-second scan budget
+
+Published snapshot `8f22600dc1e75b76fded79dbe1dd4da6b5c72b10` passed the local
+1,511-test run below, but its [hosted CI job](https://github.com/Xauryan/whaleu-next/actions/runs/37713167590/job/113103541530)
+passed only **520/529 PostgreSQL tests**, after **297 API + 685 native** passes.
+Eight mixed-liked known-count assertions and their parent suite failed under
+the 1,500 ms scan budget. The instrumented 4,097 mixed-liked request returned
+unavailable at 1,646 ms HTTP after 14 of 17 candidate batches. Its uninstrumented
+counterpart was exact at 1,617 ms HTTP; page/final work is outside the scan budget.
+The 25,000-record 15-second benchmarks were exact at 5,307 ms profile and
+6,170 ms liked HTTP. Raw extracted CI diagnostics and failure names are retained
+in `exact-discovery-counts.ci-8f22600.json`; that job is not a correctness pass.
+
+The default scan allowance is now a finite **2,000 ms per count**, a 500 ms (33%)
+increase supported by the measured hosted-runner shortfall. Exact-value assertions
+and all canonical policy/proof checks are unchanged. Deterministic clock coverage
+requires default completion at 1,750 ms, rejection at 2,000 ms, and rejection of
+the same 1,750 ms work under an explicit 1,500 ms allowance. A real acceptance
+rerun is required; the old table below is not relabeled as 2-second evidence.
+
+This is not a 2-second HTTP timeout. Profile basics has two count scans, so its
+scan allowance rises by 1 second to 4 seconds. Two separate 600 ms optional final
+callbacks and the 500 ms mandatory relationship proof give 5.7 seconds of
+configured phase allowances. Single-count profile/liked lists have 3.1 seconds,
+plus their mandatory page work. Scheduling and cleanup can add elapsed time.
+Existing shared policy gates and mandatory row locks remain held until commit.
+Admission stays at two scans/recounts and below the full configured pool size;
+100 ms source statements, 25 ms lock waits, 4 MiB batches, 500 ms small recounts
+and mandatory proof, and the separate 15-second benchmark remain unchanged.
+Coarse invalidation and finalizer contention still leave operational parity open.
+
+The local focused rerun with this default and the integrated named-read changes
+passed **21/21 in 87.95 seconds** on PostgreSQL 18.6. Instrumented 4,097 profile
+counts were exact at 725–731 ms and mixed-liked counts at 1,362–1,444 ms;
+uninstrumented requests were exact at 612 ms and 1,242 ms respectively. Normal
+25,000 counts remained unavailable at 2,023 ms profile and 2,053 ms liked HTTP.
+The separate 15-second benchmarks completed exactly at 4,073 ms and 5,634 ms.
+`exact-discovery-counts.2s-run.json` retains the diagnostics and source fingerprint.
+This local rerun does not establish hosted CI success; integrated gates and the
+next published commit's CI remain separate evidence.
+
+The same rerun still had **0/3 known** large counts at each unrelated-writer rate,
+**3/6 known** for concurrent profile/profile, and **6/6 known** for concurrent
+profile/mixed-liked. Longest observed writer times were **92.4, 13.2 and 25.5 ms**
+at the 2/10/100-per-second schedules; the 92.4 ms observation is not an established
+lock-only delay. No improved churn or worst-case writer latency is claimed.
+Cleanup verified zero remaining application schemas and a stopped local server.
+
+## Prior local 1,500 ms baseline
 
 2026-10-08 final serial aggregate: **529/529 PostgreSQL tests passed in 317.3
 seconds**. The exact-count fixture contributes **21/21 in 83.2 seconds**; the
 fresh small-fallback/mandatory-relationship fixture and every native roundtrip
 also pass. Local `npm run check` passed **297 API + 685 native tests**, lint,
 strict type checks, builds and compiled native smokes. Formatting and whitespace
-checks pass. This is local evidence, not a claim that an unpublished commit has
-passed remote CI.
+checks pass. These are historical local results for the published snapshot whose
+subsequent hosted CI failure is recorded above.
 
 Runtime/test freeze: `76f831c0d5b5e6caa5a34552dca2c8ddbb85868dfbcd7669359c3d83afeb1ee0`.
 The exact sorted file manifest and hashing convention (path + NUL + file bytes +
 NUL) are recorded in `exact-discovery-counts.final-run.json` with the final raw
 measurement diagnostics. Acceptance prose/JSON are outside that source/test
-manifest. The final source still uses the original 1,500 ms normal count budget.
+manifest. That source used the original 1,500 ms normal count budget.
 
 Historical measurements remain separately labeled in
 `exact-discovery-counts.first-run.json`, `exact-discovery-counts.optimized-run.json`
@@ -164,7 +212,7 @@ fallback for those historical offsets, with differential boundary regressions.
 The source also skips only provably empty indexed child-key queries. Microsecond
 post seek coordinates remain separate lossless database text.
 
-The final table includes scoped mandatory relationship proof overhead and the
+The prior local table includes scoped mandatory relationship proof overhead and the
 post-seed `VACUUM (ANALYZE)` preparation described above.
 
 | Workload                |        Count budget | Known exact result | Observed HTTP ms | SQL calls |       JS result bytes |     Candidate batches |

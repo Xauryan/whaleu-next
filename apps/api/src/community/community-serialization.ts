@@ -29,6 +29,13 @@ import type {
   StoredReply,
 } from './community.repository.js';
 import { CommunityAccessService } from './community-access.service.js';
+
+/** Trusted Community-owned facts captured while ordering root comments. */
+export interface CommentMetadata {
+  readonly likeCount: number;
+  readonly isLiked: boolean;
+  readonly isPinned: boolean;
+}
 @Injectable()
 export class CommunitySerializer {
   constructor(
@@ -218,13 +225,20 @@ export class CommunitySerializer {
     authority: Authority | null,
     tx: PoolClient,
     previewLimit = 2,
+    metadata?: CommentMetadata,
   ): Promise<CommentView> {
-    const likes = await this.likes('comment', comment.id, viewer, tx);
+    const likes = metadata
+      ? { count: metadata.likeCount, liked: metadata.isLiked }
+      : await this.likes('comment', comment.id, viewer, tx);
     const replies = await this.visibleReplies(comment.id, viewer, tx);
-    const pin = await tx.query(
-      'SELECT 1 FROM whaleu_community.comment_pins WHERE comment_id=$1',
-      [comment.id],
-    );
+    const isPinned =
+      metadata?.isPinned ??
+      !!(
+        await tx.query(
+          'SELECT 1 FROM whaleu_community.comment_pins WHERE comment_id=$1',
+          [comment.id],
+        )
+      ).rowCount;
     return {
       id: comment.id,
       postId: post.id,
@@ -232,7 +246,7 @@ export class CommunitySerializer {
       images: await this.images('comment', comment.id, tx),
       likeCount: likes.count,
       replyCount: replies.length,
-      isPinned: !!pin.rowCount,
+      isPinned,
       replyPreview: await this.replyPage(
         replies,
         post,

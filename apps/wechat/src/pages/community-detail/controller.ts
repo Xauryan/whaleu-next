@@ -17,6 +17,8 @@ export interface DetailView extends CommunityView {
   readonly sort: 'time' | 'likes';
   readonly order: 'asc' | 'desc';
   readonly canLoadMore: boolean;
+  readonly canPrevious: boolean;
+  readonly pageNumber: number;
   readonly deleteTarget: {
     readonly kind: 'post' | 'comment';
     readonly id: string;
@@ -33,11 +35,16 @@ export const initialDetailView = (): DetailView => ({
   sort: 'likes',
   order: 'desc',
   canLoadMore: false,
+  canPrevious: false,
+  pageNumber: 0,
   deleteTarget: null,
   needsReload: false,
 });
 export class DetailController extends CommunityController<DetailView> {
   private nextCursor: string | null = null;
+  // Only navigation tokens survive page replacement, never root/reply DTOs.
+  private pageCursors: (string | null)[] = [null];
+  private pageIndex = 0;
   private postReadGeneration = 0;
   /** Identifies when a post read began, not when its callback eventually arrives. */
   get readGeneration(): number {
@@ -58,10 +65,16 @@ export class DetailController extends CommunityController<DetailView> {
     if (this.located) this.update({ sort: 'time' });
   }
   protected override resetPrivate(): void {
-    this.nextCursor = null;
+    this.resetNavigation();
     this.onPost?.(null, this.postReadGeneration);
   }
-  private clear(): void {
+  private resetNavigation(): void {
+    this.nextCursor = null;
+    this.pageCursors = [null];
+    this.pageIndex = 0;
+  }
+  private clear(resetNavigation = true): void {
+    if (resetNavigation) this.resetNavigation();
     this.nextCursor = null;
     this.onPost(null, this.postReadGeneration);
     this.update({
@@ -71,24 +84,35 @@ export class DetailController extends CommunityController<DetailView> {
       comments: [],
       loaded: false,
       canLoadMore: false,
+      canPrevious: false,
+      pageNumber: 0,
       deleteTarget: null,
       needsReload: true,
+      busy: false,
     });
   }
   protected override onSafetyInvalidated(): void {
     void this.load();
   }
   async load(): Promise<void> {
+    this.resetNavigation();
+    await this.read(null, 0);
+  }
+  private async read(after: string | null, pageIndex: number): Promise<void> {
     const readGeneration = ++this.postReadGeneration;
-    this.clear();
-    if (!this.available()) return;
+    this.stop();
+    this.clear(false);
+    if (!this.available()) {
+      this.resetNavigation();
+      return;
+    }
     // Never expose comments until a fresh parent visibility decision has succeeded.
     await this.run(
       async (cancel) => {
         const post = await this.runtime.gateway!.post(this.postId, cancel);
         const comments = await this.runtime.gateway!.comments(
           this.postId,
-          null,
+          after,
           cancel,
           { sort: this.view.sort, order: this.view.order },
         );
@@ -113,13 +137,26 @@ export class DetailController extends CommunityController<DetailView> {
         return { post, comments, context };
       },
       (result) => {
+        if (
+          result.comments.nextCursor !== null &&
+          (result.comments.nextCursor === after ||
+            this.pageCursors
+              .slice(0, pageIndex)
+              .includes(result.comments.nextCursor))
+        )
+          throw new ClientError('protocol', 'Root cursor did not advance');
         this.nextCursor = result.comments.nextCursor;
+        // Previous re-fetches current bodies and discards the old forward branch.
+        this.pageCursors = [...this.pageCursors.slice(0, pageIndex), after];
+        this.pageIndex = pageIndex;
         this.update({
           post: result.post,
           locatedComment: result.context?.comment ?? null,
           locatedReplyId: result.context?.reply?.id ?? '',
           comments: result.comments.items,
           canLoadMore: !!this.nextCursor,
+          canPrevious: pageIndex > 0,
+          pageNumber: pageIndex + 1,
           loaded: true,
           needsReload: false,
           status: '已加载帖子与评论',
@@ -137,33 +174,18 @@ export class DetailController extends CommunityController<DetailView> {
       !this.nextCursor
     )
       return;
-    const after = this.nextCursor;
-    await this.run(
-      (cancel) =>
-        this.runtime.gateway!.comments(this.postId, after, cancel, {
-          sort: this.view.sort,
-          order: this.view.order,
-        }),
-      (result) => {
-        if (result.nextCursor === after)
-          throw new ClientError('protocol', 'Cursor did not advance');
-        if (this.view.post)
-          this.checkCommentPrivacy(this.view.post, result.items);
-        this.nextCursor = result.nextCursor;
-        this.update({
-          comments: [
-            ...new Map(
-              [...this.view.comments, ...result.items].map((item) => [
-                item.id,
-                item,
-              ]),
-            ).values(),
-          ],
-          canLoadMore: !!this.nextCursor,
-        });
-      },
-      () => this.clear(),
-    );
+    await this.read(this.nextCursor, this.pageIndex + 1);
+  }
+  async previous(): Promise<void> {
+    if (
+      !this.available() ||
+      this.view.busy ||
+      !this.view.loaded ||
+      !this.view.canPrevious ||
+      this.pageIndex < 1
+    )
+      return;
+    await this.read(this.pageCursors[this.pageIndex - 1]!, this.pageIndex - 1);
   }
   async moreReplies(commentId: string): Promise<void> {
     const root = this.view.comments.find((item) => item.id === commentId),

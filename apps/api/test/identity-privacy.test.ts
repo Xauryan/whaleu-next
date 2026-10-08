@@ -2,6 +2,7 @@ import {
   startTransactionDeadlines,
   checkTransactionDeadlines,
   clearTransactionDeadlines,
+  registerTransactionDeadline,
 } from '../src/database/transaction-deadlines.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
@@ -17,6 +18,7 @@ import type { IdentityService } from '../src/identity/identity.service.js';
 import { IdentityAuditRepository } from '../src/identity-privacy/identity-audit.repository.js';
 import type { IdentityAuditEntry } from '../src/identity-privacy/identity-audit.repository.js';
 import { IdentityPrivacyService } from '../src/identity-privacy/identity-privacy.service.js';
+import { requireAllowedSafetyRelationship } from '../src/safety/relationship-proof.js';
 import type { PrivateIdentityRepository } from '../src/identity-privacy/private-identity.repository.js';
 const errorIs = (code: string) => (error: unknown) =>
   error instanceof ApplicationError && error.code === code;
@@ -43,6 +45,11 @@ function fixture() {
     auditFails: false,
     commitFails: false,
     sourceFails: false,
+    namedAllow: false,
+    lateBlock: false,
+    unavailableTargets: new Set<string>(),
+    failSnapshotAt: null as number | null,
+    authorityDeadline: null as number | null,
     now: 500,
     auditNow: null as number | null,
     numberValidUntil: null as number | null,
@@ -51,6 +58,20 @@ function fixture() {
   const client = {
     query: async (sql: string) => {
       statements.push(sql);
+      if (sql.includes('current_setting'))
+        return {
+          rows: [
+            {
+              isolation: 'read committed',
+              statement_timeout: '10s',
+              lock_timeout: '0',
+            },
+          ],
+        };
+      if (sql.includes('FROM unnest'))
+        return {
+          rows: [{ ordinal: 1, outgoing: state.lateBlock, incoming: false }],
+        };
       return {
         rows: [{ now: new Date(state.expireOnRecheck ? 950 : state.now) }],
       };
@@ -61,7 +82,7 @@ function fixture() {
       operation: (transaction: PoolClient) => Promise<T>,
     ) => {
       try {
-        if (state.wrapperNow !== null) startTransactionDeadlines(client);
+        startTransactionDeadlines(client);
         const result = await operation(client);
         if (state.wrapperNow !== null) {
           state.now = state.wrapperNow;
@@ -79,12 +100,19 @@ function fixture() {
     },
   } as DatabaseService;
   const identity = {
-    session: async () => ({
-      accountId,
-      sessionId,
-      expiresAt: 1000,
-      refreshExpiresAt: 2000,
-    }),
+    session: async () => {
+      registerTransactionDeadline(
+        client,
+        state.authorityDeadline,
+        'ACCESS_TOKEN_EXPIRED',
+      );
+      return {
+        accountId,
+        sessionId,
+        expiresAt: 1000,
+        refreshExpiresAt: 2000,
+      };
+    },
   } as unknown as IdentityService;
   const authorization = {
     grants: async () => {
@@ -92,8 +120,16 @@ function fixture() {
     },
   } as unknown as AuthorizationService;
   const owners = {
-    resolve: async () => {
+    resolve: async (reference: { id: string }) => {
       ownerReads++;
+      if (state.unavailableTargets.has(reference.id)) return null;
+      if (state.namedAllow)
+        requireAllowedSafetyRelationship(
+          accountId,
+          ownerId,
+          'direct_post',
+          client,
+        );
       return {
         accountId: ownerId,
         authorMode: 'anonymous',
@@ -104,7 +140,8 @@ function fixture() {
   const identities = {
     snapshot: async () => {
       snapshotReads++;
-      if (state.sourceFails) throw new Error('private payload must not escape');
+      if (state.sourceFails || state.failSnapshotAt === snapshotReads)
+        throw new Error('private payload must not escape');
       return {
         validUntil: state.numberValidUntil,
         identity: {
@@ -233,6 +270,48 @@ test('failed source yields safe unavailable error and committed attempt metadata
   assert.deepEqual(f.audits[0]?.fields, []);
 });
 
+test('abandoned private payload drops only its disclosure proof and preserves durable unavailable or denied audit', async () => {
+  for (const outcome of ['unavailable', 'denied'] as const) {
+    const f = fixture();
+    f.state.namedAllow = true;
+    f.state.lateBlock = true;
+    f.state.wrapperNow = 500;
+    f.state.sourceFails = outcome === 'unavailable';
+    f.state.expireOnRecheck = outcome === 'denied';
+    await assert.rejects(
+      f.service.view('synthetic', { targets: [target] }, randomUUID()),
+      errorIs(
+        outcome === 'unavailable'
+          ? 'IDENTITY_VIEW_UNAVAILABLE'
+          : 'AUTHORIZATION_REQUIRED',
+      ),
+    );
+    assert.equal(f.committed(), 1);
+    assert.equal(f.audits[0]?.outcome, outcome);
+    assert.deepEqual(f.audits[0]?.fields, []);
+    assert.equal(
+      f.statements.some((sql) =>
+        sql.includes('LOCK TABLE whaleu_safety.blocks'),
+      ),
+      false,
+    );
+  }
+});
+
+test('a late block of an actually returned private identity still aborts the disclosed audit', async () => {
+  const f = fixture();
+  f.state.namedAllow = true;
+  f.state.lateBlock = true;
+  f.state.wrapperNow = 500;
+  await assert.rejects(
+    f.service.view('synthetic', { targets: [target] }, randomUUID()),
+    errorIs('COMMUNITY_UNAVAILABLE'),
+  );
+  assert.equal(f.committed(), 0);
+  assert.equal(f.rolledBack(), 1);
+  assert.equal(f.audits[0]?.outcome, 'disclosed');
+});
+
 test('audit must insert exactly one metadata row per target, including silent trigger suppression', async () => {
   const repository = new IdentityAuditRepository();
   const entry: IdentityAuditEntry = {
@@ -305,5 +384,63 @@ test('wrapper final clock rejects grant and disclosed student expiry after the l
     assert.equal(f.committed(), 0);
     assert.equal(f.snapshotReads(), 1);
     assert.equal(f.statements.at(-1), 'SELECT clock_timestamp() AS now');
+  }
+});
+
+test('mixed available/unavailable identity items keep returned disclosure proved in either order', async () => {
+  for (const unavailableFirst of [false, true]) {
+    const f = fixture();
+    const unavailable = { kind: 'post', id: randomUUID() } as const;
+    f.state.unavailableTargets.add(unavailable.id);
+    f.state.namedAllow = true;
+    f.state.lateBlock = true;
+    f.state.wrapperNow = 500;
+    await assert.rejects(
+      f.service.view(
+        'synthetic',
+        {
+          targets: unavailableFirst
+            ? [unavailable, target]
+            : [target, unavailable],
+        },
+        randomUUID(),
+      ),
+      errorIs('COMMUNITY_UNAVAILABLE'),
+    );
+    assert.equal(f.committed(), 0);
+    assert.equal(f.rolledBack(), 1);
+    assert.deepEqual(
+      f.audits.map((entry) => entry.outcome),
+      unavailableFirst
+        ? ['unavailable', 'disclosed']
+        : ['disclosed', 'unavailable'],
+    );
+  }
+});
+
+test('a later source failure abandons the whole batch without erasing earlier authority deadlines', async () => {
+  for (const expires of [false, true]) {
+    const f = fixture();
+    f.state.namedAllow = true;
+    f.state.lateBlock = true;
+    f.state.failSnapshotAt = 2;
+    f.state.wrapperNow = expires ? 700 : 500;
+    f.state.authorityDeadline = expires ? 600 : null;
+    await assert.rejects(
+      f.service.view(
+        'synthetic',
+        { targets: [target, { kind: 'post', id: randomUUID() }] },
+        randomUUID(),
+      ),
+      errorIs(expires ? 'ACCESS_TOKEN_EXPIRED' : 'IDENTITY_VIEW_UNAVAILABLE'),
+    );
+    assert.equal(f.snapshotReads(), 2);
+    assert.deepEqual(
+      f.audits.map((entry) => entry.outcome),
+      ['unavailable', 'unavailable'],
+    );
+    assert.ok(f.audits.every((entry) => entry.fields.length === 0));
+    assert.equal(f.committed(), expires ? 0 : 1);
+    assert.equal(f.rolledBack(), expires ? 1 : 0);
   }
 });

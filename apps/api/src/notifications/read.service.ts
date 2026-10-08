@@ -1,3 +1,4 @@
+import { enableSafetyRelationshipProof } from '../safety/relationship-proof.js';
 import { lockSafetyPolicy } from '../safety/locks.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.js';
@@ -53,32 +54,41 @@ export class UpdatesReadService {
       : { ...base, status: 'unavailable' };
   }
   list(token: string, query: UpdatesQuery): Promise<UpdatesPage> {
-    return this.database.transaction(async (tx) => {
-      await lockSafetyPolicy(tx);
-      const { accountId } = await this.identity.session(token, tx);
-      const seek = updatesCursor(query.cursor, accountId, query.limit);
-      await this.repository.owner(accountId, tx);
-      const rows = await this.repository.page(accountId, query.limit, seek, tx);
-      const page = rows.slice(0, query.limit),
-        items: NoticeView[] = [];
-      for (const row of page) items.push(await this.project(row, tx));
-      const last = page.at(-1);
-      const unreadCount = await this.repository.count(accountId, tx);
-      await this.identity.session(token, tx);
-      return {
-        items,
-        unreadCount,
-        nextCursor:
-          rows.length > query.limit && last
-            ? encodeUpdatesCursor(
-                last.created_at.toISOString(),
-                last.id,
-                accountId,
-                query.limit,
-              )
-            : null,
-      };
-    });
+    return this.database.transaction(
+      async (tx) => {
+        enableSafetyRelationshipProof(tx);
+        await lockSafetyPolicy(tx);
+        const { accountId } = await this.identity.session(token, tx);
+        const seek = updatesCursor(query.cursor, accountId, query.limit);
+        await this.repository.owner(accountId, tx);
+        const rows = await this.repository.page(
+          accountId,
+          query.limit,
+          seek,
+          tx,
+        );
+        const page = rows.slice(0, query.limit),
+          items: NoticeView[] = [];
+        for (const row of page) items.push(await this.project(row, tx));
+        const last = page.at(-1);
+        const unreadCount = await this.repository.count(accountId, tx);
+        await this.identity.session(token, tx);
+        return {
+          items,
+          unreadCount,
+          nextCursor:
+            rows.length > query.limit && last
+              ? encodeUpdatesCursor(
+                  last.created_at.toISOString(),
+                  last.id,
+                  accountId,
+                  query.limit,
+                )
+              : null,
+        };
+      },
+      { isolationLevel: 'read committed' },
+    );
   }
   unreadCount(token: string) {
     return this.database.transaction(async (tx) => {
@@ -91,23 +101,27 @@ export class UpdatesReadService {
     });
   }
   target(token: string, noticeId: string) {
-    return this.database.transaction(async (tx) => {
-      await lockSafetyPolicy(tx);
-      const { accountId } = await this.identity.session(token, tx);
-      await this.repository.owner(accountId, tx);
-      const item = await this.project(
-        await this.repository.own(accountId, noticeId, tx),
-        tx,
-      );
-      await this.identity.session(token, tx);
-      return item.status === 'available'
-        ? {
-            noticeId: item.noticeId,
-            status: 'available' as const,
-            target: item.target,
-          }
-        : { noticeId: item.noticeId, status: 'unavailable' as const };
-    });
+    return this.database.transaction(
+      async (tx) => {
+        enableSafetyRelationshipProof(tx);
+        await lockSafetyPolicy(tx);
+        const { accountId } = await this.identity.session(token, tx);
+        await this.repository.owner(accountId, tx);
+        const item = await this.project(
+          await this.repository.own(accountId, noticeId, tx),
+          tx,
+        );
+        await this.identity.session(token, tx);
+        return item.status === 'available'
+          ? {
+              noticeId: item.noticeId,
+              status: 'available' as const,
+              target: item.target,
+            }
+          : { noticeId: item.noticeId, status: 'unavailable' as const };
+      },
+      { isolationLevel: 'read committed' },
+    );
   }
   markRead(token: string, noticeId: string) {
     return this.database.transaction(async (tx) => {

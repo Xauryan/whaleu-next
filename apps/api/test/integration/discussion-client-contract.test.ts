@@ -929,6 +929,118 @@ test(
       );
 
       await t.test(
+        'native v3 root cursors survive irrelevant off-page changes and freshly project selected replies',
+        async () => {
+          const body = intent('Synthetic isolated v3 root pagination');
+          await approve(pool, author.credentials.accountId, body.text);
+          const parent = created(
+            await author.community.publishPost(body, cancel),
+          );
+          const roots: Extract<PublicationReceipt, { outcome: 'created' }>[] =
+            [];
+          for (let index = 0; index < 12; index++)
+            roots.push(
+              await publishRoot(
+                author,
+                parent.resourceId,
+                `Synthetic v3 root ${index}`,
+                'named',
+              ),
+            );
+          const options = {
+            sort: 'time',
+            order: 'asc',
+            limit: 1,
+            previewLimit: 1,
+          };
+          const first: Roots = await observer.community.comments(
+            parent.resourceId,
+            null,
+            cancel,
+            options,
+          );
+          assert.equal(first.items[0]!.id, roots[0]!.resourceId);
+          assert.ok(first.nextCursor);
+          const encoded = JSON.parse(
+            Buffer.from(first.nextCursor, 'base64url').toString('utf8'),
+          );
+          assert.equal(encoded.v, 3);
+          assert.ok(!first.nextCursor.includes(observer.credentials.accountId));
+          const legacy = Buffer.from(
+            JSON.stringify({ ...encoded, v: 2 }),
+          ).toString('base64url');
+          await assert.rejects(
+            observer.community.comments(
+              parent.resourceId,
+              legacy,
+              cancel,
+              options,
+            ),
+            clientFailure('business', 409, 'DISCUSSION_RESTART_REQUIRED'),
+          );
+          const offPage = roots.at(-1)!;
+          const newReply = await publishReply(
+            other,
+            parent.resourceId,
+            offPage.resourceId,
+            {
+              ...rootBody('Synthetic fresh off-page reply', 'named'),
+              targetReplyId: null,
+            },
+          );
+          applied(
+            await observer.community.discussionLike(
+              'comment',
+              offPage.resourceId,
+              true,
+              randomUUID(),
+              cancel,
+            ),
+            'set_comment_like',
+            offPage.resourceId,
+            true,
+          );
+          let cursor: string | null = first.nextCursor;
+          for (let index = 1; index < roots.length; index++) {
+            const current: Roots = await observer.community.comments(
+              parent.resourceId,
+              cursor,
+              cancel,
+              options,
+            );
+            assert.equal(current.items[0]!.id, roots[index]!.resourceId);
+            if (index === roots.length - 1) {
+              assert.equal(current.items[0]!.replyCount, 1);
+              assert.equal(current.items[0]!.likeCount, 1);
+              assert.equal(
+                current.items[0]!.replyPreview.items[0]!.id,
+                newReply.resourceId,
+              );
+              assert.equal(current.nextCursor, null);
+            }
+            cursor = current.nextCursor;
+          }
+          const previous: Roots = await observer.community.comments(
+            parent.resourceId,
+            first.nextCursor,
+            cancel,
+            options,
+          );
+          assert.equal(previous.items[0]!.id, roots[1]!.resourceId);
+          assert.equal(previous.items[0]!.replyCount, 0);
+          const full: Roots = await observer.community.comments(
+            parent.resourceId,
+            null,
+            cancel,
+            { sort: 'time', order: 'asc' },
+          );
+          assert.equal(full.items.length, 10);
+          assert.ok(full.nextCursor);
+          noPrivateFields(full);
+        },
+      );
+
+      await t.test(
         'durable desired-state receipts recover response loss and cannot reapply older opposite intentions',
         async () => {
           const likeId = randomUUID(),

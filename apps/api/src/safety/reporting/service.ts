@@ -17,6 +17,7 @@ import { CommunityReportTargetFacade } from '../../community/report-target.facad
 import type { ResolvedReportTarget } from '../../community/report-target.facade.js';
 import { SafetyRepository } from '../repository.js';
 import { lockSafetyPolicy } from '../locks.js';
+import { enableSafetyRelationshipProof } from '../relationship-proof.js';
 import { ReportsRepository } from './repository.js';
 import type { ReportCase, PostJury } from './repository.js';
 import { JurySettlementService } from './settlement.js';
@@ -53,12 +54,19 @@ export class ReportingService {
   ) {}
   private async transaction<T>(
     work: (tx: PoolClient) => Promise<T>,
+    emittingRead = false,
   ): Promise<T> {
     try {
-      return await this.database.transaction(async (tx) => {
-        await lockSafetyPolicy(tx);
-        return work(tx);
-      });
+      return await this.database.transaction(
+        async (tx) => {
+          // Only current progress is an emitting read. Mutations and immutable
+          // recovery receipts must not inherit an unchanged-relationship proof.
+          if (emittingRead) enableSafetyRelationshipProof(tx);
+          await lockSafetyPolicy(tx);
+          return work(tx);
+        },
+        emittingRead ? { isolationLevel: 'read committed' } : {},
+      );
     } catch (error) {
       if (
         error instanceof ApplicationError ||
@@ -474,6 +482,6 @@ export class ReportingService {
           voteCapability: this.capability(voteCode, at),
         },
       };
-    });
+    }, true);
   }
 }

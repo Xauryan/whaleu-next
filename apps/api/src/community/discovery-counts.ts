@@ -24,7 +24,7 @@ import type { TradingSubtype } from './trading/contracts.js';
 
 export const DISCOVERY_COUNT_BATCH = 256;
 /** No history-size ceiling. An optional attempt has a finite elapsed budget. */
-export const DISCOVERY_COUNT_BUDGET_MS = 1500;
+export const DISCOVERY_COUNT_BUDGET_MS = 2000;
 const MAX_CONCURRENT_COUNTS = 2;
 const COUNT_SOURCE_STATEMENT_MS = 100;
 export const SMALL_COUNT_PROOF_CANDIDATES = 1024;

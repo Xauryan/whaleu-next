@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 import { test } from 'node:test';
 import type { PoolClient } from 'pg';
 import {
@@ -131,8 +132,45 @@ function fixture(size = 1025, poolMax = 10) {
     PG_POOL_MAX: poolMax,
   });
   startTransactionDeadlines(tx);
-  return { owner, source, commands, batches, state, tx, service, likes };
+  return { owner, source, commands, batches, state, tx, service, likes, facts };
 }
+
+test('default scan admits measured work beyond 1500 ms but still expires at 2000 ms', async (t) => {
+  let elapsed = 0;
+  t.mock.method(performance, 'now', () => elapsed);
+  for (const [finishAt, budget, expected] of [
+    [1750, undefined, 'known'],
+    [2000, undefined, 'unavailable'],
+    [1750, 1500, 'unavailable'],
+  ] as const) {
+    elapsed = 0;
+    const f = fixture(1);
+    const evaluatePosts = f.facts.evaluatePosts.bind(f.facts);
+    f.facts.evaluatePosts = async (...args) => {
+      const result = await evaluatePosts(...args);
+      elapsed = finishAt;
+      return result;
+    };
+    const count = await f.service.profile(
+      f.owner,
+      null,
+      'posts',
+      f.tx,
+      undefined,
+      budget,
+    );
+    assert.equal(count.status, expected);
+    assert.equal(count.value, expected === 'known' ? 1 : null);
+    if (expected === 'unavailable')
+      assert.ok(
+        f.commands.some(
+          (item) =>
+            item.sql === 'ROLLBACK TO SAVEPOINT discovery_optional_count',
+        ),
+      );
+    clearTransactionDeadlines(f.tx);
+  }
+});
 
 test('exact optional count streams above 1024 in bounded canonical batches and carries microseconds', async () => {
   const f = fixture(4097);

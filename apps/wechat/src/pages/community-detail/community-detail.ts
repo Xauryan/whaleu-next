@@ -703,6 +703,9 @@ Page({
   onMore() {
     void this.controller?.more();
   },
+  onPrevious() {
+    void this.controller?.previous();
+  },
   onLike() {
     if (this.data.post)
       void this.controller?.setLiked(!this.data.post.viewer.isLiked);

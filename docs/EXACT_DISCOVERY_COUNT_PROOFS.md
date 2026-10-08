@@ -25,7 +25,7 @@ The transaction wrapper performs:
 
 1. All mandatory reads, selected-page serialization and session checks
 2. `SET CONSTRAINTS ALL IMMEDIATE`, completing deferred waits
-3. Required owner relationship proofs for explicitly opted-in discovery reads
+3. Required owner relationship proofs for explicitly opted-in emitting reads
 4. Registered optional proof callbacks, each inside a final savepoint
 5. One fresh database `clock_timestamp()`
 6. Required expiry checks, followed by optional expiry/proof invalidation
@@ -43,9 +43,10 @@ recovery boundary. Successful fences remain held until commit.
 ## Mandatory relationship proof scope
 
 Optional safety epochs alone do not protect mandatory profile basics or selected
-page content against a raw SQL first block. The public-profile basic/list and own
-liked-list transactions therefore explicitly enable a separate mandatory safety
-owner proof. Ordinary source calls record only actually consulted allowed named
+page content against a raw SQL first block. Public-profile basic/list, own
+liked-list and the audited ordinary emitting owners explicitly enable a separate
+mandatory safety proof; see [the route inventory](NAMED_READ_FINALIZATION_GAP.md).
+Ordinary source calls record only actually consulted allowed named
 relationships; anonymous, guest and self bypasses create no identity dependency.
 List projections retain outgoing-only semantics; direct/profile relationships
 remain bilateral. A later deny or a weaker-purpose allow never overwrites an
@@ -74,14 +75,13 @@ facades do not feed this registry. The final mandatory owner phase has a 500 ms
 elapsed budget and remaining-budget statement caps. This deliberately avoids a
 new 256- or 4,096-author limit on previously supported selected-page work.
 
-This is a scoped fix, not a claim that every historical read route now has raw
-SQL relationship finalization. The common-gated controlled block/unblock flows
-remain unchanged and are not opted in, so their intended writes do not reject
-themselves. Separate remaining-route review covers ordinary feed/detail/
-discussion, polls, trading and formation contacts/rosters, Saved projections,
-own trading, updates, report progress and privileged content identity reads.
-Those routes still require the established owner/common-gate protocol; this
-increment does not claim protection against its raw-block bypass on those routes.
+Explicit owner enrollment also covers ordinary current emitting reads and the
+audited identity POST. The [named-read finalization document](NAMED_READ_FINALIZATION_GAP.md)
+records routes, directionality, v3 discussion cursor and audit-scope semantics.
+Controlled block/unblock, historical receipts, own blocked-name cleanup and worker
+materialization remain intentionally outside this unchanged-relationship read
+proof. This does not establish universal mutation/raw-writer protection or
+production readiness.
 
 ## Fixed transactional writer slots
 
@@ -177,6 +177,22 @@ nested future source statements rather than hard-coding trigger depth two.
 
 ## Proof and fixed resource footprint
 
+Each optional count scan has a **2,000 ms** monotonic budget. This is per count,
+not an HTTP timeout: profile basics can run two scans, followed by two 600 ms
+optional finalization envelopes and the 500 ms required relationship proof, for
+5.7 seconds of configured phase allowances. A profile list or liked list has one
+scan and one optional callback, for 3.1 seconds including the required proof.
+Mandatory initial/page work, scheduling and recovery add elapsed time. The existing
+shared policy gate and mandatory row locks remain held until commit; compared
+with the previous 1,500 ms setting, scan allowance grows by 500 ms per count and
+by 1 second for two-count basics. The 15-second internal benchmark is separate.
+
+Admission remains at most two active scans/final recounts per application instance
+and at most `PG_POOL_MAX - 1`, preserving a pool slot for mandatory work. Source
+statements remain capped at 100 ms and the remaining scan allowance, lock waits
+at 25 ms, and each batch at 4 MiB reconstructed wire data. The change does not
+extend the final proof, small recount or required relationship-proof budgets.
+
 Initial epoch vectors precede candidate traversal. The finalizer acquires all
 owner gates in namespace/slot order and only then rereads the vectors in fresh
 READ COMMITTED statements. An uncommitted relevant writer conflicts with a fence;
@@ -215,3 +231,5 @@ reuse, directionality, prior-allow preservation, mandatory failures and 387-pair
 liked chains. The normal-AppModule integration counterpart exercises actual raw
 INSERT/reactivation races across profile basics, profile pages and liked pages in
 both directions, plus intended controlled block/unblock and guest/self bypasses.
+`test/integration/named-read-finalization.test.ts` separately exercises the
+additional emitting routes, exclusions and outgoing-only/bilateral boundaries.

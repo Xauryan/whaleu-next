@@ -5,6 +5,7 @@ import { smokeRuntimePolicy } from './smoke-runtime-policy.mjs';
 import { smokeReporting } from './smoke-reporting.mjs';
 import { smokeSystemNotices } from './smoke-system-notices.mjs';
 import { smokeNamedBlocks } from './smoke-blocks.mjs';
+import { smokeDiscussionPagination } from './smoke-discussion-pagination.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -1692,6 +1693,16 @@ app.identity.sessions.completeLogin(app.identity.sessions.beginLogin(), {
   refreshToken: `wu_r_${'a'.repeat(43)}`,
   expiresAt: 1900000000000,
   refreshExpiresAt: 1900600000000000,
+});
+await smokeDiscussionPagination({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
+  postWire: pollPostWire,
+  rootWire,
+  replyWire,
+  accountId: pollAccount,
 });
 await smokeNamedBlocks({
   app,

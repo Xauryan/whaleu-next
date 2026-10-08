@@ -1,3 +1,4 @@
+import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
@@ -67,14 +68,18 @@ export class PollReadService {
     };
   }
   get(token: string, postId: string): Promise<PollView> {
-    return this.community.database.transaction(async (tx) => {
-      const actor = await this.access.actor(token, tx);
-      const { space } = await this.access.accessiblePost(postId, actor, tx);
-      const authority = await this.access.advisory(actor, space, tx);
-      const poll = await this.project(postId, actor, authority, tx);
-      if (!poll) throw new ApplicationError('POLL_NOT_FOUND');
-      return poll;
-    });
+    return this.community.database.transaction(
+      async (tx) => {
+        enableSafetyRelationshipProof(tx);
+        const actor = await this.access.actor(token, tx);
+        const { space } = await this.access.accessiblePost(postId, actor, tx);
+        const authority = await this.access.advisory(actor, space, tx);
+        const poll = await this.project(postId, actor, authority, tx);
+        if (!poll) throw new ApplicationError('POLL_NOT_FOUND');
+        return poll;
+      },
+      { isolationLevel: 'read committed' },
+    );
   }
   own(token: string, postId: string): Promise<OwnBallot> {
     return this.community.database.transaction(async (tx) => {

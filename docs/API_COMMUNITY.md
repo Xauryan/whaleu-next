@@ -438,11 +438,24 @@ query-level authoritative filtering remains a release gate.
 - Root order is pinned first. Time follows the selected direction; likes follows
   the selected direction then newest timestamp and deterministic ID. Each root
   embeds earliest-first `replyPreview:{items,nextCursor}`
-- Root cursors bind viewer, parent, sort, direction, limits and a fingerprint of
-  the complete visible ordered result. Mutated ordering/counts/visibility or a
-  changed typed scope/size returns `409 DISCUSSION_RESTART_REQUIRED`. Refresh must
-  discard the old traversal. Malformed cursors return 400. The viewer binding is
-  hashed; raw private account identifiers never appear in cursors
+- Opaque v3 root cursors bind viewer, parent, sort, direction and limits. Their
+  fingerprint covers visible root IDs, creation times and pins, plus like counts
+  only for likes ordering. Relevant root eligibility/order or typed scope/size
+  changes return `409 DISCUSSION_RESTART_REQUIRED`; valid v2 cursors explicitly
+  require the same safe restart. Malformed cursors return 400. The viewer binding
+  is hashed; raw private account identifiers never appear in cursors
+- Root traversal filters/orders at most 1,024 candidate roots, then serializes only
+  the selected page of at most 10. Off-page replies/counts/previews/media/names are
+  not read for the cursor. Off-page reply changes and time-sort like changes do
+  not invalidate traversal; each selected root still gets fresh counts/previews
+- Native Previous/Next replaces roots through a fresh parent/page/context read and
+  stores cursor history only. It never restores old root DTOs or expanded previews.
+  Restart, sort, reload, session/safety changes and cancellation clear traversal;
+  located context and reply drafts/targets remain independent
+- This endpoint-local bound does not remove the existing PostView serializer's
+  1,024 visible-replies-per-post aggregate limit. Native navigation rereads that
+  parent, and the 1,024-root and per-selected-root 1,024-reply candidate limits
+  remain separate scale gates
 - `GET /v1/community/comments/:commentId` reads one visible root with its preview
 - `GET /v1/community/comments/:commentId/replies` accepts limit 1–50, default 20,
   and cursor. Replies use a server-owned monotonic sequence, allocated while the

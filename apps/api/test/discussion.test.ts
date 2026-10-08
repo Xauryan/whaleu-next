@@ -224,7 +224,7 @@ test('discussion reads and mutation keys reject unknown/coerced selectors and en
 });
 test('discussion continuations distinguish invalid cursors from an explicit mutable root traversal restart', () => {
   const cursor = encodeDiscussionCursor({
-    v: 2,
+    v: 3,
     scope: 'root-safe-scope',
     limit: 10,
     snapshot: 'a'.repeat(64),
@@ -240,6 +240,21 @@ test('discussion continuations distinguish invalid cursors from an explicit muta
     errorCode('DISCUSSION_RESTART_REQUIRED'),
   );
   assert.throws(() => rootCursor('bad!', 'root-safe-scope', 10));
+  assert.throws(
+    () =>
+      rootCursor(
+        encodeDiscussionCursor({
+          v: 2,
+          scope: 'root-safe-scope',
+          limit: 10,
+          snapshot: 'a'.repeat(64),
+          offset: 10,
+        }),
+        'root-safe-scope',
+        10,
+      ),
+    errorCode('DISCUSSION_RESTART_REQUIRED'),
+  );
   const reply = encodeDiscussionCursor({
     v: 1,
     scope: 'reply-scope',
