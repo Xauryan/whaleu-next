@@ -1,4 +1,5 @@
 import { CommunityViewEnrollment } from '../../src/community/view-component/enrollment.js';
+import { CommunityCommentEnrollment } from '../../src/community/comment-component/enrollment.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -44,6 +45,7 @@ test(
     let owns = false;
     let currentViewSchema = false;
     const views = new CommunityViewEnrollment();
+    const comments = new CommunityCommentEnrollment();
     const owner = randomUUID(),
       actor = randomUUID(),
       other = randomUUID(),
@@ -98,6 +100,13 @@ test(
       // keep the pre-0027 historical publication genuinely view-unknown.
       if (currentViewSchema)
         await views.enrollPublishedPost(
+          { postId: post, ownerId: owner, publicationRequestId: request },
+          tx,
+        );
+      // Only current-schema fresh publications enroll the independent comment
+      // component; the historical native publication stays comment-unknown.
+      if (currentViewSchema)
+        await comments.enrollPublishedPost(
           { postId: post, ownerId: owner, publicationRequestId: request },
           tx,
         );

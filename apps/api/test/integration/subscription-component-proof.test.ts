@@ -1,5 +1,6 @@
 import { CommunityViewEnrollment } from '../../src/community/view-component/enrollment.js';
 import { CommunityLikeEnrollment } from '../../src/community/like-component/enrollment.js';
+import { CommunityCommentEnrollment } from '../../src/community/comment-component/enrollment.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -47,6 +48,7 @@ test(
     let currentLikeSchema = false;
     const likes = new CommunityLikeEnrollment();
     const views = new CommunityViewEnrollment();
+    const comments = new CommunityCommentEnrollment();
     const owner = randomUUID(),
       actor = randomUUID(),
       other = randomUUID(),
@@ -98,6 +100,13 @@ test(
       // invariant. This does not enroll the intentional pre-migration history.
       if (currentLikeSchema)
         await views.enrollPublishedPost(
+          { postId: post, ownerId: owner, publicationRequestId: request },
+          tx,
+        );
+      // The independent comment hook applies only after all current migrations;
+      // historical native publications intentionally remain comment-unknown.
+      if (currentLikeSchema)
+        await comments.enrollPublishedPost(
           { postId: post, ownerId: owner, publicationRequestId: request },
           tx,
         );

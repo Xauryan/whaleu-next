@@ -148,3 +148,9 @@ buckets, independent of transactional event capacity. Retention deletes expired
 metadata while preserving committed aggregates. Neither migration activates a
 provider, seeds production content or imports historical data. See
 [view scope and operations](../../../docs/VIEW_REPORTING.md).
+
+Migration 0031 adds independent fresh-post comment/reply baseline, exact transition
+sources, post/content/actor state and immutable effect receipts under existing
+hotness ownership. It captures supported row creation/tombstone changes without
+modifying moderation, outbox or public counts. It seeds no historical baseline,
+formula or production processor. See [internal comment component](../../../docs/POST_COMMENT_COMPONENT.md).

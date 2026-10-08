@@ -9,6 +9,7 @@ const fields = {
   experience: 'EXPERIENCE_PROCESSING',
   subscriptions: 'SUBSCRIPTION_COMPONENT_PROCESSING',
   likes: 'LIKE_COMPONENT_PROCESSING',
+  comments: 'COMMENT_COMPONENT_PROCESSING',
 } as const;
 for (const owner of Object.keys(fields) as (keyof typeof fields)[]) {
   test(`${owner} CLI isolates inherited automatic dispatchers`, () => {
@@ -20,6 +21,7 @@ for (const owner of Object.keys(fields) as (keyof typeof fields)[]) {
       EXPERIENCE_PROCESSING: 'automatic',
       SUBSCRIPTION_COMPONENT_PROCESSING: 'manual_only',
       LIKE_COMPONENT_PROCESSING: 'manual_only',
+      COMMENT_COMPONENT_PROCESSING: 'manual_only',
     });
     const selected = manualProcessingConfig(config, owner);
     assert.equal(config.VIEW_REPORTING_RETENTION_PROCESSING, 'automatic');
@@ -31,7 +33,7 @@ for (const owner of Object.keys(fields) as (keyof typeof fields)[]) {
       );
       assert.equal(
         config[field],
-        name === 'subscriptions' || name === 'likes'
+        name === 'subscriptions' || name === 'likes' || name === 'comments'
           ? 'manual_only'
           : 'automatic',
       );

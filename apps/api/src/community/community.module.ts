@@ -7,6 +7,7 @@ import { CommunityPhoneContinuation } from './phone-continuation.js';
 import { SearchController } from './search/controller.js';
 import { SearchService } from './search/service.js';
 import { SearchRepository } from './search/repository.js';
+import { CommunityCommentComponentModule } from './comment-component/module.js';
 import { CommunityLikeComponentModule } from './like-component/module.js';
 import { CommunitySubscriptionComponentModule } from './subscription-component/module.js';
 import { ExperienceIngressModule } from '../experience/ingress.js';
@@ -245,6 +246,7 @@ export class CommunityRecoveryController {
     ViewRequestThrottlingModule,
     CommunitySubscriptionComponentModule,
     CommunityLikeComponentModule,
+    CommunityCommentComponentModule,
     ExperienceIngressModule,
     DatabaseModule,
     CampusModule,

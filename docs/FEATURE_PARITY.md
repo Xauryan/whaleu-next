@@ -429,3 +429,10 @@ throttling and vetted native hashing are reused. Historical views, public count
 projection, hot-score/ranking, search exposures, production/device acceptance and
 full parity remain open. See [view scope](VIEW_REPORTING.md) and
 [local acceptance](acceptance/view-reporting.md).
+
+Internal comment/reply hotness inputs now have independent fresh coverage,
+transactional capture, causal manual settlement and retained actor cardinality.
+Deleted-root descendants follow source accounting internally while existing read
+visibility is unchanged. This does not complete hot score/feed or decide author
+received-interaction deletion policy. See [component scope](POST_COMMENT_COMPONENT.md)
+and [local acceptance](acceptance/comment-component.md).

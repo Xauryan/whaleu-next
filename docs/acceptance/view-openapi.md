@@ -60,3 +60,11 @@ No auto-fix, version update or install lifecycle script was executed by the audi
 Scoped upstream advisory review and the registry result do not prove absence of
 all vulnerabilities. Public API coverage beyond these two operations, physical
 client testing and production deployment remain separate work.
+
+## Hosted verification
+
+Verified SSH-signed commit `52ebc87503e6b130bf7f19dca973628c81f634d0` passed
+[GitHub Actions run 37761463238](https://github.com/Xauryan/whaleu-next/actions/runs/37761463238).
+The run passed 538 API, 842 native and 898 PostgreSQL tests, 2,278 total with zero
+failures/skips. PostgreSQL took 772.113 seconds. OpenAPI drift, lint, types, builds,
+emitted native smokes and formatting passed. No production rollout is implied.

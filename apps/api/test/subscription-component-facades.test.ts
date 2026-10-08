@@ -80,6 +80,7 @@ function fixture(
       enrollment,
       { enrollPublishedPost: async () => {} },
       { enrollPublishedPost: async () => {} },
+      { enrollPublishedPost: async () => {} },
     ),
   };
 }

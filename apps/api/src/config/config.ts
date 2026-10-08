@@ -43,6 +43,9 @@ const schema = z.object({
   SUBSCRIPTION_COMPONENT_PROCESSING: z
     .enum(['disabled', 'manual_only'])
     .default('manual_only'),
+  COMMENT_COMPONENT_PROCESSING: z
+    .enum(['disabled', 'manual_only'])
+    .default('manual_only'),
   LIKE_COMPONENT_PROCESSING: z
     .enum(['disabled', 'manual_only'])
     .default('manual_only'),

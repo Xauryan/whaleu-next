@@ -30,7 +30,8 @@
     "subscriptions:process": "npm run subscriptions:process -w @whaleu/api --",
     "likes:process": "npm run likes:process -w @whaleu/api --",
     "openapi:generate": "npm run openapi:generate -w @whaleu/api",
-    "openapi:check": "npm run openapi:check -w @whaleu/api"
+    "openapi:check": "npm run openapi:check -w @whaleu/api",
+    "comments:process": "npm run comments:process -w @whaleu/api --"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

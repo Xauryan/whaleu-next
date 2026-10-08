@@ -21,6 +21,7 @@ import type { PublishPost } from '../../src/community/contracts.js';
 import { CommunityViewEnrollment } from '../../src/community/view-component/enrollment.js';
 import { CommunityLikeEnrollment } from '../../src/community/like-component/enrollment.js';
 import { CommunitySubscriptionEnrollment } from '../../src/community/subscription-component/enrollment.js';
+import { CommunityCommentEnrollment } from '../../src/community/comment-component/enrollment.js';
 import { createRuntimeActor } from '../support/community-runtime-fixtures.js';
 import { withCommunityScopeWriter } from '../support/community-scope-fixtures.js';
 import { migrationSchemaNames } from '../support/migration-schemas.js';
@@ -64,10 +65,12 @@ test(
       )
     ).rows[0]!.locked;
     let owns = false;
+    let currentCommentSchema = false;
     let app: import('@nestjs/common').INestApplication | undefined;
     const subscriptions = new CommunitySubscriptionEnrollment(),
       likes = new CommunityLikeEnrollment(),
-      views = new CommunityViewEnrollment();
+      views = new CommunityViewEnrollment(),
+      comments = new CommunityCommentEnrollment();
     try {
       assert.ok(locked, 'Serial PostgreSQL fixture required');
       assert.equal(
@@ -159,6 +162,10 @@ test(
         };
         await subscriptions.enrollPublishedPost(canonical, tx);
         await likes.enrollPublishedPost(canonical, tx);
+        // Keep the pre-0029 publication comment-unknown while current fresh
+        // fixtures satisfy the independent comment enrollment invariant.
+        if (currentCommentSchema)
+          await comments.enrollPublishedPost(canonical, tx);
         if (view) {
           await tx.query(
             'INSERT INTO whaleu_post_hotness.view_baselines(post_id,owner_id,source_request_id) VALUES($1,$2,$3)',
@@ -180,6 +187,7 @@ test(
         native(tx, false),
       );
       await runMigrations(pool, migrations, { mode: 'up' });
+      currentCommentSchema = true;
       await t.test(
         'migration and original HTTP publication replay do not enroll old like/subscription-known posts',
         async () => {
