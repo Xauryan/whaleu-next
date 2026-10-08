@@ -1,3 +1,4 @@
+import { CommunityExperienceSourceCapture } from './experience-source/capture.js';
 import { APP_CONFIG } from '../config/config.js';
 import type { RuntimeConfig } from '../config/config.js';
 import { randomUUID } from 'node:crypto';
@@ -47,6 +48,8 @@ export class CommunityRepository {
     @Inject(APP_CONFIG) private readonly config: RuntimeConfig,
     @Inject(DatabaseService) readonly database: DatabaseService,
     @Inject(CampusService) private readonly campuses: CampusService,
+    @Inject(CommunityExperienceSourceCapture)
+    private readonly experience: CommunityExperienceSourceCapture,
   ) {}
   async spaces(campusId: string) {
     const { campus, region } = await this.campuses.getBrowseContext(campusId);
@@ -138,7 +141,7 @@ export class CommunityRepository {
     resourceId: string,
     tx: PoolClient,
     context: Record<string, unknown> = {},
-  ): Promise<void> {
+  ): Promise<string | null> {
     const inserted = await tx.query<{ id: string }>(
       'INSERT INTO whaleu_community.outbox(id,event_key,event_type,resource_id,context) VALUES ($1,$2,$3,$4,$5::jsonb) ON CONFLICT(event_key) DO NOTHING RETURNING id',
       [randomUUID(), key, type, resourceId, JSON.stringify(context)],
@@ -151,5 +154,7 @@ export class CommunityRepository {
           this.config.COMMUNITY_UPDATES_PROCESSING === 'automatic',
         ],
       );
+    if (inserted.rows[0]) await this.experience.enroll(inserted.rows[0].id, tx);
+    return inserted.rows[0]?.id ?? null;
   }
 }

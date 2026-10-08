@@ -1316,7 +1316,15 @@ test(
       await t.test(
         'own liked native history resolves each target mode and full parent/root chain without borrowing parent anonymity',
         async () => {
-          await reader.community.like(named.id, true, cancel);
+          await reader.community.like(
+            {
+              requestId: randomUUID(),
+              operation: 'set_post_like',
+              postId: named.id,
+              liked: true,
+            },
+            cancel,
+          );
           await reader.community.discussionLike(
             'comment',
             anonymousRoot,
@@ -1488,7 +1496,15 @@ test(
           const anchor = first.items[0] as LikedRow;
           const like = async (liked: boolean) =>
             anchor.kind === 'post'
-              ? reader.community.like(anchor.targetId, liked, cancel)
+              ? reader.community.like(
+                  {
+                    requestId: randomUUID(),
+                    operation: 'set_post_like',
+                    postId: anchor.targetId,
+                    liked,
+                  },
+                  cancel,
+                )
               : reader.community.discussionLike(
                   anchor.kind,
                   anchor.targetId,

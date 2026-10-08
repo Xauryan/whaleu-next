@@ -104,22 +104,33 @@ export class DiscussionMutationService {
         } else {
           const kind = operation === 'set_reply_like' ? 'reply' : 'comment';
           const changed = desired
-            ? await tx.query(
-                `INSERT INTO whaleu_community.${kind}_likes(${kind}_id,account_id) VALUES($1,$2) ON CONFLICT(${kind}_id,account_id) DO NOTHING`,
+            ? await tx.query<{ like_id: string }>(
+                `INSERT INTO whaleu_community.${kind}_likes(${kind}_id,account_id) VALUES($1,$2) ON CONFLICT(${kind}_id,account_id) DO NOTHING RETURNING like_id`,
                 [id, actor],
               )
-            : await tx.query(
-                `DELETE FROM whaleu_community.${kind}_likes WHERE ${kind}_id=$1 AND account_id=$2`,
+            : await tx.query<{ like_id: string }>(
+                `DELETE FROM whaleu_community.${kind}_likes WHERE ${kind}_id=$1 AND account_id=$2 RETURNING like_id`,
                 [id, actor],
               );
           if (changed.rowCount)
             await this.repository.event(
-              `discussion:${randomUUID()}`,
+              `${kind}:${desired ? 'like' : 'unlike'}:${changed.rows[0]!.like_id}`,
               `${kind}_${desired ? 'liked' : 'unliked'}`,
               id,
               tx,
               {
+                experienceSourceVersion: 1,
                 actorAccountId: actor,
+                actorAuthorMode: null,
+                resourceAuthorMode:
+                  'reply' in target
+                    ? (
+                        target as Awaited<
+                          ReturnType<CommunityAccessService['accessibleReply']>
+                        >
+                      ).reply.author_mode
+                    : comment.author_mode,
+                likeId: changed.rows[0]!.like_id,
                 postId: post.id,
                 rootCommentId: comment.id,
                 recipientAccountId:
@@ -200,7 +211,7 @@ export class DiscussionMutationService {
       if (!(await this.access.visible(actor, reply, tx, 'list_projection')))
         throw new ApplicationError('REPLY_NOT_FOUND');
       await tx.query(
-        'UPDATE whaleu_community.replies SET deleted_at=clock_timestamp() WHERE id=$1',
+        "UPDATE whaleu_community.replies SET deleted_at=date_trunc('milliseconds',clock_timestamp()) WHERE id=$1",
         [id],
       );
       await this.repository.event(
@@ -209,7 +220,10 @@ export class DiscussionMutationService {
         id,
         tx,
         {
+          experienceSourceVersion: 1,
           actorAccountId: actor,
+          actorAuthorMode: reply.author_mode,
+          resourceAuthorMode: reply.author_mode,
           postId: post.id,
           rootCommentId: comment.id,
           obligations: [

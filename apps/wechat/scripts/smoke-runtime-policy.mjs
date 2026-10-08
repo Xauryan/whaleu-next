@@ -20,12 +20,22 @@ export async function smokeRuntimePolicy({
   const { ClientError } = require(path.join(dist, 'api/errors.js'));
   const original = {
     gateway: app.community.gateway,
+    newRequestId: app.community.newRequestId,
     profiles: app.community.profiles,
     identityPrivacy: app.community.identityPrivacy,
     reports: app.community.reports,
     credentials: app.identity.sessions.snapshot().credentials,
   };
   const accountId = original.credentials.accountId;
+  const { Cancellation } = require(path.join(dist, 'platform/contracts.js'));
+  let likeSequence = 1,
+    liveLike = false,
+    loseLikeResponse = false,
+    likeReceiptReady = true,
+    finishLike;
+  const likeReceipts = new Map();
+  app.community.newRequestId = async () =>
+    `cdcdcdcd-cdcd-4dcd-8dcd-${String(likeSequence++).padStart(12, '0')}`;
   const requestId = 'abababab-abab-4bab-8bab-abababababab';
   const publicPost = {
     ...postWire(),
@@ -81,7 +91,11 @@ export async function smokeRuntimePolicy({
             };
       } else if (endpoint.path === `/v1/community/posts/${publicPost.id}`) {
         if (!contentAvailable) throw unavailable();
-        result = publicPost;
+        result = {
+          ...publicPost,
+          likeCount: liveLike ? 1 : 0,
+          viewer: { ...publicPost.viewer, isLiked: liveLike },
+        };
       } else if (
         endpoint.path === `/v1/community/posts/${publicPost.id}/comments`
       ) {
@@ -90,8 +104,44 @@ export async function smokeRuntimePolicy({
         endpoint.path === `/v1/community/posts/${publicPost.id}/like`
       ) {
         assert.equal(endpoint.method, 'PUT');
+        assert.equal(endpoint.authReplay, 'never');
+        assert.deepEqual(Object.keys(options.body).sort(), [
+          'liked',
+          'requestId',
+        ]);
+        result = likeReceipts.get(options.body.requestId);
+        if (!result) {
+          const pending = app.community.pendingPostLikes.load(accountId);
+          assert.equal(pending.requestId, options.body.requestId);
+          assert.equal(pending.liked, options.body.liked);
+          assert.equal(pending.postId, publicPost.id);
+          liveLike = options.body.liked;
+          result = {
+            requestId: options.body.requestId,
+            operation: 'set_post_like',
+            postId: publicPost.id,
+            liked: options.body.liked,
+            outcome: 'applied',
+          };
+          likeReceipts.set(result.requestId, result);
+          if (loseLikeResponse) {
+            loseLikeResponse = false;
+            await new Promise((resolve) => {
+              finishLike = resolve;
+            });
+          }
+        }
+      } else if (
+        endpoint.path.startsWith('/v1/me/community/post-like-requests/')
+      ) {
+        assert.equal(endpoint.method, 'GET');
         assert.equal(options.body, undefined);
-        result = { postId: publicPost.id, isLiked: true, likeCount: 1 };
+        result = likeReceipts.get(endpoint.path.split('/').pop());
+        if (!likeReceiptReady || !result)
+          throw new ClientError('http', 'safe', {
+            serverCode: 'REQUEST_NOT_FOUND',
+            httpStatus: 404,
+          });
       } else if (endpoint.path === `/v1/me/community/requests/${requestId}`) {
         if (!receiptReady) throw unavailable();
         result = {
@@ -172,6 +222,88 @@ export async function smokeRuntimePolicy({
     assert.equal(detail.data.post.text, publicPost.text);
     leakAuthority = false;
 
+    // Native hide/reopen preserves lost-response intent even with an unreadable parent.
+    const firstLike = [...likeReceipts.values()][0];
+    loseLikeResponse = true;
+    detail.onLike();
+    await flush();
+    const unresolved = app.community.pendingPostLikes.load(accountId);
+    assert.equal(unresolved.liked, false);
+    assert.equal(detail.data.postLikeMutation.frozen, true);
+    const sentLikes = () =>
+      requests.filter(({ path }) => path.endsWith('/like')).length;
+    const beforeDuplicate = sentLikes();
+    detail.onLike();
+    await flush();
+    assert.equal(sentLikes(), beforeDuplicate);
+    detail.onHide();
+    finishLike();
+    await flush();
+    assert.equal(detail.data.post, null);
+    assert.deepEqual(
+      app.community.pendingPostLikes.load(accountId),
+      unresolved,
+    );
+    contentAvailable = false;
+    detail.onShow();
+    await flush();
+    assert.equal(detail.data.post, null);
+    assert.equal(detail.data.postLikeMutation.frozen, true);
+    likeReceiptReady = false;
+    detail.onPostLikeReceipt();
+    await flush();
+    assert.deepEqual(
+      app.community.pendingPostLikes.load(accountId),
+      unresolved,
+    );
+    assert.equal(detail.data.postLikeMutation.frozen, true);
+    likeReceiptReady = true;
+    detail.onPostLikeReceipt();
+    await flush();
+    assert.equal(app.community.pendingPostLikes.load(accountId), null);
+    assert.equal(detail.data.post, null);
+    // Replaying original like after independent unlike only returns history.
+    assert.deepEqual(
+      await gateway.like(
+        {
+          requestId: firstLike.requestId,
+          operation: 'set_post_like',
+          postId: publicPost.id,
+          liked: true,
+        },
+        new Cancellation(),
+      ),
+      firstLike,
+    );
+    assert.equal(liveLike, false);
+    contentAvailable = true;
+    detail.onReload();
+    await flush();
+    assert.equal(detail.data.post.viewer.isLiked, false);
+    assert.equal(detail.data.post.likeCount, 0);
+    detail.onLike();
+    await flush();
+    assert.equal(detail.data.post.viewer.isLiked, true);
+    assert.equal(likeReceipts.size, 3);
+    assert.equal(new Set([...likeReceipts.keys()]).size, 3);
+    const detailTemplate = readFileSync(
+      path.join(dist, 'pages/community-detail/community-detail.wxml'),
+      'utf8',
+    );
+    assert.match(detailTemplate, /post-like-recovery/);
+    assert.match(
+      detailTemplate,
+      /postLikeMutation.busy \|\| postLikeMutation.frozen/,
+    );
+    const recoveryTemplate = readFileSync(
+      path.join(dist, 'community/post-like-recovery.wxml'),
+      'utf8',
+    );
+    assert.match(recoveryTemplate, /onPostLikeReceipt/);
+    assert.match(recoveryTemplate, /onPostLikeRetry/);
+    assert.match(recoveryTemplate, /onPostLikeCancel/);
+    assert.match(recoveryTemplate, /当前点赞与赞数需重新读取/);
+
     lateCapability = new Promise((resolve) => {
       finishCapability = resolve;
     });
@@ -249,6 +381,7 @@ export async function smokeRuntimePolicy({
   } finally {
     for (const page of pages) page.onUnload();
     app.community.gateway = original.gateway;
+    app.community.newRequestId = original.newRequestId;
     app.community.profiles = original.profiles;
     app.community.identityPrivacy = original.identityPrivacy;
     app.community.reports = original.reports;

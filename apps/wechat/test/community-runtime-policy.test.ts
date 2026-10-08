@@ -1,3 +1,4 @@
+import { PostLikeMutationController } from '../src/community/post-like-controller';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ClientError } from '../src/api/errors';
@@ -214,8 +215,14 @@ test('unavailable publication does not gate feed continuation, readable detail, 
     detailViews.push(view),
   );
   await detail.load();
-  await detail.setLiked(true);
-  assert.equal(detailViews[detailViews.length - 1]?.post?.viewer.isLiked, true);
+  const likes = new PostLikeMutationController(s.runtime, () => undefined);
+  await likes.setLiked(readable, true);
+  assert.equal(s.runtime.pendingPostLikes.load(s.accountId), null);
+  // Historical receipt is not a current like/count snapshot.
+  assert.equal(
+    detailViews[detailViews.length - 1]?.post?.viewer.isLiked,
+    false,
+  );
   assert.equal(
     detailViews[detailViews.length - 1]?.post?.viewer.canComment,
     false,
@@ -249,7 +256,15 @@ test('unavailable publication does not gate feed continuation, readable detail, 
     s.gateway.calls.some((call) => call.method === 'commentCapabilities'),
     false,
   );
-  for (const controller of [compose, feed, detail, saved, poll, formation])
+  for (const controller of [
+    compose,
+    feed,
+    detail,
+    likes,
+    saved,
+    poll,
+    formation,
+  ])
     controller.dispose();
 });
 

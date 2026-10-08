@@ -130,21 +130,31 @@ test('publication success status and receipt operation/request are strict; rejec
     'rejected',
   );
 });
-test('desired-state like and idempotent own deletion use PUT/DELETE and exact 204 empty response', async () => {
+test('durable desired-state likes use PUT bodies; own deletion requires exact 204 empty response', async () => {
   const s = setup();
-  s.transport.reply({ postId, isLiked: true, likeCount: 1 });
-  await s.gateway.like(postId, true, new Cancellation());
-  s.transport.reply({ postId, isLiked: false, likeCount: 0 });
-  await s.gateway.like(postId, false, new Cancellation());
+  for (const liked of [true, false]) {
+    const value = {
+      requestId: liked ? requestId : otherId,
+      operation: 'set_post_like' as const,
+      postId,
+      liked,
+    };
+    s.transport.reply({ ...value, outcome: 'applied' });
+    await s.gateway.like(value, new Cancellation());
+  }
   s.transport.reply('', 204);
   await s.gateway.deletePost(postId, new Cancellation());
   assert.deepEqual(
     s.transport.requests.map((item) => item.method),
-    ['PUT', 'DELETE', 'DELETE'],
+    ['PUT', 'PUT', 'DELETE'],
   );
-  assert.equal(
-    s.transport.requests.every((item) => item.body === undefined),
-    true,
+  assert.deepEqual(
+    s.transport.requests.map((item) => item.body),
+    [
+      { requestId, liked: true },
+      { requestId: otherId, liked: false },
+      undefined,
+    ],
   );
   s.transport.reply({ deleted: true }, 204);
   await assert.rejects(s.gateway.deletePost(postId, new Cancellation()));

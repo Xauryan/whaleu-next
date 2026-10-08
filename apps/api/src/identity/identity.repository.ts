@@ -1,3 +1,4 @@
+import { initializeNativeExperienceAccount } from '../experience/lifecycle.js';
 import { registerTransactionDeadline } from '../database/transaction-deadlines.js';
 import { initializeNativeSafetyAccount } from '../safety/lifecycle.js';
 import { randomUUID } from 'node:crypto';
@@ -84,6 +85,7 @@ export class IdentityRepository {
           'INSERT INTO whaleu_identity.accounts (id) VALUES ($1)',
           [accountId],
         );
+        await initializeNativeExperienceAccount(accountId, client);
         await initializeNativeSafetyAccount(accountId, client);
         await client.query(
           'INSERT INTO whaleu_identity.provider_identities (provider, app_id, subject, account_id, union_subject) VALUES ($1,$2,$3,$4,$5)',

@@ -25,7 +25,8 @@
     "db:up": "docker compose up -d --wait",
     "db:stop": "docker compose stop",
     "db:status": "npm run db:status -w @whaleu/api",
-    "db:migrate": "npm run db:migrate -w @whaleu/api"
+    "db:migrate": "npm run db:migrate -w @whaleu/api",
+    "experience:process": "npm run experience:process -w @whaleu/api --"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

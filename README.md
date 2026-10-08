@@ -17,7 +17,9 @@ streaming and final mutation proofs; availability under representative load
 remains an open release gate. Tested community increments include
 polls, flat discussion threads, trading listings, post-based group formation,
 Saved preferences, local Updates, named-content blocking, reports and local
-post-jury outcomes with owner-only system notices. The remaining business modules and complete
+post-jury outcomes with owner-only system notices. Local owner experience, sign-in,
+fresh-source rewards and owned title/color selection are described in the
+[experience contract](docs/API_EXPERIENCE.md); unproven old balances remain unknown. The remaining business modules and complete
 end-to-end onboarding/provider integration are still being implemented. Normal
 runtime text access now consumes canonical policy and exact review records;
 review issuance and configuration controls remain unfinished.

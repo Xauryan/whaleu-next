@@ -225,6 +225,12 @@ export class PublicationService {
           'post_created',
           id,
           tx,
+          {
+            experienceSourceVersion: 1,
+            actorAccountId: actor,
+            actorAuthorMode: authorMode,
+            resourceAuthorMode: authorMode,
+          },
         );
         if (body.component?.kind === 'formation')
           await this.access.actor(token, tx);
@@ -317,7 +323,10 @@ export class PublicationService {
           id,
           tx,
           {
+            experienceSourceVersion: 1,
             actorAccountId: actor,
+            actorAuthorMode: effectiveMode,
+            resourceAuthorMode: effectiveMode,
             postId: post.id,
             recipientAccountIds:
               post.account_id === actor ? [] : [post.account_id],

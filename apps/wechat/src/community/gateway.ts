@@ -1,4 +1,11 @@
 import {
+  decodePostLikeIntent,
+  decodePostLikeReceipt,
+  matchPostLikeReceipt,
+  type PostLikeIntent,
+  type PostLikeReceipt,
+} from './post-like-contract';
+import {
   decodeUpdatesList,
   decodeUpdatesUnread,
   decodeUpdateRead,
@@ -54,7 +61,6 @@ import {
   decodeCommentIntent,
   decodeComments,
   decodeFeed,
-  decodeLike,
   decodeOwnPublications,
   decodePost,
   decodeTradingList,
@@ -73,7 +79,6 @@ import {
   type Comment,
   type Comments,
   type Feed,
-  type Like,
   type OwnPublications,
   type Post,
   type PostIntent,
@@ -252,7 +257,11 @@ export interface CommunityGateway {
     cancel: Cancellation,
   ): Promise<Receipt>;
   receipt(requestId: string, cancel: Cancellation): Promise<Receipt>;
-  like(postId: string, liked: boolean, cancel: Cancellation): Promise<Like>;
+  like(intent: PostLikeIntent, cancel: Cancellation): Promise<PostLikeReceipt>;
+  postLikeReceipt(
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<PostLikeReceipt>;
   deletePost(postId: string, cancel: Cancellation): Promise<void>;
   deleteComment(commentId: string, cancel: Cancellation): Promise<void>;
 }
@@ -1025,21 +1034,41 @@ export class HttpCommunityGateway implements CommunityGateway {
     return result;
   }
   async like(
-    postId: string,
-    liked: boolean,
+    intent: PostLikeIntent,
     cancel: Cancellation,
-  ): Promise<Like> {
-    if (typeof liked !== 'boolean') invalid();
+  ): Promise<PostLikeReceipt> {
+    const checked = decodePostLikeIntent(intent);
+    const result = await this.api.request(
+      {
+        ...endpoint(
+          `/v1/community/posts/${checked.postId}/like`,
+          decodePostLikeReceipt,
+          'required',
+          'PUT',
+        ),
+        authReplay: 'never',
+      },
+      {
+        body: { requestId: checked.requestId, liked: checked.liked },
+        cancellation: cancel,
+      },
+    );
+    matchPostLikeReceipt(checked, result);
+    return result;
+  }
+  async postLikeReceipt(
+    requestId: string,
+    cancel: Cancellation,
+  ): Promise<PostLikeReceipt> {
+    if (!uuid4(requestId)) invalid();
     const result = await this.api.request(
       endpoint(
-        `/v1/community/posts/${id(postId)}/like`,
-        decodeLike,
-        'required',
-        liked ? 'PUT' : 'DELETE',
+        `/v1/me/community/post-like-requests/${requestId}`,
+        decodePostLikeReceipt,
       ),
       { cancellation: cancel },
     );
-    if (result.postId !== postId || result.isLiked !== liked) invalid();
+    if (result.requestId !== requestId) invalid();
     return result;
   }
   deletePost(postId: string, cancel: Cancellation): Promise<void> {

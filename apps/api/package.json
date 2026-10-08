@@ -15,7 +15,8 @@
     "auth:maintain": "node --env-file-if-exists=../../.env --import tsx src/identity/maintain.ts",
     "schools:migrate": "node --env-file-if-exists=../../.env --import tsx src/campus/school-identifiers/migrate.ts",
     "updates:process": "node --env-file-if-exists=../../.env --import tsx src/notifications/process-updates.ts",
-    "juries:process": "node --env-file-if-exists=../../.env --import tsx src/safety/reporting/process-juries.ts"
+    "juries:process": "node --env-file-if-exists=../../.env --import tsx src/safety/reporting/process-juries.ts",
+    "experience:process": "node --env-file-if-exists=../../.env --import tsx src/experience/process-experience.ts"
   },
   "dependencies": {
     "@nestjs/common": "12.1.2",

@@ -1,7 +1,9 @@
+import { PostLikeMutationController } from '../src/community/post-like-controller';
+import type { PostLikeReceipt } from '../src/community/post-like-contract';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ClientError } from '../src/api/errors';
-import type { Feed, Like, Post, Spaces } from '../src/community/contract';
+import type { Feed, Post, Spaces } from '../src/community/contract';
 import {
   FeedController,
   type FeedView,
@@ -22,6 +24,7 @@ import {
   otherId,
   post,
   postId,
+  requestId,
   setup,
   space,
 } from './community-helpers';
@@ -211,29 +214,50 @@ test('hidden parent during comment reads and stale detail completion never resto
   assert.equal(s.view().post, null);
   assert.equal(s.view().comments.length, 0);
 });
-test('desired-state likes ignore duplicate taps and uncertain outcomes require reconciliation without a toggle', async () => {
+test('durable like receipt triggers authoritative detail reconciliation without projecting historical state', async () => {
   const s = detail();
   await s.controller.load();
-  const late = deferred<Like>();
+  let refresh: Promise<void> | undefined;
+  const likes = new PostLikeMutationController(
+    s.runtime,
+    () => undefined,
+    () => {
+      refresh = s.controller.load();
+    },
+  );
+  const late = deferred<PostLikeReceipt>();
   s.gateway.likeImpl = () => late.promise;
-  const first = s.controller.setLiked(true);
+  const first = likes.setLiked(s.view().post!, true);
   await flush();
-  await s.controller.setLiked(true);
-  await s.controller.setLiked(false);
+  await likes.setLiked(s.view().post!, true);
+  await likes.setLiked(
+    post({ viewer: { ...post().viewer, isLiked: true } }),
+    false,
+  );
   assert.equal(
     s.gateway.calls.filter((call) => call.method === 'like').length,
     1,
   );
   assert.equal(s.view().post?.viewer.isLiked, false);
-  late.resolve({ postId, isLiked: true, likeCount: 1 });
+  late.resolve({
+    requestId,
+    operation: 'set_post_like',
+    postId,
+    liked: true,
+    outcome: 'applied',
+  });
   await first;
-  assert.equal(s.view().post?.viewer.isLiked, true);
+  await refresh;
+  // Current state has since changed; the old like receipt cannot resurrect it.
+  assert.equal(s.view().post?.viewer.isLiked, false);
+  assert.equal(s.view().post?.likeCount, 0);
   s.gateway.likeImpl = async () => {
     throw new ClientError('timeout', 'safe');
   };
-  await s.controller.setLiked(false);
-  assert.equal(s.view().post, null);
-  assert.equal(s.view().needsReload, true);
+  await likes.setLiked(s.view().post!, true);
+  assert.ok(s.runtime.pendingPostLikes.load(s.accountId));
+  assert.equal(s.view().post?.viewer.isLiked, false);
+  likes.dispose();
 });
 test('own deletion requires explicit confirmation and updates only after a known success', async () => {
   const s = detail();
@@ -288,7 +312,9 @@ test('delete cancellation never claims success; auth terminal and account change
       httpStatus: 403,
     });
   };
-  await s.controller.setLiked(true);
+  const likes = new PostLikeMutationController(s.runtime, () => undefined);
+  await likes.setLiked(s.view().post!, true);
+  likes.dispose();
   assert.equal(s.view().post, null);
   assert.equal(s.sessions.snapshot().credentials, null);
 });

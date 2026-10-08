@@ -1,3 +1,4 @@
+import { PendingPostLikeStore } from './post-like-pending';
 import {
   HttpDiscoveryGateway,
   type DiscoveryGateway,
@@ -51,6 +52,7 @@ export interface CommunityRuntime {
   readonly pendingDiscussion: PendingDiscussionStore;
   readonly pendingTrading: PendingTradingStore;
   readonly pendingSaved: PendingSavedStore;
+  readonly pendingPostLikes: PendingPostLikeStore;
   readonly drafts: DraftStore;
   readonly newRequestId: () => Promise<string>;
 }
@@ -89,6 +91,7 @@ export function createCommunityRuntime(
     pendingDiscussion: new PendingDiscussionStore(storage, origin),
     pendingTrading: new PendingTradingStore(storage, origin),
     pendingSaved: new PendingSavedStore(storage, origin),
+    pendingPostLikes: new PendingPostLikeStore(storage, origin),
     drafts: new DraftStore(storage, origin),
     newRequestId: () =>
       bounded(

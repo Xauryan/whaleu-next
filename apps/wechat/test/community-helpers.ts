@@ -1,3 +1,4 @@
+import { PendingPostLikeStore } from '../src/community/post-like-pending';
 import { PendingSavedStore } from '../src/community/saved-pending';
 import type { PostUpdatePreferences } from '../src/community/saved-contract';
 import { PendingFormationJoinStore } from '../src/community/formation-pending';
@@ -557,10 +558,16 @@ export class FakeCommunityGateway implements CommunityGateway {
     });
   receiptImpl: CommunityGateway['receipt'] = async (id) =>
     receipt({ requestId: id });
-  likeImpl: CommunityGateway['like'] = async (id, liked) => ({
-    postId: id,
-    isLiked: liked,
-    likeCount: liked ? 1 : 0,
+  likeImpl: CommunityGateway['like'] = async (intent) => ({
+    ...intent,
+    outcome: 'applied',
+  });
+  postLikeReceiptImpl: CommunityGateway['postLikeReceipt'] = async (id) => ({
+    requestId: id,
+    operation: 'set_post_like',
+    postId,
+    liked: true,
+    outcome: 'applied',
   });
   deletePostImpl: CommunityGateway['deletePost'] = async () => undefined;
   deleteCommentImpl: CommunityGateway['deleteComment'] = async () => undefined;
@@ -610,6 +617,10 @@ export class FakeCommunityGateway implements CommunityGateway {
     this.calls.push({ method: 'like', args });
     return this.likeImpl(...args);
   }
+  postLikeReceipt(...args: Parameters<CommunityGateway['postLikeReceipt']>) {
+    this.calls.push({ method: 'postLikeReceipt', args });
+    return this.postLikeReceiptImpl(...args);
+  }
   deletePost(...args: Parameters<CommunityGateway['deletePost']>) {
     this.calls.push({ method: 'deletePost', args });
     return this.deletePostImpl(...args);
@@ -637,6 +648,7 @@ export function setup(loggedIn = true) {
     pendingDiscussion: new PendingDiscussionStore(storage, 'synthetic'),
     pendingTrading: new PendingTradingStore(storage, 'synthetic'),
     pendingSaved: new PendingSavedStore(storage, 'synthetic'),
+    pendingPostLikes: new PendingPostLikeStore(storage, 'synthetic'),
     pending: new PendingAttemptStore(storage, 'synthetic'),
     drafts: new DraftStore(storage, 'synthetic'),
     newRequestId: async () => requestId,

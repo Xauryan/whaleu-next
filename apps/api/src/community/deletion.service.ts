@@ -22,10 +22,21 @@ export class DeletionService {
       const space = await this.repository.space(post.space_id, tx);
       requireAction(await this.access.authority(actor, space, tx), 'delete');
       await tx.query(
-        'UPDATE whaleu_community.posts SET deleted_at=clock_timestamp() WHERE id=$1',
+        "UPDATE whaleu_community.posts SET deleted_at=date_trunc('milliseconds',clock_timestamp()) WHERE id=$1",
         [id],
       );
-      await this.repository.event(`post:${id}:deleted`, 'post_deleted', id, tx);
+      await this.repository.event(
+        `post:${id}:deleted`,
+        'post_deleted',
+        id,
+        tx,
+        {
+          experienceSourceVersion: 1,
+          actorAccountId: actor,
+          actorAuthorMode: post.author_mode,
+          resourceAuthorMode: post.author_mode,
+        },
+      );
     });
   }
   comment(token: string, id: string): Promise<void> {
@@ -56,7 +67,7 @@ export class DeletionService {
         [id],
       );
       await tx.query(
-        'UPDATE whaleu_community.root_comments SET deleted_at=clock_timestamp() WHERE id=$1',
+        "UPDATE whaleu_community.root_comments SET deleted_at=date_trunc('milliseconds',clock_timestamp()) WHERE id=$1",
         [id],
       );
       await this.repository.event(
@@ -65,7 +76,10 @@ export class DeletionService {
         id,
         tx,
         {
+          experienceSourceVersion: 1,
           actorAccountId: actor,
+          actorAuthorMode: comment.author_mode,
+          resourceAuthorMode: comment.author_mode,
           postId: post.id,
           rootCommentId: id,
           obligations: [

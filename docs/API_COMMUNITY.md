@@ -44,9 +44,10 @@ independently; production issuance, administration and reconciliation remain wor
 
 ## Transport and exact data shapes
 
-Use the existing safe error envelope and active opaque bearer sessions. Timestamps
-below are UTC ISO strings with milliseconds. Community timestamps are stored at
-millisecond precision so cursor seeks never lose PostgreSQL microseconds.
+Use the existing safe error envelope and active opaque bearer sessions. Public
+timestamps below are UTC ISO strings with milliseconds. Source enrollment retains
+exact PostgreSQL timestamp coordinates, including finer stored precision; a
+rendered timestamp is not a substitute for an opaque server cursor.
 Unknown JSON/query keys, repeated query keys, coercions, invalid Unicode and
 control characters except LF/TAB are rejected. Text only normalizes CRLF to LF;
 it is never silently trimmed, truncated or SQL-filtered.
@@ -197,10 +198,22 @@ mint a new key until a matching terminal receipt settles the previous attempt.
 
 ## Desired-state likes and own deletion
 
-- `PUT /v1/community/posts/:postId/like` sets liked; DELETE at that path sets
-  unliked. Both return `{postId,isLiked,likeCount}`. There is no toggle endpoint
-- A unique `(post,account)` row and a parent lock guarantee desired state. Only
-  actual transitions enqueue outbox events. No external notifications are delivered
+- `PUT /v1/community/posts/:postId/like` accepts strict `{requestId,liked}`.
+  The former bodyless PUT/DELETE commands are not retained. There is no toggle endpoint
+- `GET /v1/me/community/post-like-requests/:requestId` returns the owner's immutable
+  `{requestId,operation:"set_post_like",postId,liked,outcome,code?}` receipt. Applied
+  and safely rejected outcomes are durable; request/intent conflicts are HTTP 409
+  `REQUEST_CONFLICT`, and unknown receipts are HTTP 404 `REQUEST_NOT_FOUND`
+- Safe rejection codes are `POST_NOT_FOUND`, `COMMUNITY_SCOPE_UNAVAILABLE`,
+  `PHONE_VERIFICATION_REQUIRED` and `COMMUNITY_ACTION_RESTRICTED`. A historical
+  receipt contains no current count or membership assertion. Native clients reload
+  current content after settlement rather than applying a stale receipt as state
+- A unique `(post,account)` row and parent lock guarantee desired state. Only actual
+  transitions enqueue events. Retrying an old successful intent after an intervening
+  unlike does not reapply it; a genuine new re-like uses a new request ID
+- Fresh experience source enrollment commits with the transition; each beneficiary
+  settles independently. See [local experience](API_EXPERIENCE.md). No external
+  notifications are delivered
 - `DELETE /v1/community/posts/:postId` and `/v1/community/comments/:commentId`
   are own-only and idempotent HTTP 204. Foreign ownership returns generic absence
 - Deletion marks state once and enqueues one event; content, category and durable

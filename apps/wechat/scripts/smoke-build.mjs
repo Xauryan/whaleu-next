@@ -1,3 +1,4 @@
+import { smokeExperience } from './smoke-experience.mjs';
 import { smokeProfileDiscovery } from './smoke-profile-discovery.mjs';
 import { smokeIdentityCampus } from './smoke-identity-campus.mjs';
 import { smokeTradingContacts } from './smoke-trading-contacts.mjs';
@@ -1743,6 +1744,12 @@ await smokeRuntimePolicy({
   mountPage: mountTradingPage,
   flush: flushTrading,
   postWire: pollPostWire,
+});
+await smokeExperience({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
 });
 await smokeIdentityCampus({
   app,

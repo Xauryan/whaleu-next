@@ -3,7 +3,11 @@ import type { WxApi } from './platform/wechat';
 declare global {
   const wx: WxApi;
   function App<T extends object>(
-    options: T & { onLaunch(): void; onHide?(): void } & ThisType<T>,
+    options: T & {
+      onLaunch(): void;
+      onShow?(): void;
+      onHide?(): void;
+    } & ThisType<T>,
   ): void;
   function getApp<T>(): T;
   function Page<T extends object>(

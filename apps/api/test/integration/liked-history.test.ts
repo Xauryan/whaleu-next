@@ -22,6 +22,19 @@ import {
 } from '../../src/database/migrations.js';
 import { configureHttp } from '../../src/http/http.js';
 import { IdentityService } from '../../src/identity/identity.service.js';
+import { IdentityRepository } from '../../src/identity/identity.repository.js';
+import { hashToken, mintToken } from '../../src/identity/tokens.js';
+import { initializeNativeSafetyAccount } from '../../src/safety/lifecycle.js';
+import { DatabaseService } from '../../src/database/database.js';
+import { AuthorDisplayService } from '../../src/profile/author-display.service.js';
+import {
+  canonicalEnvelope,
+  approvalDigest,
+} from '../../src/community/content-review/contracts.js';
+import type {
+  AcceptedApproval,
+  ContentKind,
+} from '../../src/community/content-review/contracts.js';
 import type {
   PublishPost,
   PublishComment,
@@ -154,17 +167,240 @@ test(
       await runMigrations(pool, migrations.slice(0, likedMigration), {
         mode: 'up',
       });
+      // Only synthetic SQL fixtures run against the historical schema. The current
+      // application starts after all migrations; runtime never falls back around
+      // missing experience tables or relabels an old account as newly created.
+      const scope = await seedCommunityScope(pool);
+      const historicPolicy = await seedReviewPolicy(pool);
+      const historicalApprovals = new Map<string, AcceptedApproval>();
+      const historicAuthor = randomUUID(),
+        historicPeer = randomUUID(),
+        historicReader = randomUUID();
+      const historicalIds = {
+        named: randomUUID(),
+        anonymous: randomUUID(),
+        anonRoot: randomUUID(),
+        namedRoot: randomUUID(),
+        anonReply: randomUUID(),
+        namedReply: randomUUID(),
+      };
+      const setup = await pool.connect();
+      try {
+        await setup.query('BEGIN');
+        for (const owner of [historicAuthor, historicPeer, historicReader]) {
+          await setup.query(
+            'INSERT INTO whaleu_identity.accounts(id) VALUES($1)',
+            [owner],
+          );
+          await initializeNativeSafetyAccount(owner, setup);
+          await setup.query(
+            "INSERT INTO whaleu_identity.provider_identities(provider,app_id,subject,account_id) VALUES('wechat','synthetic-liked-migration',$1::text,$2::uuid)",
+            [owner, owner],
+          );
+        }
+        for (const [id, mode] of [
+          [historicalIds.named, 'named'],
+          [historicalIds.anonymous, 'anonymous'],
+        ])
+          await setup.query(
+            "INSERT INTO whaleu_community.posts(id,space_id,account_id,category,text,author_mode,comments_policy) VALUES($1,$2,$3,'discussion','Synthetic history post',$4,'open')",
+            [id, scope.home.spaceId, historicAuthor, mode],
+          );
+        for (const [id, post, mode] of [
+          [historicalIds.anonRoot, historicalIds.named, 'anonymous'],
+          [historicalIds.namedRoot, historicalIds.anonymous, 'named'],
+        ])
+          await setup.query(
+            "INSERT INTO whaleu_community.root_comments(id,post_id,account_id,text,author_mode) VALUES($1,$2,$3,'Synthetic history root',$4)",
+            [id, post, historicPeer, mode],
+          );
+        await setup.query(
+          "INSERT INTO whaleu_community.replies(id,post_id,root_comment_id,account_id,text,author_mode) VALUES($1,$2,$3,$4,'Synthetic history reply','anonymous')",
+          [
+            historicalIds.anonReply,
+            historicalIds.anonymous,
+            historicalIds.namedRoot,
+            historicPeer,
+          ],
+        );
+        await setup.query(
+          "INSERT INTO whaleu_community.replies(id,post_id,root_comment_id,target_reply_id,account_id,text,author_mode) VALUES($1,$2,$3,$4,$5,'Synthetic history reply','named')",
+          [
+            historicalIds.namedReply,
+            historicalIds.anonymous,
+            historicalIds.namedRoot,
+            historicalIds.anonReply,
+            historicPeer,
+          ],
+        );
+        for (const [post, owner] of [
+          [historicalIds.anonymous, historicAuthor],
+          [historicalIds.named, historicPeer],
+          [historicalIds.anonymous, historicPeer],
+        ])
+          await setup.query(
+            "INSERT INTO whaleu_community.thread_personas(id,post_id,account_id,display_name) VALUES($1,$2,$3,'匿名鲸鱼')",
+            [randomUUID(), post, owner],
+          );
+        for (const [kind, id] of [
+          ['post', historicalIds.named],
+          ['comment', historicalIds.anonRoot],
+          ['reply', historicalIds.namedReply],
+        ])
+          await setup.query(
+            `INSERT INTO whaleu_community.${kind}_likes(${kind}_id,account_id) VALUES($1,$2)`,
+            [id, historicReader],
+          );
+        // Review binding is part of the same original synthetic creation
+        // transaction. A later migration never repairs or restamps old evidence.
+        for (const [kind, id, mode, parent, root, target] of [
+          ['post', historicalIds.named, 'named', null, null, null],
+          ['post', historicalIds.anonymous, 'anonymous', null, null, null],
+          [
+            'comment',
+            historicalIds.anonRoot,
+            'anonymous',
+            historicalIds.named,
+            null,
+            null,
+          ],
+          [
+            'comment',
+            historicalIds.namedRoot,
+            'named',
+            historicalIds.anonymous,
+            null,
+            null,
+          ],
+          [
+            'reply',
+            historicalIds.anonReply,
+            'anonymous',
+            historicalIds.anonymous,
+            historicalIds.namedRoot,
+            null,
+          ],
+          [
+            'reply',
+            historicalIds.namedReply,
+            'named',
+            historicalIds.anonymous,
+            historicalIds.namedRoot,
+            historicalIds.anonReply,
+          ],
+        ] as const) {
+          const envelope = canonicalEnvelope({
+            version: 1,
+            accountId: kind === 'post' ? historicAuthor : historicPeer,
+            purpose:
+              kind === 'post'
+                ? 'publish_post'
+                : kind === 'comment'
+                  ? 'publish_comment'
+                  : 'publish_reply',
+            spaceId: scope.home.spaceId,
+            category: 'discussion',
+            authorMode: mode,
+            commentsPolicy: 'open',
+            postId: parent,
+            rootCommentId: root,
+            targetReplyId: target,
+            text:
+              kind === 'post'
+                ? 'Synthetic history post'
+                : kind === 'comment'
+                  ? 'Synthetic history root'
+                  : 'Synthetic history reply',
+            images: [],
+            component: { kind: 'none' },
+            trading: null,
+            scope: {
+              originalSpaceId: scope.home.spaceId,
+              originalRegionId: scope.home.regionId,
+              authorOriginRegionId: scope.home.regionId,
+              identityRegionId: scope.home.regionId,
+              topologySnapshotId: scope.topologySnapshotId,
+              sync: 'none',
+            },
+          });
+          const decisionId = randomUUID(),
+            eventId = randomUUID(),
+            digest = approvalDigest(envelope);
+          await setup.query(
+            "INSERT INTO whaleu_community.content_approval_decisions(id,account_id,operation,envelope_version,digest,envelope,policy_revision_id,result,coverage,provenance,issuer,provenance_ref,evaluated_at,consume_until,visibility_model,visibility_until) VALUES($1,$2,$3,1,$4,$5::jsonb,$6,'allow','complete','accepted','synthetic-review-owner','synthetic-historical-liked-review',clock_timestamp()-interval '1 second',clock_timestamp()+interval '1 hour','durable',NULL)",
+            [
+              decisionId,
+              envelope.accountId,
+              envelope.purpose,
+              digest,
+              JSON.stringify(envelope),
+              historicPolicy,
+            ],
+          );
+          await setup.query(
+            "INSERT INTO whaleu_community.content_approval_events(id,decision_id,state,coverage,provenance,issuer,provenance_ref,occurred_at) VALUES($1,$2,'allow','complete','accepted','synthetic-review-owner','synthetic-historical-liked-state',clock_timestamp())",
+            [eventId, decisionId],
+          );
+          await setup.query(
+            'INSERT INTO whaleu_community.content_approval_heads(decision_id,event_id) VALUES($1,$2)',
+            [decisionId, eventId],
+          );
+          await setup.query(
+            'INSERT INTO whaleu_community.content_approval_bindings(content_kind,content_id,content_version,decision_id,account_id,operation,envelope_version,digest,envelope,scope) VALUES($1,$2,1,$3,$4,$5,1,$6,$7::jsonb,$8::jsonb)',
+            [
+              kind satisfies ContentKind,
+              id,
+              decisionId,
+              envelope.accountId,
+              envelope.purpose,
+              digest,
+              JSON.stringify(envelope),
+              JSON.stringify(envelope.scope),
+            ],
+          );
+          historicalApprovals.set(id, {
+            decisionId,
+            digest,
+            version: 1,
+            envelope,
+          });
+        }
+        await setup.query('COMMIT');
+      } finally {
+        await setup.query('ROLLBACK');
+        setup.release();
+      }
+      await runMigrations(pool, migrations, { mode: 'up' });
       app = await NestFactory.create(AppModule.register(config), {
         logger: false,
       });
       configureHttp(app);
       await app.init();
       const http = app.getHttpServer();
-      const author = await createRuntimeActor(app),
-        peer = await createRuntimeActor(app),
-        reader = await createRuntimeActor(app);
+      const existingActor = async (owner: string) => {
+        const accessToken = mintToken('access'),
+          refreshToken = mintToken('refresh');
+        const session = await app!.get(IdentityRepository).createSession(
+          {
+            provider: 'wechat',
+            appId: 'synthetic-liked-migration',
+            subject: owner,
+          },
+          {
+            access: hashToken(accessToken),
+            refresh: hashToken(refreshToken),
+          },
+        );
+        return { ...session, accessToken, refreshToken };
+      };
+      const author = await existingActor(historicAuthor),
+        peer = await existingActor(historicPeer),
+        reader = await existingActor(historicReader);
       type Actor = typeof author;
-      const scope = await seedCommunityScope(pool);
+      await app.get(DatabaseService).transaction(async (tx) => {
+        await app!.get(AuthorDisplayService).prepare(author.accountId, tx);
+        await app!.get(AuthorDisplayService).prepare(peer.accountId, tx);
+      });
       await seedReviewPolicy(pool);
       const verify = async (actor: Actor, publisher = true) => {
         const facts = await setRuntimeVerification(
@@ -190,7 +426,13 @@ test(
         mode: 'named' | 'anonymous' = 'named',
         actor = author,
         visibilityUntil: Date | null = null,
+        historicalId: string | null = null,
       ) => {
+        if (historicalId)
+          return {
+            id: historicalId,
+            approval: historicalApprovals.get(historicalId)!,
+          };
         const body: PublishPost = {
           clientRequestId: randomUUID(),
           spaceId: scope.home.spaceId,
@@ -221,7 +463,13 @@ test(
         postId: string,
         mode: 'named' | 'anonymous',
         actor = peer,
+        historicalId: string | null = null,
       ) => {
+        if (historicalId)
+          return {
+            id: historicalId,
+            approval: historicalApprovals.get(historicalId)!,
+          };
         const body: PublishComment = {
           clientRequestId: randomUUID(),
           text: 'Synthetic history root',
@@ -256,7 +504,13 @@ test(
         mode: 'named' | 'anonymous',
         actor = peer,
         targetReplyId: string | null = null,
+        historicalId: string | null = null,
       ) => {
+        if (historicalId)
+          return {
+            id: historicalId,
+            approval: historicalApprovals.get(historicalId)!,
+          };
         const body: PublishReply = {
           clientRequestId: randomUUID(),
           text: 'Synthetic history reply',
@@ -287,29 +541,46 @@ test(
         );
         return { id: response.body.resourceId as string, approval };
       };
-      const named = await publish(),
-        anonymous = await publish('anonymous');
-      const anonRoot = await comment(named.id, 'anonymous'),
-        namedRoot = await comment(anonymous.id, 'named');
-      const anonReply = await reply(anonymous.id, namedRoot.id, 'anonymous');
+      const named = await publish('named', author, null, historicalIds.named),
+        anonymous = await publish(
+          'anonymous',
+          author,
+          null,
+          historicalIds.anonymous,
+        );
+      const anonRoot = await comment(
+          named.id,
+          'anonymous',
+          peer,
+          historicalIds.anonRoot,
+        ),
+        namedRoot = await comment(
+          anonymous.id,
+          'named',
+          peer,
+          historicalIds.namedRoot,
+        );
+      const anonReply = await reply(
+        anonymous.id,
+        namedRoot.id,
+        'anonymous',
+        peer,
+        null,
+        historicalIds.anonReply,
+      );
       const namedReply = await reply(
         anonymous.id,
         namedRoot.id,
         'named',
         peer,
         anonReply.id,
+        historicalIds.namedReply,
       );
       const historical = [
         { kind: 'post', id: named.id },
         { kind: 'comment', id: anonRoot.id },
         { kind: 'reply', id: namedReply.id },
       ] as const;
-      for (const item of historical)
-        await pool.query(
-          `INSERT INTO whaleu_community.${item.kind}_likes(${item.kind}_id,account_id) VALUES($1,$2)`,
-          [item.id, reader.accountId],
-        );
-      await runMigrations(pool, migrations, { mode: 'up' });
       const list = (limit = 20, cursor?: string, actor = reader) =>
         request(http)
           .get('/v1/me/community/liked')
@@ -350,19 +621,18 @@ test(
       };
       const like = async (kind: LikedKind, id: string, desired = true) => {
         const client = request(http);
-        const operation = client[desired ? 'put' : 'delete'](
+        const operation = client[kind === 'post' || desired ? 'put' : 'delete'](
           `/v1/community/${kind === 'post' ? 'posts' : kind === 'comment' ? 'comments' : 'replies'}/${id}/like`,
         ).set('Authorization', auth());
         const response = await (kind === 'post'
-          ? operation
+          ? operation.send({ requestId: randomUUID(), liked: desired })
           : operation.send({ clientRequestId: randomUUID() }));
         assert.equal(response.status, 200, JSON.stringify(response.body));
-        if (kind !== 'post')
-          assert.equal(
-            response.body.outcome,
-            'applied',
-            JSON.stringify(response.body),
-          );
+        assert.equal(
+          response.body.outcome,
+          'applied',
+          JSON.stringify(response.body),
+        );
       };
       await t.test(
         'forward migration retains every old undated membership and reads need only an active session',

@@ -161,7 +161,10 @@ export class ReplyPublicationService {
           id,
           tx,
           {
+            experienceSourceVersion: 1,
             actorAccountId: actor,
+            actorAuthorMode: mode,
+            resourceAuthorMode: mode,
             postId: post.id,
             rootCommentId: root.id,
             targetReplyId: body.targetReplyId,

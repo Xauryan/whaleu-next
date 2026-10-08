@@ -1,3 +1,4 @@
+import { ExperienceModule } from './experience/module.js';
 import { IdentityCampusModule } from './identity-campus/module.js';
 import { ProfileDiscoveryModule } from './profile-discovery/module.js';
 import { SafetyModule } from './safety/safety.module.js';
@@ -32,6 +33,7 @@ export class AppModule {
         SafetyModule,
         NotificationsModule,
         IdentityPrivacyModule,
+        ExperienceModule,
       ],
     };
   }

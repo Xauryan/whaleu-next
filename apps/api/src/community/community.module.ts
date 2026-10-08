@@ -1,3 +1,10 @@
+import { ExperienceIngressModule } from '../experience/ingress.js';
+import { CommunityExperienceSourceCapture } from './experience-source/capture.js';
+import { CommunityExperienceSourceFacade } from './experience-source/facade.js';
+import {
+  PostLikeController,
+  PostLikeRecoveryController,
+} from './post-like/controller.js';
 import { VerificationModule } from '../verification/verification.module.js';
 import { DiscoveryCursorRepository } from './discovery-cursors.js';
 import { CommunityDiscoveryCounts } from './discovery-counts.js';
@@ -64,7 +71,6 @@ import {
   Module,
   Param,
   Post,
-  Put,
   Query,
 } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.js';
@@ -195,24 +201,6 @@ export class CommunityPublicationController {
     return this.deletions.comment(bearerToken(auth), id);
   }
 }
-@Controller('v1/community/posts')
-export class CommunityReactionController {
-  constructor(
-    @Inject(ReactionsService) private readonly reactions: ReactionsService,
-  ) {}
-  @Put(':postId/like') like(
-    @Headers('authorization') auth: unknown,
-    @Param('postId', new SchemaValidationPipe(idSchema)) id: string,
-  ) {
-    return this.reactions.setLike(bearerToken(auth), id, true);
-  }
-  @Delete(':postId/like') unlike(
-    @Headers('authorization') auth: unknown,
-    @Param('postId', new SchemaValidationPipe(idSchema)) id: string,
-  ) {
-    return this.reactions.setLike(bearerToken(auth), id, false);
-  }
-}
 @Controller('v1/me/community')
 export class CommunityRecoveryController {
   constructor(
@@ -242,6 +230,7 @@ export class CommunityRecoveryController {
 }
 @Module({
   imports: [
+    ExperienceIngressModule,
     DatabaseModule,
     CampusModule,
     ProfileModule,
@@ -265,10 +254,12 @@ export class CommunityRecoveryController {
     PollRecoveryController,
     CommunityReadController,
     CommunityPublicationController,
-    CommunityReactionController,
+    PostLikeController,
+    PostLikeRecoveryController,
     CommunityRecoveryController,
   ],
   exports: [
+    CommunityExperienceSourceFacade,
     CommunityProfileDiscoveryFacade,
     CommunityContentIdentityService,
     CommunityUpdatesFacade,
@@ -277,6 +268,8 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    CommunityExperienceSourceCapture,
+    CommunityExperienceSourceFacade,
     CommunityDiscoveryCounts,
     ContentReviewCountFacade,
     DiscoveryCursorRepository,

@@ -121,7 +121,7 @@ export class SavedMutationService {
               tx,
             );
             if (changed) {
-              await this.saved.obligations(
+              const rewardObligationIds = await this.saved.obligations(
                 changed.epochId,
                 actor,
                 post.account_id,
@@ -134,7 +134,12 @@ export class SavedMutationService {
                 changed.epochId,
                 tx,
                 {
+                  experienceSourceVersion: 1,
                   actorAccountId: actor,
+                  actorAuthorMode: null,
+                  resourceAuthorMode:
+                    'author_mode' in post ? post.author_mode : null,
+                  rewardObligationIds,
                   postId: post.id,
                   saveEpochId: changed.epochId,
                   sequence: changed.sequence,

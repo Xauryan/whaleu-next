@@ -25,6 +25,7 @@ import { configureHttp } from '../../src/http/http.js';
 import type { SessionCredentials } from '../../src/identity/contracts.js';
 import { IdentityRepository } from '../../src/identity/identity.repository.js';
 import { mintToken, hashToken } from '../../src/identity/tokens.js';
+import { initializeNativeSafetyAccount } from '../../src/safety/lifecycle.js';
 import {
   createRuntimeActor,
   setRuntimeVerification,
@@ -449,11 +450,206 @@ test(
         configureHttp(app);
         await app.listen(port, '127.0.0.1');
       };
+      // Seed historical identities and canonical facts directly; a current
+      // AppModule must never run on the pre-experience schema. Review bindings
+      // remain in the publication transaction, as required by their normal guards.
+      const privateValues = new Set<string>();
+      const scope = await seedCommunityScope(pool);
+      const policyId = await seedReviewPolicy(pool);
+      privateValues.add(policyId);
+      const createHistoricalActor = async () =>
+        withCommunityScopeWriter(pool, async (tx) => {
+          const accountId = randomUUID();
+          const identity = {
+            provider: 'wechat' as const,
+            appId: 'synthetic-scalable-history-only',
+            subject: randomUUID(),
+          };
+          await tx.query(
+            'INSERT INTO whaleu_identity.accounts(id) VALUES($1)',
+            [accountId],
+          );
+          await initializeNativeSafetyAccount(accountId, tx);
+          await tx.query(
+            'INSERT INTO whaleu_identity.provider_identities(provider,app_id,subject,account_id) VALUES($1,$2,$3,$4)',
+            [identity.provider, identity.appId, identity.subject, accountId],
+          );
+          return { accountId, identity };
+        });
+      const createHistoricalAuthor = async () => {
+        const actor = await createHistoricalActor();
+        const facts = await setRuntimeVerification(
+          pool,
+          actor.accountId,
+          scope.institutionId,
+          scope.home.regionId,
+        );
+        const selectionId = await appendIdentitySelection(
+          pool,
+          actor.accountId,
+          facts,
+          scope,
+        );
+        return { ...actor, facts, selectionId };
+      };
+      const historicalAuthor = await createHistoricalAuthor(),
+        historicalSmall = await createHistoricalAuthor(),
+        historicalHiddenAuthor = await createHistoricalAuthor(),
+        historicalReader = await createHistoricalAuthor();
+      const historicalOther = await createHistoricalActor(),
+        historicalHiddenReader = await createHistoricalActor(),
+        historicalGuest = await createHistoricalActor();
+      const historicalEnvelope = (
+        actor: Awaited<ReturnType<typeof createHistoricalAuthor>>,
+        text: string,
+      ) =>
+        canonicalEnvelope({
+          version: 1,
+          accountId: actor.accountId,
+          purpose: 'publish_post',
+          spaceId: scope.home.spaceId,
+          category: 'discussion',
+          text,
+          images: [],
+          authorMode: 'named',
+          commentsPolicy: 'open',
+          component: { kind: 'none' },
+          trading: null,
+          postId: null,
+          rootCommentId: null,
+          targetReplyId: null,
+          scope: {
+            originalSpaceId: scope.home.spaceId,
+            originalRegionId: scope.home.regionId,
+            authorOriginRegionId: scope.home.regionId,
+            identityRegionId: scope.home.regionId,
+            topologySnapshotId: scope.topologySnapshotId,
+            sync: 'none',
+            configurationRevisionId: null,
+            identityCampusId: scope.home.campusId,
+            identitySelectionId: actor.selectionId,
+            affiliationSnapshotId: actor.facts.snapshotId,
+            affiliationAssertionId: actor.facts.assertionId,
+          },
+        });
+      const intent = (text: string): PublishPost => ({
+        clientRequestId: randomUUID(),
+        spaceId: scope.home.spaceId,
+        category: 'discussion',
+        text,
+        imageAssetIds: [],
+        authorMode: 'named',
+        commentsPolicy: 'open',
+      });
+      const seedPosts = async (
+        actor: Awaited<ReturnType<typeof createHistoricalAuthor>>,
+        count: number,
+        text: string,
+        times: (index: number) => string,
+        held: (index: number) => boolean,
+      ) => {
+        const envelope = historicalEnvelope(actor, text);
+        const digest = approvalDigest(envelope);
+        const rows = Array.from({ length: count }, (_, i) => ({
+          id: randomUUID(),
+          decision: randomUUID(),
+          event: randomUUID(),
+          at: times(i),
+          state: held(i) ? 'held' : 'allow',
+        }));
+        for (const row of rows) privateValues.add(row.decision);
+        await withCommunityScopeWriter(pool, async (tx) => {
+          await tx.query(
+            'CREATE TEMP TABLE scalable_seed(id uuid, decision uuid, event uuid, at timestamptz, state text) ON COMMIT DROP',
+          );
+          await tx.query(
+            'INSERT INTO scalable_seed SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(id uuid,decision uuid,event uuid,at timestamptz,state text)',
+            [JSON.stringify(rows)],
+          );
+          await tx.query(
+            `INSERT INTO whaleu_community.posts(id,space_id,account_id,category,text,author_mode,comments_policy,published_at)
+          SELECT id,$1,$2,'discussion',$3,'named','open',at FROM scalable_seed`,
+            [scope.home.spaceId, actor.accountId, text],
+          );
+          await tx.query(
+            `INSERT INTO whaleu_community.content_approval_decisions
+          (id,account_id,operation,envelope_version,digest,envelope,policy_revision_id,result,coverage,provenance,issuer,provenance_ref,evaluated_at,consume_until,visibility_model,visibility_until)
+          SELECT decision,$1,'publish_post',1,$2,$3::jsonb,$4,'allow','complete','accepted','synthetic-review-owner','scalable-exact-fixture',clock_timestamp()-interval '1 second',clock_timestamp()+interval '1 hour','durable',NULL FROM scalable_seed`,
+            [actor.accountId, digest, JSON.stringify(envelope), policyId],
+          );
+          await tx.query(`INSERT INTO whaleu_community.content_approval_events(id,decision_id,state,coverage,provenance,issuer,provenance_ref,occurred_at)
+          SELECT event,decision,state,'complete','accepted','synthetic-review-owner','scalable-current-fixture',clock_timestamp() FROM scalable_seed`);
+          await tx.query(
+            'INSERT INTO whaleu_community.content_approval_heads(decision_id,event_id) SELECT decision,event FROM scalable_seed',
+          );
+          await tx.query(
+            `INSERT INTO whaleu_community.content_approval_bindings(content_kind,content_id,content_version,decision_id,account_id,operation,envelope_version,digest,envelope,scope)
+          SELECT 'post',id,1,decision,$1,'publish_post',1,$2,$3::jsonb,$4::jsonb FROM scalable_seed`,
+            [
+              actor.accountId,
+              digest,
+              JSON.stringify(envelope),
+              JSON.stringify(envelope.scope),
+            ],
+          );
+        });
+        return rows;
+      };
+      // 1 visible, 300 held, then 1,101 visible, including genuinely old publications.
+      const history = await seedPosts(
+        historicalAuthor,
+        1402,
+        'Synthetic scalable named history',
+        (i) =>
+          i === 1401
+            ? '1500-01-01T00:00:00.000Z'
+            : i === 1400
+              ? '1600-01-01T00:00:00.000Z'
+              : i === 1300 || i === 1301
+                ? '1800-01-01T00:00:00.000Z'
+                : i === 1398 || i === 1399
+                  ? '1700-01-01T00:00:00.000Z'
+                  : new Date(Date.UTC(2020, 0, 1) - i * 1000).toISOString(),
+        (i) => i >= 1 && i <= 300,
+      );
+      const allHidden = await seedPosts(
+        historicalHiddenAuthor,
+        270,
+        'Synthetic held history',
+        (i) => new Date(Date.UTC(2010, 0, 1) - i * 1000).toISOString(),
+        () => true,
+      );
+      const smallPosts = await seedPosts(
+        historicalSmall,
+        3,
+        'Synthetic small named history',
+        (i) => new Date(Date.UTC(2019, 0, 1) - i * 1000).toISOString(),
+        () => false,
+      );
+      const undated = history.slice(-62);
+      await pool.query(
+        'INSERT INTO whaleu_community.post_likes(post_id,account_id) SELECT unnest($1::uuid[]),$2',
+        [undated.map((row) => row.id), historicalReader.accountId],
+      );
+      await runMigrations(pool, migrations, { mode: 'up' });
       await start();
       const port = Number(new URL(await app!.getUrl()).port);
       const transport = new NodeHttpTransport(port);
       const cancel = new Cancellation();
-      const privateValues = new Set<string>();
+      const openHistoricalSession = async (
+        historical: Awaited<ReturnType<typeof createHistoricalActor>>,
+      ) => {
+        const accessToken = mintToken('access'),
+          refreshToken = mintToken('refresh');
+        const session = await app!
+          .get(IdentityRepository)
+          .createSession(historical.identity, {
+            access: hashToken(accessToken),
+            refresh: hashToken(refreshToken),
+          });
+        assert.equal(session.accountId, historical.accountId);
+        return { ...session, accessToken, refreshToken };
+      };
       const makeClient = async (saved?: SessionCredentials) => {
         const credentials = saved ?? (await createRuntimeActor(app!));
         for (const value of [
@@ -484,31 +680,23 @@ test(
         };
       };
       type Actor = Awaited<ReturnType<typeof makeClient>>;
-      const author = await makeClient(),
-        small = await makeClient(),
-        hiddenAuthor = await makeClient();
-      const reader = await makeClient(),
-        other = await makeClient(),
-        hiddenReader = await makeClient(),
-        guest = await makeClient();
+      const author = await makeClient(
+          await openHistoricalSession(historicalAuthor),
+        ),
+        small = await makeClient(await openHistoricalSession(historicalSmall)),
+        hiddenAuthor = await makeClient(
+          await openHistoricalSession(historicalHiddenAuthor),
+        );
+      const reader = await makeClient(
+          await openHistoricalSession(historicalReader),
+        ),
+        other = await makeClient(await openHistoricalSession(historicalOther)),
+        hiddenReader = await makeClient(
+          await openHistoricalSession(historicalHiddenReader),
+        ),
+        guest = await makeClient(await openHistoricalSession(historicalGuest));
       guest.sessions.logout();
-      const scope = await seedCommunityScope(pool);
-      const policyId = await seedReviewPolicy(pool);
-      privateValues.add(policyId);
       for (const actor of [author, small, hiddenAuthor, reader]) {
-        const facts = await setRuntimeVerification(
-          pool,
-          actor.credentials.accountId,
-          scope.institutionId,
-          scope.home.regionId,
-        );
-        await appendIdentitySelection(
-          pool,
-          actor.credentials.accountId,
-          facts,
-          scope,
-          scope.home.campusId,
-        );
         await actor.profiles.updateProfile(
           {
             expectedRevision: 0,
@@ -532,121 +720,24 @@ test(
       const hiddenProfileId = (
         await hiddenAuthor.discovery.ownProfileRef(cancel)
       ).profileId as string;
-      const intent = (text: string): PublishPost => ({
-        clientRequestId: randomUUID(),
-        spaceId: scope.home.spaceId,
-        category: 'discussion',
-        text,
-        imageAssetIds: [],
-        authorMode: 'named',
-        commentsPolicy: 'open',
-      });
-      const seedPosts = async (
-        actor: Actor,
-        count: number,
-        text: string,
-        times: (index: number) => string,
-        held: (index: number) => boolean,
-      ) => {
-        const envelope = canonicalEnvelope(
-          await postApprovalEnvelope(
-            app!,
-            pool,
-            actor.credentials.accountId,
-            intent(text),
+      // Check explicit historical envelopes against the actual current resolver;
+      // no test-only authorization or visibility provider participates in reads.
+      for (const [actor, text] of [
+        [historicalAuthor, 'Synthetic scalable named history'],
+        [historicalHiddenAuthor, 'Synthetic held history'],
+        [historicalSmall, 'Synthetic small named history'],
+      ] as const)
+        assert.deepEqual(
+          canonicalEnvelope(
+            await postApprovalEnvelope(
+              app!,
+              pool,
+              actor.accountId,
+              intent(text),
+            ),
           ),
+          historicalEnvelope(actor, text),
         );
-        const digest = approvalDigest(envelope);
-        const rows = Array.from({ length: count }, (_, i) => ({
-          id: randomUUID(),
-          decision: randomUUID(),
-          event: randomUUID(),
-          at: times(i),
-          state: held(i) ? 'held' : 'allow',
-        }));
-        for (const row of rows) privateValues.add(row.decision);
-        await withCommunityScopeWriter(pool, async (tx) => {
-          await tx.query(
-            'CREATE TEMP TABLE scalable_seed(id uuid, decision uuid, event uuid, at timestamptz, state text) ON COMMIT DROP',
-          );
-          await tx.query(
-            'INSERT INTO scalable_seed SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(id uuid,decision uuid,event uuid,at timestamptz,state text)',
-            [JSON.stringify(rows)],
-          );
-          await tx.query(
-            `INSERT INTO whaleu_community.posts(id,space_id,account_id,category,text,author_mode,comments_policy,published_at)
-          SELECT id,$1,$2,'discussion',$3,'named','open',at FROM scalable_seed`,
-            [scope.home.spaceId, actor.credentials.accountId, text],
-          );
-          await tx.query(
-            `INSERT INTO whaleu_community.content_approval_decisions
-          (id,account_id,operation,envelope_version,digest,envelope,policy_revision_id,result,coverage,provenance,issuer,provenance_ref,evaluated_at,consume_until,visibility_model,visibility_until)
-          SELECT decision,$1,'publish_post',1,$2,$3::jsonb,$4,'allow','complete','accepted','synthetic-review-owner','scalable-exact-fixture',clock_timestamp()-interval '1 second',clock_timestamp()+interval '1 hour','durable',NULL FROM scalable_seed`,
-            [
-              actor.credentials.accountId,
-              digest,
-              JSON.stringify(envelope),
-              policyId,
-            ],
-          );
-          await tx.query(`INSERT INTO whaleu_community.content_approval_events(id,decision_id,state,coverage,provenance,issuer,provenance_ref,occurred_at)
-          SELECT event,decision,state,'complete','accepted','synthetic-review-owner','scalable-current-fixture',clock_timestamp() FROM scalable_seed`);
-          await tx.query(
-            'INSERT INTO whaleu_community.content_approval_heads(decision_id,event_id) SELECT decision,event FROM scalable_seed',
-          );
-          await tx.query(
-            `INSERT INTO whaleu_community.content_approval_bindings(content_kind,content_id,content_version,decision_id,account_id,operation,envelope_version,digest,envelope,scope)
-          SELECT 'post',id,1,decision,$1,'publish_post',1,$2,$3::jsonb,$4::jsonb FROM scalable_seed`,
-            [
-              actor.credentials.accountId,
-              digest,
-              JSON.stringify(envelope),
-              JSON.stringify(envelope.scope),
-            ],
-          );
-        });
-        return rows;
-      };
-      // 1 visible, 300 held, then 1,101 visible, including genuinely old publications.
-      const history = await seedPosts(
-        author,
-        1402,
-        'Synthetic scalable named history',
-        (i) =>
-          i === 1401
-            ? '1500-01-01T00:00:00.000Z'
-            : i === 1400
-              ? '1600-01-01T00:00:00.000Z'
-              : i === 1300 || i === 1301
-                ? '1800-01-01T00:00:00.000Z'
-                : i === 1398 || i === 1399
-                  ? '1700-01-01T00:00:00.000Z'
-                  : new Date(Date.UTC(2020, 0, 1) - i * 1000).toISOString(),
-        (i) => i >= 1 && i <= 300,
-      );
-      const allHidden = await seedPosts(
-        hiddenAuthor,
-        270,
-        'Synthetic held history',
-        (i) => new Date(Date.UTC(2010, 0, 1) - i * 1000).toISOString(),
-        () => true,
-      );
-      const smallPosts = await seedPosts(
-        small,
-        3,
-        'Synthetic small named history',
-        (i) => new Date(Date.UTC(2019, 0, 1) - i * 1000).toISOString(),
-        () => false,
-      );
-      const undated = history.slice(-62);
-      await pool.query(
-        'INSERT INTO whaleu_community.post_likes(post_id,account_id) SELECT unnest($1::uuid[]),$2',
-        [undated.map((row) => row.id), reader.credentials.accountId],
-      );
-      await app!.close();
-      app = undefined;
-      await runMigrations(pool, migrations, { mode: 'up' });
-      await start(port);
       const migrated = (
         await pool.query<{ post_id: string; liked_at: Date | null }>(
           'SELECT post_id,liked_at FROM whaleu_community.post_likes WHERE account_id=$1',

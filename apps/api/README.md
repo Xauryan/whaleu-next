@@ -1,10 +1,11 @@
 # API foundation
 
-This is the first runnable NestJS modular-monolith foundation, not a completed
-WhaleU rewrite. Infrastructure and the first identity/session vertical slice are
-implemented. Content, messaging, marketplace, moderation, payment and most account
-business features are still pending. Full feature parity remains required.
-See [identity and auth contract](../../docs/API_AUTH.md) for the exact scope.
+This is an incrementally implemented NestJS modular monolith, not a completed
+WhaleU rewrite. Identity, campus/profile, community, safety and local processing
+slices are tracked in the [feature-parity checklist](../../docs/FEATURE_PARITY.md).
+The owner-only [experience contract](../../docs/API_EXPERIENCE.md) covers fresh
+reward enrollment, sign-in, history and owned appearance. Production/provider
+acceptance and reconciled historical migration remain outstanding.
 
 ## Local development
 

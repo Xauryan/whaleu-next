@@ -1,3 +1,4 @@
+import { manualProcessingConfig } from '../../config/manual-processing.js';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../../app.module.js';
@@ -12,14 +13,7 @@ async function main() {
   const config = loadConfig(process.env);
   assertLocalJuryWorker(config);
   const app = await NestFactory.createApplicationContext(
-    AppModule.register({
-      ...config,
-      COMMUNITY_UPDATES_PROCESSING: 'disabled',
-      SAFETY_JURY_PROCESSING:
-        config.SAFETY_JURY_PROCESSING === 'disabled'
-          ? 'disabled'
-          : 'manual_only',
-    }),
+    AppModule.register(manualProcessingConfig(config, 'jury')),
     { logger: false },
   );
   try {

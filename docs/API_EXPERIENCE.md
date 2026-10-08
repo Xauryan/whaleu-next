@@ -1,0 +1,166 @@
+# Local experience, sign-in and owned appearance
+
+This is a partial development implementation. It adds an owner-only experience
+ledger, fresh community reward enrollment, daily sign-in, informational tasks,
+levels, owned titles and color selection. Production processing, historical
+balance reconciliation/import, public profile projections, received-interaction
+metrics, rankings, redemption, global title administration and physical-device
+acceptance remain separate gates. Test evidence is recorded independently.
+
+## Evidence and ownership
+
+A genuinely new account receives a known zero opening balance, known absence of
+prior sign-in, and the registration entitlements `default_jingxiaoyu` and
+`level_1`. Both selected title and color start null. SQL requires creation of the
+identity account and native experience baseline in the same transaction.
+
+Existing or otherwise unproven accounts remain `baseline_unknown`. Missing rows,
+login, a current profile or a new record ID cannot establish an opening balance
+or sign-in streak. Unknown balance, level, progress, streak and quota values are
+null. Fresh work remains pending without credit, deduction, quota consumption or
+a terminal acknowledgement. This implementation has no baseline-repair endpoint.
+
+History and title ownership have independent coverage. Provably owned records and
+titles remain readable when original dates are unknown; null dates are retained.
+A new recorded timestamp is not substituted for original occurrence or earned
+time. Known title ownership permits selection even with an unknown balance.
+Partial inventory is labeled partial, including an empty partial inventory.
+
+All `/v1/me/experience` routes use the current authenticated account. Clients
+cannot supply an owner, points, rule version, reward day, source or beneficiary.
+Owner history uses generic action labels without source content, counterpart
+identities or anonymous-author resolution. Titles and colors confer no role.
+
+## HTTP routes
+
+Inputs reject unknown keys. Point amounts and revisions
+use canonical decimal strings within signed PostgreSQL bigint range; ordinary
+counts, levels and percentages are bounded JSON numbers. Dates are UTC ISO values;
+reward-day strings use the explicit `Asia/Shanghai` calendar.
+
+| Method and route                              | Contract                                                                                                                                                  |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET `/v1/experience/catalog`                  | Versioned levels, thresholds, reward rules, sign-in rewards, title keys and color eligibility metadata; no account state or grants                        |
+| GET `/v1/me/experience`                       | Baseline/coverage, nullable balance/level/progress, server day, sign-in preview, daily tasks, this owner's pending work and state revision                |
+| GET `/v1/me/experience/records`               | Default 20/max 50 immutable recorded-order items and owner-bound opaque continuation; nullable original/applied dates and independently reported coverage |
+| GET `/v1/me/experience/appearance`            | Known-owned titles, nullable earned dates, current selection, eligible color IDs and appearance revision                                                  |
+| PUT `/v1/me/experience/appearance`            | Strict `{requestId,expectedRevision,titleKey,colorId}`; explicit null clears a selection                                                                  |
+| POST `/v1/me/experience/sign-in`              | Strict `{requestId}`; no client-supplied day                                                                                                              |
+| GET `/v1/me/experience/requests/:requestId`   | Owner-only immutable sign-in or appearance receipt                                                                                                        |
+| GET `/v1/me/experience/unlocks`               | Up to 50 pending owner notices; reading does not acknowledge them                                                                                         |
+| PUT `/v1/me/experience/unlocks/:noticeId/ack` | Strict empty body, idempotent acknowledgement of that owner's notice                                                                                      |
+
+Sign-in returns HTTP 200 with an `awarded` or `already_signed_in` receipt carrying
+the actual reward day, delta, balance, streak and revision. Reusing the same
+request after midnight returns its original result; a new request may sign a new
+server day. Same-day new requests cannot award twice.
+
+Appearance returns HTTP 200 with a durable `applied` or `rejected` receipt.
+Definitive revision/title/color rejection is a terminal business outcome. A reused
+request ID with a different intent is HTTP 409 `EXPERIENCE_REQUEST_CONFLICT`, not
+a substituted receipt. Unknown receipt is HTTP 404. Baseline unavailability and
+pending earlier work are distinct HTTP 409 conditions without a successful or
+terminal sign-in receipt. Transient failures preserve the original request.
+
+Base colors 0–10 remain selectable independently of balance. A new selection of
+colors 11–25 needs the corresponding known even level 2–30. An already equipped
+high-level color can remain during an unrelated title edit after a downgrade.
+Earned title ownership is retained through downgrades. All crossed level-title
+thresholds grant once; no client-supplied CSS or title text is accepted.
+
+## Reward rules and accounting
+
+| Action                                                   | Nominal reward | Rewarded actions/day |
+| -------------------------------------------------------- | -------------: | -------------------: |
+| Publish a community post                                 |            +10 |                    1 |
+| Root comment or reply, shared pool                       |             +3 |                    5 |
+| Like or save, shared actor pool                          |             +1 |                   10 |
+| Receive a nonself like or save, shared pool              |             +2 |                   10 |
+| Receive a comment/reply, deduplicated nonself recipients |             +3 |                    5 |
+
+Sign-in rewards are +2, +4, +6, +8, +10, +12 and +15 for consecutive days 1–7;
+streak and reward saturate at day 7. A missed day resets the next streak.
+
+Own post deletion has nominal −10; own root/reply deletion has nominal −3, even
+when the original content earned no credit. Applied delta is separately recorded
+and clipped at zero balance. Independently, deletion can refund a positive current
+day's publish opportunity at most once, or the shared comment/reply opportunity
+at most three times. Deleted-content age and original award do not change this
+application-day rule. Refunds do not erase gross positive rewards.
+
+Unlike/unsave do not reverse experience or refund quotas. A genuinely new
+re-like/re-save transition can earn again within the shared daily limit; a no-op
+or retry cannot. There is no descendant/moderation-removal penalty, recipient
+reversal, extra task-completion bonus or unsupported-domain reward in this slice.
+
+The reward day is taken from the database clock after the owner's settlement lock.
+Source occurrence and applied time are different fields. Delayed processing can
+settle on a later day; a committed capped outcome remains capped on every retry.
+An owner's earlier unsettled unit prevents later work/sign-in from overtaking it.
+
+## Fresh source and transaction boundaries
+
+Community captures actual actor, resource and deduplicated beneficiaries in the
+source transition transaction. The complete immutable source group, beneficiary
+units and work enrollment commit atomically. Creation/transition provenance and
+canonical source constraints prevent relabeling old content or obligations with
+a new outbox row. Existing historical sources are not scanned or adopted. Occurrence timestamps
+retain exact PostgreSQL precision through immutable source facts and ledger
+storage, independently of millisecond public rendering. Derived deletion
+provenance is stamped after existing whole-row content guards; their content
+immutability rules are not widened to accommodate the new metadata.
+
+Each beneficiary settles independently, with one owner lock and one transaction
+covering state, quota/refund, ledger, titles, notices, applicable Saved
+acknowledgement and work completion. An unknown recipient leaves its unit pending
+without blocking a known actor's independent work. Replay and concurrent workers
+cannot settle a unit twice. Saved reward obligations are the canonical units;
+the general Saved outbox envelope never adds a second award. Other Saved
+obligations remain for their own domain processors.
+
+Post-like commands now use a frozen durable intent and owner receipt. A lost
+response followed by an intervening unlike cannot turn a retry into a new
+rewarded re-like. See [community post-like contract](API_COMMUNITY.md#desired-state-likes-and-own-deletion).
+
+## Local processor
+
+Default `EXPERIENCE_PROCESSING=manual_only` starts no automatic dispatcher.
+`automatic` is explicit local opt-in; `disabled` prevents worker settlement. Apply and
+automatic processing require nonproduction configuration, a verified loopback
+connection and database `whaleu_dev` or `whaleu_test`. There is no public credit or
+processing endpoint. Automatic processing discovers only durable fresh work,
+uses bounded batches/backoff, skips independently blocked owners and survives
+shutdown/restart without adopting historical events.
+
+Defaults are a 5,000 ms interval and batch size 20, bounded at 60,000 ms and 50.
+The CLI defaults to read-only dry-run; apply requires explicit unit/group IDs.
+For example, with a disposable local environment already configured:
+
+```sh
+npm run experience:process -- dry-run --unit-id=<uuid>
+npm run experience:process -- apply --group-id=<uuid>
+```
+
+All three local processing CLIs disable unrelated automatic dispatchers while
+creating their application context. Dry-run does not modify balances, work,
+queues, receipts, grants or progress. CLI output is aggregate counts only.
+
+## Native behavior and remaining limits
+
+The owner page separates unknown values from known zero, shows informational
+incomplete tasks first, preserves undated history, and allows confirmed ownership
+selection. Sign-in and appearance have separate origin/account-bound journals.
+Exact intents are persisted before dispatch. Matched receipts settle a journal;
+current state is read independently rather than reconstructed from an old receipt.
+
+Foreground sign-in is an explicit, coalesced command based on a fresh server day,
+not a GET side effect or device-date cache. Existing pending work and baseline
+failure require explicit recovery. Account replacement, hide, cancellation and
+late callbacks cannot act as a newer login or overwrite another account. An
+unrelated sign-in refresh preserves an unsaved appearance selection. Closed
+unlock notices stay closed while failed acknowledgement remains retryable.
+
+This slice does not establish representative production-history throughput for
+ledger reconciliation checks, production worker activation, old balance adoption,
+public appearance/interaction totals, rankings, campaigns or global maintenance.
+Compiled-page tests do not establish physical WeChat/device rendering.

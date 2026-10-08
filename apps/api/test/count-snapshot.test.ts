@@ -1,3 +1,4 @@
+import type { CommunityExperienceSourceCapture } from '../src/community/experience-source/capture.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -297,7 +298,12 @@ function fixture(collision = false) {
     {} as IdentityService,
     {} as CommunityAuthorizationPort,
     new NamedBlockVisibility(base, scalarSafety),
-    new CommunityRepository({} as RuntimeConfig, {} as DatabaseService, campus),
+    new CommunityRepository(
+      {} as RuntimeConfig,
+      {} as DatabaseService,
+      campus,
+      {} as CommunityExperienceSourceCapture,
+    ),
   );
   const records = {
     read: async () => snapshot,

@@ -35,6 +35,11 @@ const schema = z.object({
     .default('manual_only'),
   COMMUNITY_UPDATES_INTERVAL_MS: positiveInteger(5000, 60000),
   COMMUNITY_UPDATES_BATCH_SIZE: positiveInteger(20, 50),
+  EXPERIENCE_PROCESSING: z
+    .enum(['disabled', 'manual_only', 'automatic'])
+    .default('manual_only'),
+  EXPERIENCE_INTERVAL_MS: positiveInteger(5000, 60000),
+  EXPERIENCE_BATCH_SIZE: positiveInteger(20, 50),
   SAFETY_JURY_PROCESSING: z
     .enum(['disabled', 'manual_only', 'automatic'])
     .default('disabled'),

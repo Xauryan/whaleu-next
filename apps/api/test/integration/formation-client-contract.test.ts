@@ -1834,16 +1834,37 @@ test(
           const events = await pool.query<{
             event_type: string;
             resource_id: string;
-            context: unknown;
+            context: Record<string, unknown>;
           }>(
             'SELECT event_type,resource_id,context FROM whaleu_community.outbox',
           );
           noPrivateFields([receipts.rows, events.rows]);
           assertPrivateValuesAbsent([receipts.rows, events.rows]);
+          // Private reward-source facts now retain the real publication actor.
+          // Formation notices and recovery receipts still contain no account or
+          // contact roster, and every HTTP leak assertion above is unchanged.
+          const publicationEvents = events.rows.filter((event) =>
+            ['post_created', 'post_deleted'].includes(event.event_type),
+          );
+          for (const event of publicationEvents) {
+            const post = (
+              await pool.query<{ account_id: string; author_mode: string }>(
+                'SELECT account_id,author_mode FROM whaleu_community.posts WHERE id=$1',
+                [event.resource_id],
+              )
+            ).rows[0]!;
+            assert.deepEqual(event.context, {
+              experienceSourceVersion: 1,
+              actorAccountId: post.account_id,
+              actorAuthorMode: post.author_mode,
+              resourceAuthorMode: post.author_mode,
+            });
+          }
           assert.ok(
-            !JSON.stringify([receipts.rows, events.rows]).includes(
-              author.credentials.accountId,
-            ),
+            !JSON.stringify([
+              receipts.rows,
+              events.rows.filter((event) => !publicationEvents.includes(event)),
+            ]).includes(author.credentials.accountId),
           );
           assert.ok(!JSON.stringify(events.rows).includes(trueProfileId));
           const membershipIds = (

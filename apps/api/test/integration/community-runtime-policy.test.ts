@@ -408,6 +408,7 @@ test(
               await request(http)
                 .put(`/v1/community/posts/${named}/like`)
                 .set('Authorization', auth(phoneOnly))
+                .send({ requestId: randomUUID(), liked: true })
             ).status,
             200,
           );
@@ -660,8 +661,11 @@ test(
           assert.equal((await detail(anonymous)).status, 200);
           const like = await request(http)
             .put(`/v1/community/posts/${named}/like`)
-            .set('Authorization', auth(reader));
-          assert.equal(like.status, 404);
+            .set('Authorization', auth(reader))
+            .send({ requestId: randomUUID(), liked: true });
+          assert.equal(like.status, 200);
+          assert.equal(like.body.outcome, 'rejected');
+          assert.equal(like.body.code, 'POST_NOT_FOUND');
           const state = block.body.current;
           const unblock = await request(http)
             .put(`/v1/me/safety/blocks/${state.relationshipId}`)

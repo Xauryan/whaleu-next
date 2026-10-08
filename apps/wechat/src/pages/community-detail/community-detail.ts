@@ -1,3 +1,7 @@
+import {
+  PostLikeMutationController,
+  initialPostLikeMutationView,
+} from '../../community/post-like-controller';
 import { AuthorNavigator } from '../../profile/author-navigation';
 import {
   ReportMutationController,
@@ -59,6 +63,7 @@ Page({
     formationContacts: initialFormationContactsView(),
     interaction: initialDiscussionMutationView(),
     savedMutation: initialSavedMutationView(),
+    postLikeMutation: initialPostLikeMutationView(),
     tradingMutation: initialTradingMutationView(),
     tradingContacts: initialTradingContactsView(),
   },
@@ -70,6 +75,7 @@ Page({
   controller: undefined as DetailController | undefined,
   postId: '',
   savedMutations: undefined as SavedMutationController | undefined,
+  postLikeMutations: undefined as PostLikeMutationController | undefined,
   formationController: undefined as FormationController | undefined,
   formationContactsController: undefined as
     FormationContactsController | undefined,
@@ -118,6 +124,7 @@ Page({
     this.blockTargets = '';
     this.controller?.dispose();
     this.savedMutations?.dispose();
+    this.postLikeMutations?.dispose();
     this.tradingMutations?.dispose();
     this.tradingContactsController?.dispose();
     this.tradingContactsAwaitingFresh = true;
@@ -279,6 +286,14 @@ Page({
       },
     );
     void this.savedMutations.load();
+    this.postLikeMutations = new PostLikeMutationController(
+      runtime,
+      (view) => this.setData({ postLikeMutation: view }),
+      () => {
+        void this.controller?.load();
+      },
+    );
+    this.postLikeMutations.load();
     this.tradingMutations = new TradingMutationController(
       runtime,
       (view) => {
@@ -707,8 +722,25 @@ Page({
     void this.controller?.previous();
   },
   onLike() {
-    if (this.data.post)
-      void this.controller?.setLiked(!this.data.post.viewer.isLiked);
+    if (
+      this.data.post &&
+      this.data.loaded &&
+      !this.data.busy &&
+      !this.data.needsReload
+    )
+      void this.postLikeMutations?.setLiked(
+        this.data.post,
+        !this.data.post.viewer.isLiked,
+      );
+  },
+  onPostLikeReceipt() {
+    void this.postLikeMutations?.recover();
+  },
+  onPostLikeRetry() {
+    void this.postLikeMutations?.recover(true);
+  },
+  onPostLikeCancel() {
+    this.postLikeMutations?.cancel();
   },
   onDeletePost() {
     this.controller?.requestDelete('post', this.postId);
@@ -767,10 +799,12 @@ Page({
     this.blockTargets = '';
     this.controller?.dispose();
     this.savedMutations?.dispose();
+    this.postLikeMutations?.dispose();
     this.tradingMutations?.dispose();
     this.tradingContactsController?.dispose();
     this.controller = undefined;
     this.savedMutations = undefined;
+    this.postLikeMutations = undefined;
     this.tradingMutations = undefined;
     this.tradingContactsController = undefined;
     this.mutations?.dispose();
@@ -800,10 +834,12 @@ Page({
     this.blockTargets = '';
     this.controller?.dispose();
     this.savedMutations?.dispose();
+    this.postLikeMutations?.dispose();
     this.tradingMutations?.dispose();
     this.tradingContactsController?.dispose();
     this.controller = undefined;
     this.savedMutations = undefined;
+    this.postLikeMutations = undefined;
     this.tradingMutations = undefined;
     this.tradingContactsController = undefined;
     this.mutations?.dispose();

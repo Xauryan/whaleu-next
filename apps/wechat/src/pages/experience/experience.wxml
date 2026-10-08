@@ -1,0 +1,61 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 我的成长</view>
+  <view class="title">经验与头衔</view>
+  <view class="status-panel">
+    <view aria-role="status">{{status}}</view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+    <view wx:if="{{receiptStatus}}" class="hint">{{receiptStatus}}</view>
+    <button wx:if="{{busy}}" class="secondary" bindtap="onCancel">停止等待结果</button>
+    <button wx:else class="secondary" bindtap="onReload" disabled="{{!hasSession || !configured}}">{{appearanceDirty ? '刷新并放弃未保存的选择' : '刷新服务端状态'}}</button>
+    <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login" open-type="reLaunch">前往登录</navigator>
+  </view>
+  <view wx:if="{{signInPending}}" class="recovery">
+    <view class="card-title">原签到结果待确认</view><view>原请求编号已保留；跨日也不会替换为新请求。</view>
+    <button bindtap="onRecover" data-operation="sign_in" disabled="{{busy}}">查询签到回执</button>
+    <button bindtap="onRecover" data-operation="sign_in" data-retry="{{true}}" disabled="{{busy}}">重试完全相同的签到请求</button>
+  </view>
+  <view wx:if="{{appearancePending}}" class="recovery">
+    <view class="card-title">原外观结果待确认</view>
+    <button bindtap="onRecover" data-operation="appearance" disabled="{{busy}}">查询外观回执</button>
+    <button bindtap="onRecover" data-operation="appearance" data-retry="{{true}}" disabled="{{busy}}">重试完全相同的外观请求</button>
+  </view>
+  <block wx:if="{{loaded}}">
+    <view class="card">
+      <view class="card-title">当前经验</view><view class="balance">{{balanceLabel}}</view>
+      <view wx:if="{{summary.level !== null}}">等级 {{summary.level}}</view><view>{{progressLabel}}</view>
+      <progress wx:if="{{summary.progress}}" percent="{{summary.progress.percent}}" activeColor="#195a93" />
+      <view class="hint">服务端日期 {{summary.serverDay}} · {{summary.timezone}}</view>
+      <view>{{signInLabel}}</view>
+      <button class="primary" bindtap="onSignIn" disabled="{{busy || signInPending || summary.signIn.signedIn === true}}">{{summary.signIn.signedIn === true ? '今日已签到' : '签到'}}</button>
+      <view wx:if="{{summary.pending.count > 0}}" class="hint">还有 {{summary.pending.count}} 项经验变动待处理。{{summary.pending.reason === 'baseline_unknown' ? '历史基准尚未确认。' : '签到需要等待更早的变动结算。'}}</view>
+    </view>
+    <view wx:for="{{unlocks}}" wx:key="noticeId" class="card unlock">
+      <view class="card-title">升级 {{item.fromLevel}} → {{item.toLevel}}</view>
+      <view wx:if="{{item.titleLabel}}">获得头衔：{{item.titleLabel}}</view><view wx:if="{{item.colorLabel}}">达到颜色等级：{{item.colorLabel}}</view>
+      <button bindtap="onCloseUnlock" data-id="{{item.noticeId}}" disabled="{{busy}}">关闭并确认已查看</button>
+    </view>
+    <button wx:for="{{acknowledgementIds}}" wx:key="*this" bindtap="onCloseUnlock" data-id="{{item}}" disabled="{{busy}}">重试确认已关闭的升级提示</button>
+    <view class="card"><view class="card-title">每日经验任务</view><view class="hint">这里只显示进度；没有额外的任务完成奖励。</view>
+      <view wx:for="{{tasks}}" wx:key="action" class="row"><view>{{item.label}}</view><view class="hint">{{item.reward}}</view><view>{{item.progress}}</view></view>
+    </view>
+    <view class="card">
+      <view class="card-title">已拥有的头衔与颜色</view>
+      <view class="badge" style="{{previewStyle}}">{{previewTitle}}</view>
+      <view wx:if="{{appearance.coverage === 'partial'}}" class="hint">头衔历史覆盖不完整；这里只列出能确认属于你的头衔。</view>
+      <view wx:if="{{appearance.titles.length === 0}}" class="hint">{{appearance.coverage === 'complete' ? '当前没有已拥有的头衔' : '暂未确认更多已拥有的头衔'}}</view>
+      <button class="choice {{titleKey === null ? 'selected' : ''}}" bindtap="onTitle" data-key="" disabled="{{busy || appearancePending}}">清除头衔</button>
+      <button wx:for="{{appearance.titles}}" wx:key="key" class="choice {{titleKey === item.key ? 'selected' : ''}}" bindtap="onTitle" data-key="{{item.key}}" disabled="{{busy || appearancePending}}">{{item.name}} · {{item.earnedAt ? item.earnedAt : '获得日期不可用'}}</button>
+      <view class="section-label">颜色</view><button class="choice {{colorId === null ? 'selected' : ''}}" bindtap="onColor" data-id="" disabled="{{busy || appearancePending}}">清除颜色</button>
+      <view class="colors"><view wx:for="{{colors}}" wx:key="id" class="color-option"><button class="swatch {{item.selected ? 'selected' : ''}}" style="{{item.style}}" bindtap="onColor" data-id="{{item.id}}" disabled="{{busy || appearancePending || !item.selectable}}" aria-label="{{item.name}}">{{item.selected ? '✓' : ''}}</button><view>{{item.name}}</view><view class="hint">{{item.retained ? '已装备，可保留' : item.unlockLevel > 0 ? '等级 ' + item.unlockLevel : '基础颜色'}}</view></view></view>
+      <button class="primary" bindtap="onSave" disabled="{{busy || appearancePending || !appearanceDirty}}">保存头衔与颜色</button>
+      <button class="secondary" bindtap="onCancelSelection" disabled="{{busy || appearancePending || !appearanceDirty}}">取消未保存的选择</button>
+      <view class="hint">头衔不授予管理权限。已拥有头衔不因降级消失；已装备颜色可以保留。</view>
+    </view>
+    <view class="card"><view class="card-title">自己的经验记录</view><view class="hint">{{recordsCoverage}}</view>
+      <view wx:if="{{records.length === 0}}" class="hint">当前没有可展示的记录</view>
+      <view wx:for="{{records}}" wx:key="recordId" class="row"><view>{{item.label}} <text class="delta">{{item.deltaLabel}}</text></view><view class="hint">{{item.dateLabel}}</view><view class="hint">{{item.appliedLabel}}</view><view wx:if="{{item.nominalDelta !== null &amp;&amp; item.nominalDelta !== item.appliedDelta}}" class="hint">规则变动 {{item.nominalDelta}}；实际变动 {{item.deltaLabel}}</view></view>
+      <button wx:if="{{hasMore}}" class="secondary" bindtap="onMore" disabled="{{busy}}">加载更多记录</button>
+    </view>
+  </block>
+  <view class="footnote">当前为本地经验与已拥有外观功能。历史经验恢复、公开主页等级与统计、排行和兑换仍待接入。</view>
+</view>

@@ -1015,11 +1015,20 @@ test(
           assert.equal(
             (
               await phoneOnly.community.like(
-                named.receipt.resourceId,
-                true,
+                {
+                  requestId: randomUUID(),
+                  operation: 'set_post_like',
+                  postId: named.receipt.resourceId,
+                  liked: true,
+                },
                 cancel,
               )
-            ).isLiked,
+            ).outcome,
+            'applied',
+          );
+          assert.equal(
+            (await phoneOnly.community.post(named.receipt.resourceId, cancel))
+              .viewer.isLiked,
             true,
           );
           assert.equal(
@@ -1303,11 +1312,24 @@ test(
           assert.equal(
             (
               await phoneOnly.community.like(
-                anonymous.receipt.resourceId,
-                true,
+                {
+                  requestId: randomUUID(),
+                  operation: 'set_post_like',
+                  postId: anonymous.receipt.resourceId,
+                  liked: true,
+                },
                 cancel,
               )
-            ).isLiked,
+            ).outcome,
+            'applied',
+          );
+          assert.equal(
+            (
+              await phoneOnly.community.post(
+                anonymous.receipt.resourceId,
+                cancel,
+              )
+            ).viewer.isLiked,
             true,
           );
           const feed = await phoneOnly.community.feed(
@@ -1400,9 +1422,19 @@ test(
             bounded.receipt.resourceId,
           );
           await setReviewState(pool, bounded.approval.decisionId, 'revoked');
-          await assert.rejects(
-            phoneOnly.community.like(bounded.receipt.resourceId, true, cancel),
-            clientFailure('http', 404, 'POST_NOT_FOUND'),
+          const deniedLikeIntent = {
+            requestId: randomUUID(),
+            operation: 'set_post_like' as const,
+            postId: bounded.receipt.resourceId,
+            liked: true,
+          };
+          assert.deepEqual(
+            await phoneOnly.community.like(deniedLikeIntent, cancel),
+            {
+              ...deniedLikeIntent,
+              outcome: 'rejected',
+              code: 'POST_NOT_FOUND',
+            },
           );
           assert.deepEqual(
             await author.community.publishPost(bounded.intent, cancel),

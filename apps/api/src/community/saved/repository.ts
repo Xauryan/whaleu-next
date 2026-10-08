@@ -187,11 +187,13 @@ export class SavedRepository {
       if (actor !== author)
         obligations.push({ action: 'author_reward', recipient: author });
     }
-    for (const obligation of obligations)
+    const rewardIds: string[] = [];
+    for (const obligation of obligations) {
+      const id = randomUUID();
       await tx.query(
         'INSERT INTO whaleu_community.saved_obligations(id,epoch_id,transition,action,recipient_account_id,delta) VALUES($1,$2,$3,$4,$5,$6)',
         [
-          randomUUID(),
+          id,
           epochId,
           desired ? 'saved' : 'unsaved',
           obligation.action,
@@ -199,5 +201,12 @@ export class SavedRepository {
           desired ? 1 : -1,
         ],
       );
+      if (
+        obligation.action === 'saver_reward' ||
+        obligation.action === 'author_reward'
+      )
+        rewardIds.push(id);
+    }
+    return rewardIds;
   }
 }

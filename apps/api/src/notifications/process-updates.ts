@@ -1,3 +1,4 @@
+import { manualProcessingConfig } from '../config/manual-processing.js';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module.js';
@@ -12,13 +13,7 @@ async function main() {
   const config = loadConfig(process.env);
   assertLocalUpdatesWorker(config);
   const app = await NestFactory.createApplicationContext(
-    AppModule.register({
-      ...config,
-      COMMUNITY_UPDATES_PROCESSING:
-        config.COMMUNITY_UPDATES_PROCESSING === 'disabled'
-          ? 'disabled'
-          : 'manual_only',
-    }),
+    AppModule.register(manualProcessingConfig(config, 'updates')),
     { logger: false },
   );
   try {

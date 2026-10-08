@@ -256,32 +256,6 @@ export class DetailController extends CommunityController<DetailView> {
     });
     await this.load();
   }
-  async setLiked(liked: boolean): Promise<void> {
-    if (
-      !this.available() ||
-      this.view.busy ||
-      !this.view.post ||
-      this.view.needsReload ||
-      this.view.post.viewer.isLiked === liked
-    )
-      return;
-    await this.run(
-      (cancel) => this.runtime.gateway!.like(this.postId, liked, cancel),
-      (result) => {
-        const post = this.view.post;
-        if (!post) return;
-        this.update({
-          post: {
-            ...post,
-            likeCount: result.likeCount,
-            viewer: { ...post.viewer, isLiked: result.isLiked },
-          },
-          status: result.isLiked ? '已点赞' : '已取消点赞',
-        });
-      },
-      () => this.clear(),
-    );
-  }
   requestDelete(kind: 'post' | 'comment', id: string): void {
     if (this.view.busy || !this.view.loaded || this.view.needsReload) return;
     const allowed =

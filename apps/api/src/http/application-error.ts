@@ -3,6 +3,38 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  EXPERIENCE_BASELINE_UNAVAILABLE: {
+    status: 409,
+    message: 'Experience baseline is unavailable',
+  },
+  EXPERIENCE_PENDING: {
+    status: 409,
+    message: 'Earlier experience work is pending',
+  },
+  EXPERIENCE_REQUEST_CONFLICT: {
+    status: 409,
+    message: 'Experience request conflicts',
+  },
+  EXPERIENCE_REQUEST_NOT_FOUND: {
+    status: 404,
+    message: 'Experience request not found',
+  },
+  EXPERIENCE_APPEARANCE_CONFLICT: {
+    status: 409,
+    message: 'Appearance changed; refresh before selecting',
+  },
+  EXPERIENCE_TITLE_INELIGIBLE: {
+    status: 409,
+    message: 'Title selection is not permitted',
+  },
+  EXPERIENCE_COLOR_INELIGIBLE: {
+    status: 409,
+    message: 'Color selection is not permitted',
+  },
+  EXPERIENCE_UNLOCK_NOT_FOUND: {
+    status: 404,
+    message: 'Experience unlock notice not found',
+  },
   DISCOVERY_RESTART_REQUIRED: {
     status: 409,
     message: 'Discovery changed; refresh to continue',

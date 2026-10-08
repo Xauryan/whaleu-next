@@ -83,11 +83,7 @@ export async function smokeTradingContacts({
       commentsGate = undefined;
       return gate ? gate.promise : { items: [], nextCursor: null };
     },
-    like: async (_id, isLiked) => ({
-      postId: id,
-      isLiked,
-      likeCount: isLiked ? 1 : 0,
-    }),
+    like: async (intent) => ({ ...intent, outcome: 'applied' }),
     tradingContacts: async () => {
       reads++;
       const gate = contactGate;
@@ -155,7 +151,7 @@ export async function smokeTradingContacts({
     await flush();
     assert.deepEqual(copied, []);
     // An unrelated detail render used to re-enable the old open post.
-    page.onLike();
+    page.controller.dismissDelete();
     await flush();
     disabled(page);
     lostMutation.reject(new ClientError('network', 'Synthetic response lost'));
@@ -203,7 +199,7 @@ export async function smokeTradingContacts({
     freshPost.resolve(listing());
     await flush();
     disabled(page);
-    page.onLike();
+    page.controller.dismissDelete();
     await flush();
     disabled(page);
     page.onTradingResolution();
@@ -247,7 +243,7 @@ export async function smokeTradingContacts({
     assert.equal(state, 'open');
     assert.equal(page.data.tradingContacts.enabled, true);
 
-    // Denial must latch too: an unrelated likes/finally render is not a parent refresh.
+    // Denial must latch too: an unrelated detail/finally render is not a parent refresh.
     const denied = deferred();
     contactGate = denied;
     page.onTradingContacts();
@@ -260,7 +256,7 @@ export async function smokeTradingContacts({
     );
     await flush();
     disabled(page);
-    page.onLike();
+    page.controller.dismissDelete();
     await flush();
     disabled(page);
     page.onReload();

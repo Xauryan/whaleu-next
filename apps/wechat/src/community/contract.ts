@@ -184,12 +184,6 @@ export type Receipt =
       readonly outcome: 'rejected';
       readonly code: string;
     };
-export interface Like {
-  readonly postId: string;
-  readonly isLiked: boolean;
-  readonly likeCount: number;
-}
-
 export function invalid(): never {
   throw new ClientError('protocol', 'Invalid community data');
 }
@@ -694,20 +688,6 @@ export function decodeReceipt(value: unknown): Receipt {
     operation: value.operation as Operation,
     outcome: 'rejected',
     code: value.code,
-  });
-}
-export function decodeLike(value: unknown): Like {
-  exact(value, ['postId', 'isLiked', 'likeCount']);
-  if (
-    !isUuid(value.postId) ||
-    typeof value.isLiked !== 'boolean' ||
-    !integer(value.likeCount)
-  )
-    invalid();
-  return Object.freeze({
-    postId: value.postId,
-    isLiked: value.isLiked,
-    likeCount: value.likeCount,
   });
 }
 function assets(value: unknown, max: number): readonly string[] {

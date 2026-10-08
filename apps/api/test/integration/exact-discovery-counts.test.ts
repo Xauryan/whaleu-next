@@ -29,6 +29,10 @@ import {
 import { configureHttp } from '../../src/http/http.js';
 import { ApplicationError } from '../../src/http/application-error.js';
 import { lockSafetyPolicy } from '../../src/safety/locks.js';
+import { initializeNativeSafetyAccount } from '../../src/safety/lifecycle.js';
+import { IdentityRepository } from '../../src/identity/identity.repository.js';
+import { mintToken, hashToken } from '../../src/identity/tokens.js';
+import { canonicalEnvelope } from '../../src/community/content-review/contracts.js';
 import {
   setReviewState,
   seedReviewPolicy,
@@ -41,6 +45,7 @@ import {
 import {
   seedCommunityScope,
   appendIdentitySelection,
+  withCommunityScopeWriter,
 } from '../support/community-scope-fixtures.js';
 import { migrationSchemaNames } from '../support/migration-schemas.js';
 import {
@@ -128,62 +133,110 @@ test(
         configureHttp(app);
         await app.init();
       };
-      await start();
       const scope = await seedCommunityScope(pool),
         policy = await seedReviewPolicy(pool);
-      const createAuthor = async () => {
-        const actor = await createRuntimeActor(app!);
+      // Historical fixtures are SQL facts, never a current AppModule running
+      // against an old schema. Native safety is established at account creation;
+      // existing accounts are not enrolled into experience when they log in later.
+      const createHistoricalActor = async () =>
+        withCommunityScopeWriter(pool, async (tx) => {
+          const accountId = randomUUID();
+          const identity = {
+            provider: 'wechat' as const,
+            appId: 'synthetic-exact-history-only',
+            subject: randomUUID(),
+          };
+          await tx.query(
+            'INSERT INTO whaleu_identity.accounts(id) VALUES($1)',
+            [accountId],
+          );
+          await initializeNativeSafetyAccount(accountId, tx);
+          await tx.query(
+            'INSERT INTO whaleu_identity.provider_identities(provider,app_id,subject,account_id) VALUES($1,$2,$3,$4)',
+            [identity.provider, identity.appId, identity.subject, accountId],
+          );
+          return { accountId, identity };
+        });
+      const createHistoricalAuthor = async () => {
+        const actor = await createHistoricalActor();
         const facts = await setRuntimeVerification(
           pool,
           actor.accountId,
           scope.institutionId,
           scope.home.regionId,
         );
-        await appendIdentitySelection(pool, actor.accountId, facts, scope);
-        const response = await request(app!.getHttpServer())
-          .patch('/v1/me/profile')
-          .set('Authorization', `Bearer ${actor.accessToken}`)
-          .send({
-            expectedRevision: 0,
-            nickname: 'ExactAuthor',
-            bio: '',
-          });
-        assert.equal(response.status, 200, JSON.stringify(response.body));
-        const ref = await request(app!.getHttpServer())
-          .get('/v1/me/public-profile-ref')
-          .set('Authorization', `Bearer ${actor.accessToken}`);
-        assert.equal(ref.status, 200);
-        assert.equal(typeof ref.body.profileId, 'string');
-        return { ...actor, profileId: ref.body.profileId as string };
+        const selectionId = await appendIdentitySelection(
+          pool,
+          actor.accountId,
+          facts,
+          scope,
+        );
+        return { ...actor, facts, selectionId };
       };
-      const author1025 = await createAuthor(),
-        author4097 = await createAuthor(),
-        author25000 = await createAuthor(),
-        unrelated = await createAuthor();
-      const reader1025 = await createRuntimeActor(app!),
-        reader4097 = await createRuntimeActor(app!),
-        reader25000 = await createRuntimeActor(app!);
-      const template = async (
-        author: typeof author1025,
+      const historicalAuthor1025 = await createHistoricalAuthor(),
+        historicalAuthor4097 = await createHistoricalAuthor(),
+        historicalAuthor25000 = await createHistoricalAuthor(),
+        historicalUnrelated = await createHistoricalAuthor();
+      const historicalReader1025 = await createHistoricalActor(),
+        historicalReader4097 = await createHistoricalActor(),
+        historicalReader25000 = await createHistoricalActor();
+      // Exact synthetic scope derives only from the facts above. The ordinary
+      // binding guards still require each review and publication in one transaction.
+      // After migration, compare every template with the current owner resolver.
+      const historicalTemplate = (
+        author: Awaited<ReturnType<typeof createHistoricalAuthor>>,
         spaceId = scope.home.spaceId,
       ) =>
-        postApprovalEnvelope(app!, pool, author.accountId, {
-          clientRequestId: randomUUID(),
+        canonicalEnvelope({
+          version: 1,
+          accountId: author.accountId,
+          purpose: 'publish_post',
           spaceId,
           category: 'discussion',
           text: 'Canonical synthetic exact count text',
-          imageAssetIds: [],
+          images: [],
           authorMode: 'named',
           commentsPolicy: 'open',
+          component: { kind: 'none' },
+          trading: null,
+          postId: null,
+          rootCommentId: null,
+          targetReplyId: null,
+          scope: {
+            originalSpaceId: spaceId,
+            originalRegionId:
+              spaceId === scope.global.spaceId ? null : scope.home.regionId,
+            authorOriginRegionId: scope.home.regionId,
+            identityRegionId: scope.home.regionId,
+            topologySnapshotId: scope.topologySnapshotId,
+            sync: 'none',
+            configurationRevisionId: null,
+            identityCampusId: scope.home.campusId,
+            identitySelectionId: author.selectionId,
+            affiliationSnapshotId: author.facts.snapshotId,
+            affiliationAssertionId: author.facts.assertionId,
+          },
         });
-      const smallTemplate = await template(author1025),
-        mediumTemplate = await template(author4097),
-        bigTemplate = await template(author25000),
-        unrelatedTemplate = await template(unrelated);
-      const mediumGlobal = await template(author4097, scope.global.spaceId);
-      const bigGlobal = await template(author25000, scope.global.spaceId);
-      const unrelatedGlobal = await template(unrelated, scope.global.spaceId);
-      const smallGlobal = await template(author1025, scope.global.spaceId);
+      const smallTemplate = historicalTemplate(historicalAuthor1025),
+        mediumTemplate = historicalTemplate(historicalAuthor4097),
+        bigTemplate = historicalTemplate(historicalAuthor25000),
+        unrelatedTemplate = historicalTemplate(historicalUnrelated);
+      const mediumGlobal = historicalTemplate(
+        historicalAuthor4097,
+        scope.global.spaceId,
+      );
+      const bigGlobal = historicalTemplate(
+        historicalAuthor25000,
+        scope.global.spaceId,
+      );
+      const unrelatedGlobal = historicalTemplate(
+        historicalUnrelated,
+        scope.global.spaceId,
+      );
+      const smallGlobal = historicalTemplate(
+        historicalAuthor1025,
+        scope.global.spaceId,
+      );
       const small = await seedExactContent(
         pool,
         policy,
@@ -229,7 +282,7 @@ test(
           purpose: 'publish_comment',
           postId: medium[i]!.id,
           text: 'Canonical synthetic root',
-          accountId: unrelated.accountId,
+          accountId: historicalUnrelated.accountId,
         }),
       );
       const replies = await seedExactContent(
@@ -243,48 +296,137 @@ test(
           postId: medium[i]!.id,
           rootCommentId: roots[i]!.id,
           text: 'Canonical synthetic reply',
-          accountId: author1025.accountId,
+          accountId: historicalAuthor1025.accountId,
         }),
       );
       await seedExactLikes(
         pool,
-        reader1025.accountId,
+        historicalReader1025.accountId,
         'post',
         small.slice(0, 31).map((r) => r.id),
         false,
       );
       await seedExactLikes(
         pool,
-        reader4097.accountId,
+        historicalReader4097.accountId,
         'post',
         medium.slice(0, 31).map((r) => r.id),
         false,
       );
       await seedExactLikes(
         pool,
-        reader4097.accountId,
+        historicalReader4097.accountId,
         'comment',
         roots.slice(0, 31).map((r) => r.id),
         false,
       );
       await seedExactLikes(
         pool,
-        reader4097.accountId,
+        historicalReader4097.accountId,
         'reply',
         replies.slice(0, 31).map((r) => r.id),
         false,
       );
       await seedExactLikes(
         pool,
-        reader25000.accountId,
+        historicalReader25000.accountId,
         'post',
         big.slice(0, 31).map((r) => r.id),
         false,
       );
-      await app!.close();
-      app = undefined;
       await runMigrations(pool, migrations, { mode: 'up' });
       await start();
+      const openHistoricalSession = async (
+        historical: Awaited<ReturnType<typeof createHistoricalActor>>,
+      ) => {
+        const accessToken = mintToken('access'),
+          refreshToken = mintToken('refresh');
+        const session = await app!
+          .get(IdentityRepository)
+          .createSession(historical.identity, {
+            access: hashToken(accessToken),
+            refresh: hashToken(refreshToken),
+          });
+        assert.equal(session.accountId, historical.accountId);
+        return { ...session, accessToken, refreshToken };
+      };
+      const createAuthor = async (
+        historical?: Awaited<ReturnType<typeof createHistoricalAuthor>>,
+      ) => {
+        const actor = historical
+          ? await openHistoricalSession(historical)
+          : await createRuntimeActor(app!);
+        if (!historical) {
+          const facts = await setRuntimeVerification(
+            pool,
+            actor.accountId,
+            scope.institutionId,
+            scope.home.regionId,
+          );
+          await appendIdentitySelection(pool, actor.accountId, facts, scope);
+        }
+        const response = await request(app!.getHttpServer())
+          .patch('/v1/me/profile')
+          .set('Authorization', `Bearer ${actor.accessToken}`)
+          .send({
+            expectedRevision: 0,
+            nickname: 'ExactAuthor',
+            bio: '',
+          });
+        assert.equal(response.status, 200, JSON.stringify(response.body));
+        const ref = await request(app!.getHttpServer())
+          .get('/v1/me/public-profile-ref')
+          .set('Authorization', `Bearer ${actor.accessToken}`);
+        assert.equal(ref.status, 200);
+        assert.equal(typeof ref.body.profileId, 'string');
+        return { ...actor, profileId: ref.body.profileId as string };
+      };
+      const author1025 = await createAuthor(historicalAuthor1025),
+        author4097 = await createAuthor(historicalAuthor4097),
+        author25000 = await createAuthor(historicalAuthor25000),
+        unrelated = await createAuthor(historicalUnrelated);
+      const reader1025 = await openHistoricalSession(historicalReader1025),
+        reader4097 = await openHistoricalSession(historicalReader4097),
+        reader25000 = await openHistoricalSession(historicalReader25000);
+      const template = async (
+        author: typeof author1025,
+        spaceId = scope.home.spaceId,
+      ) =>
+        postApprovalEnvelope(app!, pool, author.accountId, {
+          clientRequestId: randomUUID(),
+          spaceId,
+          category: 'discussion',
+          text: 'Canonical synthetic exact count text',
+          imageAssetIds: [],
+          authorMode: 'named',
+          commentsPolicy: 'open',
+        });
+      for (const [author, historical, spaceId] of [
+        [author1025, smallTemplate, scope.home.spaceId],
+        [author4097, mediumTemplate, scope.home.spaceId],
+        [author25000, bigTemplate, scope.home.spaceId],
+        [unrelated, unrelatedTemplate, scope.home.spaceId],
+        [author1025, smallGlobal, scope.global.spaceId],
+        [author4097, mediumGlobal, scope.global.spaceId],
+        [author25000, bigGlobal, scope.global.spaceId],
+        [unrelated, unrelatedGlobal, scope.global.spaceId],
+      ] as const)
+        assert.deepEqual(
+          canonicalEnvelope(await template(author, spaceId)),
+          historical,
+        );
+      for (const kind of ['post', 'comment', 'reply'] as const) {
+        const migrated = await pool.query<{ total: number; undated: number }>(
+          `SELECT count(*)::integer AS total,
+             count(*) FILTER (WHERE liked_at IS NULL)::integer AS undated
+           FROM whaleu_community.${kind}_likes`,
+        );
+        const expected = kind === 'post' ? 93 : 31;
+        assert.deepEqual(migrated.rows[0], {
+          total: expected,
+          undated: expected,
+        });
+      }
       await seedExactLikes(
         pool,
         reader1025.accountId,

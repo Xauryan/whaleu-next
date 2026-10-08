@@ -466,10 +466,14 @@ test(
             }),
             codeIs('POST_NOT_FOUND'),
           );
-          await assert.rejects(
-            reactions.setLike(first.accessToken, anonymous.resourceId, true),
-            codeIs('POST_NOT_FOUND'),
+          const hiddenLike = await reactions.setLike(
+            first.accessToken,
+            anonymous.resourceId,
+            { requestId: randomUUID(), liked: true },
           );
+          assert.equal(hiddenLike.outcome, 'rejected');
+          if (hiddenLike.outcome === 'rejected')
+            assert.equal(hiddenLike.code, 'POST_NOT_FOUND');
           const own = await feeds.own(first.accessToken, { limit: 10 });
           assert.equal(
             own.items.find((item) => item.id === anonymous.resourceId)?.status,
@@ -788,11 +792,20 @@ test(
           const post = await publish('like races');
           const liked = await Promise.all(
             Array.from({ length: 4 }, () =>
-              reactions.setLike(second.accessToken, post.resourceId, true),
+              reactions.setLike(second.accessToken, post.resourceId, {
+                requestId: randomUUID(),
+                liked: true,
+              }),
             ),
           );
           assert.ok(
-            liked.every((result) => result.isLiked && result.likeCount === 1),
+            liked.every(
+              (result) => result.liked && result.outcome === 'applied',
+            ),
+          );
+          assert.equal(
+            (await feeds.detail(second.accessToken, post.resourceId)).likeCount,
+            1,
           );
           assert.equal(
             (
@@ -804,8 +817,14 @@ test(
             1,
           );
           await Promise.all([
-            reactions.setLike(second.accessToken, post.resourceId, true),
-            reactions.setLike(second.accessToken, post.resourceId, false),
+            reactions.setLike(second.accessToken, post.resourceId, {
+              requestId: randomUUID(),
+              liked: true,
+            }),
+            reactions.setLike(second.accessToken, post.resourceId, {
+              requestId: randomUUID(),
+              liked: false,
+            }),
           ]);
           const count = (
             await pool.query(
@@ -815,10 +834,14 @@ test(
           ).rowCount;
           assert.ok(count === 0 || count === 1);
           await deletions.post(first.accessToken, post.resourceId);
-          await assert.rejects(
-            reactions.setLike(second.accessToken, post.resourceId, true),
-            codeIs('POST_NOT_FOUND'),
+          const deletedLike = await reactions.setLike(
+            second.accessToken,
+            post.resourceId,
+            { requestId: randomUUID(), liked: true },
           );
+          assert.equal(deletedLike.outcome, 'rejected');
+          if (deletedLike.outcome === 'rejected')
+            assert.equal(deletedLike.code, 'POST_NOT_FOUND');
         },
       );
 
@@ -1012,9 +1035,13 @@ test(
             const like = reactions.setLike(
               second.accessToken,
               post.resourceId,
-              true,
+              { requestId: randomUUID(), liked: true },
             );
-            const handledLike = assert.rejects(like, codeIs('POST_NOT_FOUND'));
+            const handledLike = like.then((receipt) => {
+              assert.equal(receipt.outcome, 'rejected');
+              if (receipt.outcome === 'rejected')
+                assert.equal(receipt.code, 'POST_NOT_FOUND');
+            });
             await holder.query(
               'UPDATE whaleu_community.posts SET deleted_at=clock_timestamp() WHERE id=$1',
               [post.resourceId],

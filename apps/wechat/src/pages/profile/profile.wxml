@@ -15,6 +15,7 @@
   <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/identity-campus/identity-campus">选择或重新确认身份校区 →</navigator>
   <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/public-profile/public-profile">我的公开主页 →</navigator>
   <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/community-liked/community-liked">我的点赞历史 →</navigator>
+  <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/experience/experience">我的经验、头衔与颜色 →</navigator>
   <block wx:if="{{loaded}}">
     <view class="card">
       <view class="card-title">我的校园</view>

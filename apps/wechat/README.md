@@ -235,3 +235,24 @@ Synthetic unit/gateway/controller tests cover strict closed fields/errors and UT
 - Page/app hide, unload, logout, account switch, same-account re-login, request replacement, cancellation and `SafetyChanges` invalidate requests and clear visible snapshots. The existing detail trading-contact generation/latch protections are unchanged by author navigation; navigating away follows their normal hide boundary. New profile/list/liked bodies, counts and cursors are never persisted or logged. Existing own-publication recovery remains minimal, including hidden/deleted statuses, and is not replaced by public author enumeration
 
 `discovery-*.test.ts`, `profile-navigation.test.ts`, `profile-block.test.ts` and the emitted `smoke-profile-discovery.mjs` cover strict contracts, privacy state separation, exact gateway routes, current-source navigation, profile-block unknown outcomes and lifecycle/pagination regressions. Native controller tests traverse 1,201 visible records and hidden-only batches, retain the oldest undated like, reject multi-step cursor cycles and verify no discovery persistence. Compiled handlers exercise manual empty scanning, current Previous, unknown counters, old/undated records and explicit expired-cursor refresh. Canonical AppModule/PostgreSQL native roundtrips are covered separately in the API integration suite. These checks do not establish WeChat DevTools/physical-device rendering, provider activation, media/title/experience ownership, scalable exact counts or historical production migration. The full retained parity backlog remains open.
+
+## Local owner experience and durable post-like intents
+
+The own experience page separates known zero from an unknown historical baseline,
+retains undated records/owned titles and shows independent coverage. Sign-in and
+appearance have separate durable origin/account-scoped journals; receipt recovery
+never overwrites current state or another account. Foreground sign-in uses a fresh
+server day and an explicit coalesced command, while pre-existing pending work
+requires manual recovery. Unsaved appearance choices survive unrelated rewards;
+closed unlock notices retain failed-acknowledgement recovery.
+
+Post likes now carry durable request IDs and exact desired state. A response-loss
+retry cannot undo an intervening unlike or mint another rewarded transition.
+Current detail is read independently after a matching terminal receipt. Existing
+discussion page replacement, targets/drafts and privacy invalidation are preserved.
+
+See [experience API](../../docs/API_EXPERIENCE.md) and
+[Stage1 acceptance](../../docs/acceptance/experience-stage1.md). These owner flows
+do not yet provide public profile title/level projections, received-interaction
+metrics, rankings or historical reconciliation, and emitted-page tests do not
+establish physical WeChat/device rendering.

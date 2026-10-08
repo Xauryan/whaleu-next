@@ -93,8 +93,12 @@ test(
         fileURLToPath(new URL('../../migrations', import.meta.url)),
       );
       assert.equal(
-        migrations.at(-1)!.name,
-        '0021_exact_discovery_count_proofs.sql',
+        migrations.filter(
+          (migration) =>
+            migration.name === '0021_exact_discovery_count_proofs.sql',
+        ).length,
+        1,
+        'The count-proof migration must be present; later feature migrations also run',
       );
       await runMigrations(pool, migrations, { mode: 'up' });
       await runMigrations(pool, migrations, { mode: 'up' });
