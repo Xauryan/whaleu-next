@@ -91,3 +91,11 @@ received-interaction policy, live redemption activation and provider/device
 acceptance remain separate. Contending writers or database maintenance can still
 make mandatory named reads fail closed; this does not establish universal
 production availability.
+
+## Hosted verification
+
+Commit `764746ddebbd237f4c0f779b5e63948046d96983` was pushed with a valid
+Verified SSH signature. [GitHub CI run 37732104342](https://github.com/Xauryan/whaleu-next/actions/runs/37732104342)
+completed successfully: 442 API, 784 native and 730 real PostgreSQL tests, totaling
+1,956 with zero failures/skips. Hosted PostgreSQL test duration was 559.947 seconds.
+Lint/types/build/emitted smokes and formatting passed for that exact commit.

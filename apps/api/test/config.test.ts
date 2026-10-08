@@ -13,6 +13,7 @@ test('valid local configuration has bounded defaults and is immutable', () => {
   assert.equal(config.PG_POOL_MAX, 10);
   assert.equal(config.HTTP_HOST, '127.0.0.1');
   assert.equal(config.EXPERIENCE_PROCESSING, 'manual_only');
+  assert.equal(config.SUBSCRIPTION_COMPONENT_PROCESSING, 'manual_only');
   assert.equal(config.EXPERIENCE_INTERVAL_MS, 5000);
   assert.equal(config.EXPERIENCE_BATCH_SIZE, 20);
   assert.equal(Object.isFrozen(config), true);
@@ -35,6 +36,7 @@ for (const input of [
   { LOG_LEVEL: 'trace' },
   { NODE_ENV: 'prod' },
   { EXPERIENCE_PROCESSING: 'always' },
+  { SUBSCRIPTION_COMPONENT_PROCESSING: 'automatic' },
   { EXPERIENCE_INTERVAL_MS: '0' },
   { EXPERIENCE_INTERVAL_MS: '60001' },
   { EXPERIENCE_BATCH_SIZE: '0' },

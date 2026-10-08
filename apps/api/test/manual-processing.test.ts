@@ -7,6 +7,7 @@ const fields = {
   updates: 'COMMUNITY_UPDATES_PROCESSING',
   jury: 'SAFETY_JURY_PROCESSING',
   experience: 'EXPERIENCE_PROCESSING',
+  subscriptions: 'SUBSCRIPTION_COMPONENT_PROCESSING',
 } as const;
 for (const owner of Object.keys(fields) as (keyof typeof fields)[]) {
   test(`${owner} CLI isolates inherited automatic dispatchers`, () => {
@@ -16,6 +17,7 @@ for (const owner of Object.keys(fields) as (keyof typeof fields)[]) {
       COMMUNITY_UPDATES_PROCESSING: 'automatic',
       SAFETY_JURY_PROCESSING: 'automatic',
       EXPERIENCE_PROCESSING: 'automatic',
+      SUBSCRIPTION_COMPONENT_PROCESSING: 'manual_only',
     });
     const selected = manualProcessingConfig(config, owner);
     for (const [name, field] of Object.entries(fields)) {
@@ -23,7 +25,10 @@ for (const owner of Object.keys(fields) as (keyof typeof fields)[]) {
         selected[field],
         name === owner ? 'manual_only' : 'disabled',
       );
-      assert.equal(config[field], 'automatic');
+      assert.equal(
+        config[field],
+        name === 'subscriptions' ? 'manual_only' : 'automatic',
+      );
     }
     assert.equal(selected.DATABASE_URL, config.DATABASE_URL);
     assert.equal(Object.isFrozen(selected), true);

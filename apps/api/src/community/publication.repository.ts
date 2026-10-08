@@ -1,3 +1,4 @@
+import { CommunitySubscriptionEnrollment } from './subscription-component/enrollment.js';
 import {
   checkpointTransactionDeadlines,
   restoreTransactionDeadlines,
@@ -45,6 +46,8 @@ export class PublicationRepository {
     private readonly repository: CommunityRepository,
     @Inject(CommunityAccessService)
     private readonly access: CommunityAccessService,
+    @Inject(CommunitySubscriptionEnrollment)
+    private readonly subscriptions: CommunitySubscriptionEnrollment,
   ) {}
   execute(
     token: string,
@@ -120,6 +123,15 @@ export class PublicationRepository {
         'UPDATE whaleu_community.publication_requests SET receipt=$3::jsonb WHERE account_id=$1 AND client_request_id=$2',
         [actor, requestId, JSON.stringify(receipt)],
       );
+      if (operation === 'publish_post' && receipt.outcome === 'created')
+        await this.subscriptions.enrollPublishedPost(
+          {
+            postId: receipt.resourceId,
+            ownerId: actor,
+            publicationRequestId: requestId,
+          },
+          tx,
+        );
       await this.access.actor(token, tx);
       return receipt;
     });

@@ -1,3 +1,4 @@
+import { CommunitySubscriptionComponentModule } from './subscription-component/module.js';
 import { ExperienceIngressModule } from '../experience/ingress.js';
 import { CommunityExperienceSourceCapture } from './experience-source/capture.js';
 import { CommunityExperienceSourceFacade } from './experience-source/facade.js';
@@ -230,6 +231,7 @@ export class CommunityRecoveryController {
 }
 @Module({
   imports: [
+    CommunitySubscriptionComponentModule,
     ExperienceIngressModule,
     DatabaseModule,
     CampusModule,

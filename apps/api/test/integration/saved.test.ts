@@ -40,6 +40,7 @@ import type {
   PublicationReceipt,
 } from '../../src/community/contracts.js';
 import { SavedMutationService } from '../../src/community/saved/mutation.service.js';
+import { SavedRepository } from '../../src/community/saved/repository.js';
 import { SavedReadService } from '../../src/community/saved/read.service.js';
 import type {
   SavedIntent,
@@ -695,6 +696,14 @@ test(
           try {
             await tx.query('BEGIN');
             for (const id of ids) {
+              // Keep the deliberately tied historical timestamp, but capture the
+              // real owning obligations in the same parent-serialized transaction.
+              // These posts were freshly published and have known baselines;
+              // bypassing obligations is no longer a valid Saved fixture.
+              await tx.query(
+                'SELECT id FROM whaleu_community.posts WHERE id=$1 FOR UPDATE',
+                [id],
+              );
               const epoch = randomUUID();
               await tx.query(
                 'INSERT INTO whaleu_community.saved_posts(account_id,post_id) VALUES($1,$2)',
@@ -713,6 +722,15 @@ test(
                 'UPDATE whaleu_community.saved_posts SET epoch_id=$3,saved_at=$4,revision=$5 WHERE account_id=$1 AND post_id=$2',
                 [reader.accountId, id, epoch, at, order],
               );
+              await app!
+                .get(SavedRepository)
+                .obligations(
+                  epoch,
+                  reader.accountId,
+                  author.accountId,
+                  true,
+                  tx,
+                );
             }
             await tx.query('COMMIT');
           } catch (error) {

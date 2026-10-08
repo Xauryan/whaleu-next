@@ -40,6 +40,9 @@ const schema = z.object({
     .default('manual_only'),
   EXPERIENCE_INTERVAL_MS: positiveInteger(5000, 60000),
   EXPERIENCE_BATCH_SIZE: positiveInteger(20, 50),
+  SUBSCRIPTION_COMPONENT_PROCESSING: z
+    .enum(['disabled', 'manual_only'])
+    .default('manual_only'),
   SAFETY_JURY_PROCESSING: z
     .enum(['disabled', 'manual_only', 'automatic'])
     .default('disabled'),

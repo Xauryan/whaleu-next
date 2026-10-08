@@ -382,3 +382,14 @@ operator role, real-account grant, automatic job or role_admin cosmetic was issu
 This completes the bounded backend repair capability, not historical import,
 large-scale throughput or actual administrator appointment. See
 [acceptance evidence](acceptance/title-maintenance.md).
+
+Post subscription-component checkpoint: future native publications now establish
+same-transaction zero provenance, while all preexisting posts remain unknown.
+Actual Saved transitions feed an internal causal membership/count projection with
+atomic receipt/effect/save_ranking acknowledgement. Manual explicit-selection CLI
+and genuinely read-only dry-run are verified; other obligation owners and public
+DTOs are unchanged. Local aggregate gates pass 2,004 tests. This is one internal
+hotness input, not a complete score, hot feed, search or exposure feature. Historical
+reconciliation, production throughput and the separate received-total policy remain
+open. See [component contract](POST_SUBSCRIPTION_COMPONENT.md) and
+[acceptance evidence](acceptance/post-subscription-component.md).
