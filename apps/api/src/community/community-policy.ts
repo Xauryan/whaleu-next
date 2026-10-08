@@ -81,6 +81,7 @@ export interface CommunityVisibilityPort {
     namedAccountId: string,
     transaction: PoolClient,
     purpose: VisibilityPurpose,
+    read?: SearchReadContext,
   ): Promise<Decision>;
   check(
     viewerAccountId: string | null,

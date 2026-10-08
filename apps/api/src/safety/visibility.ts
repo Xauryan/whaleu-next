@@ -36,6 +36,7 @@ export class NamedBlockVisibility implements CommunityVisibilityPort {
       subject.namedAccountId,
       tx,
       purpose,
+      read,
     );
   }
   async checkNamedRelationship(
@@ -43,6 +44,7 @@ export class NamedBlockVisibility implements CommunityVisibilityPort {
     namedAccountId: string,
     tx: PoolClient,
     purpose: VisibilityPurpose,
+    read?: SearchReadContext,
   ): Promise<Decision> {
     const base: Decision = { kind: 'allow', value: undefined };
     if (!viewer || viewer === namedAccountId) return base;
@@ -51,6 +53,7 @@ export class NamedBlockVisibility implements CommunityVisibilityPort {
       namedAccountId,
       purpose,
       tx,
+      read,
     );
     if (!directions) return { kind: 'unavailable' };
     if (directions.outgoing)

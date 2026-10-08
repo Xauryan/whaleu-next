@@ -1,5 +1,7 @@
 import { SearchService } from '../../src/community/search/service.js';
 import { withScalarCanonicalReads } from '../support/search-scalar-canonical.js';
+import { withScalarSearchSafetyHeads } from '../support/search-scalar-safety.js';
+import { SafetyRepository } from '../../src/safety/repository.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
@@ -1390,9 +1392,14 @@ test(
             const bodies = new Map<string, number>();
             const heads = new Map<string, number>();
             const anchors = new Map<string, number>();
+            const safetyHeads = new Map<string, number>();
+            const contextualStatements: string[] = [];
             const increment = (map: Map<string, number>, key: string) =>
               map.set(key, (map.get(key) ?? 0) + 1);
             h.observer.setHook(async (event) => {
+              contextualStatements.push(event.sql);
+              if (event.sql.includes('FROM whaleu_safety.account_heads'))
+                increment(safetyHeads, String(event.values[0]));
               if (
                 event.sql.includes(
                   'SELECT * FROM whaleu_community.content_approval_bindings',
@@ -1490,27 +1497,74 @@ test(
             }
             assert.equal(bindings.size, bodies.size);
             assert.equal(bindings.size, heads.size);
-            const scalarCanonical = await withScalarCanonicalReads(
+            const scalarOwners = await withScalarCanonicalReads(
               h.app.get(SearchService),
               () =>
                 h.observer.measure(
-                  `${label}: scalar canonical baseline`,
+                  `${label}: scalar canonical and Safety baseline`,
                   async () =>
                     await w.aggregate({ ...query, q: 'needle-not-in-fixture' }),
                 ),
             );
-            ok(scalarCanonical.value);
+            ok(scalarOwners.value);
             assert.deepEqual(
-              { ...scalarCanonical.value.body, nextCursor: null },
+              { ...scalarOwners.value.body, nextCursor: null },
               { ...measured.value.body, nextCursor: null },
             );
             assert.deepEqual(
-              await position(h, scalarCanonical.value.body.nextCursor),
+              await position(h, scalarOwners.value.body.nextCursor),
               await position(h, measured.value.body.nextCursor),
             );
             assert.ok(
-              scalarCanonical.measurement.queries >
-                measured.measurement.queries,
+              scalarOwners.measurement.queries > measured.measurement.queries,
+            );
+            const scalarSafetyStatements: string[] = [];
+            h.observer.setHook(async (event) => {
+              scalarSafetyStatements.push(event.sql);
+            });
+            let scalarSafety;
+            try {
+              scalarSafety = await withScalarSearchSafetyHeads(
+                h.app.get(SafetyRepository),
+                () =>
+                  h.observer.measure(
+                    `${label}: scalar Safety heads`,
+                    async () =>
+                      await w.aggregate({
+                        ...query,
+                        q: 'needle-not-in-fixture',
+                      }),
+                  ),
+              );
+            } finally {
+              h.observer.setHook(null);
+            }
+            ok(scalarSafety.value);
+            assert.deepEqual(
+              { ...scalarSafety.value.body, nextCursor: null },
+              { ...measured.value.body, nextCursor: null },
+            );
+            assert.deepEqual(
+              await position(h, scalarSafety.value.body.nextCursor),
+              await position(h, measured.value.body.nextCursor),
+            );
+            assert.equal(safetyHeads.size, 2);
+            assert.ok([...safetyHeads.values()].every((count) => count === 1));
+            const withoutHeads = (statements: string[]) =>
+              statements.filter(
+                (sql) => !sql.includes('FROM whaleu_safety.account_heads'),
+              );
+            assert.deepEqual(
+              withoutHeads(contextualStatements),
+              withoutHeads(scalarSafetyStatements),
+              'Only locked Safety head reads disappear; fresh clocks, relationships and finalization retain exact SQL order',
+            );
+            const safetyHeadReads = scalarSafetyStatements.filter((sql) =>
+              sql.includes('FROM whaleu_safety.account_heads'),
+            ).length;
+            assert.equal(
+              scalarSafety.measurement.queries - measured.measurement.queries,
+              safetyHeadReads - safetyHeads.size,
             );
             const explain = await h.pool.query(
               `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${candidate.sql}`,
@@ -1525,16 +1579,29 @@ test(
                 endpointMs:
                   Math.round(measured.measurement.durationMs * 100) / 100,
                 endpointQueries: measured.measurement.queries,
-                scalarCanonicalEndpointQueries:
-                  scalarCanonical.measurement.queries,
-                scalarCanonicalEndpointMs:
-                  Math.round(scalarCanonical.measurement.durationMs * 100) /
-                  100,
-                canonicalSavedStatements:
-                  scalarCanonical.measurement.queries -
+                scalarOwnersEndpointQueries: scalarOwners.measurement.queries,
+                scalarOwnersEndpointMs:
+                  Math.round(scalarOwners.measurement.durationMs * 100) / 100,
+                canonicalAndSafetySavedStatements:
+                  scalarOwners.measurement.queries -
                   measured.measurement.queries,
                 canonicalNodes: bindings.size,
                 approvalAccounts: anchors.size,
+                safetyHeads: safetyHeads.size,
+                scalarSafetyHeadReads: safetyHeadReads,
+                scalarSafetyEndpointQueries: scalarSafety.measurement.queries,
+                scalarSafetyEndpointMs: scalarSafety.measurement.durationMs,
+                safetyHeadSavedStatements:
+                  scalarSafety.measurement.queries -
+                  measured.measurement.queries,
+                safetyRelationshipQueries: contextualStatements.filter((sql) =>
+                  sql.includes(
+                    'SELECT EXISTS(SELECT 1 FROM whaleu_safety.blocks',
+                  ),
+                ).length,
+                databaseClocks: contextualStatements.filter(
+                  (sql) => sql === 'SELECT clock_timestamp() AS now',
+                ).length,
                 scalarEndpointQueries: scalar.measurement.queries,
                 scalarEndpointMs:
                   Math.round(scalar.measurement.durationMs * 100) / 100,

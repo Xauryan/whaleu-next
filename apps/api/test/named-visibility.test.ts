@@ -209,7 +209,9 @@ test('named-block directions have an explicit one-way list and two-way direct/in
           JSON.stringify({ purpose, outgoing, incoming }),
         );
         assert.deepEqual(f.checks, [{ viewer, subject, tx: f.tx, purpose }]);
-        assert.deepEqual(f.directionCalls, [[viewer, 'author', purpose, f.tx]]);
+        assert.deepEqual(f.directionCalls, [
+          [viewer, 'author', purpose, f.tx, undefined],
+        ]);
       }
     }
   }

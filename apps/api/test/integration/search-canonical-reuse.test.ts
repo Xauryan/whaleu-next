@@ -7,6 +7,8 @@ import { test } from 'node:test';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { SearchService } from '../../src/community/search/service.js';
 import { withScalarCanonicalReads } from '../support/search-scalar-canonical.js';
+import { withScalarSearchSafetyHeads } from '../support/search-scalar-safety.js';
+import { SafetyRepository } from '../../src/safety/repository.js';
 import { setReviewState } from '../support/community-approval-fixtures.js';
 import { searchHarness, ok, failure } from './search-fixtures.js';
 import { childEnvelope, seedChildren } from './discussion-search-fixtures.js';
@@ -431,6 +433,8 @@ test(
           ok(await run());
           const counts = new Map<string, number>();
           const anchors = new Map<string, number>();
+          const safetyHeads = new Map<string, number>();
+          const contextualStatements: string[] = [];
           const authorIds = new Set(authors.map((author) => author.accountId));
           const forbidden = new Set([
             posts[128]!.id,
@@ -438,6 +442,11 @@ test(
             replies[128]!.id,
           ]);
           h.observer.setHook(async (event) => {
+            contextualStatements.push(event.sql);
+            if (event.sql.includes('FROM whaleu_safety.account_heads')) {
+              const id = String(event.values[0]);
+              safetyHeads.set(id, (safetyHeads.get(id) ?? 0) + 1);
+            }
             if (
               event.sql.includes(
                 'SELECT * FROM whaleu_community.content_approval_bindings',
@@ -472,7 +481,7 @@ test(
             h.observer.setHook(null);
           }
           const baseline = await scalar(() =>
-            h.observer.measure('fragmented scalar canonical', run),
+            h.observer.measure('fragmented scalar canonical and Safety', run),
           );
           ok(contextual.value);
           ok(baseline.value);
@@ -492,15 +501,70 @@ test(
           assert.ok(
             contextual.measurement.queries < baseline.measurement.queries,
           );
+          const scalarSafetyStatements: string[] = [];
+          h.observer.setHook(async (event) => {
+            scalarSafetyStatements.push(event.sql);
+          });
+          let scalarSafety;
+          try {
+            scalarSafety = await withScalarSearchSafetyHeads(
+              h.app.get(SafetyRepository),
+              () => h.observer.measure('fragmented scalar Safety heads', run),
+            );
+          } finally {
+            h.observer.setHook(null);
+          }
+          ok(scalarSafety.value);
+          assert.deepEqual(
+            { ...scalarSafety.value.body, nextCursor: null },
+            { ...contextual.value.body, nextCursor: null },
+          );
+          assert.deepEqual(
+            await h.position(scalarSafety.value.body.nextCursor),
+            await h.position(contextual.value.body.nextCursor),
+          );
+          assert.equal(safetyHeads.size, 17);
+          assert.ok([...safetyHeads.values()].every((count) => count === 1));
+          const withoutHeads = (statements: string[]) =>
+            statements.filter(
+              (sql) => !sql.includes('FROM whaleu_safety.account_heads'),
+            );
+          assert.deepEqual(
+            withoutHeads(contextualStatements),
+            withoutHeads(scalarSafetyStatements),
+          );
+          const safetyHeadReads = scalarSafetyStatements.filter((sql) =>
+            sql.includes('FROM whaleu_safety.account_heads'),
+          ).length;
+          assert.equal(safetyHeadReads, 512);
+          assert.equal(
+            scalarSafety.measurement.queries - contextual.measurement.queries,
+            495,
+          );
           t.diagnostic(
             JSON.stringify({
               label: 'fragmented 128 consumed reply chains, 16 authors',
               canonicalNodes: counts.size,
               approvalAccounts: anchors.size,
               contextQueries: contextual.measurement.queries,
-              scalarQueries: baseline.measurement.queries,
+              scalarOwnerQueries: baseline.measurement.queries,
               contextMs: contextual.measurement.durationMs,
-              scalarMs: baseline.measurement.durationMs,
+              scalarOwnerMs: baseline.measurement.durationMs,
+              safetyHeads: safetyHeads.size,
+              scalarSafetyHeadReads: safetyHeadReads,
+              scalarSafetyQueries: scalarSafety.measurement.queries,
+              scalarSafetyMs: scalarSafety.measurement.durationMs,
+              safetyHeadSavedStatements:
+                scalarSafety.measurement.queries -
+                contextual.measurement.queries,
+              safetyRelationshipQueries: contextualStatements.filter((sql) =>
+                sql.includes(
+                  'SELECT EXISTS(SELECT 1 FROM whaleu_safety.blocks',
+                ),
+              ).length,
+              databaseClocks: contextualStatements.filter(
+                (sql) => sql === 'SELECT clock_timestamp() AS now',
+              ).length,
             }),
           );
         },

@@ -137,3 +137,14 @@ their enclosing suites (16/20 passed); a second already-loaded run still had the
 anchor assertion failure (19/21 passed). After correction, 21/21 focused tests and
 the expanded 7/7 canonical suite passed. The final frozen aggregate passed on its
 first attempt, without relaxed assertions or runtime/compiler changes.
+
+## Hosted verification
+
+Verified SSH-signed commit `d3fa5bb4efe141e1c630eb002acc989da0f47814` passed
+[GitHub Actions run 37814745606](https://github.com/Xauryan/whaleu-next/actions/runs/37814745606),
+job 113440374105. Actual logs confirm 5 statistics, 673 API, 914 native and 1,142
+PostgreSQL tests: 2,734 passed, zero failures/skips. PostgreSQL took
+1,055.102462458 seconds. All check, formatting and container cleanup steps passed.
+The 934 published source files and five OpenAPI artifacts match the tested freeze.
+[Automatic statistics publication](https://github.com/Xauryan/whaleu-next/actions/runs/37814745622)
+also passed, with the exact committed SHA in the served SVG.

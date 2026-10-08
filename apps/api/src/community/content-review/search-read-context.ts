@@ -3,7 +3,7 @@ import { transactionReadEpoch } from '../../database/transaction-deadlines.js';
 import { ApplicationError } from '../../http/application-error.js';
 
 /** Explicit, lazy owner reads for one search callback only. No client-global
- * cache, mutation, savepoint recovery, optional proof or Safety decision reuse.
+ * cache, mutation, savepoint recovery, optional proof or relationship reuse.
  * Each owner keeps its namespace private and supplies its own locked read. */
 export class SearchReadContext {
   private readonly epoch: object;

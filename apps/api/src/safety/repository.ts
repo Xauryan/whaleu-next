@@ -6,6 +6,10 @@ import type { VisibilityPurpose } from '../community/community-policy.js';
 import { requireAllowedSafetyRelationship } from './relationship-proof.js';
 import { validateBlockCoverage } from './block-coverage.js';
 import type { BlockCoverageHead } from './block-coverage.js';
+import type { SearchReadContext } from '../community/content-review/search-read-context.js';
+
+const searchCoverageOwner = {};
+type ValidatedCoverage = Readonly<{ validUntil: number | null }>;
 export interface SafetyHead extends BlockCoverageHead {
   state_version?: string;
   restriction_coverage: string;
@@ -81,22 +85,66 @@ export class SafetyRepository {
     );
     return { status, fingerprint: head };
   }
+  /** Only positive, owner-validated SHARE-locked coverage is reusable. Every
+   * invocation still observes its own database clock, including concurrent
+   * misses. No mutable head/Date or relationship decision enters this context. */
+  private async searchBlockCoverage(
+    accountId: string,
+    tx: PoolClient,
+    read: SearchReadContext,
+  ): Promise<ValidatedCoverage | null> {
+    let checked: ValidatedCoverage | null | undefined;
+    const retained = await read.read(
+      searchCoverageOwner,
+      accountId,
+      tx,
+      async () => {
+        const head = await this.head(accountId, tx);
+        const now = (
+          await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
+        ).rows[0]!.now.getTime();
+        const coverage = validateBlockCoverage(head, now);
+        checked = coverage ? Object.freeze({ ...coverage }) : null;
+        return checked;
+      },
+      (coverage) => coverage !== null,
+    );
+    if (checked !== undefined) return checked;
+    const now = (
+      await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
+    ).rows[0]!.now.getTime();
+    read.assertCurrent(tx);
+    return validateBlockCoverage(
+      retained && {
+        block_coverage: 'complete',
+        provenance: 'native_account_creation',
+        valid_until:
+          retained.validUntil === null ? null : new Date(retained.validUntil),
+      },
+      now,
+    );
+  }
   async directions(
     viewer: string,
     author: string,
     purpose: VisibilityPurpose | 'public_profile',
     tx: PoolClient,
+    read?: SearchReadContext,
   ): Promise<{ outgoing: boolean; incoming: boolean } | null> {
     const ids =
       purpose === 'list_projection'
         ? [viewer]
         : [...new Set([viewer, author])].sort();
     for (const id of ids) {
-      const head = await this.head(id, tx);
-      const now = (
-        await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
-      ).rows[0]!.now.getTime();
-      const coverage = validateBlockCoverage(head, now);
+      let coverage: ValidatedCoverage | null;
+      if (read) coverage = await this.searchBlockCoverage(id, tx, read);
+      else {
+        const head = await this.head(id, tx);
+        const now = (
+          await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
+        ).rows[0]!.now.getTime();
+        coverage = validateBlockCoverage(head, now);
+      }
       if (!coverage) return null;
       registerTransactionDeadline(
         tx,
