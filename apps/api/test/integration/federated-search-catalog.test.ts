@@ -465,7 +465,7 @@ test(
               let waited = false;
               for (let i = 0; i < 400; i++) {
                 const result = await h.pool.query<{ waiting: boolean }>(
-                  "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE query LIKE '%FROM whaleu_community.posts p WHERE p.id=$1 FOR SHARE OF p%' AND wait_event_type='Lock') AS waiting",
+                  "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE query LIKE '%FROM whaleu_community.posts p WHERE p.id=ANY($1::uuid[]) ORDER BY p.id ASC FOR SHARE OF p%' AND wait_event_type='Lock') AS waiting",
                 );
                 if (result.rows[0]!.waiting) {
                   waited = true;

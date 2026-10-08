@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
+import { ApplicationError } from '../../http/application-error.js';
 import { categorySchema } from '../contracts.js';
 import { searchAnchorSchema, SEARCH_KIND_ORDER } from './cursor.js';
 import type { Category } from '../contracts.js';
@@ -9,6 +10,8 @@ import type { SearchAnchor } from './cursor.js';
 import type { SearchKind } from './contracts.js';
 
 export const SEARCH_SCAN_BATCH = 128;
+// One structural window, its sentinel, and the previous visible cursor guard.
+export const SEARCH_METADATA_LOCK_LIMIT = SEARCH_SCAN_BATCH + 2;
 interface SearchStructuralFilters {
   readonly category: Category | null;
   readonly tradingSubtype: TradingSubtype | null;
@@ -130,20 +133,27 @@ export class SearchRepository {
     );
   }
 
-  async lockCandidate(
+  /** Bounded metadata only. SQL, not caller order, acquires each kind's locks
+   * in immutable UUID order. The service orders kinds across the whole window. */
+  async lockCandidates(
     kind: SearchKind,
-    id: string,
+    ids: readonly string[],
     tx: PoolClient,
-  ): Promise<SearchCandidate | null> {
+  ): Promise<SearchCandidate[]> {
+    if (
+      ids.length > SEARCH_METADATA_LOCK_LIMIT ||
+      ids.some((id) => !uuid.safeParse(id).success)
+    )
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    const distinct = [...new Set(ids)].sort();
+    if (!distinct.length) return [];
     const { alias } = sources[kind];
     return (
-      (
-        await tx.query<SearchCandidate>(
-          `SELECT ${columns(kind)} FROM ${from(kind)} WHERE ${alias}.id=$1 FOR SHARE OF ${alias}`,
-          [id],
-        )
-      ).rows[0] ?? null
-    );
+      await tx.query<SearchCandidate>(
+        `SELECT ${columns(kind)} FROM ${from(kind)} WHERE ${alias}.id=ANY($1::uuid[]) ORDER BY ${alias}.id ASC FOR SHARE OF ${alias}`,
+        [distinct],
+      )
+    ).rows;
   }
 
   async exactAnchor(anchor: SearchAnchor, tx: PoolClient): Promise<boolean> {

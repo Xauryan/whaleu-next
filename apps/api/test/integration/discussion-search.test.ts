@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { hashToken } from '../../src/identity/tokens.js';
-import { freshWorld, trading } from './federated-search-fixtures.js';
+import { freshWorld, trading, position } from './federated-search-fixtures.js';
+import { SearchRepository } from '../../src/community/search/repository.js';
+import { withScalarSearchLocks } from '../support/search-scalar-locks.js';
 import type {
   SearchHit,
   SearchPage,
@@ -1375,9 +1377,19 @@ test(
             ['reply source', { type: 'reply' }],
             ['within-topic', { type: 'all', postId: posts[0]!.id }],
           ] as const) {
+            // Prime this exact successor so both measured paths reuse it.
+            // Comparing an insert with a reuse adds unrelated cursor SQL.
+            ok(await w.aggregate({ ...query, q: 'needle-not-in-fixture' }));
             let candidate:
               { sql: string; values: unknown[]; rows: number } | undefined;
+            let metadataStatements = 0,
+              metadataIds = 0;
             h.observer.setHook(async (event) => {
+              if (/FOR SHARE OF [pcr]$/.test(event.sql)) {
+                metadataStatements++;
+                assert.ok(Array.isArray(event.values[0]));
+                metadataIds += (event.values[0] as string[]).length;
+              }
               if (
                 event.sql.includes('UNION ALL') &&
                 /LIMIT\s+129/.test(event.sql)
@@ -1409,6 +1421,30 @@ test(
               ),
               false,
             );
+            assert.ok(metadataStatements >= 1 && metadataStatements <= 3);
+            const scalar = await withScalarSearchLocks(
+              h.app.get(SearchRepository),
+              () =>
+                h.observer.measure(
+                  `${label}: scalar metadata baseline`,
+                  async () =>
+                    await w.aggregate({ ...query, q: 'needle-not-in-fixture' }),
+                ),
+            );
+            ok(scalar.value);
+            assert.deepEqual(
+              { ...scalar.value.body, nextCursor: null },
+              { ...measured.value.body, nextCursor: null },
+            );
+            assert.deepEqual(
+              await position(h, scalar.value.body.nextCursor),
+              await position(h, measured.value.body.nextCursor),
+            );
+            assert.equal(
+              scalar.measurement.queries - measured.measurement.queries,
+              metadataIds - metadataStatements,
+              'Only metadata round trips change; canonical and final proofs remain identical',
+            );
             const explain = await h.pool.query(
               `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${candidate.sql}`,
               candidate.values,
@@ -1422,6 +1458,13 @@ test(
                 endpointMs:
                   Math.round(measured.measurement.durationMs * 100) / 100,
                 endpointQueries: measured.measurement.queries,
+                scalarEndpointQueries: scalar.measurement.queries,
+                scalarEndpointMs:
+                  Math.round(scalar.measurement.durationMs * 100) / 100,
+                metadataStatements,
+                scalarMetadataStatements: metadataIds,
+                savedStatements:
+                  scalar.measurement.queries - measured.measurement.queries,
                 planningMs: plan['Planning Time'],
                 executionMs: plan['Execution Time'],
                 plan: plan.Plan,

@@ -126,12 +126,15 @@ function harness(
     afterCreate: null as (() => void) | null,
     afterSession: null as (() => void) | null,
     corruptCandidates: null as SearchCandidate[] | null,
+    corruptLocks: null as
+      ((kind: SearchKind, rows: SearchCandidate[]) => SearchCandidate[]) | null,
   };
   const events: string[] = [];
   const inspected: string[] = [];
   const serialized: string[] = [];
   const locked: string[] = [];
   const lockOrder: string[] = [];
+  const lockBatches: { kind: SearchKind; ids: readonly string[] }[] = [];
   const purposes: { id: string; purpose: string }[] = [];
   const bodyReads: string[] = [];
   const records = new Map<
@@ -406,11 +409,16 @@ function harness(
         .slice(0, 129);
     },
     reference: async (anchor: SearchAnchor) => metadata(anchor.kind, anchor.id),
-    lockCandidate: async (kind: SearchKind, id: string) => {
-      locked.push(id);
-      lockOrder.push(`${kind}:${id}`);
-      state.beforeLock?.(id);
-      return metadata(kind, id);
+    lockCandidates: async (kind: SearchKind, ids: readonly string[]) => {
+      lockBatches.push({ kind, ids });
+      const result = ids.flatMap((id) => {
+        locked.push(id);
+        lockOrder.push(`${kind}:${id}`);
+        state.beforeLock?.(id);
+        const row = metadata(kind, id);
+        return row ? [row] : [];
+      });
+      return state.corruptLocks?.(kind, result) ?? result;
     },
     exactAnchor: async (anchor: SearchAnchor) =>
       metadata(anchor.kind, anchor.id)?.at === anchor.at,
@@ -472,6 +480,7 @@ function harness(
     serialized,
     locked,
     lockOrder,
+    lockBatches,
     purposes,
     bodyReads,
     records,
@@ -1389,4 +1398,128 @@ test('reply sentinel metadata neither reads its body nor its root, and revoked v
     }),
     errorCode('DISCOVERY_RESTART_REQUIRED'),
   );
+});
+
+test('batched locks include complete sentinel and visible-guard ancestry, even with the same UUID throughout every chain', async () => {
+  const rows = fixtures(260);
+  const children = rows.flatMap((row) => [
+    discussionFixture(
+      row,
+      'comment',
+      row.post.id,
+      '2026-10-07T00:00:00.000000Z',
+    ),
+    discussionFixture(row, 'reply', row.post.id, row.at, row.post.id),
+  ]);
+  // The next page fills before this unknown, unread chain. Metadata locking
+  // must neither authorize it nor register a mandatory proof for its body.
+  children[100]!.allowed = 'unavailable';
+  Object.defineProperty(children[101]!.content, 'text', {
+    get() {
+      throw new Error('off-page child body accessed');
+    },
+  });
+  const h = harness(rows, [], children);
+  const selected = { ...query, type: 'reply' as const, limit: 1 };
+  const first = await h.service.search('token', selected);
+  h.lockBatches.splice(0);
+  h.lockOrder.splice(0);
+  const next = await h.service.search('token', {
+    ...selected,
+    cursor: first.nextCursor!,
+  });
+  assert.deepEqual(
+    next.items.map((item) => item.contentId),
+    [rows[1]!.post.id],
+  );
+  const expectedIds = rows
+    .slice(0, 130)
+    .map((row) => row.post.id)
+    .sort();
+  assert.deepEqual(
+    h.lockBatches,
+    (['post', 'comment', 'reply'] as const).map((kind) => ({
+      kind,
+      ids: expectedIds,
+    })),
+  );
+  assert.deepEqual(
+    h.lockOrder,
+    (['post', 'comment', 'reply'] as const).flatMap((kind) =>
+      expectedIds.map((id) => `${kind}:${id}`),
+    ),
+  );
+  assert.equal(h.bodyReads.includes(rows[50]!.post.id), false);
+  assert.equal(h.bodyReads.includes(rows[129]!.post.id), false);
+});
+
+test('batched metadata rejects malformed, extra, duplicate, unsorted and kind-confused rows before any body authorization', async () => {
+  for (const corrupt of [
+    (rows: SearchCandidate[]) => [...rows, rows[0]!],
+    (rows: SearchCandidate[]) => [rows[0]!, rows[0]!],
+    (rows: SearchCandidate[]) => [...rows].reverse(),
+    (rows: SearchCandidate[]) => {
+      const foreign = randomUUID();
+      return [{ ...rows[0]!, id: foreign, postId: foreign }];
+    },
+    (rows: SearchCandidate[]) => [
+      { ...rows[0]!, kind: 'comment' as const, rootCommentId: rows[0]!.id },
+    ],
+    (rows: SearchCandidate[]) => [
+      { ...rows[0]!, at: '2026-10-08T00:00:00.123Z' },
+    ],
+    (rows: SearchCandidate[]) => [rows[0]!],
+  ]) {
+    const h = harness(fixtures(2));
+    h.state.corruptLocks = (_kind, rows) => corrupt(rows);
+    await assert.rejects(
+      h.service.search('token', query),
+      errorCode('COMMUNITY_UNAVAILABLE'),
+    );
+    assert.deepEqual(h.bodyReads, []);
+    assert.equal(h.records.size, 0);
+  }
+});
+
+test('batched child locks still reject missing ancestry and changed parent or root coordinates', async () => {
+  for (const fault of [
+    'missing-post',
+    'missing-root',
+    'changed-post',
+    'changed-root',
+  ] as const) {
+    const rows = fixtures(2);
+    const children = rows.flatMap((row) => [
+      discussionFixture(row, 'comment', row.post.id, row.at),
+      discussionFixture(row, 'reply', row.post.id, row.at, row.post.id),
+    ]);
+    const h = harness(rows, [], children);
+    h.state.corruptLocks = (kind, locked) => {
+      if (
+        (kind === 'post' && fault === 'missing-post') ||
+        (kind === 'comment' && fault === 'missing-root')
+      )
+        return locked.slice(1);
+      if (
+        kind === 'reply' &&
+        (fault === 'changed-post' || fault === 'changed-root')
+      )
+        return locked.map((row, i) =>
+          i === 0
+            ? {
+                ...row,
+                ...(fault === 'changed-post'
+                  ? { postId: rows[1]!.post.id }
+                  : { rootCommentId: rows[1]!.post.id }),
+              }
+            : row,
+        );
+      return locked;
+    };
+    await assert.rejects(
+      h.service.search('token', { ...query, type: 'reply' }),
+      errorCode('COMMUNITY_UNAVAILABLE'),
+    );
+    assert.deepEqual(h.bodyReads, []);
+  }
 });

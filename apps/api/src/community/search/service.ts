@@ -213,16 +213,25 @@ export class SearchService {
                 : [],
         ),
       );
-      for (const id of [...ids].sort()) {
-        const candidate = await this.searches.lockCandidate(kind, id, tx);
-        if (!candidate) continue;
+      if (!ids.size) continue;
+      const locked = await this.searches.lockCandidates(
+        kind,
+        [...ids].sort(),
+        tx,
+      );
+      if (locked.length > ids.size)
+        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      let previous: string | null = null;
+      for (const candidate of locked) {
         if (
           !searchCandidateSchema.safeParse(candidate).success ||
-          candidate.id !== id ||
-          candidate.kind !== kind
+          !ids.has(candidate.id) ||
+          candidate.kind !== kind ||
+          (previous !== null && candidate.id <= previous)
         )
           throw new ApplicationError('COMMUNITY_UNAVAILABLE');
         held.set(searchCandidateKey(candidate), candidate);
+        previous = candidate.id;
       }
     }
     for (const item of all) {

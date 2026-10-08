@@ -1238,6 +1238,27 @@ test(
             );
             voting = ballot(b, p, opened.jury.id, 'keep');
             voting.catch(() => undefined);
+            const barrierPid = (
+              await barrier.query<{ pid: number }>(
+                'SELECT pg_backend_pid() pid',
+              )
+            ).rows[0]!.pid;
+            // This vote is the sole outstanding operation before the worker
+            // starts. Prove it reached this exact post's UPDATE-lock queue;
+            // invoking ballot() or waiting until the deadline is not proof.
+            await eventually(async () => {
+              const queued = await pool.query<{ pid: number }>(
+                `SELECT pid FROM pg_stat_activity
+                 WHERE datname=current_database() AND wait_event_type='Lock'
+                   AND query=$1 AND $2::integer=ANY(pg_blocking_pids(pid))`,
+                [
+                  'SELECT * FROM whaleu_community.posts WHERE id=$1 FOR UPDATE',
+                  barrierPid,
+                ],
+              );
+              assert.ok(queued.rows.length <= 1);
+              return queued.rows.length === 1;
+            });
             await sleep(
               Math.max(0, opened.jury.deadline.getTime() - Date.now() + 30),
             );

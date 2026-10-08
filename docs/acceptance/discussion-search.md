@@ -144,3 +144,14 @@ historical backfill, related-campus distribution, search history or hot
 suggestions were added. The separate detail/context owners' existing 1,024 limits
 are not removed. Physical WeChat rendering and production-scale behavior remain
 unverified.
+
+## Hosted verification
+
+Verified SSH-signed commit `1632952fd2b750b3f4e2a3fe2ca98937cf4fb946` passed
+[GitHub Actions run 37802330817](https://github.com/Xauryan/whaleu-next/actions/runs/37802330817).
+Actual logs confirm 5 statistics, 655 API, 914 native and 1,130 PostgreSQL tests:
+2,704 passed, zero failures/skips/cancellations. PostgreSQL took
+1,044.925622202 seconds. Lint, types, OpenAPI drift, builds, emitted native smokes,
+formatting and container cleanup passed. All 926 published source blobs and five
+OpenAPI artifacts matched the tested freeze. This does not establish production
+performance or physical-device acceptance.

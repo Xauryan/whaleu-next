@@ -330,7 +330,7 @@ test('aggregate SQL uses one129-coordinate body-independent global order and pee
     null,
     tx,
   );
-  await repository.lockCandidate('post', uuid(3), tx);
+  await repository.lockCandidates('post', [uuid(3)], tx);
   assert.match(
     calls[0]!.sql,
     /ORDER BY p.published_at DESC,p.id DESC LIMIT 129/,
