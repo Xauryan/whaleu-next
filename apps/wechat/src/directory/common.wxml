@@ -1,0 +1,16 @@
+<template name="directory-feedback">
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看目录 →</navigator>
+  <navigator class="link" url="/pages/identity-campus/identity-campus">查看或明确选择身份校区 →</navigator>
+  <view class="notice">目录只展示当前身份校区所在地区的已核验条目。浏览校园不会更改身份校区或授予访问权限。</view>
+</template>
+<template name="directory-entry-labels">
+  <view class="badges"><text class="badge">{{directoryPlatformLabels[item.platform]}}</text>
+    <text wx:if="{{item.badge.status === 'known' &amp;&amp; item.badge.value === 'official'}}" class="badge">官方推广标记</text>
+    <text wx:elif="{{item.badge.status === 'known' &amp;&amp; item.badge.value === 'partner'}}" class="badge">合作推广标记</text>
+    <text wx:elif="{{item.badge.status === 'unavailable'}}" class="meta">推广标记暂不可确认</text>
+    <text wx:elif="{{item.badge.value === null}}" class="meta">无推广标记</text>
+  </view>
+  <view class="meta">头像：{{item.avatar.status === 'absent' ? '未提供' : '暂不可用'}}</view>
+</template>

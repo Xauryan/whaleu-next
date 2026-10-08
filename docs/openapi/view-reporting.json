@@ -17,32 +17,22 @@
                 "type": "string"
               }
             },
-            "required": [
-              "code",
-              "message",
-              "requestId"
-            ],
+            "required": ["code", "message", "requestId"],
             "type": "object"
           }
         },
-        "required": [
-          "error"
-        ],
+        "required": ["error"],
         "type": "object"
       },
       "ViewEpochRequest": {
         "additionalProperties": false,
         "properties": {
           "version": {
-            "enum": [
-              1
-            ],
+            "enum": [1],
             "type": "number"
           }
         },
-        "required": [
-          "version"
-        ],
+        "required": ["version"],
         "type": "object"
       },
       "ViewReport": {
@@ -62,9 +52,7 @@
                 "type": "string"
               },
               "kind": {
-                "enum": [
-                  "list_exposure"
-                ],
+                "enum": ["list_exposure"],
                 "type": "string"
               },
               "postIds": {
@@ -78,19 +66,11 @@
                 "type": "array"
               },
               "version": {
-                "enum": [
-                  1
-                ],
+                "enum": [1],
                 "type": "number"
               }
             },
-            "required": [
-              "version",
-              "epochId",
-              "batchId",
-              "kind",
-              "postIds"
-            ],
+            "required": ["version", "epochId", "batchId", "kind", "postIds"],
             "type": "object"
           },
           {
@@ -107,9 +87,7 @@
                 "type": "string"
               },
               "kind": {
-                "enum": [
-                  "detail_visit"
-                ],
+                "enum": ["detail_visit"],
                 "type": "string"
               },
               "postIds": {
@@ -123,19 +101,11 @@
                 "type": "array"
               },
               "version": {
-                "enum": [
-                  1
-                ],
+                "enum": [1],
                 "type": "number"
               }
             },
-            "required": [
-              "version",
-              "epochId",
-              "batchId",
-              "kind",
-              "postIds"
-            ],
+            "required": ["version", "epochId", "batchId", "kind", "postIds"],
             "type": "object"
           }
         ]
@@ -160,9 +130,7 @@
                 "type": "string"
               },
               "kind": {
-                "enum": [
-                  "list_exposure"
-                ],
+                "enum": ["list_exposure"],
                 "type": "string"
               },
               "payloadFingerprint": {
@@ -170,9 +138,7 @@
                 "type": "string"
               },
               "version": {
-                "enum": [
-                  1
-                ],
+                "enum": [1],
                 "type": "number"
               }
             },
@@ -203,9 +169,7 @@
                 "type": "string"
               },
               "kind": {
-                "enum": [
-                  "detail_visit"
-                ],
+                "enum": ["detail_visit"],
                 "type": "string"
               },
               "payloadFingerprint": {
@@ -213,9 +177,7 @@
                 "type": "string"
               },
               "version": {
-                "enum": [
-                  1
-                ],
+                "enum": [1],
                 "type": "number"
               }
             },
@@ -260,9 +222,7 @@
             "type": "string"
           },
           "version": {
-            "enum": [
-              1
-            ],
+            "enum": [1],
             "type": "number"
           }
         },
@@ -320,9 +280,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -346,9 +304,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -372,9 +328,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -398,9 +352,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -424,9 +376,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -450,9 +400,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -476,9 +424,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -502,17 +448,13 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
               "retry-after": {
                 "schema": {
-                  "enum": [
-                    "60"
-                  ],
+                  "enum": ["60"],
                   "type": "string"
                 }
               },
@@ -536,9 +478,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -562,9 +502,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -583,9 +521,7 @@
           }
         ],
         "summary": "",
-        "tags": [
-          "View reporting"
-        ]
+        "tags": ["View reporting"]
       }
     },
     "/v1/me/community/view-reports": {
@@ -616,9 +552,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -642,9 +576,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -668,9 +600,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -694,9 +624,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -720,9 +648,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -746,9 +672,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -772,9 +696,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -798,9 +720,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -824,17 +744,13 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
               "retry-after": {
                 "schema": {
-                  "enum": [
-                    "60"
-                  ],
+                  "enum": ["60"],
                   "type": "string"
                 }
               },
@@ -858,9 +774,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -884,9 +798,7 @@
             "headers": {
               "cache-control": {
                 "schema": {
-                  "enum": [
-                    "no-store"
-                  ],
+                  "enum": ["no-store"],
                   "type": "string"
                 }
               },
@@ -905,9 +817,7 @@
           }
         ],
         "summary": "",
-        "tags": [
-          "View reporting"
-        ]
+        "tags": ["View reporting"]
       }
     }
   },

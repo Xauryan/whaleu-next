@@ -61,6 +61,7 @@ App<WhaleuApp>({
       new WechatStorage(wx),
       clientConfiguration.apiOrigin,
       this.community.newRequestId,
+      (accountId) => this.community?.directoryScopeChanges?.clear(accountId),
     );
     this.experience = createExperienceRuntime(
       this.identity,

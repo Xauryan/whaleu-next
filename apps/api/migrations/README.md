@@ -154,3 +154,8 @@ sources, post/content/actor state and immutable effect receipts under existing
 hotness ownership. It captures supported row creation/tombstone changes without
 modifying moderation, outbox or public counts. It seeds no historical baseline,
 formula or production processor. See [internal comment component](../../../docs/POST_COMMENT_COMPONENT.md).
+
+Migration 0032 adds empty organization-directory taxonomy/catalog revisions,
+independent current heads, exact approved revision evidence and complete-coverage
+constraints. It creates no source issuer, grants, sample directory, application
+writer, media provider or historical import. See [member read scope](../../../docs/API_ORGANIZATION_DIRECTORY.md).

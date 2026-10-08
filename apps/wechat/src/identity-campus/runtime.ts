@@ -8,6 +8,7 @@ import {
 } from './gateway';
 import { PendingIdentityCampusStore } from './pending';
 export interface IdentityCampusRuntime {
+  readonly onSelectionChanged?: (accountId: string) => void;
   readonly sessions: SessionStore;
   readonly gateway: IdentityCampusGateway | undefined;
   readonly pending: PendingIdentityCampusStore;
@@ -19,9 +20,11 @@ export function createIdentityCampusRuntime(
   storage: Storage,
   origin: string,
   newRequestId: () => Promise<string>,
+  onSelectionChanged?: (accountId: string) => void,
 ): IdentityCampusRuntime {
   return {
     sessions: identity.sessions,
+    ...(onSelectionChanged ? { onSelectionChanged } : {}),
     gateway: identity.api
       ? new HttpIdentityCampusGateway(identity.api)
       : undefined,

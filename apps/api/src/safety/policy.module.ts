@@ -1,3 +1,4 @@
+import { SafetyDirectoryReadFacade } from './directory-read.facade.js';
 import { Module } from '@nestjs/common';
 import { COMMUNITY_BASE_VISIBILITY } from '../community/community-policy.js';
 import { ContentReviewModule } from '../community/content-review/content-review.module.js';
@@ -10,6 +11,7 @@ import { SafetyContentVisibilityFacade } from './content-visibility.facade.js';
   imports: [ContentReviewModule],
   providers: [
     SafetyRepository,
+    SafetyDirectoryReadFacade,
     NamedBlockVisibility,
     ProfileVisibilityFacade,
     SafetyContentVisibilityFacade,
@@ -20,6 +22,7 @@ import { SafetyContentVisibilityFacade } from './content-visibility.facade.js';
   ],
   exports: [
     SafetyRepository,
+    SafetyDirectoryReadFacade,
     NamedBlockVisibility,
     ProfileVisibilityFacade,
     SafetyContentVisibilityFacade,

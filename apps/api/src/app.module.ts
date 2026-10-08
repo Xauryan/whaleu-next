@@ -1,3 +1,4 @@
+import { DirectoryModule } from './organizations/directory/module.js';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ViewRetentionModule } from './community/view-component/retention-runner.js';
 import { ExperienceRankingModule } from './experience-ranking/module.js';
@@ -47,6 +48,7 @@ export class AppModule {
         ProfileModule,
         ProfileDiscoveryModule,
         CommunityModule,
+        DirectoryModule,
         SafetyModule,
         NotificationsModule,
         IdentityPrivacyModule,

@@ -50,3 +50,12 @@ The eight added packages use MIT, Apache-2.0 and Python-2.0 licenses. Exact vers
 and integrity values are in the lockfile. An npm audit on the frozen
 dependency graph reported zero known vulnerabilities; this is not a guarantee of
 absence of defects. See [acceptance evidence](acceptance/view-openapi.md).
+
+## Directory extension
+
+The separate [organization-directory artifact](openapi/organization-directory.json)
+now covers the member directory context/category/list/detail read slice. Both
+artifacts are generated from actual controller and owner schemas, with deterministic
+key sorting followed by the installed Prettier formatter. Neither artifact is
+excluded from formatting. Offline export still creates no database, timer or
+public documentation route.

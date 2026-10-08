@@ -1,3 +1,4 @@
+import { format } from 'prettier';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import {
@@ -104,6 +105,7 @@ function visit(
 
 test('compiled real controller export is offline, deterministic in-process/across processes, and current', async () => {
   const first = await render();
+  assert.equal(await format(first, { parser: 'json' }), first);
   assert.equal(await render(), first);
   assert.equal(await readFile(artifact, 'utf8'), first);
   assert.equal(first.endsWith('\n'), true);

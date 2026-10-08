@@ -59,3 +59,11 @@ provider, automatic processor or production dataset was added. View snapshot
 locking does not establish independent receipt provenance for privileged direct
 SQL counter writes. Public ranking privacy, population, freshness, ties and
 pagination remain open, as does the separate author received-total decision.
+
+## Hosted verification
+
+Verified SSH-signed commit `816d288269c0ac32e2dadea0437516b20a75b48e` passed
+[GitHub Actions run 37770188335](https://github.com/Xauryan/whaleu-next/actions/runs/37770188335):
+608 API, 842 native and 995 PostgreSQL tests, 2,445 total with zero failures/skips.
+PostgreSQL took 701.512 seconds. Lint, types, OpenAPI drift, builds, emitted native
+smokes and formatting passed. No public ranking or deployment is implied.

@@ -1,3 +1,7 @@
+import {
+  HttpDirectoryGateway,
+  type DirectoryGateway,
+} from '../directory/gateway';
 import { ViewRuntime } from './view-runtime';
 import { PendingViewStore } from './view-pending';
 import { HttpViewGateway } from './view-gateway';
@@ -37,6 +41,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly directory?: DirectoryGateway;
+  readonly directoryScopeChanges?: PrivateViewLifecycle;
   readonly views?: ViewRuntime;
   readonly search?: SearchGateway;
   readonly discovery?: DiscoveryGateway;
@@ -73,6 +79,10 @@ export function createCommunityRuntime(
   const privateViews = new PrivateViewLifecycle();
   const runtime: CommunityRuntime = {
     sessions: identity.sessions,
+    directoryScopeChanges: new PrivateViewLifecycle(),
+    ...(identity.api
+      ? { directory: new HttpDirectoryGateway(identity.api) }
+      : {}),
     ...(identity.api ? { search: new HttpSearchGateway(identity.api) } : {}),
     ...(identity.api
       ? { discovery: new HttpDiscoveryGateway(identity.api) }

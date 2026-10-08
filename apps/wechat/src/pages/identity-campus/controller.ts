@@ -398,6 +398,7 @@ export class IdentityCampusController {
     if (cancel.isCancelled)
       throw new ClientError('cancelled', 'Cancelled before dispatch');
     this.runtime.pending.assertOriginal(attempt);
+    this.runtime.onSelectionChanged?.(attempt.accountId);
     return this.runtime.gateway!.select(
       {
         requestId: attempt.requestId,
@@ -418,6 +419,7 @@ export class IdentityCampusController {
         'Missing original identity campus intent',
       );
     matchIdentityCampusReceipt(this.pending, receipt);
+    this.runtime.onSelectionChanged?.(this.pending.accountId);
     this.runtime.pending.settle(this.pending, receipt);
     this.pending = null;
     this.update({ frozen: false, confirmation: null, state: null });

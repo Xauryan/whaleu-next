@@ -19,7 +19,10 @@
     "pages/report-progress/report-progress",
     "pages/system-notices/system-notices",
     "pages/public-profile/public-profile",
-    "pages/community-liked/community-liked"
+    "pages/community-liked/community-liked",
+    "pages/directory-hub/directory-hub",
+    "pages/directory-list/directory-list",
+    "pages/directory-detail/directory-detail"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

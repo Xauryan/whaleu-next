@@ -1,0 +1,16 @@
+<import src="../../directory/common.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 校园目录</view><view class="title">发现身边的群与组织</view>
+  <view class="kind-tabs"><button wx:for="{{directoryKinds}}" wx:key="*this" class="{{kind === item ? 'active' : 'secondary'}}" data-kind="{{item}}" bindtap="onKind">{{directoryKindLabels[item]}}</button></view>
+  <template is="directory-feedback" data="{{status,error,hasSession}}" />
+  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">{{restartRequired ? '重新加载目录' : '刷新当前类型'}}</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止读取</button>
+  <button wx:if="{{loaded}}" bindtap="onSearch" disabled="{{busy}}">按名称搜索此类型的所有分类</button>
+  <view wx:for="{{categories}}" wx:key="id" class="card directory-card accent-{{item.accent}}">
+    <view class="section-title">{{item.name}}</view><view class="directory-text">{{item.description}}</view>
+    <button class="secondary" data-id="{{item.id}}" bindtap="onCategory" disabled="{{busy}}">查看分类 →</button>
+  </view>
+  <view wx:if="{{loaded &amp;&amp; !categories.length &amp;&amp; pageNumber === 1}}" class="empty">当前类型暂无分类</view>
+  <view wx:if="{{loaded}}" class="pagination"><button bindtap="onPrevious" disabled="{{busy || !canPrevious}}">上一页</button><text>第 {{pageNumber}} 页</text><button bindtap="onNext" disabled="{{busy || !canNext}}">下一页</button></view>
+  <view class="notice">推广标记、分类类型与条目平台分别展示。公众号分类仍按当前身份地区查看。</view>
+</view>

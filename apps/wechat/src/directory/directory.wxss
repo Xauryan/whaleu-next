@@ -1,0 +1,78 @@
+@import '../community/forms.wxss';
+.kind-tabs {
+  display: flex;
+  gap: 16rpx;
+  margin: 28rpx 0;
+  flex-wrap: wrap;
+}
+.kind-tabs button {
+  flex: 1;
+  min-width: 170rpx;
+  font-size: 26rpx;
+  margin: 0;
+}
+.active {
+  border: 2rpx solid #436ddd;
+  background: #e9efff;
+}
+.directory-card {
+  border-left: 8rpx solid #718096;
+}
+.accent-green {
+  border-color: #37875e;
+}
+.accent-orange {
+  border-color: #d97b30;
+}
+.accent-red {
+  border-color: #ce5454;
+}
+.accent-yellow {
+  border-color: #b49b32;
+}
+.accent-lilac {
+  border-color: #a788ba;
+}
+.accent-purple {
+  border-color: #8652ad;
+}
+.accent-coral {
+  border-color: #d97973;
+}
+.accent-cyan {
+  border-color: #388fa1;
+}
+.badges {
+  display: flex;
+  gap: 12rpx;
+  flex-wrap: wrap;
+  margin: 16rpx 0;
+}
+.badge {
+  border-radius: 10rpx;
+  padding: 4rpx 12rpx;
+  background: #edf1fa;
+  color: #3e557e;
+  font-size: 24rpx;
+}
+.directory-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.media-state {
+  padding: 20rpx;
+  background: #f4f6fa;
+  border-radius: 12rpx;
+  margin: 12rpx 0;
+  color: #526275;
+}
+.pagination {
+  display: flex;
+  gap: 20rpx;
+  align-items: center;
+  margin-top: 28rpx;
+}
+.pagination button {
+  flex: 1;
+}

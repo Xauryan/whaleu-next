@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { format } from 'prettier';
 import { Test } from '@nestjs/testing';
 import { PARAMTYPES_METADATA } from '@nestjs/common/constants.js';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -76,6 +77,86 @@ function sorted(value: unknown): unknown {
   return value;
 }
 
+/** Stable key ordering followed by the installed repository formatter. Keep
+ * emitted bytes valid under both OpenAPI drift checks and format:check. JSON
+ * formatting has no runtime dependency or effect on the document's semantics. */
+async function renderDocument(document: OpenAPIObject): Promise<string> {
+  return format(JSON.stringify(sorted(document), null, 2), {
+    parser: 'json',
+    printWidth: 80,
+    tabWidth: 2,
+    useTabs: false,
+    endOfLine: 'lf',
+  });
+}
 export async function renderViewOpenApiDocument(): Promise<string> {
-  return `${JSON.stringify(sorted(await createViewOpenApiDocument()), null, 2)}\n`;
+  return renderDocument(await createViewOpenApiDocument());
+}
+
+/** Separate owner document; the view-reporting runtime contract is unchanged. */
+export async function createDirectoryOpenApiDocument(): Promise<OpenAPIObject> {
+  const { DirectoryController } =
+    await import('../src/organizations/directory/controller.js');
+  const { DirectoryService } =
+    await import('../src/organizations/directory/service.js');
+  const { DirectoryRequestGuard } =
+    await import('../src/request-throttling/directory-request.guard.js');
+  for (const method of ['context', 'categories', 'entries', 'detail']) {
+    if (
+      !Reflect.hasMetadata(
+        PARAMTYPES_METADATA,
+        DirectoryController.prototype,
+        method,
+      )
+    )
+      throw new Error(
+        'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+      );
+  }
+  const fail = () => {
+    throw new Error('OpenAPI must not execute application work');
+  };
+  const testing = await Test.createTestingModule({
+    controllers: [DirectoryController],
+    providers: [
+      {
+        provide: DirectoryService,
+        useValue: {
+          context: fail,
+          categories: fail,
+          entries: fail,
+          detail: fail,
+        },
+      },
+    ],
+  })
+    .overrideGuard(DirectoryRequestGuard)
+    .useValue({ canActivate: fail })
+    .compile();
+  const app = testing.createNestApplication({ logger: false });
+  try {
+    return SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setOpenAPIVersion('3.0.3')
+        .setTitle('WhaleU organization directory')
+        .setVersion('1')
+        .addSecurity('accessToken', {
+          type: 'http',
+          scheme: 'bearer',
+          description: 'Opaque WhaleU access token.',
+        })
+        .build(),
+      {
+        deepScanRoutes: false,
+        autoTagControllers: false,
+        excludeDynamicDefaults: true,
+      },
+    );
+  } finally {
+    await app.close();
+  }
+}
+export async function renderDirectoryOpenApiDocument(): Promise<string> {
+  return renderDocument(await createDirectoryOpenApiDocument());
 }

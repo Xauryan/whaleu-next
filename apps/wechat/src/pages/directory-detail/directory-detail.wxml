@@ -1,0 +1,22 @@
+<import src="../../directory/common.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 目录详情</view>
+  <template is="directory-feedback" data="{{status,error,hasSession}}" />
+  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">重新核验并加载详情</button><button wx:if="{{busy}}" bindtap="onCancel">停止读取</button>
+  <block wx:if="{{loaded &amp;&amp; detail}}">
+    <view class="card"><view class="title">{{detail.name}}</view><view class="meta">分类类型：{{directoryKindLabels[detail.kind]}}</view><template is="directory-entry-labels" data="{{item:detail,directoryPlatformLabels}}" />
+      <view wx:if="{{detail.badge.status === 'known' &amp;&amp; detail.badge.value === 'official'}}" class="notice">官方推广标记不改变条目平台，也不代表已证明机构所有权。</view>
+    </view>
+    <view wx:if="{{detail.platform === 'qq'}}" class="card qq-group-layout"><view class="section-title">QQ 群联系方式</view>
+      <view wx:if="{{detail.qqGroupNumber.status === 'known'}}" class="directory-text">{{detail.qqGroupNumber.value === null ? '未提供QQ群号' : detail.qqGroupNumber.value}}</view><view wx:else class="notice">QQ群号暂不可确认</view>
+      <button wx:if="{{canCopy}}" bindtap="onCopyQq" disabled="{{busy || copyBusy || !canCopy}}" loading="{{copyBusy}}">复制当前QQ群号</button>
+      <view class="media-state">入群二维码：{{detail.mainQr.status === 'absent' ? '未提供' : '暂不可用'}}</view>
+    </view>
+    <view wx:elif="{{detail.platform === 'wechat'}}" class="card wechat-group-layout"><view class="section-title">微信群联系方式</view><view class="media-state">入群二维码：{{detail.mainQr.status === 'absent' ? '未提供' : '暂不可用'}}</view><view class="media-state">管理员微信二维码图片：{{detail.managerWechatImage.status === 'absent' ? '未提供' : '暂不可用'}}</view></view>
+    <view wx:elif="{{detail.platform === 'official'}}" class="card official-account-layout"><view class="section-title">公众号关注方式</view><view class="media-state">公众号关注二维码：{{detail.mainQr.status === 'absent' ? '未提供' : '暂不可用'}}</view></view>
+    <view wx:if="{{detail.platform !== 'official'}}" class="card"><view class="section-title">关联公众号</view><view class="media-state">关联公众号二维码：{{detail.linkedOfficialAccountQr.status === 'absent' ? '未提供' : '暂不可用'}}</view></view>
+    <view class="card"><view class="section-title">介绍</view><view class="directory-text">{{detail.introText || '未提供文字介绍'}}</view><view class="media-state">介绍图片：{{detail.introImages.status === 'known' ? '没有介绍图片' : '暂不可确认或展示'}}</view></view>
+    <view class="card"><view class="meta">创建时间：{{detail.createdAt || '时间未知'}}</view><view class="meta">更新时间：{{detail.updatedAt || '时间未知'}}</view><view class="meta">访问次数：暂不可用</view><view class="meta">管理员资料：暂不可用</view><view class="meta">管理功能：暂不可用</view></view>
+  </block>
+  <navigator class="link" url="/pages/directory-hub/directory-hub?kind={{kind}}">返回目录首页 →</navigator>
+</view>

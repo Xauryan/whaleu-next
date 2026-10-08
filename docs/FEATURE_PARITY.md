@@ -25,7 +25,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 
 ## Community, errands and reviews
 
-- [ ] NOT IMPLEMENTED — Groups/official accounts: category list/search, details, application and approval, image/QR presentation, editing, owners/managers, administrator add/remove/transfer and my groups
+- [ ] PARTIAL — Groups/official accounts: category list/search, details, application and approval, image/QR presentation, editing, owners/managers, administrator add/remove/transfer and my groups
 - [ ] NOT IMPLEMENTED — Activities: list/detail, organizer/group selection, create with images/time/location, my activities, subscriptions, last-view/new-activity indicators and school permission rules
 - [ ] NOT IMPLEMENTED — Errands: publish/list/detail, region and contact fields, my published/accepted orders, accept/cancel/delete/complete, legal state transitions, publisher/accepter private information and administrator restrictions
 - [ ] NOT IMPLEMENTED — Ratings: categories/tree/subcategories, targets and random selection, score submission/statistics, own score, comments/replies, likes, subscriptions and authorized deletions
@@ -443,3 +443,10 @@ with an explicitly versioned PostgreSQL numeric profile. It is disabled-by-defau
 local/manual, nonmutating and has no public ranking or score field. Formula bit
 parity, public ordering privacy, population/freshness/ties and hot-feed UI remain
 open. See [internal score scope](INTERNAL_HOT_SCORE.md).
+
+Member-scoped directory category/list/name-search/detail and three native pages now
+have local acceptance. Shared official taxonomy remains separate from regional
+entries; current verified home identity gates every read. Media, applications,
+review/admin exceptions, managers, visit recording, history/import and other
+platforms remain open. See [directory scope](API_ORGANIZATION_DIRECTORY.md) and
+[acceptance](acceptance/organization-directory.md).

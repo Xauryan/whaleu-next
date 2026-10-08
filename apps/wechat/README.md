@@ -28,7 +28,7 @@ This is a greenfield TypeScript/WXML/WXSS Mini Program. It is **not a complete W
 - Image publishing is **PARTIAL**. DTOs and recovery retain bounded asset IDs, and existing approved media views have strict HTTPS decoders. There is no binary chooser/upload/progress/preview/approval workflow yet, no image URL entry and no pretend successful upload. The UI says the feature is unavailable
 - Own-publication recovery lists contain only IDs, scope, category, status and time. They never return hidden/deleted bodies or media
 
-Community contracts live in `../../docs/API_COMMUNITY.md`. Later discovery/distribution, remaining trading parity, group directories/chat, internal links, subscriptions, notifications/rewards, moderation/admin workflows and all other master-plan features remain retained scope. Synthetic fixtures are confined to tests and do not establish real provider or device acceptance.
+Community contracts live in `../../docs/API_COMMUNITY.md`. Later discovery/distribution, remaining trading parity, directory write/admin/media workflows and chat, internal links, subscriptions, notifications/rewards, moderation/admin workflows and all other master-plan features remain retained scope. Synthetic fixtures are confined to tests and do not establish real provider or device acceptance.
 
 ## C2A polls and immutable ballot recovery
 
@@ -267,3 +267,47 @@ mutating canonical DTOs or adding a persistent cosmetic cache. Anonymous and
 unavailable branches have no display block. Existing controllers, journals,
 profile navigation and privacy clearing remain intact. Compiled conditional and
 controller smoke is not physical WeChat rendering verification.
+
+## Member-scoped group and official-account directory reads
+
+The community feed now links to three native directory pages: category hub,
+category list/name search, and platform-aware detail. Every read first resolves
+`/v1/directory/context` under required authentication, then uses the current
+identity-home region. A browsing-campus choice never grants directory access or
+changes the identity selection. The API independently enforces current session,
+phone, affiliation, identity-campus and safety eligibility on every endpoint.
+
+- School, organization and official category kinds remain separate from QQ,
+  WeChat and official-account platforms and from normal/official/partner
+  promotion badges. An official badge does not turn an ordinary group into an
+  official-account layout or establish institutional ownership
+- Category cards use a fixed accent palette. Lists preserve server ordering;
+  explicit name search keeps edited input separate from the submitted query.
+  Next and Previous replace the page with fresh reads, discard the old forward
+  branch and reject cursor cycles. Expired pagination requires explicit reload.
+  Known empty categories/lists and no matches differ from unavailable coverage
+- Detail keeps unknown dates, badge/contact evidence and absent versus unavailable
+  media distinct. Gallery, visit counts, manager identities and management
+  capability remain explicitly unavailable where evidence is missing. This slice
+  has no media preview, arbitrary URL/image-key display, provider action,
+  application/edit/review/management button, or visit-count writer
+- QQ number copying requires a current strict authorized detail DTO and an
+  explicit tap. It preserves all digits and never reads a contact from a WXML
+  dataset. Repeated taps coalesce; cancellation, hide, session replacement,
+  safety or identity-scope changes fence even a not-yet-dispatched clipboard
+  callback. A clipboard-only failure allows a new explicit attempt
+- Controllers are created on show and disposed on hide/unload. Root app hide,
+  account switch, same-account re-login, safety invalidation and identity-campus
+  selection dispatch/settlement clear bodies, contacts and cursors. Only harmless
+  same-session route/search intent may survive a hide; return always resolves
+  fresh context. Directory results and search history are never stored durably
+
+`directory-*.test.ts` exercises strict DTO/privacy contracts, authenticated pure
+GET gateways, current context, pagination, cancellation and copy races.
+`scripts/smoke-directory.mjs` executes all emitted page handlers with the real
+ApiClient/gateway/decoders and a bounded model of their WXML conditional branches,
+including every kind/platform combination and ordinary groups with official
+badges. These are synthetic native tests, not WeChat DevTools or physical-device
+rendering acceptance. Actual media/provider activation, administrative exceptions,
+application/review/ownership/manager workflows, production import/history and
+other platforms remain outside this read slice.

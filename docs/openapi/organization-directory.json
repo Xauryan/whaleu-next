@@ -1,0 +1,2322 @@
+{
+  "components": {
+    "schemas": {
+      "SafeErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              }
+            },
+            "required": ["code", "message", "requestId"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "accessToken": {
+        "description": "Opaque WhaleU access token.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "",
+    "title": "WhaleU organization directory",
+    "version": "1"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/v1/directory/context": {
+      "get": {
+        "description": "Resolve canonical current identity-home region under all member gates. Does not select or change identity campus.",
+        "operationId": "readDirectoryContext",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "regionId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["regionId"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Current authorized home-region context.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict request validation failed.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Required current session is absent, expired or revoked.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current phone, affiliation, identity-home scope or Safety permission is required. Administrative roles do not bypass these gates.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "DIRECTORY_NOT_FOUND: target is unavailable. Missing, unapproved and out-of-scope entries share this result.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "DISCOVERY_RESTART_REQUIRED: navigation binding, accepted catalog revision or cursor lifetime changed. Reload only after user choice.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "RATE_LIMITED: account directory read-attempt budget exceeded.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current verification, Safety, campus, taxonomy or catalog evidence is unavailable. Missing catalog is never known empty.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Organization directory"]
+      }
+    },
+    "/v1/directory/regions/{regionId}/categories": {
+      "get": {
+        "description": "Read bounded current accepted taxonomy in accepted source order. Official taxonomy is global; member access remains home-region scoped.",
+        "operationId": "listDirectoryCategories",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "regionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": ["school", "org", "official"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "pattern": "^[1-9][0-9]?$",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "continuation": {
+                      "enum": ["more", "end"],
+                      "type": "string"
+                    },
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "accent": {
+                            "enum": [
+                              "green",
+                              "orange",
+                              "red",
+                              "yellow",
+                              "lilac",
+                              "purple",
+                              "coral",
+                              "cyan"
+                            ],
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["school", "org", "official"],
+                            "type": "string"
+                          },
+                          "name": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "name",
+                          "description",
+                          "accent"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 50,
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "pattern": "^[A-Za-z0-9_-]{43}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["items", "continuation", "nextCursor"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Current categories, including known-empty when complete source evidence establishes it.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict request validation failed.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Required current session is absent, expired or revoked.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current phone, affiliation, identity-home scope or Safety permission is required. Administrative roles do not bypass these gates.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "DIRECTORY_NOT_FOUND: target is unavailable. Missing, unapproved and out-of-scope entries share this result.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "DISCOVERY_RESTART_REQUIRED: navigation binding, accepted catalog revision or cursor lifetime changed. Reload only after user choice.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "RATE_LIMITED: account directory read-attempt budget exceeded.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current verification, Safety, campus, taxonomy or catalog evidence is unavailable. Missing catalog is never known empty.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Organization directory"]
+      }
+    },
+    "/v1/directory/regions/{regionId}/entries": {
+      "get": {
+        "description": "Category is required unless q is present. q is trimmed, 1–100 Unicode code points/400 UTF-8 bytes, without control characters or unpaired surrogates. Literal ASCII case-insensitive name-only substring matching uses explicit ASCII folding and C collation. Chinese and other non-ASCII code points remain literal; no accent, pinyin or Unicode normalization. %, _ and backslash are literal. Accepted snapshot ordering; no totals, contacts, private actors or raw media.",
+        "operationId": "listDirectoryEntries",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "regionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": ["school", "org", "official"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "categoryId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "pattern": "^[1-9][0-9]?$",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "continuation": {
+                      "enum": ["more", "end"],
+                      "type": "string"
+                    },
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "avatar": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["absent"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": [null],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["unavailable"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": [null],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "badge": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["known"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": ["normal", "official", "partner"],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "status": {
+                                    "enum": ["unavailable"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "enum": [null],
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["status", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "categoryId": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "introPreview": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["school", "org", "official"],
+                            "type": "string"
+                          },
+                          "name": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "platform": {
+                            "enum": ["qq", "wechat", "official"],
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "categoryId",
+                          "kind",
+                          "platform",
+                          "name",
+                          "introPreview",
+                          "badge",
+                          "avatar"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 50,
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "pattern": "^[A-Za-z0-9_-]{43}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["items", "continuation", "nextCursor"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Bounded approved entry summaries in server order.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict request validation failed.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Required current session is absent, expired or revoked.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current phone, affiliation, identity-home scope or Safety permission is required. Administrative roles do not bypass these gates.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "DIRECTORY_NOT_FOUND: target is unavailable. Missing, unapproved and out-of-scope entries share this result.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "DISCOVERY_RESTART_REQUIRED: navigation binding, accepted catalog revision or cursor lifetime changed. Reload only after user choice.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "RATE_LIMITED: account directory read-attempt budget exceeded.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current verification, Safety, campus, taxonomy or catalog evidence is unavailable. Missing catalog is never known empty.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Organization directory"]
+      }
+    },
+    "/v1/directory/regions/{regionId}/entries/{entryId}": {
+      "get": {
+        "description": "Platform-discriminated approved detail. QQ contact appears only here. Media delivery, managers, management and live visit counts remain explicitly unavailable. GET never records a visit.",
+        "operationId": "readDirectoryEntry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "regionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "avatar": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["absent"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "badge": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["known"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": ["normal", "official", "partner"],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "categoryId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "introImages": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "items": {
+                                  "items": {
+                                    "not": {}
+                                  },
+                                  "maxItems": 0,
+                                  "minItems": 0,
+                                  "type": "array"
+                                },
+                                "status": {
+                                  "enum": ["known"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "items"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "items": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "items"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "introPreview": {
+                          "type": "string"
+                        },
+                        "introText": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": ["school", "org", "official"],
+                          "type": "string"
+                        },
+                        "linkedOfficialAccountQr": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["absent"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "mainQr": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["absent"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "management": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "enum": ["unavailable"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status"],
+                          "type": "object"
+                        },
+                        "managerWechatImage": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "enum": ["not_applicable"],
+                              "type": "string"
+                            },
+                            "value": {
+                              "enum": [null],
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status", "value"],
+                          "type": "object"
+                        },
+                        "managers": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "items": {
+                              "enum": [null],
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "status": {
+                              "enum": ["unavailable"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status", "items"],
+                          "type": "object"
+                        },
+                        "name": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "platform": {
+                          "enum": ["qq"],
+                          "type": "string"
+                        },
+                        "qqGroupNumber": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["known"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "nullable": true,
+                                  "pattern": "^[0-9]{5,16}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "visits": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "enum": ["unavailable"],
+                              "type": "string"
+                            },
+                            "value": {
+                              "enum": [null],
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status", "value"],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "categoryId",
+                        "kind",
+                        "platform",
+                        "name",
+                        "introPreview",
+                        "badge",
+                        "avatar",
+                        "introText",
+                        "introImages",
+                        "mainQr",
+                        "createdAt",
+                        "updatedAt",
+                        "visits",
+                        "managers",
+                        "management",
+                        "qqGroupNumber",
+                        "managerWechatImage",
+                        "linkedOfficialAccountQr"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "avatar": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["absent"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "badge": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["known"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": ["normal", "official", "partner"],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "categoryId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "introImages": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "items": {
+                                  "items": {
+                                    "not": {}
+                                  },
+                                  "maxItems": 0,
+                                  "minItems": 0,
+                                  "type": "array"
+                                },
+                                "status": {
+                                  "enum": ["known"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "items"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "items": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "items"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "introPreview": {
+                          "type": "string"
+                        },
+                        "introText": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": ["school", "org", "official"],
+                          "type": "string"
+                        },
+                        "linkedOfficialAccountQr": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["absent"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "mainQr": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["absent"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "management": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "enum": ["unavailable"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status"],
+                          "type": "object"
+                        },
+                        "managerWechatImage": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["absent"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "managers": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "items": {
+                              "enum": [null],
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "status": {
+                              "enum": ["unavailable"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status", "items"],
+                          "type": "object"
+                        },
+                        "name": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "platform": {
+                          "enum": ["wechat"],
+                          "type": "string"
+                        },
+                        "qqGroupNumber": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "enum": ["not_applicable"],
+                              "type": "string"
+                            },
+                            "value": {
+                              "enum": [null],
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status", "value"],
+                          "type": "object"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "visits": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "enum": ["unavailable"],
+                              "type": "string"
+                            },
+                            "value": {
+                              "enum": [null],
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status", "value"],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "categoryId",
+                        "kind",
+                        "platform",
+                        "name",
+                        "introPreview",
+                        "badge",
+                        "avatar",
+                        "introText",
+                        "introImages",
+                        "mainQr",
+                        "createdAt",
+                        "updatedAt",
+                        "visits",
+                        "managers",
+                        "management",
+                        "qqGroupNumber",
+                        "managerWechatImage",
+                        "linkedOfficialAccountQr"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "avatar": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["absent"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "badge": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["known"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": ["normal", "official", "partner"],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "categoryId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "introImages": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "items": {
+                                  "items": {
+                                    "not": {}
+                                  },
+                                  "maxItems": 0,
+                                  "minItems": 0,
+                                  "type": "array"
+                                },
+                                "status": {
+                                  "enum": ["known"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "items"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "items": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "items"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "introPreview": {
+                          "type": "string"
+                        },
+                        "introText": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": ["school", "org", "official"],
+                          "type": "string"
+                        },
+                        "linkedOfficialAccountQr": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "enum": ["not_applicable"],
+                              "type": "string"
+                            },
+                            "value": {
+                              "enum": [null],
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status", "value"],
+                          "type": "object"
+                        },
+                        "mainQr": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["absent"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "status": {
+                                  "enum": ["unavailable"],
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "enum": [null],
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["status", "value"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "management": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "enum": ["unavailable"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status"],
+                          "type": "object"
+                        },
+                        "managerWechatImage": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "enum": ["not_applicable"],
+                              "type": "string"
+                            },
+                            "value": {
+                              "enum": [null],
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status", "value"],
+                          "type": "object"
+                        },
+                        "managers": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "items": {
+                              "enum": [null],
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "status": {
+                              "enum": ["unavailable"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status", "items"],
+                          "type": "object"
+                        },
+                        "name": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "platform": {
+                          "enum": ["official"],
+                          "type": "string"
+                        },
+                        "qqGroupNumber": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "enum": ["not_applicable"],
+                              "type": "string"
+                            },
+                            "value": {
+                              "enum": [null],
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status", "value"],
+                          "type": "object"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "visits": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "enum": ["unavailable"],
+                              "type": "string"
+                            },
+                            "value": {
+                              "enum": [null],
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status", "value"],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "categoryId",
+                        "kind",
+                        "platform",
+                        "name",
+                        "introPreview",
+                        "badge",
+                        "avatar",
+                        "introText",
+                        "introImages",
+                        "mainQr",
+                        "createdAt",
+                        "updatedAt",
+                        "visits",
+                        "managers",
+                        "management",
+                        "qqGroupNumber",
+                        "managerWechatImage",
+                        "linkedOfficialAccountQr"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Current approved member detail.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict request validation failed.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Required current session is absent, expired or revoked.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current phone, affiliation, identity-home scope or Safety permission is required. Administrative roles do not bypass these gates.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "DIRECTORY_NOT_FOUND: target is unavailable. Missing, unapproved and out-of-scope entries share this result.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "DISCOVERY_RESTART_REQUIRED: navigation binding, accepted catalog revision or cursor lifetime changed. Reload only after user choice.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "RATE_LIMITED: account directory read-attempt budget exceeded.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current verification, Safety, campus, taxonomy or catalog evidence is unavailable. Missing catalog is never known empty.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Organization directory"]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

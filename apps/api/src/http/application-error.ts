@@ -3,6 +3,15 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  DIRECTORY_UNAVAILABLE: { status: 503, message: 'Directory is unavailable' },
+  DIRECTORY_NOT_FOUND: {
+    status: 404,
+    message: 'Directory entry is unavailable',
+  },
+  DIRECTORY_SCOPE_UNAVAILABLE: {
+    status: 403,
+    message: 'Directory scope is unavailable',
+  },
   VIEW_REPORTING_EPOCH_CLOSED: {
     status: 410,
     message: 'View reporting epoch is closed',
