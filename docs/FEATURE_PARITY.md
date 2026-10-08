@@ -450,3 +450,12 @@ entries; current verified home identity gates every read. Media, applications,
 review/admin exceptions, managers, visit recording, history/import and other
 platforms remain open. See [directory scope](API_ORGANIZATION_DIRECTORY.md) and
 [acceptance](acceptance/organization-directory.md).
+
+Unified public hot-feed development now includes explicit-space native-covered
+ranking, exact-current score certificates, bounded owner settlement/refresh,
+opaque live pagination and a real native page with existing exposure reporting.
+Current visibility still filters posts/nested content independently from unified
+heat. Default processing remains disabled. Related distribution, historical
+coverage, auxiliary home/search hot widgets, production load/activation and device
+acceptance remain open. See [scope](unified-public-hot-feed.md) and
+[local acceptance](acceptance/unified-hot-feed.md).

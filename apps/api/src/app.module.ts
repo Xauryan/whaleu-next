@@ -1,3 +1,4 @@
+import { HotFeedRunnerModule } from './community/hot-score/runner.js';
 import { DirectoryModule } from './organizations/directory/module.js';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ViewRetentionModule } from './community/view-component/retention-runner.js';
@@ -35,9 +36,13 @@ export class AppModule {
                 cronJobs: false,
                 timeouts: false,
                 intervals:
-                  config.VIEW_REPORTING_RETENTION_PROCESSING === 'automatic',
+                  config.VIEW_REPORTING_RETENTION_PROCESSING === 'automatic' ||
+                  config.HOT_FEED_PROCESSING === 'automatic',
               }),
               ViewRetentionModule,
+              ...(config.HOT_FEED_PROCESSING === 'automatic'
+                ? [HotFeedRunnerModule]
+                : []),
             ]
           : []),
         ObservabilityModule,

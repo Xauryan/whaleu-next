@@ -114,3 +114,8 @@ The two reporting POST operations now have a [generated OpenAPI artifact](openap
 from their real controller and owner schemas. CI checks deterministic drift.
 [Tooling scope](OPENAPI.md) explains why native runtime validation and transaction
 semantics remain necessary alongside that artifact.
+
+The later [unified hot page](unified-public-hot-feed.md) reuses the same qualified
+list-exposure observer and bounded reporting queue. It adds no score/rank field to
+report payloads and does not instrument search. Ordinary feed/detail behavior and
+the 24-hour recovery contract remain unchanged.

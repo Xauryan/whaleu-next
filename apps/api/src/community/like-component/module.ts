@@ -1,3 +1,4 @@
+import { LikeComponentRuntime } from './runtime.js';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../database/database.js';
 import { CommunityLikeEnrollment } from './enrollment.js';
@@ -7,12 +8,14 @@ import { LikeComponentWorker } from './worker.js';
 @Module({
   imports: [DatabaseModule],
   providers: [
+    LikeComponentRuntime,
     CommunityLikeEnrollment,
     LikeComponentRepository,
     LikeComponentSettlement,
     LikeComponentWorker,
   ],
   exports: [
+    LikeComponentRuntime,
     CommunityLikeEnrollment,
     LikeComponentRepository,
     LikeComponentSettlement,

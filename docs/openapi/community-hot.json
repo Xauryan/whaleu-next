@@ -1,0 +1,1390 @@
+{
+  "components": {
+    "schemas": {
+      "HotPage": {
+        "additionalProperties": false,
+        "properties": {
+          "continuation": {
+            "enum": [
+              "more",
+              "scan_pending",
+              "end",
+              "login_required",
+              "phone_verification_required"
+            ],
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HotPostView"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "type": "string"
+          }
+        },
+        "required": ["items", "nextCursor", "continuation"],
+        "type": "object"
+      },
+      "HotPostView": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "avatar": {
+                    "additionalProperties": false,
+                    "nullable": true,
+                    "properties": {
+                      "assetId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "displayUrl": {
+                        "type": "string"
+                      },
+                      "expiresAt": {
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "height": {
+                        "exclusiveMinimum": true,
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "thumbnailUrl": {
+                        "type": "string"
+                      },
+                      "width": {
+                        "exclusiveMinimum": true,
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "assetId",
+                      "width",
+                      "height",
+                      "displayUrl",
+                      "thumbnailUrl",
+                      "expiresAt"
+                    ],
+                    "type": "object"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "experienceDisplay": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "color": {
+                        "anyOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": ["known"],
+                                "type": "string"
+                              },
+                              "value": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "nullable": true,
+                                "type": "integer"
+                              }
+                            },
+                            "required": ["status", "value"],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": ["unavailable"],
+                                "type": "string"
+                              },
+                              "value": {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": ["status", "value"],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "level": {
+                        "anyOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": ["known"],
+                                "type": "string"
+                              },
+                              "value": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": ["status", "value"],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": ["unavailable"],
+                                "type": "string"
+                              },
+                              "value": {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": ["status", "value"],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "title": {
+                        "anyOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": ["known"],
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "nullable": true,
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["key", "name"],
+                                "type": "object"
+                              }
+                            },
+                            "required": ["status", "value"],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": ["unavailable"],
+                                "type": "string"
+                              },
+                              "value": {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": ["status", "value"],
+                            "type": "object"
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["title", "color", "level"],
+                    "type": "object"
+                  },
+                  "kind": {
+                    "enum": ["named"],
+                    "type": "string"
+                  },
+                  "profileId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "profileId",
+                  "displayName",
+                  "avatar",
+                  "experienceDisplay"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "avatar": {
+                    "additionalProperties": false,
+                    "nullable": true,
+                    "properties": {
+                      "assetId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "displayUrl": {
+                        "type": "string"
+                      },
+                      "expiresAt": {
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "height": {
+                        "exclusiveMinimum": true,
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "thumbnailUrl": {
+                        "type": "string"
+                      },
+                      "width": {
+                        "exclusiveMinimum": true,
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "assetId",
+                      "width",
+                      "height",
+                      "displayUrl",
+                      "thumbnailUrl",
+                      "expiresAt"
+                    ],
+                    "type": "object"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "isPostAuthor": {
+                    "type": "boolean"
+                  },
+                  "kind": {
+                    "enum": ["anonymous"],
+                    "type": "string"
+                  },
+                  "personaId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "personaId",
+                  "displayName",
+                  "avatar",
+                  "isPostAuthor"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "category": {
+            "enum": [
+              "discussion",
+              "confession",
+              "companions",
+              "pets",
+              "internships",
+              "scenery",
+              "dorms",
+              "research",
+              "deep_sea",
+              "trading"
+            ],
+            "type": "string"
+          },
+          "commentCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "commentsPolicy": {
+            "enum": ["open", "restricted"],
+            "type": "string"
+          },
+          "component": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": ["none"],
+                    "type": "string"
+                  }
+                },
+                "required": ["kind"],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": ["poll"],
+                    "type": "string"
+                  },
+                  "poll": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "deadline": {
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "expired": {
+                        "type": "boolean"
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "options": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "count": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "position": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": ["id", "label", "position", "count"],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "postId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "question": {
+                        "type": "string"
+                      },
+                      "selectionCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "selectionMode": {
+                        "enum": ["single", "multiple"],
+                        "type": "string"
+                      },
+                      "viewer": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "canVote": {
+                            "type": "boolean"
+                          },
+                          "hasVoted": {
+                            "type": "boolean"
+                          },
+                          "reason": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "selectedOptionIds": {
+                            "items": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "hasVoted",
+                          "selectedOptionIds",
+                          "canVote",
+                          "reason"
+                        ],
+                        "type": "object"
+                      },
+                      "voterCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "postId",
+                      "question",
+                      "selectionMode",
+                      "options",
+                      "deadline",
+                      "expired",
+                      "voterCount",
+                      "selectionCount",
+                      "viewer"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": ["kind", "poll"],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "formation": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "capacity": {
+                        "maximum": 20,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "memberCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "members": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "author": {
+                              "anyOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "avatar": {
+                                      "additionalProperties": false,
+                                      "nullable": true,
+                                      "properties": {
+                                        "assetId": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "displayUrl": {
+                                          "type": "string"
+                                        },
+                                        "expiresAt": {
+                                          "nullable": true,
+                                          "type": "string"
+                                        },
+                                        "height": {
+                                          "exclusiveMinimum": true,
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        "thumbnailUrl": {
+                                          "type": "string"
+                                        },
+                                        "width": {
+                                          "exclusiveMinimum": true,
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "assetId",
+                                        "width",
+                                        "height",
+                                        "displayUrl",
+                                        "thumbnailUrl",
+                                        "expiresAt"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "displayName": {
+                                      "type": "string"
+                                    },
+                                    "experienceDisplay": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "color": {
+                                          "anyOf": [
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "status": {
+                                                  "enum": ["known"],
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "maximum": 9007199254740991,
+                                                  "minimum": -9007199254740991,
+                                                  "nullable": true,
+                                                  "type": "integer"
+                                                }
+                                              },
+                                              "required": ["status", "value"],
+                                              "type": "object"
+                                            },
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "status": {
+                                                  "enum": ["unavailable"],
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "enum": [null],
+                                                  "nullable": true,
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["status", "value"],
+                                              "type": "object"
+                                            }
+                                          ]
+                                        },
+                                        "level": {
+                                          "anyOf": [
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "status": {
+                                                  "enum": ["known"],
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "maximum": 9007199254740991,
+                                                  "minimum": 0,
+                                                  "type": "integer"
+                                                }
+                                              },
+                                              "required": ["status", "value"],
+                                              "type": "object"
+                                            },
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "status": {
+                                                  "enum": ["unavailable"],
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "enum": [null],
+                                                  "nullable": true,
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["status", "value"],
+                                              "type": "object"
+                                            }
+                                          ]
+                                        },
+                                        "title": {
+                                          "anyOf": [
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "status": {
+                                                  "enum": ["known"],
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "additionalProperties": false,
+                                                  "nullable": true,
+                                                  "properties": {
+                                                    "key": {
+                                                      "type": "string"
+                                                    },
+                                                    "name": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": ["key", "name"],
+                                                  "type": "object"
+                                                }
+                                              },
+                                              "required": ["status", "value"],
+                                              "type": "object"
+                                            },
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "status": {
+                                                  "enum": ["unavailable"],
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "enum": [null],
+                                                  "nullable": true,
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["status", "value"],
+                                              "type": "object"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": ["title", "color", "level"],
+                                      "type": "object"
+                                    },
+                                    "kind": {
+                                      "enum": ["named"],
+                                      "type": "string"
+                                    },
+                                    "profileId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "profileId",
+                                    "displayName",
+                                    "avatar",
+                                    "experienceDisplay"
+                                  ],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "avatar": {
+                                      "additionalProperties": false,
+                                      "nullable": true,
+                                      "properties": {
+                                        "assetId": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "displayUrl": {
+                                          "type": "string"
+                                        },
+                                        "expiresAt": {
+                                          "nullable": true,
+                                          "type": "string"
+                                        },
+                                        "height": {
+                                          "exclusiveMinimum": true,
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        "thumbnailUrl": {
+                                          "type": "string"
+                                        },
+                                        "width": {
+                                          "exclusiveMinimum": true,
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "assetId",
+                                        "width",
+                                        "height",
+                                        "displayUrl",
+                                        "thumbnailUrl",
+                                        "expiresAt"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "displayName": {
+                                      "type": "string"
+                                    },
+                                    "isPostAuthor": {
+                                      "type": "boolean"
+                                    },
+                                    "kind": {
+                                      "enum": ["anonymous"],
+                                      "type": "string"
+                                    },
+                                    "personaId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "personaId",
+                                    "displayName",
+                                    "avatar",
+                                    "isPostAuthor"
+                                  ],
+                                  "type": "object"
+                                }
+                              ]
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "isCreator": {
+                              "type": "boolean"
+                            },
+                            "joinedAt": {
+                              "type": "string"
+                            },
+                            "viewer": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "isSelf": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["isSelf"],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "author",
+                            "isCreator",
+                            "joinedAt",
+                            "viewer"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "postId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "status": {
+                        "enum": ["open", "full", "unavailable"],
+                        "type": "string"
+                      },
+                      "theme": {
+                        "type": "string"
+                      },
+                      "viewer": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "canJoin": {
+                            "type": "boolean"
+                          },
+                          "canReadContacts": {
+                            "type": "boolean"
+                          },
+                          "isCreator": {
+                            "type": "boolean"
+                          },
+                          "isMember": {
+                            "type": "boolean"
+                          },
+                          "reason": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "isMember",
+                          "isCreator",
+                          "canJoin",
+                          "reason",
+                          "canReadContacts"
+                        ],
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "postId",
+                      "capacity",
+                      "theme",
+                      "status",
+                      "memberCount",
+                      "members",
+                      "viewer"
+                    ],
+                    "type": "object"
+                  },
+                  "kind": {
+                    "enum": ["formation"],
+                    "type": "string"
+                  }
+                },
+                "required": ["kind", "formation"],
+                "type": "object"
+              }
+            ]
+          },
+          "discussionCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "assetId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "displayUrl": {
+                  "type": "string"
+                },
+                "expiresAt": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "height": {
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "thumbnailUrl": {
+                  "type": "string"
+                },
+                "width": {
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "assetId",
+                "width",
+                "height",
+                "displayUrl",
+                "thumbnailUrl",
+                "expiresAt"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "likeCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "publishedAt": {
+            "type": "string"
+          },
+          "replyCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "saveCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "space": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "kind": {
+                "enum": ["regional", "global"],
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": ["id", "kind", "name"],
+            "type": "object"
+          },
+          "text": {
+            "type": "string"
+          },
+          "trading": {
+            "additionalProperties": false,
+            "nullable": true,
+            "properties": {
+              "location": {
+                "type": "string"
+              },
+              "price": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "amount": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": ["exact"],
+                        "type": "string"
+                      },
+                      "legacyText": {
+                        "nullable": true,
+                        "type": "string"
+                      }
+                    },
+                    "required": ["kind", "amount", "legacyText"],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": ["legacy"],
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["kind", "text"],
+                    "type": "object"
+                  }
+                ]
+              },
+              "resolution": {
+                "enum": ["open", "resolved"],
+                "type": "string"
+              },
+              "subtype": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "key": {
+                        "enum": [
+                          "qiugou",
+                          "shuma",
+                          "shujia",
+                          "yifu",
+                          "meizhuang",
+                          "yundong",
+                          "riyong",
+                          "shipin",
+                          "kaquan",
+                          "xiangbao",
+                          "zixingche",
+                          "diandongche",
+                          "xianshiqi"
+                        ],
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": ["known"],
+                        "type": "string"
+                      },
+                      "legacyText": {
+                        "nullable": true,
+                        "type": "string"
+                      }
+                    },
+                    "required": ["kind", "key", "legacyText"],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": ["legacy"],
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["kind", "text"],
+                    "type": "object"
+                  }
+                ]
+              },
+              "urgency": {
+                "enum": ["normal", "urgent"],
+                "type": "string"
+              },
+              "viewer": {
+                "additionalProperties": false,
+                "properties": {
+                  "canSetResolution": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["canSetResolution"],
+                "type": "object"
+              }
+            },
+            "required": [
+              "subtype",
+              "price",
+              "urgency",
+              "location",
+              "resolution",
+              "viewer"
+            ],
+            "type": "object"
+          },
+          "viewer": {
+            "additionalProperties": false,
+            "properties": {
+              "canComment": {
+                "type": "boolean"
+              },
+              "canDelete": {
+                "type": "boolean"
+              },
+              "canSave": {
+                "type": "boolean"
+              },
+              "canSetUpdatePreference": {
+                "type": "boolean"
+              },
+              "isLiked": {
+                "type": "boolean"
+              },
+              "isSaved": {
+                "type": "boolean"
+              },
+              "isSelf": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "isSelf",
+              "isLiked",
+              "canDelete",
+              "canComment",
+              "isSaved",
+              "canSave",
+              "canSetUpdatePreference"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "space",
+          "category",
+          "text",
+          "images",
+          "author",
+          "publishedAt",
+          "likeCount",
+          "commentCount",
+          "replyCount",
+          "discussionCount",
+          "saveCount",
+          "trading",
+          "component",
+          "viewer",
+          "commentsPolicy"
+        ],
+        "type": "object"
+      },
+      "SafeErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              }
+            },
+            "required": ["code", "message", "requestId"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "accessToken": {
+        "description": "Opaque WhaleU access token. Optional for first page only.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "",
+    "title": "WhaleU unified public hot feed",
+    "version": "1"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/v1/community/hot": {
+      "get": {
+        "description": "One explicit current regional or global space; regional supported categories, global discussion only. Six rolling publication-age ranges: day 24h/cap50, week7d/cap200, month30d, half_year180d, year365d, history all ages (latter four cap1000). Inclusive age boundary; no future publication. Full independent native component coverage only, no historical-import claim. Unified cumulative score, with current visibility and normal/open trading only. No public score or numerical rank. Live numeric-keyset navigation may repeat or omit moving posts across pages; caps count delivered slots. Refresh resets navigation. First page accepts guests; further traversal needs current phone evidence. Empty bounded scan may continue via scan_pending. Public reads never settle or compute. Disabled default; manual_only is local acceptance without continuous maintenance.",
+        "operationId": "readCommunityHot",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "spaceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "range",
+            "required": false,
+            "schema": {
+              "default": "day",
+              "enum": ["day", "week", "month", "half_year", "year", "history"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "pattern": "^(?:[1-9]|10)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HotPage"
+                }
+              }
+            },
+            "description": "Current visible PostView projection, nullable opaque continuation. No count total or heat metadata.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict explicit-space query or opaque cursor scope is invalid.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Supplied authentication is invalid or continuation needs a current session. Invalid supplied credentials never become guest access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current Safety policy or phone continuation permission is unavailable.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "COMMUNITY_SCOPE_UNAVAILABLE: explicit space or owning region is inactive. DISCOVERY_RESTART_REQUIRED: cursor expired/evicted, or last visible post became inaccessible or structurally excluded. Score movement alone never requires restart.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "HOT_FEED_UNAVAILABLE: processing disabled or bounded current proof timed out. Other owner unavailability remains distinct. Unknown heat coverage never becomes zero.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Community hot feed"]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

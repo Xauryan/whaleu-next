@@ -159,3 +159,10 @@ Migration 0032 adds empty organization-directory taxonomy/catalog revisions,
 independent current heads, exact approved revision evidence and complete-coverage
 constraints. It creates no source issuer, grants, sample directory, application
 writer, media provider or historical import. See [member read scope](../../../docs/API_ORGANIZATION_DIRECTORY.md).
+
+Migration 0033 adds internal unified-score certificates and narrow per-post
+processing metadata. Independent native baselines and current component proofs
+remain prerequisites; no old data receives a fabricated zero. Existing settlement
+owners retain their receipts and obligations. No public score input, actor ledger,
+provider, automatic deployment or historical reconstruction is created. See
+[unified hot-feed controls](../../../docs/unified-public-hot-feed.md).

@@ -109,4 +109,21 @@ export class SubscriptionComponentRepository {
       ).rows[0]?.source_sequence ?? null
     );
   }
+  /** Metadata-only earliest unresolved source; settlement revalidates after its parent lock. */
+  async nextSource(postId: string, tx: PoolClient): Promise<string | null> {
+    const row = (
+      await tx.query<{ id: string | null }>(
+        `SELECT obligation.id FROM whaleu_post_hotness.subscription_sources src
+        LEFT JOIN whaleu_community.saved_obligations obligation ON obligation.epoch_id=src.epoch_id
+          AND obligation.transition=src.transition AND obligation.action='save_ranking'
+        WHERE src.post_id=$1 AND NOT EXISTS(SELECT 1 FROM whaleu_post_hotness.subscription_receipts r
+          WHERE r.epoch_id=src.epoch_id AND r.transition=src.transition)
+        ORDER BY src.source_sequence LIMIT 1`,
+        [postId],
+      )
+    ).rows[0];
+    if (row && row.id === null)
+      throw new Error('Component source binding unavailable');
+    return row?.id ?? null;
+  }
 }

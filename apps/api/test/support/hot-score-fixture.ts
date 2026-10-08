@@ -1,3 +1,4 @@
+import type { HotFeedFixtureOptions } from './title-maintenance-fixture.js';
 /** Real component owners and PostgreSQL only; no public score surface. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -25,8 +26,8 @@ import {
 
 export const components = ['subscription', 'like', 'comment', 'view'] as const;
 export type Component = (typeof components)[number];
-export async function hotScoreFixture() {
-  const f = await commentFixture();
+export async function hotScoreFixture(options: HotFeedFixtureOptions = {}) {
+  const f = await commentFixture(options);
   const config = loadConfig({
     NODE_ENV: 'test',
     DATABASE_URL: process.env['TEST_DATABASE_URL']!,
@@ -95,6 +96,7 @@ export async function hotScoreFixture() {
     ownerId: string,
     omit?: Component,
     stateOnly = false,
+    publication: { spaceId?: string; publishedAt?: string } = {},
   ) => {
     await lockSafetyPolicy(tx);
     const postId = randomUUID(),
@@ -115,8 +117,13 @@ export async function hotScoreFixture() {
       ],
     );
     await tx.query(
-      "INSERT INTO whaleu_community.posts(id,space_id,account_id,category,text,author_mode,comments_policy) VALUES($1,$2,$3,'discussion','Synthetic score coverage','named','open')",
-      [postId, f.scope.home.spaceId, ownerId],
+      "INSERT INTO whaleu_community.posts(id,space_id,account_id,category,text,author_mode,comments_policy,published_at) VALUES($1,$2,$3,'discussion','Synthetic score coverage','named','open',coalesce($4::timestamptz,clock_timestamp()))",
+      [
+        postId,
+        publication.spaceId ?? f.scope.home.spaceId,
+        ownerId,
+        publication.publishedAt ?? null,
+      ],
     );
     await tx.query(
       "INSERT INTO whaleu_community.report_origins(kind,target_id,owner_account_id,source_request_id,provenance) VALUES('post',$1,$2,$3,'native_publication')",

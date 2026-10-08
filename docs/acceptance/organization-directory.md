@@ -64,3 +64,17 @@ bounded cursor and request-throttle metadata are intentionally maintained.
 No dependency was added. Existing Nest/Zod/pg/Swagger and owner facades are reused.
 All generated schemas remain derived from actual owners/controllers. No public
 hot-ranking decision or author received-total policy is changed by this feature.
+
+## Hosted verification
+
+The first exact directory run on `ae0da5dc7b775c3336722c0d691ed5a58e5f19d1`
+reported all 2,539 tests and every listed step successful, but its overall result
+was cancelled near the former 15-minute job limit. The cancellation cause was not
+independently established; that run is not recorded as a successful CI conclusion.
+
+A separate verified SSH-signed CI-only commit,
+`d82aeffc91a9d2fe74e1c23e4216a8b62a6dfc0b`, changed only the job allowance to
+30 minutes. [Run 37779879424](https://github.com/Xauryan/whaleu-next/actions/runs/37779879424)
+completed successfully with 619 API, 869 native and 1,051 PostgreSQL tests, zero
+failures/skips, and all other gates passed. PostgreSQL took 566.855 seconds.
+No test assertions or application limits were relaxed.

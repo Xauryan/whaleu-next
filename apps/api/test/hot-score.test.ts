@@ -627,13 +627,16 @@ test('snapshot SQL verifies source identity, terminal after-counts and exact sav
     /FOR UPDATE|_memberships|comment_contributions|SET status|author_interactions/,
   );
 });
-test('score module remains absent from the public application graph', async () => {
+test('local score CLI module and service remain absent from the public application graph', async () => {
   for (const path of [
     '../src/app.module.ts',
     '../src/community/community.module.ts',
   ]) {
     const source = await readFile(new URL(path, import.meta.url), 'utf8');
-    assert.doesNotMatch(source, /hot-score|HotScore/);
+    assert.doesNotMatch(
+      source,
+      /HotScoreModule|HotScoreService|hot-score\/(?:module|service)\.js/,
+    );
   }
   const cli = await readFile(
     new URL('../src/community/hot-score/compute-score.ts', import.meta.url),

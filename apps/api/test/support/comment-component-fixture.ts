@@ -1,3 +1,4 @@
+import type { HotFeedFixtureOptions } from './title-maintenance-fixture.js';
 /** Synthetic canonical facts; unmodified AppModule publication, deletion and reporting policy. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -30,8 +31,8 @@ export type CommentState = {
   last_sequence: string;
   last_receipt_id: string | null;
 };
-export async function commentFixture() {
-  const f = await subscriptionFixture();
+export async function commentFixture(options: HotFeedFixtureOptions = {}) {
+  const f = await subscriptionFixture(options);
   type Actor = Awaited<ReturnType<typeof f.actor>>;
   const rootBody = (
     authorMode: 'named' | 'anonymous' = 'named',

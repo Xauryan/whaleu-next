@@ -9,6 +9,7 @@
     "pages/campus/campus",
     "pages/community-feed/community-feed",
     "pages/community-search/community-search",
+    "pages/community-hot/community-hot",
     "pages/community-detail/community-detail",
     "pages/community-compose/community-compose",
     "pages/community-mine/community-mine",

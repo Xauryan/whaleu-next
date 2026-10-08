@@ -110,7 +110,12 @@ test('fresh post enrollment follows persisted origin and receipt on the existing
         x.startsWith('UPDATE whaleu_community.publication_requests'),
       ),
   );
-  assert.deepEqual(f.calls.slice(at), ['enroll', 'actor', 'COMMIT']);
+  assert.deepEqual(f.calls.slice(at), [
+    'enroll',
+    'INSERT INTO whaleu_post_hotness.processing(post_id) VALUES($1)',
+    'actor',
+    'COMMIT',
+  ]);
 });
 test('replay, rejected post, comment and reply never enroll a like baseline', async () => {
   const replay = fixture('publish_post', {

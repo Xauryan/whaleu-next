@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import {
+  renderHotOpenApiDocument,
   renderViewOpenApiDocument,
   renderDirectoryOpenApiDocument,
 } from './openapi-document.js';
@@ -54,4 +55,25 @@ if (args[0] === '--check') {
 } else {
   await writeFile(directoryArtifact, directoryRendered, 'utf8');
   console.log('Generated docs/openapi/organization-directory.json.');
+}
+
+const hotArtifact = new URL(
+  '../../../../docs/openapi/community-hot.json',
+  import.meta.url,
+);
+const hotRendered = await renderHotOpenApiDocument();
+if (args[0] === '--check') {
+  const existing = await readFile(hotArtifact, 'utf8').catch(() => {
+    throw new Error(
+      'Hot OpenAPI artifact is missing; run npm run openapi:generate.',
+    );
+  });
+  if (existing !== hotRendered)
+    throw new Error(
+      'Hot OpenAPI artifact is stale; run npm run openapi:generate.',
+    );
+  console.log('Community hot OpenAPI artifact is current.');
+} else {
+  await writeFile(hotArtifact, hotRendered, 'utf8');
+  console.log('Generated docs/openapi/community-hot.json.');
 }

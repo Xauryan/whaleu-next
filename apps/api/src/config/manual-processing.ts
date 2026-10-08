@@ -8,6 +8,7 @@ const processingFields = {
   likes: 'LIKE_COMPONENT_PROCESSING',
   comments: 'COMMENT_COMPONENT_PROCESSING',
   hotScore: 'HOT_SCORE_COMPUTATION',
+  hotFeed: 'HOT_FEED_PROCESSING',
 } as const;
 
 /** A selected CLI run must never start any background dispatcher, even when
@@ -26,7 +27,24 @@ export function manualProcessingConfig(
     LIKE_COMPONENT_PROCESSING: 'disabled',
     COMMENT_COMPONENT_PROCESSING: 'disabled',
     HOT_SCORE_COMPUTATION: 'disabled',
+    HOT_FEED_PROCESSING: 'disabled',
     VIEW_REPORTING_RETENTION_PROCESSING: 'disabled',
+    ...(owner === 'hotFeed'
+      ? ({
+          SUBSCRIPTION_COMPONENT_PROCESSING:
+            config.SUBSCRIPTION_COMPONENT_PROCESSING === 'disabled'
+              ? 'disabled'
+              : 'manual_only',
+          LIKE_COMPONENT_PROCESSING:
+            config.LIKE_COMPONENT_PROCESSING === 'disabled'
+              ? 'disabled'
+              : 'manual_only',
+          COMMENT_COMPONENT_PROCESSING:
+            config.COMMENT_COMPONENT_PROCESSING === 'disabled'
+              ? 'disabled'
+              : 'manual_only',
+        } as const)
+      : {}),
     [field]: config[field] === 'disabled' ? 'disabled' : 'manual_only',
   });
 }

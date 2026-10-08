@@ -1,6 +1,7 @@
 import { smokeDirectory } from './smoke-directory.mjs';
 import { smokeViewReporting } from './smoke-view-reporting.mjs';
 import { smokeSearch } from './smoke-search.mjs';
+import { smokeHot } from './smoke-hot.mjs';
 import { smokePublicExperience } from './smoke-public-experience.mjs';
 import { smokeExperience } from './smoke-experience.mjs';
 import { smokeProfileDiscovery } from './smoke-profile-discovery.mjs';
@@ -1800,6 +1801,13 @@ await smokeSearch({
   flush: flushTrading,
   postWire: pollPostWire,
   tradingWire: tradingPostWire,
+});
+await smokeHot({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
+  postWire: pollPostWire,
 });
 await smokePublicExperience({
   app,

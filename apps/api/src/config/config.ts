@@ -41,14 +41,17 @@ const schema = z.object({
   EXPERIENCE_INTERVAL_MS: positiveInteger(5000, 60000),
   EXPERIENCE_BATCH_SIZE: positiveInteger(20, 50),
   SUBSCRIPTION_COMPONENT_PROCESSING: z
-    .enum(['disabled', 'manual_only'])
+    .enum(['disabled', 'manual_only', 'automatic'])
     .default('manual_only'),
   COMMENT_COMPONENT_PROCESSING: z
-    .enum(['disabled', 'manual_only'])
+    .enum(['disabled', 'manual_only', 'automatic'])
     .default('manual_only'),
   LIKE_COMPONENT_PROCESSING: z
-    .enum(['disabled', 'manual_only'])
+    .enum(['disabled', 'manual_only', 'automatic'])
     .default('manual_only'),
+  HOT_FEED_PROCESSING: z
+    .enum(['disabled', 'manual_only', 'automatic'])
+    .default('disabled'),
   HOT_SCORE_COMPUTATION: z
     .enum(['disabled', 'manual_only'])
     .default('disabled'),
@@ -88,6 +91,17 @@ export function loadConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     throw new Error(`Invalid configuration fields: ${keys.join(', ')}`);
   }
   const config = result.data;
+  if (
+    config.HOT_FEED_PROCESSING === 'automatic' &&
+    [
+      config.SUBSCRIPTION_COMPONENT_PROCESSING,
+      config.LIKE_COMPONENT_PROCESSING,
+      config.COMMENT_COMPONENT_PROCESSING,
+    ].some((mode) => mode !== 'automatic')
+  )
+    throw new Error(
+      'Automatic hot feed requires automatic subscription, like and comment components',
+    );
   const authFields = [
     config.WECHAT_APP_ID,
     config.WECHAT_APP_SECRET,

@@ -1220,3 +1220,12 @@ Authenticated `POST /v1/me/community/view-reporting-epoch` and
 `POST /v1/me/community/view-reports` record eligible fresh-post feed/detail events
 with immutable bounded recovery. They require no phone/student gate. Existing GET
 reads and PostView fields are unchanged. See [contracts and retention](VIEW_REPORTING.md).
+
+## Unified hot discovery
+
+The optional-auth `GET /v1/community/hot` reads one explicit current space with
+six publication-age ranges, current unified score certificates and final viewer
+visibility. Live opaque pagination exposes no score or stable numerical rank.
+Default processing is disabled; coherent explicit processing settings are required
+for a maintained board. See [operational scope](unified-public-hot-feed.md) and
+[generated contract](openapi/community-hot.json).

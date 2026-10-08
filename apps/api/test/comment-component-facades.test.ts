@@ -194,6 +194,7 @@ test('fresh post comment enrollment follows exact native origin and persisted su
   assert.equal(f.calls.filter((call) => call === 'comment-enroll').length, 1);
   assert.deepEqual(f.calls.slice(state + 1), [
     'like-enroll',
+    'INSERT INTO whaleu_post_hotness.processing(post_id) VALUES($1)',
     'actor',
     'COMMIT',
   ]);

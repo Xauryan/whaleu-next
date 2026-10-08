@@ -210,7 +210,12 @@ export function observeExactQueries(app: INestApplication) {
               );
             throw error;
           }
-          const bytes = Buffer.byteLength(JSON.stringify(result.rows));
+          // PostgreSQL returns one result per statement for multi-SET budgets.
+          // Observe their rows without changing the result returned to the owner.
+          const rows = Array.isArray(result)
+            ? result.flatMap((part) => part.rows)
+            : result.rows;
+          const bytes = Buffer.byteLength(JSON.stringify(rows));
           if (measurement) {
             measurement.queries++;
             measurement.resultBytes += bytes;
@@ -230,7 +235,7 @@ export function observeExactQueries(app: INestApplication) {
 
             measurement.maxQueryRows = Math.max(
               measurement.maxQueryRows,
-              result.rows.length,
+              rows.length,
             );
             measurement.maxQueryBytes = Math.max(
               measurement.maxQueryBytes,
@@ -260,7 +265,7 @@ export function observeExactQueries(app: INestApplication) {
               {
                 sql,
                 values: values ?? [],
-                rows: result.rows.length,
+                rows: rows.length,
                 bytes,
                 durationMs: performance.now() - start,
               },

@@ -78,3 +78,11 @@ historical population and freshness, deterministic ties, pagination, cache and
 final visibility. An omitted score field does not eliminate observable ordering
 leaks. This slice makes no author received-like/save policy decision. See
 [acceptance](acceptance/internal-hot-score.md).
+
+## Later public composition
+
+A separate [unified hot-feed owner](unified-public-hot-feed.md) now composes these
+primitives under the unified-score/current-visibility policy, with its own current
+certificates and live-pagination contract. This original local computation command
+remains disabled-by-default, local-only and nonmaterializing; it is not mounted as
+a public service or used to bypass its own guards.

@@ -160,3 +160,49 @@ export async function createDirectoryOpenApiDocument(): Promise<OpenAPIObject> {
 export async function renderDirectoryOpenApiDocument(): Promise<string> {
   return renderDocument(await createDirectoryOpenApiDocument());
 }
+
+/** Tooling-only hot contract export: no components, runner or database graph. */
+export async function createHotOpenApiDocument(): Promise<OpenAPIObject> {
+  const { HotController } = await import('../src/community/hot/controller.js');
+  const { HotFeedService } = await import('../src/community/hot/service.js');
+  if (
+    !Reflect.hasMetadata(PARAMTYPES_METADATA, HotController.prototype, 'read')
+  )
+    throw new Error(
+      'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+    );
+  const fail = () => {
+    throw new Error('OpenAPI must not execute application work');
+  };
+  const testing = await Test.createTestingModule({
+    controllers: [HotController],
+    providers: [{ provide: HotFeedService, useValue: { read: fail } }],
+  }).compile();
+  const app = testing.createNestApplication({ logger: false });
+  try {
+    return SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setOpenAPIVersion('3.0.3')
+        .setTitle('WhaleU unified public hot feed')
+        .setVersion('1')
+        .addSecurity('accessToken', {
+          type: 'http',
+          scheme: 'bearer',
+          description:
+            'Opaque WhaleU access token. Optional for first page only.',
+        })
+        .build(),
+      {
+        deepScanRoutes: false,
+        autoTagControllers: false,
+        excludeDynamicDefaults: true,
+      },
+    );
+  } finally {
+    await app.close();
+  }
+}
+export async function renderHotOpenApiDocument(): Promise<string> {
+  return renderDocument(await createHotOpenApiDocument());
+}

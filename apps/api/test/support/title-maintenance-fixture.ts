@@ -24,7 +24,11 @@ import { establishSyntheticExperienceBaseline } from './experience-fixtures.js';
 import { migrationSchemaNames } from './migration-schemas.js';
 
 export const maintenancePath = '/v1/admin/experience/title-maintenance';
-export async function maintenanceFixture() {
+export interface HotFeedFixtureOptions {
+  hotFeedProcessing?: 'disabled' | 'manual_only' | 'automatic';
+  httpRuntime?: boolean;
+}
+export async function maintenanceFixture(options: HotFeedFixtureOptions = {}) {
   const urlString = process.env['TEST_DATABASE_URL'];
   assert.ok(
     urlString,
@@ -40,6 +44,23 @@ export async function maintenanceFixture() {
     LOG_LEVEL: 'silent',
     PG_POOL_MAX: '16',
     PG_STATEMENT_TIMEOUT_MS: '15000',
+    ...(options.hotFeedProcessing
+      ? {
+          HOT_FEED_PROCESSING: options.hotFeedProcessing,
+          SUBSCRIPTION_COMPONENT_PROCESSING:
+            options.hotFeedProcessing === 'automatic'
+              ? 'automatic'
+              : 'manual_only',
+          LIKE_COMPONENT_PROCESSING:
+            options.hotFeedProcessing === 'automatic'
+              ? 'automatic'
+              : 'manual_only',
+          COMMENT_COMPONENT_PROCESSING:
+            options.hotFeedProcessing === 'automatic'
+              ? 'automatic'
+              : 'manual_only',
+        }
+      : {}),
   });
   const pool = new Pool(poolOptions(config));
   const suite = await pool.connect();
@@ -89,7 +110,11 @@ export async function maintenanceFixture() {
     );
     await pool.query('CREATE SCHEMA whaleu_maintenance_test');
     const module = await Test.createTestingModule({
-      imports: [AppModule.register(config)],
+      imports: [
+        AppModule.register(config, {
+          httpRuntime: options.httpRuntime ?? false,
+        }),
+      ],
     }).compile();
     const app = module.createNestApplication({ logger: false });
     configureHttp(app);

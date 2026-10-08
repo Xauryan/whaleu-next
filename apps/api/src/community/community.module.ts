@@ -1,3 +1,7 @@
+import { HotFeedProcessingModule } from './hot-score/runtime-module.js';
+import { HotController } from './hot/controller.js';
+import { HotFeedService } from './hot/service.js';
+import { HotRepository } from './hot/repository.js';
 import { CommunityViewComponentModule } from './view-component/module.js';
 import { ViewReportingService } from './view-component/service.js';
 import { ViewReportingController } from './view-component/controller.js';
@@ -242,6 +246,7 @@ export class CommunityRecoveryController {
 }
 @Module({
   imports: [
+    HotFeedProcessingModule,
     CommunityViewComponentModule,
     ViewRequestThrottlingModule,
     CommunitySubscriptionComponentModule,
@@ -258,6 +263,7 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    HotController,
     ViewReportingController,
     SearchController,
     LikedHistoryController,
@@ -287,6 +293,8 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    HotFeedService,
+    HotRepository,
     ViewReportingService,
     SearchService,
     CommunitySearchScopeResolver,

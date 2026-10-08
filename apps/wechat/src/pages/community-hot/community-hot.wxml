@@ -1,0 +1,41 @@
+<import src="../../experience/public-display.wxml" />
+<import src="../../community/trading-summary.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 社区热门</view>
+  <view class="title">看看大家关注的话题</view>
+  <view class="subtitle">热度持续更新，翻页内容可能变化，也可能再次遇到看过的帖子。</view>
+  <view class="card">
+    <view class="scope">{{space ? (space.kind === 'global' ? '全站社区 · ' : '地区社区 · ') + space.name : selectedSpaceId ? '已选择的社区' : '尚未选择社区'}}</view>
+    <view class="chips">
+      <view wx:for="{{hotRanges}}" wx:key="key" class="chip {{range === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onRange">{{item.label}}</view>
+    </view>
+    <view class="meta">时间范围按帖子发布时间筛选，热度来自累计互动。按当前社区范围查看，不含急出和已完成的交易。</view>
+    <view wx:if="{{space &amp;&amp; space.kind === 'regional'}}" class="meta">当前地区社区各分类合并查看。</view>
+    <view wx:if="{{space &amp;&amp; space.kind === 'global'}}" class="meta">仅查看这个全站社区的话题，不合并各地区社区。</view>
+  </view>
+  <view class="notice">当前仅覆盖具备完整热度记录并已更新的帖子，尚未覆盖历史导入内容。“全部时间”也只在这个范围内查看。</view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <button class="secondary" bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新热门</button>
+  <button wx:if="{{busy}}" class="secondary" bindtap="onCancel">停止加载</button>
+  <navigator class="link" url="/pages/community-feed/community-feed">返回社区选择范围 →</navigator>
+  <navigator class="link" open-type="navigateBack">返回上一页</navigator>
+  <view wx:for="{{posts}}" wx:key="id" id="view-{{item.id}}" class="card">
+    <view class="author"><text wx:if="{{item.author.kind === 'named'}}" class="link" data-id="{{item.id}}" bindtap="onAuthor">{{item.author.displayName}} →</text><text wx:else>{{item.author.displayName}}</text><template wx:if="{{item.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.author.experienceDisplay,colors:experienceColorStyles}}" /><text class="badge">{{item.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text><text wx:if="{{item.viewer.isSelf}}" class="badge">我</text></view>
+    <view class="meta">{{item.space.name}} · {{item.publishedAt}}</view>
+    <view class="body">{{item.text}}</view>
+    <template wx:if="{{item.trading}}" is="trading-summary" data="{{listing:item.trading,tradingLabels}}" />
+    <view wx:if="{{item.component.kind === 'poll'}}" class="scope">投票 · {{item.component.poll.selectionMode === 'single' ? '单选' : '多选'}} · {{item.component.poll.question}}<view class="meta">{{item.component.poll.expired ? '已结束' : '进入帖子参与'}}</view></view>
+    <view wx:if="{{item.component.kind === 'formation'}}" class="notice">组队：{{item.component.formation.theme}} · {{item.component.formation.memberCount}} / {{item.component.formation.capacity}} 人 · {{item.component.formation.status === 'full' ? '已满员' : '进入帖子查看'}}</view>
+    <view class="image-grid"><image wx:for="{{item.images}}" wx:for-item="media" wx:key="assetId" src="{{media.thumbnailUrl}}" mode="aspectFill" /></view>
+    <view class="meta">{{item.likeCount}} 赞 · {{item.saveCount}} 收藏{{item.viewer.isSaved ? '（已收藏）' : ''}} · {{item.commentCount}} 条根评论</view>
+    <navigator wx:if="{{hasSession}}" class="link" url="/pages/community-detail/community-detail?postId={{item.id}}">查看讨论与收藏设置 →</navigator>
+    <navigator wx:else class="link" url="/pages/login/login">登录后刷新热门并查看详情 →</navigator>
+  </view>
+  <view wx:if="{{continuation === 'scan_pending'}}" class="notice">本批尚未查完，暂时没有显示帖子也不代表已到末尾。请继续查看。</view>
+  <view wx:if="{{continuation === 'login_required'}}" class="notice">访客可预览首批帖子；继续查看需要登录及手机号验证。这不表示后面一定有可查看的帖子。</view>
+  <navigator wx:if="{{continuation === 'login_required'}}" class="link" url="/pages/login/login">前往登录 →</navigator>
+  <view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">当前版本尚未接入手机号验证流程，无法继续查看。验证状态更新后请刷新热门。</view>
+  <view wx:if="{{loaded}}" class="meta">翻页会重新核验当前可查看内容；刷新会从当前热门开头重新查看。</view>
+  <view class="actions"><button wx:if="{{canPrevious}}" class="secondary" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{canNext}}" class="secondary" bindtap="onNext" disabled="{{busy}}">{{continuation === 'scan_pending' ? '继续查看' : '下一页'}}</button></view>
+</view>

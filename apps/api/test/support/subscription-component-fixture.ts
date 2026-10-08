@@ -1,3 +1,4 @@
+import type { HotFeedFixtureOptions } from './title-maintenance-fixture.js';
 /** Canonical synthetic facts; real normal AppModule and HTTP publication/save. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -20,8 +21,8 @@ import {
   seedReviewPolicy,
 } from './community-approval-fixtures.js';
 
-export async function subscriptionFixture() {
-  const f = await maintenanceFixture();
+export async function subscriptionFixture(options: HotFeedFixtureOptions = {}) {
+  const f = await maintenanceFixture(options);
   try {
     const scope = await seedCommunityScope(f.pool);
     await seedReviewPolicy(f.pool);

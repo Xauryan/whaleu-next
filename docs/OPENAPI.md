@@ -59,3 +59,7 @@ artifacts are generated from actual controller and owner schemas, with determini
 key sorting followed by the installed Prettier formatter. Neither artifact is
 excluded from formatting. Offline export still creates no database, timer or
 public documentation route.
+
+The separate [community-hot contract](openapi/community-hot.json) covers unified
+hot discovery. It retains strict optional-auth/query/error metadata without adding
+scores, private certificate fields or a documentation route.

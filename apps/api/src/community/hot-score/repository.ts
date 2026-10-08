@@ -140,13 +140,17 @@ export class HotScoreRepository {
     );
     return result.rows[0]?.covered === true;
   }
-  async lockStates(postId: string, tx: PoolClient): Promise<void> {
+  async lockStates(
+    postId: string,
+    tx: PoolClient,
+    mode: 'update' | 'share' = 'update',
+  ): Promise<void> {
     // Fixed composition order: parent -> subscription -> like -> comment -> view.
     // The explicit view lock also serializes permitted direct positive updates;
     // it cannot prove arbitrary SQL increments came from accepted view events.
     for (const component of HOT_SCORE_COMPONENTS)
       await tx.query(
-        `SELECT post_id FROM whaleu_post_hotness.${component}_states WHERE post_id=$1 FOR UPDATE`,
+        `SELECT post_id FROM whaleu_post_hotness.${component}_states WHERE post_id=$1 FOR ${mode === 'share' ? 'SHARE' : 'UPDATE'}`,
         [postId],
       );
   }

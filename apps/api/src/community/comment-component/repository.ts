@@ -108,4 +108,16 @@ export class CommentComponentRepository {
       ).rows[0]?.source_sequence ?? null
     );
   }
+  /** Metadata-only earliest unresolved source; settlement revalidates after its parent lock. */
+  async nextSource(postId: string, tx: PoolClient): Promise<string | null> {
+    const row = (
+      await tx.query<{ id: string | null }>(
+        `SELECT src.id FROM whaleu_post_hotness.comment_sources src WHERE src.post_id=$1 AND NOT EXISTS(SELECT 1 FROM whaleu_post_hotness.comment_receipts r WHERE r.source_id=src.id) ORDER BY src.source_sequence LIMIT 1`,
+        [postId],
+      )
+    ).rows[0];
+    if (row && row.id === null)
+      throw new Error('Component source binding unavailable');
+    return row?.id ?? null;
+  }
 }

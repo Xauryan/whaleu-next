@@ -1,3 +1,4 @@
+import { enrollPublishedHotProcessing } from './hot-score/storage.js';
 import { CommunityCommentEnrollment } from './comment-component/enrollment.js';
 import { CommunityViewEnrollment } from './view-component/enrollment.js';
 import { CommunityLikeEnrollment } from './like-component/enrollment.js';
@@ -165,6 +166,7 @@ export class PublicationRepository {
           },
           tx,
         );
+        await enrollPublishedHotProcessing(receipt.resourceId, tx);
       }
       await this.access.actor(token, tx);
       return receipt;
