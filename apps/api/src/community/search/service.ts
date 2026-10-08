@@ -1,3 +1,4 @@
+import { SearchReadContext } from '../content-review/search-read-context.js';
 import { searchPageSchema } from './response-schema.js';
 import { categorySchema } from '../contracts.js';
 import type { CommunitySpace } from '../contracts.js';
@@ -70,17 +71,26 @@ export class SearchService {
     private readonly phones: CommunityPhoneContinuation,
   ) {}
 
+  /** Test subclasses can compare the unchanged scalar owners without adding a
+   * runtime feature flag or an alternate authorization provider. */
+  protected canonicalReadContext(
+    tx: PoolClient,
+  ): SearchReadContext | undefined {
+    return new SearchReadContext(tx);
+  }
+
   private async allowed(
     candidate: SearchCandidate,
     scope: SearchStructuralScope,
     actor: string | null,
     tx: PoolClient,
+    read?: SearchReadContext,
   ): Promise<{
     post: StoredPost;
     content: StoredPost | StoredComment;
     listing: { subtype: TradingSubtype; urgency: 'normal' | 'urgent' } | null;
   } | null> {
-    const post = await this.repository.post(candidate.postId, tx);
+    const post = await this.repository.post(candidate.postId, tx, false, read);
     if (post.space_id !== candidate.spaceId)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     if (
@@ -103,7 +113,7 @@ export class SearchService {
       urgency: 'normal' | 'urgent';
     } | null = null;
     if (post.category === 'trading') {
-      const facts = await this.searches.tradingFilter(post.id, tx);
+      const facts = await this.searches.tradingFilter(post.id, tx, read);
       if (
         !facts ||
         !['normal', 'urgent'].includes(facts.urgency) ||
@@ -131,6 +141,7 @@ export class SearchService {
         post,
         tx,
         candidate.kind === 'post' ? 'list_projection' : 'direct_post',
+        read,
       ))
     )
       return null;
@@ -139,16 +150,17 @@ export class SearchService {
       candidate.rootCommentId!,
       tx,
       true,
+      read,
     );
     if (root.post_id !== post.id)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-    if (!(await this.access.visible(actor, root, tx, 'list_projection')))
+    if (!(await this.access.visible(actor, root, tx, 'list_projection', read)))
       return null;
     if (candidate.kind === 'comment') return { post, content: root, listing };
-    const reply = await this.repository.reply(candidate.id, tx, true);
+    const reply = await this.repository.reply(candidate.id, tx, true, read);
     if (reply.post_id !== post.id || reply.root_comment_id !== root.id)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-    if (!(await this.access.visible(actor, reply, tx, 'list_projection')))
+    if (!(await this.access.visible(actor, reply, tx, 'list_projection', read)))
       return null;
     // Target reply identities and bodies are deliberately never loaded.
     return { post, content: reply, listing };
@@ -262,191 +274,212 @@ export class SearchService {
     return this.repository.database.transaction(
       async (tx) => {
         enableSafetyRelationshipProof(tx);
-        await lockSafetyPolicy(tx);
-        const session =
-          token === null ? null : await this.identity.session(token, tx);
-        const actor = session?.accountId ?? null;
-        if (
-          actor === null &&
-          (query.type === 'comment' || query.type === 'reply')
-        )
-          throw new ApplicationError('AUTHENTICATION_REQUIRED');
-        const effectiveTypes: SearchKind[] =
-          query.type === 'all'
-            ? actor === null
-              ? ['post']
-              : ['post', 'comment', 'reply']
-            : [query.type];
-        const explicitSpace =
-          'spaceId' in query
-            ? await this.repository.space(query.spaceId, tx)
-            : null;
-        if (
-          explicitSpace?.kind === 'global' &&
-          ((query.category !== undefined && query.category !== 'discussion') ||
-            query.tradingSubtype !== undefined)
-        )
-          throw new BadRequestException('Invalid request');
-        if (query.cursor) {
-          if (actor === null)
+        const read = this.canonicalReadContext(tx);
+        try {
+          await lockSafetyPolicy(tx);
+          const session =
+            token === null ? null : await this.identity.session(token, tx);
+          const actor = session?.accountId ?? null;
+          if (
+            actor === null &&
+            (query.type === 'comment' || query.type === 'reply')
+          )
             throw new ApplicationError('AUTHENTICATION_REQUIRED');
-          if (!(await this.phones.verified(actor, tx)))
-            throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
-        }
-        const scopeHash = searchCursorScope(query, session);
-        const position: SearchPosition | FederatedSearchPosition | null =
-          query.cursor
-            ? await this.cursors.get(query.cursor, scopeHash, tx, (value) =>
-                'scope' in query
-                  ? federatedSearchPositionSchema.parse(value)
-                  : searchPositionSchema.parse(value),
-              )
-            : null;
-        const resolved: ResolvedSearchScope | null =
-          'scope' in query ? await this.scopes.resolve(query.scope, tx) : null;
-        if (
-          position?.v === 4 &&
-          position.membershipFingerprint !== resolved?.membershipFingerprint
-        )
-          throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
-        const scope: SearchStructuralScope = {
-          types: effectiveTypes,
-          from: query.from ?? null,
-          to: query.to ?? null,
-          postId: query.postId ?? null,
-          ...(explicitSpace
-            ? { spaceId: explicitSpace.id }
-            : {
-                regionalSpaceIds: resolved!.regionalSpaceIds,
-                globalSpaceIds: resolved!.globalSpaceIds,
-              }),
-          category: query.category ?? null,
-          tradingSubtype: query.tradingSubtype ?? null,
-          excludeUrgentTrading:
-            explicitSpace !== null && query.category === undefined,
-        };
-        const sourceSpace = (id: string): Readonly<CommunitySpace> => {
-          const space =
-            explicitSpace?.id === id ? explicitSpace : resolved?.space(id);
-          if (!space) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-          return space;
-        };
-        const seek = position?.after ?? null;
-        const guard = position?.visible ?? null;
-        const candidates = await this.searches.candidates(scope, seek, tx);
-        this.validateCandidates(candidates, seek, scope);
-        const held = await this.lockCandidates(candidates, guard, tx);
-        if (guard) {
-          const candidate = held.get(searchCandidateKey(guard));
+          const effectiveTypes: SearchKind[] =
+            query.type === 'all'
+              ? actor === null
+                ? ['post']
+                : ['post', 'comment', 'reply']
+              : [query.type];
+          const explicitSpace =
+            'spaceId' in query
+              ? await this.repository.space(query.spaceId, tx)
+              : null;
           if (
-            !candidate ||
-            candidate.at !== guard.at ||
-            candidate.kind !== guard.kind
+            explicitSpace?.kind === 'global' &&
+            ((query.category !== undefined &&
+              query.category !== 'discussion') ||
+              query.tradingSubtype !== undefined)
           )
-            throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
-          const allowed = await this.allowed(candidate, scope, actor, tx);
-          if (
-            !allowed ||
-            !(await this.searches.exactAnchor(guard, tx)) ||
-            !searchMatches(allowed.content.text, query.q)
-          )
-            throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
-        }
-        const current = await this.searches.candidates(scope, seek, tx);
-        this.validateCandidates(current, seek, scope);
-        if (
-          current.some(
-            (item) =>
-              !held.has(searchCandidateKey(item)) ||
-              held.get(searchCandidateKey(item))!.spaceId !== item.spaceId ||
-              held.get(searchCandidateKey(item))!.at !== item.at ||
-              held.get(searchCandidateKey(item))!.postId !== item.postId ||
-              held.get(searchCandidateKey(item))!.rootCommentId !==
-                item.rootCommentId,
-          )
-        )
-          throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-        const items: SearchHit[] = [];
-        let consumed = 0;
-        let lastVisible = guard;
-        for (const candidate of current.slice(0, SEARCH_SCAN_BATCH)) {
-          consumed++;
-          const allowed = await this.allowed(candidate, scope, actor, tx);
-          if (!allowed || !searchMatches(allowed.content.text, query.q))
-            continue;
-          const space = sourceSpace(candidate.spaceId);
-          items.push(
-            await this.serializer.hit(
-              candidate,
-              allowed.post,
-              allowed.content,
-              space,
-              query.q,
-              allowed.listing,
-              tx,
-            ),
-          );
-          lastVisible = {
-            at: candidate.at,
-            kind: candidate.kind,
-            id: candidate.id,
-          };
-          if (items.length === query.limit) break;
-        }
-        const exhausted = consumed === current.length;
-        const next = exhausted ? null : current[consumed - 1];
-        if (
-          !exhausted &&
-          (!next || (seek !== null && !searchAnchorFollows(next, seek)))
-        )
-          throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
-        let continuation: SearchPage['continuation'] = exhausted
-          ? 'end'
-          : items.length === query.limit
-            ? 'more'
-            : 'scan_pending';
-        if (!exhausted) {
-          if (actor === null) continuation = 'login_required';
-          else {
-            // Unlike advisory hints, continued traversal needs current known phone
-            // evidence and its mandatory deadline, including on an empty batch.
+            throw new BadRequestException('Invalid request');
+          if (query.cursor) {
+            if (actor === null)
+              throw new ApplicationError('AUTHENTICATION_REQUIRED');
             if (!(await this.phones.verified(actor, tx)))
-              continuation = 'phone_verification_required';
+              throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
           }
-        }
-        if (token !== null) await this.identity.session(token, tx);
-        // Cursor quota lock is last. The transaction still performs mandatory
-        // deferred relationship/deadline proof before committing either result.
-        const nextCursor =
-          next && (continuation === 'more' || continuation === 'scan_pending')
-            ? await this.cursors.create(
-                scopeHash,
-                discoveryCursorBucket(actor),
-                {
-                  ...(resolved
-                    ? {
-                        v: 4,
-                        membershipFingerprint: resolved.membershipFingerprint,
-                      }
-                    : { v: 3 }),
-                  kind: 'search',
-                  matcherId: SEARCH_MATCHER_ID,
-                  orderId: SEARCH_ORDER_ID,
-                  after: { at: next.at, kind: next.kind, id: next.id },
-                  visible: lastVisible,
-                },
+          const scopeHash = searchCursorScope(query, session);
+          const position: SearchPosition | FederatedSearchPosition | null =
+            query.cursor
+              ? await this.cursors.get(query.cursor, scopeHash, tx, (value) =>
+                  'scope' in query
+                    ? federatedSearchPositionSchema.parse(value)
+                    : searchPositionSchema.parse(value),
+                )
+              : null;
+          const resolved: ResolvedSearchScope | null =
+            'scope' in query
+              ? await this.scopes.resolve(query.scope, tx)
+              : null;
+          if (
+            position?.v === 4 &&
+            position.membershipFingerprint !== resolved?.membershipFingerprint
+          )
+            throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+          const scope: SearchStructuralScope = {
+            types: effectiveTypes,
+            from: query.from ?? null,
+            to: query.to ?? null,
+            postId: query.postId ?? null,
+            ...(explicitSpace
+              ? { spaceId: explicitSpace.id }
+              : {
+                  regionalSpaceIds: resolved!.regionalSpaceIds,
+                  globalSpaceIds: resolved!.globalSpaceIds,
+                }),
+            category: query.category ?? null,
+            tradingSubtype: query.tradingSubtype ?? null,
+            excludeUrgentTrading:
+              explicitSpace !== null && query.category === undefined,
+          };
+          const sourceSpace = (id: string): Readonly<CommunitySpace> => {
+            const space =
+              explicitSpace?.id === id ? explicitSpace : resolved?.space(id);
+            if (!space) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+            return space;
+          };
+          const seek = position?.after ?? null;
+          const guard = position?.visible ?? null;
+          const candidates = await this.searches.candidates(scope, seek, tx);
+          this.validateCandidates(candidates, seek, scope);
+          const held = await this.lockCandidates(candidates, guard, tx);
+          if (guard) {
+            const candidate = held.get(searchCandidateKey(guard));
+            if (
+              !candidate ||
+              candidate.at !== guard.at ||
+              candidate.kind !== guard.kind
+            )
+              throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+            const allowed = await this.allowed(
+              candidate,
+              scope,
+              actor,
+              tx,
+              read,
+            );
+            if (
+              !allowed ||
+              !(await this.searches.exactAnchor(guard, tx)) ||
+              !searchMatches(allowed.content.text, query.q)
+            )
+              throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+          }
+          const current = await this.searches.candidates(scope, seek, tx);
+          this.validateCandidates(current, seek, scope);
+          if (
+            current.some(
+              (item) =>
+                !held.has(searchCandidateKey(item)) ||
+                held.get(searchCandidateKey(item))!.spaceId !== item.spaceId ||
+                held.get(searchCandidateKey(item))!.at !== item.at ||
+                held.get(searchCandidateKey(item))!.postId !== item.postId ||
+                held.get(searchCandidateKey(item))!.rootCommentId !==
+                  item.rootCommentId,
+            )
+          )
+            throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+          const items: SearchHit[] = [];
+          let consumed = 0;
+          let lastVisible = guard;
+          for (const candidate of current.slice(0, SEARCH_SCAN_BATCH)) {
+            consumed++;
+            const allowed = await this.allowed(
+              candidate,
+              scope,
+              actor,
+              tx,
+              read,
+            );
+            if (!allowed || !searchMatches(allowed.content.text, query.q))
+              continue;
+            const space = sourceSpace(candidate.spaceId);
+            items.push(
+              await this.serializer.hit(
+                candidate,
+                allowed.post,
+                allowed.content,
+                space,
+                query.q,
+                allowed.listing,
                 tx,
-              )
-            : null;
-        const result = searchPageSchema.safeParse({
-          items,
-          effectiveTypes,
-          nextCursor,
-          continuation,
-        });
-        if (!result.success)
-          throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-        return result.data;
+              ),
+            );
+            lastVisible = {
+              at: candidate.at,
+              kind: candidate.kind,
+              id: candidate.id,
+            };
+            if (items.length === query.limit) break;
+          }
+          const exhausted = consumed === current.length;
+          const next = exhausted ? null : current[consumed - 1];
+          if (
+            !exhausted &&
+            (!next || (seek !== null && !searchAnchorFollows(next, seek)))
+          )
+            throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+          let continuation: SearchPage['continuation'] = exhausted
+            ? 'end'
+            : items.length === query.limit
+              ? 'more'
+              : 'scan_pending';
+          if (!exhausted) {
+            if (actor === null) continuation = 'login_required';
+            else {
+              // Unlike advisory hints, continued traversal needs current known phone
+              // evidence and its mandatory deadline, including on an empty batch.
+              if (!(await this.phones.verified(actor, tx)))
+                continuation = 'phone_verification_required';
+            }
+          }
+          if (token !== null) await this.identity.session(token, tx);
+          // Cursor quota lock is last. The transaction still performs mandatory
+          // deferred relationship/deadline proof before committing either result.
+          const nextCursor =
+            next && (continuation === 'more' || continuation === 'scan_pending')
+              ? await this.cursors.create(
+                  scopeHash,
+                  discoveryCursorBucket(actor),
+                  {
+                    ...(resolved
+                      ? {
+                          v: 4,
+                          membershipFingerprint: resolved.membershipFingerprint,
+                        }
+                      : { v: 3 }),
+                    kind: 'search',
+                    matcherId: SEARCH_MATCHER_ID,
+                    orderId: SEARCH_ORDER_ID,
+                    after: { at: next.at, kind: next.kind, id: next.id },
+                    visible: lastVisible,
+                  },
+                  tx,
+                )
+              : null;
+          const result = searchPageSchema.safeParse({
+            items,
+            effectiveTypes,
+            nextCursor,
+            continuation,
+          });
+          if (!result.success)
+            throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+          read?.assertCurrent(tx);
+          return result.data;
+        } finally {
+          read?.close();
+        }
       },
       { isolationLevel: 'read committed' },
     );

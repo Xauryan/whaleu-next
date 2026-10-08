@@ -1,3 +1,5 @@
+import type { SearchReadContext } from './search-read-context.js';
+const anchorOwner = {};
 import {
   validateApprovalRow,
   validateApprovalBinding,
@@ -33,7 +35,19 @@ export const approvalProjection = `d.*,p.policy_key,p.version AS policy_version,
 export class ApprovalRepository {
   /** Actor account is the stable absent-intent anchor; issuance takes UPDATE.
    * No reader creates a decision/head or infers authority from a receipt. */
-  private async anchor(accountId: string, tx: PoolClient): Promise<boolean> {
+  private async anchor(
+    accountId: string,
+    tx: PoolClient,
+    read?: SearchReadContext,
+  ): Promise<boolean> {
+    if (read)
+      return read.read(
+        anchorOwner,
+        accountId,
+        tx,
+        () => this.anchor(accountId, tx),
+        (exists) => exists,
+      );
     return !!(
       await tx.query(
         'SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE',
@@ -127,8 +141,9 @@ export class ApprovalRepository {
   async current(
     binding: ApprovalBinding,
     tx: PoolClient,
+    read?: SearchReadContext,
   ): Promise<Decision<AcceptedApproval>> {
-    if (!(await this.anchor(binding.account_id, tx)))
+    if (!(await this.anchor(binding.account_id, tx, read)))
       return { kind: 'unavailable' };
     const result = await this.validate(
       await this.row(binding.decision_id, tx),

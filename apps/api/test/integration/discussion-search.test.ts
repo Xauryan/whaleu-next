@@ -1,3 +1,5 @@
+import { SearchService } from '../../src/community/search/service.js';
+import { withScalarCanonicalReads } from '../support/search-scalar-canonical.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
@@ -1384,7 +1386,36 @@ test(
               { sql: string; values: unknown[]; rows: number } | undefined;
             let metadataStatements = 0,
               metadataIds = 0;
+            const bindings = new Map<string, number>();
+            const bodies = new Map<string, number>();
+            const heads = new Map<string, number>();
+            const anchors = new Map<string, number>();
+            const increment = (map: Map<string, number>, key: string) =>
+              map.set(key, (map.get(key) ?? 0) + 1);
             h.observer.setHook(async (event) => {
+              if (
+                event.sql.includes(
+                  'SELECT * FROM whaleu_community.content_approval_bindings',
+                )
+              )
+                increment(bindings, `${event.values[0]}:${event.values[1]}`);
+              const bodyTable = event.sql.match(
+                /SELECT \* FROM whaleu_community\.(posts|root_comments|replies) WHERE id=/,
+              )?.[1];
+              if (bodyTable)
+                increment(bodies, `${bodyTable}:${event.values[0]}`);
+              if (
+                event.sql.includes(
+                  'JOIN whaleu_community.content_approval_heads h',
+                )
+              )
+                increment(heads, String(event.values[0]));
+              if (
+                event.sql ===
+                  'SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE' &&
+                event.values[0] === w.author.accountId
+              )
+                increment(anchors, String(event.values[0]));
               if (/FOR SHARE OF [pcr]$/.test(event.sql)) {
                 metadataStatements++;
                 assert.ok(Array.isArray(event.values[0]));
@@ -1445,6 +1476,42 @@ test(
               metadataIds - metadataStatements,
               'Only metadata round trips change; canonical and final proofs remain identical',
             );
+            for (const [name, counts] of [
+              ['binding', bindings],
+              ['body', bodies],
+              ['head', heads],
+              ['anchor', anchors],
+            ] as const) {
+              assert.ok(counts.size > 0, name);
+              assert.ok(
+                [...counts.values()].every((count) => count === 1),
+                `${name}: one owner read per distinct consumed node/account`,
+              );
+            }
+            assert.equal(bindings.size, bodies.size);
+            assert.equal(bindings.size, heads.size);
+            const scalarCanonical = await withScalarCanonicalReads(
+              h.app.get(SearchService),
+              () =>
+                h.observer.measure(
+                  `${label}: scalar canonical baseline`,
+                  async () =>
+                    await w.aggregate({ ...query, q: 'needle-not-in-fixture' }),
+                ),
+            );
+            ok(scalarCanonical.value);
+            assert.deepEqual(
+              { ...scalarCanonical.value.body, nextCursor: null },
+              { ...measured.value.body, nextCursor: null },
+            );
+            assert.deepEqual(
+              await position(h, scalarCanonical.value.body.nextCursor),
+              await position(h, measured.value.body.nextCursor),
+            );
+            assert.ok(
+              scalarCanonical.measurement.queries >
+                measured.measurement.queries,
+            );
             const explain = await h.pool.query(
               `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${candidate.sql}`,
               candidate.values,
@@ -1458,6 +1525,16 @@ test(
                 endpointMs:
                   Math.round(measured.measurement.durationMs * 100) / 100,
                 endpointQueries: measured.measurement.queries,
+                scalarCanonicalEndpointQueries:
+                  scalarCanonical.measurement.queries,
+                scalarCanonicalEndpointMs:
+                  Math.round(scalarCanonical.measurement.durationMs * 100) /
+                  100,
+                canonicalSavedStatements:
+                  scalarCanonical.measurement.queries -
+                  measured.measurement.queries,
+                canonicalNodes: bindings.size,
+                approvalAccounts: anchors.size,
                 scalarEndpointQueries: scalar.measurement.queries,
                 scalarEndpointMs:
                   Math.round(scalar.measurement.durationMs * 100) / 100,

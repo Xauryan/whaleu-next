@@ -1,3 +1,9 @@
+import type { SearchReadContext } from './content-review/search-read-context.js';
+import {
+  searchPost,
+  searchRoot,
+  searchReply,
+} from './content-review/search-source-reads.js';
 import { CommunityExperienceSourceCapture } from './experience-source/capture.js';
 import { APP_CONFIG } from '../config/config.js';
 import type { RuntimeConfig } from '../config/config.js';
@@ -74,7 +80,18 @@ export class CommunityRepository {
       await this.campuses.requireActiveRegion(space.operatingRegionId, tx);
     return space;
   }
-  async post(id: string, tx: PoolClient, write = false): Promise<StoredPost> {
+  async post(
+    id: string,
+    tx: PoolClient,
+    write = false,
+    read?: SearchReadContext,
+  ): Promise<StoredPost> {
+    if (read) {
+      if (write) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      const post = await searchPost(id, tx, read);
+      if (!post) throw new ApplicationError('POST_NOT_FOUND');
+      return post;
+    }
     const result = await tx.query<StoredPost>(
       `SELECT * FROM whaleu_community.posts WHERE id=$1 FOR ${write ? 'UPDATE' : 'SHARE'}`,
       [id],
@@ -86,7 +103,14 @@ export class CommunityRepository {
     id: string,
     tx: PoolClient,
     lock = false,
+    read?: SearchReadContext,
   ): Promise<StoredComment> {
+    if (read) {
+      if (!lock) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      const root = await searchRoot(id, tx, read);
+      if (!root) throw new ApplicationError('COMMENT_NOT_FOUND');
+      return root;
+    }
     const result = await tx.query<StoredComment>(
       `SELECT * FROM whaleu_community.root_comments WHERE id=$1 ${lock ? 'FOR SHARE' : ''}`,
       [id],
@@ -94,7 +118,18 @@ export class CommunityRepository {
     if (!result.rows[0]) throw new ApplicationError('COMMENT_NOT_FOUND');
     return result.rows[0];
   }
-  async reply(id: string, tx: PoolClient, lock = false): Promise<StoredReply> {
+  async reply(
+    id: string,
+    tx: PoolClient,
+    lock = false,
+    read?: SearchReadContext,
+  ): Promise<StoredReply> {
+    if (read) {
+      if (!lock) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      const reply = await searchReply(id, tx, read);
+      if (!reply) throw new ApplicationError('REPLY_NOT_FOUND');
+      return reply;
+    }
     const result = await tx.query<StoredReply>(
       `SELECT * FROM whaleu_community.replies WHERE id=$1 ${lock ? 'FOR SHARE' : ''}`,
       [id],

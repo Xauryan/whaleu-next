@@ -1,3 +1,5 @@
+import type { SearchReadContext } from '../content-review/search-read-context.js';
+import { searchListing } from '../content-review/search-source-reads.js';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
@@ -171,7 +173,17 @@ export class SearchRepository {
   async tradingFilter(
     postId: string,
     tx: PoolClient,
+    read?: SearchReadContext,
   ): Promise<{ subtype: string; urgency: 'normal' | 'urgent' } | null> {
+    if (read) {
+      const listing = await searchListing(postId, tx, read);
+      return listing
+        ? {
+            subtype: listing.subtype,
+            urgency: listing.urgency as 'normal' | 'urgent',
+          }
+        : null;
+    }
     return (
       (
         await tx.query<{ subtype: string; urgency: 'normal' | 'urgent' }>(

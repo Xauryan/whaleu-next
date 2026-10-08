@@ -1,3 +1,4 @@
+import type { SearchReadContext } from '../community/content-review/search-read-context.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import type {
@@ -20,8 +21,9 @@ export class NamedBlockVisibility implements CommunityVisibilityPort {
     subject: VisibilitySubject,
     tx: PoolClient,
     purpose: VisibilityPurpose,
+    read?: SearchReadContext,
   ): Promise<Decision> {
-    const base = await this.base.check(viewer, subject, tx, purpose);
+    const base = await this.base.check(viewer, subject, tx, purpose, read);
     if (base.kind !== 'allow') return base;
     if (
       subject.authorMode === 'anonymous' ||

@@ -126,3 +126,14 @@ canonical proof cost is solved. The theoretical maximum remains 390 scalar
 metadata queries versus three batches when window/sentinel/guard ancestry is
 fully fragmented; that bound is not a measured endpoint speedup. Further proof
 reuse is a separate increment requiring its own authorization and validation.
+
+## Hosted verification
+
+Verified SSH-signed commit `c423032d741f472a5343b2cf99a8e2028741ca59` passed
+[GitHub Actions run 37809415789](https://github.com/Xauryan/whaleu-next/actions/runs/37809415789).
+Actual logs confirm 5 statistics, 659 API, 914 native and 1,135 PostgreSQL tests:
+2,713 passed with zero failures/skips/cancellations. PostgreSQL took
+716.600474790 seconds; all check, formatting and cleanup steps passed. All 929
+published source files and five OpenAPI artifacts match the tested freeze.
+[Automatic statistics publication](https://github.com/Xauryan/whaleu-next/actions/runs/37809415700)
+also passed, and the served SVG displayed the exact committed source SHA.

@@ -1,3 +1,4 @@
+import type { SearchReadContext } from './content-review/search-read-context.js';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import type { ApplicationErrorCode } from '../http/application-error.js';
@@ -86,6 +87,7 @@ export interface CommunityVisibilityPort {
     subject: VisibilitySubject,
     transaction: PoolClient,
     purpose: VisibilityPurpose,
+    read?: SearchReadContext,
   ): Promise<Decision>;
 }
 export interface ApprovedAsset {

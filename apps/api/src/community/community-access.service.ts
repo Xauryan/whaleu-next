@@ -1,3 +1,4 @@
+import type { SearchReadContext } from './content-review/search-read-context.js';
 import {
   checkpointTransactionDeadlines,
   restoreTransactionDeadlines,
@@ -76,6 +77,7 @@ export class CommunityAccessService {
     content: StoredPost | StoredComment,
     tx: PoolClient,
     purpose: VisibilityPurpose,
+    read?: SearchReadContext,
   ): Promise<Decision> {
     if (content.visibility !== 'approved' || content.deleted_at)
       return { kind: 'deny', reason: 'POST_NOT_FOUND' };
@@ -98,7 +100,13 @@ export class CommunityAccessService {
             namedAccountId: content.account_id,
           }
         : { ...reference, authorMode: 'anonymous' };
-    const result = await this.visibility.check(viewer, subject, tx, purpose);
+    const result = await this.visibility.check(
+      viewer,
+      subject,
+      tx,
+      purpose,
+      read,
+    );
     if (result.kind === 'unavailable')
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     return result;
@@ -108,10 +116,11 @@ export class CommunityAccessService {
     content: StoredPost | StoredComment,
     tx: PoolClient,
     purpose: VisibilityPurpose,
+    read?: SearchReadContext,
   ): Promise<boolean> {
     return (
-      (await this.visibilityDecision(viewer, content, tx, purpose)).kind ===
-      'allow'
+      (await this.visibilityDecision(viewer, content, tx, purpose, read))
+        .kind === 'allow'
     );
   }
   async interaction(

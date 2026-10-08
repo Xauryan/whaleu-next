@@ -1,3 +1,12 @@
+import type { SearchReadContext } from './search-read-context.js';
+import {
+  searchPost,
+  searchRoot,
+  searchReply,
+  searchSpace,
+  searchListing,
+} from './search-source-reads.js';
+const regionOwner = {};
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { CampusService } from '../../campus/campus.service.js';
@@ -31,47 +40,68 @@ export class ContentDefinitionRepository {
     id: string,
     scope: ContentScopeSnapshot,
     tx: PoolClient,
+    read?: SearchReadContext,
   ): Promise<Decision<CurrentContent>> {
     let postId = id;
     let rootId: string | null = null;
     if (kind !== 'post') {
       const table = kind === 'comment' ? 'root_comments' : 'replies';
-      const reference = (
-        await tx.query<StoredComment | StoredReply>(
-          `SELECT * FROM whaleu_community.${table} WHERE id=$1`,
-          [id],
-        )
-      ).rows[0];
+      const reference = read
+        ? await (kind === 'comment'
+            ? searchRoot(id, tx, read)
+            : searchReply(id, tx, read))
+        : (
+            await tx.query<StoredComment | StoredReply>(
+              `SELECT * FROM whaleu_community.${table} WHERE id=$1`,
+              [id],
+            )
+          ).rows[0];
       if (!reference) return { kind: 'deny', reason: 'POST_NOT_FOUND' };
       postId = reference.post_id;
       rootId =
         kind === 'comment' ? id : (reference as StoredReply).root_comment_id;
     }
-    const post = (
-      await tx.query<StoredPost & { publication_state: string }>(
-        'SELECT * FROM whaleu_community.posts WHERE id=$1 FOR SHARE',
-        [postId],
-      )
-    ).rows[0];
+    const post = read
+      ? await searchPost(postId, tx, read)
+      : (
+          await tx.query<StoredPost & { publication_state: string }>(
+            'SELECT * FROM whaleu_community.posts WHERE id=$1 FOR SHARE',
+            [postId],
+          )
+        ).rows[0];
     const postDecision = definitionNodeDecision(post, true);
     if (postDecision.kind !== 'allow') return postDecision;
     if (!post) return { kind: 'unavailable' };
-    const space = (
-      await tx.query<{
-        id: string;
-        is_active: boolean;
-        kind: string;
-        operating_region_id: string | null;
-      }>(
-        'SELECT id,is_active,kind,operating_region_id FROM whaleu_community.spaces WHERE id=$1 FOR SHARE',
-        [post.space_id],
-      )
-    ).rows[0];
+    const space = read
+      ? await searchSpace(post.space_id, tx, read)
+      : (
+          await tx.query<{
+            id: string;
+            is_active: boolean;
+            kind: string;
+            operating_region_id: string | null;
+          }>(
+            'SELECT id,is_active,kind,operating_region_id FROM whaleu_community.spaces WHERE id=$1 FOR SHARE',
+            [post.space_id],
+          )
+        ).rows[0];
     if (!space) return { kind: 'unavailable' };
     if (!space.is_active) return { kind: 'deny', reason: 'POST_NOT_FOUND' };
     if (space.operating_region_id) {
       try {
-        await this.campuses.requireActiveRegion(space.operating_region_id, tx);
+        const regionId = space.operating_region_id;
+        if (read)
+          await read.read(
+            regionOwner,
+            regionId,
+            tx,
+            async () => {
+              await this.campuses.requireActiveRegion(regionId, tx);
+              return true;
+            },
+            (active) => active,
+          );
+        else await this.campuses.requireActiveRegion(regionId, tx);
       } catch {
         return { kind: 'unavailable' };
       }
@@ -81,25 +111,37 @@ export class ContentDefinitionRepository {
     let content: StoredPost | StoredComment | StoredReply = post;
     const parents: CurrentContent['parents'] = [];
     if (kind !== 'post') {
-      const root = (
-        await tx.query<StoredComment>(
-          'SELECT * FROM whaleu_community.root_comments WHERE id=$1 AND post_id=$2 FOR SHARE',
-          [rootId, post.id],
-        )
-      ).rows[0];
-      const rootDecision = definitionNodeDecision(root);
+      const root = read
+        ? await searchRoot(rootId!, tx, read)
+        : (
+            await tx.query<StoredComment>(
+              'SELECT * FROM whaleu_community.root_comments WHERE id=$1 AND post_id=$2 FOR SHARE',
+              [rootId, post.id],
+            )
+          ).rows[0];
+      const rootDecision = definitionNodeDecision(
+        root?.post_id === post.id ? root : undefined,
+      );
       if (rootDecision.kind !== 'allow') return rootDecision;
       if (!root) return { kind: 'unavailable' };
       parents.push({ kind: 'post', id: post.id });
       content = root;
       if (kind === 'reply') {
-        const reply = (
-          await tx.query<StoredReply>(
-            'SELECT * FROM whaleu_community.replies WHERE id=$1 AND post_id=$2 AND root_comment_id=$3 FOR SHARE',
-            [id, post.id, root.id],
-          )
-        ).rows[0];
-        if (!reply || reply.deleted_at || reply.visibility === 'hidden')
+        const reply = read
+          ? await searchReply(id, tx, read)
+          : (
+              await tx.query<StoredReply>(
+                'SELECT * FROM whaleu_community.replies WHERE id=$1 AND post_id=$2 AND root_comment_id=$3 FOR SHARE',
+                [id, post.id, root.id],
+              )
+            ).rows[0];
+        if (
+          !reply ||
+          reply.post_id !== post.id ||
+          reply.root_comment_id !== root.id ||
+          reply.deleted_at ||
+          reply.visibility === 'hidden'
+        )
           return { kind: 'deny', reason: 'POST_NOT_FOUND' };
         if (reply.visibility !== 'approved') return { kind: 'unavailable' };
         content = reply;
@@ -138,22 +180,24 @@ export class ContentDefinitionRepository {
           [id],
         )
       ).rows[0];
-      const listing = (
-        await tx.query<{
-          subtype: string;
-          price: string;
-          urgency: string;
-          location: string;
-          wechat: string;
-          qq: string;
-          phone: string;
-          legacy_raw_price: string | null;
-          legacy_raw_subtype: string | null;
-        }>(
-          'SELECT subtype,price::text,urgency,location,wechat,qq,phone,legacy_raw_price,legacy_raw_subtype FROM whaleu_community.trading_listings WHERE post_id=$1 FOR SHARE',
-          [id],
-        )
-      ).rows[0];
+      const listing = read
+        ? await searchListing(id, tx, read)
+        : (
+            await tx.query<{
+              subtype: string;
+              price: string;
+              urgency: string;
+              location: string;
+              wechat: string;
+              qq: string;
+              phone: string;
+              legacy_raw_price: string | null;
+              legacy_raw_subtype: string | null;
+            }>(
+              'SELECT subtype,price::text,urgency,location,wechat,qq,phone,legacy_raw_price,legacy_raw_subtype FROM whaleu_community.trading_listings WHERE post_id=$1 FOR SHARE',
+              [id],
+            )
+          ).rows[0];
       facts.poll = poll;
       facts.formation = formation;
       facts.listing = listing;

@@ -4,6 +4,7 @@ import type { ApplicationErrorCode } from '../http/application-error.js';
 /** Internal owner facts only. A deadline is registered only while its canonical
  * source is locked. The transaction wrapper checks after ALL deferred waits. */
 const deadlines = new WeakMap<PoolClient, Map<ApplicationErrorCode, number>>();
+const readEpochs = new WeakMap<PoolClient, object>();
 const optionalDeadlines = new WeakMap<
   PoolClient,
   { until: number; expire: () => void }[]
@@ -68,18 +69,26 @@ export function registerRequiredTransactionFact<T>(
   entry.facts.push(fact);
 }
 
+/** Opaque read lifetime. A new transaction or restored checkpoint invalidates
+ * explicit owner read contexts; no registry or mutable deadline is exposed. */
+export function transactionReadEpoch(tx: PoolClient): object | undefined {
+  return readEpochs.get(tx);
+}
+
 export function hasTransactionDeadlines(tx: PoolClient): boolean {
   return deadlines.has(tx);
 }
 
 export function startTransactionDeadlines(tx: PoolClient) {
   deadlines.set(tx, new Map());
+  readEpochs.set(tx, Object.freeze({}));
   optionalDeadlines.set(tx, []);
   optionalProofs.set(tx, []);
   requiredProofs.set(tx, new Map());
 }
 export function clearTransactionDeadlines(tx: PoolClient) {
   deadlines.delete(tx);
+  readEpochs.delete(tx);
   optionalDeadlines.delete(tx);
   optionalProofs.delete(tx);
   requiredProofs.delete(tx);
@@ -151,6 +160,7 @@ export function restoreTransactionDeadlines(
 ) {
   if (deadlines.has(tx)) {
     deadlines.set(tx, new Map(checkpoint));
+    readEpochs.set(tx, Object.freeze({}));
     const size = optionalCheckpoints.get(checkpoint);
     if (size !== undefined) {
       optionalDeadlines.get(tx)?.splice(size.deadlines);
