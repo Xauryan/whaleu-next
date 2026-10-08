@@ -1,3 +1,4 @@
+import { SEARCH_ENROLLMENT_VERSION } from './scope.js';
 import { z } from 'zod';
 import type { SessionView } from '../../identity/contracts.js';
 import { discoveryScopeHash } from '../discovery-cursors.js';
@@ -28,10 +29,43 @@ export const searchPositionSchema = z
   );
 export type SearchPosition = z.infer<typeof searchPositionSchema>;
 
+export const federatedSearchPositionSchema = z
+  .strictObject({
+    v: z.literal(2),
+    kind: z.literal('search'),
+    matcherId: z.literal(SEARCH_MATCHER_ID),
+    membershipFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+    after: searchAnchorSchema,
+    visible: searchAnchorSchema.nullable(),
+  })
+  .refine(
+    ({ after, visible }) =>
+      visible === null ||
+      searchAnchorFollows(after, visible) ||
+      (after.at === visible.at && after.id === visible.id),
+  );
+export type FederatedSearchPosition = z.infer<
+  typeof federatedSearchPositionSchema
+>;
+
 export function searchCursorScope(
   query: SearchQuery,
   session: SessionView | null,
 ): string {
+  if ('scope' in query)
+    return discoveryScopeHash([
+      'community-search',
+      2,
+      SEARCH_MATCHER_ID,
+      query.q,
+      query.scope,
+      SEARCH_ENROLLMENT_VERSION,
+      query.category ?? null,
+      query.tradingSubtype ?? null,
+      query.limit,
+      session?.accountId ?? null,
+      session?.sessionId ?? null,
+    ]);
   return discoveryScopeHash([
     'community-search',
     1,

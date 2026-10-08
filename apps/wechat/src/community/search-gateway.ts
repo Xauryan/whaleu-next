@@ -59,10 +59,13 @@ export class HttpSearchGateway implements SearchGateway {
       (after !== null && result.nextCursor === after) ||
       result.items.some(
         (item) =>
-          item.space.id !== intent.spaceId ||
+          (intent.scope === undefined
+            ? item.space.id !== intent.spaceId
+            : intent.scope !== 'all' && item.space.kind !== intent.scope) ||
           (intent.category !== undefined &&
             item.category !== intent.category) ||
-          (intent.category === undefined &&
+          (intent.scope === undefined &&
+            intent.category === undefined &&
             item.trading?.urgency === 'urgent') ||
           (intent.tradingSubtype !== undefined &&
             (!item.trading ||

@@ -1,3 +1,4 @@
+import { CampusSearchRegionFacade } from './search-region.facade.js';
 import { IdentitySelectionRepository } from './community-policy/identity-selection.repository.js';
 import { Controller, Get, Inject, Module, Query } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.js';
@@ -50,6 +51,7 @@ export class OperatingRegionController {
     IdentitySelectionRepository,
     RegionalCommunityPolicyService,
     CampusContentScopeFacade,
+    CampusSearchRegionFacade,
   ],
   exports: [
     CampusService,
@@ -57,6 +59,7 @@ export class OperatingRegionController {
     IdentitySelectionRepository,
     RegionalCommunityPolicyService,
     CampusContentScopeFacade,
+    CampusSearchRegionFacade,
   ],
 })
 export class CampusModule {}

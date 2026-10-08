@@ -338,7 +338,32 @@ test('normal AppModule registers search HTTP parsing and supplied bearer never d
       await request(app.getHttpServer())
         .get(`/v1/community/search?spaceId=${spaceId}&q=literal${suffix}`)
         .expect(400);
-    assert.equal(calls.length, 2);
+    for (const scope of ['all', 'regional', 'global']) {
+      await request(app.getHttpServer())
+        .get('/v1/community/search')
+        .query({ scope, q: 'literal' })
+        .expect(200);
+      assert.deepEqual(calls.at(-1), {
+        token: null,
+        query: { scope, q: 'literal', limit: 10 },
+      });
+    }
+    for (const suffix of [
+      '&scope=regional',
+      '&scope[]=regional',
+      '&spaceId=' + spaceId,
+      '&category=discussion',
+      '&tradingSubtype=shuma',
+      '&campusId=' + spaceId,
+      '&membershipFingerprint=' + 'a'.repeat(64),
+    ])
+      await request(app.getHttpServer())
+        .get('/v1/community/search?scope=all&q=literal' + suffix)
+        .expect(400);
+    await request(app.getHttpServer())
+      .get('/v1/community/search?scope=global&q=literal&category=discussion')
+      .expect(400);
+    assert.equal(calls.length, 5);
   } finally {
     await app.close();
   }

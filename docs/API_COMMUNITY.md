@@ -1208,3 +1208,8 @@ PostView and current visibility authorities. Query-only outer whitespace trimmin
 is intentional; stored post text remains untouched. See [search contract and
 limits](COMMUNITY_SEARCH.md) for matching, filters, continuation and remaining
 parity work.
+
+Search also accepts `scope=all|regional|global` instead of `spaceId`. Only regional
+aggregate requests accept category/subtype filters; all/global reject them.
+Aggregate scope is revalidated from complete owner-held catalog facts and changes
+restart navigation. See [federated contract](COMMUNITY_SEARCH.md#federated-allregionalglobal-search-increment).

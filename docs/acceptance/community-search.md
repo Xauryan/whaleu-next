@@ -58,3 +58,12 @@ suggestions, imported unknown dates/raw text, indexed scale and real-device
 validation remain open. The per-request structural window is bounded; whole
 search traversal is O(corpus). No totals or relevance scores are fabricated.
 Pending view-expiry and author received-total decisions are unaffected.
+
+## Hosted verification
+
+Signed commit `aebf19b26f9db2c3fdedd92a4f77ef336354ecb1` passed
+[GitHub Actions run 37744227474](https://github.com/Xauryan/whaleu-next/actions/runs/37744227474):
+487 API, 807 native and 839 PostgreSQL tests, 2,133 total with zero failures/skips.
+PostgreSQL acceptance took 500.801 seconds. All lint, type, build, emitted-smoke
+and formatting gates also passed. This verifies the published commit, not a
+production deployment.

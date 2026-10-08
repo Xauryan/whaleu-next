@@ -132,3 +132,11 @@ anchors. Immutable 24-hour references have bounded account/shared-guest quotas a
 bounded expired-record cleanup, without a source-history or traversal-length
 cutoff. No content, memberships, grants, provider configuration or cleanup job is
 created or deleted by this migration.
+
+Migration 0028 adds the community-space catalog writer gate and reorders the
+existing operating-region gate before count-epoch capture. Multi-statement writers
+must take the exclusive common safety gate before earlier row/count locks;
+TRUNCATE/DDL requires outer-gate-first maintenance coordination. It also adds a
+nontext chronological partial post index. It seeds no catalog, grants, content,
+topology or distribution evidence. See [search catalog protocol and measured
+limits](../../../docs/COMMUNITY_SEARCH.md#catalog-writer-protocol).

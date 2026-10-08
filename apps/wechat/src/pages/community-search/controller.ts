@@ -15,6 +15,9 @@ import type { CommunityRuntime } from '../../community/runtime';
 import {
   canonicalSearchQuery,
   decodeSearchIntent,
+  isSearchScope,
+  type SearchScope,
+  type SearchSelector,
   type SearchContinuation,
   type SearchIntent,
 } from '../../community/search-contract';
@@ -23,39 +26,41 @@ import {
   type TradingSubtype,
 } from '../../community/trading-contract';
 import { isUuid } from '../../profile/contract';
+import type { Cancellation } from '../../platform/contracts';
 
-export interface SearchRoute {
-  readonly campusId: string;
-  readonly spaceId: string;
-  readonly category?: Category;
-  readonly tradingSubtype?: TradingSubtype;
-}
+export type SearchRoute =
+  | (Extract<SearchSelector, { spaceId: string }> & {
+      readonly campusId: string;
+    })
+  | (Extract<SearchSelector, { scope: SearchScope }> & {
+      readonly campusId?: string;
+    });
 /** Routes carry only public scope selectors. Queries never enter navigation URLs. */
 export function decodeSearchRoute(value: unknown): SearchRoute {
   if (
     !isRecord(value) ||
-    !isUuid(value.campusId) ||
-    !isUuid(value.spaceId) ||
     Object.keys(value).some(
       (key) =>
-        !['campusId', 'spaceId', 'category', 'tradingSubtype'].includes(key),
+        ![
+          'campusId',
+          'spaceId',
+          'scope',
+          'category',
+          'tradingSubtype',
+        ].includes(key),
     ) ||
-    (Object.prototype.hasOwnProperty.call(value, 'category') &&
-      !isCategory(value.category)) ||
-    (Object.prototype.hasOwnProperty.call(value, 'tradingSubtype') &&
-      (value.category !== 'trading' || !isTradingSubtype(value.tradingSubtype)))
+    (Object.prototype.hasOwnProperty.call(value, 'campusId') &&
+      !isUuid(value.campusId)) ||
+    (!Object.prototype.hasOwnProperty.call(value, 'scope') &&
+      !isUuid(value.campusId))
   )
     invalid();
+  const { campusId, ...selector } = value;
+  decodeSearchIntent({ ...selector, q: 'route' });
   return Object.freeze({
-    campusId: value.campusId,
-    spaceId: value.spaceId,
-    ...(value.category !== undefined
-      ? { category: value.category as Category }
-      : {}),
-    ...(value.tradingSubtype !== undefined
-      ? { tradingSubtype: value.tradingSubtype as TradingSubtype }
-      : {}),
-  });
+    ...selector,
+    ...(campusId !== undefined ? { campusId: campusId as string } : {}),
+  }) as SearchRoute;
 }
 export interface SearchResume {
   readonly route: SearchRoute;
@@ -67,6 +72,8 @@ export interface SearchView extends CommunityView {
   readonly submittedQuery: string;
   readonly campusId: string;
   readonly selectedSpaceId: string;
+  readonly selectedScope: SearchScope | 'explicit' | '';
+  readonly browseNotice: string;
   readonly space: CommunitySpace | null;
   readonly regional: CommunitySpace | null;
   readonly globalSpaces: readonly CommunitySpace[];
@@ -87,6 +94,8 @@ export const initialSearchView = (): SearchView => ({
   submittedQuery: '',
   campusId: '',
   selectedSpaceId: '',
+  selectedScope: '',
+  browseNotice: '',
   space: null,
   regional: null,
   globalSpaces: [],
@@ -105,6 +114,7 @@ const MAX_CURSOR_TRAIL = 32;
 /** Only this live page's intent/cursors are kept in memory; no body snapshots or query storage. */
 export class SearchController extends CommunityController<SearchView> {
   private selected: SearchRoute | null = null;
+  private browseCancellation: Cancellation | undefined;
   private submitted: SearchIntent | null = null;
   private nextCursor: string | null = null;
   private pageCursors: (string | null)[] = [null];
@@ -119,17 +129,24 @@ export class SearchController extends CommunityController<SearchView> {
     this.pageIndex = 0;
     this.firstPageNumber = 1;
   }
+  protected override stop(): void {
+    super.stop();
+    this.browseCancellation?.cancel();
+    this.browseCancellation = undefined;
+  }
   protected override resetPrivate(): void {
     this.selected = null;
     this.submitted = null;
     this.resetPaging();
   }
   protected override onSafetyInvalidated(previous: SearchView): void {
-    if (!previous.campusId || !previous.selectedSpaceId) return;
+    if (!previous.selectedScope) return;
     void this.load(
       {
-        campusId: previous.campusId,
-        spaceId: previous.selectedSpaceId,
+        ...(previous.campusId ? { campusId: previous.campusId } : {}),
+        ...(previous.selectedScope === 'explicit'
+          ? { spaceId: previous.selectedSpaceId }
+          : { scope: previous.selectedScope }),
         ...(previous.category !== 'all' ? { category: previous.category } : {}),
         ...(previous.tradingSubtype
           ? { tradingSubtype: previous.tradingSubtype }
@@ -182,8 +199,10 @@ export class SearchController extends CommunityController<SearchView> {
         : '';
       if (q) this.submitted = this.intent(q);
       this.update({
-        campusId: this.selected.campusId,
-        selectedSpaceId: this.selected.spaceId,
+        campusId: this.selected.campusId ?? '',
+        selectedSpaceId: this.selected.spaceId ?? '',
+        selectedScope: this.selected.scope ?? 'explicit',
+        browseNotice: '',
         category: this.selected.category ?? 'all',
         tradingSubtype: this.selected.tradingSubtype ?? '',
         inputDraft: resume?.inputDraft ?? '',
@@ -199,7 +218,7 @@ export class SearchController extends CommunityController<SearchView> {
         ...initialSearchView(),
         hasSession: !!this.owner.credentials,
         configured: !!this.runtime.gateway && !!this.runtime.search,
-        error: '搜索范围无效，请返回社区选择校园与地区',
+        error: '搜索范围无效，请返回社区重新选择搜索入口',
         status: '搜索范围不可用',
       });
       return;
@@ -212,7 +231,9 @@ export class SearchController extends CommunityController<SearchView> {
   private intent(q: string): SearchIntent {
     if (!this.selected) invalid();
     return decodeSearchIntent({
-      spaceId: this.selected.spaceId,
+      ...(this.selected.scope !== undefined
+        ? { scope: this.selected.scope }
+        : { spaceId: this.selected.spaceId }),
       q,
       ...(this.selected.category ? { category: this.selected.category } : {}),
       ...(this.selected.tradingSubtype
@@ -221,7 +242,11 @@ export class SearchController extends CommunityController<SearchView> {
     });
   }
   async submit(): Promise<void> {
-    if (!this.selected || !this.view.space) return;
+    if (
+      !this.selected ||
+      (this.selected.scope === undefined && !this.view.space)
+    )
+      return;
     let q: string;
     try {
       q = canonicalSearchQuery(this.view.inputDraft);
@@ -234,16 +259,18 @@ export class SearchController extends CommunityController<SearchView> {
       });
       return;
     }
+    this.clearPage();
     this.submitted = this.intent(q);
     this.update({ submittedQuery: q, inputDraft: q });
     await this.refresh();
   }
   async chooseSpace(spaceId: string): Promise<void> {
-    if (!this.selected) return;
+    if (!this.selected?.campusId) return;
     const space = [this.view.regional, ...this.view.globalSpaces].find(
       (item) => item?.id === spaceId && item.isActive,
     );
     if (!space) return;
+    this.clearPage();
     const q = this.submitted?.q;
     this.selected = Object.freeze({
       campusId: this.selected.campusId,
@@ -252,30 +279,66 @@ export class SearchController extends CommunityController<SearchView> {
     this.submitted = q ? this.intent(q) : null;
     this.update({
       selectedSpaceId: spaceId,
+      selectedScope: 'explicit',
+      browseNotice: '',
       space,
       category: 'all',
       tradingSubtype: '',
     });
     await this.refresh();
   }
+  async chooseScope(scope: string): Promise<void> {
+    if (!this.selected || !isSearchScope(scope)) return;
+    this.clearPage();
+    const q = this.submitted?.q;
+    this.selected = decodeSearchRoute({
+      ...(this.selected.campusId ? { campusId: this.selected.campusId } : {}),
+      scope,
+    });
+    this.submitted = q ? this.intent(q) : null;
+    this.update({
+      selectedScope: scope,
+      selectedSpaceId: '',
+      space: null,
+      category: 'all',
+      tradingSubtype: '',
+      scopeLoaded: true,
+    });
+    await this.refresh();
+  }
   async setCategory(category: string): Promise<void> {
     if (
       !this.selected ||
-      !this.view.space ||
       (category !== 'all' && !isCategory(category)) ||
-      (this.view.space.kind === 'global' &&
-        category !== 'all' &&
-        category !== 'discussion')
+      this.selected.scope === 'global' ||
+      (this.selected.scope === undefined &&
+        (!this.view.space ||
+          (this.view.space.kind === 'global' &&
+            category !== 'all' &&
+            category !== 'discussion')))
     )
       return;
+    this.clearPage();
     const q = this.submitted?.q;
-    this.selected = Object.freeze({
-      campusId: this.selected.campusId,
-      spaceId: this.selected.spaceId,
+    // A category from all communities deliberately selects cross-campus regional scope.
+    this.selected = decodeSearchRoute({
+      ...(this.selected.campusId ? { campusId: this.selected.campusId } : {}),
+      ...(this.selected.scope === undefined
+        ? { spaceId: this.selected.spaceId }
+        : {
+            scope:
+              this.selected.scope === 'all' && category !== 'all'
+                ? 'regional'
+                : this.selected.scope,
+          }),
       ...(category !== 'all' ? { category } : {}),
     });
     this.submitted = q ? this.intent(q) : null;
-    this.update({ category, tradingSubtype: '' });
+    this.update({
+      selectedScope: this.selected.scope ?? 'explicit',
+      category,
+      tradingSubtype: '',
+    });
     await this.refresh();
   }
   async setTradingSubtype(subtype: string): Promise<void> {
@@ -285,10 +348,13 @@ export class SearchController extends CommunityController<SearchView> {
       (subtype !== '' && !isTradingSubtype(subtype))
     )
       return;
+    this.clearPage();
     const q = this.submitted?.q;
-    this.selected = Object.freeze({
-      campusId: this.selected.campusId,
-      spaceId: this.selected.spaceId,
+    this.selected = decodeSearchRoute({
+      ...(this.selected.campusId ? { campusId: this.selected.campusId } : {}),
+      ...(this.selected.scope === undefined
+        ? { spaceId: this.selected.spaceId }
+        : { scope: this.selected.scope }),
       category: 'trading',
       ...(subtype ? { tradingSubtype: subtype } : {}),
     });
@@ -324,7 +390,8 @@ export class SearchController extends CommunityController<SearchView> {
     const selected = this.selected,
       submitted = this.submitted;
     this.clearPage();
-    if (!selected || !this.available(false)) return;
+    if (!selected || (selected.scope === undefined && !this.available(false)))
+      return;
     if (!this.runtime.search) {
       this.update({
         configured: false,
@@ -334,10 +401,19 @@ export class SearchController extends CommunityController<SearchView> {
       return;
     }
     this.update({
+      configured: true,
       status: submitted ? '正在重新核验范围并搜索' : '正在确认搜索范围',
     });
     await this.run(
       async (cancel) => {
+        if (selected.scope !== undefined) {
+          // Optional public browse choices are not search membership or a prerequisite.
+          this.loadBrowseChoices(selected, cancel);
+          const page = submitted
+            ? await this.runtime.search!.search(submitted, after, cancel)
+            : null;
+          return { spaces: null, space: null, page };
+        }
         const spaces = await this.runtime.gateway!.spaces(
           selected.campusId,
           cancel,
@@ -362,17 +438,22 @@ export class SearchController extends CommunityController<SearchView> {
       },
       ({ spaces, space, page }) => {
         this.update({
-          regional: spaces.regional?.isActive ? spaces.regional : null,
-          globalSpaces: spaces.global.filter((item) => item.isActive),
+          ...(spaces
+            ? {
+                regional: spaces.regional?.isActive ? spaces.regional : null,
+                globalSpaces: spaces.global.filter((item) => item.isActive),
+              }
+            : {}),
           space,
           scopeLoaded: true,
         });
-        if (!space || !page) {
+        if ((selected.scope === undefined && !space) || !page) {
           this.resetPaging();
           this.update({
-            status: space
-              ? '输入关键词开始搜索'
-              : '原搜索范围当前不可用，请返回社区重新选择',
+            status:
+              space || selected.scope !== undefined
+                ? '输入关键词开始搜索'
+                : '原搜索范围当前不可用，请返回社区重新选择',
           });
           return;
         }
@@ -434,6 +515,38 @@ export class SearchController extends CommunityController<SearchView> {
         });
       },
     );
+  }
+  private loadBrowseChoices(selected: SearchRoute, cancel: Cancellation): void {
+    if (!selected.campusId || !this.runtime.gateway) return;
+    this.browseCancellation = cancel;
+    this.update({ regional: null, globalSpaces: [], browseNotice: '' });
+    const gateway = this.runtime.gateway,
+      campusId = selected.campusId;
+    void Promise.resolve()
+      .then(() => {
+        if (cancel.isCancelled)
+          throw new ClientError('cancelled', 'Search was replaced');
+        return gateway.spaces(campusId, cancel);
+      })
+      .then((spaces) => {
+        if (cancel.isCancelled || this.selected !== selected) return;
+        this.runtime.sessions.assertCurrent(this.owner);
+        this.update({
+          regional: spaces.regional?.isActive ? spaces.regional : null,
+          globalSpaces: spaces.global.filter((item) => item.isActive),
+          browseNotice: !spaces.regional?.isActive
+            ? '浏览校园的地区选项当前不可用；聚合搜索仍可使用'
+            : '',
+        });
+      })
+      .catch(() => {
+        if (cancel.isCancelled || this.selected !== selected) return;
+        this.update({
+          regional: null,
+          globalSpaces: [],
+          browseNotice: '浏览校园的单社区选项暂不可用；聚合搜索仍可使用',
+        });
+      });
   }
   override cancel(): void {
     this.resetPaging();

@@ -196,3 +196,101 @@ test('gateway cancellation and changed account epochs reject stale success or er
     });
   }
 });
+
+test('aggregate gateway sends only its selector and filters, preserving actual regional/global source spaces and urgent resolved trades', async () => {
+  const s = setup(false),
+    cancel = new Cancellation();
+  const urgent = tradingPost({
+    trading: tradingView({
+      urgency: 'urgent',
+      resolution: 'resolved',
+      subtype: { kind: 'known', key: 'shuma', legacyText: null },
+    }),
+  });
+  const global = post({
+    id: otherId,
+    space: { id: otherId, kind: 'global', name: '全站甲' },
+  });
+  for (const [intent, items] of [
+    [{ scope: 'all', q: 'İ_UNRELATED' }, [urgent, global]],
+    [{ scope: 'regional', q: 'İ_UNRELATED' }, [urgent]],
+    [
+      {
+        scope: 'regional',
+        q: 'İ_UNRELATED',
+        category: 'trading',
+        tradingSubtype: 'shuma',
+      },
+      [urgent],
+    ],
+    [
+      { scope: 'global', q: 'İ_UNRELATED' },
+      [
+        global,
+        post({ space: { id: spaceId, kind: 'global', name: '全站乙' } }),
+      ],
+    ],
+  ] as const) {
+    s.transport.reply(searchPage({ items }));
+    assert.deepEqual(
+      (await s.gateway.search(intent, null, cancel)).items,
+      items,
+    );
+    const url = new URL(
+      s.transport.requests[s.transport.requests.length - 1]!.url,
+    );
+    assert.equal(url.searchParams.get('scope'), intent.scope);
+    assert.equal(url.searchParams.has('spaceId'), false);
+    assert.equal(url.searchParams.has('campusId'), false);
+    assert.equal(url.searchParams.get('q'), 'İ_UNRELATED');
+    assert.equal(
+      url.searchParams.get('category'),
+      'category' in intent ? intent.category : null,
+    );
+  }
+});
+
+test('aggregate gateway rejects wrong source kind, impossible global posts and mismatched regional filters without weakening strict cardinality', async () => {
+  const s = setup(),
+    cancel = new Cancellation();
+  const global = post({ space: { id: otherId, kind: 'global', name: '全站' } });
+  for (const [intent, items] of [
+    [{ scope: 'regional', q: 'x' }, [global]],
+    [{ scope: 'global', q: 'x' }, [post()]],
+    [{ scope: 'all', q: 'x' }, [{ ...global, category: 'pets' }]],
+    [{ scope: 'all', q: 'x' }, [{ ...tradingPost(), space: global.space }]],
+    [{ scope: 'regional', category: 'pets', q: 'x' }, [post()]],
+    [
+      {
+        scope: 'regional',
+        category: 'trading',
+        tradingSubtype: 'shuma',
+        q: 'x',
+      },
+      [
+        tradingPost({
+          trading: tradingView({
+            subtype: { kind: 'known', key: 'qiugou', legacyText: null },
+          }),
+        }),
+      ],
+    ],
+    [{ scope: 'all', q: 'x' }, [post(), post()]],
+  ] as const) {
+    s.transport.reply({ ...searchPage(), items });
+    await assert.rejects(s.gateway.search(intent, null, cancel), {
+      kind: 'protocol',
+    });
+  }
+  for (const page of [
+    searchPage({ items: [post(), post({ id: otherId })] }),
+    searchPage({ continuation: 'scan_pending', nextCursor: searchToken() }),
+    searchPage({ continuation: 'more', nextCursor: null }),
+  ]) {
+    s.transport.reply(page);
+    await assert.rejects(
+      s.gateway.search({ scope: 'all', q: 'x' }, null, cancel, 1),
+      { kind: 'protocol' },
+    );
+  }
+});

@@ -142,3 +142,71 @@ test('strict search page union preserves unchanged Post decoder, unknown cosmeti
   ])
     assert.throws(() => decodeSearchPage({ ...searchPage(), ...patch }));
 });
+
+test('aggregate intents and public routes are a frozen strict union independent of a browse campus', () => {
+  for (const scope of ['all', 'regional', 'global'] as const) {
+    const intent = decodeSearchIntent({ scope, q: '  A\r\n校园  ' });
+    assert.deepEqual(intent, { scope, q: 'A\n校园' });
+    assert.ok(Object.isFrozen(intent));
+    for (const route of [
+      { scope },
+      { scope, campusId: searchRoute.campusId },
+    ]) {
+      const decoded = decodeSearchRoute(route);
+      assert.deepEqual(decoded, route);
+      assert.ok(Object.isFrozen(decoded));
+    }
+  }
+  const filter = {
+    scope: 'regional',
+    category: 'trading',
+    tradingSubtype: 'shuma',
+  };
+  assert.deepEqual(decodeSearchIntent({ ...filter, q: 'x' }), {
+    ...filter,
+    q: 'x',
+  });
+  assert.deepEqual(decodeSearchRoute(filter), filter);
+  for (const value of [
+    { q: 'x' },
+    { scope: undefined, q: 'x' },
+    { scope: null, q: 'x' },
+    { scope: ['all'], q: 'x' },
+    { scope: 'related', q: 'x' },
+    { scope: 'ALL', q: 'x' },
+    { scope: 'all', spaceId, q: 'x' },
+    { scope: 'regional', spaceId, q: 'x' },
+    { scope: 'global', spaceId, q: 'x' },
+    { scope: 'all', spaceId: undefined, q: 'x' },
+    { scope: 'all', category: 'discussion', q: 'x' },
+    { scope: 'all', category: undefined, q: 'x' },
+    { scope: 'global', category: 'discussion', q: 'x' },
+    { scope: 'global', tradingSubtype: undefined, q: 'x' },
+    { scope: 'regional', category: 'all', q: 'x' },
+    { scope: 'regional', category: ['trading'], q: 'x' },
+    { scope: 'regional', tradingSubtype: 'shuma', q: 'x' },
+    {
+      scope: 'regional',
+      category: 'trading',
+      tradingSubtype: ['shuma'],
+      q: 'x',
+    },
+    { scope: 'all', q: 'x', campusId: searchRoute.campusId },
+    { scope: 'all', q: 'x', membershipFingerprint: 'private' },
+    { scope: 'all', q: 'x', spaceIds: [spaceId] },
+  ])
+    assert.throws(() => decodeSearchIntent(value));
+  for (const value of [
+    { spaceId },
+    { scope: 'all', campusId: undefined },
+    { scope: 'all', campusId: 'invalid' },
+    { scope: 'all', campusId: [searchRoute.campusId] },
+    { scope: 'all', q: 'private' },
+    { scope: 'all', cursor: searchToken() },
+    { scope: 'all', intent: { q: 'private' } },
+    { scope: 'all', spaceId },
+    { scope: 'global', category: 'discussion' },
+    { scope: ['regional'] },
+  ])
+    assert.throws(() => decodeSearchRoute(value));
+});

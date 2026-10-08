@@ -1,3 +1,6 @@
+import { searchMembershipFingerprint } from '../src/community/search/scope.js';
+import type { CommunitySearchScopeResolver } from '../src/community/search/scope.js';
+import type { CommunityPhoneContinuation } from '../src/community/phone-continuation.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -20,12 +23,17 @@ import type { DiscoveryCursorRepository } from '../src/community/discovery-curso
 import {
   searchAnchorFollows,
   searchPositionSchema,
+  federatedSearchPositionSchema,
 } from '../src/community/search/cursor.js';
 import type {
   SearchAnchor,
   SearchPosition,
+  FederatedSearchPosition,
 } from '../src/community/search/cursor.js';
-import type { SearchQuery } from '../src/community/search/contracts.js';
+import type {
+  SearchQuery,
+  SearchSelector,
+} from '../src/community/search/contracts.js';
 import type {
   SearchCandidate,
   SearchRepository,
@@ -72,7 +80,7 @@ function fixtures(count: number): Fixture[] {
     };
   });
 }
-function harness(rows: Fixture[]) {
+function harness(rows: Fixture[], extraSpaces: CommunitySpace[] = []) {
   const session = {
     accountId: randomUUID(),
     sessionId: randomUUID(),
@@ -86,6 +94,7 @@ function harness(rows: Fixture[]) {
     isActive: true,
     operatingRegionId: randomUUID(),
   };
+  const catalog = [space, ...extraSpaces];
   const state = {
     now: Date.parse('2026-10-08T00:00:00.000Z'),
     phone: 'verified' as 'verified' | 'unverified' | 'unavailable',
@@ -94,6 +103,7 @@ function harness(rows: Fixture[]) {
     sessionError: null as ApplicationErrorCode | null,
     sessionChecks: 0,
     candidateCalls: 0,
+    scopeCalls: 0,
     namedProof: false,
     finalOutgoing: false,
     beforeCandidates: null as ((call: number) => void) | null,
@@ -109,7 +119,7 @@ function harness(rows: Fixture[]) {
   const locked: string[] = [];
   const records = new Map<
     string,
-    { scope: string; position: SearchPosition }
+    { scope: string; position: SearchPosition | FederatedSearchPosition }
   >();
   let pending: string[] = [];
   const tx = {
@@ -164,8 +174,6 @@ function harness(rows: Fixture[]) {
     },
     post: async (id: string) => {
       events.push('post');
-      locked.push(id);
-      state.beforeLock?.(id);
       const row = rows.find((item) => item.post.id === id);
       if (!row) throw new ApplicationError('POST_NOT_FOUND');
       return row.post;
@@ -186,23 +194,8 @@ function harness(rows: Fixture[]) {
     },
   } as unknown as IdentityService;
   const access = {
-    authority: async (
-      _actor: string,
-      _space: CommunitySpace,
-      client: PoolClient,
-      context: unknown,
-    ) => {
-      events.push('authority');
-      assert.deepEqual(context, { phoneOnly: true });
-      if (state.phone === 'unavailable')
-        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-      if (state.phone === 'verified')
-        registerTransactionDeadline(
-          client,
-          state.phoneUntil,
-          'PHONE_VERIFICATION_REQUIRED',
-        );
-      return { phoneVerified: state.phone === 'verified' };
+    authority: async () => {
+      throw new Error('Search continuation must use independent phone proof');
     },
     advisory: async () => {
       events.push('advisory');
@@ -236,12 +229,14 @@ function harness(rows: Fixture[]) {
     },
   } as unknown as CommunityAccessService;
   const serializer = {
-    post: async (post: StoredPost) => {
+    post: async (post: StoredPost, source: CommunitySpace) => {
+      assert.equal(source.id, post.space_id);
       events.push('serialize');
       serialized.push(post.id);
       state.afterSerialize?.();
       return {
         id: post.id,
+        space: { id: source.id, kind: source.kind, name: source.name },
         text: post.text,
         publishedAt: post.published_at.toISOString(),
       } as PostView;
@@ -267,7 +262,9 @@ function harness(rows: Fixture[]) {
     },
     create: async (scope: string, _bucket: unknown, value: unknown) => {
       events.push('cursor:create');
-      const position = searchPositionSchema.parse(value);
+      const position = searchPositionSchema
+        .or(federatedSearchPositionSchema)
+        .parse(value);
       const token = randomBytes(32).toString('base64url');
       records.set(token, { scope, position });
       pending.push(token);
@@ -282,17 +279,15 @@ function harness(rows: Fixture[]) {
     ) => {
       events.push('candidates');
       state.beforeCandidates?.(++state.candidateCalls);
-      assert.deepEqual(Object.keys(scope).sort(), [
-        'category',
-        'excludeUrgentTrading',
-        'spaceId',
-        'tradingSubtype',
-      ]);
       if (state.corruptCandidates) return state.corruptCandidates;
       return rows
         .filter(
           (row) =>
-            row.post.space_id === scope.spaceId &&
+            ('spaceId' in scope
+              ? row.post.space_id === scope.spaceId
+              : scope.regionalSpaceIds.includes(row.post.space_id) ||
+                (scope.globalSpaceIds.includes(row.post.space_id) &&
+                  row.post.category === 'discussion')) &&
             row.post.visibility === 'approved' &&
             row.post.deleted_at === null &&
             (scope.category === null || row.post.category === scope.category) &&
@@ -300,12 +295,22 @@ function harness(rows: Fixture[]) {
               row.listing?.subtype === scope.tradingSubtype) &&
             (!scope.excludeUrgentTrading || row.listing?.urgency !== 'urgent'),
         )
-        .map((row) => ({ id: row.post.id, at: row.at }))
+        .map((row) => ({
+          id: row.post.id,
+          at: row.at,
+          spaceId: row.post.space_id,
+        }))
         .filter((row) => after === null || searchAnchorFollows(row, after))
         .sort((a, b) =>
           searchAnchorFollows(a, b) ? 1 : searchAnchorFollows(b, a) ? -1 : 0,
         )
         .slice(0, 129);
+    },
+    lockCandidate: async (id: string) => {
+      locked.push(id);
+      state.beforeLock?.(id);
+      const row = rows.find((item) => item.post.id === id);
+      return row ? { id, at: row.at, spaceId: row.post.space_id } : null;
     },
     exactAnchor: async (anchor: SearchAnchor) =>
       rows.find((row) => row.post.id === anchor.id)?.at === anchor.at,
@@ -320,9 +325,47 @@ function harness(rows: Fixture[]) {
       identity,
       cursors,
       searches,
+      {
+        resolve: async (selector: SearchSelector, _tx: PoolClient) => {
+          events.push('catalog');
+          state.scopeCalls++;
+          const members = catalog.filter(
+            (s) => s.isActive && (selector === 'all' || s.kind === selector),
+          );
+          return {
+            membershipFingerprint: searchMembershipFingerprint(
+              selector,
+              members,
+            ),
+            members,
+            regionalSpaceIds: members
+              .filter((s) => s.kind === 'regional')
+              .map((s) => s.id),
+            globalSpaceIds: members
+              .filter((s) => s.kind === 'global')
+              .map((s) => s.id),
+            space: (id: string) => members.find((s) => s.id === id),
+          };
+        },
+      } as unknown as CommunitySearchScopeResolver,
+      {
+        verified: async (_actor: string, client: PoolClient) => {
+          events.push('authority');
+          if (state.phone === 'unavailable')
+            throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+          if (state.phone === 'verified')
+            registerTransactionDeadline(
+              client,
+              state.phoneUntil,
+              'PHONE_VERIFICATION_REQUIRED',
+            );
+          return state.phone === 'verified';
+        },
+      } as CommunityPhoneContinuation,
     ),
     state,
     space,
+    catalog,
     session,
     events,
     inspected,
@@ -612,7 +655,11 @@ test('lock-and-reread rejects newly discovered or previously missing unlocked ID
 
 test('noncanonical, oversized and nonprogressing candidate sequences fail closed', async () => {
   const rows = fixtures(130);
-  const candidates = rows.map((row) => ({ id: row.post.id, at: row.at }));
+  const candidates = rows.map((row) => ({
+    id: row.post.id,
+    at: row.at,
+    spaceId: row.post.space_id,
+  }));
   for (const bad of [
     candidates,
     [candidates[0]!, candidates[0]!],
@@ -743,4 +790,141 @@ test('mandatory named relationship finalization remains fatal and rolls back any
   );
   assert.ok(h.events.includes('ROLLBACK'));
   assert.equal(h.records.size, 0);
+});
+
+function foreignSpace(kind: 'regional' | 'global'): CommunitySpace {
+  return {
+    id: randomUUID(),
+    kind,
+    isActive: true,
+    name: 'Synthetic foreign ' + kind,
+    operatingRegionId: kind === 'global' ? null : randomUUID(),
+  };
+}
+test('federated all includes all sources and urgent/resolved trading; regional exact discussion remains distinct from global', async () => {
+  const regional = foreignSpace('regional'),
+    globalA = foreignSpace('global'),
+    globalB = foreignSpace('global');
+  const rows = fixtures(6);
+  for (const row of rows) row.post.text = 'whale';
+  rows[1]!.post.space_id = regional.id;
+  rows[2]!.post.space_id = globalA.id;
+  rows[3]!.post.space_id = globalB.id;
+  for (const row of rows.slice(4)) {
+    row.post.category = 'trading';
+    row.listing = {
+      subtype: 'shuma',
+      urgency: 'urgent',
+      resolution: 'resolved',
+    };
+  }
+  rows[5]!.post.space_id = regional.id;
+  const h = harness(rows, [regional, globalA, globalB]);
+  const aggregate = { q: 'whale', limit: 10 };
+  for (const [scope, category, indices] of [
+    ['all', undefined, [0, 1, 2, 3, 4, 5]],
+    ['regional', undefined, [0, 1, 4, 5]],
+    ['regional', 'discussion', [0, 1]],
+    ['global', undefined, [2, 3]],
+    ['regional', 'trading', [4, 5]],
+  ] as const) {
+    const result = await h.service.search('token', {
+      ...aggregate,
+      scope,
+      ...(category ? { category } : {}),
+    });
+    assert.deepEqual(
+      result.items.map((p) => p.id),
+      indices.map((i) => rows[i]!.post.id),
+    );
+    for (const post of result.items)
+      assert.equal(
+        post.space.id,
+        rows.find((r) => r.post.id === post.id)!.post.space_id,
+      );
+  }
+  assert.equal(h.events.includes('space'), false);
+  assert.equal(h.state.scopeCalls, 5);
+});
+
+test('federated fingerprint changes restart before scan; names and unrelated regional insertion do not invalidate global', async () => {
+  const global = foreignSpace('global');
+  const rows = fixtures(129);
+  for (const row of rows) row.post.space_id = global.id;
+  const h = harness(rows, [global]);
+  const q = { scope: 'global' as const, q: 'whale', limit: 10 };
+  const first = await h.service.search('token', q);
+  const saved = h.records.get(first.nextCursor!)!;
+  assert.equal(saved.position.v, 2);
+  assert.deepEqual(Object.keys(saved.position).sort(), [
+    'after',
+    'kind',
+    'matcherId',
+    'membershipFingerprint',
+    'v',
+    'visible',
+  ]);
+  global.name = 'Renamed';
+  h.catalog.push(foreignSpace('regional'));
+  assert.equal(
+    (await h.service.search('token', { ...q, cursor: first.nextCursor! }))
+      .continuation,
+    'end',
+  );
+  h.catalog.push(foreignSpace('global'));
+  const calls = h.state.candidateCalls;
+  await assert.rejects(
+    h.service.search('token', { ...q, cursor: first.nextCursor! }),
+    errorCode('DISCOVERY_RESTART_REQUIRED'),
+  );
+  assert.equal(h.state.candidateCalls, calls);
+  for (const scope of ['all', 'regional'] as const) {
+    await assert.rejects(
+      h.service.search('token', { ...q, scope, cursor: first.nextCursor! }),
+      BadRequestException,
+    );
+  }
+});
+
+test('aggregate unavailable phone on sparse preview fails without fake-space authority; empty scope still validates session', async () => {
+  const h = harness(fixtures(129));
+  h.state.phone = 'unavailable';
+  await assert.rejects(
+    h.service.search('token', { scope: 'all', q: 'whale', limit: 10 }),
+    errorCode('COMMUNITY_UNAVAILABLE'),
+  );
+  assert.equal(h.events.includes('space'), false);
+  h.catalog.splice(0);
+  assert.deepEqual(
+    await h.service.search('token', { scope: 'all', q: 'whale', limit: 10 }),
+    { items: [], nextCursor: null, continuation: 'end' },
+  );
+  h.state.sessionError = 'SESSION_REVOKED';
+  await assert.rejects(
+    h.service.search('token', { scope: 'all', q: 'whale', limit: 10 }),
+    errorCode('SESSION_REVOKED'),
+  );
+});
+
+test('candidate source mismatch and changed exact structural coordinate fail before body visibility', async () => {
+  const h = harness(fixtures(1));
+  h.state.corruptCandidates = [
+    {
+      id: '00000000-0000-4000-8000-000000000001',
+      at: '2026-10-08T00:00:00.999999Z',
+      spaceId: randomUUID(),
+    },
+  ];
+  await assert.rejects(
+    h.service.search('token', { scope: 'all', q: 'whale', limit: 10 }),
+    errorCode('COMMUNITY_UNAVAILABLE'),
+  );
+  assert.equal(h.inspected.length, 0);
+  h.state.corruptCandidates[0]!.spaceId = spaceId;
+  h.state.corruptCandidates[0]!.at = '2026-10-08T00:00:00.123456Z';
+  await assert.rejects(
+    h.service.search('token', { scope: 'all', q: 'whale', limit: 10 }),
+    errorCode('COMMUNITY_UNAVAILABLE'),
+  );
+  assert.equal(h.inspected.length, 0);
 });

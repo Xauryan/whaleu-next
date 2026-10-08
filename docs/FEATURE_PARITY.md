@@ -413,3 +413,10 @@ account invalidation, and no persistent query history are tested. This is PARTIA
 cross-school/related-campus modes, remaining historical categories, history, hot
 suggestions, complete import and physical-device acceptance remain open. See
 [scope](COMMUNITY_SEARCH.md) and [local acceptance](acceptance/community-search.md).
+
+Federated search extends the tested subset to all eligible communities, all
+regional communities with current category filters, or all global communities.
+Urgent/resolved aggregate trading, complete catalog membership and restart-on-scope
+change are covered. Related opt-in distribution, unsupported historical category
+population, import, search history/hot suggestions and real-device acceptance
+remain open. See [federated acceptance](acceptance/federated-search.md).

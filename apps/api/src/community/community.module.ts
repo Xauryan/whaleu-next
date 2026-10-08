@@ -1,3 +1,5 @@
+import { CommunitySearchScopeResolver } from './search/scope.js';
+import { CommunityPhoneContinuation } from './phone-continuation.js';
 import { SearchController } from './search/controller.js';
 import { SearchService } from './search/service.js';
 import { SearchRepository } from './search/repository.js';
@@ -277,6 +279,8 @@ export class CommunityRecoveryController {
   ],
   providers: [
     SearchService,
+    CommunitySearchScopeResolver,
+    CommunityPhoneContinuation,
     SearchRepository,
     CommunityExperienceSourceCapture,
     CommunityExperienceSourceFacade,

@@ -3,30 +3,38 @@
 <view class="screen">
   <view class="eyebrow">WHALEU · 帖子搜索</view>
   <view class="title">找一找校园里的话题</view>
-  <view class="subtitle">搜索帖子正文，不区分大小写，按发布时间排序。每次只搜索当前选定的一个社区。</view>
+  <view class="subtitle">搜索帖子正文，不区分大小写，按发布时间排序。可搜索全部社区、跨校园分类，或指定的单个社区。</view>
   <view class="card">
-    <view class="scope">{{space ? (space.kind === 'global' ? '全站社区 · ' : '地区社区 · ') + space.name : '尚未确认可用的搜索范围'}}</view>
+    <view class="scope">{{selectedScope === 'all' ? '全部社区' : selectedScope === 'regional' ? '跨校园分类' : selectedScope === 'global' ? '所有全站社区' : space ? (space.kind === 'global' ? '全站社区 · ' : '地区社区 · ') + space.name : '尚未确认可用的搜索范围'}}</view>
+    <view class="chips">
+      <view class="chip {{selectedScope === 'all' ? 'active' : ''}}" data-scope="all" bindtap="onAggregateScope">全部社区</view>
+      <view class="chip {{selectedScope === 'regional' ? 'active' : ''}}" data-scope="regional" bindtap="onAggregateScope">跨校园分类</view>
+      <view class="chip {{selectedScope === 'global' ? 'active' : ''}}" data-scope="global" bindtap="onAggregateScope">所有全站社区</view>
+    </view>
+    <view wx:if="{{browseNotice}}" class="meta">{{browseNotice}}</view>
     <view class="chips">
       <view wx:if="{{regional}}" class="chip {{selectedSpaceId === regional.id ? 'active' : ''}}" data-id="{{regional.id}}" bindtap="onScope">{{regional.name}}</view>
       <view wx:for="{{globalSpaces}}" wx:key="id" class="chip {{selectedSpaceId === item.id ? 'active' : ''}}" data-id="{{item.id}}" bindtap="onScope">全站 · {{item.name}}</view>
     </view>
-    <view class="chips" wx:if="{{space}}">
-      <block wx:for="{{categories}}" wx:key="key"><view wx:if="{{space &amp;&amp; space.kind === 'regional' || item.key === 'all' || item.key === 'discussion'}}" class="chip {{category === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onCategory">{{item.label}}</view></block>
+    <view wx:if="{{selectedScope === 'all'}}" class="meta">选择下方分类会切换到跨校园分类搜索。</view>
+    <view class="chips" wx:if="{{selectedScope === 'all' || selectedScope === 'regional' || selectedScope === 'explicit' &amp;&amp; space}}">
+      <block wx:for="{{categories}}" wx:key="key"><view wx:if="{{selectedScope === 'all' || selectedScope === 'regional' || space &amp;&amp; space.kind === 'regional' || item.key === 'all' || item.key === 'discussion'}}" class="chip {{category === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onCategory">{{item.label}}</view></block>
     </view>
     <view class="chips" wx:if="{{category === 'trading'}}">
       <view class="chip {{!tradingSubtype ? 'active' : ''}}" data-key="" bindtap="onTradingSubtype">全部交易</view>
       <view wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingSubtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onTradingSubtype">{{item.label}}</view>
     </view>
     <textarea class="search-input" value="{{inputDraft}}" bindinput="onInput" bindconfirm="onSubmit" placeholder="输入帖子正文中的关键词" maxlength="400" auto-height="true" />
-    <button bindtap="onSubmit" disabled="{{!space || !configured}}">搜索</button>
+    <button bindtap="onSubmit" disabled="{{!selectedScope || selectedScope === 'explicit' &amp;&amp; !space || !configured}}">搜索</button>
     <view wx:if="{{submittedQuery}}" class="meta">本次关键词：{{submittedQuery}}</view>
-    <view wx:if="{{submittedQuery &amp;&amp; inputDraft !== submittedQuery}}" class="notice">输入尚未提交，翻页和切换分类仍使用本次关键词。</view>
+    <view wx:if="{{submittedQuery &amp;&amp; inputDraft !== submittedQuery}}" class="notice">输入尚未提交，翻页和切换范围、分类仍使用本次关键词。</view>
+    <view wx:if="{{selectedScope === 'all' || selectedScope === 'regional'}}" class="meta">跨校园搜索包含普通、急出和已完成的交易。所有全站社区范围仅搜索全站话题。</view>
     <view wx:if="{{category === 'all' &amp;&amp; space &amp;&amp; space.kind === 'regional'}}" class="meta">全部分类不含急出交易；校园交易分类包含普通、急出和已完成的交易。</view>
     <view wx:if="{{space &amp;&amp; space.kind === 'global'}}" class="meta">全站社区仅搜索该社区的帖子，不合并各地校园。</view>
   </view>
   <view class="status" aria-role="status">{{status}}</view>
   <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <button class="secondary" bindtap="onRefresh" disabled="{{busy || !campusId}}" loading="{{busy}}">{{submittedQuery ? '重新搜索' : '重新确认范围'}}</button>
+  <button class="secondary" bindtap="onRefresh" disabled="{{busy || !selectedScope}}" loading="{{busy}}">{{submittedQuery ? '重新搜索' : '重新确认范围'}}</button>
   <button wx:if="{{busy}}" class="secondary" bindtap="onCancel">停止搜索</button>
   <navigator class="link" url="/pages/community-feed/community-feed">返回社区选择校园 →</navigator>
   <navigator class="link" open-type="navigateBack">返回上一页</navigator>
@@ -48,5 +56,5 @@
   <view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">当前版本尚未接入手机号验证流程，无法继续查找。验证状态更新后请重新搜索。</view>
   <view wx:if="{{loaded}}" class="meta">第 {{pageNumber}} 页 · 翻页会重新核验当前可查看内容</view>
   <view class="actions"><button wx:if="{{canPrevious}}" class="secondary" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{canNext}}" class="secondary" bindtap="onNext" disabled="{{busy}}">{{continuation === 'scan_pending' ? '继续查找' : '下一页'}}</button></view>
-  <view class="notice">搜索历史、热门建议、跨校园聚合及关联校区同步尚未完成。历史未知发布时间的帖子导入与真实设备体验仍待验收。</view>
+  <view class="notice">搜索历史、热门建议及关联校区同步尚未完成。聚合搜索仅覆盖当前支持且可查看的社区内容。历史未知发布时间的帖子导入与真实设备体验仍待验收。</view>
 </view>

@@ -1,3 +1,4 @@
+import { readPhoneContinuation } from './phone-continuation.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { AuthorizationService } from '../authorization/authorization.service.js';
@@ -42,17 +43,11 @@ export class RuntimeCommunityAuthorization implements CommunityAuthorizationPort
     tx: PoolClient,
     context: AuthorizationContext = {},
   ): Promise<Decision<Authority>> {
-    const phone = await this.phones.resolve(accountId, tx);
-    if (phone.status === 'unavailable') return { kind: 'unavailable' };
-    if (phone.status === 'verified')
-      registerTransactionDeadline(
-        tx,
-        phone.validUntil,
-        'PHONE_VERIFICATION_REQUIRED',
-      );
+    const phone = await readPhoneContinuation(this.phones, accountId, tx);
+    if (phone.kind !== 'allow') return phone;
     const value: Authority = {
       runtime: true,
-      phoneVerified: phone.status === 'verified',
+      phoneVerified: phone.value.phoneVerified,
       studentVerified: false,
       affiliationStatus: 'unavailable',
       identityStatus: 'unavailable',

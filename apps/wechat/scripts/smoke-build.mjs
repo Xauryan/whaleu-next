@@ -1791,6 +1791,7 @@ await smokeSearch({
   mountPage: mountTradingPage,
   flush: flushTrading,
   postWire: pollPostWire,
+  tradingWire: tradingPostWire,
 });
 await smokePublicExperience({
   app,

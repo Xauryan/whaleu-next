@@ -1,17 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
+import { z } from 'zod';
+import { categorySchema } from '../contracts.js';
+import { searchAnchorSchema } from './cursor.js';
 import type { Category } from '../contracts.js';
 import type { TradingSubtype } from '../trading/contracts.js';
 import type { SearchAnchor } from './cursor.js';
 
 export const SEARCH_SCAN_BATCH = 128;
-export interface SearchStructuralScope {
-  readonly spaceId: string;
+interface SearchStructuralFilters {
   readonly category: Category | null;
   readonly tradingSubtype: TradingSubtype | null;
   readonly excludeUrgentTrading: boolean;
 }
-export type SearchCandidate = SearchAnchor;
+export type SearchStructuralScope = SearchStructuralFilters &
+  (
+    | { readonly spaceId: string }
+    | {
+        readonly regionalSpaceIds: readonly string[];
+        readonly globalSpaceIds: readonly string[];
+      }
+  );
+export const searchCandidateSchema = searchAnchorSchema.extend({
+  spaceId: z.uuid().refine((id) => id === id.toLowerCase()),
+});
+export type SearchCandidate = z.infer<typeof searchCandidateSchema>;
 
 /** Structural navigation only. No keyword, body, named relationship, contact,
  * resolution, matching-derived rank or cross-owner table enters this query. */
@@ -22,9 +35,33 @@ export class SearchRepository {
     after: SearchAnchor | null,
     tx: PoolClient,
   ): Promise<SearchCandidate[]> {
+    if (!('spaceId' in scope))
+      return (
+        await tx.query<SearchCandidate>(
+          `SELECT p.id,p.space_id AS "spaceId",to_char(p.published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS at
+         FROM whaleu_community.posts p
+         WHERE ((p.space_id=ANY($1::uuid[]) AND p.category=ANY($2::text[]))
+           OR (p.space_id=ANY($3::uuid[]) AND p.category='discussion'))
+           AND ($4::text IS NULL OR p.category=$4)
+           AND p.deleted_at IS NULL AND p.visibility='approved'
+           AND ($5::text IS NULL OR EXISTS (
+             SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.subtype=$5))
+           AND ($6::timestamptz IS NULL OR (p.published_at,p.id)<($6::timestamptz,$7::uuid))
+         ORDER BY p.published_at DESC,p.id DESC LIMIT ${SEARCH_SCAN_BATCH + 1}`,
+          [
+            scope.regionalSpaceIds,
+            categorySchema.options,
+            scope.globalSpaceIds,
+            scope.category,
+            scope.tradingSubtype,
+            after?.at ?? null,
+            after?.id ?? null,
+          ],
+        )
+      ).rows;
     return (
       await tx.query<SearchCandidate>(
-        `SELECT p.id,to_char(p.published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS at
+        `SELECT p.id,p.space_id AS "spaceId",to_char(p.published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS at
          FROM whaleu_community.posts p
          WHERE p.space_id=$1 AND ($2::text IS NULL OR p.category=$2)
            AND p.deleted_at IS NULL AND p.visibility='approved'
@@ -44,6 +81,21 @@ export class SearchRepository {
         ],
       )
     ).rows;
+  }
+
+  async lockCandidate(
+    id: string,
+    tx: PoolClient,
+  ): Promise<SearchCandidate | null> {
+    return (
+      (
+        await tx.query<SearchCandidate>(
+          `SELECT id,space_id AS "spaceId",to_char(published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS at
+       FROM whaleu_community.posts WHERE id=$1 FOR SHARE`,
+          [id],
+        )
+      ).rows[0] ?? null
+    );
   }
 
   async exactAnchor(anchor: SearchAnchor, tx: PoolClient): Promise<boolean> {

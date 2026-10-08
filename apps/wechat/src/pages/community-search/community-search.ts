@@ -95,6 +95,9 @@ Page({
   onSubmit() {
     void this.controller?.submit();
   },
+  onAggregateScope(event: { currentTarget: { dataset: { scope: string } } }) {
+    void this.controller?.chooseScope(event.currentTarget.dataset.scope);
+  },
   onScope(event: { currentTarget: { dataset: { id: string } } }) {
     void this.controller?.chooseSpace(event.currentTarget.dataset.id);
   },

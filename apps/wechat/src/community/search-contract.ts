@@ -11,12 +11,29 @@ import {
 } from './contract';
 import { isTradingSubtype, type TradingSubtype } from './trading-contract';
 
-export interface SearchIntent {
-  readonly spaceId: string;
-  readonly q: string;
-  readonly category?: Category;
-  readonly tradingSubtype?: TradingSubtype;
-}
+export type SearchScope = 'all' | 'regional' | 'global';
+export const isSearchScope = (value: unknown): value is SearchScope =>
+  value === 'all' || value === 'regional' || value === 'global';
+export type SearchSelector =
+  | {
+      readonly spaceId: string;
+      readonly scope?: never;
+      readonly category?: Category;
+      readonly tradingSubtype?: TradingSubtype;
+    }
+  | {
+      readonly scope: 'regional';
+      readonly spaceId?: never;
+      readonly category?: Category;
+      readonly tradingSubtype?: TradingSubtype;
+    }
+  | {
+      readonly scope: 'all' | 'global';
+      readonly spaceId?: never;
+      readonly category?: never;
+      readonly tradingSubtype?: never;
+    };
+export type SearchIntent = SearchSelector & { readonly q: string };
 export type SearchContinuation =
   | 'more'
   | 'scan_pending'
@@ -46,7 +63,9 @@ export function canonicalSearchQuery(raw: unknown): string {
 export function decodeSearchIntent(value: unknown): SearchIntent {
   if (!isRecord(value)) invalid();
   exact(value, [
-    'spaceId',
+    ...(Object.prototype.hasOwnProperty.call(value, 'scope')
+      ? ['scope']
+      : ['spaceId']),
     'q',
     ...(Object.prototype.hasOwnProperty.call(value, 'category')
       ? ['category']
@@ -56,7 +75,12 @@ export function decodeSearchIntent(value: unknown): SearchIntent {
       : []),
   ]);
   if (
-    !isUuid(value.spaceId) ||
+    (Object.prototype.hasOwnProperty.call(value, 'scope')
+      ? !isSearchScope(value.scope)
+      : !isUuid(value.spaceId)) ||
+    ((value.scope === 'all' || value.scope === 'global') &&
+      (Object.prototype.hasOwnProperty.call(value, 'category') ||
+        Object.prototype.hasOwnProperty.call(value, 'tradingSubtype'))) ||
     (value.category !== undefined && !isCategory(value.category)) ||
     (Object.prototype.hasOwnProperty.call(value, 'category') &&
       value.category === undefined) ||
@@ -66,7 +90,9 @@ export function decodeSearchIntent(value: unknown): SearchIntent {
     invalid();
   const q = canonicalSearchQuery(value.q);
   return Object.freeze({
-    spaceId: value.spaceId,
+    ...(value.scope !== undefined
+      ? { scope: value.scope as SearchScope }
+      : { spaceId: value.spaceId as string }),
     q,
     ...(value.category !== undefined
       ? { category: value.category as Category }
@@ -74,7 +100,7 @@ export function decodeSearchIntent(value: unknown): SearchIntent {
     ...(value.tradingSubtype !== undefined
       ? { tradingSubtype: value.tradingSubtype as TradingSubtype }
       : {}),
-  });
+  }) as SearchIntent;
 }
 export function decodeSearchPage(value: unknown): SearchPage {
   exact(value, ['items', 'nextCursor', 'continuation']);

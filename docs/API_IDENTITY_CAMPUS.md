@@ -207,3 +207,13 @@ No provider, SSO, review issuer, media override, topology/configuration admin,
 real grant, import, production fixture endpoint or startup authority is added.
 Physical-device/provider acceptance, historical data crosswalk/import coverage,
 production verification/topology issuance and full rewrite parity remain open.
+
+## Shared catalog writer ordering
+
+The catalog gate-first contract also applies to community spaces used in
+federated search. Migration 0028 puts the operating-region gate before its count
+epoch trigger and adds the corresponding early space gate. Multi-statement
+writers must acquire the exclusive common safety gate before earlier row/count
+locks; triggers do not repair previous inversions. TRUNCATE/DDL maintenance still
+requires outer-gate-first coordination. No new topology or identity authority is
+created. See [search catalog protocol](COMMUNITY_SEARCH.md#catalog-writer-protocol).

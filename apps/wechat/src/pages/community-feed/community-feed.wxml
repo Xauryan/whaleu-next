@@ -15,6 +15,7 @@
     <view wx:if="{{space &amp;&amp; space.kind === 'regional'}}" class="chips"><view wx:for="{{categories}}" wx:key="key" class="chip {{category === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onCategory">{{item.label}}</view></view>
   </view>
   <view wx:if="{{category === 'trading'}}" class="card"><view class="section-title">交易分类 · 普通与急出均可查看</view><view class="chips"><view class="chip {{!tradingSubtype ? 'active' : ''}}" data-key="" bindtap="onTradingSubtype">全部交易</view><view wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingSubtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onTradingSubtype">{{item.label}}</view></view><view class="notice">普通社区浏览不包含急出；请在此查看急出交易。急出群推送尚未接入。</view></view>
+  <navigator class="link" url="/pages/community-search/community-search?scope=all{{campusId ? '&amp;campusId=' + campusId : ''}}">搜索全部社区的帖子 →</navigator>
   <navigator wx:if="{{campusId &amp;&amp; space}}" class="link" url="/pages/community-search/community-search?campusId={{campusId}}&amp;spaceId={{space.id}}{{category !== 'all' ? '&amp;category=' + category : ''}}{{tradingSubtype ? '&amp;tradingSubtype=' + tradingSubtype : ''}}">搜索当前社区的帖子 →</navigator>
   <template is="block-recovery" data="{{block}}" />
   <view class="status" aria-role="status">{{status}}</view><view wx:if="{{identityOverlay.notice}}" class="notice">{{identityOverlay.notice}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
