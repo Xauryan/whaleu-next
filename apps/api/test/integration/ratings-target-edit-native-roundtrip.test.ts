@@ -226,16 +226,14 @@ test(
       ).rows[0]!;
       const accessToken = mintToken('access'),
         refreshToken = mintToken('refresh');
-      const session = await f.app
-        .get(IdentityRepository)
-        .createSession(
-          {
-            provider: identity.provider,
-            appId: identity.app_id,
-            subject: identity.subject,
-          },
-          { access: hashToken(accessToken), refresh: hashToken(refreshToken) },
-        );
+      const session = await f.app.get(IdentityRepository).createSession(
+        {
+          provider: identity.provider,
+          appId: identity.app_id,
+          subject: identity.subject,
+        },
+        { access: hashToken(accessToken), refresh: hashToken(refreshToken) },
+      );
       assert.notEqual(session.sessionId, actor.sessionId);
       return { ...actor, ...session, accessToken, refreshToken };
     };

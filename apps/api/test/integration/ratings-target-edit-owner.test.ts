@@ -128,19 +128,17 @@ test('M2B creator text editing, exact Review, version CAS and private durable re
       )
     ).rows[0]!;
     const accessToken = mintToken('access');
-    const session = await f.app
-      .get(IdentityRepository)
-      .createSession(
-        {
-          provider: identity.provider,
-          appId: identity.app_id,
-          subject: identity.subject,
-        },
-        {
-          access: hashToken(accessToken),
-          refresh: hashToken(mintToken('refresh')),
-        },
-      );
+    const session = await f.app.get(IdentityRepository).createSession(
+      {
+        provider: identity.provider,
+        appId: identity.app_id,
+        subject: identity.subject,
+      },
+      {
+        access: hashToken(accessToken),
+        refresh: hashToken(mintToken('refresh')),
+      },
+    );
     return { ...actor, ...session, accessToken };
   };
 
