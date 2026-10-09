@@ -75,3 +75,26 @@ export function searchSnippet(body: string, query: string): SearchSnippet {
     truncatedAfter: end < original.length,
   };
 }
+
+/** Semantic similarity is not a literal highlight. Only actual substrings are
+ * marked matched; otherwise show a bounded, unchanged plain-text excerpt. */
+export function semanticSearchSnippet(
+  body: string,
+  query: string,
+): SearchSnippet {
+  requireSearchMatcherRuntime();
+  if (query && body.toLowerCase().includes(query.toLowerCase()))
+    return searchSnippet(body, query);
+  const original = [...body];
+  if (!original.length) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+  return {
+    segments: [
+      {
+        text: original.slice(0, SEARCH_SNIPPET_CODEPOINTS).join(''),
+        matched: false,
+      },
+    ],
+    truncatedBefore: false,
+    truncatedAfter: original.length > SEARCH_SNIPPET_CODEPOINTS,
+  };
+}

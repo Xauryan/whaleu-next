@@ -785,17 +785,55 @@ test(
         'fresh post-migration community enrollment uses the same bridge without changing historical evidence',
         async () => {
           const fresh = await post(known[2]!);
-          const unit = await inTransaction(pool, (tx) =>
-            router.loadUnit(fresh.ids[0]!, tx),
+          const coordinates: string[] = [];
+          for (const timezone of ['UTC', 'America/Los_Angeles']) {
+            await inTransaction(pool, async (tx) => {
+              await tx.query("SELECT set_config('TimeZone',$1,true)", [
+                timezone,
+              ]);
+              const unit = await router.loadUnit(fresh.ids[0]!, tx);
+              assert.equal(unit?.sourceKind, 'community_outbox');
+              assert.equal(unit?.sourceDomain, 'community');
+              assert.ok(unit?.occurredAt);
+              coordinates.push(unit.occurredAt);
+              assert.equal(
+                (
+                  await tx.query<{ exact: boolean }>(
+                    "SELECT $1::timestamptz = '2026-09-01 01:02:03.123456+00'::timestamptz AS exact",
+                    [unit.occurredAt],
+                  )
+                ).rows[0]!.exact,
+                true,
+              );
+            });
+          }
+          assert.notEqual(coordinates[0], coordinates[1]);
+          assert.equal(
+            (
+              await pool.query<{ exact: boolean }>(
+                'SELECT $1::timestamptz = $2::timestamptz AS exact',
+                coordinates,
+              )
+            ).rows[0]!.exact,
+            true,
           );
-          assert.equal(unit?.sourceKind, 'community_outbox');
-          assert.equal(unit?.sourceDomain, 'community');
-          assert.equal(unit?.occurredAt, '2026-09-01 01:02:03.123456+00');
           const result = await worker.run({
             mode: 'apply',
             unitIds: fresh.ids,
           });
           assert.equal(result.settled, 1, JSON.stringify(result));
+          const records = await pool.query<{ exact: boolean }>(
+            `SELECT r.occurred_at=g.occurred_at
+               AND r.occurred_at='2026-09-01 01:02:03.123456+00'::timestamptz AS exact
+             FROM whaleu_experience.records r
+             JOIN whaleu_experience.settlements s ON s.id=r.settlement_id
+             JOIN whaleu_community.reward_source_units u ON u.id=s.unit_id
+             JOIN whaleu_community.reward_source_groups g ON g.id=u.group_id
+             WHERE u.id=$1`,
+            [fresh.ids[0]],
+          );
+          assert.equal(records.rowCount, 1);
+          assert.equal(records.rows[0]!.exact, true);
         },
       );
 

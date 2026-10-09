@@ -48,3 +48,91 @@ jobs:
         run: npm run test:integration
         env:
           TEST_DATABASE_URL: postgresql://whaleu_test:local_ci_only@127.0.0.1:5432/whaleu_test
+
+  semantic-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SEMANTIC_PG_CONTAINER: whaleu-semantic-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24.19.0
+          cache: npm
+      - name: Install pinned package manager
+        run: npm install --global npm@11.9.0 --ignore-scripts --no-audit --no-fund
+      - name: Verify package manager
+        run: test "$(npm --version)" = "11.9.0"
+      - run: npm ci --ignore-scripts
+      - name: Start isolated PostgreSQL with optional pgvector
+        shell: bash
+        run: |
+          # Host networking preserves inet_server_addr()=127.0.0.1 for the
+          # installer's disposable-loopback guard; bind PostgreSQL only there.
+          docker run --detach --name "$SEMANTIC_PG_CONTAINER" \
+            --network host --shm-size=256m \
+            --env POSTGRES_USER=whaleu_test \
+            --env POSTGRES_PASSWORD=local_ci_only \
+            --env POSTGRES_DB=whaleu_test \
+            --health-cmd 'pg_isready -h 127.0.0.1 -p 55433 -U whaleu_test -d whaleu_test' \
+            --health-interval 5s --health-timeout 3s --health-retries 10 \
+            pgvector/pgvector:0.8.7-pg18-bookworm@sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11 \
+            postgres -c listen_addresses=127.0.0.1 -p 55433
+          for attempt in {1..30}; do
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$SEMANTIC_PG_CONTAINER")
+            if [[ "$status" == healthy ]]; then
+              exit 0
+            fi
+            if [[ "$status" == unhealthy ]]; then
+              break
+            fi
+            sleep 2
+          done
+          docker logs "$SEMANTIC_PG_CONTAINER"
+          exit 1
+      - name: Verify pinned PostgreSQL and optional extension namespace
+        shell: bash
+        run: |
+          # Roll back this probe so the suite exercises its own explicit installer.
+          docker exec --interactive --env PGPASSWORD=local_ci_only "$SEMANTIC_PG_CONTAINER" \
+            psql -X -h 127.0.0.1 -p 55433 -U whaleu_test -d whaleu_test --set ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          DO $$ BEGIN
+            IF current_setting('server_version_num')::integer <> 180006 THEN
+              RAISE EXCEPTION 'Expected PostgreSQL 18.6';
+            END IF;
+            IF inet_server_addr() <> inet '127.0.0.1' THEN
+              RAISE EXCEPTION 'Expected disposable loopback PostgreSQL';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name='vector' AND default_version='0.8.7') THEN
+              RAISE EXCEPTION 'Expected available pgvector 0.8.7';
+            END IF;
+            IF EXISTS (SELECT 1 FROM pg_extension WHERE extname='vector') THEN
+              RAISE EXCEPTION 'Optional extension must not be preinstalled';
+            END IF;
+          END $$;
+          CREATE EXTENSION vector WITH SCHEMA public VERSION '0.8.7';
+          DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace
+              WHERE e.extname='vector' AND e.extversion='0.8.7' AND n.nspname='public') THEN
+              RAISE EXCEPTION 'Expected pgvector 0.8.7 in public';
+            END IF;
+          END $$;
+          ROLLBACK;
+          SQL
+      - name: Optional semantic PostgreSQL integration tests
+        run: npm run test:semantic:integration -w @whaleu/api
+        env:
+          TEST_DATABASE_URL: postgresql://whaleu_test:local_ci_only@127.0.0.1:55433/whaleu_test
+      - name: Show optional database diagnostics on failure
+        if: failure()
+        run: docker logs "$SEMANTIC_PG_CONTAINER"
+      - name: Remove optional database container
+        if: always()
+        run: |
+          if docker inspect "$SEMANTIC_PG_CONTAINER" >/dev/null 2>&1; then
+            docker rm --force --volumes "$SEMANTIC_PG_CONTAINER"
+          fi

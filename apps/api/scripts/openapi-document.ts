@@ -282,6 +282,12 @@ export async function renderAnnouncementsOpenApiDocument(): Promise<string> {
 export async function createSearchOpenApiDocument(): Promise<OpenAPIObject> {
   const { SearchController } =
     await import('../src/community/search/controller.js');
+  const { SemanticSearchController } =
+    await import('../src/community/search/semantic/controller.js');
+  const { SemanticSearchRuntime } =
+    await import('../src/community/search/semantic/runtime.js');
+  const { SemanticSearchRequestGuard } =
+    await import('../src/community/search/semantic/request-guard.js');
   const { SearchService } = await import('../src/community/search/service.js');
   if (
     !Reflect.hasMetadata(
@@ -297,9 +303,15 @@ export async function createSearchOpenApiDocument(): Promise<OpenAPIObject> {
     throw new Error('OpenAPI must not execute application work');
   };
   const testing = await Test.createTestingModule({
-    controllers: [SearchController],
-    providers: [{ provide: SearchService, useValue: { search: fail } }],
-  }).compile();
+    controllers: [SearchController, SemanticSearchController],
+    providers: [
+      { provide: SearchService, useValue: { search: fail } },
+      { provide: SemanticSearchRuntime, useValue: { search: fail } },
+    ],
+  })
+    .overrideGuard(SemanticSearchRequestGuard)
+    .useValue({ canActivate: fail })
+    .compile();
   const app = testing.createNestApplication({ logger: false });
   try {
     return SwaggerModule.createDocument(

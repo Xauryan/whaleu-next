@@ -1451,7 +1451,10 @@ test(
               fenced = true;
           });
           try {
-            known(await getProfile(author4097, null), 'postCount', 4097);
+            // Keep this source-proof invariant above the 1024 fallback cap
+            // without tying it to a larger fixture near the optional budget.
+            // Separate 4097/25000 cases retain the scale and budget coverage.
+            known(await getProfile(author1025, null), 'postCount', 1025);
             assert.equal(
               fenced,
               true,

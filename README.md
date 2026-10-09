@@ -36,6 +36,14 @@ or production data changes are part of these development milestones.
 
 See the [feature-parity checklist](docs/FEATURE_PARITY.md) for the required scope.
 
+A separate [semantic search slice](docs/design/semantic-search.md) adds full-scope
+permission-first exact pgvector retrieval, Qwen embedding/reranking adapters for
+the selected Tumuer gateway, explicit batch indexing, a distinct HTTP/native
+mode and source-revision revalidation. It is disabled by default. Acceptance uses
+synthetic model transports; live-provider quality/cost, large-corpus performance
+and deployment remain unverified. Hosted inference needs no local GPU, while
+PostgreSQL still needs appropriate compute and storage.
+
 ## Code statistics
 
 ![Code statistics for every repository branch](https://xauryan.github.io/whaleu-next/code-stats.svg)

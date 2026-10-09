@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
+import { parse, render } from './smoke-ratings.mjs';
 const require = createRequire(import.meta.url);
 
 // Emitted handlers, API transport and strict decoders; synthetic responses, not physical-device QA.
@@ -36,6 +38,7 @@ export async function smokeSearch({
     aggregateSparse = false,
     aggregateLoginRequired = false,
     discussionMode = false,
+    semanticFailure = 'SEMANTIC_SEARCH_DISABLED',
     page;
   const hitWire = (source, kind = 'post') => {
     const rootCommentId =
@@ -123,6 +126,25 @@ export async function smokeSearch({
                   operatingRegionId: '99999999-9999-4999-8999-999999999999',
                 },
             global: [],
+          });
+        }
+        if (url.pathname === '/v1/community/search/semantic') {
+          assert.equal(url.searchParams.has('cursor'), false);
+          if (semanticFailure)
+            return {
+              status: 503,
+              headers: {},
+              body: { error: { code: semanticFailure } },
+            };
+          const hit = hitWire(postWire());
+          hit.snippet.segments = [
+            { text: '语义相关原文 <script>😀', matched: false },
+          ];
+          return response({
+            mode: 'semantic',
+            indexStatus: 'current',
+            ranking: 'embedding-top32-reranked',
+            items: [hit],
           });
         }
         assert.equal(url.pathname, '/v1/community/search');
@@ -461,6 +483,87 @@ export async function smokeSearch({
     await flush();
     assert.equal(page.data.from, '');
     assert.equal(page.data.withinPostId, '');
+    page.onType({ currentTarget: { dataset: { key: 'all' } } });
+    await flush();
+    page.onMode({ currentTarget: { dataset: { mode: 'semantic' } } });
+    await flush();
+    assert.equal(page.data.mode, 'semantic');
+    assert.equal(page.data.semanticDisabled, true);
+    assert.equal(page.data.loaded, false);
+    assert.match(page.data.error, /尚未开启/);
+    assert.equal(page.data.inputDraft, 'draft remains unsubmitted');
+    assert.equal(
+      new URL(requests.at(-1).url).pathname,
+      '/v1/community/search/semantic',
+    );
+    semanticFailure = 'COMMUNITY_UNAVAILABLE';
+    page.onRefresh();
+    await flush();
+    assert.match(page.data.error, /暂时无法确认/);
+    assert.deepEqual(page.data.hits, []);
+    semanticFailure = '';
+    page.onRefresh();
+    await flush();
+    assert.equal(page.data.hits.length, 1);
+    assert.equal(page.data.hits[0].snippet.segments[0].matched, false);
+    assert.equal(page.data.continuation, null);
+    assert.equal(page.data.pageNumber, 0);
+    assert.equal(page.data.canNext, false);
+    assert.equal(page.data.canPrevious, false);
+    assert.match(page.data.status, /并非全部匹配/);
+    const semanticWxml = readFileSync(
+      path.join(dist, 'pages/community-search/community-search.wxml'),
+      'utf8',
+    );
+    const rendered = render(parse(semanticWxml).children, page.data, {});
+    const renderedText = JSON.stringify(rendered);
+    assert.match(renderedText, /语义相关原文 <script>😀/);
+    assert.doesNotMatch(renderedText, /第 0 页|下一页/);
+    const flattened = (nodes) =>
+      nodes.flatMap((node) =>
+        typeof node === 'string' ? [] : [node, ...flattened(node.children)],
+      );
+    assert.ok(
+      !flattened(rendered).some(
+        (node) =>
+          node.tag === 'rich-text' ||
+          node.attrs.class === 'match' ||
+          node.attrs.bindtap === 'onNext' ||
+          node.attrs.bindtap === 'onPrevious',
+      ),
+    );
+    assert.ok(
+      flattened(rendered).some(
+        (node) =>
+          node.attrs['data-mode'] === 'keyword' &&
+          node.attrs.bindtap === 'onMode',
+      ),
+    );
+    const semanticCount = requests.length;
+    page.onNext();
+    page.onPrevious();
+    await flush();
+    assert.equal(requests.length, semanticCount);
+    page.onHide();
+    assert.deepEqual(page.data.hits, []);
+    page.onShow();
+    await flush();
+    assert.equal(page.data.mode, 'semantic');
+    assert.equal(page.data.hits.length, 1);
+    page.onCancel();
+    assert.deepEqual(page.data.hits, []);
+    page.onMode({ currentTarget: { dataset: { mode: 'keyword' } } });
+    await flush();
+    assert.equal(new URL(requests.at(-1).url).pathname, '/v1/community/search');
+    assert.equal(page.data.mode, 'keyword');
+    const wxml = readFileSync(
+      path.join(dist, 'pages/community-search/community-search.wxml'),
+      'utf8',
+    );
+    assert.match(wxml, /data-mode="semantic" bindtap="onMode"/);
+    assert.match(wxml, /loaded &amp;&amp; mode === 'keyword'/);
+    assert.match(wxml, /服务默认未开启/);
+    assert.doesNotMatch(wxml, /rich-text|尚不支持语义/);
   } finally {
     page?.onUnload();
     globalThis.wx.navigateTo = original.navigateTo;
@@ -473,6 +576,6 @@ export async function smokeSearch({
       );
   }
   console.log(
-    'Search compiled native smoke passed: lightweight mixed hits, structured reply navigation, type/date/within-post filters, plain server segments, explicit and all/regional/global scopes, no-campus entry, stale optional browse, urgent/resolved and source-space decoding, visible category transitions, frozen query, sparse continuation, fresh previous, membership restart, hide/reopen and account clearing. No physical-device claim.',
+    'Search compiled native smoke passed: semantic mode/disabled/unknown/retry/manual keyword fallback, strict unhighlighted DTO, no semantic paging and emitted WXML, lightweight mixed hits, structured reply navigation, type/date/within-post filters, plain server segments, explicit and all/regional/global scopes, no-campus entry, stale optional browse, urgent/resolved and source-space decoding, visible category transitions, frozen query, sparse continuation, fresh previous, membership restart, hide/reopen and account clearing. No physical-device claim.',
   );
 }

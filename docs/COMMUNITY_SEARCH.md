@@ -1,6 +1,22 @@
 # Community content search: current development scope
 
-## Current contract
+## Default-disabled semantic endpoint
+
+`GET /v1/community/search/semantic` now provides a separate configured semantic
+contract, without changing literal search below. It uses the full-scope canonical
+metadata/Safety eligibility owners before exact pgvector 4096 retrieval, then
+reranks the first 32 candidates with Qwen. Current source and permissions are
+rechecked before and after provider work. Default configuration returns explicit
+`SEMANTIC_SEARCH_DISABLED`; no real gateway calls were made for acceptance.
+
+Success is `{mode:'semantic',indexStatus:'current',ranking:'embedding-top32-reranked',items}`.
+There is no semantic cursor/total or silent keyword fallback. Snippets may have
+all `matched:false` when relevance is semantic. The native page offers a distinct
+mode. Optional installation, explicit actor-authorized batch backfill, safe
+Tumuer configuration, tested boundaries and performance limitations are in the
+[semantic search design](design/semantic-search.md).
+
+## Literal search contract
 
 `GET /v1/community/search` searches posts, root comments and replies through one
 engine. The greenfield v1 contract now returns lightweight `SearchHit` objects;
@@ -94,15 +110,15 @@ Draft and submitted query remain separate. Previous and Next fetch fresh pages;
 session, account, scope, safety and lifecycle changes invalidate displayed text
 and stale requests. Types, dates and one-discussion scope reset traversal.
 
-This remains bounded literal scanning, not indexed full-text or semantic search.
+The literal endpoint remains bounded substring scanning, not indexed full-text or semantic search.
 A full traversal is O(corpus), rare terms may require multiple requests, and the
 128 authorization budget does not bound physical index entries or SQL count.
 Migration 0035 adds chronological root/reply and reply-topic structural indexes;
 existing post/root-topic indexes remain. These indexes contain no body/vector.
 Search no longer projects all descendants, but the detail/context owners' existing
-independent 1024 limits are unchanged. No related-campus distribution, history,
-hot suggestions, model/provider, background reindex, historical import or
-production deployment is added. Actual-device rendering remains a separate gate.
+independent 1024 limits are unchanged. This literal increment adds no related-campus distribution, history,
+hot suggestions, background reindex, historical import or production deployment.
+The separate default-disabled semantic implementation is described above. Actual-device rendering remains a separate gate.
 
 ## Historical post-only checkpoints
 

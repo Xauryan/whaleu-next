@@ -93,6 +93,9 @@ Page({
     );
     void this.controller.load(resume?.route ?? this.route, resume ?? undefined);
   },
+  onMode(event: { currentTarget: { dataset: { mode: string } } }) {
+    void this.controller?.setMode(event.currentTarget.dataset.mode);
+  },
   onInput(event: { detail: { value: string } }) {
     this.controller?.setInput(event.detail.value);
   },

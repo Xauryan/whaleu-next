@@ -307,6 +307,7 @@ test('filters preserve submitted query across scope, fresh paging, hide resume a
   const resume = s.controller.snapshot()!;
   assert.deepEqual(Object.keys(resume).sort(), [
     'inputDraft',
+    'mode',
     'route',
     'submittedQuery',
   ]);
@@ -462,4 +463,44 @@ test('approved historical snippet text stays raw rather than applying the new-wr
     snippet: { ...hit.snippet, segments: [{ text, matched: true }] },
   });
   assert.equal(result.snippet.segments[0]!.text, text);
+});
+
+test('search destination rereads current parent and root and clears semantic-compatible navigation context on ancestry loss', async () => {
+  for (const missing of ['parent', 'root']) {
+    const s = setup();
+    let view = initialThreadView();
+    s.gateway.repliesImpl = async () => ({ items: [], nextCursor: null });
+    s.gateway.discussionContextImpl = async () => ({
+      comment: comment(),
+      reply: reply(),
+      replies: { items: [], nextCursor: null },
+    });
+    const controller = new ThreadController(
+      s.runtime,
+      postId,
+      commentId,
+      replyId,
+      (next) => {
+        view = next;
+      },
+    );
+    await controller.load();
+    assert.equal(view.loaded, true);
+    const unavailable = async (): Promise<never> => {
+      throw new ClientError('http', 'removed private source', {
+        serverCode:
+          missing === 'parent' ? 'POST_NOT_FOUND' : 'COMMENT_NOT_FOUND',
+        httpStatus: 404,
+      });
+    };
+    if (missing === 'parent') s.gateway.postImpl = unavailable;
+    else s.gateway.commentImpl = unavailable;
+    await controller.load();
+    assert.equal(view.loaded, false);
+    assert.equal(view.post, null);
+    assert.equal(view.root, null);
+    assert.equal(view.locatedReply, null);
+    assert.deepEqual(view.contextReplies, []);
+    controller.dispose();
+  }
 });

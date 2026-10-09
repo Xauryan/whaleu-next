@@ -1,3 +1,11 @@
+import { SemanticSearchController } from './search/semantic/controller.js';
+import {
+  SemanticSearchRuntime,
+  SEMANTIC_MODEL_PROVIDER,
+  createConfiguredSemanticProvider,
+} from './search/semantic/runtime.js';
+import { SemanticSearchRequestModule } from './search/semantic/request-guard.js';
+import { APP_CONFIG } from '../config/config.js';
 import { SearchHitSerializer } from './search/serializer.js';
 import { HotFeedProcessingModule } from './hot-score/runtime-module.js';
 import { HotController } from './hot/controller.js';
@@ -247,6 +255,7 @@ export class CommunityRecoveryController {
 }
 @Module({
   imports: [
+    SemanticSearchRequestModule,
     HotFeedProcessingModule,
     CommunityViewComponentModule,
     ViewRequestThrottlingModule,
@@ -267,6 +276,7 @@ export class CommunityRecoveryController {
     HotController,
     ViewReportingController,
     SearchController,
+    SemanticSearchController,
     LikedHistoryController,
     SavedController,
     SavedRecoveryController,
@@ -298,6 +308,12 @@ export class CommunityRecoveryController {
     HotRepository,
     ViewReportingService,
     SearchService,
+    SemanticSearchRuntime,
+    {
+      provide: SEMANTIC_MODEL_PROVIDER,
+      inject: [APP_CONFIG],
+      useFactory: createConfiguredSemanticProvider,
+    },
     SearchHitSerializer,
     CommunitySearchScopeResolver,
     CommunityPhoneContinuation,

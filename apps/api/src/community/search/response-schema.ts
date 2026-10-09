@@ -19,95 +19,102 @@ const boundedText = (maximum: number) =>
     .string()
     .max(maximum * 2)
     .refine((value) => [...value].length <= maximum);
-const base = {
-  contentId: uuid,
-  postId: uuid,
-  space: z.strictObject({
-    id: uuid,
-    kind: z.enum(['regional', 'global']),
-    name: z.string(),
-  }),
-  category: categorySchema,
-  tradingSubtype: tradingSubtypeSchema.nullable(),
-  tradingUrgency: z.enum(['normal', 'urgent']).nullable(),
-  createdAt: z.iso.datetime({ precision: 6 }),
-  // Public AuthorView is shared with the existing projection contract. Search
-  // invokes only its author/persona owner, never the full post projection.
-  author: searchAuthor,
-  postSummary: boundedText(SEARCH_SUMMARY_CODEPOINTS),
-  snippet: z
-    .strictObject({
-      segments: z
-        .array(
-          z.strictObject({
-            text: boundedText(SEARCH_SNIPPET_CODEPOINTS).refine(
-              (value) => value.length > 0,
-            ),
-            matched: z.boolean(),
-          }),
-        )
-        .min(1)
-        .max(SEARCH_SNIPPET_CODEPOINTS),
-      truncatedBefore: z.boolean(),
-      truncatedAfter: z.boolean(),
-    })
-    .refine(
-      (snippet) =>
-        snippet.segments.some((s) => s.matched) &&
-        snippet.segments.reduce(
-          (n, segment) => n + [...segment.text].length,
-          0,
-        ) <= SEARCH_SNIPPET_CODEPOINTS,
-    ),
-};
-export const searchHitSchema = z
-  .discriminatedUnion('kind', [
-    z.strictObject({
-      ...base,
-      kind: z.literal('post'),
-      rootCommentId: z.null(),
-      replyId: z.null(),
-      target: z.strictObject({ kind: z.literal('post'), postId: uuid }),
+function createSearchHitSchema(requireLiteralMatch: boolean) {
+  const base = {
+    contentId: uuid,
+    postId: uuid,
+    space: z.strictObject({
+      id: uuid,
+      kind: z.enum(['regional', 'global']),
+      name: z.string(),
     }),
-    z.strictObject({
-      ...base,
-      kind: z.literal('comment'),
-      rootCommentId: uuid,
-      replyId: z.null(),
-      target: z.strictObject({
-        kind: z.literal('comment'),
-        postId: uuid,
-        rootCommentId: uuid,
+    category: categorySchema,
+    tradingSubtype: tradingSubtypeSchema.nullable(),
+    tradingUrgency: z.enum(['normal', 'urgent']).nullable(),
+    createdAt: z.iso.datetime({ precision: 6 }),
+    // Public AuthorView is shared with the existing projection contract. Search
+    // invokes only its author/persona owner, never the full post projection.
+    author: searchAuthor,
+    postSummary: boundedText(SEARCH_SUMMARY_CODEPOINTS),
+    snippet: z
+      .strictObject({
+        segments: z
+          .array(
+            z.strictObject({
+              text: boundedText(SEARCH_SNIPPET_CODEPOINTS).refine(
+                (value) => value.length > 0,
+              ),
+              matched: z.boolean(),
+            }),
+          )
+          .min(1)
+          .max(SEARCH_SNIPPET_CODEPOINTS),
+        truncatedBefore: z.boolean(),
+        truncatedAfter: z.boolean(),
+      })
+      .refine(
+        (snippet) =>
+          (!requireLiteralMatch || snippet.segments.some((s) => s.matched)) &&
+          snippet.segments.reduce(
+            (n, segment) => n + [...segment.text].length,
+            0,
+          ) <= SEARCH_SNIPPET_CODEPOINTS,
+      ),
+  };
+  return z
+    .discriminatedUnion('kind', [
+      z.strictObject({
+        ...base,
+        kind: z.literal('post'),
+        rootCommentId: z.null(),
+        replyId: z.null(),
+        target: z.strictObject({ kind: z.literal('post'), postId: uuid }),
       }),
-    }),
-    z.strictObject({
-      ...base,
-      kind: z.literal('reply'),
-      rootCommentId: uuid,
-      replyId: uuid,
-      target: z.strictObject({
+      z.strictObject({
+        ...base,
+        kind: z.literal('comment'),
+        rootCommentId: uuid,
+        replyId: z.null(),
+        target: z.strictObject({
+          kind: z.literal('comment'),
+          postId: uuid,
+          rootCommentId: uuid,
+        }),
+      }),
+      z.strictObject({
+        ...base,
         kind: z.literal('reply'),
-        postId: uuid,
         rootCommentId: uuid,
         replyId: uuid,
+        target: z.strictObject({
+          kind: z.literal('reply'),
+          postId: uuid,
+          rootCommentId: uuid,
+          replyId: uuid,
+        }),
       }),
-    }),
-  ])
-  .refine(
-    (hit) =>
-      hit.target.postId === hit.postId &&
-      (hit.kind === 'post'
-        ? hit.contentId === hit.postId
-        : hit.target.rootCommentId === hit.rootCommentId &&
-          (hit.kind === 'comment'
-            ? hit.contentId === hit.rootCommentId
-            : hit.contentId === hit.replyId &&
-              hit.target.replyId === hit.replyId)) &&
-      (hit.category === 'trading'
-        ? hit.tradingSubtype !== null && hit.tradingUrgency !== null
-        : hit.tradingSubtype === null && hit.tradingUrgency === null),
-  )
-  .meta({ id: 'CommunitySearchHit' });
+    ])
+    .refine(
+      (hit) =>
+        hit.target.postId === hit.postId &&
+        (hit.kind === 'post'
+          ? hit.contentId === hit.postId
+          : hit.target.rootCommentId === hit.rootCommentId &&
+            (hit.kind === 'comment'
+              ? hit.contentId === hit.rootCommentId
+              : hit.contentId === hit.replyId &&
+                hit.target.replyId === hit.replyId)) &&
+        (hit.category === 'trading'
+          ? hit.tradingSubtype !== null && hit.tradingUrgency !== null
+          : hit.tradingSubtype === null && hit.tradingUrgency === null),
+    );
+}
+export const searchHitSchema = createSearchHitSchema(true).meta({
+  id: 'CommunitySearchHit',
+});
+export const semanticSearchHitSchema = createSearchHitSchema(false).meta({
+  id: 'CommunitySemanticSearchHit',
+});
 export const searchPageSchema = z
   .strictObject({
     items: z.array(searchHitSchema).max(10),

@@ -33,7 +33,14 @@ test('search official Swagger export is offline, strict and artifact-current wit
     ),
   );
   const doc = JSON.parse(result.stdout) as OpenAPIObject;
-  assert.deepEqual(Object.keys(doc.paths), ['/v1/community/search']);
+  assert.deepEqual(Object.keys(doc.paths), [
+    '/v1/community/search',
+    '/v1/community/search/semantic',
+  ]);
+  const semantic = doc.paths['/v1/community/search/semantic']!.get!;
+  assert.ok(semantic);
+  assert.ok(!JSON.stringify(semantic.parameters).includes('cursor'));
+  assert.ok(semantic.responses['503']);
   const operation = doc.paths['/v1/community/search']!.get!;
   assert.deepEqual(operation.security, [{}, { accessToken: [] }]);
   assert.equal(operation.requestBody, undefined);

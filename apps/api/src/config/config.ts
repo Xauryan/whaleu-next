@@ -33,6 +33,25 @@ const schema = z.object({
   RATINGS_UPDATES_PROCESSING: z
     .enum(['disabled', 'manual'])
     .default('disabled'),
+  COMMUNITY_SEMANTIC_SEARCH: z
+    .enum(['disabled', 'enabled'])
+    .default('disabled'),
+  COMMUNITY_SEMANTIC_TRANSMISSION: z
+    .enum(['disabled', 'approved'])
+    .default('disabled'),
+  COMMUNITY_SEMANTIC_DEPLOYMENT_REVISION: z
+    .string()
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}$/)
+    .optional(),
+  COMMUNITY_SEMANTIC_EMBEDDING_REVISION: z
+    .string()
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}$/)
+    .optional(),
+  COMMUNITY_SEMANTIC_RERANKER_REVISION: z
+    .string()
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}$/)
+    .optional(),
+  COMMUNITY_SEMANTIC_TIMEOUT_MS: positiveInteger(5000, 30000),
   COMMUNITY_UPDATES_PROCESSING: z
     .enum(['disabled', 'manual_only', 'automatic'])
     .default('manual_only'),
@@ -94,6 +113,22 @@ export function loadConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     throw new Error(`Invalid configuration fields: ${keys.join(', ')}`);
   }
   const config = result.data;
+  if (
+    config.COMMUNITY_SEMANTIC_SEARCH === 'enabled' &&
+    (config.COMMUNITY_SEMANTIC_TRANSMISSION !== 'approved' ||
+      [
+        config.COMMUNITY_SEMANTIC_DEPLOYMENT_REVISION,
+        config.COMMUNITY_SEMANTIC_EMBEDDING_REVISION,
+        config.COMMUNITY_SEMANTIC_RERANKER_REVISION,
+      ].some(
+        (revision) =>
+          !revision ||
+          ['main', 'latest', 'default', 'unconfigured'].includes(revision),
+      ))
+  )
+    throw new Error(
+      'Enabled semantic search requires approved transmission and pinned deployment/model revisions',
+    );
   if (
     config.HOT_FEED_PROCESSING === 'automatic' &&
     [

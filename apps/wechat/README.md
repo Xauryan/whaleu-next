@@ -402,3 +402,24 @@ Subscription commands have their own immutable origin/account v3 journal, while 
 The updates page adds a separate Subscription category for new root evaluations and replies. Root/reply locators are exact; the receiving page reauthorizes and reads current content before marking only that subscription notice read. Direct replies and subscription updates can coexist for the same recipient and retain independent read state. Unavailable previews have no hidden locator or text and remain explicitly acknowledgeable.
 
 See [native R2C behavior and validation boundaries](docs/ratings-r2c.md). The synthetic emitted WXML/HTTP smoke, actual local AppModule/PostgreSQL integration and unverified WeChat physical-device/provider acceptance remain distinct. No personal cross-domain rating-saved list is introduced.
+
+## Optional semantic community search client
+
+The search page defaults to keyword mode and offers an explicit semantic mode.
+Semantic search calls the separate `/v1/community/search/semantic` endpoint with
+the same scope/type/date/topic filters but no cursor. It accepts only the closed
+`mode=semantic`, `indexStatus=current`, `ranking=embedding-top32-reranked` envelope
+and lightweight hits. Original snippet segments may all be unhighlighted; the
+client never invents literal matches, raw scores, totals or exhaustive coverage.
+Semantic results have no pagination and are labelled as limited related results.
+
+The backend is disabled by default. `SEMANTIC_SEARCH_DISABLED` visibly says the
+service is not enabled; `COMMUNITY_UNAVAILABLE` stays unavailable, never empty.
+Both keep the draft and submitted query, and neither silently falls back to
+keyword search. Switching modes explicitly cancels previous work and reuses the
+submitted query; draft edits remain unsubmitted. Scope, account/login epoch,
+safety, cancel, page/app hide and reopen retain the existing stale-response fences.
+Navigation carries only current structured IDs and destination owners reread the
+current parent/root/reply. No provider credentials or activation controls are
+shipped in the client. Unit tests and emitted-handler/bounded-WXML smoke use
+synthetic responses; they do not establish real provider or physical-device QA.

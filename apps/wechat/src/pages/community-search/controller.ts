@@ -17,6 +17,7 @@ import {
   isSearchType,
   searchTargetPath,
   type SearchFilters,
+  type SearchMode,
   type SearchHit,
   type SearchKind,
   type SearchType,
@@ -78,11 +79,14 @@ export function decodeSearchRoute(value: unknown): SearchRoute {
   }) as SearchRoute;
 }
 export interface SearchResume {
+  readonly mode: SearchMode;
   readonly route: SearchRoute;
   readonly inputDraft: string;
   readonly submittedQuery: string;
 }
 export interface SearchView extends CommunityView {
+  readonly mode: SearchMode;
+  readonly semanticDisabled: boolean;
   readonly inputDraft: string;
   readonly submittedQuery: string;
   readonly campusId: string;
@@ -112,6 +116,8 @@ export interface SearchView extends CommunityView {
 }
 export const initialSearchView = (): SearchView => ({
   ...initialCommunityView(),
+  mode: 'keyword',
+  semanticDisabled: false,
   inputDraft: '',
   submittedQuery: '',
   campusId: '',
@@ -196,6 +202,7 @@ export class SearchController extends CommunityController<SearchView> {
           : {}),
       },
       {
+        mode: previous.mode,
         inputDraft: previous.inputDraft,
         submittedQuery: previous.submittedQuery,
       },
@@ -209,6 +216,7 @@ export class SearchController extends CommunityController<SearchView> {
       return null;
     }
     return Object.freeze({
+      mode: this.view.mode,
       route: this.selected,
       inputDraft: this.view.inputDraft,
       submittedQuery: this.submitted?.q ?? '',
@@ -219,6 +227,7 @@ export class SearchController extends CommunityController<SearchView> {
     this.nextCursor = null;
     this.update({
       hits: [],
+      semanticDisabled: false,
       effectiveTypes: [],
       continuation: null,
       loaded: false,
@@ -232,7 +241,8 @@ export class SearchController extends CommunityController<SearchView> {
   }
   async load(
     route: unknown,
-    resume?: Pick<SearchResume, 'inputDraft' | 'submittedQuery'>,
+    resume?: Pick<SearchResume, 'inputDraft' | 'submittedQuery'> &
+      Partial<Pick<SearchResume, 'mode'>>,
   ): Promise<void> {
     this.clearPage();
     this.resetPrivate();
@@ -243,6 +253,7 @@ export class SearchController extends CommunityController<SearchView> {
         : '';
       if (q) this.submitted = this.intent(q);
       this.update({
+        mode: resume?.mode === 'semantic' ? 'semantic' : 'keyword',
         ...filterView(this.selected),
         campusId: this.selected.campusId ?? '',
         selectedSpaceId: this.selected.spaceId ?? '',
@@ -269,6 +280,14 @@ export class SearchController extends CommunityController<SearchView> {
       return;
     }
     await this.read(null, 0);
+  }
+  async setMode(mode: string): Promise<void> {
+    if ((mode !== 'keyword' && mode !== 'semantic') || mode === this.view.mode)
+      return;
+    this.clearPage();
+    this.resetPaging();
+    this.update({ mode });
+    await this.refresh();
   }
   setInput(inputDraft: string): void {
     this.update({ inputDraft });
@@ -531,7 +550,8 @@ export class SearchController extends CommunityController<SearchView> {
   }
   private async read(after: string | null, pageIndex: number): Promise<void> {
     const selected = this.selected,
-      submitted = this.submitted;
+      submitted = this.submitted,
+      mode = this.view.mode;
     this.clearPage();
     if (!selected || (selected.scope === undefined && !this.available(false)))
       return;
@@ -553,7 +573,9 @@ export class SearchController extends CommunityController<SearchView> {
           // Optional public browse choices are not search membership or a prerequisite.
           this.loadBrowseChoices(selected, cancel);
           const page = submitted
-            ? await this.runtime.search!.search(submitted, after, cancel)
+            ? mode === 'semantic'
+              ? await this.runtime.search!.semantic(submitted, cancel)
+              : await this.runtime.search!.search(submitted, after, cancel)
             : null;
           return { spaces: null, space: null, page };
         }
@@ -575,7 +597,9 @@ export class SearchController extends CommunityController<SearchView> {
           throw new ClientError('cancelled', 'Search was replaced');
         const page =
           space && submitted
-            ? await this.runtime.search!.search(submitted, after, cancel)
+            ? mode === 'semantic'
+              ? await this.runtime.search!.semantic(submitted, cancel)
+              : await this.runtime.search!.search(submitted, after, cancel)
             : null;
         return { spaces, space, page };
       },
@@ -597,6 +621,19 @@ export class SearchController extends CommunityController<SearchView> {
               space || selected.scope !== undefined
                 ? '输入关键词开始搜索'
                 : '原搜索范围当前不可用，请返回社区重新选择',
+          });
+          return;
+        }
+        if ('mode' in page) {
+          this.resetPaging();
+          this.update({
+            hits: page.items.map((item) =>
+              Object.freeze({ ...item, key: `${item.kind}:${item.contentId}` }),
+            ),
+            loaded: true,
+            status: page.items.length
+              ? '已加载语义相关结果；并非全部匹配内容'
+              : '本次未返回语义相关结果；不代表没有匹配内容',
           });
           return;
         }
@@ -652,6 +689,20 @@ export class SearchController extends CommunityController<SearchView> {
           canPrevious: false,
           pageNumber: 0,
           restartRequired: restart,
+          ...(mode === 'semantic' &&
+          error.details.serverCode === 'SEMANTIC_SEARCH_DISABLED'
+            ? {
+                semanticDisabled: true,
+                status: '语义搜索尚未开启',
+                error: '语义搜索尚未开启，输入已保留，可手动切换关键词搜索',
+              }
+            : mode === 'semantic' &&
+                error.details.serverCode === 'COMMUNITY_UNAVAILABLE'
+              ? {
+                  status: '语义搜索暂不可用',
+                  error: '暂时无法确认索引或当前访问权限，请重试；输入已保留',
+                }
+              : {}),
           ...(restart
             ? {
                 status: '分页已失效，请重新搜索',

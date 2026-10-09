@@ -267,6 +267,10 @@ const conditions = {
     status: 503,
     message: 'Identity audit is unavailable',
   },
+  SEMANTIC_SEARCH_DISABLED: {
+    status: 503,
+    message: 'Semantic search is disabled',
+  },
   COMMUNITY_UNAVAILABLE: { status: 503, message: 'Community is unavailable' },
   COMMUNITY_SCOPE_UNAVAILABLE: {
     status: 409,

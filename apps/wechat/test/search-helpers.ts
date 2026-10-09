@@ -1,5 +1,9 @@
 import { SafetyChanges } from '../src/community/safety-changes';
-import type { SearchHit, SearchPage } from '../src/community/search-contract';
+import type {
+  SearchHit,
+  SearchPage,
+  SemanticSearchPage,
+} from '../src/community/search-contract';
 import type { SearchGateway } from '../src/community/search-gateway';
 import {
   SearchController,
@@ -56,11 +60,27 @@ export const searchPage = (patch: Partial<SearchPage> = {}): SearchPage => ({
   continuation: 'end',
   ...patch,
 });
+export const semanticPage = (
+  items: readonly SearchHit[] = [searchPost()],
+): SemanticSearchPage => ({
+  mode: 'semantic',
+  indexStatus: 'current',
+  ranking: 'embedding-top32-reranked',
+  items,
+});
 export function searchHarness(loggedIn = true) {
   const s = setup(loggedIn);
   const calls: Parameters<SearchGateway['search']>[] = [];
-  const behavior: SearchGateway = { search: async () => searchPage() };
+  const semanticCalls: Parameters<SearchGateway['semantic']>[] = [];
+  const behavior: SearchGateway = {
+    search: async () => searchPage(),
+    semantic: async () => semanticPage(),
+  };
   const search: SearchGateway = {
+    semantic: (...args) => {
+      semanticCalls.push(args);
+      return behavior.semantic(...args);
+    },
     search: (...args) => {
       calls.push(args);
       return behavior.search(...args);
@@ -75,5 +95,13 @@ export function searchHarness(loggedIn = true) {
   const controller = new SearchController(runtime, (next) => {
     view = next;
   });
-  return { ...s, runtime, calls, behavior, controller, view: () => view };
+  return {
+    ...s,
+    runtime,
+    calls,
+    semanticCalls,
+    behavior,
+    controller,
+    view: () => view,
+  };
 }

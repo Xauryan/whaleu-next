@@ -12,6 +12,7 @@ import {
 } from './contract';
 import { isTradingSubtype, type TradingSubtype } from './trading-contract';
 
+export type SearchMode = 'keyword' | 'semantic';
 export type SearchScope = 'all' | 'regional' | 'global';
 export const isSearchScope = (value: unknown): value is SearchScope =>
   value === 'all' || value === 'regional' || value === 'global';
@@ -198,6 +199,9 @@ export function decodeSearchIntent(value: unknown): SearchIntent {
   }) as SearchIntent;
 }
 export function decodeSearchHit(value: unknown): SearchHit {
+  return decodeHit(value, true);
+}
+function decodeHit(value: unknown, requireMatch: boolean): SearchHit {
   exact(value, [
     'kind',
     'contentId',
@@ -284,7 +288,7 @@ export function decodeSearchHit(value: unknown): SearchHit {
     return Object.freeze({ text: segment.text, matched: segment.matched });
   });
   if (
-    !segments.some((segment) => segment.matched) ||
+    (requireMatch && !segments.some((segment) => segment.matched)) ||
     segments.reduce((sum, segment) => sum + [...segment.text].length, 0) > 240
   )
     invalid();
@@ -338,5 +342,36 @@ export function decodeSearchPage(value: unknown): SearchPage {
     items: Object.freeze(items),
     nextCursor: value.nextCursor as string | null,
     continuation: continuation as SearchContinuation,
+  });
+}
+
+/** Semantic relevance is not evidence of a literal match or an exhaustive result set. */
+export interface SemanticSearchPage {
+  readonly mode: 'semantic';
+  readonly indexStatus: 'current';
+  readonly ranking: 'embedding-top32-reranked';
+  readonly items: readonly SearchHit[];
+}
+export function decodeSemanticSearchPage(value: unknown): SemanticSearchPage {
+  exact(value, ['mode', 'indexStatus', 'ranking', 'items']);
+  if (
+    value.mode !== 'semantic' ||
+    value.indexStatus !== 'current' ||
+    value.ranking !== 'embedding-top32-reranked' ||
+    !Array.isArray(value.items) ||
+    value.items.length > 10
+  )
+    invalid();
+  const items = value.items.map((item: unknown) => decodeHit(item, false));
+  if (
+    new Set(items.map((item) => `${item.kind}:${item.contentId}`)).size !==
+    items.length
+  )
+    invalid();
+  return Object.freeze({
+    mode: 'semantic',
+    indexStatus: 'current',
+    ranking: 'embedding-top32-reranked',
+    items: Object.freeze(items),
   });
 }

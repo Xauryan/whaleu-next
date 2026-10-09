@@ -1,3 +1,16 @@
+import { createHash } from 'node:crypto';
+import type { ContentReviewSearchEligibilityFacade } from '../content-review/search-eligibility.facade.js';
+import type { SemanticCorpusRepository } from './semantic/corpus-repository.js';
+import type { QwenSemanticProfile } from './semantic/profile.js';
+import type { SemanticEmbedding } from './semantic/provider.js';
+import { captureSemanticEligibilityProof } from './semantic/eligibility-proof.js';
+import { semanticFingerprint } from './semantic/contracts.js';
+import type {
+  SemanticScopeSnapshot,
+  SemanticAuthorizedSource,
+} from './semantic/contracts.js';
+import type { SemanticIndexRepository } from './semantic/repository.js';
+import { semanticBodyDigest } from './semantic/provider.js';
 import { SearchReadContext } from '../content-review/search-read-context.js';
 import { searchPageSchema } from './response-schema.js';
 import { categorySchema } from '../contracts.js';
@@ -29,6 +42,7 @@ import type {
 } from './contracts.js';
 import {
   searchAnchorFollows,
+  searchAnchorSchema,
   federatedSearchPositionSchema,
   searchCursorScope,
   searchPositionSchema,
@@ -267,6 +281,426 @@ export class SearchService {
         throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     }
     return held;
+  }
+
+  /** Private structural enumeration for explicit actor-authorized indexing.
+   * A resume coordinate is not an index-coverage proof. New/changed sources are
+   * detected by query-time coverage checks and require reconciliation. */
+  semanticSourceBatch(
+    token: string | null,
+    query: SearchQuery,
+    checkpoint: { scopeFingerprint: string; after: SearchAnchor } | null = null,
+  ): Promise<{
+    sources: Pick<SearchAnchor, 'kind' | 'id'>[];
+    next: { scopeFingerprint: string; after: SearchAnchor } | null;
+  }> {
+    if (
+      query.cursor ||
+      (checkpoint && !searchAnchorSchema.safeParse(checkpoint.after).success)
+    )
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    return this.repository.database.transaction(
+      async (tx) => {
+        enableSafetyRelationshipProof(tx);
+        await lockSafetyPolicy(tx);
+        await captureSemanticEligibilityProof(tx);
+        const { session, resolved, scope } = await this.semanticContext(
+          token,
+          query,
+          tx,
+        );
+        const scopeFingerprint = semanticFingerprint([
+          'semantic-index-enumeration-v1',
+          searchCursorScope(query, session),
+          resolved?.membershipFingerprint ?? null,
+        ]);
+        if (checkpoint && checkpoint.scopeFingerprint !== scopeFingerprint)
+          throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+        const rows = await this.searches.candidates(
+          scope,
+          checkpoint?.after ?? null,
+          tx,
+        );
+        this.validateCandidates(rows, checkpoint?.after ?? null, scope);
+        const last = rows[SEARCH_SCAN_BATCH - 1];
+        if (token !== null) await this.identity.session(token, tx);
+        return {
+          sources: rows
+            .slice(0, SEARCH_SCAN_BATCH)
+            .map(({ kind, id }) => ({ kind, id })),
+          next:
+            rows.length > SEARCH_SCAN_BATCH && last
+              ? {
+                  scopeFingerprint,
+                  after: { at: last.at, kind: last.kind, id: last.id },
+                }
+              : null,
+        };
+      },
+      { isolationLevel: 'read committed' },
+    );
+  }
+
+  private async semanticContext(
+    token: string | null,
+    query: SearchQuery,
+    tx: PoolClient,
+  ) {
+    const session =
+      token === null ? null : await this.identity.session(token, tx);
+    const actor = session?.accountId ?? null;
+    if (actor === null && (query.type === 'comment' || query.type === 'reply'))
+      throw new ApplicationError('AUTHENTICATION_REQUIRED');
+    const types: SearchKind[] =
+      query.type === 'all'
+        ? actor === null
+          ? ['post']
+          : ['post', 'comment', 'reply']
+        : [query.type];
+    const explicit =
+      'spaceId' in query
+        ? await this.repository.space(query.spaceId, tx)
+        : null;
+    if (
+      explicit?.kind === 'global' &&
+      ((query.category !== undefined && query.category !== 'discussion') ||
+        query.tradingSubtype !== undefined)
+    )
+      throw new BadRequestException('Invalid request');
+    const resolved =
+      'scope' in query ? await this.scopes.resolve(query.scope, tx) : null;
+    const scope: SearchStructuralScope = {
+      types,
+      from: query.from ?? null,
+      to: query.to ?? null,
+      postId: query.postId ?? null,
+      ...(explicit
+        ? { spaceId: explicit.id }
+        : {
+            regionalSpaceIds: resolved!.regionalSpaceIds,
+            globalSpaceIds: resolved!.globalSpaceIds,
+          }),
+      category: query.category ?? null,
+      tradingSubtype: query.tradingSubtype ?? null,
+      excludeUrgentTrading: explicit !== null && query.category === undefined,
+    };
+    return { session, actor, explicit, resolved, scope };
+  }
+
+  /** Internal exact-search oracle, not an HTTP endpoint or a scalable corpus
+   * authorization implementation. The cap applies to the ENTIRE structural
+   * scope before any body, vector or embedding-coverage inspection. Providers
+   * must run outside this callback; it accepts local SQL/projection only. */
+  semanticScope<T>(
+    token: string | null,
+    query: SearchQuery,
+    revisions: Pick<SemanticIndexRepository, 'revision'>,
+    operation: (snapshot: SemanticScopeSnapshot, tx: PoolClient) => Promise<T>,
+    intent: 'index' | 'search' = 'search',
+    sourceIds?: readonly Pick<SearchAnchor, 'kind' | 'id'>[],
+  ): Promise<T> {
+    if (
+      sourceIds &&
+      (sourceIds.length > SEARCH_SCAN_BATCH ||
+        new Set(sourceIds.map(searchCandidateKey)).size !== sourceIds.length)
+    )
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    if (query.cursor) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    return this.repository.database.transaction(
+      async (tx) => {
+        enableSafetyRelationshipProof(tx);
+        const read = this.canonicalReadContext(tx);
+        try {
+          await lockSafetyPolicy(tx);
+          if (intent === 'search') await captureSemanticEligibilityProof(tx);
+          const { session, actor, explicit, resolved, scope } =
+            await this.semanticContext(token, query, tx);
+          const readMetadata = async (): Promise<SearchCandidate[]> => {
+            if (!sourceIds) return this.searches.candidates(scope, null, tx);
+            const rows: SearchCandidate[] = [];
+            for (const source of sourceIds) {
+              if (
+                !searchAnchorSchema.shape.kind.safeParse(source.kind).success ||
+                !searchAnchorSchema.shape.id.safeParse(source.id).success
+              )
+                throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+              const row = await this.searches.reference(source, tx);
+              if (row) rows.push(row);
+            }
+            return rows.sort((a, b) =>
+              searchAnchorFollows(a, b)
+                ? 1
+                : searchAnchorFollows(b, a)
+                  ? -1
+                  : 0,
+            );
+          };
+          const candidates = await readMetadata();
+          this.validateCandidates(candidates, null, scope);
+          // A 129th source is NOT a continuation page or a recent-window result.
+          if (candidates.length > SEARCH_SCAN_BATCH)
+            throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+          const held = await this.lockCandidates(candidates, null, tx);
+          const current = await readMetadata();
+          this.validateCandidates(current, null, scope);
+          if (
+            semanticFingerprint(current) !== semanticFingerprint(candidates) ||
+            current.some(
+              (candidate) =>
+                semanticFingerprint(
+                  held.get(searchCandidateKey(candidate)) ?? null,
+                ) !== semanticFingerprint(candidate),
+            )
+          )
+            throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+          const sources: SemanticAuthorizedSource[] = [];
+          const nonTextSources: SemanticAuthorizedSource[] = [];
+          const deniedSources: SearchCandidate[] = [];
+          const eligibility: unknown[] = [];
+          const projections = new Map<string, () => Promise<SearchHit>>();
+          for (const candidate of current) {
+            const allowed = await this.allowed(
+              candidate,
+              scope,
+              actor,
+              tx,
+              read,
+            );
+            if (!allowed) {
+              // A denied body's hash, lifecycle token, embedding or missing index
+              // must never influence the snapshot, cap or ranking slate.
+              eligibility.push([candidate, 'deny']);
+              deniedSources.push(candidate);
+              continue;
+            }
+            const revision = await revisions.revision(candidate, tx);
+            const fingerprint = semanticFingerprint([
+              candidate,
+              revision,
+              allowed.content.text,
+            ]);
+            eligibility.push([candidate, 'allow', fingerprint]);
+            // Image-only comments are known non-text sources, not index failures.
+            const source = Object.freeze({
+              candidate: Object.freeze({ ...candidate }),
+              revision,
+              fingerprint,
+              bodyDigest: createHash('sha256')
+                .update(allowed.content.text, 'utf8')
+                .digest('hex'),
+              text: allowed.content.text,
+            });
+            if (!allowed.content.text.trim()) {
+              nonTextSources.push(source);
+              continue;
+            }
+            sources.push(source);
+            const space =
+              explicit?.id === candidate.spaceId
+                ? explicit
+                : resolved?.space(candidate.spaceId);
+            if (!space) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+            projections.set(searchCandidateKey(candidate), () =>
+              this.serializer.hit(
+                candidate,
+                allowed.post,
+                allowed.content,
+                space,
+                query.q,
+                allowed.listing,
+                tx,
+                'semantic',
+              ),
+            );
+          }
+          const fingerprint = semanticFingerprint([
+            'semantic-scope-oracle-v1',
+            searchCursorScope(query, session),
+            resolved?.membershipFingerprint ?? null,
+            eligibility,
+          ]);
+          const result = await operation(
+            {
+              fingerprint,
+              sources: Object.freeze(sources),
+              nonTextSources: Object.freeze(nonTextSources),
+              deniedSources: Object.freeze(deniedSources),
+              project: async (keys) => {
+                read?.assertCurrent(tx);
+                if (
+                  keys.length > query.limit ||
+                  new Set(keys).size !== keys.length
+                )
+                  throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+                const hits: SearchHit[] = [];
+                for (const key of keys) {
+                  const project = projections.get(key);
+                  if (!project)
+                    throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+                  hits.push(await project());
+                }
+                read?.assertCurrent(tx);
+                return hits;
+              },
+            },
+            tx,
+          );
+          if (token !== null) await this.identity.session(token, tx);
+          read?.assertCurrent(tx);
+          return result;
+        } finally {
+          read?.close();
+        }
+      },
+      { isolationLevel: 'read committed' },
+    );
+  }
+
+  /** Full-corpus metadata eligibility precedes vector access. Only the exact
+   * top128 enters the existing canonical lock/proof budget. No model call occurs
+   * here; the configured HTTP owner runs providers between committed phases. */
+  semanticCorpus<T>(
+    token: string | null,
+    query: SearchQuery,
+    profile: QwenSemanticProfile,
+    embedding: SemanticEmbedding,
+    index: SemanticIndexRepository,
+    content: ContentReviewSearchEligibilityFacade,
+    corpus: SemanticCorpusRepository,
+    operation: (snapshot: SemanticScopeSnapshot, tx: PoolClient) => Promise<T>,
+  ): Promise<T> {
+    if (query.cursor) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    return this.repository.database.transaction(
+      async (tx) => {
+        enableSafetyRelationshipProof(tx);
+        const read = this.canonicalReadContext(tx);
+        try {
+          await lockSafetyPolicy(tx);
+          await captureSemanticEligibilityProof(tx);
+          const { session, actor, explicit, resolved, scope } =
+            await this.semanticContext(token, query, tx);
+          const relation = await content.prepare(scope, profile, tx);
+          const selection = await corpus.select(
+            relation,
+            actor,
+            profile,
+            embedding,
+            tx,
+          );
+          const candidates = selection.candidates
+            .map((entry) => entry.candidate)
+            .sort((a, b) =>
+              searchAnchorFollows(a, b)
+                ? 1
+                : searchAnchorFollows(b, a)
+                  ? -1
+                  : 0,
+            );
+          this.validateCandidates(candidates, null, scope);
+          const held = await this.lockCandidates(candidates, null, tx);
+          const sources: SemanticAuthorizedSource[] = [];
+          const projections = new Map<string, () => Promise<SearchHit>>();
+          for (const entry of selection.candidates) {
+            const candidate = entry.candidate;
+            if (
+              semanticFingerprint(held.get(entry.key) ?? null) !==
+              semanticFingerprint(candidate)
+            )
+              throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+            const allowed = await this.allowed(
+              candidate,
+              scope,
+              actor,
+              tx,
+              read,
+            );
+            // The relation certified this source as allowed. A stale/different
+            // decision invalidates the whole ranking instead of postfiltering it.
+            if (!allowed) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+            const revision = await index.revision(candidate, tx);
+            const bodyDigest = semanticBodyDigest(allowed.content.text);
+            if (
+              semanticFingerprint(revision) !==
+                semanticFingerprint(entry.revision) ||
+              bodyDigest !== entry.bodyDigest
+            )
+              throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+            sources.push(
+              Object.freeze({
+                candidate: Object.freeze({ ...candidate }),
+                revision,
+                bodyDigest,
+                text: allowed.content.text,
+                fingerprint: semanticFingerprint([
+                  candidate,
+                  revision,
+                  allowed.content.text,
+                ]),
+              }),
+            );
+            const space =
+              explicit?.id === candidate.spaceId
+                ? explicit
+                : resolved?.space(candidate.spaceId);
+            if (!space) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+            projections.set(entry.key, () =>
+              this.serializer.hit(
+                candidate,
+                allowed.post,
+                allowed.content,
+                space,
+                query.q,
+                allowed.listing,
+                tx,
+                'semantic',
+              ),
+            );
+          }
+          const fingerprint = semanticFingerprint([
+            'semantic-full-corpus-v1',
+            searchCursorScope(query, session),
+            resolved?.membershipFingerprint ?? null,
+            selection.fingerprint,
+          ]);
+          const result = await operation(
+            {
+              fingerprint,
+              sources: Object.freeze(sources),
+              corpus: 'full',
+              ranks: selection.candidates.map(({ key, distance }) => ({
+                key,
+                distance,
+              })),
+              project: async (keys) => {
+                read?.assertCurrent(tx);
+                if (
+                  keys.length > query.limit ||
+                  new Set(keys).size !== keys.length
+                )
+                  throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+                const hits: SearchHit[] = [];
+                for (const key of keys) {
+                  const project = projections.get(key);
+                  if (!project)
+                    throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+                  hits.push(await project());
+                }
+                read?.assertCurrent(tx);
+                return hits;
+              },
+            },
+            tx,
+          );
+          if (token !== null) await this.identity.session(token, tx);
+          relation.assertCurrent(tx);
+          read?.assertCurrent(tx);
+          return result;
+        } finally {
+          read?.close();
+        }
+      },
+      { isolationLevel: 'read committed' },
+    );
   }
 
   search(token: string | null, query: SearchQuery): Promise<SearchPage> {

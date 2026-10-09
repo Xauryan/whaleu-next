@@ -6,7 +6,11 @@ import type { CommunitySpace } from '../contracts.js';
 import type { TradingSubtype } from '../trading/contracts.js';
 import type { SearchHit } from './contracts.js';
 import type { SearchCandidate } from './repository.js';
-import { searchSnippet, SEARCH_SUMMARY_CODEPOINTS } from './snippet.js';
+import {
+  searchSnippet,
+  semanticSearchSnippet,
+  SEARCH_SUMMARY_CODEPOINTS,
+} from './snippet.js';
 
 /** Search's narrow projection. Reuse the public author/persona owner, never the
  * full post/comment/reply serializer, counts, media, targets or components. */
@@ -24,6 +28,7 @@ export class SearchHitSerializer {
     query: string,
     listing: { subtype: TradingSubtype; urgency: 'normal' | 'urgent' } | null,
     tx: PoolClient,
+    mode: 'literal' | 'semantic' = 'literal',
   ): Promise<SearchHit> {
     const base = {
       contentId: candidate.id,
@@ -35,7 +40,10 @@ export class SearchHitSerializer {
       createdAt: candidate.at,
       author: await this.authors.author(content, post, tx),
       postSummary: [...post.text].slice(0, SEARCH_SUMMARY_CODEPOINTS).join(''),
-      snippet: searchSnippet(content.text, query),
+      snippet:
+        mode === 'literal'
+          ? searchSnippet(content.text, query)
+          : semanticSearchSnippet(content.text, query),
     };
     if (candidate.kind === 'post')
       return {

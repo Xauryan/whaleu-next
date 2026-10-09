@@ -21,7 +21,7 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "check": "npm run lint && npm run typecheck && npm run stats:test && npm run openapi:check && npm test && npm run build",
+    "check": "npm run lint && npm run typecheck && npm run stats:test && npm run search:eval:test && npm run openapi:check && npm test && npm run build",
     "stats:test": "node --test scripts/code-stats.test.mjs",
     "stats:test:integration": "node --test scripts/code-stats.integration.test.mjs",
     "db:up": "docker compose up -d --wait",
@@ -37,7 +37,8 @@
     "hot-score:compute": "npm run hot-score:compute -w @whaleu/api --",
     "hot-feed:process": "npm run hot-feed:process -w @whaleu/api --",
     "ratings:updates:process": "npm run ratings:updates:process -w @whaleu/api --",
-    "ratings:subscriptions:process": "npm run ratings:subscriptions:process -w @whaleu/api --"
+    "ratings:subscriptions:process": "npm run ratings:subscriptions:process -w @whaleu/api --",
+    "search:eval:test": "node --test scripts/search-eval.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

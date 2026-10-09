@@ -10,6 +10,7 @@ const local = {
 test('valid local configuration has bounded defaults and is immutable', () => {
   const config = loadConfig(local);
   assert.equal(config.PORT, 3000);
+  assert.equal(config.COMMUNITY_SEMANTIC_SEARCH, 'disabled');
   assert.equal(config.PG_POOL_MAX, 10);
   assert.equal(config.HTTP_HOST, '127.0.0.1');
   assert.equal(config.EXPERIENCE_PROCESSING, 'manual_only');
@@ -32,6 +33,7 @@ test('remote connections use verified TLS by default', () => {
 
 for (const input of [
   { PORT: '0' },
+  { COMMUNITY_SEMANTIC_SEARCH: 'automatic' },
   { PORT: '65536' },
   { PG_POOL_MAX: '101' },
   { PG_CONNECTION_TIMEOUT_MS: 'NaN' },
@@ -90,5 +92,29 @@ test('rejects unencrypted remote and production databases', () => {
   assert.throws(
     () => loadConfig({ ...local, NODE_ENV: 'production' }),
     /Production/,
+  );
+});
+
+test('semantic runtime activation requires explicit transmission and pinned revisions; defaults stay disabled', () => {
+  assert.throws(
+    () => loadConfig({ ...local, COMMUNITY_SEMANTIC_SEARCH: 'enabled' }),
+    /approved transmission/,
+  );
+  const enabled = {
+    ...local,
+    COMMUNITY_SEMANTIC_SEARCH: 'enabled',
+    COMMUNITY_SEMANTIC_TRANSMISSION: 'approved',
+    COMMUNITY_SEMANTIC_DEPLOYMENT_REVISION: 'reviewed-v1',
+    COMMUNITY_SEMANTIC_EMBEDDING_REVISION: 'embedding-v1',
+    COMMUNITY_SEMANTIC_RERANKER_REVISION: 'reranker-v1',
+  };
+  assert.equal(loadConfig(enabled).COMMUNITY_SEMANTIC_SEARCH, 'enabled');
+  assert.throws(
+    () =>
+      loadConfig({
+        ...enabled,
+        COMMUNITY_SEMANTIC_EMBEDDING_REVISION: 'latest',
+      }),
+    /pinned/,
   );
 });

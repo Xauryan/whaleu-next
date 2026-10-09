@@ -4,6 +4,7 @@ import { SafetyActivityReadFacade } from './activity-read.facade.js';
 import { SafetyAnnouncementReadFacade } from './announcement-read.facade.js';
 import { SafetyDirectoryReadFacade } from './directory-read.facade.js';
 import { Module } from '@nestjs/common';
+import { SafetySearchEligibilityFacade } from './search-eligibility.facade.js';
 import { COMMUNITY_BASE_VISIBILITY } from '../community/community-policy.js';
 import { ContentReviewModule } from '../community/content-review/content-review.module.js';
 import { LocalApprovedContentVisibility } from '../community/content-review/local-approved-content-visibility.js';
@@ -23,6 +24,7 @@ import { SafetyContentVisibilityFacade } from './content-visibility.facade.js';
     NamedBlockVisibility,
     ProfileVisibilityFacade,
     SafetyContentVisibilityFacade,
+    SafetySearchEligibilityFacade,
     {
       provide: COMMUNITY_BASE_VISIBILITY,
       useExisting: LocalApprovedContentVisibility,
@@ -38,6 +40,7 @@ import { SafetyContentVisibilityFacade } from './content-visibility.facade.js';
     NamedBlockVisibility,
     ProfileVisibilityFacade,
     SafetyContentVisibilityFacade,
+    SafetySearchEligibilityFacade,
   ],
 })
 export class SafetyPolicyModule {}
