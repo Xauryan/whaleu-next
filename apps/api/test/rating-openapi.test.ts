@@ -1,3 +1,4 @@
+import * as management from '../src/ratings/management/contracts.js';
 import * as randomRatings from '../src/ratings/random/contracts.js';
 import * as deletion from '../src/ratings/deletion/contracts.js';
 import * as subscriptions from '../src/ratings/subscriptions/contracts.js';
@@ -43,9 +44,29 @@ test('ratings OpenAPI is deterministic offline and artifact-current', async () =
       'utf8',
     ),
   ));
-test('all 48 rating operations have exact schemas and safe auth/error metadata', async () => {
+test('all 52 rating operations have exact schemas and safe auth/error metadata', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
+    [
+      '/v1/ratings/management/prepare',
+      'post',
+      management.ratingTargetPreparationSchema,
+    ],
+    [
+      '/v1/ratings/management/targets',
+      'post',
+      management.ratingTargetCreationReceiptSchema,
+    ],
+    [
+      '/v1/ratings/management/cancel',
+      'post',
+      management.ratingTargetCreationReceiptSchema,
+    ],
+    [
+      '/v1/ratings/management/requests/{requestId}',
+      'get',
+      management.ratingTargetCreationReceiptSchema,
+    ],
     [
       '/v1/ratings/random-target',
       'get',

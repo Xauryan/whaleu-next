@@ -97,6 +97,12 @@ export function registerRatingPage(mode: RatingMode): void {
       this.route = regionId ? { regionId } : {};
       void this.controller?.selectRegion(regionId);
     },
+    onCreateTarget(event: Tap) {
+      this.navigator?.open(
+        this.controller?.creationPath(event.currentTarget.dataset.id ?? '') ??
+          null,
+      );
+    },
     onCategory(event: Tap) {
       this.navigator?.open(
         this.controller?.categoryPath(event.currentTarget.dataset.id ?? '') ??

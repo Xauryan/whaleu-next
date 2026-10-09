@@ -471,3 +471,14 @@ source preservation and trusted import/cutover, physical devices and other
 platforms remain open. See [scope](API_ACTIVITIES.md) and
 [local acceptance](acceptance/activities.md). The whole activity feature remains
 PARTIAL; no production-ready or full-parity claim is made.
+
+### Rating management M1 development increment
+
+Native generic target creation now has prepared exact Review identity, immutable
+catalog derivation/CAS, same-transaction independent fresh-zero source, and v5
+native same-key recovery. Ordinary qualified users require no administrator
+create grant. Original campus remains explicitly unknown when unproven. See
+[API](API_RATINGS_MANAGEMENT.md), [design](design/ratings-management-m1.md), and
+[acceptance limits](acceptance/ratings-management-m1.md). This does not complete
+creator metadata edit/delete, category management or school overrides, real
+issuer/provider wiring, native device acceptance, or production import.

@@ -22,6 +22,7 @@ import {
 } from './deletion-contract';
 import {
   decodeRatingCommandIntent,
+  isRatingTargetCreationIntent,
   isRatingAdminDeletionIntent,
   isRatingDeletionContextChanged,
   isRatingReplyIntent,
@@ -264,7 +265,11 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
             ? ratingAdminDeletionIntent(confirmation.context, id)
             : ratingOwnerDeletionIntent(confirmation.context, id),
         );
-        if (isRatingLikeIntent(intent) || isRatingSubscriptionIntent(intent))
+        if (
+          isRatingTargetCreationIntent(intent) ||
+          isRatingLikeIntent(intent) ||
+          isRatingSubscriptionIntent(intent)
+        )
           invalidRating();
         const attempt = this.runtime.pendingRatings!.freeze(
           isRatingAdminDeletionIntent(intent)

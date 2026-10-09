@@ -36,6 +36,7 @@ import {
   setRuntimeVerification,
 } from '../support/community-runtime-fixtures.js';
 import { writeRatingApproval } from '../support/rating-runtime-fixture.js';
+import { publishLegacyRating } from '../support/rating-legacy-upgrade-fixture.js';
 
 interface SourceCase {
   name: string;
@@ -484,15 +485,12 @@ test(
           body: command.body,
           assetIds: [],
         });
-        await withCommunityScopeWriter(pool, (tx) =>
-          writeRatingApproval(tx, envelope),
+        const result = await publishLegacyRating(
+          { app: runtime, pool },
+          envelope,
+          { targetId: subject.id, ...command },
         );
-        const result = await request(http)
-          .post(`/v1/ratings/targets/${subject.id}/comments`)
-          .set('Authorization', `Bearer ${actor.accessToken}`)
-          .send(command);
-        assert.equal(result.status, 200, JSON.stringify(result.body));
-        assert.equal(result.body.outcome, 'applied');
+        assert.equal(result.receipt.outcome, 'applied');
         const event = (
           await pool.query<{ id: string; mutation_transaction: string }>(
             'SELECT id,mutation_transaction::text FROM whaleu_ratings.effect_events WHERE actor_account_id=$1 AND request_id=$2',
@@ -501,17 +499,17 @@ test(
         ).rows[0]!;
         assert.ok(event);
         return {
-          id: result.body.subjectId as string,
-          revision: result.body.revision as string,
+          id: result.id,
+          revision: result.revision,
           command,
-          receipt: result.body,
+          receipt: result.receipt,
           event,
         };
       };
       let gap: Awaited<ReturnType<typeof publishRoot>> | undefined;
       let gapSnapshot: unknown;
       await t.test(
-        'ordinary root publication during the 0051-to-0052 gap keeps a genuine v1 source and real XP capture',
+        'legacy v1 SQL root publication during the 0051-to-0052 gap keeps a genuine v1 source and real XP capture',
         async () => {
           assert.equal(
             (
@@ -632,7 +630,7 @@ test(
       );
 
       await t.test(
-        'new root and reply capture exact publication-xid sources, initial jobs and a contiguous target stream',
+        'legacy v1 SQL root and reply capture exact publication-xid sources, initial jobs and a contiguous target stream',
         async () => {
           assert.ok(gap);
           const root = await publishRoot(
@@ -668,15 +666,12 @@ test(
             body: input.body,
             assetIds: [],
           });
-          await withCommunityScopeWriter(pool, (tx) =>
-            writeRatingApproval(tx, envelope),
+          const response = await publishLegacyRating(
+            { app: runtime, pool },
+            envelope,
+            { rootId: root.id, ...input },
           );
-          const response = await request(http)
-            .post(`/v1/ratings/comments/${root.id}/replies`)
-            .set('Authorization', `Bearer ${replyActor.accessToken}`)
-            .send(input);
-          assert.equal(response.status, 200, JSON.stringify(response.body));
-          assert.equal(response.body.outcome, 'applied');
+          assert.equal(response.receipt.outcome, 'applied');
           const sources = (
             await pool.query<{
               event_id: string;
@@ -738,7 +733,7 @@ test(
                 rule_version: 'rating-effects-v1',
                 target_id: target.id,
                 root_id: root.id,
-                reply_id: response.body.replyId,
+                reply_id: response.id,
                 actor_id: replyActor.accountId,
                 target_order: '2',
                 captured_coverage: 'complete',

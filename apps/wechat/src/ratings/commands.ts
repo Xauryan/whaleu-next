@@ -2,6 +2,7 @@ import { ClientError } from '../api/errors';
 import type { CommunityRuntime } from '../community/runtime';
 import type { Cancellation } from '../platform/contracts';
 import {
+  isRatingTargetCreationIntent,
   isRatingReplyIntent,
   isRatingAdminDeletionIntent,
   isRatingDeletionContextChanged,
@@ -11,6 +12,7 @@ import {
   type RatingCommandReceipt,
 } from './pending';
 export const ratingCommandLabels = {
+  create_target: '评分对象创建',
   admin_delete_comment: '管理员删除评价',
   admin_delete_reply: '管理员删除回复',
   set_target_subscription: '目标订阅状态',
@@ -34,6 +36,16 @@ export function runRatingCommand(
     throw new ClientError('stale-session', 'Account changed');
   runtime.pendingRatings!.assertOriginal(attempt);
   const intent = attempt.intent;
+  if (isRatingTargetCreationIntent(intent)) {
+    if (!runtime.ratingManagement)
+      throw new ClientError('configuration', 'Rating management unavailable');
+    return retry
+      ? runtime.ratingManagement.command(intent, cancel)
+      : runtime.ratingManagement.receipt(
+          intent.payload.clientRequestId,
+          cancel,
+        );
+  }
   if (isRatingAdminDeletionIntent(intent)) {
     if (!runtime.ratingDeletion)
       throw new ClientError('configuration', 'Rating deletion unavailable');

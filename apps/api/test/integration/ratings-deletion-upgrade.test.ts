@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import request from 'supertest';
 import { ratingDiscussionFixture } from '../support/rating-discussion-fixture.js';
+import { seedRating0052Upgrade } from '../support/rating-legacy-upgrade-fixture.js';
 import {
   readMigrations,
   runMigrations,
@@ -16,40 +16,13 @@ test('0053 upgrades populated 0052 without rewriting legacy receipts, authors, e
     other = await f.actor(),
     catalog = await f.catalog(owner),
     target = catalog.targets[0]!;
-  const root = await f.publish(owner, catalog, target),
-    reply = await f.publishReply(other, catalog, target, root);
-  const deletedRoot = await f.publish(owner, catalog, target);
-  const deletion = await f.deleteRoot(owner, catalog, target, deletedRoot);
+  // Historical rows must be created with the actual 0052 SQL protocol, not
+  // today's command services (which deliberately require the latest schema).
+  const { root, reply, deletedRoot, deletion, score, liked } =
+    await seedRating0052Upgrade(f, owner, other, catalog, target);
   assert.equal(deletion.outcome, 'applied');
-  const score = await f
-    .auth(
-      request(f.http).put(`/v1/ratings/targets/${target.id}/my-score`),
-      owner,
-    )
-    .send({
-      clientRequestId: randomUUID(),
-      regionId: null,
-      expectedTargetRevision: target.revision,
-      expectedRevision: null,
-      score: 4,
-    });
-  assert.equal(score.body.outcome, 'applied', JSON.stringify(score.body));
-  const like = await f.auth(
-    request(f.http).get(`/v1/ratings/comments/${root.id}/like`),
-    other,
-  );
-  const liked = await f
-    .auth(request(f.http).put(`/v1/ratings/comments/${root.id}/like`), other)
-    .send({
-      clientRequestId: randomUUID(),
-      regionId: null,
-      targetId: target.id,
-      expectedTargetRevision: target.revision,
-      expectedRevision: root.revision,
-      expectedLikeRevision: like.body.revision,
-      liked: true,
-    });
-  assert.equal(liked.body.outcome, 'applied', JSON.stringify(liked.body));
+  assert.equal(score.outcome, 'applied', JSON.stringify(score));
+  assert.equal(liked.outcome, 'applied', JSON.stringify(liked));
   const tables = (
     await f.pool.query<{ table_name: string }>(
       "SELECT table_name FROM information_schema.tables WHERE table_schema='whaleu_ratings' AND table_type='BASE TABLE' ORDER BY table_name",

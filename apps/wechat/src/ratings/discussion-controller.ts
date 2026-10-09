@@ -30,6 +30,7 @@ import {
 import {
   decodeRatingCommandIntent,
   isRatingSubscriptionIntent,
+  isRatingTargetCreationIntent,
   isRatingAdminDeletionIntent,
   isRatingDeletionContextChanged,
   type RatingCommandIntent,
@@ -831,6 +832,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const intent = decodeRatingCommandIntent(make(id));
         if (
+          isRatingTargetCreationIntent(intent) ||
           isRatingSubscriptionIntent(intent) ||
           isRatingAdminDeletionIntent(intent)
         )

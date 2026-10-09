@@ -1,0 +1,19 @@
+<import src="../../ratings/common.wxml" />
+<view class="screen">
+  <view class="title">创建评分对象</view>
+  <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />
+  <view class="notice">普通合格用户可申请创建，不要求管理员批准。服务器将核验部署创建政策、当前范围、分类版本和精确内容审核；这些条件未就绪时无法完成。原始学校未知与上述条件不同，是否可继续由服务端政策判断，不能由浏览地区推断。图片暂未开放。</view>
+  <view wx:if="{{ready}}" class="card">
+    <view class="section-title">名称（最多 100 字）</view>
+    <input value="{{name}}" bindinput="onName" maxlength="200" disabled="{{busy || frozen}}" placeholder="填写具体对象名称" />
+    <view class="section-title">说明（最多 500 字）</view>
+    <textarea value="{{description}}" bindinput="onDescription" maxlength="1000" disabled="{{busy || frozen}}" placeholder="可选，介绍这个评分对象" />
+    <button bindtap="onCreate" disabled="{{busy || frozen || !name}}">确认提交创建申请</button>
+    <view class="notice">提交后输入与编号被冻结。结果未知时可查询、重试同一请求或明确撤销。只有服务器确认的最终回执才能解除保护。</view>
+  </view>
+  <view wx:if="{{canCancelCreation}}" class="card">
+    <button bindtap="onCancelCreation" disabled="{{busy}}">撤销这次未完成的创建申请</button>
+    <view wx:if="{{cancelCreationConfirmation}}"><view class="notice">确认停止这次创建？服务器将永久关闭尚未完成的原请求；若已成功创建，只会返回成功回执，不会删除对象。</view><button bindtap="onConfirmCancelCreation" disabled="{{busy}}">确认撤销原申请</button><button bindtap="onDismissCancelCreation" disabled="{{busy}}">保留申请</button></view>
+  </view>
+  <navigator url="/pages/rating-catalog/rating-catalog" class="link">返回目录并重新加载 →</navigator>
+</view>

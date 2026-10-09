@@ -11,6 +11,14 @@ const conditions = {
     status: 503,
     message: 'Rating deletion authority is unavailable',
   },
+  RATING_CREATION_CONTEXT_CHANGED: {
+    status: 409,
+    message: 'Rating creation context changed; request is closed',
+  },
+  RATING_CREATION_CANCELLED: {
+    status: 409,
+    message: 'Rating creation request cancelled',
+  },
   RATING_UNAVAILABLE: { status: 503, message: 'Ratings are unavailable' },
   RATING_NOT_FOUND: { status: 404, message: 'Rating content not found' },
   RATING_SCOPE_UNAVAILABLE: {

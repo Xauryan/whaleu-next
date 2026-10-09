@@ -24,6 +24,7 @@ import type { RatingsGateway } from '../src/ratings/gateway';
 import {
   PendingRatingStore,
   isRatingReplyIntent,
+  isRatingTargetCreationIntent,
   isRatingAdminDeletionIntent,
   isRatingLikeIntent,
   isRatingSubscriptionIntent,
@@ -172,6 +173,7 @@ export const receipt = (
   outcome: 'applied' | 'noop' = 'applied',
 ): Extract<RatingReceipt, { outcome: 'applied' | 'noop' }> => {
   if (
+    isRatingTargetCreationIntent(command) ||
     isRatingAdminDeletionIntent(command) ||
     isRatingReplyIntent(command) ||
     isRatingLikeIntent(command) ||
@@ -207,6 +209,7 @@ export const rejected = (
   >['code'] = 'RATING_REVISION_CONFLICT',
 ): RatingReceipt => {
   if (
+    isRatingTargetCreationIntent(command) ||
     isRatingAdminDeletionIntent(command) ||
     isRatingReplyIntent(command) ||
     isRatingLikeIntent(command) ||

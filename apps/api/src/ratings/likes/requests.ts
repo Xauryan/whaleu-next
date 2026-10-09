@@ -1,3 +1,4 @@
+import { assertRatingCommandClaim } from '../management/requests.js';
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -48,6 +49,7 @@ export class RatingLikeRequests {
                 canonicalJson({ operation, intent }),
             )
             .digest('hex');
+        await assertRatingCommandClaim(actor, requestId, operation, hash, tx);
         await tx.query(
           'INSERT INTO whaleu_ratings.requests(account_id,request_id,operation,intent_hash) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',
           [actor, requestId, operation, hash],

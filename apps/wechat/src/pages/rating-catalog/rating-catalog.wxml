@@ -12,7 +12,7 @@
   </view>
   <block wx:if="{{loaded}}">
     <view class="section-title">{{parentId ? '下一级分类' : '根分类'}}</view>
-    <view wx:for="{{categories}}" wx:key="id" class="card"><view class="section-title">{{item.name}}</view><view class="body">{{item.description}}</view><view class="meta">第 {{item.level}} 级分类</view><button data-id="{{item.id}}" bindtap="onCategory" disabled="{{busy}}">进入分类 →</button><button data-id="{{item.id}}" bindtap="onRandom" disabled="{{busy}}">随机选择：先确认范围 →</button></view>
+    <view wx:for="{{categories}}" wx:key="id" class="card"><view class="section-title">{{item.name}}</view><view class="body">{{item.description}}</view><view class="meta">第 {{item.level}} 级分类</view><button data-id="{{item.id}}" bindtap="onCategory" disabled="{{busy}}">进入分类 →</button><button data-id="{{item.id}}" bindtap="onRandom" disabled="{{busy}}">随机选择：先确认范围 →</button><button wx:if="{{item.kind === 'general'}}" data-id="{{item.id}}" bindtap="onCreateTarget" disabled="{{busy || frozen}}">申请创建此分类的评分对象</button></view>
     <view wx:if="{{!categories.length}}" class="empty">{{parentId ? '当前分类没有可见子分类' : '当前范围暂无分类'}}</view>
     <button wx:if="{{canMoreCategories}}" bindtap="onMoreCategories" disabled="{{busy}}">继续加载分类</button>
     <block wx:if="{{parentId}}"><button data-id="{{parentId}}" bindtap="onRandom" disabled="{{busy}}">从当前分类随机选择：先确认范围 →</button><view class="section-title">直属评价目标</view>

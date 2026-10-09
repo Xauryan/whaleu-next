@@ -2,6 +2,10 @@ import { RatingRandomDraw } from './random/draw.js';
 import { RatingRandomController } from './random/controller.js';
 import { RatingRandomService } from './random/service.js';
 import { RatingCompletePoolRepository } from './random/complete-pool.repository.js';
+import { RatingManagementController } from './management/controller.js';
+import { RatingManagementService } from './management/service.js';
+import { RatingNativeTargetSourceFacade } from './management/native-source.facade.js';
+import { RatingCatalogWriter } from './management/catalog-writer.js';
 import { RatingDeletionController } from './deletion/controller.js';
 import { RatingDeletionService } from './deletion/service.js';
 import { RatingAdminDeletionRequests } from './deletion/requests.js';
@@ -56,6 +60,7 @@ import { RatingsCursors } from './cursor.js';
   ],
   controllers: [
     RatingRandomController,
+    RatingManagementController,
     RatingDeletionController,
     RatingSubscriptionsController,
     RatingsController,
@@ -66,6 +71,9 @@ import { RatingsCursors } from './cursor.js';
     RatingRandomService,
     RatingRandomDraw,
     RatingCompletePoolRepository,
+    RatingManagementService,
+    RatingNativeTargetSourceFacade,
+    RatingCatalogWriter,
     RatingDeletionService,
     RatingAdminDeletionRequests,
     RatingTargetOriginFacade,

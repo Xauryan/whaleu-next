@@ -96,6 +96,27 @@ assert.equal(/accessToken|refreshToken/.test(wxml), false);
 if (!configured) await page.controller.login();
 assert.equal(page.data.verified, false);
 page.onUnload();
+// Creation is a form, not a loaded content projection. Assert its actual
+// privacy/action state instead of manufacturing a meaningless loaded flag.
+function assertColdRatingCreation(current) {
+  for (const key of [
+    'ready',
+    'frozen',
+    'canCancelCreation',
+    'cancelCreationConfirmation',
+    'needsRefresh',
+    'busy',
+  ])
+    assert.equal(current.data[key], false, `rating-create: ${key}`);
+  for (const key of [
+    'name',
+    'description',
+    'receiptStatus',
+    'recoveryOperation',
+  ])
+    assert.equal(current.data[key], '', `rating-create: ${key}`);
+  assert.equal(current.context, null);
+}
 for (const route of config.pages.filter(
   (route) => !['pages/login/login', 'pages/status/status'].includes(route),
 )) {
@@ -120,7 +141,9 @@ for (const route of config.pages.filter(
         },
   );
   current.onShow();
-  assert.equal(current.data.loaded, false);
+  if (route === 'pages/rating-create/rating-create')
+    assertColdRatingCreation(current);
+  else assert.equal(current.data.loaded, false);
   assert.ok(current.data.error);
   const template = readFileSync(path.join(dist, `${route}.wxml`), 'utf8');
   for (const match of template.matchAll(
@@ -135,10 +158,16 @@ for (const route of config.pages.filter(
     );
   current.onHide();
   assert.equal(current.controller, undefined);
-  assert.equal(current.data.loaded, false);
+  if (route === 'pages/rating-create/rating-create')
+    assertColdRatingCreation(current);
+  else assert.equal(current.data.loaded, false);
   current.onShow();
   assert.ok(current.controller);
   current.onUnload();
+  if (route === 'pages/rating-create/rating-create') {
+    assertColdRatingCreation(current);
+    assert.equal(current.controller, undefined);
+  }
 }
 // The compiled own-account page must honor the root app-hide boundary even
 // before its own onHide callback arrives. Fixtures never call an API/provider.

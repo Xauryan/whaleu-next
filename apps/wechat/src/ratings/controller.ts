@@ -38,6 +38,7 @@ import {
   ratingIntentTarget,
   decodeRatingCommandIntent,
   isRatingSubscriptionIntent,
+  isRatingTargetCreationIntent,
   isRatingAdminDeletionIntent,
   isRatingDeletionContextChanged,
   type RatingCommandIntent,
@@ -158,6 +159,9 @@ export function ratingError(error: unknown): string {
           '评分历史尚不能确认；自己的评分和统计不能视为零',
         RATING_REVISION_CONFLICT:
           '评分或目标已被更新，请刷新后重新选择并确认；未覆盖其他设备的修改',
+        RATING_CREATION_CONTEXT_CHANGED:
+          '原创建申请已关闭；请刷新目录后重新填写并确认',
+        RATING_CREATION_CANCELLED: '原创建申请已撤销，没有创建对象',
         RATING_DELETION_CONTEXT_CHANGED:
           '删除资格或版本已变化，原请求未提交；请重新读取删除上下文并再次确认',
         CONTENT_REVIEW_UNAVAILABLE:
@@ -986,7 +990,11 @@ export class RatingController extends CommunityController<RatingView> {
         if (cancel.isCancelled)
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const intent = decodeRatingCommandIntent(make(id));
-        if (isRatingAdminDeletionIntent(intent)) invalidRating();
+        if (
+          isRatingAdminDeletionIntent(intent) ||
+          isRatingTargetCreationIntent(intent)
+        )
+          invalidRating();
         const attempt = this.runtime.pendingRatings!.freeze(
           isRatingSubscriptionIntent(intent)
             ? { version: 3, accountId, intent }
@@ -1130,6 +1138,20 @@ export class RatingController extends CommunityController<RatingView> {
       root.targetId === this.view.detail?.id
       ? `/pages/rating-thread/rating-thread?targetId=${root.targetId}&rootId=${root.id}${this.view.regionId ? `&regionId=${this.view.regionId}` : ''}`
       : null;
+  }
+  creationPath(id: string): string | null {
+    const category = this.view.categories.find((item) => item.id === id);
+    if (
+      this.inactive ||
+      this.view.busy ||
+      this.view.frozen ||
+      !this.accountId() ||
+      !this.catalogRevision ||
+      !category ||
+      category.kind !== 'general'
+    )
+      return null;
+    return `/pages/rating-create/rating-create?categoryId=${category.id}&expectedCategoryRevision=${category.revision}&expectedCatalogRevision=${this.catalogRevision}${this.view.regionId ? `&regionId=${this.view.regionId}` : ''}`;
   }
   categoryPath(id: string): string | null {
     return !this.inactive &&
