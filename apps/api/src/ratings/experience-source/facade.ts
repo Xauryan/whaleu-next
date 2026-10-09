@@ -6,13 +6,21 @@ import type { ExperienceSourceUnit } from '../../experience/source-contracts.js'
 // Negative transitions never have a group and cannot become deductions here.
 const supportedSource = `(
   (g.source_version=1 AND g.event_kind IN ('root_created','reply_created')
+    AND g.subscription_transition_id IS NULL AND g.root_id IS NOT NULL AND g.root_author_id IS NOT NULL
     AND g.like_transition_id IS NULL AND g.subject_author_id IS NULL AND g.subject_author_mode IS NULL
     AND u.action IN ('comment','received_comment'))
   OR (g.source_version=2 AND g.event_kind='content_liked'
+    AND g.subscription_transition_id IS NULL AND g.root_id IS NOT NULL AND g.root_author_id IS NOT NULL
     AND g.like_transition_id IS NOT NULL AND g.subject_author_id IS NOT NULL
     AND g.subject_author_mode IN ('named','anonymous')
     AND g.reply_to_id IS NULL AND g.direct_reply_author_id IS NULL
     AND u.action IN ('like_save','received_like_save'))
+  OR (g.source_version=3 AND g.event_kind='target_subscribed'
+    AND g.subscription_transition_id IS NOT NULL AND g.expected_unit_count=1
+    AND g.root_id IS NULL AND g.root_author_id IS NULL AND g.reply_id IS NULL
+    AND g.reply_to_id IS NULL AND g.direct_reply_author_id IS NULL
+    AND g.like_transition_id IS NULL AND g.subject_author_id IS NULL AND g.subject_author_mode IS NULL
+    AND u.action='like_save' AND u.beneficiary_id=g.actor_account_id)
 )`;
 
 /** Settles the captured private beneficiary, even if content is subsequently

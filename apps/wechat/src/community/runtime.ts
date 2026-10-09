@@ -1,4 +1,12 @@
 import {
+  HttpRatingSubscriptionsGateway,
+  type RatingSubscriptionsGateway,
+} from '../ratings/subscription-gateway';
+import {
+  HttpRatingSubscriptionUpdatesGateway,
+  type RatingSubscriptionUpdatesGateway,
+} from '../ratings/subscription-updates-gateway';
+import {
   HttpRatingLikesGateway,
   type RatingLikesGateway,
 } from '../ratings/like-gateway';
@@ -84,6 +92,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly ratingSubscriptions?: RatingSubscriptionsGateway;
+  readonly ratingSubscriptionUpdates?: RatingSubscriptionUpdatesGateway;
   readonly ratingLikes?: RatingLikesGateway;
   readonly ratingLikeUpdates?: RatingLikeUpdatesGateway;
   readonly ratingDiscussion?: RatingDiscussionGateway;
@@ -143,6 +153,10 @@ export function createCommunityRuntime(
     ...(identity.api ? { ratings: new HttpRatingsGateway(identity.api) } : {}),
     ...(identity.api
       ? {
+          ratingSubscriptions: new HttpRatingSubscriptionsGateway(identity.api),
+          ratingSubscriptionUpdates: new HttpRatingSubscriptionUpdatesGateway(
+            identity.api,
+          ),
           ratingLikes: new HttpRatingLikesGateway(identity.api),
           ratingLikeUpdates: new HttpRatingLikeUpdatesGateway(identity.api),
           ratingDiscussion: new HttpRatingDiscussionGateway(identity.api),

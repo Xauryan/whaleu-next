@@ -1,3 +1,8 @@
+import { RatingSubscriptionUpdatesController } from './subscription-controller.js';
+import { RatingSubscriptionUpdatesReadService } from './subscription-read.service.js';
+import { RatingSubscriptionUpdatesRepository } from './subscription-repository.js';
+import { RatingSubscriptionUpdatesCursors } from './subscription-cursor.js';
+import { RatingSubscriptionUpdatesWorker } from './subscription-worker.js';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../database/database.js';
 import { IdentityModule } from '../../identity/identity.module.js';
@@ -20,8 +25,16 @@ import { RatingUpdatesWorker } from './worker.js';
     RatingRequestThrottlingModule,
     RatingUpdatesSourceModule,
   ],
-  controllers: [RatingUpdatesController, RatingLikeUpdatesController],
+  controllers: [
+    RatingUpdatesController,
+    RatingLikeUpdatesController,
+    RatingSubscriptionUpdatesController,
+  ],
   providers: [
+    RatingSubscriptionUpdatesReadService,
+    RatingSubscriptionUpdatesRepository,
+    RatingSubscriptionUpdatesCursors,
+    RatingSubscriptionUpdatesWorker,
     RatingUpdatesCursors,
     RatingUpdatesRepository,
     RatingUpdatesReadService,
@@ -29,6 +42,8 @@ import { RatingUpdatesWorker } from './worker.js';
     RatingUpdatesWorker,
   ],
   exports: [
+    RatingSubscriptionUpdatesReadService,
+    RatingSubscriptionUpdatesWorker,
     RatingUpdatesWorker,
     RatingUpdatesReadService,
     RatingLikeUpdatesReadService,

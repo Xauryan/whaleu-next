@@ -392,3 +392,13 @@ The rating-updates page keeps separate “回复” and “赞” categories, st
 Root lists offer time/likes and ascending/descending choices. The original unspecified query stays on the legacy route, while explicit choices request the new server order and restart from a cleared first page. Likes-sort coverage failure clears the old page and leaves time sorting available. No client sort substitutes zero for unknown counts. The author cumulative-received-like metric remains undecided and is not changed by this slice.
 
 See [native R2B behavior and validation boundaries](docs/ratings-r2b.md). Unit, strict real-ApiClient synthetic transport and emitted WXML smoke are distinct from actual backend HTTP/PostgreSQL integration and unverified physical WeChat/device/provider acceptance. Trusted review issuance, production history/catalog enrollment and the remaining parity gates are still required.
+
+## Ratings R2C: target subscriptions and independent local updates
+
+Rating details and ordinary category target cards now show independently known/unavailable subscription state and subscriber count, with desired-state subscribe/unsubscribe controls. Target list DTOs stay strict and unchanged: visible cards use single-region read-only batches of at most 20 rendered target/revision pairs, at most three serial batches for a 50-card page. Detail uses one independent GET. Cancellation and scope/account/route changes discard the remaining old queue; failures never manufacture false membership or zero counts.
+
+Subscription commands have their own immutable origin/account v3 journal, while original v1/v2 payloads, keys and routes remain intact and recover first. A new command cannot displace unresolved legacy work. Minimal receipts are historical; current membership/count is read again and receipt text does not claim settled experience or delivered notifications.
+
+The updates page adds a separate Subscription category for new root evaluations and replies. Root/reply locators are exact; the receiving page reauthorizes and reads current content before marking only that subscription notice read. Direct replies and subscription updates can coexist for the same recipient and retain independent read state. Unavailable previews have no hidden locator or text and remain explicitly acknowledgeable.
+
+See [native R2C behavior and validation boundaries](docs/ratings-r2c.md). The synthetic emitted WXML/HTTP smoke, actual local AppModule/PostgreSQL integration and unverified WeChat physical-device/provider acceptance remain distinct. No personal cross-domain rating-saved list is introduced.

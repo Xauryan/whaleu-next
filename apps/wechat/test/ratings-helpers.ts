@@ -25,6 +25,7 @@ import {
   PendingRatingStore,
   isRatingReplyIntent,
   isRatingLikeIntent,
+  isRatingSubscriptionIntent,
   type RatingCommandIntent,
 } from '../src/ratings/pending';
 import { setup } from './community-helpers';
@@ -169,7 +170,11 @@ export const receipt = (
   command: RatingCommandIntent = intent(),
   outcome: 'applied' | 'noop' = 'applied',
 ): Extract<RatingReceipt, { outcome: 'applied' | 'noop' }> => {
-  if (isRatingReplyIntent(command) || isRatingLikeIntent(command))
+  if (
+    isRatingReplyIntent(command) ||
+    isRatingLikeIntent(command) ||
+    isRatingSubscriptionIntent(command)
+  )
     throw new Error('R1-only fixture');
   return {
     requestId: command.payload.clientRequestId,
@@ -199,7 +204,11 @@ export const rejected = (
     { outcome: 'rejected' }
   >['code'] = 'RATING_REVISION_CONFLICT',
 ): RatingReceipt => {
-  if (isRatingReplyIntent(command) || isRatingLikeIntent(command))
+  if (
+    isRatingReplyIntent(command) ||
+    isRatingLikeIntent(command) ||
+    isRatingSubscriptionIntent(command)
+  )
     throw new Error('R1-only fixture');
   return {
     requestId: command.payload.clientRequestId,

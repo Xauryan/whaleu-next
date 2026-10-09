@@ -1,20 +1,20 @@
 <view class="screen">
   <view class="eyebrow">WHALEU · 本地评分更新</view><view class="title">评分更新</view>
-  <view class="chips"><button data-category="reply" bindtap="onCategory" class="{{category === 'reply' ? 'active' : 'secondary'}}">回复</button><button data-category="like" bindtap="onCategory" class="{{category === 'like' ? 'active' : 'secondary'}}">赞</button></view>
-  <view class="notice">按分类展示本账号已生成的直接评分回复或赞通知。同一个人对同一条内容的赞只通知一次；取消后再赞不重置已读。未接入微信外部推送，历史通知覆盖不作推断。</view>
+  <view class="chips"><button data-category="reply" bindtap="onCategory" class="{{category === 'reply' ? 'active' : 'secondary'}}">回复</button><button data-category="like" bindtap="onCategory" class="{{category === 'like' ? 'active' : 'secondary'}}">赞</button><button data-category="subscription" bindtap="onCategory" class="{{category === 'subscription' ? 'active' : 'secondary'}}">订阅</button></view>
+  <view class="notice">按分类展示本账号已生成的直接评分回复、赞通知或订阅目标的新评价与回复。直接回复和订阅更新独立保留、独立已读。同一个人对同一条内容的赞只通知一次；取消后再赞不重置已读。未接入微信外部推送，历史通知覆盖不作推断。</view>
   <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
-  <view wx:if="{{loaded}}" class="section-title">{{category === 'like' ? '赞' : '回复'}}未读 {{unreadCount}} 条</view>
+  <view wx:if="{{loaded}}" class="section-title">{{category === 'subscription' ? '订阅' : category === 'like' ? '赞' : '回复'}}未读 {{unreadCount}} 条</view>
   <view wx:if="{{loaded}}" class="meta">包含当前不可查看的已生成记录；不包含待处理义务或社区更新。</view>
   <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新评分更新</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
   <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看自己的更新 →</navigator>
   <view wx:for="{{items}}" wx:key="noticeId" class="card">
     <view class="meta">{{item.createdAt}} · {{item.readAt ? '已读' : '未读'}}</view>
     <block wx:if="{{item.status === 'available'}}">
-      <view class="section-title">{{item.kind === 'like' ? (item.target.replyId ? '有人赞了你的回复' : '有人赞了你的评价') : (item.reason === 'direct_root' ? '你的评价有新回复' : '有人回复了你的回复')}}</view>
+      <view class="section-title">{{item.kind === 'subscription' ? (item.activity === 'root' ? '码住的目标有新评价' : '码住的目标有新回复') : item.kind === 'like' ? (item.target.replyId ? '有人赞了你的回复' : '有人赞了你的评价') : (item.reason === 'direct_root' ? '你的评价有新回复' : '有人回复了你的回复')}}</view>
       <view wx:if="{{item.kind === 'like'}}" class="author">{{item.actor.displayName}}<text class="badge">实名</text></view>
       <view wx:else class="author">{{item.preview.author.displayName}}<text class="badge">{{item.preview.author.mode === 'anonymous' ? '本目标分身' : '实名'}}</text></view>
       <view class="body">{{item.preview.text}}</view>
-      <button data-id="{{item.noticeId}}" bindtap="onOpen" disabled="{{busy}}">{{item.kind === 'like' ? '查看被赞内容' : '查看这条评分回复'}}</button>
+      <button data-id="{{item.noticeId}}" bindtap="onOpen" disabled="{{busy}}">{{item.kind === 'subscription' ? '查看这条订阅更新' : item.kind === 'like' ? '查看被赞内容' : '查看这条评分回复'}}</button>
     </block>
     <view wx:else class="notice">此条评分更新的内容当前不可查看</view>
     <button wx:if="{{!item.readAt}}" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy}}">标记这一条已读</button>

@@ -1,3 +1,4 @@
+import { decodeRatingSubscriptionNoticeTarget } from './subscription-updates-contract';
 import { readRatingLikeStates, type RatingLikeStates } from './like-controller';
 import { decodeRatingLikeNoticeTarget } from './like-updates-contract';
 import { ClientError, isRecord } from '../api/errors';
@@ -27,6 +28,7 @@ import {
 } from './discussion-contract';
 import {
   decodeRatingCommandIntent,
+  isRatingSubscriptionIntent,
   type RatingCommandIntent,
   type PendingRating,
   type RatingCommandReceipt,
@@ -43,6 +45,7 @@ export interface RatingThreadRoute {
   readonly replyId?: string;
   readonly noticeId?: string;
   readonly likeNoticeId?: string;
+  readonly subscriptionNoticeId?: string;
 }
 export function decodeRatingThreadRoute(value: unknown): RatingThreadRoute {
   if (
@@ -56,13 +59,16 @@ export function decodeRatingThreadRoute(value: unknown): RatingThreadRoute {
           'replyId',
           'noticeId',
           'likeNoticeId',
+          'subscriptionNoticeId',
         ].includes(key),
     ) ||
     Object.values(value).some((id) => !ratingId(id)) ||
     !ratingId(value.targetId) ||
     !ratingId(value.rootId) ||
-    (value.noticeId !== undefined &&
-      (!ratingId(value.replyId) || value.likeNoticeId !== undefined))
+    (value.noticeId !== undefined && !ratingId(value.replyId)) ||
+    [value.noticeId, value.likeNoticeId, value.subscriptionNoticeId].filter(
+      (id) => id !== undefined,
+    ).length > 1
   )
     invalidRating();
   return Object.freeze({
@@ -71,6 +77,9 @@ export function decodeRatingThreadRoute(value: unknown): RatingThreadRoute {
     ...(value.regionId ? { regionId: value.regionId as string } : {}),
     ...(value.replyId ? { replyId: value.replyId as string } : {}),
     ...(value.noticeId ? { noticeId: value.noticeId as string } : {}),
+    ...(value.subscriptionNoticeId
+      ? { subscriptionNoticeId: value.subscriptionNoticeId as string }
+      : {}),
     ...(value.likeNoticeId
       ? { likeNoticeId: value.likeNoticeId as string }
       : {}),
@@ -285,6 +294,30 @@ export class RatingThreadController extends CommunityController<RatingThreadView
     let loaded = false;
     await this.run(
       async (cancel) => {
+        if (route.subscriptionNoticeId) {
+          if (!this.runtime.ratingSubscriptionUpdates)
+            throw new ClientError(
+              'configuration',
+              'Rating subscription updates unavailable',
+            );
+          const resolved = decodeRatingSubscriptionNoticeTarget(
+            await this.runtime.ratingSubscriptionUpdates.target(
+              route.subscriptionNoticeId,
+              cancel,
+            ),
+          );
+          if (
+            resolved.noticeId !== route.subscriptionNoticeId ||
+            resolved.status !== 'available' ||
+            resolved.target.regionId !== (route.regionId ?? null) ||
+            resolved.target.targetId !== route.targetId ||
+            resolved.target.rootId !== route.rootId ||
+            resolved.target.replyId !== (route.replyId ?? null)
+          )
+            throw new ClientError('business', 'Notice target unavailable', {
+              serverCode: 'RATING_NOT_FOUND',
+            });
+        }
         if (route.likeNoticeId) {
           if (!this.runtime.ratingLikeUpdates)
             throw new ClientError(
@@ -418,33 +451,45 @@ export class RatingThreadController extends CommunityController<RatingThreadView
       !this.inactive &&
       this.route === route &&
       this.view.loaded &&
-      (route.noticeId || route.likeNoticeId) &&
+      (route.noticeId || route.likeNoticeId || route.subscriptionNoticeId) &&
       this.accountId()
     ) {
       await this.run(
         (cancel) =>
-          route.likeNoticeId
-            ? this.runtime.ratingLikeUpdates!.markRead(
-                route.likeNoticeId,
+          route.subscriptionNoticeId
+            ? this.runtime.ratingSubscriptionUpdates!.markRead(
+                route.subscriptionNoticeId,
                 cancel,
               )
-            : this.runtime.ratingUpdates!.markRead(route.noticeId!, cancel),
+            : route.likeNoticeId
+              ? this.runtime.ratingLikeUpdates!.markRead(
+                  route.likeNoticeId,
+                  cancel,
+                )
+              : this.runtime.ratingUpdates!.markRead(route.noticeId!, cancel),
         (raw) => {
           const receipt = decodeRatingNoticeRead(raw);
-          if (receipt.noticeId !== (route.likeNoticeId ?? route.noticeId))
+          if (
+            receipt.noticeId !==
+            (route.subscriptionNoticeId ?? route.likeNoticeId ?? route.noticeId)
+          )
             invalidRating();
           this.update({
-            status: route.likeNoticeId
-              ? '已定位当前被赞内容，并确认这条赞已读'
-              : '已定位当前回复，并确认这条评分更新已读',
+            status: route.subscriptionNoticeId
+              ? '已定位当前订阅内容，并确认这条订阅更新已读'
+              : route.likeNoticeId
+                ? '已定位当前被赞内容，并确认这条赞已读'
+                : '已定位当前回复，并确认这条评分更新已读',
           });
         },
         (error) => {
           this.update({
             error: ratingError(error),
-            status: route.likeNoticeId
-              ? '被赞内容已读取，但这条赞的已读状态尚未确认'
-              : '回复已读取，但这条更新的已读状态尚未确认',
+            status: route.subscriptionNoticeId
+              ? '订阅内容已读取，但这条订阅更新的已读状态尚未确认'
+              : route.likeNoticeId
+                ? '被赞内容已读取，但这条赞的已读状态尚未确认'
+                : '回复已读取，但这条更新的已读状态尚未确认',
           });
         },
       );
@@ -752,10 +797,12 @@ export class RatingThreadController extends CommunityController<RatingThreadView
         this.runtime.sessions.assertCurrent(owner);
         if (cancel.isCancelled)
           throw new ClientError('cancelled', 'Cancelled before persistence');
+        const intent = decodeRatingCommandIntent(make(id));
+        if (isRatingSubscriptionIntent(intent)) invalidRating();
         const attempt = this.runtime.pendingRatings!.freeze({
           version: 2,
           accountId,
-          intent: decodeRatingCommandIntent(make(id)),
+          intent,
         });
         this.clearContent();
         this.showPending(attempt);

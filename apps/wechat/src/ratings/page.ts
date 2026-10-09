@@ -89,7 +89,6 @@ export function registerRatingPage(mode: RatingMode): void {
     onRegion(event: Tap) {
       const regionId = event.currentTarget.dataset.id || null;
       const valid =
-        !this.data.busy &&
         this.data.hasSession &&
         this.data.configured &&
         (regionId === null ||
@@ -109,6 +108,9 @@ export function registerRatingPage(mode: RatingMode): void {
         this.controller?.targetPath(event.currentTarget.dataset.id ?? '') ??
           null,
       );
+    },
+    onSubscription(event: Tap) {
+      void this.controller?.toggleSubscription(event.currentTarget.dataset.id);
     },
     onLike(event: Tap) {
       void this.controller?.toggleLike(event.currentTarget.dataset.id ?? '');

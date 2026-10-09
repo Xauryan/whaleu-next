@@ -1,3 +1,8 @@
+import {
+  readRatingSubscriptionState,
+  readRatingSubscriptionStates,
+  type RatingSubscriptionStates,
+} from './subscription-controller';
 import { readRatingLikeStates, type RatingLikeStates } from './like-controller';
 import type { RatingCommentSort } from './gateway';
 import { ClientError, isRecord } from '../api/errors';
@@ -31,6 +36,7 @@ import {
 import {
   ratingIntentTarget,
   decodeRatingCommandIntent,
+  isRatingSubscriptionIntent,
   type RatingCommandIntent,
   type PendingRating,
   type RatingCommandReceipt,
@@ -79,6 +85,7 @@ export interface RatingView extends CommunityView {
   readonly summary: RatingSummary | null;
   readonly comments: readonly RatingComment[];
   readonly likes: RatingLikeStates;
+  readonly subscriptions: RatingSubscriptionStates;
   readonly commentSort: 'time' | 'likes';
   readonly commentOrder: 'asc' | 'desc';
   readonly canMoreCategories: boolean;
@@ -112,6 +119,7 @@ export const initialRatingView = (): RatingView => ({
   summary: null,
   comments: [],
   likes: {},
+  subscriptions: {},
   commentSort: 'time',
   commentOrder: 'desc',
   canMoreCategories: false,
@@ -141,6 +149,8 @@ export function ratingError(error: unknown): string {
         RATING_UNAVAILABLE: '评分目录或必要授权暂不能确认，请稍后重新加载',
         RATING_SCOPE_UNAVAILABLE:
           '此地区当前不可访问；浏览校区不会授予评分权限',
+        RATING_SUBSCRIPTION_UNAVAILABLE:
+          '订阅状态和人数暂不能确认，请稍后重新读取',
         RATING_SCORE_UNAVAILABLE:
           '评分历史尚不能确认；自己的评分和统计不能视为零',
         RATING_REVISION_CONFLICT:
@@ -248,6 +258,7 @@ export class RatingController extends CommunityController<RatingView> {
       summary: null,
       comments: [],
       likes: {},
+      subscriptions: {},
       canMoreCategories: false,
       canMoreTargets: false,
       canMoreComments: false,
@@ -384,7 +395,21 @@ export class RatingController extends CommunityController<RatingView> {
                 categories.context.catalogRevision)
           )
             invalidRating();
-          return { kind: 'catalog' as const, categories, targets };
+          const subscriptions = await readRatingSubscriptionStates(
+            this.runtime.ratingSubscriptions,
+            regionId,
+            (targets?.items ?? []).map((item) => ({
+              targetId: item.id,
+              expectedTargetRevision: item.revision,
+            })),
+            cancel,
+          );
+          return {
+            kind: 'catalog' as const,
+            categories,
+            targets,
+            subscriptions,
+          };
         }
         const targetId = this.route.targetId;
         if (!targetId) invalidRating();
@@ -434,8 +459,15 @@ export class RatingController extends CommunityController<RatingView> {
           })),
           cancel,
         );
+        const subscription = await readRatingSubscriptionState(
+          this.runtime.ratingSubscriptions,
+          regionId,
+          targetId,
+          cancel,
+        );
         return {
           kind: 'detail' as const,
+          subscriptions: { [targetId]: subscription },
           detail,
           own,
           summary,
@@ -452,6 +484,7 @@ export class RatingController extends CommunityController<RatingView> {
             loaded: true,
             categories: result.categories.items,
             targets: result.targets?.items ?? [],
+            subscriptions: result.subscriptions,
             canMoreCategories: !!result.categories.nextCursor,
             canMoreTargets: !!result.targets?.nextCursor,
             status: '已读取当前可见分类与直属目标；不会生成示例目录',
@@ -467,6 +500,7 @@ export class RatingController extends CommunityController<RatingView> {
             summary: result.summary,
             comments: result.comments.items,
             likes: result.likes,
+            subscriptions: result.subscriptions,
             canMoreComments: !!result.comments.nextCursor,
             status: '已重新核验目标、自己的评分与文字评价',
           });
@@ -526,7 +560,6 @@ export class RatingController extends CommunityController<RatingView> {
   async selectRegion(regionId: string | null): Promise<void> {
     if (
       this.mode !== 'catalog' ||
-      this.view.busy ||
       !this.available() ||
       (regionId !== null &&
         (!ratingId(regionId) ||
@@ -545,6 +578,7 @@ export class RatingController extends CommunityController<RatingView> {
     )
       return;
     let likes: RatingLikeStates = {};
+    let subscriptions: RatingSubscriptionStates = {};
     const cursor = this.cursors[kind],
       regionId = this.view.regionId,
       revision = this.catalogRevision;
@@ -582,7 +616,21 @@ export class RatingController extends CommunityController<RatingView> {
               cancel,
             ),
           );
-          if (page.context.categoryId !== this.route.parentId) invalidRating();
+          if (
+            page.context.categoryId !== this.route.parentId ||
+            page.context.regionId !== regionId ||
+            page.context.catalogRevision !== revision
+          )
+            invalidRating();
+          subscriptions = await readRatingSubscriptionStates(
+            this.runtime.ratingSubscriptions,
+            regionId,
+            page.items.map((item) => ({
+              targetId: item.id,
+              expectedTargetRevision: item.revision,
+            })),
+            cancel,
+          );
           return page;
         }
         if (!this.route.targetId) invalidRating();
@@ -618,6 +666,10 @@ export class RatingController extends CommunityController<RatingView> {
               this.seen[kind].has(page.nextCursor)))
         )
           invalidRating();
+        if (kind === 'targets')
+          this.update({
+            subscriptions: { ...this.view.subscriptions, ...subscriptions },
+          });
         if (kind === 'comments')
           this.update({ likes: { ...this.view.likes, ...likes } });
         this.seen[kind].add(cursor);
@@ -870,6 +922,40 @@ export class RatingController extends CommunityController<RatingView> {
       },
     }));
   }
+  async toggleSubscription(
+    id: string = this.view.detail?.id ?? '',
+  ): Promise<void> {
+    const target =
+        this.mode === 'detail'
+          ? this.view.detail
+          : this.view.targets.find((item) => item.id === id),
+      state = this.view.subscriptions[id];
+    if (
+      this.inactive ||
+      this.view.busy ||
+      this.view.frozen ||
+      !this.view.loaded ||
+      !this.available() ||
+      !this.runtime.ratingSubscriptions ||
+      !target ||
+      target.id !== id ||
+      state?.status !== 'known' ||
+      !state.allowedActions.setSubscription
+    )
+      return;
+    const regionId = this.view.regionId;
+    await this.start((clientRequestId) => ({
+      operation: 'set_target_subscription',
+      targetId: target.id,
+      payload: {
+        clientRequestId,
+        regionId,
+        expectedTargetRevision: target.revision,
+        expectedSubscriptionRevision: state.revision,
+        subscribed: !state.subscribed,
+      },
+    }));
+  }
   private async start(
     make: (id: string) => RatingCommandIntent,
   ): Promise<void> {
@@ -883,11 +969,12 @@ export class RatingController extends CommunityController<RatingView> {
         this.runtime.sessions.assertCurrent(owner);
         if (cancel.isCancelled)
           throw new ClientError('cancelled', 'Cancelled before persistence');
-        const attempt = this.runtime.pendingRatings!.freeze({
-          version: 2,
-          accountId,
-          intent: decodeRatingCommandIntent(make(id)),
-        });
+        const intent = decodeRatingCommandIntent(make(id));
+        const attempt = this.runtime.pendingRatings!.freeze(
+          isRatingSubscriptionIntent(intent)
+            ? { version: 3, accountId, intent }
+            : { version: 2, accountId, intent },
+        );
         this.pending = attempt;
         // Do not cancel this command while clearing the visible snapshots and private form.
         this.resetPaging();
@@ -901,6 +988,7 @@ export class RatingController extends CommunityController<RatingView> {
           summary: null,
           comments: [],
           likes: {},
+          subscriptions: {},
           canMoreCategories: false,
           canMoreTargets: false,
           canMoreComments: false,

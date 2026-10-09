@@ -1,6 +1,6 @@
 # Rating text discussion and direct local updates (R2A)
 
-R2A extends the normal Nest application with text replies, same-target personas, durable effects, shared-pool Experience settlement and direct in-app notices. It does not install a production reviewer, import historical rewards, send external notifications, or implement rating likes, subscriptions, media or administration. The [R1 contract](API_RATINGS.md) remains wire-compatible; the [generated contract](openapi/ratings.json) now includes all 23 operations.
+R2A extends the normal Nest application with text replies, same-target personas, durable effects, shared-pool Experience settlement and direct in-app notices. It does not install a production reviewer, import historical rewards, send external notifications, or implement rating likes, subscriptions, media or administration. The [R1 contract](API_RATINGS.md) remains wire-compatible; the [generated contract](openapi/ratings.json) includes these 23 operations and later additive slices.
 
 ## Discussion routes
 

@@ -1,4 +1,9 @@
 import {
+  decodeRatingSubscriptionNoticeTarget,
+  decodeRatingSubscriptionUpdatesPage,
+  type RatingSubscriptionNotice,
+} from './subscription-updates-contract';
+import {
   decodeRatingLikeNoticeTarget,
   decodeRatingLikeUpdatesPage,
   type RatingLikeNotice,
@@ -21,8 +26,10 @@ import {
 } from './updates-contract';
 export interface RatingUpdatesView extends CommunityView {
   readonly loaded: boolean;
-  readonly items: readonly (RatingNotice | RatingLikeNotice)[];
-  readonly category: 'reply' | 'like';
+  readonly items: readonly (
+    RatingNotice | RatingLikeNotice | RatingSubscriptionNotice
+  )[];
+  readonly category: 'reply' | 'like' | 'subscription';
   readonly unreadCount: number | null;
   readonly canMore: boolean;
 }
@@ -62,17 +69,24 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
     this.update({ configured: !!runtime.ratingUpdates });
   }
   private gateway() {
-    return this.view.category === 'like'
-      ? this.runtime.ratingLikeUpdates
-      : this.runtime.ratingUpdates;
+    return this.view.category === 'subscription'
+      ? this.runtime.ratingSubscriptionUpdates
+      : this.view.category === 'like'
+        ? this.runtime.ratingLikeUpdates
+        : this.runtime.ratingUpdates;
   }
   private decodePage(raw: unknown) {
-    return this.view.category === 'like'
-      ? decodeRatingLikeUpdatesPage(raw)
-      : decodeRatingUpdatesPage(raw);
+    return this.view.category === 'subscription'
+      ? decodeRatingSubscriptionUpdatesPage(raw)
+      : this.view.category === 'like'
+        ? decodeRatingLikeUpdatesPage(raw)
+        : decodeRatingUpdatesPage(raw);
   }
-  async selectCategory(category: 'reply' | 'like'): Promise<void> {
-    if (this.inactive || !['reply', 'like'].includes(category)) return;
+  async selectCategory(
+    category: 'reply' | 'like' | 'subscription',
+  ): Promise<void> {
+    if (this.inactive || !['reply', 'like', 'subscription'].includes(category))
+      return;
     this.stop();
     this.clear(category);
     await this.load();
@@ -100,14 +114,18 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
       status: '安全状态已变化，旧预览和分页已清除，请重新加载',
     });
   }
-  private clear(category: 'reply' | 'like' = this.view.category): void {
+  private clear(
+    category: 'reply' | 'like' | 'subscription' = this.view.category,
+  ): void {
     this.resetPrivate();
     this.update({
       ...initialRatingUpdatesView(),
       category,
-      configured: !!(category === 'like'
-        ? this.runtime.ratingLikeUpdates
-        : this.runtime.ratingUpdates),
+      configured: !!(category === 'subscription'
+        ? this.runtime.ratingSubscriptionUpdates
+        : category === 'like'
+          ? this.runtime.ratingLikeUpdates
+          : this.runtime.ratingUpdates),
       hasSession: !!this.accountId(),
     });
   }
@@ -126,9 +144,11 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
           unreadCount: page.unreadCount,
           canMore: !!page.nextCursor,
           status:
-            this.view.category === 'like'
-              ? '已读取本账号当前本地赞通知'
-              : '已读取本账号当前本地评分回复更新',
+            this.view.category === 'subscription'
+              ? '已读取本账号当前本地订阅更新'
+              : this.view.category === 'like'
+                ? '已读取本账号当前本地赞通知'
+                : '已读取本账号当前本地评分回复更新',
         });
       },
       (error) => {
@@ -164,9 +184,11 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
           unreadCount: page.unreadCount,
           canMore: !!page.nextCursor,
           status:
-            this.view.category === 'like'
-              ? '已读取更多本地赞通知'
-              : '已读取更多本地评分回复更新',
+            this.view.category === 'subscription'
+              ? '已读取更多本地订阅更新'
+              : this.view.category === 'like'
+                ? '已读取更多本地赞通知'
+                : '已读取更多本地评分回复更新',
         });
       },
       (error) => {
@@ -194,21 +216,25 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
       async (cancel) => {
         const raw = await this.gateway()!.target(noticeId, cancel);
         const result =
-          this.view.category === 'like'
-            ? decodeRatingLikeNoticeTarget(raw)
-            : decodeRatingNoticeTarget(raw);
+          this.view.category === 'subscription'
+            ? decodeRatingSubscriptionNoticeTarget(raw)
+            : this.view.category === 'like'
+              ? decodeRatingLikeNoticeTarget(raw)
+              : decodeRatingNoticeTarget(raw);
         if (result.noticeId !== noticeId) invalidRating();
         this.runtime.sessions.assertCurrent(owner);
         if (cancel.isCancelled || this.inactive)
           throw new ClientError('cancelled', 'Navigation cancelled');
         if (result.status === 'available')
           await this.navigate(
-            this.view.category === 'like'
-              ? `/pages/rating-thread/rating-thread?targetId=${result.target.targetId}&rootId=${result.target.rootId}${result.target.replyId ? `&replyId=${result.target.replyId}` : ''}${result.target.regionId ? `&regionId=${result.target.regionId}` : ''}&likeNoticeId=${noticeId}`
-              : ratingThreadPath(
-                  { ...result.target, replyId: result.target.replyId! },
-                  noticeId,
-                ),
+            this.view.category === 'subscription'
+              ? `/pages/rating-thread/rating-thread?targetId=${result.target.targetId}&rootId=${result.target.rootId}${result.target.replyId ? `&replyId=${result.target.replyId}` : ''}${result.target.regionId ? `&regionId=${result.target.regionId}` : ''}&subscriptionNoticeId=${noticeId}`
+              : this.view.category === 'like'
+                ? `/pages/rating-thread/rating-thread?targetId=${result.target.targetId}&rootId=${result.target.rootId}${result.target.replyId ? `&replyId=${result.target.replyId}` : ''}${result.target.regionId ? `&regionId=${result.target.regionId}` : ''}&likeNoticeId=${noticeId}`
+                : ratingThreadPath(
+                    { ...result.target, replyId: result.target.replyId! },
+                    noticeId,
+                  ),
           );
         return result;
       },
@@ -230,9 +256,11 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
         } else
           this.update({
             status:
-              this.view.category === 'like'
-                ? '打开后会重新定位；成功读取被赞内容才确认这条赞已读'
-                : '打开回复后会重新定位；成功读取当前回复才确认这条更新已读',
+              this.view.category === 'subscription'
+                ? '打开后会重新定位；成功读取订阅内容才确认这条订阅更新已读'
+                : this.view.category === 'like'
+                  ? '打开后会重新定位；成功读取被赞内容才确认这条赞已读'
+                  : '打开回复后会重新定位；成功读取当前回复才确认这条更新已读',
           });
       },
       (error) => {
@@ -240,9 +268,11 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
         this.update({
           error: ratingError(error),
           status:
-            this.view.category === 'like'
-              ? '未确认打开被赞内容，未自动标记已读'
-              : '未确认打开回复，未自动标记已读',
+            this.view.category === 'subscription'
+              ? '未确认打开订阅内容，未自动标记已读'
+              : this.view.category === 'like'
+                ? '未确认打开被赞内容，未自动标记已读'
+                : '未确认打开回复，未自动标记已读',
         });
       },
     );

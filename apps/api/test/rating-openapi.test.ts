@@ -1,3 +1,5 @@
+import * as subscriptions from '../src/ratings/subscriptions/contracts.js';
+import * as subscriptionUpdates from '../src/notifications/ratings/subscription-contracts.js';
 import * as likes from '../src/ratings/likes/contracts.js';
 import * as likeUpdates from '../src/notifications/ratings/like-contracts.js';
 import assert from 'node:assert/strict';
@@ -39,9 +41,49 @@ test('ratings OpenAPI is deterministic offline and artifact-current', async () =
       'utf8',
     ),
   ));
-test('all 32 rating operations have exact schemas and safe auth/error metadata', async () => {
+test('all 40 rating operations have exact schemas and safe auth/error metadata', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
+    [
+      '/v1/ratings/targets/{id}/subscription',
+      'get',
+      subscriptions.ratingSubscriptionStateSchema,
+    ],
+    [
+      '/v1/ratings/targets/{id}/subscription',
+      'put',
+      subscriptions.ratingSubscriptionReceiptSchema,
+    ],
+    [
+      '/v1/ratings/subscription-states/query',
+      'post',
+      subscriptions.ratingSubscriptionQueryResponseSchema,
+    ],
+    [
+      '/v1/ratings/subscription-requests/{id}',
+      'get',
+      subscriptions.ratingSubscriptionReceiptSchema,
+    ],
+    [
+      '/v1/me/ratings/subscription-updates',
+      'get',
+      subscriptionUpdates.ratingSubscriptionUpdatesPageSchema,
+    ],
+    [
+      '/v1/me/ratings/subscription-updates/unread-count',
+      'get',
+      subscriptionUpdates.ratingSubscriptionUnreadCountSchema,
+    ],
+    [
+      '/v1/me/ratings/subscription-updates/{noticeId}/target',
+      'get',
+      subscriptionUpdates.ratingSubscriptionNoticeTargetSchema,
+    ],
+    [
+      '/v1/me/ratings/subscription-updates/{noticeId}/read',
+      'put',
+      subscriptionUpdates.ratingSubscriptionNoticeReadSchema,
+    ],
     ['/v1/ratings/comments/{id}/like', 'get', likes.ratingLikeStateSchema],
     ['/v1/ratings/replies/{id}/like', 'get', likes.ratingLikeStateSchema],
     ['/v1/ratings/comments/{id}/like', 'put', likes.ratingLikeReceiptSchema],

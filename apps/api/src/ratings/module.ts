@@ -1,3 +1,8 @@
+import { RatingSubscriptionsController } from './subscriptions/controller.js';
+import { RatingSubscriptionsService } from './subscriptions/service.js';
+import { RatingSubscriptionsRepository } from './subscriptions/repository.js';
+import { RatingSubscriptionRequests } from './subscriptions/requests.js';
+import { RatingSubscriptionTargetFacade } from './subscriptions/target.facade.js';
 import { RatingRootOrderCursors } from './like-order-cursor.js';
 import { RatingRootOrderRepository } from './like-order-repository.js';
 import { RatingLikesController } from './likes/controller.js';
@@ -42,11 +47,16 @@ import { RatingsCursors } from './cursor.js';
     RatingRequestThrottlingModule,
   ],
   controllers: [
+    RatingSubscriptionsController,
     RatingsController,
     RatingDiscussionController,
     RatingLikesController,
   ],
   providers: [
+    RatingSubscriptionsService,
+    RatingSubscriptionsRepository,
+    RatingSubscriptionRequests,
+    RatingSubscriptionTargetFacade,
     RatingRootOrderCursors,
     RatingRootOrderRepository,
     RatingLikesService,

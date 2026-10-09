@@ -485,6 +485,14 @@ export async function renderErrandsOpenApiDocument(): Promise<string> {
 
 /** Tooling-only rating routes. No live database, issuer or provider. */
 export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { RatingSubscriptionsController } =
+    await import('../src/ratings/subscriptions/controller.js');
+  const { RatingSubscriptionsService } =
+    await import('../src/ratings/subscriptions/service.js');
+  const { RatingSubscriptionUpdatesController } =
+    await import('../src/notifications/ratings/subscription-controller.js');
+  const { RatingSubscriptionUpdatesReadService } =
+    await import('../src/notifications/ratings/subscription-read.service.js');
   const { RatingsController } = await import('../src/ratings/controller.js');
   const { RatingsService } = await import('../src/ratings/service.js');
   const { RatingDiscussionController } =
@@ -534,6 +542,8 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
   };
   const testing = await Test.createTestingModule({
     controllers: [
+      RatingSubscriptionsController,
+      RatingSubscriptionUpdatesController,
       RatingsController,
       RatingDiscussionController,
       RatingUpdatesController,
@@ -541,6 +551,8 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       RatingLikeUpdatesController,
     ],
     providers: [
+      { provide: RatingSubscriptionsService, useValue: {} },
+      { provide: RatingSubscriptionUpdatesReadService, useValue: {} },
       { provide: RatingsService, useValue: {} },
       { provide: RatingDiscussionService, useValue: {} },
       { provide: RatingUpdatesReadService, useValue: {} },
@@ -557,7 +569,9 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       app,
       new DocumentBuilder()
         .setOpenAPIVersion('3.0.3')
-        .setTitle('WhaleU ratings, discussions, likes and local updates')
+        .setTitle(
+          'WhaleU ratings, discussions, likes, subscriptions and local updates',
+        )
         .setVersion('1')
         .addSecurity('accessToken', {
           type: 'http',

@@ -1,0 +1,365 @@
+{
+  "provenance": "Actual local AppModule HTTP/PostgreSQL with synthetic isolated identity/catalog/review fixtures; no production/provider/device claim.",
+  "subscriptionBatch": {
+    "items": [
+      {
+        "targetId": "b9ed7d07-3aeb-4127-bb63-a7b7bd288725",
+        "state": {
+          "status": "known",
+          "targetId": "b9ed7d07-3aeb-4127-bb63-a7b7bd288725",
+          "subscribed": false,
+          "count": 0,
+          "revision": "2e0d0dc6-4ea4-4c4b-a060-d961a29dbbf1",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "426bee1f-e81a-4b83-a906-002ef987979a",
+        "state": {
+          "status": "known",
+          "targetId": "426bee1f-e81a-4b83-a906-002ef987979a",
+          "subscribed": false,
+          "count": 0,
+          "revision": "62b418ea-971f-489e-a755-8dd5808f77cb",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "67266e21-377c-4d76-bcf2-a6377c2b0c5d",
+        "state": {
+          "status": "known",
+          "targetId": "67266e21-377c-4d76-bcf2-a6377c2b0c5d",
+          "subscribed": false,
+          "count": 0,
+          "revision": "ff307df8-d600-436d-a1e2-fb501210886f",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "8dbadf90-98f0-4ba0-8ba8-cc3a85f00048",
+        "state": {
+          "status": "known",
+          "targetId": "8dbadf90-98f0-4ba0-8ba8-cc3a85f00048",
+          "subscribed": false,
+          "count": 0,
+          "revision": "75a1fca5-9d8e-410c-af12-09f307d09307",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "1db3e14c-dc4c-49ca-af65-f03fa8a99bae",
+        "state": {
+          "status": "known",
+          "targetId": "1db3e14c-dc4c-49ca-af65-f03fa8a99bae",
+          "subscribed": false,
+          "count": 0,
+          "revision": "6edd0865-37e6-4a56-adf2-28654948aace",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "db1d6414-6e78-4698-af26-9969420dcfc0",
+        "state": {
+          "status": "known",
+          "targetId": "db1d6414-6e78-4698-af26-9969420dcfc0",
+          "subscribed": false,
+          "count": 0,
+          "revision": "260ccd1d-deef-4abb-a177-4107edb55507",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "e3e71030-6e1a-47f4-b05b-160ef7bb23e8",
+        "state": {
+          "status": "known",
+          "targetId": "e3e71030-6e1a-47f4-b05b-160ef7bb23e8",
+          "subscribed": false,
+          "count": 0,
+          "revision": "75b11114-bb40-45f1-80db-bfc97583e1ae",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "df055445-a9b7-4850-b2ec-e4dc72e2cd0a",
+        "state": {
+          "status": "known",
+          "targetId": "df055445-a9b7-4850-b2ec-e4dc72e2cd0a",
+          "subscribed": false,
+          "count": 0,
+          "revision": "15a754bd-8090-49b3-9571-f5143839638e",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "d1822058-41f2-40be-a19f-dfa9210ed222",
+        "state": {
+          "status": "known",
+          "targetId": "d1822058-41f2-40be-a19f-dfa9210ed222",
+          "subscribed": false,
+          "count": 0,
+          "revision": "ced1ce6c-94ab-4fe5-8ea0-9e5f3bedfeea",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "d9f85f20-aaa8-460b-8724-2b9268ee188a",
+        "state": {
+          "status": "known",
+          "targetId": "d9f85f20-aaa8-460b-8724-2b9268ee188a",
+          "subscribed": false,
+          "count": 0,
+          "revision": "5ce64023-c4df-4bc4-8484-a73dc57312ed",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "d60e7b8f-5e76-41d2-92ec-84517f28f6c8",
+        "state": {
+          "status": "known",
+          "targetId": "d60e7b8f-5e76-41d2-92ec-84517f28f6c8",
+          "subscribed": false,
+          "count": 0,
+          "revision": "9dcc1ff5-17b8-460f-a752-9de651584b49",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "81fbecf3-2a6e-4624-be35-837c0d985f92",
+        "state": {
+          "status": "known",
+          "targetId": "81fbecf3-2a6e-4624-be35-837c0d985f92",
+          "subscribed": false,
+          "count": 0,
+          "revision": "0d066c6e-d90c-4313-bca0-cc07301102c3",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "b558f528-c048-4a1a-a215-fd5595bfd9db",
+        "state": {
+          "status": "known",
+          "targetId": "b558f528-c048-4a1a-a215-fd5595bfd9db",
+          "subscribed": false,
+          "count": 0,
+          "revision": "abcbf32a-9a65-4ee3-b9e3-f8be5a029539",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "cf516a9c-9dca-43b3-9e6b-23c225651e64",
+        "state": {
+          "status": "known",
+          "targetId": "cf516a9c-9dca-43b3-9e6b-23c225651e64",
+          "subscribed": false,
+          "count": 0,
+          "revision": "f02cacfc-b8f5-4960-868c-80ecd203ebee",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "fb28bf20-44dc-4863-9101-826aac956983",
+        "state": {
+          "status": "known",
+          "targetId": "fb28bf20-44dc-4863-9101-826aac956983",
+          "subscribed": false,
+          "count": 0,
+          "revision": "66a3fdcf-13fc-4bb6-b64e-6d598aaf97c7",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "9dd37a70-069f-4684-bb65-de9c41993617",
+        "state": {
+          "status": "known",
+          "targetId": "9dd37a70-069f-4684-bb65-de9c41993617",
+          "subscribed": false,
+          "count": 0,
+          "revision": "83006e4d-6a83-47b3-828d-acddce69645e",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "5546f152-c73c-4826-a9d3-a78ce575c1f1",
+        "state": {
+          "status": "known",
+          "targetId": "5546f152-c73c-4826-a9d3-a78ce575c1f1",
+          "subscribed": false,
+          "count": 0,
+          "revision": "9bcd924c-e4d6-4856-adf2-fcb99e601f9e",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "ccd19b97-9a0a-4a11-a97a-a1136ff3be5d",
+        "state": {
+          "status": "known",
+          "targetId": "ccd19b97-9a0a-4a11-a97a-a1136ff3be5d",
+          "subscribed": false,
+          "count": 0,
+          "revision": "8b0700fc-a8df-4e45-8d49-46acd258ecaf",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "8970b4bb-8df6-44c4-8e5c-ad36fec86754",
+        "state": {
+          "status": "known",
+          "targetId": "8970b4bb-8df6-44c4-8e5c-ad36fec86754",
+          "subscribed": false,
+          "count": 0,
+          "revision": "45314ed0-ba9e-4ae2-ba5c-1c4d7235e135",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      },
+      {
+        "targetId": "d0c1f530-b334-45f0-8781-41118a8d037f",
+        "state": {
+          "status": "known",
+          "targetId": "d0c1f530-b334-45f0-8781-41118a8d037f",
+          "subscribed": false,
+          "count": 0,
+          "revision": "71b09a15-c0c2-4ce4-982c-8d2e5ecdab8d",
+          "allowedActions": {
+            "setSubscription": true
+          }
+        }
+      }
+    ]
+  },
+  "knownSubscription": {
+    "status": "known",
+    "targetId": "b9ed7d07-3aeb-4127-bb63-a7b7bd288725",
+    "subscribed": false,
+    "count": 0,
+    "revision": "2e0d0dc6-4ea4-4c4b-a060-d961a29dbbf1",
+    "allowedActions": {
+      "setSubscription": true
+    }
+  },
+  "appliedSubscriptionReceipt": {
+    "requestId": "91315b13-9104-4db8-ab06-2e0a701ba85a",
+    "operation": "set_target_subscription",
+    "outcome": "applied",
+    "targetId": "b9ed7d07-3aeb-4127-bb63-a7b7bd288725",
+    "subscribed": false,
+    "revision": "2d25b37d-c38a-40dd-ad45-700dc815b5f2",
+    "occurredAt": "2026-10-09T03:25:21.147356Z"
+  },
+  "noopSubscriptionReceipt": {
+    "requestId": "d267dbe0-f4bb-46a0-927e-55901258e600",
+    "operation": "set_target_subscription",
+    "outcome": "noop",
+    "targetId": "b9ed7d07-3aeb-4127-bb63-a7b7bd288725",
+    "subscribed": true,
+    "revision": "a5707feb-4774-4331-904f-d18ec7e2edfc",
+    "occurredAt": "2026-10-09T03:25:21.440168Z"
+  },
+  "rejectedSubscriptionReceipt": {
+    "requestId": "ef0e18fd-65b4-47ab-913b-601ae2baf640",
+    "operation": "set_target_subscription",
+    "outcome": "rejected",
+    "code": "RATING_REVISION_CONFLICT"
+  },
+  "subscriptionUpdates": {
+    "items": [
+      {
+        "noticeId": "68cefe92-09e1-4c1d-855a-ba207c712974",
+        "createdAt": "2026-10-09T03:25:21.917522Z",
+        "readAt": null,
+        "status": "available",
+        "domain": "ratings",
+        "kind": "subscription",
+        "activity": "reply",
+        "reason": "target_subscription",
+        "target": {
+          "regionId": null,
+          "targetId": "b9ed7d07-3aeb-4127-bb63-a7b7bd288725",
+          "rootId": "77818212-dd83-406e-aa7c-56be47b81673",
+          "replyId": "43ab81c9-8130-47f6-88eb-54b56472c785"
+        },
+        "preview": {
+          "text": "Synthetic rating reply",
+          "author": {
+            "mode": "named",
+            "profileId": "a64910b9-07fc-46a1-9a9e-c68bbc9fc804",
+            "displayName": "鲸鱼用户"
+          }
+        }
+      },
+      {
+        "noticeId": "f941e887-6f84-49f2-9e76-cab875df45c8",
+        "createdAt": "2026-10-09T03:25:21.821750Z",
+        "readAt": null,
+        "status": "available",
+        "domain": "ratings",
+        "kind": "subscription",
+        "activity": "root",
+        "reason": "target_subscription",
+        "target": {
+          "regionId": null,
+          "targetId": "b9ed7d07-3aeb-4127-bb63-a7b7bd288725",
+          "rootId": "77818212-dd83-406e-aa7c-56be47b81673",
+          "replyId": null
+        },
+        "preview": {
+          "text": "Synthetic root comment",
+          "author": {
+            "mode": "named",
+            "profileId": "b22b6d35-a6dc-410d-9dd1-bb4774e3811d",
+            "displayName": "鲸鱼用户"
+          }
+        }
+      }
+    ],
+    "nextCursor": null,
+    "unreadCount": 2
+  },
+  "subscriptionNoticeTarget": {
+    "noticeId": "f941e887-6f84-49f2-9e76-cab875df45c8",
+    "status": "available",
+    "target": {
+      "regionId": null,
+      "targetId": "b9ed7d07-3aeb-4127-bb63-a7b7bd288725",
+      "rootId": "77818212-dd83-406e-aa7c-56be47b81673",
+      "replyId": null
+    }
+  }
+}

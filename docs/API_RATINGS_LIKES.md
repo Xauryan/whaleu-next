@@ -1,6 +1,6 @@
 # Rating likes and root ordering (R2B)
 
-This local development slice adds root/reply desired-state likes, exact current counts, per-transition Experience, once-per-actor/subject local notices, and time/likes root ordering. Existing R1 root, R2A reply and reply-notice DTOs remain unchanged. The [generated contract](openapi/ratings.json) contains 32 operations. Historical import, real review issuance, external providers, subscription fan-out, media and administration remain separate gates.
+This local development slice adds root/reply desired-state likes, exact current counts, per-transition Experience, once-per-actor/subject local notices, and time/likes root ordering. Existing R1 root, R2A reply and reply-notice DTOs remain unchanged. This slice added nine operations; the [generated contract](openapi/ratings.json) also includes later [R2C subscriptions](API_RATINGS_SUBSCRIPTIONS.md). Historical import, real review issuance, external providers, subscription fan-out, media and administration remain separate gates.
 
 ## Current state and commands
 

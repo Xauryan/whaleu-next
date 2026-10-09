@@ -5,7 +5,7 @@
   <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录与会话管理 →</navigator>
   <view wx:if="{{frozen}}" class="card recovery">
     <view class="section-title">{{recoveryOperation || '原操作'}}结果待确认</view>
-    <view class="notice">未查到回执也不能创建替代请求。这里只恢复原编号和原意图；当前内容、评分与点赞状态需重新读取。</view>
+    <view class="notice">未查到回执也不能创建替代请求。这里只恢复原编号和原意图；当前内容、评分、点赞与订阅状态需重新读取。</view>
     <button bindtap="onRecover" disabled="{{busy}}">查询原回执</button>
     <button bindtap="onRetry" disabled="{{busy}}">重试原请求</button>
   </view>

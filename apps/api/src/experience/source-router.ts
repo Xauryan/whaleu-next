@@ -45,6 +45,9 @@ export class ExperienceSourceRouter {
           AND ((u.source_domain='community' AND g.source_version=1 AND u.community_unit_id=u.unit_id AND u.rating_unit_id IS NULL
                 AND g.community_group_id=g.group_id AND g.rating_group_id IS NULL)
             OR (u.source_domain='ratings' AND g.source_version IN (1,2) AND u.rating_unit_id=u.unit_id AND u.community_unit_id IS NULL
+                AND g.rating_group_id=g.group_id AND g.community_group_id IS NULL)
+            OR (u.source_domain='ratings' AND g.source_version=3 AND u.action='like_save'
+                AND u.rating_unit_id=u.unit_id AND u.community_unit_id IS NULL
                 AND g.rating_group_id=g.group_id AND g.community_group_id IS NULL))`,
         [unitId],
       )
@@ -63,7 +66,11 @@ export class ExperienceSourceRouter {
           return null;
         break;
       case 'ratings':
-        if (reference.sourceVersion !== 1 && reference.sourceVersion !== 2)
+        if (
+          reference.sourceVersion !== 1 &&
+          reference.sourceVersion !== 2 &&
+          !(reference.sourceVersion === 3 && reference.action === 'like_save')
+        )
           return null;
         unit = await this.ratings.loadUnit(unitId, tx);
         if (unit?.sourceKind !== 'rating_event') return null;

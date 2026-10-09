@@ -52,7 +52,11 @@ Page({
   },
   onCategory(event: { currentTarget: { dataset: { category?: string } } }) {
     const category = event.currentTarget.dataset.category;
-    if (category === 'reply' || category === 'like')
+    if (
+      category === 'reply' ||
+      category === 'like' ||
+      category === 'subscription'
+    )
       void this.controller?.selectCategory(category);
   },
   onMore() {

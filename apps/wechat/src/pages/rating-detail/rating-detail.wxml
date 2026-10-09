@@ -6,7 +6,7 @@
   <view class="chips"><button data-sort="time" data-order="desc" bindtap="onSort" disabled="{{frozen || !hasSession || !configured}}">最新</button><button data-sort="time" data-order="asc" bindtap="onSort" disabled="{{frozen || !hasSession || !configured}}">最早</button><button data-sort="likes" data-order="desc" bindtap="onSort" disabled="{{frozen || !hasSession || !configured}}">赞最多</button><button data-sort="likes" data-order="asc" bindtap="onSort" disabled="{{frozen || !hasSession || !configured}}">赞最少</button></view>
   <view class="meta">点赞使用实名身份。赞数未知时不能按零排序；切换排序将重新读取。</view>
   <block wx:if="{{loaded &amp;&amp; detail}}">
-    <view class="card"><view class="title">{{detail.name}}</view><view class="body">{{detail.description}}</view></view>
+    <view class="card"><view class="title">{{detail.name}}</view><view class="body">{{detail.description}}</view><block wx:if="{{subscriptions[detail.id] &amp;&amp; subscriptions[detail.id].status === 'known'}}"><view class="meta">{{subscriptions[detail.id].count}} 人码住 · {{subscriptions[detail.id].subscribed ? '已订阅此目标' : '未订阅此目标'}}</view><button data-id="{{detail.id}}" bindtap="onSubscription" disabled="{{busy || frozen}}">{{subscriptions[detail.id].subscribed ? '取消码住' : '码住，接收新评价与回复'}}</button></block><block wx:else><view class="notice">订阅状态和人数暂不可用，请刷新后再试。</view><button disabled="{{true}}">码住暂不可用</button></block><view class="meta">订阅无需先评分或评价。新评价和回复可生成独立订阅更新；本地经验由后续处理核验，操作回执不代表到账。</view></view>
     <view class="card"><view class="section-title">我的评分</view>
       <view wx:if="{{!myScoreKnown}}" class="notice">自己的评分暂时未知，不能视为未评分；请稍后刷新。</view>
       <view wx:elif="{{myScore}}">当前 {{myScore.score}} 分，可重新选择并确认改分。</view>
