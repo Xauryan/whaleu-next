@@ -1,3 +1,4 @@
+import { CampusRatingCategoryScopeFacade } from './rating-category-scope.facade.js';
 import { CampusRatingOriginScopeFacade } from './rating-origin-scope.facade.js';
 import { CampusRatingRandomScopeFacade } from './rating-random-scope.facade.js';
 import { CampusRatingScopeFacade } from './rating-scope.facade.js';
@@ -49,6 +50,7 @@ export class OperatingRegionController {
   imports: [DatabaseModule],
   controllers: [CampusController, OperatingRegionController],
   providers: [
+    CampusRatingCategoryScopeFacade,
     CampusRatingRandomScopeFacade,
     CampusRatingOriginScopeFacade,
     CampusRatingScopeFacade,
@@ -62,6 +64,7 @@ export class OperatingRegionController {
     CampusSearchRegionFacade,
   ],
   exports: [
+    CampusRatingCategoryScopeFacade,
     CampusRatingRandomScopeFacade,
     CampusRatingOriginScopeFacade,
     CampusRatingScopeFacade,

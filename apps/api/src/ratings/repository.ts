@@ -1,4 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { RatingCategoryContentReviewFacade } from '../community/content-review/rating-category-content-review.facade.js';
+import { canonicalRatingCategoryBase } from '../community/content-review/rating-category-contracts.js';
+import type { RatingCategoryBaseDescriptor } from '../community/content-review/rating-category-contracts.js';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -43,6 +46,151 @@ export interface CategoryRow {
   ordinal: string;
   active: boolean;
   hidden: boolean;
+}
+interface CategorySourceRead {
+  ordinal: number;
+  lineage: {
+    source_kind: string;
+    effective_revision: string;
+    base_revision: string | null;
+    scope_version_id: string | null;
+    topology_snapshot_id: string | null;
+  } | null;
+  base: {
+    category_id: string;
+    revision: string;
+    parent_id: string | null;
+    level: number;
+    name: string;
+    description: string;
+    active: boolean;
+    is_global: boolean;
+    scope_version_id: string;
+    release_id: string;
+    envelope: unknown;
+  } | null;
+  head_revision: string | null;
+  source_scope: {
+    id: string;
+    region_id: string | null;
+    campus_ids: string[];
+    topology_snapshot_id: string;
+    release_id: string;
+  } | null;
+}
+/** The caller owns current-catalog and Ratings epoch proof. Opaque legacy rows
+ * retain only their frozen v1 contract. Every native row requires exact source
+ * lineage and current Review, including every ancestor supplied by the caller. */
+export async function qualifyRatingCategoryRows(
+  review: RatingCategoryContentReviewFacade,
+  catalog: RatingCatalog,
+  categories: readonly CategoryRow[],
+  tx: PoolClient,
+): Promise<readonly ('allow' | 'deny')[]> {
+  if (!categories.length) return Object.freeze([]);
+  if (categories.length > 512) throw new ApplicationError('RATING_UNAVAILABLE');
+  const rows = (
+    await tx.query<CategorySourceRead>(
+      `SELECT w.ordinal::integer ordinal,to_jsonb(l) lineage,to_jsonb(b) base,h.revision head_revision,to_jsonb(s) source_scope
+    FROM unnest($2::uuid[]) WITH ORDINALITY w(id,ordinal)
+    LEFT JOIN whaleu_ratings.catalog_category_lineage l ON l.catalog_id=$1 AND l.category_id=w.id
+    LEFT JOIN whaleu_ratings.category_base_versions b ON b.category_id=l.category_id AND b.revision=l.base_revision
+    LEFT JOIN whaleu_ratings.category_base_heads h ON h.category_id=b.category_id
+    LEFT JOIN whaleu_ratings.category_scope_versions s ON s.id=b.scope_version_id ORDER BY w.ordinal`,
+      [catalog.id, categories.map((row) => row.id)],
+    )
+  ).rows;
+  if (rows.length !== categories.length)
+    throw new ApplicationError('RATING_UNAVAILABLE');
+  const native: { index: number; descriptor: RatingCategoryBaseDescriptor }[] =
+    [];
+  for (const [index, source] of rows.entries()) {
+    const category = categories[index]!,
+      lineage = source.lineage;
+    if (
+      source.ordinal !== index + 1 ||
+      !lineage ||
+      lineage.effective_revision !== category.revision
+    )
+      throw new ApplicationError('RATING_UNAVAILABLE');
+    if (lineage.source_kind === 'opaque') {
+      if (
+        lineage.base_revision !== null ||
+        lineage.scope_version_id !== null ||
+        lineage.topology_snapshot_id !== null ||
+        source.base !== null ||
+        source.head_revision !== null ||
+        source.source_scope !== null
+      )
+        throw new ApplicationError('RATING_UNAVAILABLE');
+      continue;
+    }
+    const base = source.base,
+      scope = source.source_scope;
+    if (
+      lineage.source_kind !== 'native' ||
+      !base ||
+      !scope ||
+      source.head_revision !== base.revision ||
+      base.category_id !== category.id ||
+      base.revision !== category.revision ||
+      lineage.base_revision !== base.revision ||
+      lineage.scope_version_id !== base.scope_version_id ||
+      scope.id !== base.scope_version_id ||
+      lineage.topology_snapshot_id !== scope.topology_snapshot_id ||
+      scope.release_id !== base.release_id ||
+      base.parent_id !== category.parent_id ||
+      base.level !== category.level ||
+      base.name !== category.name ||
+      base.description !== category.description ||
+      base.active !== category.active ||
+      category.kind !== 'general' ||
+      category.system_key !== null ||
+      base.is_global !== (scope.region_id === null) ||
+      (scope.region_id !== null && scope.region_id !== catalog.regionId)
+    )
+      throw new ApplicationError('RATING_UNAVAILABLE');
+    let descriptor: RatingCategoryBaseDescriptor;
+    try {
+      descriptor = canonicalRatingCategoryBase({
+        categoryId: category.id,
+        baseRevision: base.revision,
+        envelope: base.envelope as RatingCategoryBaseDescriptor['envelope'],
+      });
+    } catch {
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    }
+    const envelope = descriptor.envelope,
+      node = envelope.categories.find((value) => value.id === category.id)!;
+    if (
+      envelope.releaseId !== base.release_id ||
+      envelope.scope.regionId !== scope.region_id ||
+      envelope.scope.topologySnapshotId !== scope.topology_snapshot_id ||
+      JSON.stringify(envelope.scope.campusIds) !==
+        JSON.stringify(scope.campus_ids) ||
+      !envelope.catalogs.some((item) => item.regionId === catalog.regionId) ||
+      node.scopeVersionId !== scope.id ||
+      node.parentId !== category.parent_id ||
+      node.level !== category.level ||
+      node.name !== category.name ||
+      node.description !== category.description
+    )
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    native.push({ index, descriptor });
+  }
+  const decisions = await review.currentBatch(
+    native.map((value) => value.descriptor),
+    tx,
+  );
+  if (decisions.length !== native.length)
+    throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+  const result: ('allow' | 'deny')[] = categories.map(() => 'allow');
+  for (const [index, decision] of decisions.entries()) {
+    if (decision.kind === 'unavailable')
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    result[native[index]!.index] = decision.kind;
+  }
+  return Object.freeze(result);
 }
 /** @deprecated Raw v1 creation data only; public reads use CurrentTargetRow. */
 export type TargetRow = TargetCreationRow;
@@ -110,7 +258,7 @@ const proof: RequiredTransactionProof<Fact> = {
           throw new ApplicationError('RATING_UNAVAILABLE');
       };
       await check(
-        `SELECT count(*)::integer n FROM unnest($1::uuid[],$2::uuid[]) f(id,region_id) JOIN whaleu_ratings.catalog_heads h ON h.scope_key=coalesce(f.region_id::text,'global') AND h.catalog_id=f.id JOIN whaleu_ratings.catalogs c ON c.id=f.id AND c.region_id IS NOT DISTINCT FROM f.region_id WHERE c.sealed AND c.coverage='complete' AND c.provenance='accepted' AND c.effective_at<=clock_timestamp() AND (c.valid_until IS NULL OR c.valid_until>clock_timestamp())`,
+        `SELECT count(*)::integer n FROM unnest($1::uuid[],$2::uuid[]) f(id,region_id) JOIN whaleu_ratings.catalog_heads h ON h.scope_key=coalesce(f.region_id::text,'global') AND h.catalog_id=f.id JOIN whaleu_ratings.catalogs c ON c.id=f.id AND c.region_id IS NOT DISTINCT FROM f.region_id WHERE whaleu_ratings.category_catalog_compat_current(c.id) AND c.sealed AND c.coverage='complete' AND c.provenance='accepted' AND c.effective_at<=clock_timestamp() AND (c.valid_until IS NULL OR c.valid_until>clock_timestamp())`,
         [catalogs.map((f) => f.id), catalogs.map((f) => f.regionId)],
         catalogs.length,
       );
@@ -161,6 +309,10 @@ const proof: RequiredTransactionProof<Fact> = {
 };
 @Injectable()
 export class RatingsRepository {
+  constructor(
+    @Inject(RatingCategoryContentReviewFacade)
+    private readonly categoryReview: RatingCategoryContentReviewFacade = new RatingCategoryContentReviewFacade(),
+  ) {}
   enable(tx: PoolClient) {
     enableRequiredTransactionProof(tx, proof);
   }
@@ -183,16 +335,29 @@ export class RatingsRepository {
     tx: PoolClient,
   ): Promise<RatingCatalog> {
     const row = (
-      await tx.query<{ id: string; valid_until: Date | null }>(
-        `SELECT c.id,c.valid_until FROM whaleu_ratings.catalog_heads h JOIN whaleu_ratings.catalogs c ON c.id=h.catalog_id WHERE h.scope_key=coalesce($1::uuid::text,'global') AND c.region_id IS NOT DISTINCT FROM $1::uuid FOR SHARE OF h,c`,
-        [regionId],
-      )
+      await tx
+        .query<{ id: string; valid_until: Date | null }>(
+          `SELECT c.id,least(c.valid_until,whaleu_ratings.category_catalog_compat_until(c.id)) valid_until FROM whaleu_ratings.catalog_heads h JOIN whaleu_ratings.catalogs c ON c.id=h.catalog_id WHERE h.scope_key=coalesce($1::uuid::text,'global') AND c.region_id IS NOT DISTINCT FROM $1::uuid FOR SHARE OF h,c`,
+          [regionId],
+        )
+        .catch((error: unknown) => {
+          // The narrow SQL helper raises on missing/expired native topology;
+          // it must not become a successful null policy-exempt deadline.
+          if (
+            typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            error.code === '23514'
+          )
+            throw new ApplicationError('RATING_UNAVAILABLE');
+          throw error;
+        })
     ).rows[0];
     if (
       !row ||
       !(
         await tx.query(
-          `SELECT 1 FROM whaleu_ratings.catalogs WHERE id=$1 AND sealed AND coverage='complete' AND provenance='accepted' AND effective_at<=clock_timestamp() AND (valid_until IS NULL OR valid_until>clock_timestamp())`,
+          `SELECT 1 FROM whaleu_ratings.catalogs WHERE id=$1 AND whaleu_ratings.category_catalog_compat_current(id) AND sealed AND coverage='complete' AND provenance='accepted' AND effective_at<=clock_timestamp() AND (valid_until IS NULL OR valid_until>clock_timestamp())`,
           [row.id],
         )
       ).rows[0]
@@ -211,6 +376,17 @@ export class RatingsRepository {
     return { id: row.id, regionId };
   }
   async category(
+    catalog: RatingCatalog,
+    id: string,
+    tx: PoolClient,
+  ): Promise<CategoryRow> {
+    await this.navigation(tx);
+    return this.categoryForMutation(catalog, id, tx);
+  }
+  /** Writer snapshot: identical ancestry/source/Review qualification, without
+   * retaining a pre-mutation navigation epoch. The writer must retain its exact
+   * final catalog/target tuple and after-state epoch proof. */
+  async categoryForMutation(
     catalog: RatingCatalog,
     id: string,
     tx: PoolClient,
@@ -235,6 +411,12 @@ export class RatingsRepository {
       )
     )
       throw new ApplicationError('RATING_NOT_FOUND');
+    if (
+      (
+        await qualifyRatingCategoryRows(this.categoryReview, catalog, rows, tx)
+      ).some((decision) => decision === 'deny')
+    )
+      throw new ApplicationError('RATING_NOT_FOUND');
     return leaf;
   }
   async categories(
@@ -244,13 +426,36 @@ export class RatingsRepository {
     limit: number,
     tx: PoolClient,
   ): Promise<CategoryRow[]> {
+    await this.navigation(tx);
     if (parentId) await this.category(catalog, parentId, tx);
-    return (
-      await tx.query<CategoryRow>(
-        `SELECT c.*,c.ordinal::text FROM whaleu_ratings.categories c WHERE c.catalog_id=$1 AND c.parent_id IS NOT DISTINCT FROM $2::uuid AND c.active AND NOT c.hidden AND ($3::bigint IS NULL OR c.ordinal>$3::bigint) ORDER BY c.ordinal LIMIT $4 FOR SHARE OF c`,
-        [catalog.id, parentId, after, limit + 1],
-      )
-    ).rows;
+    const allowed: CategoryRow[] = [];
+    let cursor = after,
+      scanned = 0;
+    while (allowed.length < limit + 1) {
+      const rows = (
+        await tx.query<CategoryRow>(
+          `SELECT c.*,c.ordinal::text FROM whaleu_ratings.categories c WHERE c.catalog_id=$1 AND c.parent_id IS NOT DISTINCT FROM $2::uuid AND c.active AND NOT c.hidden AND ($3::bigint IS NULL OR c.ordinal>$3::bigint) ORDER BY c.ordinal LIMIT $4 FOR SHARE OF c`,
+          [catalog.id, parentId, cursor, 128],
+        )
+      ).rows;
+      scanned += rows.length;
+      if (scanned > 10000) throw new ApplicationError('RATING_UNAVAILABLE');
+      const decisions = await qualifyRatingCategoryRows(
+        this.categoryReview,
+        catalog,
+        rows,
+        tx,
+      );
+      rows.forEach((row, index) => {
+        if (decisions[index] === 'allow') allowed.push(row);
+      });
+      if (rows.length < 128) break;
+      const next = rows.at(-1)!.ordinal;
+      if (cursor !== null && BigInt(next) <= BigInt(cursor))
+        throw new ApplicationError('RATING_UNAVAILABLE');
+      cursor = next;
+    }
+    return allowed.slice(0, limit + 1);
   }
   async target(
     catalog: RatingCatalog,

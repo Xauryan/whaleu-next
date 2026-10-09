@@ -34,6 +34,7 @@ import {
 import {
   decodeRatingCommandIntent,
   isRatingSubscriptionIntent,
+  isRatingCategoryCreationIntent,
   isRatingTargetCreationIntent,
   isRatingTargetOwnerEditingIntent,
   isRatingTargetOwnerDeletionIntent,
@@ -154,6 +155,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
   private readonly unsubscribeScope: () => void;
   private readonly unsubscribeBrowse: () => void;
   private readonly unsubscribeTarget: () => void;
+  private readonly unsubscribeCatalog: () => void;
   constructor(
     runtime: CommunityRuntime,
     render: (view: RatingThreadView) => void,
@@ -172,6 +174,17 @@ export class RatingThreadController extends CommunityController<RatingThreadView
       runtime.directoryScopeChanges?.subscribe(invalidate) ?? (() => undefined);
     this.unsubscribeBrowse =
       runtime.browsingScopeChanges?.subscribe(invalidate) ?? (() => undefined);
+    this.unsubscribeCatalog =
+      runtime.ratingCatalogChanges?.subscribe(() => {
+        if (!this.accountId()) return;
+        this.stop();
+        this.clearContent();
+        this.update({
+          busy: false,
+          needsRefresh: true,
+          status: '评分分类目录已变化，评价、回复和输入已清除，请重新加载',
+        });
+      }) ?? (() => undefined);
     this.unsubscribeTarget =
       runtime.ratingTargetChanges?.subscribe((change) => {
         if (!this.accountId() || this.route?.targetId !== change.targetId)
@@ -855,6 +868,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
         if (
           isRatingTargetOwnerEditingIntent(intent) ||
           isRatingTargetOwnerDeletionIntent(intent) ||
+          isRatingCategoryCreationIntent(intent) ||
           isRatingTargetCreationIntent(intent) ||
           isRatingSubscriptionIntent(intent) ||
           isRatingAdminDeletionIntent(intent)
@@ -981,6 +995,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
     this.unsubscribeScope();
     this.unsubscribeBrowse();
     this.unsubscribeTarget();
+    this.unsubscribeCatalog();
     super.dispose();
   }
 }

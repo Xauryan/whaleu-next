@@ -1,3 +1,4 @@
+import { RatingCategoryContentReviewFacade } from './rating-category-content-review.facade.js';
 import { RatingContentReviewFacade } from './rating-content-review.facade.js';
 import { ErrandContentReviewFacade } from './errand-content-review.facade.js';
 import { ContentReviewCountRepository } from './count-snapshot.repository.js';
@@ -12,6 +13,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
   imports: [CampusModule],
   providers: [
     RatingContentReviewFacade,
+    RatingCategoryContentReviewFacade,
     ErrandContentReviewFacade,
     ContentReviewCountRepository,
     ApprovalRepository,
@@ -21,6 +23,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
   ],
   exports: [
     RatingContentReviewFacade,
+    RatingCategoryContentReviewFacade,
     ErrandContentReviewFacade,
     ContentReviewCountRepository,
     ApprovalRepository,

@@ -109,7 +109,7 @@ export class RatingManagementService {
       intent.expectedCatalogRevision,
       tx,
     );
-    const category = await this.records.category(
+    const category = await this.records.categoryForMutation(
       catalog,
       intent.categoryId,
       tx,

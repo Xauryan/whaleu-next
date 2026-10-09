@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { RatingCategoryContentReviewFacade } from '../../community/content-review/rating-category-content-review.facade.js';
 import type { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
 import { boundedOwnerProof } from '../../database/required-owner-proof.js';
@@ -11,7 +12,7 @@ import {
 import type { RequiredTransactionProof } from '../../database/transaction-deadlines.js';
 import { ratingPublicIdSchema, ratingSummarySchema } from '../contracts.js';
 import type { RatingSummary } from '../contracts.js';
-import { ratingIso } from '../repository.js';
+import { ratingIso, qualifyRatingCategoryRows } from '../repository.js';
 import type {
   CategoryRow,
   RatingCatalog,
@@ -68,6 +69,7 @@ interface PoolState {
   streamKey: object;
   nextOrdinal: number;
   preciseUntil: string | null;
+  categoryEligibility: Map<string, boolean>;
   statementTimeout: string;
   lockTimeout: string;
 }
@@ -245,6 +247,10 @@ export function ratingCompletePoolSummary(
 
 @Injectable()
 export class RatingCompletePoolRepository {
+  constructor(
+    @Inject(RatingCategoryContentReviewFacade)
+    private readonly categoryReview: RatingCategoryContentReviewFacade = new RatingCategoryContentReviewFacade(),
+  ) {}
   /** Capture before resolving catalog/category/membership/score inputs. */
   async capture(tx: PoolClient): Promise<RatingCompletePoolHandle> {
     const readEpoch = transactionReadEpoch(tx);
@@ -297,6 +303,7 @@ export class RatingCompletePoolRepository {
       streamKey: Object.freeze({}),
       nextOrdinal: 0,
       preciseUntil: null,
+      categoryEligibility: new Map(),
       statementTimeout: settings.statement_timeout,
       lockTimeout: settings.lock_timeout,
     };
@@ -342,8 +349,9 @@ export class RatingCompletePoolRepository {
           state,
           `WITH instant AS MATERIALIZED (SELECT clock_timestamp() now),scopes AS
           (SELECT region_id,ordinal::integer FROM unnest($1::uuid[]) WITH ORDINALITY s(region_id,ordinal))
-         SELECT s.ordinal,c.id,c.region_id,${ratingIso('c.valid_until')} precise_until,
+         SELECT s.ordinal,c.id,c.region_id,${ratingIso('least(c.valid_until,whaleu_ratings.category_catalog_compat_until(c.id))')} precise_until,
           coalesce(c.region_id IS NOT DISTINCT FROM s.region_id AND h.region_id IS NOT DISTINCT FROM s.region_id
+          AND whaleu_ratings.category_catalog_compat_current(c.id)
           AND c.sealed AND c.coverage='complete' AND c.provenance='accepted'
           AND isfinite(c.effective_at) AND c.effective_at<=instant.now
           AND (c.valid_until IS NULL OR (isfinite(c.valid_until) AND c.valid_until>instant.now)),false) valid
@@ -414,7 +422,15 @@ export class RatingCompletePoolRepository {
           )
         )
           unavailable();
-        admitted.push(catalog);
+        const decisions = await qualifyRatingCategoryRows(
+          this.categoryReview,
+          catalog,
+          path,
+          tx,
+        );
+        const allowed = decisions.every((decision) => decision === 'allow');
+        state.categoryEligibility.set(`${catalog.id}:${categoryId}`, allowed);
+        if (allowed) admitted.push(catalog);
       }
       if (!admitted.length) throw new ApplicationError('RATING_NOT_FOUND');
       state.catalogs = Object.freeze(
@@ -473,6 +489,77 @@ export class RatingCompletePoolRepository {
       ).rows;
       assertState(state, tx);
       if (rows.length > RATING_COMPLETE_POOL_BATCH_SIZE) unavailable();
+      // Validate the full category ancestry for every scanned path before any
+      // sampling. Results are immutable-source cached within this owner epoch;
+      // revoking an unselected category still invalidates the whole draw.
+      for (const catalog of state.catalogs) {
+        const missing = [
+          ...new Set(
+            rows
+              .filter(
+                (path) =>
+                  path.catalog_id === catalog.id &&
+                  !state.categoryEligibility.has(
+                    `${catalog.id}:${path.category_id}`,
+                  ),
+              )
+              .map((path) => path.category_id),
+          ),
+        ];
+        if (!missing.length) continue;
+        const categoryRows = (
+          await poolQuery<AncestorRead & { leaf_id: string }>(
+            state,
+            `WITH RECURSIVE path AS (
+          SELECT c.*,c.id leaf_id,1 depth FROM whaleu_ratings.categories c WHERE c.catalog_id=$1 AND c.id=ANY($2::uuid[])
+          UNION ALL SELECT c.*,p.leaf_id,p.depth+1 FROM whaleu_ratings.categories c JOIN path p ON c.catalog_id=p.catalog_id AND c.id=p.parent_id WHERE p.depth<3)
+          SELECT *,ordinal::text FROM path ORDER BY leaf_id,level`,
+            [catalog.id, missing],
+          )
+        ).rows;
+        const unique = [
+          ...new Map(categoryRows.map((row) => [row.id, row])).values(),
+        ];
+        state.bytes += Buffer.byteLength(JSON.stringify(categoryRows), 'utf8');
+        if (
+          categoryRows.length > missing.length * 3 ||
+          state.bytes > RATING_COMPLETE_POOL_BYTE_LIMIT
+        )
+          unavailable();
+        const decisions = await qualifyRatingCategoryRows(
+          this.categoryReview,
+          catalog,
+          unique,
+          tx,
+        );
+        const byId = new Map(
+          unique.map((row, index) => [row.id, decisions[index]]),
+        );
+        for (const id of missing) {
+          const path = categoryRows.filter((row) => row.leaf_id === id),
+            leaf = path.at(-1);
+          if (
+            !leaf ||
+            leaf.id !== id ||
+            path.length !== leaf.level ||
+            path.some(
+              (row, index) =>
+                row.level !== index + 1 ||
+                (index === 0
+                  ? row.parent_id !== null
+                  : row.parent_id !== path[index - 1]!.id),
+            )
+          )
+            unavailable();
+          state.categoryEligibility.set(
+            `${catalog.id}:${id}`,
+            path.every(
+              (row) =>
+                row.active && !row.hidden && byId.get(row.id) === 'allow',
+            ),
+          );
+        }
+      }
       const items: RatingPoolTargetPath[] = [];
       for (const path of rows) {
         const catalog = state.catalogs.find(
@@ -509,7 +596,13 @@ export class RatingCompletePoolRepository {
           state.bytes > RATING_COMPLETE_POOL_BYTE_LIMIT
         )
           unavailable();
-        if (!current.active || current.owner_deleted) continue;
+        if (
+          !current.active ||
+          current.owner_deleted ||
+          state.categoryEligibility.get(`${catalog.id}:${path.category_id}`) !==
+            true
+        )
+          continue;
         const row = currentRatingTargetRow(current);
         const summary = ratingCompletePoolSummary(path.summary);
         items.push(

@@ -1,3 +1,4 @@
+import { ratingCategoryManagementPath } from './category-management-contract';
 import { ratingTargetOwnerEditingPath } from './target-owner-editing-contract';
 import { ratingTargetOwnerDeletionPath } from './target-owner-deletion-contract';
 import { ratingDeletionPath } from './deletion-contract';
@@ -40,6 +41,7 @@ import {
   ratingIntentTarget,
   decodeRatingCommandIntent,
   isRatingSubscriptionIntent,
+  isRatingCategoryCreationIntent,
   isRatingTargetCreationIntent,
   isRatingTargetOwnerEditingIntent,
   isRatingTargetOwnerDeletionIntent,
@@ -167,6 +169,11 @@ export function ratingError(error: unknown): string {
           '评分历史尚不能确认；自己的评分和统计不能视为零',
         RATING_REVISION_CONFLICT:
           '评分或目标已被更新，请刷新后重新选择并确认；未覆盖其他设备的修改',
+        RATING_CATEGORY_CONTEXT_CHANGED:
+          '原分类申请已关闭；请重新核验范围、父分类和分类树后确认',
+        RATING_CATEGORY_CANCELLED: '原分类申请已撤销，没有发布此次分类树',
+        RATING_CATEGORY_UNAVAILABLE:
+          '分类管理授权、来源或完整校区映射暂不能确认，请稍后重试',
         RATING_CREATION_CONTEXT_CHANGED:
           '原创建申请已关闭；请刷新目录后重新填写并确认',
         RATING_EDIT_CONTEXT_CHANGED:
@@ -204,6 +211,7 @@ export class RatingController extends CommunityController<RatingView> {
   private readonly unsubscribeScope: () => void;
   private readonly unsubscribeBrowse: () => void;
   private readonly unsubscribeTarget: () => void;
+  private readonly unsubscribeCatalog: () => void;
   constructor(
     runtime: CommunityRuntime,
     private readonly mode: RatingMode,
@@ -225,6 +233,15 @@ export class RatingController extends CommunityController<RatingView> {
       runtime.directoryScopeChanges?.subscribe(invalidate) ?? (() => undefined);
     this.unsubscribeBrowse =
       runtime.browsingScopeChanges?.subscribe(invalidate) ?? (() => undefined);
+    this.unsubscribeCatalog =
+      runtime.ratingCatalogChanges?.subscribe(() => {
+        if (!this.accountId()) return;
+        this.clearCurrent();
+        this.update({
+          needsRefresh: true,
+          status: '评分分类目录已发布新版本，旧正文和分页已清除，请重新加载',
+        });
+      }) ?? (() => undefined);
     this.unsubscribeTarget =
       runtime.ratingTargetChanges?.subscribe((change) => {
         if (!this.accountId()) return;
@@ -1021,6 +1038,7 @@ export class RatingController extends CommunityController<RatingView> {
         const intent = decodeRatingCommandIntent(make(id));
         if (
           isRatingAdminDeletionIntent(intent) ||
+          isRatingCategoryCreationIntent(intent) ||
           isRatingTargetCreationIntent(intent) ||
           isRatingTargetOwnerEditingIntent(intent) ||
           isRatingTargetOwnerDeletionIntent(intent)
@@ -1148,7 +1166,10 @@ export class RatingController extends CommunityController<RatingView> {
               serverCode: receipt.code,
             }),
           ),
-      confirmedTargetId: success ? receipt.targetId : '',
+      confirmedTargetId:
+        success && receipt.operation !== 'create_categories'
+          ? receipt.targetId
+          : '',
       needsRefresh: !success,
       status: '原请求已确认',
       error: '',
@@ -1189,6 +1210,16 @@ export class RatingController extends CommunityController<RatingView> {
       !!this.runtime.ratingTargetOwnerDeletion &&
       ratingId(this.route.targetId)
       ? ratingTargetOwnerDeletionPath(this.route.targetId)
+      : null;
+  }
+  categoryManagementPath(): string | null {
+    // This only opens server verification. Visible catalogs and managed labels confer no permission.
+    return !this.inactive &&
+      !this.view.busy &&
+      !!this.accountId() &&
+      this.mode === 'catalog' &&
+      !!this.runtime.ratingCategoryManagement
+      ? ratingCategoryManagementPath(this.route.regionId ?? null)
       : null;
   }
   creationPath(id: string): string | null {
@@ -1244,6 +1275,7 @@ export class RatingController extends CommunityController<RatingView> {
     this.unsubscribeScope();
     this.unsubscribeBrowse();
     this.unsubscribeTarget();
+    this.unsubscribeCatalog();
     super.dispose();
   }
 }

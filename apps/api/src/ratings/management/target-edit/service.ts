@@ -163,7 +163,7 @@ export class RatingTargetEditService {
     // Catalog itself never changes in this operation, so its ordinary head fact
     // remains valid. Do not call public target() or navigation() here.
     const catalog = await this.catalogs.catalog(identity.region_id, tx);
-    const category = await this.catalogs.category(
+    const category = await this.catalogs.categoryForMutation(
       catalog,
       identity.category_id,
       tx,

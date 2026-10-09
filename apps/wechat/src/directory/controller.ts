@@ -128,6 +128,7 @@ export class DirectoryReadController extends CommunityController<DirectoryView> 
   private actionGeneration = 0;
   private copyCancellation: Cancellation | undefined;
   private readonly unsubscribeScope: () => void;
+  private readonly unsubscribeCatalog: () => void;
   constructor(
     runtime: CommunityRuntime,
     private readonly mode: DirectoryMode,
@@ -142,6 +143,15 @@ export class DirectoryReadController extends CommunityController<DirectoryView> 
         this.update({
           status: '身份校区状态已变化，请重新加载',
           error: '旧目录和联系方式已清除；浏览校园不授予目录访问权限',
+        });
+      }) ?? (() => undefined);
+    this.unsubscribeCatalog =
+      runtime.ratingCatalogChanges?.subscribe(() => {
+        this.clearBody();
+        this.resetPaging();
+        this.update({
+          restartRequired: true,
+          status: '分类目录已变化，旧内容和分页已清除，请重新加载',
         });
       }) ?? (() => undefined);
     this.update({ configured: !!runtime.directory });
@@ -505,6 +515,7 @@ export class DirectoryReadController extends CommunityController<DirectoryView> 
   override dispose(): void {
     this.inactive = true;
     this.unsubscribeScope();
+    this.unsubscribeCatalog();
     super.dispose();
   }
 }

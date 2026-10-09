@@ -1,3 +1,4 @@
+import { smokeRatingCategoryManagement } from './smoke-rating-category-management.mjs';
 import { smokeRatingOwnerEditing } from './smoke-rating-owner-editing.mjs';
 import { smokeRatingOwnerManagement } from './smoke-rating-owner-management.mjs';
 import { smokeRatingsR3A } from './smoke-ratings-r3a.mjs';
@@ -119,6 +120,27 @@ function assertColdRatingCreation(current) {
     assert.equal(current.data[key], '', `rating-create: ${key}`);
   assert.equal(current.context, null);
 }
+function assertColdRatingCategoryCreation(current) {
+  for (const key of [
+    'ready',
+    'creationConfirmation',
+    'canCancelCategoryCreation',
+    'cancelCategoryCreationConfirmation',
+    'frozen',
+    'needsRefresh',
+    'busy',
+  ])
+    assert.equal(current.data[key], false, `rating-category-create: ${key}`);
+  for (const key of ['nodes', 'campusIds', 'parents'])
+    assert.deepEqual(current.data[key], [], `rating-category-create: ${key}`);
+  for (const key of ['parentName', 'receiptStatus', 'recoveryOperation'])
+    assert.equal(current.data[key], '', `rating-category-create: ${key}`);
+  assert.equal(current.data.regionId, null);
+  assert.equal(current.data.parentId, null);
+  assert.equal(current.data.parentLevel, 0);
+  assert.equal('loaded' in current.data, false);
+  assert.equal(current.route, null);
+}
 function assertColdTargetOwnerDeletion(current) {
   for (const key of [
     'ready',
@@ -182,6 +204,8 @@ for (const route of config.pages.filter(
   current.onShow();
   if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
+  else if (route === 'pages/rating-category-create/rating-category-create')
+    assertColdRatingCategoryCreation(current);
   else if (route === 'pages/target-owner-delete/target-owner-delete')
     assertColdTargetOwnerDeletion(current);
   else if (route === 'pages/target-owner-edit/target-owner-edit')
@@ -203,6 +227,8 @@ for (const route of config.pages.filter(
   assert.equal(current.controller, undefined);
   if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
+  else if (route === 'pages/rating-category-create/rating-category-create')
+    assertColdRatingCategoryCreation(current);
   else if (route === 'pages/target-owner-delete/target-owner-delete')
     assertColdTargetOwnerDeletion(current);
   else if (route === 'pages/target-owner-edit/target-owner-edit')
@@ -214,6 +240,11 @@ for (const route of config.pages.filter(
   if (route === 'pages/rating-create/rating-create') {
     assertColdRatingCreation(current);
     assert.equal(current.controller, undefined);
+  }
+  if (route === 'pages/rating-category-create/rating-category-create') {
+    assertColdRatingCategoryCreation(current);
+    assert.equal(current.controller, undefined);
+    assert.equal(current.navigator, undefined);
   }
   if (route === 'pages/target-owner-edit/target-owner-edit') {
     assertColdTargetOwnerEditing(current);
@@ -1937,6 +1968,7 @@ await smokeRatingsR3A({ app, dist, flush: flushTrading });
 await smokeRatingsR3R({ app, dist, flush: flushTrading });
 await smokeRatingOwnerManagement({ app, dist, flush: flushTrading });
 await smokeRatingOwnerEditing({ app, dist, flush: flushTrading });
+await smokeRatingCategoryManagement({ app, dist, flush: flushTrading });
 await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeErrandAdminMutations({ app, dist, flush: flushTrading });
 await smokeErrandAdminNotices({ app, dist, flush: flushTrading });

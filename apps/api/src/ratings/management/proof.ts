@@ -36,7 +36,7 @@ const proof: RequiredTransactionProof<CreationFact> = {
     WHERE o.id IS NOT DISTINCT FROM $2::uuid AND p.id=$1 AND p.enabled AND p.coverage='complete' AND p.provenance='accepted'
     AND p.effective_at<=clock_timestamp() AND p.valid_until>clock_timestamp()
     AND (($2::uuid IS NULL AND NOT p.require_known_origin) OR (o.effective_at<=clock_timestamp() AND o.valid_until>clock_timestamp() AND (NOT p.require_known_origin OR o.origin_state='known_school')))
-    AND c.sealed AND c.coverage='complete' AND c.provenance='accepted' AND c.effective_at<=clock_timestamp() AND (c.valid_until IS NULL OR c.valid_until>clock_timestamp())
+    AND whaleu_ratings.category_catalog_compat_current(c.id) AND c.sealed AND c.coverage='complete' AND c.provenance='accepted' AND c.effective_at<=clock_timestamp() AND (c.valid_until IS NULL OR c.valid_until>clock_timestamp())
     AND prior.sealed AND prior.effective_at<=clock_timestamp() AND (prior.valid_until IS NULL OR prior.valid_until>clock_timestamp())
     AND ($5::uuid IS NULL OR EXISTS(SELECT 1 FROM whaleu_ratings.targets t JOIN whaleu_ratings.target_create_transitions tr ON tr.target_id=t.id WHERE t.id=$5 AND t.revision=$6 AND t.active AND tr.before_catalog_id=prior.id AND tr.after_catalog_id=c.id))`,
             [

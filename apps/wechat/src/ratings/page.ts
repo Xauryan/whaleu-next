@@ -103,6 +103,9 @@ export function registerRatingPage(mode: RatingMode): void {
     onOwnerDeletion() {
       this.navigator?.open(this.controller?.ownerDeletionPath() ?? null);
     },
+    onCreateCategories() {
+      this.navigator?.open(this.controller?.categoryManagementPath() ?? null);
+    },
     onCreateTarget(event: Tap) {
       this.navigator?.open(
         this.controller?.creationPath(event.currentTarget.dataset.id ?? '') ??

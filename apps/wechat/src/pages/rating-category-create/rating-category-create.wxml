@@ -1,0 +1,53 @@
+<import src="../../ratings/common.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 分类管理</view><view class="title">创建普通评分分类</view>
+  <view class="notice">仅当前具有对应管理授权的账号可提交。浏览地区、身份标签或目录可见性不能证明管理资格。</view>
+  <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />
+  <block wx:if="{{ready &amp;&amp; !frozen}}">
+    <view class="card scope">
+      <view class="section-title">本次精确发布范围</view>
+      <view>{{regionId ? '地区完整校区集合' : '全局分类及全部当前已映射地区'}}</view>
+      <view wx:if="{{regionId}}" class="meta">地区 ID：{{regionId}}</view>
+      <view class="meta">服务器核验的受影响校区：{{campusIds.length}} 个</view>
+      <view wx:for="{{campusIds}}" wx:key="*this" class="scope-id">{{item}}</view>
+      <view wx:if="{{!campusIds.length}}" class="notice">当前没有已映射的受影响校区，仅发布全局目录。</view>
+      <view class="notice">该集合由服务器完整核验，提交前后若授权、校区映射、目录或父分类变化，必须重新核验。</view>
+    </view>
+    <view wx:if="{{!creationConfirmation}}" class="card">
+      <view class="section-title">连接位置</view>
+      <button data-id="" bindtap="onParent" disabled="{{busy}}">{{!parentId ? '已选：' : ''}}新建根分类</button>
+      <button wx:for="{{parents}}" wx:key="id" data-id="{{item.id}}" bindtap="onParent" disabled="{{busy}}">{{parentId === item.id ? '已选：' : ''}}{{item.name}}（第 {{item.level}} 级，{{item.id}}）</button>
+      <view class="notice">父分类选项仅包含同一来源范围内、当前审核有效的原生分类。树总深度最多三级。</view>
+    </view>
+    <view class="card">
+      <view class="section-title">{{creationConfirmation ? '确认整棵分类树' : '编辑分类树'}} · {{nodes.length}} / 32 项</view>
+      <view>{{parentId ? '连接到：' + parentName : '新建根分类'}}</view>
+      <view wx:if="{{parentId}}" class="meta">父分类 ID：{{parentId}}</view>
+      <view wx:for="{{nodes}}" wx:key="key" class="category-node">
+        <view class="meta">第 {{item.level}} 级 · {{item.key}}{{item.parentKey ? ' · 上级节点：' + item.parentKey : ' · 本次树根'}}</view>
+        <block wx:if="{{!creationConfirmation}}">
+          <input value="{{item.name}}" data-key="{{item.key}}" bindinput="onName" maxlength="200" placeholder="分类名称（1–100 字）" disabled="{{busy}}" />
+          <textarea value="{{item.description}}" data-key="{{item.key}}" bindinput="onDescription" maxlength="1000" placeholder="分类说明（0–500 字）" disabled="{{busy}}" />
+          <button wx:if="{{item.level &lt; 3}}" data-key="{{item.key}}" bindtap="onAddChild" disabled="{{busy || nodes.length &gt;= 32}}">添加子分类</button>
+          <button wx:if="{{item.parentKey}}" data-key="{{item.key}}" bindtap="onRemoveNode" disabled="{{busy}}">移除此节点及子分类</button>
+        </block>
+        <block wx:else><view class="section-title">{{item.name}}</view><view class="body">{{item.description}}</view></block>
+      </view>
+      <button wx:if="{{!creationConfirmation}}" bindtap="onCreate" disabled="{{busy}}">检查范围与分类树</button>
+    </view>
+    <view wx:if="{{creationConfirmation}}" class="card confirmation" aria-role="alert">
+      <view class="section-title">确认提交以上范围与全部 {{nodes.length}} 个分类？</view>
+      <view class="notice">仅创建普通分类。整棵树须通过精确审核后才可一起发布；审核待定时不会显示为发布成功。停止等待不会撤销已发送的申请。</view>
+      <button bindtap="onConfirmCreate" disabled="{{busy}}" loading="{{busy}}">确认提交分类树</button>
+      <button bindtap="onDismissCreate">返回编辑</button>
+    </view>
+  </block>
+  <button wx:if="{{frozen &amp;&amp; canCancelCategoryCreation &amp;&amp; !cancelCategoryCreationConfirmation}}" bindtap="onCancelCategoryCreation" disabled="{{busy}}">明确撤销原分类申请</button>
+  <view wx:if="{{cancelCategoryCreationConfirmation}}" class="card confirmation" aria-role="alert">
+    <view class="section-title">撤销原编号、原范围和原分类树的申请？</view>
+    <view class="notice">仅关闭尚未发布的原申请，不会回退已经发布的分类。已发布结果优先；撤销结果未知时仍保留原请求。</view>
+    <button bindtap="onConfirmCancelCategoryCreation" disabled="{{busy}}">确认撤销原分类申请</button>
+    <button bindtap="onDismissCancelCategoryCreation" disabled="{{busy}}">继续保留原申请</button>
+  </view>
+  <button bindtap="onReturnCatalog">返回评分目录</button>
+</view>

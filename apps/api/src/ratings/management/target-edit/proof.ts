@@ -51,6 +51,8 @@ const proof: RequiredTransactionProof<EditFact> = {
          JOIN whaleu_ratings.random_pool_epoch pe ON pe.singleton AND pe.version=1 AND pe.epoch=$11::bigint
          WHERE t.id=$1 AND t.creator_id=$2 AND t.revision=$3 AND t.active AND t.region_id IS NOT DISTINCT FROM $7::uuid AND t.category_id=$8
            AND h.definition_revision=$4 AND h.content_version=$5 AND v.applied_target_revision=$6
+           AND whaleu_ratings.category_catalog_compat_current(c.id)
+           AND whaleu_ratings.category_ancestry_current(c.id,t.category_id)
            AND c.sealed AND c.coverage='complete' AND c.provenance='accepted' AND c.effective_at<=clock_timestamp() AND (c.valid_until IS NULL OR c.valid_until>clock_timestamp())
            AND NOT EXISTS(SELECT 1 FROM whaleu_ratings.target_owner_tombstones d WHERE d.target_id=t.id)`,
             [

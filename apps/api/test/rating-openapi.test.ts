@@ -1,3 +1,4 @@
+import * as categories from '../src/ratings/category-management/contracts.js';
 import * as ownerEdit from '../src/ratings/management/target-edit/contracts.js';
 import * as ownerDeletion from '../src/ratings/management/target-deletion/contracts.js';
 import * as management from '../src/ratings/management/contracts.js';
@@ -46,9 +47,34 @@ test('ratings OpenAPI is deterministic offline and artifact-current', async () =
       'utf8',
     ),
   ));
-test('all 61 rating operations have exact schemas and safe auth/error metadata', async () => {
+test('all 66 rating operations have exact schemas and safe auth/error metadata', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
+    [
+      '/v1/ratings/category-management/context',
+      'get',
+      categories.ratingCategoryManagementContextSchema,
+    ],
+    [
+      '/v1/ratings/category-management/prepare',
+      'post',
+      categories.ratingCategoryPrepareResultSchema,
+    ],
+    [
+      '/v1/ratings/category-management/categories',
+      'post',
+      categories.ratingCategoryReceiptSchema,
+    ],
+    [
+      '/v1/ratings/category-management/cancel',
+      'post',
+      categories.ratingCategoryReceiptSchema,
+    ],
+    [
+      '/v1/ratings/category-management/requests/{requestId}',
+      'get',
+      categories.ratingCategoryReceiptSchema,
+    ],
     [
       '/v1/ratings/management/owner-edit/targets/{targetId}/context',
       'get',
@@ -287,7 +313,7 @@ test('all 61 rating operations have exact schemas and safe auth/error metadata',
       updates.ratingNoticeReadSchema,
     ],
   ] as const;
-  assert.equal(cases.length, 61);
+  assert.equal(cases.length, 66);
   assert.equal(
     Object.values(doc.paths).reduce((n, p) => n + Object.keys(p!).length, 0),
     cases.length,

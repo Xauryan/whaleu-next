@@ -201,6 +201,27 @@ function fixture(count = 1) {
             },
           ],
         };
+      if (sql.includes('catalog_category_lineage')) {
+        assert.equal(values[0], catalogId);
+        assert.deepEqual(values[1], [categoryId]);
+        return {
+          rows: [
+            {
+              ordinal: 1,
+              lineage: {
+                source_kind: 'opaque',
+                effective_revision: id(90004),
+                base_revision: null,
+                scope_version_id: null,
+                topology_snapshot_id: null,
+              },
+              base: null,
+              head_revision: null,
+              source_scope: null,
+            },
+          ],
+        };
+      }
       if (sql.includes('WITH RECURSIVE path'))
         return {
           rows: [

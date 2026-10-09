@@ -1,0 +1,22 @@
+@import '../../ratings/ratings.wxss';
+.category-node {
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #dce4ec;
+}
+.category-node input,
+.category-node textarea {
+  box-sizing: border-box;
+  width: 100%;
+  background: #f4f7fa;
+  margin-top: 16rpx;
+  padding: 16rpx;
+  border-radius: 12rpx;
+}
+.scope-id {
+  font-size: 24rpx;
+  line-height: 1.7;
+  word-break: break-all;
+}
+.confirmation {
+  border: 2rpx solid #347eb4;
+}

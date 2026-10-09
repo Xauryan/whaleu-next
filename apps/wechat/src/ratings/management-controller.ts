@@ -79,6 +79,7 @@ export class RatingManagementController extends CommunityController<RatingManage
   private inactive = false;
   private readonly unsubscribeScope: () => void;
   private readonly unsubscribeBrowse: () => void;
+  private readonly unsubscribeCatalog: () => void;
   constructor(
     runtime: CommunityRuntime,
     render: (view: RatingManagementView) => void,
@@ -99,6 +100,14 @@ export class RatingManagementController extends CommunityController<RatingManage
       runtime.directoryScopeChanges?.subscribe(invalidate) ?? (() => undefined);
     this.unsubscribeBrowse =
       runtime.browsingScopeChanges?.subscribe(invalidate) ?? (() => undefined);
+    this.unsubscribeCatalog =
+      runtime.ratingCatalogChanges?.subscribe(() => {
+        invalidate();
+        this.update({
+          needsRefresh: true,
+          status: '评分分类目录已变化，请重新核验后确认；原请求仍受保护',
+        });
+      }) ?? (() => undefined);
   }
   private configured(): boolean {
     return !!this.runtime.ratingManagement && !!this.runtime.pendingRatings;
@@ -325,6 +334,7 @@ export class RatingManagementController extends CommunityController<RatingManage
     this.inactive = true;
     this.unsubscribeScope();
     this.unsubscribeBrowse();
+    this.unsubscribeCatalog();
     super.dispose();
   }
 }

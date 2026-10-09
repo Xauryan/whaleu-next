@@ -26,6 +26,7 @@ import {
 } from './deletion-contract';
 import {
   decodeRatingCommandIntent,
+  isRatingCategoryCreationIntent,
   isRatingTargetCreationIntent,
   isRatingTargetOwnerEditingIntent,
   isRatingTargetOwnerDeletionIntent,
@@ -75,6 +76,7 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
   private inactive = false;
   private readonly unsubscribeScope: () => void;
   private readonly unsubscribeBrowse: () => void;
+  private readonly unsubscribeCatalog: () => void;
   constructor(
     runtime: CommunityRuntime,
     render: (view: RatingDeletionView) => void,
@@ -95,6 +97,14 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
       runtime.directoryScopeChanges?.subscribe(invalidate) ?? (() => undefined);
     this.unsubscribeBrowse =
       runtime.browsingScopeChanges?.subscribe(invalidate) ?? (() => undefined);
+    this.unsubscribeCatalog =
+      runtime.ratingCatalogChanges?.subscribe(() => {
+        invalidate();
+        this.update({
+          needsRefresh: true,
+          status: '评分分类目录已变化，请重新核验后确认；原请求仍受保护',
+        });
+      }) ?? (() => undefined);
     this.update({ configured: this.configured() });
   }
   private configured(): boolean {
@@ -280,6 +290,7 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
         if (
           isRatingTargetOwnerEditingIntent(intent) ||
           isRatingTargetOwnerDeletionIntent(intent) ||
+          isRatingCategoryCreationIntent(intent) ||
           isRatingTargetCreationIntent(intent) ||
           isRatingLikeIntent(intent) ||
           isRatingSubscriptionIntent(intent)
@@ -403,6 +414,7 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
     this.inactive = true;
     this.unsubscribeScope();
     this.unsubscribeBrowse();
+    this.unsubscribeCatalog();
     super.dispose();
   }
 }

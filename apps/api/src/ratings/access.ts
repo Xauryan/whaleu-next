@@ -162,6 +162,29 @@ export class RatingsAccessService {
       ]),
     };
   }
+  /** Category administration has its own explicit grant check. This does not
+   * alter creator-only editing or hidden owner cleanup eligibility. */
+  async resolveCategoryManager(
+    accountId: string,
+    regionId: string | null,
+    tx: PoolClient,
+  ) {
+    const eligibility = await this.requireDeletionActor(accountId, tx);
+    const scope = await this.authorization.scope(accountId, tx);
+    if (
+      scope.kind === 'ordinary' ||
+      (scope.kind === 'fixed' && scope.regionId !== regionId)
+    )
+      throw new ApplicationError('RATING_NOT_FOUND');
+    return {
+      fingerprint: ownerFingerprint([
+        'category-manager:v1',
+        eligibility.fingerprint,
+        scope.fingerprint,
+      ]),
+      grant: scope,
+    };
+  }
   async context(token: string, tx: PoolClient) {
     const session = await this.authenticate(token, tx);
     await this.safety.requireAllowed(session.accountId, tx);

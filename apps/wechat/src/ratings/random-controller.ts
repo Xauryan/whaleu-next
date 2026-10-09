@@ -75,6 +75,7 @@ export class RatingRandomController extends CommunityController<RatingRandomView
   private readonly unsubscribeScope: () => void;
   private readonly unsubscribeBrowse: () => void;
   private readonly unsubscribeTarget: () => void;
+  private readonly unsubscribeCatalog: () => void;
   constructor(
     runtime: CommunityRuntime,
     render: (view: RatingRandomView) => void,
@@ -94,6 +95,14 @@ export class RatingRandomController extends CommunityController<RatingRandomView
       runtime.directoryScopeChanges?.subscribe(invalidate) ?? (() => undefined);
     this.unsubscribeBrowse =
       runtime.browsingScopeChanges?.subscribe(invalidate) ?? (() => undefined);
+    this.unsubscribeCatalog =
+      runtime.ratingCatalogChanges?.subscribe(() => {
+        if (this.inactive || !this.accountId()) return;
+        this.clearResult();
+        this.update({
+          status: '评分分类目录已变化，旧随机结果已清除，请重新抽取',
+        });
+      }) ?? (() => undefined);
     this.unsubscribeTarget =
       runtime.ratingTargetChanges?.subscribe(() => {
         if (this.inactive || !this.accountId()) return;
@@ -359,6 +368,7 @@ export class RatingRandomController extends CommunityController<RatingRandomView
     this.unsubscribeScope();
     this.unsubscribeBrowse();
     this.unsubscribeTarget();
+    this.unsubscribeCatalog();
     super.dispose();
   }
 }

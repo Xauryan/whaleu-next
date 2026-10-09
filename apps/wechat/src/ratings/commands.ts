@@ -2,6 +2,7 @@ import { ClientError } from '../api/errors';
 import type { CommunityRuntime } from '../community/runtime';
 import type { Cancellation } from '../platform/contracts';
 import {
+  isRatingCategoryCreationIntent,
   isRatingTargetOwnerEditingIntent,
   isRatingTargetCreationIntent,
   isRatingTargetOwnerDeletionIntent,
@@ -14,6 +15,7 @@ import {
   type RatingCommandReceipt,
 } from './pending';
 export const ratingCommandLabels = {
+  create_categories: '管理员创建评分分类',
   edit_target: '创建者编辑评分对象',
   create_target: '评分对象创建',
   delete_target: '创建者删除评分对象',
@@ -40,6 +42,16 @@ export function runRatingCommand(
     throw new ClientError('stale-session', 'Account changed');
   runtime.pendingRatings!.assertOriginal(attempt);
   const intent = attempt.intent;
+  if (isRatingCategoryCreationIntent(intent)) {
+    if (!runtime.ratingCategoryManagement)
+      throw new ClientError('configuration', 'Category management unavailable');
+    return retry
+      ? runtime.ratingCategoryManagement.command(intent, cancel)
+      : runtime.ratingCategoryManagement.receipt(
+          intent.payload.clientRequestId,
+          cancel,
+        );
+  }
   if (isRatingTargetOwnerEditingIntent(intent)) {
     if (!runtime.ratingTargetOwnerEditing)
       throw new ClientError(
@@ -149,6 +161,14 @@ export function settleRatingCommand(
     runtime.ratingTargetChanges?.publish({
       targetId: receipt.targetId,
       revision: receipt.revision,
+    });
+  if (
+    receipt.operation === 'create_categories' &&
+    receipt.outcome === 'applied'
+  )
+    runtime.ratingCatalogChanges?.publish({
+      releaseId: receipt.releaseId,
+      catalogs: receipt.catalogs,
     });
   return receipt;
 }

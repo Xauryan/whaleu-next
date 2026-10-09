@@ -235,11 +235,33 @@ function repositoryFixture() {
         return { rows: [{ epoch: state.epoch }] };
       if (sql.includes('FROM whaleu_ratings.target_memberships'))
         return { rows: state.membership ? [{ category_id: id(5) }] : [] };
+      if (sql.includes('catalog_category_lineage')) {
+        assert.equal(values[0], id(7));
+        assert.deepEqual(values[1], [id(5)]);
+        return {
+          rows: [
+            {
+              ordinal: 1,
+              lineage: {
+                source_kind: 'opaque',
+                effective_revision: id(6),
+                base_revision: null,
+                scope_version_id: null,
+                topology_snapshot_id: null,
+              },
+              base: null,
+              head_revision: null,
+              source_scope: null,
+            },
+          ],
+        };
+      }
       if (sql.includes('WITH RECURSIVE path AS'))
         return {
           rows: [
             {
               id: id(5),
+              revision: id(6),
               parent_id: null,
               level: 1,
               active: true,

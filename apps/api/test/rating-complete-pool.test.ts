@@ -4,6 +4,10 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import type { PoolClient } from 'pg';
 import {
+  canonicalRatingCategoryEnvelope,
+  ratingCategoryApprovalDigest,
+} from '../src/community/content-review/rating-category-contracts.js';
+import {
   RatingCompletePoolRepository,
   assertRatingCompletePoolBatch,
   ratingCompletePoolSummary,
@@ -20,7 +24,7 @@ import { ApplicationError } from '../src/http/application-error.js';
 
 const uuid = (n: number) =>
   `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
-function fixture(count = 1, catalogCount = 1) {
+function fixture(count = 1, catalogCount = 1, native = false) {
   const categoryId = randomUUID(),
     creatorId = randomUUID();
   const catalogs = Array.from({ length: catalogCount }, (_, i) => ({
@@ -29,6 +33,9 @@ function fixture(count = 1, catalogCount = 1) {
   }));
   const state = {
     epoch: '0',
+    reviewEpoch: '0',
+    categoryReviewState: 'allow' as 'allow' | 'revoked',
+    categoryReviewUnknown: false,
     isolation: 'read committed',
     conflict: false,
     current: true,
@@ -42,7 +49,7 @@ function fixture(count = 1, catalogCount = 1) {
       id: categoryId,
       parent_id: null,
       level: 1,
-      kind: 'school',
+      kind: native ? 'general' : 'school',
       system_key: null,
       name: 'Category',
       description: '',
@@ -105,6 +112,54 @@ function fixture(count = 1, catalogCount = 1) {
       }),
     ),
   };
+  const nativeEnvelope = native
+    ? canonicalRatingCategoryEnvelope({
+        version: 4,
+        purpose: 'publish_rating_categories',
+        accountId: creatorId,
+        clientRequestId: uuid(800001),
+        releaseId: uuid(800002),
+        intent: {
+          clientRequestId: uuid(800001),
+          regionId: null,
+          expectedCatalogRevision: null,
+          expectedScopeRevision: 's'.repeat(43),
+          parentId: null,
+          expectedParentRevision: null,
+          nodes: [
+            { key: 'root', parentKey: null, name: 'Category', description: '' },
+          ],
+          assetIds: [],
+        },
+        scope: {
+          regionId: null,
+          topologySnapshotId: uuid(800003),
+          campusIds: [],
+          scopeRevision: 's'.repeat(43),
+        },
+        categories: [
+          {
+            key: 'root',
+            id: categoryId,
+            revision: state.ancestors[0]!.revision,
+            parentId: null,
+            level: 1,
+            name: 'Category',
+            description: '',
+            scopeVersionId: uuid(800004),
+          },
+        ],
+        catalogs: [
+          {
+            regionId: null,
+            beforeCatalogId: null,
+            afterCatalogId: catalogs[0]!.id,
+            campusIds: [],
+          },
+        ],
+        assetIds: [],
+      })
+    : null;
   const tx = {
     async query(sql: string, values: unknown[] = []) {
       state.statements.push({ sql, values });
@@ -119,6 +174,72 @@ function fixture(count = 1, catalogCount = 1) {
             },
           ],
         };
+      if (sql.includes('FROM whaleu_community.rating_review_epoch'))
+        return {
+          rows: [{ singleton: true, version: 1, epoch: state.reviewEpoch }],
+        };
+      if (
+        sql.includes('WITH ORDINALITY w(category_id,base_revision,ordinal)')
+      ) {
+        assert.ok(nativeEnvelope);
+        const e = nativeEnvelope,
+          digest = ratingCategoryApprovalDigest(e),
+          evaluated = new Date(state.now.getTime() - 1000);
+        return {
+          rows: (values[0] as string[]).map((id, index) => {
+            assert.equal(id, categoryId);
+            return {
+              ordinal: index + 1,
+              binding: {
+                category_id: categoryId,
+                base_revision: e.categories[0]!.revision,
+                release_id: e.releaseId,
+                decision_id: uuid(800005),
+                account_id: creatorId,
+                operation: e.purpose,
+                envelope_version: 4,
+                digest,
+                envelope: e,
+                scope: e.scope,
+              },
+              account_exists: true,
+              bound_time: true,
+              now: state.now,
+              exact_time: true,
+              id: uuid(800005),
+              account_id: creatorId,
+              operation: e.purpose,
+              envelope_version: 4,
+              digest,
+              envelope: e,
+              policy_revision_id: uuid(800006),
+              result: 'allow',
+              coverage: state.categoryReviewUnknown ? 'missing' : 'complete',
+              provenance: 'accepted',
+              issuer: 'synthetic-category-review',
+              provenance_ref: 'synthetic-category-ref',
+              evaluated_at: evaluated,
+              consume_until: new Date(state.now.getTime() + 60000),
+              visibility_model: 'durable',
+              visibility_until: null,
+              policy_key: 'local-explicit-v1',
+              policy_version: 1,
+              policy_coverage: 'complete',
+              policy_provenance: 'accepted',
+              policy_issuer: 'synthetic-category-policy',
+              policy_provenance_ref: 'synthetic-category-policy-ref',
+              policy_valid_from: evaluated,
+              policy_valid_until: null,
+              state: state.categoryReviewState,
+              event_at: evaluated,
+              event_coverage: 'complete',
+              event_provenance: 'accepted',
+              event_issuer: 'synthetic-category-event',
+              event_provenance_ref: 'synthetic-category-event-ref',
+            };
+          }),
+        };
+      }
       if (sql.includes('FROM whaleu_ratings.random_pool_epoch'))
         return {
           rows: state.epochRows ?? [
@@ -150,6 +271,65 @@ function fixture(count = 1, catalogCount = 1) {
             valid: !state.missingCatalog,
             precise_until: state.validUntil,
           })),
+        };
+      if (sql.includes('catalog_category_lineage'))
+        return {
+          rows: (values[1] as string[]).map((id, index) => {
+            const category = state.ancestors.find(
+              (row) => row.catalog_id === values[0] && row.id === id,
+            );
+            assert.ok(
+              category,
+              'Only explicit synthetic opaque category rows are admitted',
+            );
+            if (nativeEnvelope)
+              return {
+                ordinal: index + 1,
+                lineage: {
+                  source_kind: 'native',
+                  effective_revision: category.revision,
+                  base_revision: category.revision,
+                  scope_version_id:
+                    nativeEnvelope.categories[0]!.scopeVersionId,
+                  topology_snapshot_id: nativeEnvelope.scope.topologySnapshotId,
+                },
+                base: {
+                  category_id: category.id,
+                  revision: category.revision,
+                  parent_id: category.parent_id,
+                  level: category.level,
+                  name: category.name,
+                  description: category.description,
+                  active: category.active,
+                  is_global: true,
+                  scope_version_id:
+                    nativeEnvelope.categories[0]!.scopeVersionId,
+                  release_id: nativeEnvelope.releaseId,
+                  envelope: nativeEnvelope,
+                },
+                head_revision: category.revision,
+                source_scope: {
+                  id: nativeEnvelope.categories[0]!.scopeVersionId,
+                  region_id: null,
+                  campus_ids: [],
+                  topology_snapshot_id: nativeEnvelope.scope.topologySnapshotId,
+                  release_id: nativeEnvelope.releaseId,
+                },
+              };
+            return {
+              ordinal: index + 1,
+              lineage: {
+                source_kind: 'opaque',
+                effective_revision: category.revision,
+                base_revision: null,
+                scope_version_id: null,
+                topology_snapshot_id: null,
+              },
+              base: null,
+              head_revision: null,
+              source_scope: null,
+            };
+          }),
         };
       if (sql.includes('WITH RECURSIVE path AS'))
         return { rows: structuredClone(state.ancestors) };
@@ -623,4 +803,49 @@ test('a pool larger than the legacy fact limit preserves mixed v1 and edited cur
   assert.equal(seen, 1001);
   await f.repository.complete(handle, f.tx);
   await checkTransactionDeadlines(f.tx);
+});
+
+test('native category current Review protects the entire 1001-target pool with one fixed category fence', async () => {
+  const f = fixture(1001, 1, true),
+    handle = await prepared(f);
+  let count = 0;
+  for (;;) {
+    const batch = await f.repository.next(handle, f.tx);
+    count += batch.items.length;
+    if (batch.done) break;
+  }
+  assert.equal(count, 1001);
+  await f.repository.complete(handle, f.tx);
+  await checkTransactionDeadlines(f.tx);
+  assert.equal(
+    f.state.statements.filter(({ sql }) =>
+      sql.startsWith('LOCK TABLE whaleu_community.rating_review_epoch'),
+    ).length,
+    1,
+  );
+  f.state.reviewEpoch = '1';
+  await assert.rejects(
+    checkTransactionDeadlines(f.tx),
+    (error: unknown) =>
+      error instanceof ApplicationError &&
+      error.code === 'CONTENT_REVIEW_UNAVAILABLE',
+  );
+});
+
+test('native category authoritative deny is absent and unknown never narrows the complete pool', async () => {
+  const denied = fixture(1001, 1, true);
+  denied.state.categoryReviewState = 'revoked';
+  await assert.rejects(
+    prepared(denied),
+    (error: unknown) =>
+      error instanceof ApplicationError && error.code === 'RATING_NOT_FOUND',
+  );
+  const unknown = fixture(1001, 1, true);
+  unknown.state.categoryReviewUnknown = true;
+  await assert.rejects(
+    prepared(unknown),
+    (error: unknown) =>
+      error instanceof ApplicationError &&
+      error.code === 'CONTENT_REVIEW_UNAVAILABLE',
+  );
 });

@@ -1,3 +1,8 @@
+import { RatingCatalogChanges } from '../ratings/catalog-changes';
+import {
+  HttpRatingCategoryManagementGateway,
+  type RatingCategoryManagementGateway,
+} from '../ratings/category-management-gateway';
 import {
   HttpRatingTargetOwnerEditingGateway,
   type RatingTargetOwnerEditingGateway,
@@ -113,6 +118,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly ratingCatalogChanges?: RatingCatalogChanges;
+  readonly ratingCategoryManagement?: RatingCategoryManagementGateway;
   readonly ratingTargetChanges?: RatingTargetChanges;
   readonly ratingRandom?: RatingRandomGateway;
   readonly ratingTargetOwnerEditing?: RatingTargetOwnerEditingGateway;
@@ -178,6 +185,7 @@ export function createCommunityRuntime(
   const runtime: CommunityRuntime = {
     sessions: identity.sessions,
     ratingTargetChanges: new RatingTargetChanges(),
+    ratingCatalogChanges: new RatingCatalogChanges(),
     ...(identity.api ? { ratings: new HttpRatingsGateway(identity.api) } : {}),
     ...(identity.api
       ? { ratingRandom: new HttpRatingRandomGateway(identity.api) }
@@ -192,6 +200,10 @@ export function createCommunityRuntime(
             identity.api,
           ),
           ratingManagement: new HttpRatingManagementGateway(identity.api),
+          ratingCategoryManagement: new HttpRatingCategoryManagementGateway(
+            identity.api,
+            identity.sessions,
+          ),
           ratingDeletion: new HttpRatingDeletionGateway(identity.api),
           ratingSubscriptions: new HttpRatingSubscriptionsGateway(identity.api),
           ratingSubscriptionUpdates: new HttpRatingSubscriptionUpdatesGateway(

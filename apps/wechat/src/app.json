@@ -43,6 +43,7 @@
     "pages/rating-recovery/rating-recovery",
     "pages/rating-deletion/rating-deletion",
     "pages/rating-create/rating-create",
+    "pages/rating-category-create/rating-category-create",
     "pages/target-owner-delete/target-owner-delete",
     "pages/target-owner-edit/target-owner-edit"
   ],

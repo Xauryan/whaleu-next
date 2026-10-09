@@ -7,10 +7,21 @@ import { registerTransactionDeadline } from '../../database/transaction-deadline
 export class RatingCatalogWriter {
   async current(region: string | null, expected: string, tx: PoolClient) {
     const row = (
-      await tx.query<{ id: string; valid_until: Date | null }>(
-        `SELECT c.id,c.valid_until FROM whaleu_ratings.catalog_heads h JOIN whaleu_ratings.catalogs c ON c.id=h.catalog_id WHERE h.scope_key=coalesce($1::uuid::text,'global') AND c.region_id IS NOT DISTINCT FROM $1::uuid AND c.sealed AND c.coverage='complete' AND c.provenance='accepted' AND c.effective_at<=clock_timestamp() AND (c.valid_until IS NULL OR c.valid_until>clock_timestamp()) FOR UPDATE OF h`,
-        [region],
-      )
+      await tx
+        .query<{ id: string; valid_until: Date | null }>(
+          `SELECT c.id,least(c.valid_until,whaleu_ratings.category_catalog_compat_until(c.id)) valid_until FROM whaleu_ratings.catalog_heads h JOIN whaleu_ratings.catalogs c ON c.id=h.catalog_id WHERE h.scope_key=coalesce($1::uuid::text,'global') AND c.region_id IS NOT DISTINCT FROM $1::uuid AND whaleu_ratings.category_catalog_compat_current(c.id) AND c.sealed AND c.coverage='complete' AND c.provenance='accepted' AND c.effective_at<=clock_timestamp() AND (c.valid_until IS NULL OR c.valid_until>clock_timestamp()) FOR UPDATE OF h`,
+          [region],
+        )
+        .catch((error: unknown) => {
+          if (
+            typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            error.code === '23514'
+          )
+            throw new ApplicationError('RATING_UNAVAILABLE');
+          throw error;
+        })
     ).rows[0];
     if (!row) throw new ApplicationError('RATING_UNAVAILABLE');
     if (row.id !== expected)

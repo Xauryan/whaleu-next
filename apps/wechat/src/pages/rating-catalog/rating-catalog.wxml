@@ -10,6 +10,7 @@
     <button wx:for="{{regions}}" wx:key="id" data-id="{{item.id}}" bindtap="onRegion">{{item.label}}{{item.relation === 'home' ? ' · 身份地区' : item.relation === 'managed' ? ' · 管理范围' : ' · 关联地区'}}</button>
     <view wx:if="{{regionsLoaded &amp;&amp; !regions.length}}" class="meta">当前没有可选择的地区；全局目录仍独立核验。</view>
   </view>
+  <button wx:if="{{hasSession}}" bindtap="onCreateCategories" disabled="{{busy}}">管理员创建分类：先核验当前范围</button>
   <block wx:if="{{loaded}}">
     <view class="section-title">{{parentId ? '下一级分类' : '根分类'}}</view>
     <view wx:for="{{categories}}" wx:key="id" class="card"><view class="section-title">{{item.name}}</view><view class="body">{{item.description}}</view><view class="meta">第 {{item.level}} 级分类</view><button data-id="{{item.id}}" bindtap="onCategory" disabled="{{busy}}">进入分类 →</button><button data-id="{{item.id}}" bindtap="onRandom" disabled="{{busy}}">随机选择：先确认范围 →</button><button wx:if="{{item.kind === 'general'}}" data-id="{{item.id}}" bindtap="onCreateTarget" disabled="{{busy || frozen}}">申请创建此分类的评分对象</button></view>

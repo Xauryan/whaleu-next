@@ -464,3 +464,27 @@ detail, thread and complete-pool random snapshots. Current data requires a fresh
 server read. Unit coverage and the emitted native page/runtime/HTTPS-transport/
 WXML smoke are separate from the real backend HTTP/PostgreSQL bridge and physical
 WeChat/provider validation; synthetic transport does not prove either.
+
+## Ratings M3A: administrator category creation
+
+The catalog has an explicit entry to the native `rating-category-create` page.
+The destination independently verifies the exact management grant and complete
+current campus mapping; visible catalogs and managed-region labels never grant
+creation authority. The editor creates one ordered ordinary-category tree of up
+to 32 nodes and three total levels, optionally under one exact same-source native
+reviewed parent. Scope, region ID, complete campus IDs, parent and canonical node
+text are shown together before a second submission confirmation.
+
+The shared recovery journal now has a strict v8 `create_categories` slot. Every
+v1–v7 key and original intent remains unchanged and recovers first. A new intent
+is durably saved and read back before prepare. Tokens are transient and scoped
+to the current session; retries and explicit cancellation reuse the original
+bytes. Unknown Review, authorization, topology, missing receipts and storage
+failure remain unresolved, without invented rejection or publication success.
+
+Only a verified applied receipt emits a minimal catalog-publication event. That
+event clears directory, catalog, detail, thread, all three notice categories,
+random results and affected authoring confirmations, including in-flight reads.
+The historical receipt never installs a new current projection. There are no
+new rewards, subscriptions, pushes or notice kinds. See
+[native M3A boundaries and acceptance coverage](docs/ratings-m3a.md).

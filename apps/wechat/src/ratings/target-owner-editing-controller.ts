@@ -59,6 +59,7 @@ export class RatingTargetOwnerEditingController extends CommunityController<Rati
   private inactive = false;
   private readonly unsubscribeScope: () => void;
   private readonly unsubscribeBrowse: () => void;
+  private readonly unsubscribeCatalog: () => void;
   private readonly unsubscribeTarget: () => void;
   constructor(
     runtime: CommunityRuntime,
@@ -80,6 +81,14 @@ export class RatingTargetOwnerEditingController extends CommunityController<Rati
       runtime.directoryScopeChanges?.subscribe(invalidate) ?? (() => undefined);
     this.unsubscribeBrowse =
       runtime.browsingScopeChanges?.subscribe(invalidate) ?? (() => undefined);
+    this.unsubscribeCatalog =
+      runtime.ratingCatalogChanges?.subscribe(() => {
+        invalidate();
+        this.update({
+          needsRefresh: true,
+          status: '评分分类目录已变化，请重新核验后确认；原请求仍受保护',
+        });
+      }) ?? (() => undefined);
     this.unsubscribeTarget =
       runtime.ratingTargetChanges?.subscribe((change) => {
         if (change.targetId !== this.locator?.targetId || this.view.frozen)
@@ -409,6 +418,7 @@ export class RatingTargetOwnerEditingController extends CommunityController<Rati
     this.inactive = true;
     this.unsubscribeScope();
     this.unsubscribeBrowse();
+    this.unsubscribeCatalog();
     this.unsubscribeTarget();
     super.dispose();
   }
