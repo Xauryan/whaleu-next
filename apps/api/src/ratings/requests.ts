@@ -103,7 +103,7 @@ export class RatingsRequests {
         const { accountId } = await this.access.authenticate(token, tx),
           row = (
             await tx.query<{ receipt: unknown }>(
-              'SELECT receipt FROM whaleu_ratings.requests WHERE account_id=$1 AND request_id=$2 AND receipt IS NOT NULL',
+              "SELECT receipt FROM whaleu_ratings.requests WHERE account_id=$1 AND request_id=$2 AND receipt IS NOT NULL AND operation IN ('set_score','create_comment','delete_comment')",
               [accountId, id],
             )
           ).rows[0];

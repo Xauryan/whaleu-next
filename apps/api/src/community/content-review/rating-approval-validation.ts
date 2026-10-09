@@ -60,7 +60,7 @@ export function validateRatingApprovalRow(
     envelope = canonicalRatingEnvelope(row.envelope);
     if (
       !canonicalEqual(envelope, row.envelope) ||
-      row.envelope_version !== 1 ||
+      row.envelope_version !== envelope.version ||
       row.account_id !== envelope.accountId ||
       row.operation !== envelope.purpose ||
       row.digest !== ratingApprovalDigest(envelope)
@@ -84,7 +84,7 @@ export function validateRatingApprovalRow(
             value: Object.freeze({
               decisionId: row.id,
               digest: row.digest,
-              version: 1,
+              version: envelope.version,
               envelope,
             }),
           }
@@ -108,9 +108,13 @@ export function ratingBindingMatches(
       z.uuid().safeParse(binding.decision_id).success &&
       binding.subject_id === subjectId &&
       binding.content_version === 1 &&
-      binding.envelope_version === 1 &&
+      binding.envelope_version === canonical.version &&
       binding.kind === kind &&
       binding.operation === ratingOperation(kind) &&
+      canonical.purpose === ratingOperation(kind) &&
+      (kind !== 'target' || canonical.targetId === subjectId) &&
+      (canonical.purpose !== 'publish_rating_reply' ||
+        canonical.replyTo?.replyId !== subjectId) &&
       binding.account_id === canonical.accountId &&
       binding.digest === ratingApprovalDigest(canonical) &&
       canonicalEqual(binding.envelope, canonical) &&

@@ -104,6 +104,12 @@ export function registerRatingPage(mode: RatingMode): void {
           null,
       );
     },
+    onDiscussion(event: Tap) {
+      this.navigator?.open(
+        this.controller?.discussionPath(event.currentTarget.dataset.id ?? '') ??
+          null,
+      );
+    },
     onMoreCategories() {
       void this.controller?.more('categories');
     },

@@ -2,6 +2,7 @@ import type { RuntimeConfig } from './config.js';
 
 const processingFields = {
   updates: 'COMMUNITY_UPDATES_PROCESSING',
+  ratingsUpdates: 'RATINGS_UPDATES_PROCESSING',
   jury: 'SAFETY_JURY_PROCESSING',
   experience: 'EXPERIENCE_PROCESSING',
   subscriptions: 'SUBSCRIPTION_COMPONENT_PROCESSING',
@@ -21,6 +22,7 @@ export function manualProcessingConfig(
   return Object.freeze({
     ...config,
     COMMUNITY_UPDATES_PROCESSING: 'disabled',
+    RATINGS_UPDATES_PROCESSING: 'disabled',
     SAFETY_JURY_PROCESSING: 'disabled',
     EXPERIENCE_PROCESSING: 'disabled',
     SUBSCRIPTION_COMPONENT_PROCESSING: 'disabled',
@@ -45,6 +47,11 @@ export function manualProcessingConfig(
               : 'manual_only',
         } as const)
       : {}),
-    [field]: config[field] === 'disabled' ? 'disabled' : 'manual_only',
+    [field]:
+      config[field] === 'disabled'
+        ? 'disabled'
+        : owner === 'ratingsUpdates'
+          ? 'manual'
+          : 'manual_only',
   });
 }

@@ -30,6 +30,9 @@ const schema = z.object({
     .string()
     .regex(/^[a-fA-F0-9]{64}$/)
     .optional(),
+  RATINGS_UPDATES_PROCESSING: z
+    .enum(['disabled', 'manual'])
+    .default('disabled'),
   COMMUNITY_UPDATES_PROCESSING: z
     .enum(['disabled', 'manual_only', 'automatic'])
     .default('manual_only'),

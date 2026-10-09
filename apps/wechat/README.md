@@ -371,4 +371,14 @@ The native ratings directory, detail and independent receipt-recovery pages use 
 
 Commands use an account/origin-bound immutable journal and matching minimal receipts. Same-score no-ops retain their original revision; confirmed operations reread current own score and summary. Cross-device conflicts require explicit refresh and confirmation. Hidden/deleted targets do not prevent minimal receipt recovery. Old receipts never restore bodies or score snapshots. Page/app hide, account/login epoch, Safety, campus and target changes clear inputs, content, statistics and cursors and reject late responses.
 
-This is a text-only development slice, with a new shared 1–500 Unicode-code-point boundary and no image upload control. Real catalog import/maintenance, trusted review issuance, R2 interactions, specialist scales and device/provider acceptance remain unfinished. See [native R1 behavior and acceptance boundary](docs/ratings-r1.md). Emitted WXML/gateway smoke is synthetic, distinct from native rendering and the independent backend HTTP/PostgreSQL acceptance.
+This is a text-only development slice, with a new shared 1–500 Unicode-code-point boundary and no image upload control. Real catalog import/maintenance, trusted review issuance, the remaining R2 interactions, specialist scales and device/provider acceptance remain unfinished. See [native R1 behavior and acceptance boundary](docs/ratings-r1.md). Emitted WXML/gateway smoke is synthetic, distinct from native rendering and the independent backend HTTP/PostgreSQL acceptance.
+
+## Ratings R2A: text replies and direct local updates
+
+The separate rating thread supports replies to the root or any current reply, target-scoped anonymous personas, oldest-first pagination, inclusive deep-link position, clear-and-reauthorize collapse/expand, and explicit own-reply deletion. Deleted references safely become unavailable while later replies survive. Root deletion hides the entire thread; the independent score is unchanged.
+
+All new rating commands share one origin/account v2 journal with the R1 controllers. Existing v1 commands keep their original frozen intent and original routes, settle before any v2 record, and cannot be overwritten by a new command. Unknown results remain uncertain. Reply receipts are minimal history, never content or experience/delivery snapshots.
+
+The local messages page links to a dedicated rating-updates source. Opening a notice resolves the server locator; the receiving thread revalidates it and actually loads the current position before marking that exact notice read. Explicit per-notice read works for unavailable entries too. Page/account/epoch/scope/Safety invalidation clears private previews and blocks stale navigation, read or command callbacks.
+
+See [native R2A behavior and acceptance boundary](docs/ratings-r2a.md). Unit and emitted synthetic WXML tests are distinct from the separately coordinated real backend HTTP/PostgreSQL tests and unverified WeChat device/provider acceptance. Likes, subscription fan-out, media, management and specialist behavior are not silently removed; they remain separate unfinished slices.

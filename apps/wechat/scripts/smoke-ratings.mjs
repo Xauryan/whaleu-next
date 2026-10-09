@@ -11,7 +11,7 @@ const deferred = () => {
   return { promise, resolve };
 };
 // Bounded repository-owned WXML condition/loop/template model, not native rendering.
-function parse(source) {
+export function parse(source) {
   const root = { tag: 'root', attrs: {}, children: [] },
     stack = [root];
   for (const match of source.matchAll(/<!--[\s\S]*?-->|<[^>]+>|[^<]+/g)) {
@@ -47,7 +47,7 @@ const expression = (source, scope) =>
   )(...Object.values(scope));
 const interpolate = (text, scope) =>
   text.replace(/{{([\s\S]*?)}}/g, (_, source) => expression(source, scope));
-function render(nodes, scope, templates) {
+export function render(nodes, scope, templates) {
   const result = [];
   let matched = false;
   for (const node of nodes) {

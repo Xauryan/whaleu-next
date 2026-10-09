@@ -16,6 +16,7 @@ import type {
   CategoryRow,
   CommentRow,
 } from './repository.js';
+import { RatingEffectsCapture } from './effects/capture.js';
 import { RatingsRequests } from './requests.js';
 import { RatingsCursors, ratingCursorScope } from './cursor.js';
 import {
@@ -49,6 +50,8 @@ export class RatingsService {
     @Inject(RatingSafetyFacade) private readonly safety: RatingSafetyFacade,
     @Inject(AuthorDisplayService)
     private readonly authors: AuthorDisplayService,
+    @Inject(RatingEffectsCapture)
+    private readonly effects: RatingEffectsCapture,
   ) {}
   private async run<T>(operation: (tx: PoolClient) => Promise<T>): Promise<T> {
     try {
@@ -502,6 +505,7 @@ export class RatingsService {
             tx,
           );
         await this.review.bind(accepted, 'comment', commentId, envelope, tx);
+        await this.effects.captureCreated(actor, command.clientRequestId, tx);
         return result;
       },
     );

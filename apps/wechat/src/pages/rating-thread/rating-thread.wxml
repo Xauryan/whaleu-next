@@ -1,0 +1,37 @@
+<import src="../../ratings/common.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 评分回复</view>
+  <view class="title">评价与回复</view>
+  <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />
+  <button wx:if="{{collapsed}}" bindtap="onExpand" disabled="{{busy || frozen}}">重新核验并展开回复</button>
+  <block wx:if="{{loaded &amp;&amp; discussion &amp;&amp; detail}}">
+    <view class="card"><view class="section-title">{{detail.name}}</view><view class="author">{{discussion.root.author.displayName}}<text class="badge">{{discussion.root.author.mode === 'anonymous' ? '本目标分身' : '实名'}}</text></view><view class="meta">{{discussion.root.createdAt}}</view><view class="body">{{discussion.root.body}}</view><button wx:if="{{discussion.allowedActions.createReply}}" bindtap="onRootReply" disabled="{{busy || frozen}}">回复这条评价</button></view>
+    <view class="section-title">回复 · 最早在前</view>
+    <button bindtap="onCollapse">收起并清空回复</button>
+    <button wx:if="{{anchorReplyId}}" bindtap="onFirst" disabled="{{busy || frozen}}">从最早的回复开始读取</button>
+    <view wx:for="{{replies}}" wx:key="id" id="reply-{{item.id}}" class="card {{anchorReplyId === item.id ? 'rating-anchor' : ''}}">
+      <view class="author">{{item.author.displayName}}<text class="badge">{{item.author.mode === 'anonymous' ? '本目标分身' : '实名'}}</text><text wx:if="{{item.isMine}}" class="badge">我</text></view>
+      <view class="meta">{{item.createdAt}}</view>
+      <view wx:if="{{item.replyTo.kind === 'root'}}" class="notice">回复这条评价</view>
+      <view wx:elif="{{item.replyTo.status === 'available'}}" class="notice">回复 {{item.replyTo.author.displayName}}<text class="badge">{{item.replyTo.author.mode === 'anonymous' ? '本目标分身' : '实名'}}</text></view>
+      <view wx:else class="notice">原回复当前不可查看</view>
+      <view class="body">{{item.body}}</view>
+      <button wx:if="{{item.allowedActions.reply}}" data-id="{{item.id}}" bindtap="onReply" disabled="{{busy || frozen}}">回复这一条</button>
+      <button wx:if="{{item.isMine &amp;&amp; item.allowedActions.delete}}" data-id="{{item.id}}" bindtap="onDelete" disabled="{{busy || frozen}}">删除自己的回复</button>
+    </view>
+    <view wx:if="{{!replies.length}}" class="empty">当前页没有可见回复</view>
+    <button wx:if="{{canMore}}" bindtap="onMore" disabled="{{busy || frozen}}">继续读取回复</button>
+  </block>
+  <view wx:if="{{composerOpen &amp;&amp; discussion}}" class="modal-mask"><view class="modal">
+    <view class="section-title">回复 {{replyToName}}</view><view class="notice">回复对象由当前评价或回复确定。纯文字发布需服务端精确审核；审核签发尚未开放。</view>
+    <view class="chips"><button wx:for="{{discussion.allowedActions.authorModes}}" wx:key="*this" data-mode="{{item}}" bindtap="onAuthorMode" class="{{authorMode === item ? 'active' : 'secondary'}}" disabled="{{busy || frozen}}">{{item === 'named' ? '实名发布' : '本目标分身发布'}}</button></view>
+    <view wx:if="{{!authorMode}}" class="notice">请明确选择发布身份。</view>
+    <textarea value="{{text}}" bindinput="onText" maxlength="-1" disabled="{{busy || frozen}}" placeholder="1–500 个 Unicode 字符，纯文字" />
+    <view class="meta">{{textLength}} / 500 字符 · 图片不可用</view>
+    <button bindtap="onPublish" disabled="{{busy || frozen || !authorMode || textLength &lt; 1 || textLength &gt; 500}}" loading="{{busy}}">确认发布回复</button><button bindtap="onDismiss">关闭并清空</button>
+  </view></view>
+  <view wx:if="{{deleteId}}" class="modal-mask"><view class="modal"><view class="section-title">删除自己的这条回复？</view><view class="notice">只删除这条回复。其他后续回复仍保留，引用会按当前权限显示；独立评分不变。</view><button bindtap="onConfirmDelete" disabled="{{busy || frozen}}" loading="{{busy}}">确认删除回复</button><button bindtap="onDismiss">返回</button></view></view>
+  <view class="notice">提交回执只确认历史操作；经验以实际账本为准，本地更新以实际列表为准，不代表微信推送送达。</view>
+  <navigator class="link" url="/pages/rating-recovery/rating-recovery">查询原评分或回复请求 →</navigator>
+  <navigator class="link" url="/pages/rating-updates/rating-updates">我的评分回复更新 →</navigator>
+</view>

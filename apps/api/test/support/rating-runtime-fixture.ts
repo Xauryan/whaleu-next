@@ -43,7 +43,7 @@ export async function writeRatingApproval(
     [policyRevisionId, new Date(evaluatedAt.getTime() - 1000)],
   );
   await tx.query(
-    `INSERT INTO whaleu_community.rating_approval_decisions(id,account_id,operation,envelope_version,digest,envelope,policy_revision_id,result,coverage,provenance,issuer,provenance_ref,evaluated_at,consume_until,visibility_model,visibility_until) VALUES($1,$2,$3,1,$4,$5::jsonb,$6,$7,'complete','accepted','synthetic-rating-review','synthetic-exact-rating-approval',$8,$9,$10,$11)`,
+    `INSERT INTO whaleu_community.rating_approval_decisions(id,account_id,operation,envelope_version,digest,envelope,policy_revision_id,result,coverage,provenance,issuer,provenance_ref,evaluated_at,consume_until,visibility_model,visibility_until) VALUES($1,$2,$3,$12,$4,$5::jsonb,$6,$7,'complete','accepted','synthetic-rating-review','synthetic-exact-rating-approval',$8,$9,$10,$11)`,
     [
       decisionId,
       envelope.accountId,
@@ -56,6 +56,7 @@ export async function writeRatingApproval(
       options.consumeUntil ?? new Date(now + 3600000),
       options.visibilityUntil ? 'until' : 'durable',
       options.visibilityUntil ?? null,
+      envelope.version,
     ],
   );
   await tx.query(
@@ -72,7 +73,7 @@ export async function writeRatingApproval(
     eventId,
     digest,
     envelope,
-    version: 1 as const,
+    version: envelope.version,
   };
 }
 export async function approveRating(

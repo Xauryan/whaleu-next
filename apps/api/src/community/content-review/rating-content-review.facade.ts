@@ -200,11 +200,12 @@ export class RatingContentReviewFacade {
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     const candidate = (
       await tx.query<{ id: string }>(
-        `SELECT id FROM whaleu_community.rating_approval_decisions WHERE account_id=$1 AND operation=$2 AND envelope_version=1 AND digest=$3 ORDER BY evaluated_at DESC,id DESC LIMIT 1`,
+        `SELECT id FROM whaleu_community.rating_approval_decisions WHERE account_id=$1 AND operation=$2 AND envelope_version=$4 AND digest=$3 ORDER BY evaluated_at DESC,id DESC LIMIT 1`,
         [
           canonical.accountId,
           canonical.purpose,
           ratingApprovalDigest(canonical),
+          canonical.version,
         ],
       )
     ).rows[0];
@@ -239,10 +240,12 @@ export class RatingContentReviewFacade {
   ): Promise<void> {
     if (
       !z.uuid().safeParse(id).success ||
-      accepted.version !== 1 ||
+      accepted.version !== envelope.version ||
       envelope.purpose !== ratingOperation(kind) ||
       !canonicalEqual(accepted.envelope, envelope) ||
-      (kind === 'target' && envelope.targetId !== id)
+      (kind === 'target' && envelope.targetId !== id) ||
+      (envelope.purpose === 'publish_rating_reply' &&
+        envelope.replyTo?.replyId === id)
     )
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     const fresh = await this.accepted(envelope, tx);
@@ -252,7 +255,7 @@ export class RatingContentReviewFacade {
     )
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     await tx.query(
-      `INSERT INTO whaleu_community.rating_approval_bindings(kind,subject_id,content_version,decision_id,account_id,operation,envelope_version,digest,envelope,scope) VALUES($1,$2,1,$3,$4,$5,1,$6,$7::jsonb,$8::jsonb)`,
+      `INSERT INTO whaleu_community.rating_approval_bindings(kind,subject_id,content_version,decision_id,account_id,operation,envelope_version,digest,envelope,scope) VALUES($1,$2,1,$3,$4,$5,$9,$6,$7::jsonb,$8::jsonb)`,
       [
         kind,
         id,
@@ -262,6 +265,7 @@ export class RatingContentReviewFacade {
         fresh.digest,
         canonicalJson(fresh.envelope),
         canonicalJson(fresh.envelope.scope),
+        fresh.version,
       ],
     );
     registerRequiredTransactionFact(
@@ -295,6 +299,8 @@ export class RatingContentReviewFacade {
       !z.uuid().safeParse(id).success ||
       canonical.purpose !== ratingOperation(kind) ||
       (kind === 'target' && canonical.targetId !== id) ||
+      (canonical.purpose === 'publish_rating_reply' &&
+        canonical.replyTo?.replyId === id) ||
       !(await this.anchor(canonical.accountId, tx))
     )
       return { kind: 'unavailable' };

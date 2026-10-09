@@ -4,7 +4,7 @@ import type { PoolClient } from 'pg';
 import { APP_CONFIG } from '../config/config.js';
 import type { RuntimeConfig } from '../config/config.js';
 import { DatabaseService } from '../database/database.js';
-import { CommunityExperienceSourceFacade } from '../community/experience-source/facade.js';
+import { ExperienceSourceRouter } from './source-router.js';
 import { ExperienceRepository } from './repository.js';
 import { ExperienceSettlementService } from './settlement.js';
 import { lockExperienceOwner } from './ingress.js';
@@ -86,8 +86,8 @@ export class ExperienceWorker {
   constructor(
     @Inject(APP_CONFIG) private readonly config: RuntimeConfig,
     @Inject(DatabaseService) private readonly database: DatabaseService,
-    @Inject(CommunityExperienceSourceFacade)
-    private readonly source: CommunityExperienceSourceFacade,
+    @Inject(ExperienceSourceRouter)
+    private readonly source: ExperienceSourceRouter,
     @Inject(ExperienceRepository)
     private readonly records: ExperienceRepository,
     @Inject(ExperienceSettlementService)
@@ -134,6 +134,14 @@ export class ExperienceWorker {
           await lockExperienceOwner(tx, reference.beneficiaryId);
           const work = await this.records.work(unit, tx);
           if (!work) return 'missing' as const;
+          if (
+            work.unit_id !== reference.unitId ||
+            work.group_id !== reference.groupId ||
+            work.beneficiary_id !== reference.beneficiaryId ||
+            work.action !== reference.action ||
+            work.enrollment_order !== reference.enrollmentOrder
+          )
+            return 'sourceUnavailable' as const;
           if (work.state === 'completed') return 'completed' as const;
           const first = await this.records.first(reference.beneficiaryId, tx);
           if (first?.unit_id !== unit) return 'blockedPredecessor' as const;
@@ -148,7 +156,7 @@ export class ExperienceWorker {
           }
           if (options.mode === 'dry-run') return 'pending' as const;
           const applied = await this.settlement.source(reference, state, tx);
-          await this.source.acknowledge(unit, applied.settlementId, tx);
+          await this.source.acknowledge(reference, applied.settlementId, tx);
           await tx.query(
             "UPDATE whaleu_experience.work SET state='completed',completed_at=clock_timestamp(),error_code=NULL WHERE unit_id=$1",
             [unit],

@@ -79,7 +79,7 @@ export function configureHttp(app: INestApplication): void {
     // Announcement parser failures occur before guards; keep optional-auth
     // cache separation on these error responses too.
     if (
-      /^\/v1\/(?:me\/)?(?:announcements|errands|errand-notices|errand-requests)(?:\/|$)/.test(
+      /^\/v1\/(?:me\/)?(?:announcements|errands|errand-notices|errand-requests|ratings)(?:\/|$)/.test(
         request.path,
       ) ||
       /^\/v1\/admin\/errands(?:\/|$)/.test(request.path)

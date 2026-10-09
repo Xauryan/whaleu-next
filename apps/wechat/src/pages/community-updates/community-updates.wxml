@@ -2,6 +2,7 @@
 <import src="../../identity-privacy/view.wxml" />
 <view class="screen">
   <view class="eyebrow">WHALEU · 社区更新</view><view class="title">我的站内更新</view>
+  <navigator class="link" url="/pages/rating-updates/rating-updates">评分回复更新 →</navigator>
   <view class="notice">仅展示服务端已生成的本地社区新根评论、直接回复与你收藏帖的新根评论记录；当前环境是否生成新记录以帖子设置中的能力说明为准。点赞、投票、组队、私信和其他通知不在此列表中。</view>
   <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{identityOverlay.notice}}" class="notice">{{identityOverlay.notice}}</view>
   <view wx:if="{{loaded}}" class="section-title">未读 {{unreadCount}} 条</view>

@@ -277,6 +277,37 @@ export type RatingAuthor =
       readonly personaId: string;
       readonly displayName: string;
     };
+export function decodeRatingAuthor(
+  raw: unknown,
+  targetId: string,
+): RatingAuthor {
+  if (!isRecord(raw) || !ratingId(targetId)) invalidRating();
+  let author: RatingAuthor;
+  if (raw.mode === 'named') {
+    exact(raw, ['mode', 'profileId', 'displayName']);
+    if (!ratingId(raw.profileId)) invalidRating();
+    author = {
+      mode: 'named',
+      profileId: raw.profileId,
+      displayName: outputText(raw.displayName, 100),
+    };
+  } else {
+    exact(raw, ['mode', 'targetId', 'personaId', 'displayName']);
+    if (
+      raw.mode !== 'anonymous' ||
+      !ratingId(raw.personaId) ||
+      raw.targetId !== targetId
+    )
+      invalidRating();
+    author = {
+      mode: 'anonymous',
+      targetId: targetId,
+      personaId: raw.personaId,
+      displayName: outputText(raw.displayName, 100),
+    };
+  }
+  return Object.freeze(author);
+}
 export interface RatingComment {
   readonly id: string;
   readonly targetId: string;
@@ -310,31 +341,7 @@ export function decodeRatingComment(value: unknown): RatingComment {
     !isRecord(value.author)
   )
     invalidRating();
-  const raw = value.author;
-  let author: RatingAuthor;
-  if (raw.mode === 'named') {
-    exact(raw, ['mode', 'profileId', 'displayName']);
-    if (!ratingId(raw.profileId)) invalidRating();
-    author = {
-      mode: 'named',
-      profileId: raw.profileId,
-      displayName: outputText(raw.displayName, 100),
-    };
-  } else {
-    exact(raw, ['mode', 'targetId', 'personaId', 'displayName']);
-    if (
-      raw.mode !== 'anonymous' ||
-      !ratingId(raw.personaId) ||
-      raw.targetId !== value.targetId
-    )
-      invalidRating();
-    author = {
-      mode: 'anonymous',
-      targetId: value.targetId,
-      personaId: raw.personaId,
-      displayName: outputText(raw.displayName, 100),
-    };
-  }
+  const author = decodeRatingAuthor(value.author, value.targetId);
   return Object.freeze({
     id: value.id,
     targetId: value.targetId,

@@ -1,0 +1,4 @@
+@import '../../ratings/ratings.wxss';
+.rating-anchor {
+  border: 2rpx solid #176b83;
+}

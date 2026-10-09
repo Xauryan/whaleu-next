@@ -35,7 +35,8 @@
     "openapi:check": "npm run openapi:check -w @whaleu/api",
     "comments:process": "npm run comments:process -w @whaleu/api --",
     "hot-score:compute": "npm run hot-score:compute -w @whaleu/api --",
-    "hot-feed:process": "npm run hot-feed:process -w @whaleu/api --"
+    "hot-feed:process": "npm run hot-feed:process -w @whaleu/api --",
+    "ratings:updates:process": "npm run ratings:updates:process -w @whaleu/api --"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

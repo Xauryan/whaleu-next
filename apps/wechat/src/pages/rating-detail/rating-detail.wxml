@@ -22,7 +22,7 @@
     <button wx:if="{{detail.allowedActions.createComment}}" bindtap="onCompose" disabled="{{busy || frozen}}">写文字评价</button>
     <view class="notice">文字评价无需先打分。实名或目标范围分身需明确选择；发布还需服务端精确审核。图片不可用，审核签发尚未开放。</view>
     <view class="section-title">文字评价 · 最新在前</view>
-    <view wx:for="{{comments}}" wx:key="id" class="card"><view class="author">{{item.author.displayName}}<text class="badge">{{item.author.mode === 'anonymous' ? '本目标分身' : '实名'}}</text><text wx:if="{{item.isMine}}" class="badge">我</text></view><view class="meta">{{item.createdAt}}</view><view class="body">{{item.body}}</view><button wx:if="{{item.isMine &amp;&amp; item.allowedActions.delete}}" data-id="{{item.id}}" bindtap="onDelete" disabled="{{busy || frozen}}">删除自己的文字评价</button></view>
+    <view wx:for="{{comments}}" wx:key="id" class="card"><view class="author">{{item.author.displayName}}<text class="badge">{{item.author.mode === 'anonymous' ? '本目标分身' : '实名'}}</text><text wx:if="{{item.isMine}}" class="badge">我</text></view><view class="meta">{{item.createdAt}}</view><view class="body">{{item.body}}</view><button data-id="{{item.id}}" bindtap="onDiscussion" disabled="{{busy || frozen}}">查看回复 / 回复评价</button><button wx:if="{{item.isMine &amp;&amp; item.allowedActions.delete}}" data-id="{{item.id}}" bindtap="onDelete" disabled="{{busy || frozen}}">删除自己的文字评价</button></view>
     <view wx:if="{{!comments.length}}" class="empty">当前页没有可见文字评价</view>
     <button wx:if="{{canMoreComments}}" bindtap="onMoreComments" disabled="{{busy}}">继续读取评价</button>
   </block>
@@ -34,5 +34,5 @@
     <view class="meta">{{textLength}} / 500 字符 · 首尾空白会移除 · 图片不可用</view>
     <button bindtap="onPublish" disabled="{{busy || frozen || !authorMode || textLength &lt; 1 || textLength &gt; 500}}" loading="{{busy}}">确认发布文字</button><button bindtap="onCloseComposer">关闭并清空</button>
   </view></view>
-  <view wx:if="{{deleteId}}" class="modal-mask"><view class="modal"><view class="section-title">删除自己的文字评价？</view><view class="notice">正文将不再显示，你对此目标的独立评分仍保留。</view><button bindtap="onConfirmDelete" disabled="{{busy || frozen}}" loading="{{busy}}">确认删除文字</button><button bindtap="onDismissDelete">返回</button></view></view>
+  <view wx:if="{{deleteId}}" class="modal-mask"><view class="modal"><view class="section-title">删除自己的文字评价？</view><view class="notice">此评价及其全部回复将不再显示，你对此目标的独立评分仍保留。</view><button bindtap="onConfirmDelete" disabled="{{busy || frozen}}" loading="{{busy}}">确认删除文字</button><button bindtap="onDismissDelete">返回</button></view></view>
 </view>

@@ -25,12 +25,15 @@ import {
   type RatingContext,
   type RatingIntent,
   type RatingMyScore,
-  type RatingOperation,
-  type RatingReceipt,
   type RatingSummary,
   type RatingTarget,
 } from './contract';
-import type { PendingRating } from './pending';
+import {
+  ratingIntentTarget,
+  type PendingRating,
+  type RatingCommandReceipt,
+} from './pending';
+import { ratingCommandLabels as labels, runRatingCommand } from './commands';
 export type RatingMode = 'catalog' | 'detail' | 'recovery';
 export interface RatingRoute {
   readonly regionId?: string;
@@ -138,11 +141,6 @@ export function ratingError(error: unknown): string {
     )[code ?? ''] ?? communityError(error)
   );
 }
-const labels: Record<RatingOperation, string> = {
-  set_score: '评分',
-  create_comment: '文字评价发布',
-  delete_comment: '文字评价删除',
-};
 type PageKind = 'categories' | 'targets' | 'comments';
 /** Current views have an account/epoch/selection owner. Receipts settle history, never current score or text. */
 export class RatingController extends CommunityController<RatingView> {
@@ -273,10 +271,7 @@ export class RatingController extends CommunityController<RatingView> {
     this.update({
       frozen: true,
       recoveryOperation: labels[attempt.intent.operation],
-      recoveryTargetId:
-        attempt.intent.operation === 'delete_comment'
-          ? attempt.intent.payload.targetId
-          : attempt.intent.targetId,
+      recoveryTargetId: ratingIntentTarget(attempt.intent),
       selectedScore: null,
       composerOpen: false,
       text: '',
@@ -792,7 +787,7 @@ export class RatingController extends CommunityController<RatingView> {
         if (cancel.isCancelled)
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const attempt = this.runtime.pendingRatings!.freeze({
-          version: 1,
+          version: 2,
           accountId,
           intent: decodeRatingIntent(make(id)),
         });
@@ -833,11 +828,11 @@ export class RatingController extends CommunityController<RatingView> {
   private dispatch(
     attempt: PendingRating,
     cancel: Cancellation,
-  ): Promise<RatingReceipt> {
+  ): Promise<RatingCommandReceipt> {
     if (attempt.accountId !== this.accountId())
       throw new ClientError('stale-session', 'Account changed');
     this.runtime.pendingRatings!.assertOriginal(attempt);
-    return this.runtime.ratings!.command(attempt.intent, cancel);
+    return runRatingCommand(this.runtime, attempt, cancel, true);
   }
   async recover(retry = false, refresh = true): Promise<void> {
     if (this.view.busy || !this.loadJournal() || !this.pending) return;
@@ -849,10 +844,7 @@ export class RatingController extends CommunityController<RatingView> {
       (cancel) =>
         retry
           ? this.dispatch(attempt, cancel)
-          : this.runtime.ratings!.receipt(
-              attempt.intent.payload.clientRequestId,
-              cancel,
-            ),
+          : runRatingCommand(this.runtime, attempt, cancel, false),
       (receipt) => {
         reload = this.settle(receipt);
       },
@@ -873,11 +865,11 @@ export class RatingController extends CommunityController<RatingView> {
     )
       await this.refresh();
   }
-  private settle(raw: RatingReceipt): boolean {
+  private settle(raw: RatingCommandReceipt): boolean {
     if (!this.pending || this.pending.accountId !== this.accountId())
       invalidRating();
     const receipt = this.runtime.pendingRatings!.settle(this.pending, raw);
-    this.pending = null;
+    this.pending = this.runtime.pendingRatings!.load(this.accountId()!);
     const success = receipt.outcome !== 'rejected';
     this.update({
       frozen: false,
@@ -901,7 +893,22 @@ export class RatingController extends CommunityController<RatingView> {
       status: '原请求已确认',
       error: '',
     });
+    if (this.pending) {
+      this.showPending(this.pending);
+      return false;
+    }
     return success;
+  }
+  discussionPath(id: string): string | null {
+    const root = this.view.comments.find((item) => item.id === id);
+    return !this.inactive &&
+      !this.view.busy &&
+      !!this.accountId() &&
+      this.view.loaded &&
+      root &&
+      root.targetId === this.view.detail?.id
+      ? `/pages/rating-thread/rating-thread?targetId=${root.targetId}&rootId=${root.id}${this.view.regionId ? `&regionId=${this.view.regionId}` : ''}`
+      : null;
   }
   categoryPath(id: string): string | null {
     return !this.inactive &&

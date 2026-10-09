@@ -1,3 +1,9 @@
+import { RatingsReadModule } from './read.module.js';
+import { ExperienceIngressModule } from '../experience/ingress.js';
+import { RatingEffectsCapture } from './effects/capture.js';
+import { RatingDiscussionController } from './discussion-controller.js';
+import { RatingDiscussionService } from './discussion-service.js';
+import { RatingReplyRequests } from './discussion-requests.js';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.js';
 import { IdentityModule } from '../identity/identity.module.js';
@@ -11,13 +17,13 @@ import { DiscoveryContinuationModule } from '../community/discovery-continuation
 import { RatingRequestThrottlingModule } from '../request-throttling/module.js';
 import { RatingsController } from './controller.js';
 import { RatingsService } from './service.js';
-import { RatingsAccessService } from './access.js';
-import { RatingsRepository } from './repository.js';
 import { RatingsRequests } from './requests.js';
 import { RatingsCursors } from './cursor.js';
 @Module({
   imports: [
     DatabaseModule,
+    RatingsReadModule,
+    ExperienceIngressModule,
     IdentityModule,
     VerificationModule,
     AuthorizationModule,
@@ -28,11 +34,12 @@ import { RatingsCursors } from './cursor.js';
     DiscoveryContinuationModule,
     RatingRequestThrottlingModule,
   ],
-  controllers: [RatingsController],
+  controllers: [RatingsController, RatingDiscussionController],
   providers: [
     RatingsService,
-    RatingsAccessService,
-    RatingsRepository,
+    RatingEffectsCapture,
+    RatingDiscussionService,
+    RatingReplyRequests,
     RatingsRequests,
     RatingsCursors,
   ],

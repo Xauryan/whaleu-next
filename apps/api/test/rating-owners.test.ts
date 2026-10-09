@@ -103,6 +103,7 @@ function accessFixture() {
     },
   };
   const identity = {
+    activeAccount: async () => true,
     session: async () => {
       calls.push('session');
       return {

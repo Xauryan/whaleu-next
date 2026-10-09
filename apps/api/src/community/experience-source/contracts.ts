@@ -75,15 +75,7 @@ export function rewardBeneficiaries(facts: RewardFacts): RewardBeneficiary[] {
         units.push({ beneficiaryId: recipient, action: received });
   return units.sort((a, b) => a.beneficiaryId.localeCompare(b.beneficiaryId));
 }
-export interface ExperienceSourceUnit {
-  unitId: string;
-  groupId: string;
-  beneficiaryId: string;
-  action: ExperienceAction;
-  occurredAt: string | null;
-  sourceKind: 'community_outbox' | 'saved_obligation';
-  sourceId: string;
-}
+export type { ExperienceSourceUnit } from '../../experience/source-contracts.js';
 export interface CapturedResource {
   resourceKind: 'post' | 'comment' | 'reply';
   postId: string;

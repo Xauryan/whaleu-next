@@ -37,6 +37,8 @@
     "pages/errand-restrictions/errand-restrictions",
     "pages/rating-catalog/rating-catalog",
     "pages/rating-detail/rating-detail",
+    "pages/rating-thread/rating-thread",
+    "pages/rating-updates/rating-updates",
     "pages/rating-recovery/rating-recovery"
   ],
   "window": {

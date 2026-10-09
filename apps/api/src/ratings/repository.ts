@@ -60,14 +60,15 @@ type Fact =
   | { kind: 'epoch'; value: string }
   | { kind: 'catalog'; id: string; regionId: string | null }
   | { kind: 'target'; id: string; revision: string }
-  | { kind: 'comment'; id: string; revision: string; deleted: boolean };
+  | { kind: 'comment'; id: string; revision: string; deleted: boolean }
+  | { kind: 'reply'; id: string; revision: string; deleted: boolean };
 const proof: RequiredTransactionProof<Fact> = {
   maximumFacts: 161,
   failureCode: 'RATING_UNAVAILABLE',
   validate: (facts, tx) =>
     boundedOwnerProof(tx, 'RATING_UNAVAILABLE', async (read) => {
-      // Rows are already locked and catalog definitions sealed. Exactly three
-      // indexed set queries, no final blocking lock or unbounded history scan.
+      // Rows are already locked and catalog definitions sealed. Bounded
+      // indexed typed set queries, no final blocking lock or unbounded history scan.
       const expectedEpochs = facts.filter(
         (f): f is Extract<Fact, { kind: 'epoch' }> => f.kind === 'epoch',
       );
@@ -112,6 +113,18 @@ const proof: RequiredTransactionProof<Fact> = {
           comments.map((f) => f.deleted),
         ],
         comments.length,
+      );
+      const replies = facts.filter(
+        (f): f is Extract<Fact, { kind: 'reply' }> => f.kind === 'reply',
+      );
+      await check(
+        `SELECT count(*)::integer n FROM unnest($1::uuid[],$2::uuid[],$3::boolean[]) f(id,revision,deleted) JOIN whaleu_ratings.replies r ON r.id=f.id AND r.revision=f.revision AND (r.deleted_at IS NOT NULL)=f.deleted`,
+        [
+          replies.map((f) => f.id),
+          replies.map((f) => f.revision),
+          replies.map((f) => f.deleted),
+        ],
+        replies.length,
       );
     }),
 };
@@ -356,7 +369,7 @@ export class RatingsRepository {
   ) {
     return (
       await tx.query<{ id: string; ordinal: string }>(
-        `SELECT id,ordinal::text FROM whaleu_ratings.comments WHERE target_id=$1 AND deleted_at IS NULL AND ($2::bigint IS NULL OR ordinal<$2::bigint) ORDER BY ordinal DESC LIMIT $3`,
+        `SELECT c.id,c.ordinal::text FROM whaleu_ratings.comments c WHERE target_id=$1 AND deleted_at IS NULL AND ($2::bigint IS NULL OR ordinal<$2::bigint) ORDER BY c.ordinal DESC LIMIT $3`,
         [targetId, after, limit + 1],
       )
     ).rows;
@@ -399,6 +412,22 @@ export class RatingsRepository {
       `comment:${row.id}:${row.revision}`,
       {
         kind: 'comment',
+        id: row.id,
+        revision: row.revision,
+        deleted: row.deleted_at !== null,
+      },
+    );
+  }
+  retainReply(
+    row: Pick<CommentRow, 'id' | 'revision' | 'deleted_at'>,
+    tx: PoolClient,
+  ) {
+    registerRequiredTransactionFact(
+      tx,
+      proof,
+      `reply:${row.id}:${row.revision}`,
+      {
+        kind: 'reply',
         id: row.id,
         revision: row.revision,
         deleted: row.deleted_at !== null,

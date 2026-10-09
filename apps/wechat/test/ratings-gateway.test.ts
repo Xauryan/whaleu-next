@@ -509,7 +509,7 @@ test('pending freeze validates its outer version/account/keys and refuses persis
   const storage = new MemoryStorage(),
     store = new PendingRatingStore(storage, 'origin');
   for (const value of [
-    { ...attempt(), version: 2 },
+    { ...attempt(), version: 3 },
     { ...attempt(), accountId: 'bad' },
     { ...attempt(), extra: 'private' },
   ])

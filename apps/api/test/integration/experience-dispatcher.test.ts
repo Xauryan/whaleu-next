@@ -23,7 +23,7 @@ import {
   runMigrations,
 } from '../../src/database/migrations.js';
 import { CommunityRepository } from '../../src/community/community.repository.js';
-import { CommunityExperienceSourceFacade } from '../../src/community/experience-source/facade.js';
+import { ExperienceSourceRouter } from '../../src/experience/source-router.js';
 import { ExperienceDispatcher } from '../../src/experience/dispatcher.js';
 import { ExperienceWorker } from '../../src/experience/worker.js';
 import { ExperienceRepository } from '../../src/experience/repository.js';
@@ -208,7 +208,7 @@ test(
         const worker = new ExperienceWorker(
           local,
           app!.get(DatabaseService),
-          app!.get(CommunityExperienceSourceFacade),
+          app!.get(ExperienceSourceRouter),
           app!.get(ExperienceRepository),
           app!.get(ExperienceSettlementService),
         );

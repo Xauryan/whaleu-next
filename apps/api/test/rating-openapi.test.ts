@@ -7,6 +7,8 @@ import { test } from 'node:test';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import { z } from 'zod';
 import * as contracts from '../src/ratings/contracts.js';
+import * as discussion from '../src/ratings/discussion-contracts.js';
+import * as updates from '../src/notifications/ratings/contracts.js';
 const execute = promisify(execFile);
 const probe = `import assert from 'node:assert/strict';import net from 'node:net';import pg from 'pg';import {NestApplication} from '@nestjs/core';const fail=()=>{throw new Error('OpenAPI attempted live work');};net.Server.prototype.listen=fail;net.Socket.prototype.connect=fail;pg.Pool.prototype.connect=fail;pg.Pool.prototype.query=fail;globalThis.setInterval=fail;globalThis.setTimeout=fail;NestApplication.prototype.init=fail;NestApplication.prototype.listen=fail;const {renderRatingsOpenApiDocument}=await import('./.openapi-build/scripts/openapi-document.js');const first=await renderRatingsOpenApiDocument();assert.equal(await renderRatingsOpenApiDocument(),first);process.stdout.write(first);`;
 async function render() {
@@ -35,7 +37,7 @@ test('ratings OpenAPI is deterministic offline and artifact-current', async () =
       'utf8',
     ),
   ));
-test('all 12 rating operations have exact schemas and safe auth/error metadata', async () => {
+test('all 23 rating operations have exact schemas and safe auth/error metadata', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
     ['/v1/ratings/context', 'get', contracts.ratingContextSchema],
@@ -62,6 +64,49 @@ test('all 12 rating operations have exact schemas and safe auth/error metadata',
       contracts.ratingReceiptSchema,
     ],
     ['/v1/ratings/comments/{id}', 'delete', contracts.ratingReceiptSchema],
+    [
+      '/v1/ratings/comments/{id}/discussion',
+      'get',
+      discussion.ratingDiscussionSchema,
+    ],
+    [
+      '/v1/ratings/comments/{id}/replies',
+      'get',
+      discussion.ratingReplyPageSchema,
+    ],
+    ['/v1/ratings/replies/{id}', 'get', discussion.ratingReplySchema],
+    [
+      '/v1/ratings/replies/{id}/position',
+      'get',
+      discussion.ratingReplyPositionSchema,
+    ],
+    [
+      '/v1/ratings/comments/{id}/replies',
+      'post',
+      discussion.ratingReplyReceiptSchema,
+    ],
+    ['/v1/ratings/replies/{id}', 'delete', discussion.ratingReplyReceiptSchema],
+    [
+      '/v1/ratings/reply-requests/{id}',
+      'get',
+      discussion.ratingReplyReceiptSchema,
+    ],
+    ['/v1/me/ratings/updates', 'get', updates.ratingUpdatesPageSchema],
+    [
+      '/v1/me/ratings/updates/unread-count',
+      'get',
+      updates.ratingUnreadCountSchema,
+    ],
+    [
+      '/v1/me/ratings/updates/{noticeId}/target',
+      'get',
+      updates.ratingNoticeTargetSchema,
+    ],
+    [
+      '/v1/me/ratings/updates/{noticeId}/read',
+      'put',
+      updates.ratingNoticeReadSchema,
+    ],
   ] as const;
   assert.equal(
     Object.values(doc.paths).reduce((n, p) => n + Object.keys(p!).length, 0),

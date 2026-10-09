@@ -1,6 +1,6 @@
 # Native ratings R1
 
-This is a development slice for the new ratings domain. It is separate from posts, errands and historic specialist scales. Runtime catalog rows come only from the authenticated server; the client does not seed example schools, targets, scores or review approvals.
+This records the original R1 development slice for the new ratings domain. [R2A](ratings-r2a.md) adds text replies and direct local updates while preserving this R1 wire and recovery contract. It is separate from posts, errands and historic specialist scales. Runtime catalog rows come only from the authenticated server; the client does not seed example schools, targets, scores or review approvals.
 
 ## Pages and scope
 
@@ -22,7 +22,7 @@ Anonymous comments expose only a target-bound random persona, display name, owne
 
 ## Recovery and lifecycle
 
-The three command kinds share one immutable journal per API origin and account. UUID, operation, target/comment, revisions, region, canonical body/mode and empty assets are frozen, persisted and read back before dispatch. Editable text is only in page memory; uncertain command intent remains in the original account's journal until a matching minimal terminal receipt settles it.
+The three original command kinds share one immutable journal per API origin and account. The R2A coordinator now stores new commands in v2, checks both keys before dispatch, and recovers any unchanged legacy v1 intent first. UUID, operation, target/comment, revisions, region, canonical body/mode and empty assets are frozen, persisted and read back before dispatch. Editable text is only in page memory; uncertain command intent remains in the original account's journal until a matching minimal terminal receipt settles it.
 
 Timeouts, 5xx, malformed responses, missing receipts, ordinary HTTP conflicts, auth uncertainty and stopped waits preserve the same key/intent. Only explicit retry resends that identical command; lookup never implicitly retries. Storage failures prevent dispatch or retain the recovery barrier. No expiry/new-key escape exists. Ordinary HTTP errors alone never settle a journal.
 
@@ -40,4 +40,4 @@ Run from the repository root:
 - `npx eslint apps/wechat`
 - `npx prettier --check apps/wechat`
 
-Real-AppModule HTTP/PostgreSQL acceptance is a separate backend suite. Production catalog import/maintenance and trusted review issuance remain release gates. Replies, likes, subscriptions, notifications, experience, target creation/management, media, specialist courses/canteens, other clients and real-device/provider acceptance remain unfinished. Author cumulative received-like semantics are not implemented or decided here.
+Real-AppModule HTTP/PostgreSQL acceptance is a separate backend suite. Production catalog import/maintenance and trusted review issuance remain release gates. Replies and direct local rating notices are covered by the separate R2A native slice; experience settlement and real HTTP/PostgreSQL proof are separately verified backend work. Likes, subscriptions, target creation/management, media, specialist courses/canteens, other clients and real-device/provider acceptance remain unfinished. Author cumulative received-like semantics are not implemented or decided here.

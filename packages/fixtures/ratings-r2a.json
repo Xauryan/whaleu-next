@@ -1,0 +1,61 @@
+{
+  "discussion": {
+    "context": {
+      "regionId": null,
+      "catalogRevision": "10000000-0000-4000-8000-000000000001",
+      "targetId": "10000000-0000-4000-8000-000000000002",
+      "rootId": "10000000-0000-4000-8000-000000000003"
+    },
+    "root": {
+      "id": "10000000-0000-4000-8000-000000000003",
+      "targetId": "10000000-0000-4000-8000-000000000002",
+      "body": "Golden root",
+      "revision": "10000000-0000-4000-8000-000000000004",
+      "createdAt": "2026-10-09T00:00:00.123456Z",
+      "author": {
+        "mode": "anonymous",
+        "targetId": "10000000-0000-4000-8000-000000000002",
+        "personaId": "10000000-0000-4000-8000-000000000005",
+        "displayName": "分身golden"
+      },
+      "isMine": false,
+      "allowedActions": { "delete": false }
+    },
+    "allowedActions": {
+      "createReply": true,
+      "authorModes": ["named", "anonymous"]
+    }
+  },
+  "reply": {
+    "id": "10000000-0000-4000-8000-000000000006",
+    "targetId": "10000000-0000-4000-8000-000000000002",
+    "rootId": "10000000-0000-4000-8000-000000000003",
+    "revision": "10000000-0000-4000-8000-000000000007",
+    "createdAt": "2026-10-09T00:00:01.654321Z",
+    "body": "Golden reply 😀",
+    "author": {
+      "mode": "named",
+      "profileId": "10000000-0000-4000-8000-000000000008",
+      "displayName": "Golden"
+    },
+    "isMine": true,
+    "allowedActions": { "reply": true, "delete": true },
+    "replyTo": { "kind": "reply", "status": "unavailable" }
+  },
+  "receipt": {
+    "requestId": "10000000-0000-4000-8000-000000000009",
+    "operation": "create_reply",
+    "outcome": "applied",
+    "targetId": "10000000-0000-4000-8000-000000000002",
+    "rootId": "10000000-0000-4000-8000-000000000003",
+    "replyId": "10000000-0000-4000-8000-000000000006",
+    "revision": "10000000-0000-4000-8000-000000000007",
+    "occurredAt": "2026-10-09T00:00:01.654321Z"
+  },
+  "unavailableNotice": {
+    "noticeId": "10000000-0000-4000-8000-000000000010",
+    "createdAt": "2026-10-09T00:00:02.999999Z",
+    "readAt": null,
+    "status": "unavailable"
+  }
+}

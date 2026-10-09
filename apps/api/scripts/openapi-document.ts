@@ -487,6 +487,14 @@ export async function renderErrandsOpenApiDocument(): Promise<string> {
 export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
   const { RatingsController } = await import('../src/ratings/controller.js');
   const { RatingsService } = await import('../src/ratings/service.js');
+  const { RatingDiscussionController } =
+    await import('../src/ratings/discussion-controller.js');
+  const { RatingDiscussionService } =
+    await import('../src/ratings/discussion-service.js');
+  const { RatingUpdatesController } =
+    await import('../src/notifications/ratings/controller.js');
+  const { RatingUpdatesReadService } =
+    await import('../src/notifications/ratings/read.service.js');
   const { RatingRequestGuard } =
     await import('../src/request-throttling/rating-request.guard.js');
   for (const method of [
@@ -517,8 +525,16 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
     throw new Error('OpenAPI must not execute application work');
   };
   const testing = await Test.createTestingModule({
-    controllers: [RatingsController],
-    providers: [{ provide: RatingsService, useValue: {} }],
+    controllers: [
+      RatingsController,
+      RatingDiscussionController,
+      RatingUpdatesController,
+    ],
+    providers: [
+      { provide: RatingsService, useValue: {} },
+      { provide: RatingDiscussionService, useValue: {} },
+      { provide: RatingUpdatesReadService, useValue: {} },
+    ],
   })
     .overrideGuard(RatingRequestGuard)
     .useValue({ canActivate: fail })
@@ -529,7 +545,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       app,
       new DocumentBuilder()
         .setOpenAPIVersion('3.0.3')
-        .setTitle('WhaleU independent ratings and text roots')
+        .setTitle('WhaleU ratings, text discussions and local direct updates')
         .setVersion('1')
         .addSecurity('accessToken', {
           type: 'http',

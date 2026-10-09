@@ -1,4 +1,5 @@
 import { smokeRatings } from './smoke-ratings.mjs';
+import { smokeRatingsR2A } from './smoke-ratings-r2a.mjs';
 import { smokeErrandAdminNotices } from './smoke-errand-admin-notices.mjs';
 import { smokeErrandAdminMutations } from './smoke-errand-admin-mutations.mjs';
 import { smokeErrandAdmin } from './smoke-errand-admin.mjs';
@@ -100,7 +101,10 @@ for (const route of config.pages.filter(
     current.data = { ...current.data, ...data };
   };
   current.onLoad?.(
-    route === 'pages/activity-list/activity-list'
+    [
+      'pages/activity-list/activity-list',
+      'pages/rating-updates/rating-updates',
+    ].includes(route)
       ? {}
       : {
           postId: '66666666-6666-4666-8666-666666666666',
@@ -1836,6 +1840,7 @@ await smokeViewReporting({
 });
 await smokeErrands({ app, dist, flush: flushTrading });
 await smokeRatings({ app, dist, flush: flushTrading });
+await smokeRatingsR2A({ app, dist, flush: flushTrading });
 await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeErrandAdminMutations({ app, dist, flush: flushTrading });
 await smokeErrandAdminNotices({ app, dist, flush: flushTrading });

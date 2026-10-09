@@ -21,7 +21,11 @@ import type {
   RatingTargetPage,
 } from '../src/ratings/contract';
 import type { RatingsGateway } from '../src/ratings/gateway';
-import { PendingRatingStore } from '../src/ratings/pending';
+import {
+  PendingRatingStore,
+  isRatingReplyIntent,
+  type RatingCommandIntent,
+} from '../src/ratings/pending';
 import { setup } from './community-helpers';
 export const targetId = '11111111-1111-4111-8111-111111111111';
 export const categoryId = '22222222-2222-4222-8222-222222222222';
@@ -161,40 +165,46 @@ export function intent(
   };
 }
 export const receipt = (
-  command: RatingIntent = intent(),
+  command: RatingCommandIntent = intent(),
   outcome: 'applied' | 'noop' = 'applied',
-): Extract<RatingReceipt, { outcome: 'applied' | 'noop' }> => ({
-  requestId: command.payload.clientRequestId,
-  operation: command.operation,
-  outcome,
-  targetId:
-    command.operation === 'delete_comment'
-      ? command.payload.targetId
-      : command.targetId,
-  subjectId:
-    command.operation === 'set_score'
-      ? command.targetId
-      : command.operation === 'delete_comment'
-        ? command.commentId
-        : commentId,
-  revision:
-    command.operation === 'set_score' && outcome === 'noop'
-      ? (command.payload.expectedRevision ?? revision)
-      : nextRevision,
-  occurredAt: timestamp,
-});
+): Extract<RatingReceipt, { outcome: 'applied' | 'noop' }> => {
+  if (isRatingReplyIntent(command)) throw new Error('R1-only fixture');
+  return {
+    requestId: command.payload.clientRequestId,
+    operation: command.operation,
+    outcome,
+    targetId:
+      command.operation === 'delete_comment'
+        ? command.payload.targetId
+        : command.targetId,
+    subjectId:
+      command.operation === 'set_score'
+        ? command.targetId
+        : command.operation === 'delete_comment'
+          ? command.commentId
+          : commentId,
+    revision:
+      command.operation === 'set_score' && outcome === 'noop'
+        ? (command.payload.expectedRevision ?? revision)
+        : nextRevision,
+    occurredAt: timestamp,
+  };
+};
 export const rejected = (
-  command: RatingIntent = intent(),
+  command: RatingCommandIntent = intent(),
   code: Extract<
     RatingReceipt,
     { outcome: 'rejected' }
   >['code'] = 'RATING_REVISION_CONFLICT',
-): RatingReceipt => ({
-  requestId: command.payload.clientRequestId,
-  operation: command.operation,
-  outcome: 'rejected',
-  code,
-});
+): RatingReceipt => {
+  if (isRatingReplyIntent(command)) throw new Error('R1-only fixture');
+  return {
+    requestId: command.payload.clientRequestId,
+    operation: command.operation,
+    outcome: 'rejected',
+    code,
+  };
+};
 export class FakeRatingsGateway implements RatingsGateway {
   readonly calls: Array<{ method: string; args: readonly unknown[] }> = [];
   readonly commands: RatingIntent[] = [];

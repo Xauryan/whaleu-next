@@ -2,7 +2,7 @@
 
 R1 is a local development slice in the normal Nest application. It has trusted catalog navigation, independent integer scores, text root comments, own deletion and durable account-owned recovery. It does not supply production catalog data or a real review issuer. Normal missing evidence fails closed.
 
-The [generated OpenAPI](openapi/ratings.json) covers all twelve routes. [Design and wire details](design/ratings-r1.md) describe exact fields, owner integration, locks and bounded proofs. [Acceptance evidence](acceptance/ratings-r1.md) distinguishes focused checks, full regression and outstanding release gates.
+The [generated OpenAPI](openapi/ratings.json) covers the twelve R1 routes and the [R2A discussion/local-update extension](API_RATINGS_DISCUSSION.md). [Design and wire details](design/ratings-r1.md) describe exact fields, owner integration, locks and bounded proofs. [Acceptance evidence](acceptance/ratings-r1.md) distinguishes focused checks, full regression and outstanding release gates.
 
 ## Routes
 
@@ -52,7 +52,7 @@ The existing Safety writer capacity remains 128, with its existing supported-cap
 ## Still outside R1
 
 - Directory/target creation, management, override reconciliation and historical import
-- Replies, likes, subscriptions, experience and notifications
+- R2A adds replies, fresh creation Experience and direct local notifications; likes and subscriptions remain outside this slice
 - Media storage/review and real external provider delivery
 - Real review issuance/governance and authoritative production catalog source
 - Random recommendations, rankings and category aggregates

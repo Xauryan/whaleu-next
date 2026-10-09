@@ -32,27 +32,39 @@ export class RatingsAccessService {
     options: { phone: boolean },
   ) {
     const session = await this.authenticate(token, tx);
+    return {
+      session,
+      ...(await this.resolveAccount(session.accountId, regionId, tx, options)),
+    };
+  }
+  async resolveAccount(
+    accountId: string,
+    regionId: string | null,
+    tx: PoolClient,
+    options: { phone: boolean },
+  ) {
+    await lockSafetyPolicy(tx);
+    if (!(await this.identity.activeAccount(accountId, tx)))
+      throw new ApplicationError('RATING_NOT_FOUND');
     if (options.phone) {
-      const phone = await this.verification.phone(session.accountId, tx);
+      const phone = await this.verification.phone(accountId, tx);
       if (phone.status === 'unverified')
         throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
       if (phone.status !== 'verified')
         throw new ApplicationError('VERIFICATION_UNAVAILABLE');
     }
-    await this.safety.requireAllowed(session.accountId, tx);
+    await this.safety.requireAllowed(accountId, tx);
     const safety = await this.safety.navigation(tx);
     if (regionId === null)
       return {
-        session,
         regionId,
         fingerprint: ownerFingerprint(['global', safety]),
       };
-    const grant = await this.authorization.scope(session.accountId, tx);
+    const grant = await this.authorization.scope(accountId, tx);
     if (grant.kind === 'fixed' && grant.regionId !== regionId)
       throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
     if (grant.kind !== 'ordinary')
       return {
-        session,
         regionId,
         fingerprint: ownerFingerprint([
           grant.fingerprint,
@@ -60,22 +72,18 @@ export class RatingsAccessService {
           safety,
         ]),
       };
-    const affiliation = await this.verification.affiliation(
-      session.accountId,
-      tx,
-    );
+    const affiliation = await this.verification.affiliation(accountId, tx);
     if (affiliation.status === 'unverified')
       throw new ApplicationError('AFFILIATION_VERIFICATION_REQUIRED');
     if (affiliation.status !== 'verified')
       throw new ApplicationError('VERIFICATION_UNAVAILABLE');
     const scope = await this.campus.ordinary(
-      session.accountId,
+      accountId,
       affiliation,
       regionId,
       tx,
     );
     return {
-      session,
       regionId,
       fingerprint: ownerFingerprint([
         grant.fingerprint,

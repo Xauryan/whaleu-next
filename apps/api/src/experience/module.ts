@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.js';
 import { IdentityModule } from '../identity/identity.module.js';
-import { CommunityModule } from '../community/community.module.js';
+import { ExperienceSourceModule } from './source-module.js';
 import { AuthorizationModule } from '../authorization/authorization.module.js';
 import { ExperienceTitleMaintenanceController } from './maintenance.controller.js';
 import { ExperienceTitleMaintenanceService } from './maintenance.service.js';
@@ -25,7 +25,7 @@ import {
   imports: [
     DatabaseModule,
     IdentityModule,
-    CommunityModule,
+    ExperienceSourceModule,
     AuthorizationModule,
   ],
   controllers: [
