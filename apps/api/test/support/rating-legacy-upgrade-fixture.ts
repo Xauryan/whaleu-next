@@ -78,7 +78,10 @@ export async function publishLegacyRating(
   envelope: RatingContentEnvelope,
   intent: unknown,
 ) {
-  if (envelope.purpose === 'publish_rating_target')
+  if (
+    envelope.purpose !== 'publish_rating_comment' &&
+    envelope.purpose !== 'publish_rating_reply'
+  )
     throw new Error('Legacy publication fixture requires a comment or reply');
   assert.equal(envelope.authorMode, 'named');
   const id = randomUUID(),

@@ -5,6 +5,11 @@ import { randomUUID } from 'node:crypto';
 import { RatingRandomService } from '../src/ratings/random/service.js';
 import { ApplicationError } from '../src/http/application-error.js';
 import type { RatingSummary } from '../src/ratings/contracts.js';
+import type { CurrentTargetRow } from '../src/ratings/repository.js';
+import {
+  canonicalRatingTargetDefinition,
+  type RatingTargetDefinitionDescriptor,
+} from '../src/community/content-review/rating-target-definition-contracts.js';
 type Dependencies = ConstructorParameters<typeof RatingRandomService>;
 function fixture(
   options: {
@@ -14,6 +19,8 @@ function fixture(
     missingCatalog?: boolean;
     failProof?: boolean;
     duplicatePath?: boolean;
+    changedDuplicate?: 'lifecycle' | 'definition';
+    changedReread?: 'lifecycle' | 'definition';
   } = {},
 ) {
   const accountId = randomUUID(),
@@ -23,19 +30,19 @@ function fixture(
     globalId = randomUUID(),
     regionalId = randomUUID();
   const calls: string[] = [];
-  const row = (id: string, region: string | null, catalogRevision: string) => ({
-    id,
-    category_id: categoryId,
-    revision: randomUUID(),
-    name: 'Target',
-    description: '',
-    envelope: {
+  const row = (
+    id: string,
+    region: string | null,
+    catalogRevision: string,
+  ): CurrentTargetRow => {
+    const appliedTargetRevision = randomUUID();
+    const envelope = {
       version: 1,
       accountId,
       purpose: 'publish_rating_target',
       clientRequestId: randomUUID(),
       targetId: id,
-      targetRevision: randomUUID(),
+      targetRevision: appliedTargetRevision,
       categoryId,
       categoryRevision: randomUUID(),
       catalogRevision,
@@ -43,8 +50,41 @@ function fixture(
       assetIds: [],
       name: 'Target',
       description: '',
-    },
-  });
+    };
+    const definition = canonicalRatingTargetDefinition({
+      targetId: id,
+      contentVersion: 1,
+      definitionRevision: appliedTargetRevision,
+      appliedTargetRevision,
+      envelope,
+    });
+    return {
+      id,
+      category_id: categoryId,
+      creator_id: accountId,
+      region_id: region,
+      active: true,
+      revision: randomUUID(),
+      name: 'Target',
+      description: '',
+      envelope: definition.envelope,
+      definition,
+    };
+  };
+  const changed = (
+    value: CurrentTargetRow,
+    kind: 'lifecycle' | 'definition',
+  ) => {
+    if (kind === 'lifecycle') return { ...value, revision: randomUUID() };
+    const appliedTargetRevision = randomUUID();
+    const definition = canonicalRatingTargetDefinition({
+      ...value.definition,
+      definitionRevision: appliedTargetRevision,
+      appliedTargetRevision,
+      envelope: { ...value.envelope, targetRevision: appliedTargetRevision },
+    });
+    return { ...value, definition, envelope: definition.envelope };
+  };
   const rows = [
     row(randomUUID(), null, globalId),
     row(randomUUID(), regionId, regionalId),
@@ -82,9 +122,14 @@ function fixture(
       return { id: r ? regionalId : globalId, regionId: r };
     },
     category: async () => {},
-    target: async (_c: unknown, id: string) => ({
-      row: rows.find((r) => r.id === id),
-    }),
+    target: async (_c: unknown, id: string) => {
+      const current = rows.find((r) => r.id === id)!;
+      return {
+        row: options.changedReread
+          ? changed(current, options.changedReread)
+          : current,
+      };
+    },
     summary: async (id: string) => {
       calls.push(`summary:${id}`);
       return options.minimumUnknown ? { status: 'unavailable' } : summary;
@@ -102,10 +147,19 @@ function fixture(
       calls.push('enumerate');
       const items = scopes.map((region) => ({
         row: rows[region ? 1 : 0]!,
+        definition: rows[region ? 1 : 0]!.definition,
         catalog: { id: region ? regionalId : globalId, regionId: region },
         summary: options.minimumUnknown ? { status: 'unavailable' } : summary,
       }));
       if (options.duplicatePath) items.push(items[0]!);
+      if (options.changedDuplicate) {
+        const current = changed(items[0]!.row, options.changedDuplicate);
+        items.push({
+          ...items[0]!,
+          row: current,
+          definition: current.definition,
+        });
+      }
       return { items, done: true };
     },
     complete: async () => {
@@ -131,8 +185,10 @@ function fixture(
       calls.push('review-complete');
     },
     navigation: async () => {},
-    current: async (_kind: string, id: string) => {
-      calls.push(`review:${id}`);
+    currentTargetDefinition: async (
+      definition: RatingTargetDefinitionDescriptor,
+    ) => {
+      calls.push(`review:${definition.targetId}`);
       return { kind: options.denied ? 'deny' : 'allow' };
     },
   };
@@ -238,4 +294,32 @@ test('all paths are reviewed before dedup and final proof failure never draws', 
     ApplicationError,
   );
   assert.equal(failed.calls.includes('draw'), false);
+});
+
+test('duplicate canonical paths compare both lifecycle and definition before denying or sampling', async () => {
+  for (const changedDuplicate of ['lifecycle', 'definition'] as const) {
+    for (const denied of [false, true]) {
+      const f = fixture({ changedDuplicate, denied });
+      await assert.rejects(
+        f.service.select('token', { categoryId: f.categoryId }),
+        (error: unknown) =>
+          error instanceof ApplicationError &&
+          error.code === 'RATING_UNAVAILABLE',
+      );
+      assert.equal(f.calls.includes('draw'), false);
+    }
+  }
+});
+
+test('selected canonical reread cannot exchange a definition while retaining its lifecycle', async () => {
+  for (const changedReread of ['lifecycle', 'definition'] as const) {
+    const f = fixture({ changedReread });
+    await assert.rejects(
+      f.service.select('token', { categoryId: f.categoryId }),
+      (error: unknown) =>
+        error instanceof ApplicationError &&
+        error.code === 'RATING_UNAVAILABLE',
+    );
+    assert.equal(f.calls.includes('recheck'), false);
+  }
 });

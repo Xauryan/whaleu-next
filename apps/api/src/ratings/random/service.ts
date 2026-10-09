@@ -4,10 +4,12 @@ import { DatabaseService } from '../../database/database.js';
 import { ApplicationError } from '../../http/application-error.js';
 import { CampusRatingRandomScopeFacade } from '../../campus/rating-random-scope.facade.js';
 import { RatingContentReviewFacade } from '../../community/content-review/rating-content-review.facade.js';
-import { canonicalRatingEnvelope } from '../../community/content-review/rating-contracts.js';
+import type { RatingTargetDefinitionDescriptor } from '../../community/content-review/rating-target-definition-contracts.js';
 import { RatingSafetyFacade } from '../../safety/rating.facade.js';
 import { RatingsAccessService } from '../access.js';
 import { RatingsRepository, type RatingCatalog } from '../repository.js';
+import { sameRatingTargetDefinition } from '../target-definition.repository.js';
+import { qualifyCurrentRatingTarget } from '../target-projection.facade.js';
 import { ratingTargetSchema } from '../contracts.js';
 import {
   ratingRandomResponseSchema,
@@ -63,7 +65,16 @@ export class RatingRandomService {
           );
           const eligible = new Map<
             string,
-            { id: string; revision: string; catalog: RatingCatalog }
+            {
+              id: string;
+              revision: string;
+              definition: RatingTargetDefinitionDescriptor;
+              catalog: RatingCatalog;
+            }
+          >();
+          const observed = new Map<
+            string,
+            { revision: string; definition: RatingTargetDefinitionDescriptor }
           >();
           while (true) {
             const batch = await this.pool.next(pool, tx);
@@ -76,6 +87,21 @@ export class RatingRandomService {
               throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
             for (let i = 0; i < batch.items.length; i++) {
               const candidate = batch.items[i]!;
+              const previous = observed.get(candidate.row.id);
+              if (
+                previous &&
+                (previous.revision !== candidate.row.revision ||
+                  !sameRatingTargetDefinition(
+                    previous.definition,
+                    candidate.definition,
+                  ))
+              )
+                throw new ApplicationError('RATING_UNAVAILABLE');
+              if (!previous)
+                observed.set(candidate.row.id, {
+                  revision: candidate.row.revision,
+                  definition: candidate.definition,
+                });
               if (decisions[i] === 'deny') continue;
               if (decisions[i] !== 'allow')
                 throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
@@ -84,12 +110,11 @@ export class RatingRandomService {
               )
                 continue;
               const existing = eligible.get(candidate.row.id);
-              if (existing && existing.revision !== candidate.row.revision)
-                throw new ApplicationError('RATING_UNAVAILABLE');
               if (!existing)
                 eligible.set(candidate.row.id, {
                   id: candidate.row.id,
                   revision: candidate.row.revision,
+                  definition: candidate.definition,
                   catalog: candidate.catalog,
                 });
             }
@@ -123,17 +148,27 @@ export class RatingRandomService {
             );
             if (catalog.id !== chosen.catalog.id)
               throw new ApplicationError('RATING_UNAVAILABLE');
-            const { row } = await this.records.target(catalog, chosen.id, tx);
-            if (row.revision !== chosen.revision)
-              throw new ApplicationError('RATING_UNAVAILABLE');
-            const decision = await this.review.current(
-              'target',
-              row.id,
-              canonicalRatingEnvelope(row.envelope),
+            const { row } = await qualifyCurrentRatingTarget(
+              this.records,
+              this.review,
+              catalog,
+              chosen.id,
               tx,
-            );
-            if (decision.kind !== 'allow')
-              throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+            ).catch((error: unknown) => {
+              // This item was in the complete admitted universe. Disappearance
+              // is a changed selection, never a new empty/partial success.
+              if (
+                error instanceof ApplicationError &&
+                error.code === 'RATING_NOT_FOUND'
+              )
+                throw new ApplicationError('RATING_UNAVAILABLE');
+              throw error;
+            });
+            if (
+              row.revision !== chosen.revision ||
+              !sameRatingTargetDefinition(row.definition, chosen.definition)
+            )
+              throw new ApplicationError('RATING_UNAVAILABLE');
             const summary = await this.records.summary(row.id, tx);
             if (!matchesRatingMinimum(summary, query.minimumAverage))
               throw new ApplicationError('RATING_UNAVAILABLE');

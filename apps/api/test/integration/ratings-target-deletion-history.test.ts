@@ -202,7 +202,7 @@ test('M2A preserves independent history and captured rewards while every public 
     table_schema='whaleu_experience' OR
     (table_schema='whaleu_notifications' AND table_name LIKE 'rating_%') OR
     (table_schema='whaleu_community' AND table_name LIKE 'rating_approval_%') OR
-    (table_schema='whaleu_ratings' AND table_name NOT IN ('targets','target_state_revisions','navigation_epoch','random_pool_epoch','requests','command_claims','target_owner_delete_audits','target_owner_tombstones','target_owner_delete_closures'))
+    (table_schema='whaleu_ratings' AND table_name NOT IN ('targets','target_state_revisions','navigation_epoch','random_pool_epoch','requests','command_claims','target_owner_delete_audits','target_owner_tombstones','target_owner_delete_closures','target_definition_lifecycles'))
   ) ORDER BY table_schema,table_name`)
   ).rows;
   const snapshot = async () => {
@@ -219,6 +219,20 @@ test('M2A preserves independent history and captured rewards while every public 
     return rows;
   };
   const before = await snapshot();
+  const oldDefinitionLifecycles = (
+    await f.pool.query(
+      'SELECT * FROM whaleu_ratings.target_definition_lifecycles ORDER BY target_id,target_revision',
+    )
+  ).rows;
+  const oldDefinitionHead = (
+    await f.pool.query<{
+      content_version: number;
+      definition_revision: string;
+    }>(
+      'SELECT content_version,definition_revision FROM whaleu_ratings.target_definition_heads WHERE target_id=$1',
+      [target.id],
+    )
+  ).rows[0]!;
   const deleteInput = {
     clientRequestId: randomUUID(),
     expectedTargetRevision: target.revision,
@@ -239,6 +253,32 @@ test('M2A preserves independent history and captured rewards while every public 
     'soft deletion changes only owner lifecycle evidence, never historical content or side effects',
     async () => {
       assert.deepEqual(await snapshot(), before);
+      assert.deepEqual(
+        (
+          await f.pool.query(
+            'SELECT * FROM whaleu_ratings.target_definition_lifecycles WHERE NOT(target_id=$1 AND target_revision=$2) ORDER BY target_id,target_revision',
+            [target.id, deleted.body.revision],
+          )
+        ).rows,
+        oldDefinitionLifecycles,
+        'Every pre-existing lifecycle definition row stays byte-identical',
+      );
+      assert.deepEqual(
+        (
+          await f.pool.query(
+            'SELECT target_id,target_revision,content_version,definition_revision FROM whaleu_ratings.target_definition_lifecycles WHERE target_id=$1 AND target_revision=$2',
+            [target.id, deleted.body.revision],
+          )
+        ).rows,
+        [
+          {
+            target_id: target.id,
+            target_revision: deleted.body.revision,
+            ...oldDefinitionHead,
+          },
+        ],
+        'Exactly one new deletion lifecycle maps to the unchanged definition',
+      );
       assert.deepEqual(
         (
           await f.pool.query(

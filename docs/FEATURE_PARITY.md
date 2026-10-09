@@ -493,3 +493,13 @@ unchanged. M2B multi-version editing, category management and school overrides
 remain open.
 See [contract](API_RATINGS_TARGET_OWNER_DELETION.md) and
 [acceptance status](acceptance/ratings-management-m2a.md).
+
+### Rating management M2B development work
+
+Versioned creator-only generic target name/description editing is being added with
+exact v3 Review, immutable definition/lifecycle history, current projections and
+native v7 recovery. Static implementation is not accepted parity. See
+[contract](API_RATINGS_TARGET_OWNER_EDIT.md) and
+[acceptance limits](acceptance/ratings-management-m2b.md). Category/scope moves,
+restoration, administrator editing, real issuers and device acceptance remain out
+of this slice; M2A hidden cleanup stays independently available.

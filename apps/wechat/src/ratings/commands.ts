@@ -2,6 +2,7 @@ import { ClientError } from '../api/errors';
 import type { CommunityRuntime } from '../community/runtime';
 import type { Cancellation } from '../platform/contracts';
 import {
+  isRatingTargetOwnerEditingIntent,
   isRatingTargetCreationIntent,
   isRatingTargetOwnerDeletionIntent,
   isRatingReplyIntent,
@@ -13,6 +14,7 @@ import {
   type RatingCommandReceipt,
 } from './pending';
 export const ratingCommandLabels = {
+  edit_target: '创建者编辑评分对象',
   create_target: '评分对象创建',
   delete_target: '创建者删除评分对象',
   admin_delete_comment: '管理员删除评价',
@@ -38,6 +40,19 @@ export function runRatingCommand(
     throw new ClientError('stale-session', 'Account changed');
   runtime.pendingRatings!.assertOriginal(attempt);
   const intent = attempt.intent;
+  if (isRatingTargetOwnerEditingIntent(intent)) {
+    if (!runtime.ratingTargetOwnerEditing)
+      throw new ClientError(
+        'configuration',
+        'Target owner editing unavailable',
+      );
+    return retry
+      ? runtime.ratingTargetOwnerEditing.command(intent, cancel)
+      : runtime.ratingTargetOwnerEditing.receipt(
+          intent.payload.clientRequestId,
+          cancel,
+        );
+  }
   if (isRatingTargetOwnerDeletionIntent(intent)) {
     if (!runtime.ratingTargetOwnerDeletion)
       throw new ClientError(
@@ -126,7 +141,11 @@ export function settleRatingCommand(
   if (attempt.accountId !== runtime.sessions.snapshot().credentials?.accountId)
     throw new ClientError('stale-session', 'Account changed');
   const receipt = runtime.pendingRatings!.settle(attempt, raw);
-  if (receipt.operation === 'delete_target' && receipt.outcome !== 'rejected')
+  if (
+    (receipt.operation === 'delete_target' ||
+      receipt.operation === 'edit_target') &&
+    receipt.outcome !== 'rejected'
+  )
     runtime.ratingTargetChanges?.publish({
       targetId: receipt.targetId,
       revision: receipt.revision,

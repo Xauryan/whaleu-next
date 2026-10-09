@@ -1,3 +1,4 @@
+import { publishPreDefinitionRatingRoot } from '../support/rating-pre-definition-upgrade-fixture.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +24,13 @@ test('M2A upgrade leaves legacy definitions and Review/source history intact and
   const catalog = await f.catalog(owner, { count: 3 });
   const [target, inactive, untouched] = catalog.targets;
   assert.ok(target && inactive && untouched);
-  await f.publish(owner, catalog, target);
+  const oldRootIntent = f.body(catalog, target);
+  await publishPreDefinitionRatingRoot(
+    f,
+    f.envelope(owner, catalog, target, oldRootIntent),
+    { targetId: target.id, ...oldRootIntent },
+    55,
+  );
   inactive.revision = randomUUID();
   await withCommunityScopeWriter(f.pool, (tx) =>
     tx.query(
@@ -52,9 +59,11 @@ test('M2A upgrade leaves legacy definitions and Review/source history intact and
   const beforeUpgrade = await snapshotTables(oldTables);
   await runMigrations(
     f.pool,
-    await readMigrations(
-      fileURLToPath(new URL('../../migrations', import.meta.url)),
-    ),
+    (
+      await readMigrations(
+        fileURLToPath(new URL('../../migrations', import.meta.url)),
+      )
+    ).filter((migration) => Number(migration.name.slice(0, 4)) <= 56),
     { mode: 'up' },
   );
   assert.deepEqual(await snapshotTables(oldTables), beforeUpgrade);

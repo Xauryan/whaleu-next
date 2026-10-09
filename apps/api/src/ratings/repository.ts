@@ -11,6 +11,20 @@ import {
 import type { RequiredTransactionProof } from '../database/transaction-deadlines.js';
 import { ratingSummarySchema } from './contracts.js';
 import type { RatingSummary, SetRatingScore } from './contracts.js';
+import {
+  currentRatingTargetRow,
+  ratingCurrentTargetColumns,
+  ratingCurrentTargetDefinitionJoins,
+} from './target-definition.repository.js';
+import type {
+  CurrentTargetRead,
+  CurrentTargetRow,
+  TargetCreationRow,
+} from './target-definition.repository.js';
+export type {
+  CurrentTargetRow,
+  TargetCreationRow,
+} from './target-definition.repository.js';
 export const ratingIso = (column: string) =>
   `to_char(${column} AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
 export interface RatingCatalog {
@@ -30,18 +44,8 @@ export interface CategoryRow {
   active: boolean;
   hidden: boolean;
 }
-export interface TargetRow {
-  id: string;
-  revision: string;
-  category_id: string;
-  creator_id: string;
-  region_id: string | null;
-  name: string;
-  description: string;
-  active: boolean;
-  envelope: unknown;
-  ordinal?: string;
-}
+/** @deprecated Raw v1 creation data only; public reads use CurrentTargetRow. */
+export type TargetRow = TargetCreationRow;
 export interface CommentRow {
   id: string;
   target_id: string;
@@ -59,7 +63,14 @@ export interface CommentRow {
 type Fact =
   | { kind: 'epoch'; value: string }
   | { kind: 'catalog'; id: string; regionId: string | null }
-  | { kind: 'target'; id: string; revision: string }
+  | {
+      kind: 'target';
+      id: string;
+      revision: string;
+      contentVersion: number;
+      definitionRevision: string;
+      appliedTargetRevision: string;
+    }
   | { kind: 'comment'; id: string; revision: string; deleted: boolean }
   | { kind: 'reply'; id: string; revision: string; deleted: boolean };
 const proof: RequiredTransactionProof<Fact> = {
@@ -73,6 +84,9 @@ const proof: RequiredTransactionProof<Fact> = {
         (f): f is Extract<Fact, { kind: 'epoch' }> => f.kind === 'epoch',
       );
       if (expectedEpochs.length) {
+        await read.query(
+          'LOCK TABLE whaleu_ratings.navigation_epoch IN SHARE MODE NOWAIT',
+        );
         const value = (
           await read.query<{ epoch: string }>(
             'SELECT epoch::text FROM whaleu_ratings.navigation_epoch WHERE singleton AND version=1',
@@ -101,8 +115,25 @@ const proof: RequiredTransactionProof<Fact> = {
         catalogs.length,
       );
       await check(
-        `SELECT count(*)::integer n FROM unnest($1::uuid[],$2::uuid[]) f(id,revision) JOIN whaleu_ratings.targets t ON t.id=f.id AND t.revision=f.revision AND t.active`,
-        [targets.map((f) => f.id), targets.map((f) => f.revision)],
+        `SELECT count(*)::integer n FROM unnest($1::uuid[],$2::uuid[],$3::integer[],$4::uuid[],$5::uuid[])
+         f(id,revision,content_version,definition_revision,applied_target_revision)
+         JOIN whaleu_ratings.targets t ON t.id=f.id AND t.revision=f.revision AND t.active
+         JOIN whaleu_ratings.target_definition_heads h ON h.target_id=t.id
+           AND h.content_version=f.content_version AND h.definition_revision=f.definition_revision
+         JOIN whaleu_ratings.target_definition_versions d ON d.target_id=h.target_id
+           AND d.content_version=h.content_version AND d.definition_revision=h.definition_revision
+           AND d.applied_target_revision=f.applied_target_revision
+         JOIN whaleu_ratings.target_definition_lifecycles l ON l.target_id=t.id
+           AND l.target_revision=t.revision AND l.content_version=h.content_version
+           AND l.definition_revision=h.definition_revision
+         WHERE NOT EXISTS(SELECT 1 FROM whaleu_ratings.target_owner_tombstones tombstone WHERE tombstone.target_id=t.id)`,
+        [
+          targets.map((f) => f.id),
+          targets.map((f) => f.revision),
+          targets.map((f) => f.contentVersion),
+          targets.map((f) => f.definitionRevision),
+          targets.map((f) => f.appliedTargetRevision),
+        ],
         targets.length,
       );
       await check(
@@ -226,7 +257,9 @@ export class RatingsRepository {
     id: string,
     tx: PoolClient,
     write = false,
-  ): Promise<{ row: TargetRow; category: CategoryRow }> {
+  ): Promise<{ row: CurrentTargetRow; category: CategoryRow }> {
+    // Retain absence/denial as well as successful reads, including head changes.
+    await this.navigation(tx);
     const link = (
       await tx.query<{ category_id: string }>(
         'SELECT category_id FROM whaleu_ratings.target_memberships WHERE catalog_id=$1 AND target_id=$2',
@@ -235,23 +268,35 @@ export class RatingsRepository {
     ).rows[0];
     if (!link) throw new ApplicationError('RATING_NOT_FOUND');
     const category = await this.category(catalog, link.category_id, tx),
-      row = (
-        await tx.query<TargetRow>(
-          `SELECT * FROM whaleu_ratings.targets WHERE id=$1 FOR ${write ? 'UPDATE' : 'SHARE'}`,
+      current = (
+        await tx.query<CurrentTargetRead>(
+          `SELECT ${ratingCurrentTargetColumns} FROM whaleu_ratings.targets t
+           ${ratingCurrentTargetDefinitionJoins}
+           WHERE t.id=$1 FOR ${write ? 'UPDATE' : 'SHARE'} OF t`,
           [id],
         )
       ).rows[0];
     if (
-      !row?.active ||
-      row.category_id !== category.id ||
-      (row.region_id !== null && row.region_id !== catalog.regionId)
+      !current?.active ||
+      current.owner_deleted === true ||
+      current.category_id !== category.id ||
+      (current.region_id !== null && current.region_id !== catalog.regionId)
     )
       throw new ApplicationError('RATING_NOT_FOUND');
-    registerRequiredTransactionFact(tx, proof, `target:${id}:${row.revision}`, {
-      kind: 'target',
-      id,
-      revision: row.revision,
-    });
+    const row = currentRatingTargetRow(current);
+    registerRequiredTransactionFact(
+      tx,
+      proof,
+      `target:${id}:${row.revision}:${row.definition.contentVersion}:${row.definition.definitionRevision}:${row.definition.appliedTargetRevision}`,
+      {
+        kind: 'target',
+        id,
+        revision: row.revision,
+        contentVersion: row.definition.contentVersion,
+        definitionRevision: row.definition.definitionRevision,
+        appliedTargetRevision: row.definition.appliedTargetRevision,
+      },
+    );
     return { row, category };
   }
   async targets(
@@ -261,10 +306,11 @@ export class RatingsRepository {
     limit: number,
     tx: PoolClient,
   ) {
+    await this.navigation(tx);
     await this.category(catalog, categoryId, tx);
     return (
       await tx.query<{ id: string; ordinal: string }>(
-        `SELECT m.target_id id,m.ordinal::text FROM whaleu_ratings.target_memberships m JOIN whaleu_ratings.targets t ON t.id=m.target_id WHERE m.catalog_id=$1 AND m.category_id=$2 AND t.active AND ($3::bigint IS NULL OR m.ordinal>$3::bigint) ORDER BY m.ordinal LIMIT $4`,
+        `SELECT m.target_id id,m.ordinal::text FROM whaleu_ratings.target_memberships m JOIN whaleu_ratings.targets t ON t.id=m.target_id WHERE m.catalog_id=$1 AND m.category_id=$2 AND t.active AND NOT EXISTS(SELECT 1 FROM whaleu_ratings.target_owner_tombstones tombstone WHERE tombstone.target_id=t.id) AND ($3::bigint IS NULL OR m.ordinal>$3::bigint) ORDER BY m.ordinal LIMIT $4`,
         [catalog.id, categoryId, after, limit + 1],
       )
     ).rows;

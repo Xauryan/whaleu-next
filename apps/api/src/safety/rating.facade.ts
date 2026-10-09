@@ -48,6 +48,11 @@ export class RatingSafetyFacade {
       throw error;
     }
   }
+  /** Editing has the ordinary account restriction policy and may persist a
+   * denial receipt. Retain negative coverage through final deferred waits too. */
+  async requireEditAllowed(accountId: string, tx: PoolClient): Promise<void> {
+    await this.requireDeletionAllowed(accountId, tx);
+  }
   navigation(tx: PoolClient): Promise<string> {
     return navigation(tx);
   }

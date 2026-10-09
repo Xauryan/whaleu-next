@@ -231,6 +231,12 @@ function fixture(
         };
       if (
         sql.startsWith(
+          'SELECT decision_id FROM whaleu_community.rating_target_definition_bindings',
+        )
+      )
+        return { rows: [] };
+      if (
+        sql.startsWith(
           'SELECT * FROM whaleu_community.rating_approval_bindings',
         )
       ) {

@@ -3,6 +3,7 @@
   <view class="notice">仅查询当前账号的原请求。目标已隐藏、文字已删除或当前地区不可访问时，仍可恢复已提交的最小回执；不会显示旧正文或把历史分值当作当前评分。</view>
   <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />
   <view wx:if="{{loaded &amp;&amp; !frozen}}" class="card">{{receiptStatus ? '历史操作结果已确认。请重新进入当前目标读取最新状态。' : '当前账号没有待确认的评分操作。'}}</view>
+  <navigator wx:if="{{frozen}}" class="link" url="/pages/target-owner-edit/target-owner-edit">创建者编辑申请恢复与撤销 →</navigator>
   <navigator wx:if="{{frozen}}" class="link" url="/pages/target-owner-delete/target-owner-delete">创建者删除申请恢复与撤销 →</navigator>
   <navigator wx:if="{{frozen}}" class="link" url="/pages/rating-create/rating-create">创建申请恢复与撤销 →</navigator>
   <navigator class="link" url="/pages/rating-catalog/rating-catalog">重新进入评分目录 →</navigator>

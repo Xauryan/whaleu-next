@@ -27,6 +27,7 @@ import {
 import {
   decodeRatingCommandIntent,
   isRatingTargetCreationIntent,
+  isRatingTargetOwnerEditingIntent,
   isRatingTargetOwnerDeletionIntent,
   isRatingAdminDeletionIntent,
   isRatingDeletionContextChanged,
@@ -277,6 +278,7 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
             : ratingOwnerDeletionIntent(confirmation.context, id),
         );
         if (
+          isRatingTargetOwnerEditingIntent(intent) ||
           isRatingTargetOwnerDeletionIntent(intent) ||
           isRatingTargetCreationIntent(intent) ||
           isRatingLikeIntent(intent) ||

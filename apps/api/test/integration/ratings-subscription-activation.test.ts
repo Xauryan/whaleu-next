@@ -7,7 +7,6 @@ import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
 import { Pool } from 'pg';
 import type { PoolClient } from 'pg';
-import request from 'supertest';
 import { AppModule } from '../../src/app.module.js';
 import { loadConfig } from '../../src/config/config.js';
 import {
@@ -322,7 +321,6 @@ test(
       configureHttp(app);
       await app.listen(0, '127.0.0.1');
       const runtime = app,
-        http = runtime.getHttpServer(),
         scope = await seedCommunityScope(pool);
       const actor = await createRuntimeActor(runtime),
         replyActor = await createRuntimeActor(runtime);
@@ -360,7 +358,7 @@ test(
       };
       const before = await snapshotTargets();
       await t.test(
-        '0051 enrolls only exact native source/creation evidence and never borrows score coverage',
+        '0051 enrolls only exact native evidence and its legacy SQL read never borrows score coverage',
         async () => {
           await runMigrations(pool, through(51), { mode: 'up' });
           assert.deepEqual(await snapshotTargets(), before);
@@ -442,13 +440,40 @@ test(
                 .rowCount,
               0,
             );
-          const response = await request(http)
-            .get(`/v1/ratings/targets/${target.id}/subscription`)
-            .set('Authorization', `Bearer ${actor.accessToken}`);
-          assert.equal(response.status, 200, JSON.stringify(response.body));
-          assert.equal(response.body.status, 'known');
-          assert.equal(response.body.count, 0);
-          assert.equal(response.body.subscribed, false);
+          // Read the real 0051 owner state directly. Current HTTP target
+          // projection requires later definition/lifecycle migrations and is
+          // covered by the all-migration subscription integration suite.
+          assert.match(
+            (
+              await pool.query<{ name: string }>(
+                'SELECT max(name) name FROM whaleu_meta.schema_migrations',
+              )
+            ).rows[0]!.name,
+            /^0051_/,
+            'Legacy subscription SQL read requires the real 0051 prefix',
+          );
+          const state = (
+            await pool.query<{
+              status: string;
+              count: number;
+              subscribed: boolean;
+            }>(
+              `SELECT CASE WHEN b.coverage='complete' THEN 'known' ELSE 'unavailable' END status,
+                 s.count,coalesce(m.subscribed,false) subscribed
+               FROM whaleu_ratings.subscription_baselines b
+               JOIN whaleu_ratings.subscription_states s ON (s.target_id,s.baseline_id)=(b.target_id,b.id)
+               LEFT JOIN whaleu_ratings.subscription_memberships m ON m.target_id=b.target_id AND m.account_id=$2
+               WHERE b.target_id=$1 AND b.coverage='complete'
+                 AND (m.target_id IS NOT NULL OR NOT EXISTS(
+                   SELECT 1 FROM whaleu_ratings.subscription_transitions t
+                   WHERE t.target_id=b.target_id AND t.account_id=$2))`,
+              [target.id, actor.accountId],
+            )
+          ).rows;
+          assert.equal(state.length, 1);
+          assert.equal(state[0]!.status, 'known');
+          assert.equal(state[0]!.count, 0);
+          assert.equal(state[0]!.subscribed, false);
           assert.equal(
             (
               await pool.query(

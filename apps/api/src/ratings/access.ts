@@ -113,6 +113,55 @@ export class RatingsAccessService {
       ]),
     };
   }
+  /** Creator editing always uses ordinary publication scope. A creator's role
+   * grants cannot substitute for current affiliation or ordinary campus proof.
+   * This is intentionally NOT used by hidden owner deletion or historical recovery. */
+  async resolveOwnerEditAccount(
+    accountId: string,
+    regionId: string | null,
+    tx: PoolClient,
+  ) {
+    await lockSafetyPolicy(tx);
+    if (!(await this.identity.activeAccount(accountId, tx)))
+      throw new ApplicationError('RATING_NOT_FOUND');
+    const phone = await this.verification.phone(accountId, tx);
+    if (phone.status === 'unverified')
+      throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
+    if (phone.status !== 'verified')
+      throw new ApplicationError('VERIFICATION_UNAVAILABLE');
+    await this.safety.requireEditAllowed(accountId, tx);
+    const safety = await this.safety.navigation(tx);
+    if (regionId === null)
+      return {
+        regionId,
+        fingerprint: ownerFingerprint([
+          'owner-edit-global',
+          phone.fingerprint,
+          safety,
+        ]),
+      };
+    const affiliation = await this.verification.affiliation(accountId, tx);
+    if (affiliation.status === 'unverified')
+      throw new ApplicationError('AFFILIATION_VERIFICATION_REQUIRED');
+    if (affiliation.status !== 'verified')
+      throw new ApplicationError('VERIFICATION_UNAVAILABLE');
+    const scope = await this.campus.ordinary(
+      accountId,
+      affiliation,
+      regionId,
+      tx,
+    );
+    return {
+      regionId,
+      fingerprint: ownerFingerprint([
+        'owner-edit-ordinary',
+        phone.fingerprint,
+        affiliation.fingerprint,
+        scope.fingerprint,
+        safety,
+      ]),
+    };
+  }
   async context(token: string, tx: PoolClient) {
     const session = await this.authenticate(token, tx);
     await this.safety.requireAllowed(session.accountId, tx);

@@ -9,14 +9,21 @@ import {
   transactionReadEpoch,
 } from '../../database/transaction-deadlines.js';
 import type { RequiredTransactionProof } from '../../database/transaction-deadlines.js';
-import {
-  ratingPublicIdSchema,
-  ratingSummarySchema,
-  ratingTargetSchema,
-} from '../contracts.js';
+import { ratingPublicIdSchema, ratingSummarySchema } from '../contracts.js';
 import type { RatingSummary } from '../contracts.js';
 import { ratingIso } from '../repository.js';
-import type { CategoryRow, RatingCatalog, TargetRow } from '../repository.js';
+import type {
+  CategoryRow,
+  RatingCatalog,
+  CurrentTargetRow,
+} from '../repository.js';
+import {
+  currentRatingTargetRow,
+  ratingCurrentTargetColumns,
+  ratingCurrentTargetDefinitionJoins,
+  type CurrentTargetRead,
+} from '../target-definition.repository.js';
+import type { RatingTargetDefinitionDescriptor } from '../../community/content-review/rating-target-definition-contracts.js';
 
 /** Whole-request admission, independent of the unchanged per-item proof limits. */
 export const RATING_COMPLETE_POOL_BATCH_SIZE = 128;
@@ -33,7 +40,8 @@ export interface RatingCompletePoolHandle {
 export interface RatingPoolTargetPath {
   readonly id: string;
   readonly envelope: unknown;
-  readonly row: TargetRow;
+  readonly definition: RatingTargetDefinitionDescriptor;
+  readonly row: CurrentTargetRow;
   readonly catalog: RatingCatalog;
   readonly summary: RatingSummary;
 }
@@ -208,7 +216,7 @@ interface PathRead {
   category_id: string;
   target_id: string;
   valid_path: boolean;
-  target: TargetRow | null;
+  target: CurrentTargetRead | null;
   summary: Record<string, unknown> | null;
 }
 /** Same fresh-zero/source/creation causal definition and pure summary schema as
@@ -441,8 +449,10 @@ export class RatingCompletePoolRepository {
           FROM tree c JOIN whaleu_ratings.target_memberships m ON m.catalog_id=c.catalog_id AND m.category_id=c.id
           WHERE ($3::uuid IS NULL OR (m.catalog_id,m.target_id)>($3::uuid,$4::uuid))
           ORDER BY m.catalog_id,m.target_id LIMIT $5
-        ) SELECT p.*,to_jsonb(t) target,q.summary FROM paths p
+        ) SELECT p.*,to_jsonb(current_target) target,q.summary FROM paths p
         LEFT JOIN whaleu_ratings.targets t ON t.id=p.target_id
+        ${ratingCurrentTargetDefinitionJoins}
+        LEFT JOIN LATERAL (SELECT ${ratingCurrentTargetColumns}) current_target ON t.id IS NOT NULL
         LEFT JOIN LATERAL (
           SELECT to_jsonb(s) summary FROM whaleu_ratings.score_summaries s
           JOIN whaleu_ratings.score_baselines b ON b.target_id=s.target_id
@@ -468,15 +478,17 @@ export class RatingCompletePoolRepository {
         const catalog = state.catalogs.find(
           (item) => item.id === path.catalog_id,
         );
-        const row = path.target;
+        const current = path.target;
         if (
           !catalog ||
           !path.valid_path ||
-          !row ||
-          row.id !== path.target_id ||
-          row.category_id !== path.category_id ||
-          (row.region_id !== null && row.region_id !== catalog.regionId) ||
-          typeof row.active !== 'boolean'
+          !current ||
+          current.id !== path.target_id ||
+          current.category_id !== path.category_id ||
+          (current.region_id !== null &&
+            current.region_id !== catalog.regionId) ||
+          typeof current.active !== 'boolean' ||
+          typeof current.owner_deleted !== 'boolean'
         )
           unavailable();
         if (
@@ -489,7 +501,7 @@ export class RatingCompletePoolRepository {
         state.afterCatalog = path.catalog_id;
         state.afterTarget = path.target_id;
         state.paths++;
-        state.targets.add(row.id);
+        state.targets.add(current.id);
         state.bytes += Buffer.byteLength(JSON.stringify(path), 'utf8');
         if (
           state.paths > RATING_COMPLETE_POOL_PATH_LIMIT ||
@@ -497,28 +509,14 @@ export class RatingCompletePoolRepository {
           state.bytes > RATING_COMPLETE_POOL_BYTE_LIMIT
         )
           unavailable();
-        if (!row.active) continue;
-        if (
-          !ratingPublicIdSchema.safeParse(row.creator_id).success ||
-          !ratingTargetSchema.safeParse({
-            id: row.id,
-            categoryId: row.category_id,
-            name: row.name,
-            description: row.description,
-            revision: row.revision,
-            allowedActions: {
-              setScore: false,
-              createComment: true,
-              authorModes: ['named'],
-            },
-          }).success
-        )
-          unavailable();
+        if (!current.active || current.owner_deleted) continue;
+        const row = currentRatingTargetRow(current);
         const summary = ratingCompletePoolSummary(path.summary);
         items.push(
           freezeTree({
             id: row.id,
             envelope: row.envelope,
+            definition: row.definition,
             row,
             catalog,
             summary,

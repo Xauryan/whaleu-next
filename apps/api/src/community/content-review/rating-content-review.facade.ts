@@ -30,12 +30,16 @@ import type {
 } from './rating-contracts.js';
 import {
   ratingBindingMatches,
+  ratingTargetDefinitionBindingMatches,
   validateRatingApprovalRow,
 } from './rating-approval-validation.js';
 import type {
   RatingApprovalBinding,
   RatingApprovalRow,
+  RatingTargetDefinitionBinding,
 } from './rating-approval-validation.js';
+import { canonicalRatingTargetDefinition } from './rating-target-definition-contracts.js';
+import type { RatingTargetDefinitionDescriptor } from './rating-target-definition-contracts.js';
 type Fact =
   | { type: 'epoch'; fingerprint: string }
   | { type: 'time'; id: string; consume: boolean; exact: boolean }
@@ -45,6 +49,14 @@ type Fact =
       id: string;
       decisionId: string | null;
       digest: string | null;
+    }
+  | {
+      type: 'target-definition-binding';
+      id: string;
+      contentVersion: number;
+      definitionRevision: string;
+      decisionId: string | null;
+      digest: string | null;
     };
 interface TimedRow extends RatingApprovalRow {
   exact_time: boolean;
@@ -52,7 +64,7 @@ interface TimedRow extends RatingApprovalRow {
 }
 interface TargetEligibilityRow extends TimedRow {
   ordinal: number;
-  binding: RatingApprovalBinding | null;
+  binding: RatingApprovalBinding | RatingTargetDefinitionBinding | null;
   account_exists: boolean;
 }
 declare const targetEligibilityBrand: unique symbol;
@@ -159,7 +171,7 @@ const proof: RequiredTransactionProof<Fact> = {
   validate: (facts, tx) =>
     boundedOwnerProof(tx, 'CONTENT_REVIEW_UNAVAILABLE', async (read) => {
       await read.query(
-        'LOCK TABLE whaleu_community.rating_review_epoch,whaleu_community.rating_approval_bindings IN SHARE MODE NOWAIT',
+        'LOCK TABLE whaleu_community.rating_review_epoch,whaleu_community.rating_approval_bindings,whaleu_community.rating_target_definition_bindings IN SHARE MODE NOWAIT',
       );
       const current = await epoch(read);
       if (facts.some((f) => f.type === 'epoch' && f.fingerprint !== current))
@@ -203,6 +215,40 @@ const proof: RequiredTransactionProof<Fact> = {
               r.ordinal !== i + 1 ||
               r.decision_id !== bindings[i]!.decisionId ||
               r.digest !== bindings[i]!.digest,
+          )
+        )
+          throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      }
+      const definitions = facts.filter(
+        (f): f is Extract<Fact, { type: 'target-definition-binding' }> =>
+          f.type === 'target-definition-binding',
+      );
+      if (definitions.length) {
+        const rows = (
+          await read.query<{
+            ordinal: number;
+            definition_revision: string | null;
+            decision_id: string | null;
+            digest: string | null;
+          }>(
+            `SELECT r.ordinal::integer ordinal,b.definition_revision,b.decision_id,b.digest FROM unnest($1::uuid[],$2::integer[]) WITH ORDINALITY r(target_id,content_version,ordinal) LEFT JOIN whaleu_community.rating_target_definition_bindings b ON b.target_id=r.target_id AND b.content_version=r.content_version ORDER BY r.ordinal`,
+            [
+              definitions.map((f) => f.id),
+              definitions.map((f) => f.contentVersion),
+            ],
+          )
+        ).rows;
+        if (
+          rows.length !== definitions.length ||
+          rows.some(
+            (row, index) =>
+              row.ordinal !== index + 1 ||
+              row.decision_id !== definitions[index]!.decisionId ||
+              row.digest !== definitions[index]!.digest ||
+              row.definition_revision !==
+                (definitions[index]!.decisionId === null
+                  ? null
+                  : definitions[index]!.definitionRevision),
           )
         )
           throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
@@ -333,16 +379,19 @@ export class RatingContentReviewFacade {
     const context = targetEligibilityContext(handle, tx);
     if (!batch.length) return Object.freeze([]);
     const inputs = batch.map((input) => {
-      let canonical: RatingContentEnvelope;
+      let definition: RatingTargetDefinitionDescriptor;
       try {
-        canonical = canonicalRatingEnvelope(input.envelope);
+        definition = canonicalRatingTargetDefinition(input.definition);
       } catch {
         throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
       }
+      const canonical = definition.envelope;
       if (
         !canonicalEqual(canonical, input.envelope) ||
+        !canonicalEqual(canonical, input.row.envelope) ||
+        !canonicalEqual(definition, input.row.definition) ||
         !z.uuid().safeParse(input.id).success ||
-        canonical.purpose !== 'publish_rating_target' ||
+        definition.targetId !== input.id ||
         canonical.targetId !== input.id ||
         input.row.id !== canonical.targetId ||
         input.row.category_id !== canonical.categoryId ||
@@ -352,7 +401,7 @@ export class RatingContentReviewFacade {
         input.row.description !== canonical.description
       )
         throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
-      return { id: input.id, envelope: canonical };
+      return { id: input.id, envelope: canonical, definition };
     });
     // Creator existence retains exactly the canonical anchor lock, acquired as
     // one bounded set. Review rows need no per-item locks/facts: the complete
@@ -360,14 +409,15 @@ export class RatingContentReviewFacade {
     const rows = (
       await tx.query<TargetEligibilityRow>(
         `WITH instant AS MATERIALIZED (SELECT clock_timestamp() now),
-       wanted AS MATERIALIZED (SELECT * FROM unnest($1::uuid[],$2::uuid[]) WITH ORDINALITY r(id,account_id,ordinal)),
+       wanted AS MATERIALIZED (SELECT * FROM unnest($1::uuid[],$2::uuid[],$3::integer[],$4::uuid[]) WITH ORDINALITY r(id,account_id,content_version,definition_revision,ordinal)),
        anchors AS MATERIALIZED (SELECT a.id FROM whaleu_identity.accounts a WHERE a.id IN (SELECT account_id FROM wanted) ORDER BY a.id FOR SHARE OF a)
-       SELECT w.ordinal::integer ordinal,to_jsonb(b) binding,a.id IS NOT NULL account_exists,
+       SELECT w.ordinal::integer ordinal,CASE WHEN w.content_version=1 THEN to_jsonb(b) ELSE to_jsonb(v) END binding,a.id IS NOT NULL account_exists,
        ${approvalProjection},instant.now,${exactTime('false')} exact_time
        FROM wanted w CROSS JOIN instant
        LEFT JOIN anchors a ON a.id=w.account_id
-       LEFT JOIN whaleu_community.rating_approval_bindings b ON b.kind='target' AND b.subject_id=w.id AND b.content_version=1
-       LEFT JOIN whaleu_community.rating_approval_decisions d ON d.id=b.decision_id
+       LEFT JOIN whaleu_community.rating_approval_bindings b ON w.content_version=1 AND b.kind='target' AND b.subject_id=w.id AND b.content_version=1
+       LEFT JOIN whaleu_community.rating_target_definition_bindings v ON w.content_version>=2 AND v.target_id=w.id AND v.content_version=w.content_version AND v.definition_revision=w.definition_revision
+       LEFT JOIN whaleu_community.rating_approval_decisions d ON d.id=CASE WHEN w.content_version=1 THEN b.decision_id ELSE v.decision_id END
        LEFT JOIN whaleu_community.content_approval_policies p ON p.id=d.policy_revision_id
        LEFT JOIN whaleu_community.rating_approval_heads h ON h.decision_id=d.id
        LEFT JOIN whaleu_community.rating_approval_events e ON e.id=h.event_id AND e.decision_id=d.id
@@ -375,6 +425,8 @@ export class RatingContentReviewFacade {
         [
           inputs.map((input) => input.id),
           inputs.map((input) => input.envelope.accountId),
+          inputs.map((input) => input.definition.contentVersion),
+          inputs.map((input) => input.definition.definitionRevision),
         ],
       )
     ).rows;
@@ -389,12 +441,17 @@ export class RatingContentReviewFacade {
         row.ordinal !== index + 1 ||
         row.account_exists !== true ||
         !row.binding ||
-        !ratingBindingMatches(
-          row.binding,
-          'target',
-          input.id,
-          input.envelope,
-        ) ||
+        !(input.definition.contentVersion === 1
+          ? ratingBindingMatches(
+              row.binding as RatingApprovalBinding,
+              'target',
+              input.id,
+              input.envelope,
+            )
+          : ratingTargetDefinitionBindingMatches(
+              row.binding as RatingTargetDefinitionBinding,
+              input.definition,
+            )) ||
         row.id !== row.binding.decision_id ||
         row.digest !== row.binding.digest ||
         !canonicalEqual(row.envelope, input.envelope) ||
@@ -521,7 +578,138 @@ export class RatingContentReviewFacade {
       ).rows[0]
     )
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    if (
+      (
+        await tx.query(
+          'SELECT decision_id FROM whaleu_community.rating_target_definition_bindings WHERE decision_id=$1',
+          [result.value.decisionId],
+        )
+      ).rows[0]
+    )
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     return result.value;
+  }
+  async acceptedTargetEdit(
+    envelope: RatingContentEnvelope,
+    tx: PoolClient,
+  ): Promise<AcceptedRatingApproval> {
+    let canonical: RatingContentEnvelope;
+    try {
+      canonical = canonicalRatingEnvelope(envelope);
+    } catch {
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    }
+    if (
+      canonical.purpose !== 'edit_rating_target' ||
+      !canonicalEqual(canonical, envelope)
+    )
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    return this.accepted(canonical, tx);
+  }
+
+  async bindTargetDefinition(
+    accepted: AcceptedRatingApproval,
+    descriptor: RatingTargetDefinitionDescriptor,
+    tx: PoolClient,
+  ): Promise<void> {
+    let definition: RatingTargetDefinitionDescriptor;
+    try {
+      definition = canonicalRatingTargetDefinition(descriptor);
+    } catch {
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    }
+    if (
+      definition.contentVersion < 2 ||
+      accepted.version !== 3 ||
+      !canonicalEqual(accepted.envelope, definition.envelope)
+    )
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    const fresh = await this.acceptedTargetEdit(definition.envelope, tx);
+    if (
+      accepted.decisionId !== fresh.decisionId ||
+      accepted.digest !== fresh.digest
+    )
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    await tx.query(
+      `INSERT INTO whaleu_community.rating_target_definition_bindings(target_id,content_version,definition_revision,decision_id,account_id,operation,envelope_version,digest,envelope,scope) VALUES($1,$2,$3,$4,$5,'edit_rating_target',3,$6,$7::jsonb,$8::jsonb)`,
+      [
+        definition.targetId,
+        definition.contentVersion,
+        definition.definitionRevision,
+        fresh.decisionId,
+        fresh.envelope.accountId,
+        fresh.digest,
+        canonicalJson(fresh.envelope),
+        canonicalJson(fresh.envelope.scope),
+      ],
+    );
+    this.retainTargetDefinitionBinding(definition, fresh, tx);
+  }
+
+  private retainTargetDefinitionBinding(
+    definition: RatingTargetDefinitionDescriptor,
+    binding: { decisionId: string; digest: string } | null,
+    tx: PoolClient,
+  ): void {
+    const fact = Object.freeze({
+      type: 'target-definition-binding' as const,
+      id: definition.targetId,
+      contentVersion: definition.contentVersion,
+      definitionRevision: definition.definitionRevision,
+      decisionId: binding?.decisionId ?? null,
+      digest: binding?.digest ?? null,
+    });
+    registerRequiredTransactionFact(
+      tx,
+      proof,
+      `target-definition-binding:${fact.id}:${fact.contentVersion}:${fact.definitionRevision}:${fact.decisionId}:${fact.digest}`,
+      fact,
+    );
+  }
+
+  async currentTargetDefinition(
+    descriptor: RatingTargetDefinitionDescriptor,
+    tx: PoolClient,
+  ): Promise<Decision<AcceptedRatingApproval>> {
+    await this.navigation(tx);
+    let definition: RatingTargetDefinitionDescriptor;
+    try {
+      definition = canonicalRatingTargetDefinition(descriptor);
+    } catch {
+      return { kind: 'unavailable' };
+    }
+    if (definition.contentVersion === 1)
+      return this.current(
+        'target',
+        definition.targetId,
+        definition.envelope,
+        tx,
+      );
+    if (!(await this.anchor(definition.envelope.accountId, tx)))
+      return { kind: 'unavailable' };
+    const binding = (
+      await tx.query<RatingTargetDefinitionBinding>(
+        'SELECT * FROM whaleu_community.rating_target_definition_bindings WHERE target_id=$1 AND content_version=$2 FOR SHARE',
+        [definition.targetId, definition.contentVersion],
+      )
+    ).rows[0];
+    this.retainTargetDefinitionBinding(
+      definition,
+      binding
+        ? { decisionId: binding.decision_id, digest: binding.digest }
+        : null,
+      tx,
+    );
+    if (!binding || !ratingTargetDefinitionBindingMatches(binding, definition))
+      return { kind: 'unavailable' };
+    const row = await this.row(binding.decision_id, false, tx);
+    if (
+      !row ||
+      row.digest !== binding.digest ||
+      !canonicalEqual(row.envelope, definition.envelope)
+    )
+      return { kind: 'unavailable' };
+    return this.validate(row, false, tx);
   }
   async bind(
     accepted: AcceptedRatingApproval,

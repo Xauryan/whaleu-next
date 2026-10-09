@@ -1,3 +1,4 @@
+import { ratingTargetOwnerEditingPath } from './target-owner-editing-contract';
 import { ratingTargetOwnerDeletionPath } from './target-owner-deletion-contract';
 import { ratingDeletionPath } from './deletion-contract';
 import {
@@ -40,6 +41,7 @@ import {
   decodeRatingCommandIntent,
   isRatingSubscriptionIntent,
   isRatingTargetCreationIntent,
+  isRatingTargetOwnerEditingIntent,
   isRatingTargetOwnerDeletionIntent,
   isRatingAdminDeletionIntent,
   isRatingDeletionContextChanged,
@@ -167,6 +169,9 @@ export function ratingError(error: unknown): string {
           '评分或目标已被更新，请刷新后重新选择并确认；未覆盖其他设备的修改',
         RATING_CREATION_CONTEXT_CHANGED:
           '原创建申请已关闭；请刷新目录后重新填写并确认',
+        RATING_EDIT_CONTEXT_CHANGED:
+          '原编辑申请已关闭；请重新读取当前内容后填写并确认',
+        RATING_EDIT_CANCELLED: '原编辑申请已撤销，没有执行此次编辑',
         RATING_CREATION_CANCELLED: '原创建申请已撤销，没有创建对象',
         RATING_TARGET_DELETION_CANCELLED: '原删除申请已撤销，没有执行此次删除',
         RATING_DELETION_CONTEXT_CHANGED:
@@ -1017,6 +1022,7 @@ export class RatingController extends CommunityController<RatingView> {
         if (
           isRatingAdminDeletionIntent(intent) ||
           isRatingTargetCreationIntent(intent) ||
+          isRatingTargetOwnerEditingIntent(intent) ||
           isRatingTargetOwnerDeletionIntent(intent)
         )
           invalidRating();
@@ -1162,6 +1168,16 @@ export class RatingController extends CommunityController<RatingView> {
       root &&
       root.targetId === this.view.detail?.id
       ? `/pages/rating-thread/rating-thread?targetId=${root.targetId}&rootId=${root.id}${this.view.regionId ? `&regionId=${this.view.regionId}` : ''}`
+      : null;
+  }
+  ownerEditingPath(): string | null {
+    // The known ID is an entry point, not an ownership claim or a permission to see text.
+    return !this.inactive &&
+      !!this.accountId() &&
+      this.mode === 'detail' &&
+      !!this.runtime.ratingTargetOwnerEditing &&
+      ratingId(this.route.targetId)
+      ? ratingTargetOwnerEditingPath(this.route.targetId)
       : null;
   }
   ownerDeletionPath(): string | null {

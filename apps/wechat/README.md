@@ -439,3 +439,28 @@ Navigation carries only current structured IDs and destination owners reread the
 current parent/root/reply. No provider credentials or activation controls are
 shipped in the client. Unit tests and emitted-handler/bounded-WXML smoke use
 synthetic responses; they do not establish real provider or physical-device QA.
+
+## Ratings M2B: creator text editing
+
+The separate `target-owner-edit` page starts with a known target ID and loads its
+current server-authorized text and complete lifecycle/definition/catalog tuple.
+The form never displays text from a recovery journal or infers creator authority
+from public detail. Editing is limited to name/description; images and trusted
+review issuance are not exposed. The metadata-only M2A deletion entry remains
+available independently of edit eligibility and current public visibility.
+
+A second confirmation freezes the canonical full original input in the shared
+origin/account v7 slot before prepare. Original v1–v6 keys and serialized intents
+are unchanged and still recover first. Every explicit retry prepares the same
+key/input, then commits using only that attempt's transient token. Login epoch
+changes block old prepared callbacks; a new session cannot directly reuse a
+previously prepared publish context. Unknown responses, missing receipts and
+failed local settlement keep the journal protected. Explicit server cancellation
+requires its own confirmation; prior applied/noop history takes precedence.
+
+Only strict durable receipts settle history, never current text. Successful
+historical edit receipts publish only target ID/revision to invalidate catalog,
+detail, thread and complete-pool random snapshots. Current data requires a fresh
+server read. Unit coverage and the emitted native page/runtime/HTTPS-transport/
+WXML smoke are separate from the real backend HTTP/PostgreSQL bridge and physical
+WeChat/provider validation; synthetic transport does not prove either.

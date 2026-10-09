@@ -14,6 +14,22 @@ const shared = {
   scope: z.strictObject({ regionId: id.nullable() }),
   assetIds: z.tuple([]),
 };
+export const ratingTargetEditEnvelopeSchema = z
+  .strictObject({
+    ...shared,
+    version: z.literal(3),
+    purpose: z.literal('edit_rating_target'),
+    previousTargetRevision: id,
+    previousDefinitionRevision: id,
+    definitionRevision: id,
+    contentVersion: z.number().int().min(2).max(2147483647),
+    name: ratingText(100),
+    description: ratingText(500, false),
+  })
+  .refine((value) => value.previousTargetRevision !== value.targetRevision)
+  .refine(
+    (value) => value.previousDefinitionRevision !== value.definitionRevision,
+  );
 /** Distinct rating purposes, never post aliases or actor-null content. */
 export const ratingContentEnvelopeSchema = z.discriminatedUnion('purpose', [
   z.strictObject({
@@ -40,8 +56,13 @@ export const ratingContentEnvelopeSchema = z.discriminatedUnion('purpose', [
     authorMode: z.enum(['named', 'anonymous']),
     body: ratingText(500),
   }),
+  ratingTargetEditEnvelopeSchema,
 ]);
 export type RatingContentEnvelope = z.infer<typeof ratingContentEnvelopeSchema>;
+export type RatingTargetEditEnvelope = Extract<
+  RatingContentEnvelope,
+  { purpose: 'edit_rating_target' }
+>;
 export type RatingReplyEnvelope = Extract<
   RatingContentEnvelope,
   { purpose: 'publish_rating_reply' }
@@ -50,7 +71,7 @@ export type RatingContentKind = 'target' | 'comment' | 'reply';
 export interface AcceptedRatingApproval {
   decisionId: string;
   digest: string;
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   envelope: RatingContentEnvelope;
 }
 export function canonicalRatingEnvelope(value: unknown): RatingContentEnvelope {

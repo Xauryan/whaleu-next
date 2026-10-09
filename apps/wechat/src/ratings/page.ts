@@ -97,6 +97,9 @@ export function registerRatingPage(mode: RatingMode): void {
       this.route = regionId ? { regionId } : {};
       void this.controller?.selectRegion(regionId);
     },
+    onOwnerEditing() {
+      this.navigator?.open(this.controller?.ownerEditingPath() ?? null);
+    },
     onOwnerDeletion() {
       this.navigator?.open(this.controller?.ownerDeletionPath() ?? null);
     },

@@ -1,3 +1,7 @@
+import {
+  HttpRatingTargetOwnerEditingGateway,
+  type RatingTargetOwnerEditingGateway,
+} from '../ratings/target-owner-editing-gateway';
 import { RatingTargetChanges } from '../ratings/target-changes';
 import {
   HttpRatingTargetOwnerDeletionGateway,
@@ -111,6 +115,7 @@ import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
   readonly ratingTargetChanges?: RatingTargetChanges;
   readonly ratingRandom?: RatingRandomGateway;
+  readonly ratingTargetOwnerEditing?: RatingTargetOwnerEditingGateway;
   readonly ratingTargetOwnerDeletion?: RatingTargetOwnerDeletionGateway;
   readonly ratingManagement?: RatingManagementGateway;
   readonly ratingDeletion?: RatingDeletionGateway;
@@ -179,6 +184,10 @@ export function createCommunityRuntime(
       : {}),
     ...(identity.api
       ? {
+          ratingTargetOwnerEditing: new HttpRatingTargetOwnerEditingGateway(
+            identity.api,
+            identity.sessions,
+          ),
           ratingTargetOwnerDeletion: new HttpRatingTargetOwnerDeletionGateway(
             identity.api,
           ),

@@ -69,7 +69,27 @@ function fixture(count = 1, catalogCount = 1) {
             name: `Target ${i}`,
             description: '',
             active: true,
-            envelope: { id },
+            envelope: {
+              version: 1,
+              accountId: creatorId,
+              purpose: 'publish_rating_target',
+              clientRequestId: uuid(500_000 + i),
+              targetId: id,
+              targetRevision: revision,
+              categoryId,
+              categoryRevision: uuid(400_000),
+              catalogRevision: catalogs[0]!.id,
+              scope: { regionId: null },
+              assetIds: [],
+              name: `Target ${i}`,
+              description: '',
+            },
+            content_version: 1 as number | null,
+            definition_revision: revision as string | null,
+            applied_target_revision: revision as string | null,
+            definition_target_id: id as string | null,
+            lifecycle_target_revision: revision as string | null,
+            owner_deleted: false,
           },
           summary: {
             revision,
@@ -208,6 +228,18 @@ for (const count of [1001, 2048])
     for (const scan of scans) {
       assert.equal(scan.values.at(-1), RATING_COMPLETE_POOL_BATCH_SIZE);
       assert.match(scan.sql, /LEFT JOIN whaleu_ratings.targets/);
+      assert.match(
+        scan.sql,
+        /LEFT JOIN whaleu_ratings.target_definition_heads/,
+      );
+      assert.match(
+        scan.sql,
+        /LEFT JOIN whaleu_ratings.target_definition_versions/,
+      );
+      assert.match(
+        scan.sql,
+        /LEFT JOIN whaleu_ratings.target_definition_lifecycles/,
+      );
       assert.match(scan.sql, /o\.effective_at<=instant\.now/);
       assert.match(scan.sql, /b\.creation_transaction=c\.creation_transaction/);
       assert.doesNotMatch(scan.sql, /FOR SHARE|DISTINCT t\.id/);
@@ -490,4 +522,105 @@ test('DB-clock whole-request deadline is checked after every final owner proof',
   await f.repository.complete(handle, f.tx);
   f.state.now = new Date(f.state.now.getTime() + 15_001);
   await assert.rejects(checkTransactionDeadlines(f.tx), ratingUnavailable);
+});
+
+test('missing current head, version, or lifecycle at the end of a large pool aborts the complete selection', async () => {
+  for (const column of [
+    'content_version',
+    'definition_revision',
+    'applied_target_revision',
+    'definition_target_id',
+    'lifecycle_target_revision',
+  ] as const) {
+    const f = fixture(1001),
+      handle = await prepared(f);
+    f.state.paths.at(-1)!.target[column] = null;
+    let seen = 0;
+    await assert.rejects(async () => {
+      for (;;) {
+        const batch = await f.repository.next(handle, f.tx);
+        seen += batch.items.length;
+        if (batch.done) break;
+      }
+    }, ratingUnavailable);
+    assert.ok(seen > 520);
+    await assert.rejects(
+      f.repository.complete(handle, f.tx),
+      ratingUnavailable,
+    );
+  }
+});
+
+test('pool descriptor binds definition publication rather than later target lifecycle and owner deletion remains closed', async () => {
+  const f = fixture(2),
+    handle = await prepared(f);
+  const current = f.state.paths[0]!.target;
+  const definitionRevision = current.definition_revision;
+  current.revision = randomUUID();
+  current.lifecycle_target_revision = current.revision;
+  f.state.paths[1]!.target.owner_deleted = true;
+  const batch = await f.repository.next(handle, f.tx);
+  assert.equal(batch.items.length, 1);
+  assert.equal(batch.items[0]!.row.revision, current.revision);
+  assert.equal(
+    batch.items[0]!.definition.definitionRevision,
+    definitionRevision,
+  );
+  assert.equal(
+    batch.items[0]!.definition.appliedTargetRevision,
+    definitionRevision,
+  );
+  assert.equal(batch.items[0]!.row.definition, batch.items[0]!.definition);
+  assert.ok(Object.isFrozen(batch.items[0]!.definition));
+  await f.repository.complete(handle, f.tx);
+});
+
+test('a pool larger than the legacy fact limit preserves mixed v1 and edited current definitions in every branded batch', async () => {
+  const f = fixture(1001),
+    handle = await prepared(f);
+  for (let i = 0; i < f.state.paths.length; i++) {
+    if (i % 2 === 0) continue;
+    const target = f.state.paths[i]!.target;
+    const name = `Edited target ${i}`;
+    const definitionRevision = uuid(600_000 + i);
+    const appliedTargetRevision = uuid(700_000 + i);
+    Object.assign(target, {
+      name,
+      content_version: 2,
+      definition_revision: definitionRevision,
+      applied_target_revision: appliedTargetRevision,
+      envelope: {
+        ...target.envelope,
+        version: 3,
+        purpose: 'edit_rating_target',
+        targetRevision: appliedTargetRevision,
+        previousTargetRevision: target.revision,
+        previousDefinitionRevision: target.definition_revision,
+        definitionRevision,
+        contentVersion: 2,
+        name,
+      },
+    });
+  }
+  let seen = 0;
+  for (;;) {
+    const batch = await f.repository.next(handle, f.tx);
+    assertRatingCompletePoolBatch(batch, f.tx);
+    assert.ok(batch.items.length <= 128);
+    for (const item of batch.items) {
+      const index = Number(BigInt(`0x${item.id.slice(-12)}`)) - 1;
+      assert.equal(item.definition.contentVersion, index % 2 === 0 ? 1 : 2);
+      assert.equal(
+        item.row.name,
+        index % 2 === 0 ? `Target ${index}` : `Edited target ${index}`,
+      );
+      assert.equal(item.row.envelope, item.definition.envelope);
+      assert.ok(Object.isFrozen(item.definition));
+      seen++;
+    }
+    if (batch.done) break;
+  }
+  assert.equal(seen, 1001);
+  await f.repository.complete(handle, f.tx);
+  await checkTransactionDeadlines(f.tx);
 });

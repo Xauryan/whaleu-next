@@ -13,9 +13,10 @@ import { RatingSafetyFacade } from '../safety/rating.facade.js';
 import { AuthorDisplayService } from '../profile/author-display.service.js';
 import { RatingsAccessService } from './access.js';
 import { RatingsRepository } from './repository.js';
+import { qualifyCurrentRatingTarget } from './target-projection.facade.js';
 import type {
   RatingCatalog,
-  TargetRow,
+  CurrentTargetRow,
   CategoryRow,
   CommentRow,
 } from './repository.js';
@@ -88,21 +89,17 @@ export class RatingsService {
     tx: PoolClient,
     write = false,
   ) {
-    const result = await this.records.target(catalog, id, tx, write),
-      decision = await this.review.current(
-        'target',
-        id,
-        canonicalRatingEnvelope(result.row.envelope),
-        tx,
-      );
-    if (decision.kind === 'deny')
-      throw new ApplicationError('RATING_NOT_FOUND');
-    if (decision.kind !== 'allow')
-      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
-    return result;
+    return qualifyCurrentRatingTarget(
+      this.records,
+      this.review,
+      catalog,
+      id,
+      tx,
+      write,
+    );
   }
   private async targetProjection(
-    row: TargetRow,
+    row: CurrentTargetRow,
     actor: string,
     tx: PoolClient,
   ) {
@@ -537,14 +534,14 @@ export class RatingsService {
       },
     );
   }
-  private revision(row: Pick<TargetRow, 'revision'>, expected: string) {
+  private revision(row: Pick<CurrentTargetRow, 'revision'>, expected: string) {
     if (row.revision !== expected)
       throw new ApplicationError('RATING_REVISION_CONFLICT');
   }
   private envelope(
     actor: string,
     command: CreateRatingComment,
-    target: TargetRow,
+    target: CurrentTargetRow,
     category: CategoryRow,
     catalog: RatingCatalog,
   ) {

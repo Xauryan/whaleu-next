@@ -21,6 +21,7 @@ export async function writeRatingApproval(
     result?: 'allow' | 'reject' | 'pending' | 'failed';
     consumeUntil?: Date;
     visibilityUntil?: Date;
+    policyUntil?: Date;
   } = {},
 ) {
   const envelope = canonicalRatingEnvelope(value),
@@ -36,11 +37,16 @@ export async function writeRatingApproval(
         now - 1000,
         (options.consumeUntil?.getTime() ?? Infinity) - 1000,
         (options.visibilityUntil?.getTime() ?? Infinity) - 1000,
+        (options.policyUntil?.getTime() ?? Infinity) - 1000,
       ),
     );
   await tx.query(
-    `INSERT INTO whaleu_community.content_approval_policies(id,policy_key,version,coverage,provenance,issuer,provenance_ref,valid_from,valid_until) VALUES($1,'local-explicit-v1',1,'complete','accepted','synthetic-rating-review','synthetic-rating-policy',$2,NULL)`,
-    [policyRevisionId, new Date(evaluatedAt.getTime() - 1000)],
+    `INSERT INTO whaleu_community.content_approval_policies(id,policy_key,version,coverage,provenance,issuer,provenance_ref,valid_from,valid_until) VALUES($1,'local-explicit-v1',1,'complete','accepted','synthetic-rating-review','synthetic-rating-policy',$2,$3)`,
+    [
+      policyRevisionId,
+      new Date(evaluatedAt.getTime() - 1000),
+      options.policyUntil ?? null,
+    ],
   );
   await tx.query(
     `INSERT INTO whaleu_community.rating_approval_decisions(id,account_id,operation,envelope_version,digest,envelope,policy_revision_id,result,coverage,provenance,issuer,provenance_ref,evaluated_at,consume_until,visibility_model,visibility_until) VALUES($1,$2,$3,$12,$4,$5::jsonb,$6,$7,'complete','accepted','synthetic-rating-review','synthetic-exact-rating-approval',$8,$9,$10,$11)`,
@@ -120,6 +126,7 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
       sharedTargets?: readonly { id: string; categoryId: string }[];
       validUntil?: Date;
       hidden?: boolean;
+      approvalOptions?: Parameters<typeof writeRatingApproval>[2];
     } = {},
   ) =>
     withCommunityScopeWriter(f.pool, async (tx) => {
@@ -175,7 +182,11 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
           name,
           description: 'Synthetic target description',
         });
-        const approval = await writeRatingApproval(tx, envelope);
+        const approval = await writeRatingApproval(
+          tx,
+          envelope,
+          options.approvalOptions,
+        );
         await tx.query(
           `INSERT INTO whaleu_ratings.target_sources(id,target_id,origin,coverage,provenance,source_reference,policy_reference,effective_at) VALUES($1,$2,$3,'complete','accepted','synthetic-new-target-source','synthetic-new-domain-target-policy',clock_timestamp())`,
           [

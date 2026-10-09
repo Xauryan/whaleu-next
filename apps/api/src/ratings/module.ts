@@ -1,3 +1,6 @@
+import { RatingTargetEditController } from './management/target-edit/controller.js';
+import { RatingTargetEditService } from './management/target-edit/service.js';
+import { RatingTargetEditRepository } from './management/target-edit/repository.js';
 import { RatingTargetOwnerDeletionController } from './management/target-deletion/controller.js';
 import { RatingTargetOwnerDeletionService } from './management/target-deletion/service.js';
 import { RatingTargetOwnerDeletionRepository } from './management/target-deletion/repository.js';
@@ -62,6 +65,7 @@ import { RatingsCursors } from './cursor.js';
     RatingRequestThrottlingModule,
   ],
   controllers: [
+    RatingTargetEditController,
     RatingTargetOwnerDeletionController,
     RatingRandomController,
     RatingManagementController,
@@ -72,6 +76,8 @@ import { RatingsCursors } from './cursor.js';
     RatingLikesController,
   ],
   providers: [
+    RatingTargetEditService,
+    RatingTargetEditRepository,
     RatingTargetOwnerDeletionService,
     RatingTargetOwnerDeletionRepository,
     RatingRandomService,

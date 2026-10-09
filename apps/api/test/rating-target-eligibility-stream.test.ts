@@ -13,7 +13,10 @@ import type { RatingContentEnvelope } from '../src/community/content-review/rati
 import type {
   RatingApprovalBinding,
   RatingApprovalRow,
+  RatingTargetDefinitionBinding,
 } from '../src/community/content-review/rating-approval-validation.js';
+import type { RatingTargetDefinitionEnvelope } from '../src/community/content-review/rating-target-definition-contracts.js';
+import { canonicalRatingTargetDefinition } from '../src/community/content-review/rating-target-definition-contracts.js';
 import type { TargetRow } from '../src/ratings/repository.js';
 import { RatingCompletePoolRepository } from '../src/ratings/random/complete-pool.repository.js';
 import type { RatingCompletePoolBatch } from '../src/ratings/random/complete-pool.repository.js';
@@ -34,8 +37,8 @@ const errorIs = (code: string) => (error: unknown) =>
 const unavailable = (error: unknown) =>
   error instanceof ApplicationError &&
   ['CONTENT_REVIEW_UNAVAILABLE', 'RATING_UNAVAILABLE'].includes(error.code);
-function envelope(n: number): RatingContentEnvelope {
-  return canonicalRatingEnvelope({
+function envelope(n: number): RatingTargetDefinitionEnvelope {
+  const value = canonicalRatingEnvelope({
     version: 1,
     purpose: 'publish_rating_target',
     accountId,
@@ -50,15 +53,21 @@ function envelope(n: number): RatingContentEnvelope {
     name: `Synthetic target ${n}`,
     description: '',
   });
+  assert.equal(value.purpose, 'publish_rating_target');
+  if (value.purpose !== 'publish_rating_target') assert.fail('Wrong fixture');
+  return value;
 }
 interface ReviewRow extends RatingApprovalRow {
   ordinal: number;
-  binding: RatingApprovalBinding | null;
+  binding: RatingApprovalBinding | RatingTargetDefinitionBinding | null;
   account_exists: boolean;
   exact_time: boolean;
   now: Date;
 }
-function reviewRow(e: RatingContentEnvelope, ordinal: number): ReviewRow {
+function reviewRow(
+  e: RatingTargetDefinitionEnvelope,
+  ordinal: number,
+): ReviewRow {
   const digest = ratingApprovalDigest(e),
     decisionId = id(300000 + Number(e.targetId.slice(-12)));
   return {
@@ -67,9 +76,17 @@ function reviewRow(e: RatingContentEnvelope, ordinal: number): ReviewRow {
     exact_time: true,
     now: new Date(now),
     binding: {
-      kind: 'target',
-      subject_id: e.targetId,
-      content_version: 1,
+      ...(e.purpose === 'publish_rating_target'
+        ? {
+            kind: 'target' as const,
+            subject_id: e.targetId,
+            content_version: 1,
+          }
+        : {
+            target_id: e.targetId,
+            content_version: e.contentVersion,
+            definition_revision: e.definitionRevision,
+          }),
       decision_id: decisionId,
       account_id: e.accountId,
       operation: e.purpose,
@@ -223,18 +240,34 @@ function fixture(count = 1) {
                   category_id: e.categoryId,
                   creator_id: e.accountId,
                   region_id: null,
-                  name: e.purpose === 'publish_rating_target' ? e.name : '',
-                  description: '',
+                  name: e.name,
+                  description: e.description,
                   active: state.active(Number(e.targetId.slice(-12))),
                   envelope: e,
                 };
                 state.alterTarget(row);
-                return row;
+                return {
+                  ...row,
+                  content_version:
+                    e.purpose === 'publish_rating_target'
+                      ? 1
+                      : e.contentVersion,
+                  definition_revision:
+                    e.purpose === 'publish_rating_target'
+                      ? e.targetRevision
+                      : e.definitionRevision,
+                  applied_target_revision: e.targetRevision,
+                  definition_target_id: e.targetId,
+                  lifecycle_target_revision: row.revision,
+                  owner_deleted: false,
+                };
               })(),
             })),
         };
       if (
-        sql.includes('SELECT w.ordinal::integer ordinal,to_jsonb(b) binding')
+        sql.includes(
+          'SELECT w.ordinal::integer ordinal,CASE WHEN w.content_version=1',
+        )
       ) {
         const rows = (values[0] as string[]).map((key, i) => {
           const row = reviewRow(envelopes.get(key)!, i + 1);
@@ -269,7 +302,7 @@ function fixture(count = 1) {
     const counts = await facade.complete(context, tx);
     return { counts, decisions, context };
   }
-  return { tx, state, commands, facade, pool, start, scan };
+  return { tx, state, commands, facade, pool, start, scan, envelopes };
 }
 for (const count of [1001, 2048])
   test(`complete ${count}-target canonical scan keeps final proof constant-size`, async () => {
@@ -298,7 +331,7 @@ for (const count of [1001, 2048])
       ),
     );
     const reads = f.commands.filter((command) =>
-      command.sql.includes('to_jsonb(b) binding'),
+      command.sql.includes('CASE WHEN w.content_version=1 THEN to_jsonb(b)'),
     );
     assert.equal(reads.length, Math.ceil(count / 128));
     assert.ok(
@@ -606,4 +639,156 @@ test('set-query output cardinality must match the complete input batch', async (
   const f = fixture(2);
   f.state.incompleteRows = true;
   await assert.rejects(f.scan(), errorIs('CONTENT_REVIEW_UNAVAILABLE'));
+});
+
+function editedEnvelope(
+  n: number,
+  contentVersion: number,
+): RatingTargetDefinitionEnvelope {
+  const original = envelope(n);
+  const value = canonicalRatingEnvelope({
+    ...original,
+    version: 3,
+    purpose: 'edit_rating_target',
+    contentVersion,
+    previousTargetRevision: original.targetRevision,
+    targetRevision: id(400000 + n),
+    previousDefinitionRevision: original.targetRevision,
+    definitionRevision: id(500000 + n),
+    name: `Synthetic edited target ${n}`,
+  });
+  if (value.purpose !== 'edit_rating_target') assert.fail('Wrong fixture');
+  return value;
+}
+
+test('mixed v1 and edited content versions cross every 128 boundary with constant Review proof size', async () => {
+  const f = fixture(1001);
+  for (let n = 1; n <= 1001; n++)
+    if (n % 3 !== 1)
+      f.envelopes.set(id(n), editedEnvelope(n, n % 3 === 2 ? 2 : 3));
+  f.state.alter = (row, n) => {
+    if (n === 128 || n === 129) row.state = 'held';
+  };
+  assert.deepEqual((await f.scan()).counts, {
+    validatedCount: 1001,
+    allowedCount: 999,
+  });
+  const beforeFinal = f.commands.length;
+  await checkTransactionDeadlines(f.tx);
+  assert.equal(
+    f.commands.slice(beforeFinal).filter((c) => c.sql.startsWith('LOCK TABLE'))
+      .length,
+    2,
+  );
+  assert.ok(
+    f.commands
+      .slice(beforeFinal)
+      .every((c) => !c.sql.includes('rating_target_definition_bindings')),
+  );
+  const batches = f.commands.filter((c) =>
+    c.sql.includes('CASE WHEN w.content_version=1 THEN to_jsonb(b)'),
+  );
+  assert.equal(batches.length, Math.ceil(1001 / 128));
+  assert.ok(
+    batches.every((c) =>
+      c.sql.includes(
+        'LEFT JOIN whaleu_community.rating_target_definition_bindings',
+      ),
+    ),
+  );
+  assert.ok(
+    batches.every(
+      (c) =>
+        (c.values[0] as string[]).length === (c.values[2] as number[]).length &&
+        (c.values[0] as string[]).length === (c.values[3] as string[]).length,
+    ),
+  );
+  assert.deepEqual(
+    new Set(batches.flatMap((c) => c.values[2] as number[])),
+    new Set([1, 2, 3]),
+  );
+});
+
+test('missing edited binding in the last mixed batch fails the entire scope', async () => {
+  const f = fixture(129);
+  f.envelopes.set(id(129), editedEnvelope(129, 3));
+  f.state.alter = (row, n) => {
+    if (n === 129) row.binding = null;
+  };
+  await assert.rejects(f.scan(), errorIs('CONTENT_REVIEW_UNAVAILABLE'));
+  await assert.rejects(checkTransactionDeadlines(f.tx), unavailable);
+});
+
+test('edited current denial must match its exact definition version and cannot use a v1 binding', async () => {
+  for (const mismatch of ['content', 'definition', 'legacy'] as const) {
+    const f = fixture();
+    f.envelopes.set(id(1), editedEnvelope(1, 2));
+    f.state.alter = (row) => {
+      row.state = 'revoked';
+      if (mismatch === 'content')
+        row.binding = { ...row.binding!, content_version: 3 };
+      else if (mismatch === 'definition')
+        row.binding = {
+          ...(row.binding as RatingTargetDefinitionBinding),
+          definition_revision: id(999999),
+        };
+      else row.binding = reviewRow(envelope(1), 1).binding;
+    };
+    await assert.rejects(f.scan(), errorIs('CONTENT_REVIEW_UNAVAILABLE'));
+  }
+});
+
+test('mixed edited bindings retain the same complete epoch and pending-writer fences', async () => {
+  for (const pending of [false, true]) {
+    const f = fixture(129);
+    f.envelopes.set(id(129), editedEnvelope(129, 2));
+    await f.scan();
+    if (pending) f.state.lockFailure = true;
+    else f.state.bindingEpoch = '1';
+    await assert.rejects(checkTransactionDeadlines(f.tx), unavailable);
+  }
+});
+
+test('internal mixed-input validation rejects descriptor or envelope drift from its owner row before any Review query', async () => {
+  for (const dimension of ['definition', 'envelope'] as const) {
+    const f = fixture();
+    f.envelopes.set(id(1), editedEnvelope(1, 2));
+    const started = await f.start();
+    const genuine = await f.pool.next(started.handle, f.tx);
+    const original = genuine.items[0]!;
+    const otherEnvelope = editedEnvelope(1, 3);
+    const otherDefinition = canonicalRatingTargetDefinition({
+      targetId: otherEnvelope.targetId,
+      contentVersion: 3,
+      definitionRevision: id(500001),
+      appliedTargetRevision: otherEnvelope.targetRevision,
+      envelope: otherEnvelope,
+    });
+    const drifted = {
+      ...original,
+      row: {
+        ...original.row,
+        ...(dimension === 'definition'
+          ? { definition: otherDefinition }
+          : { envelope: otherEnvelope }),
+      },
+    };
+    // This explicitly exercises the private input guard only. Public forged
+    // batches remain rejected by validateBatch's separate owner-brand tests.
+    const validate = Reflect.get(f.facade, 'targetEligibilityBatch') as (
+      handle: RatingTargetEligibilityContext,
+      items: RatingCompletePoolBatch['items'],
+      tx: PoolClient,
+    ) => Promise<readonly ('allow' | 'deny')[]>;
+    await assert.rejects(
+      validate.call(f.facade, started.context, [drifted], f.tx),
+      errorIs('CONTENT_REVIEW_UNAVAILABLE'),
+    );
+    assert.equal(
+      f.commands.some((command) =>
+        command.sql.includes('CASE WHEN w.content_version=1 THEN to_jsonb(b)'),
+      ),
+      false,
+    );
+  }
 });

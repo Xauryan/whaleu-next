@@ -1,3 +1,4 @@
+import * as ownerEdit from '../src/ratings/management/target-edit/contracts.js';
 import * as ownerDeletion from '../src/ratings/management/target-deletion/contracts.js';
 import * as management from '../src/ratings/management/contracts.js';
 import * as randomRatings from '../src/ratings/random/contracts.js';
@@ -45,9 +46,34 @@ test('ratings OpenAPI is deterministic offline and artifact-current', async () =
       'utf8',
     ),
   ));
-test('all 56 rating operations have exact schemas and safe auth/error metadata', async () => {
+test('all 61 rating operations have exact schemas and safe auth/error metadata', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
+    [
+      '/v1/ratings/management/owner-edit/targets/{targetId}/context',
+      'get',
+      ownerEdit.ratingTargetEditContextSchema,
+    ],
+    [
+      '/v1/ratings/management/owner-edit/prepare',
+      'post',
+      ownerEdit.ratingTargetEditPrepareResultSchema,
+    ],
+    [
+      '/v1/ratings/management/owner-edit/commit',
+      'post',
+      ownerEdit.ratingTargetEditReceiptSchema,
+    ],
+    [
+      '/v1/ratings/management/owner-edit/cancel',
+      'post',
+      ownerEdit.ratingTargetEditReceiptSchema,
+    ],
+    [
+      '/v1/ratings/management/owner-edit/requests/{requestId}',
+      'get',
+      ownerEdit.ratingTargetEditReceiptSchema,
+    ],
     [
       '/v1/ratings/management/owner-deletion/targets/{targetId}/context',
       'get',
@@ -261,6 +287,7 @@ test('all 56 rating operations have exact schemas and safe auth/error metadata',
       updates.ratingNoticeReadSchema,
     ],
   ] as const;
+  assert.equal(cases.length, 61);
   assert.equal(
     Object.values(doc.paths).reduce((n, p) => n + Object.keys(p!).length, 0),
     cases.length,

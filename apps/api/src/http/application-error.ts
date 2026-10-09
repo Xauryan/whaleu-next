@@ -11,6 +11,14 @@ const conditions = {
     status: 503,
     message: 'Rating deletion authority is unavailable',
   },
+  RATING_EDIT_CONTEXT_CHANGED: {
+    status: 409,
+    message: 'The original target editing context has changed.',
+  },
+  RATING_EDIT_CANCELLED: {
+    status: 409,
+    message: 'The original target editing request was cancelled.',
+  },
   RATING_CREATION_CONTEXT_CHANGED: {
     status: 409,
     message: 'Rating creation context changed; request is closed',

@@ -1,3 +1,4 @@
+import { smokeRatingOwnerEditing } from './smoke-rating-owner-editing.mjs';
 import { smokeRatingOwnerManagement } from './smoke-rating-owner-management.mjs';
 import { smokeRatingsR3A } from './smoke-ratings-r3a.mjs';
 import { smokeRatingsR3R } from './smoke-ratings-r3r.mjs';
@@ -135,6 +136,26 @@ function assertColdTargetOwnerDeletion(current) {
     assert.equal(current.data[key], '', `target-owner-delete: ${key}`);
   assert.equal(current.locator, null);
 }
+function assertColdTargetOwnerEditing(current) {
+  for (const key of [
+    'ready',
+    'editConfirmation',
+    'canCancelEditing',
+    'cancelEditingConfirmation',
+    'frozen',
+    'needsRefresh',
+    'busy',
+  ])
+    assert.equal(current.data[key], false, `target-owner-edit: ${key}`);
+  for (const key of [
+    'name',
+    'description',
+    'receiptStatus',
+    'recoveryOperation',
+  ])
+    assert.equal(current.data[key], '', `target-owner-edit: ${key}`);
+  assert.equal(current.locator, null);
+}
 for (const route of config.pages.filter(
   (route) => !['pages/login/login', 'pages/status/status'].includes(route),
 )) {
@@ -163,6 +184,8 @@ for (const route of config.pages.filter(
     assertColdRatingCreation(current);
   else if (route === 'pages/target-owner-delete/target-owner-delete')
     assertColdTargetOwnerDeletion(current);
+  else if (route === 'pages/target-owner-edit/target-owner-edit')
+    assertColdTargetOwnerEditing(current);
   else assert.equal(current.data.loaded, false);
   assert.ok(current.data.error);
   const template = readFileSync(path.join(dist, `${route}.wxml`), 'utf8');
@@ -182,6 +205,8 @@ for (const route of config.pages.filter(
     assertColdRatingCreation(current);
   else if (route === 'pages/target-owner-delete/target-owner-delete')
     assertColdTargetOwnerDeletion(current);
+  else if (route === 'pages/target-owner-edit/target-owner-edit')
+    assertColdTargetOwnerEditing(current);
   else assert.equal(current.data.loaded, false);
   current.onShow();
   assert.ok(current.controller);
@@ -189,6 +214,11 @@ for (const route of config.pages.filter(
   if (route === 'pages/rating-create/rating-create') {
     assertColdRatingCreation(current);
     assert.equal(current.controller, undefined);
+  }
+  if (route === 'pages/target-owner-edit/target-owner-edit') {
+    assertColdTargetOwnerEditing(current);
+    assert.equal(current.controller, undefined);
+    assert.equal(current.navigator, undefined);
   }
   if (route === 'pages/target-owner-delete/target-owner-delete') {
     assertColdTargetOwnerDeletion(current);
@@ -1906,6 +1936,7 @@ await smokeRatingsR2C({ app, dist, flush: flushTrading });
 await smokeRatingsR3A({ app, dist, flush: flushTrading });
 await smokeRatingsR3R({ app, dist, flush: flushTrading });
 await smokeRatingOwnerManagement({ app, dist, flush: flushTrading });
+await smokeRatingOwnerEditing({ app, dist, flush: flushTrading });
 await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeErrandAdminMutations({ app, dist, flush: flushTrading });
 await smokeErrandAdminNotices({ app, dist, flush: flushTrading });

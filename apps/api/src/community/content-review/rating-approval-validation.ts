@@ -13,6 +13,8 @@ import type {
   RatingContentEnvelope,
   RatingContentKind,
 } from './rating-contracts.js';
+import { canonicalRatingTargetDefinition } from './rating-target-definition-contracts.js';
+import type { RatingTargetDefinitionDescriptor } from './rating-target-definition-contracts.js';
 
 export interface RatingApprovalRow extends ApprovalMetadata {
   id: string;
@@ -33,6 +35,46 @@ export interface RatingApprovalBinding {
   digest: string;
   envelope: unknown;
   scope: unknown;
+}
+
+export interface RatingTargetDefinitionBinding {
+  target_id: string;
+  content_version: number;
+  definition_revision: string;
+  decision_id: string;
+  account_id: string;
+  operation: string;
+  envelope_version: number;
+  digest: string;
+  envelope: unknown;
+  scope: unknown;
+}
+
+/** A wrong-version authoritative denial is still not evidence for this exact
+ * immutable target definition. Never weaken the legacy v1 binding matcher. */
+export function ratingTargetDefinitionBindingMatches(
+  binding: RatingTargetDefinitionBinding,
+  descriptor: RatingTargetDefinitionDescriptor,
+): boolean {
+  try {
+    const definition = canonicalRatingTargetDefinition(descriptor);
+    const envelope = definition.envelope;
+    return (
+      envelope.purpose === 'edit_rating_target' &&
+      z.uuid().safeParse(binding.decision_id).success &&
+      binding.target_id === definition.targetId &&
+      binding.content_version === definition.contentVersion &&
+      binding.definition_revision === definition.definitionRevision &&
+      binding.account_id === envelope.accountId &&
+      binding.operation === 'edit_rating_target' &&
+      binding.envelope_version === 3 &&
+      binding.digest === ratingApprovalDigest(envelope) &&
+      canonicalEqual(binding.envelope, envelope) &&
+      canonicalEqual(binding.scope, envelope.scope)
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function validateRatingApprovalRow(

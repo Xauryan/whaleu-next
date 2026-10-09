@@ -6,6 +6,7 @@ import { canonicalRatingEnvelope } from '../community/content-review/rating-cont
 import { RatingSafetyFacade } from '../safety/rating.facade.js';
 import { AuthorDisplayService } from '../profile/author-display.service.js';
 import { RatingsRepository } from './repository.js';
+import { qualifyCurrentRatingTarget } from './target-projection.facade.js';
 import type { RatingCatalog, CommentRow } from './repository.js';
 import { RatingDiscussionRepository } from './discussion-repository.js';
 import type { ReplyRow } from './discussion-repository.js';
@@ -31,18 +32,14 @@ export class RatingDiscussionProjection {
     tx: PoolClient,
     write = false,
   ) {
-    const result = await this.records.target(catalog, id, tx, write);
-    const decision = await this.review.current(
-      'target',
+    return qualifyCurrentRatingTarget(
+      this.records,
+      this.review,
+      catalog,
       id,
-      canonicalRatingEnvelope(result.row.envelope),
       tx,
+      write,
     );
-    if (decision.kind === 'deny')
-      throw new ApplicationError('RATING_NOT_FOUND');
-    if (decision.kind !== 'allow')
-      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
-    return result;
   }
   async canReply(row: CommentRow, actor: string, tx: PoolClient) {
     if (row.author_mode === 'anonymous') return true;

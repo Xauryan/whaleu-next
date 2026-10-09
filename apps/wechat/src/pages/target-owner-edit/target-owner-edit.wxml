@@ -1,0 +1,28 @@
+<import src="../../ratings/common.wxml" />
+<view class="screen">
+  <view class="title">编辑我创建的对象</view>
+  <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />
+  <view class="notice">仅可编辑当前获准访问的通用评分对象名称与说明。地区和分类保持原值。服务器会重新核验创建者资格、当前版本与精确内容审核；图片与审核签发尚未开放。</view>
+  <view wx:if="{{ready}}" class="card">
+    <view class="section-title">名称（最多 100 个 Unicode 字符）</view>
+    <input value="{{name}}" bindinput="onName" maxlength="-1" disabled="{{busy || frozen || editConfirmation}}" placeholder="填写具体对象名称" />
+    <view class="section-title">说明（最多 500 个 Unicode 字符）</view>
+    <textarea value="{{description}}" bindinput="onDescription" maxlength="-1" disabled="{{busy || frozen || editConfirmation}}" placeholder="可选，介绍这个评分对象" />
+    <button bindtap="onEdit" disabled="{{busy || frozen || !name || editConfirmation}}">确认这些修改</button>
+    <view wx:if="{{editConfirmation}}">
+      <view class="notice">确认提交当前名称和说明？已有评分和互动历史会保留。提交后原输入与编号被冻结，结果未知时只能恢复同一请求或明确撤销。</view>
+      <button bindtap="onConfirmEdit" disabled="{{busy || frozen}}">确认提交编辑申请</button>
+      <button bindtap="onDismissEdit">返回修改</button>
+    </view>
+  </view>
+  <view wx:if="{{canCancelEditing}}" class="card">
+    <button bindtap="onCancelEditing" disabled="{{busy}}">撤销这次未确认的编辑申请</button>
+    <view wx:if="{{cancelEditingConfirmation}}">
+      <view class="notice">确认撤销原编辑申请？服务器将关闭尚未完成的原请求；若编辑已经成功，只会返回成功回执，不会回退已发布的修改。</view>
+      <button bindtap="onConfirmCancelEditing" disabled="{{busy}}">确认撤销原申请</button>
+      <button bindtap="onDismissCancelEditing" disabled="{{busy}}">保留原申请</button>
+    </view>
+  </view>
+  <button bindtap="onCancel">关闭确认并停止等待</button>
+  <button bindtap="onReturnCatalog">返回目录并重新加载 →</button>
+</view>
