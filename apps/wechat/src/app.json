@@ -36,6 +36,7 @@
     "pages/errand-admin/errand-admin",
     "pages/errand-restrictions/errand-restrictions",
     "pages/rating-catalog/rating-catalog",
+    "pages/rating-random/rating-random",
     "pages/rating-detail/rating-detail",
     "pages/rating-thread/rating-thread",
     "pages/rating-updates/rating-updates",

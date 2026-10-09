@@ -10,9 +10,12 @@ import {
   enableRequiredTransactionProof,
   registerRequiredTransactionFact,
   registerTransactionDeadline,
+  transactionReadEpoch,
 } from '../../database/transaction-deadlines.js';
 import type { RequiredTransactionProof } from '../../database/transaction-deadlines.js';
 import type { Decision } from '../community-policy.js';
+import { assertRatingCompletePoolBatch } from '../../ratings/random/complete-pool.repository.js';
+import type { RatingCompletePoolBatch } from '../../ratings/random/complete-pool.repository.js';
 import { approvalProjection } from './approval.repository.js';
 import { canonicalEqual, canonicalJson } from './contracts.js';
 import {
@@ -47,6 +50,45 @@ interface TimedRow extends RatingApprovalRow {
   exact_time: boolean;
   now: Date;
 }
+interface TargetEligibilityRow extends TimedRow {
+  ordinal: number;
+  binding: RatingApprovalBinding | null;
+  account_exists: boolean;
+}
+declare const targetEligibilityBrand: unique symbol;
+export interface RatingTargetEligibilityContext {
+  readonly [targetEligibilityBrand]: true;
+}
+interface TargetEligibilityContext {
+  tx: PoolClient;
+  readEpoch: object;
+  fingerprint: string;
+  bindingFingerprint: string;
+  done: boolean;
+  busy: boolean;
+  complete: boolean;
+  streamKey: object | null;
+  nextOrdinal: number;
+  until: number | null;
+  validatedCount: number;
+  allowedCount: number;
+}
+const targetEligibilityContexts = new WeakMap<
+  object,
+  TargetEligibilityContext
+>();
+let targetEligibilitySerial = 0;
+function targetEligibilityContext(handle: object, tx: PoolClient) {
+  const context = targetEligibilityContexts.get(handle);
+  if (
+    !context ||
+    context.complete ||
+    context.tx !== tx ||
+    context.readEpoch !== transactionReadEpoch(tx)
+  )
+    throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+  return context;
+}
 const joins = `FROM whaleu_community.rating_approval_decisions d JOIN whaleu_community.content_approval_policies p ON p.id=d.policy_revision_id JOIN whaleu_community.rating_approval_heads h ON h.decision_id=d.id JOIN whaleu_community.rating_approval_events e ON e.id=h.event_id AND e.decision_id=d.id`;
 const exactTime = (consume: string) =>
   `coalesce(isfinite(d.evaluated_at) AND d.evaluated_at<=instant.now AND isfinite(p.valid_from) AND p.valid_from<=d.evaluated_at AND (p.valid_until IS NULL OR (isfinite(p.valid_until) AND p.valid_until>instant.now)) AND isfinite(e.occurred_at) AND e.occurred_at>=d.evaluated_at AND e.occurred_at<=instant.now AND isfinite(d.consume_until) AND d.consume_until>d.evaluated_at AND (NOT ${consume} OR d.consume_until>instant.now) AND ((d.visibility_model='durable' AND d.visibility_until IS NULL) OR (d.visibility_model='until' AND isfinite(d.visibility_until) AND d.visibility_until>d.evaluated_at AND d.visibility_until>instant.now)),false)`;
@@ -65,6 +107,52 @@ async function epoch(tx: PoolClient) {
     throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
   return ownerFingerprint(rows);
 }
+async function bindingEpoch(tx: PoolClient) {
+  const rows = (
+    await tx.query<{ singleton: boolean; version: number; epoch: string }>(
+      'SELECT singleton,version,epoch::text FROM whaleu_community.rating_review_binding_epoch',
+    )
+  ).rows;
+  if (
+    rows.length !== 1 ||
+    rows[0]?.singleton !== true ||
+    rows[0].version !== 1 ||
+    !/^(0|[1-9][0-9]*)$/.test(rows[0].epoch) ||
+    BigInt(rows[0].epoch) > 9223372036854775807n
+  )
+    throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+  return ownerFingerprint(rows);
+}
+const targetEligibilityProof: RequiredTransactionProof<{
+  handle: RatingTargetEligibilityContext;
+  fingerprint: string;
+  bindingFingerprint: string;
+}> = {
+  maximumFacts: 1,
+  failureCode: 'CONTENT_REVIEW_UNAVAILABLE',
+  validate: (facts, tx) =>
+    boundedOwnerProof(tx, 'CONTENT_REVIEW_UNAVAILABLE', async (read) => {
+      await read.query(
+        'LOCK TABLE whaleu_community.rating_review_epoch,whaleu_community.rating_review_binding_epoch IN SHARE MODE NOWAIT',
+      );
+      const fingerprint = await epoch(read);
+      const bindingFingerprint = await bindingEpoch(read);
+      if (
+        facts.some((fact) => {
+          const context = targetEligibilityContexts.get(fact.handle);
+          return (
+            !context ||
+            !context.complete ||
+            context.tx !== tx ||
+            context.readEpoch !== transactionReadEpoch(tx) ||
+            fact.fingerprint !== fingerprint ||
+            fact.bindingFingerprint !== bindingFingerprint
+          );
+        })
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    }),
+};
 const proof: RequiredTransactionProof<Fact> = {
   maximumFacts: 520,
   failureCode: 'CONTENT_REVIEW_UNAVAILABLE',
@@ -124,6 +212,210 @@ const proof: RequiredTransactionProof<Fact> = {
 /** Typed sidecar under canonical Review. No query reads rating business tables. */
 @Injectable()
 export class RatingContentReviewFacade {
+  /** Explicit, private lifetime for the complete Ratings-owned source scan.
+   * No batch registers per-target facts. The two monotonic owner epochs cover
+   * every binding/decision/head/event/policy change, including authoritative
+   * denials and absent-to-present bindings, until the final NOWAIT fence. */
+  async begin(tx: PoolClient): Promise<RatingTargetEligibilityContext> {
+    const readEpoch = transactionReadEpoch(tx);
+    if (!readEpoch) throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    enableRequiredTransactionProof(tx, targetEligibilityProof);
+    const fingerprint = await epoch(tx);
+    const bindingFingerprint = await bindingEpoch(tx);
+    if (transactionReadEpoch(tx) !== readEpoch)
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    const handle = Object.freeze({}) as RatingTargetEligibilityContext;
+    registerRequiredTransactionFact(
+      tx,
+      targetEligibilityProof,
+      `target-eligibility:${++targetEligibilitySerial}`,
+      Object.freeze({ handle, fingerprint, bindingFingerprint }),
+    );
+    targetEligibilityContexts.set(handle, {
+      tx,
+      readEpoch,
+      fingerprint,
+      bindingFingerprint,
+      done: false,
+      busy: false,
+      complete: false,
+      streamKey: null,
+      nextOrdinal: 0,
+      until: null,
+      validatedCount: 0,
+      allowedCount: 0,
+    });
+    return handle;
+  }
+  async validateBatch(
+    batch: RatingCompletePoolBatch,
+    handle: RatingTargetEligibilityContext,
+    tx: PoolClient,
+  ): Promise<readonly ('allow' | 'deny')[]> {
+    const context = targetEligibilityContext(handle, tx);
+    if (context.busy) throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    context.busy = true;
+    try {
+      const provenance = assertRatingCompletePoolBatch(batch, tx);
+      if (
+        context.done ||
+        batch.items.length > 128 ||
+        provenance.ordinal !== context.nextOrdinal ||
+        (context.streamKey !== null &&
+          context.streamKey !== provenance.streamKey)
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      context.streamKey = provenance.streamKey;
+      const decisions = await this.targetEligibilityBatch(
+        handle,
+        batch.items,
+        tx,
+      );
+      targetEligibilityContext(handle, tx);
+      context.done = batch.done;
+      context.nextOrdinal += 1;
+      return decisions;
+    } catch (error) {
+      // A partially validated scan is never reusable after any failed batch.
+      targetEligibilityContexts.delete(handle);
+      throw error;
+    } finally {
+      context.busy = false;
+    }
+  }
+  async complete(
+    handle: RatingTargetEligibilityContext,
+    tx: PoolClient,
+  ): Promise<{ validatedCount: number; allowedCount: number }> {
+    const context = targetEligibilityContext(handle, tx);
+    if (!context.done || context.busy)
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    context.busy = true;
+    try {
+      // Complete preparation before sampling. The mandatory fixed-size proof
+      // still detects in-flight/new writers after this pre-sample comparison.
+      if (
+        (await epoch(tx)) !== context.fingerprint ||
+        (await bindingEpoch(tx)) !== context.bindingFingerprint
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      const now = (
+        await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
+      ).rows[0]?.now.getTime();
+      targetEligibilityContext(handle, tx);
+      if (
+        !Number.isFinite(now) ||
+        (context.until !== null && context.until <= now!)
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      registerTransactionDeadline(
+        tx,
+        context.until,
+        'CONTENT_REVIEW_UNAVAILABLE',
+      );
+      context.complete = true;
+      return {
+        validatedCount: context.validatedCount,
+        allowedCount: context.allowedCount,
+      };
+    } catch (error) {
+      targetEligibilityContexts.delete(handle);
+      throw error;
+    } finally {
+      context.busy = false;
+    }
+  }
+  private async targetEligibilityBatch(
+    handle: RatingTargetEligibilityContext,
+    batch: RatingCompletePoolBatch['items'],
+    tx: PoolClient,
+  ): Promise<readonly ('allow' | 'deny')[]> {
+    const context = targetEligibilityContext(handle, tx);
+    if (!batch.length) return Object.freeze([]);
+    const inputs = batch.map((input) => {
+      let canonical: RatingContentEnvelope;
+      try {
+        canonical = canonicalRatingEnvelope(input.envelope);
+      } catch {
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      }
+      if (
+        !canonicalEqual(canonical, input.envelope) ||
+        !z.uuid().safeParse(input.id).success ||
+        canonical.purpose !== 'publish_rating_target' ||
+        canonical.targetId !== input.id ||
+        input.row.id !== canonical.targetId ||
+        input.row.category_id !== canonical.categoryId ||
+        input.row.creator_id !== canonical.accountId ||
+        input.row.region_id !== canonical.scope.regionId ||
+        input.row.name !== canonical.name ||
+        input.row.description !== canonical.description
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      return { id: input.id, envelope: canonical };
+    });
+    // Creator existence retains exactly the canonical anchor lock, acquired as
+    // one bounded set. Review rows need no per-item locks/facts: the complete
+    // mutation epoch and final NOWAIT fence protect every allow AND denial.
+    const rows = (
+      await tx.query<TargetEligibilityRow>(
+        `WITH instant AS MATERIALIZED (SELECT clock_timestamp() now),
+       wanted AS MATERIALIZED (SELECT * FROM unnest($1::uuid[],$2::uuid[]) WITH ORDINALITY r(id,account_id,ordinal)),
+       anchors AS MATERIALIZED (SELECT a.id FROM whaleu_identity.accounts a WHERE a.id IN (SELECT account_id FROM wanted) ORDER BY a.id FOR SHARE OF a)
+       SELECT w.ordinal::integer ordinal,to_jsonb(b) binding,a.id IS NOT NULL account_exists,
+       ${approvalProjection},instant.now,${exactTime('false')} exact_time
+       FROM wanted w CROSS JOIN instant
+       LEFT JOIN anchors a ON a.id=w.account_id
+       LEFT JOIN whaleu_community.rating_approval_bindings b ON b.kind='target' AND b.subject_id=w.id AND b.content_version=1
+       LEFT JOIN whaleu_community.rating_approval_decisions d ON d.id=b.decision_id
+       LEFT JOIN whaleu_community.content_approval_policies p ON p.id=d.policy_revision_id
+       LEFT JOIN whaleu_community.rating_approval_heads h ON h.decision_id=d.id
+       LEFT JOIN whaleu_community.rating_approval_events e ON e.id=h.event_id AND e.decision_id=d.id
+       ORDER BY w.ordinal`,
+        [
+          inputs.map((input) => input.id),
+          inputs.map((input) => input.envelope.accountId),
+        ],
+      )
+    ).rows;
+    targetEligibilityContext(handle, tx);
+    if (rows.length !== inputs.length)
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    const decisions: ('allow' | 'deny')[] = [];
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index]!;
+      const input = inputs[index]!;
+      if (
+        row.ordinal !== index + 1 ||
+        row.account_exists !== true ||
+        !row.binding ||
+        !ratingBindingMatches(
+          row.binding,
+          'target',
+          input.id,
+          input.envelope,
+        ) ||
+        row.id !== row.binding.decision_id ||
+        row.digest !== row.binding.digest ||
+        !canonicalEqual(row.envelope, input.envelope) ||
+        row.exact_time !== true ||
+        !(row.now instanceof Date)
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      const result = validateRatingApprovalRow(row, false, row.now.getTime());
+      if (result.decision.kind === 'unavailable')
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      if (result.optionalUntil !== null)
+        context.until = Math.min(
+          context.until ?? Infinity,
+          result.optionalUntil,
+        );
+      decisions.push(result.decision.kind);
+      context.validatedCount += 1;
+      if (result.decision.kind === 'allow') context.allowedCount += 1;
+    }
+    return Object.freeze(decisions);
+  }
   async navigation(tx: PoolClient): Promise<string> {
     enableRequiredTransactionProof(tx, proof);
     const fingerprint = await epoch(tx);

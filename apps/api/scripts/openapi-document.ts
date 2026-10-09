@@ -497,6 +497,10 @@ export async function renderErrandsOpenApiDocument(): Promise<string> {
 
 /** Tooling-only rating routes. No live database, issuer or provider. */
 export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { RatingRandomController } =
+    await import('../src/ratings/random/controller.js');
+  const { RatingRandomService } =
+    await import('../src/ratings/random/service.js');
   const { RatingDeletionController } =
     await import('../src/ratings/deletion/controller.js');
   const { RatingDeletionService } =
@@ -558,6 +562,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
   };
   const testing = await Test.createTestingModule({
     controllers: [
+      RatingRandomController,
       RatingDeletionController,
       RatingSubscriptionsController,
       RatingSubscriptionUpdatesController,
@@ -568,6 +573,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       RatingLikeUpdatesController,
     ],
     providers: [
+      { provide: RatingRandomService, useValue: {} },
       { provide: RatingDeletionService, useValue: {} },
       { provide: RatingSubscriptionsService, useValue: {} },
       { provide: RatingSubscriptionUpdatesReadService, useValue: {} },

@@ -1,3 +1,7 @@
+import { RatingRandomDraw } from './random/draw.js';
+import { RatingRandomController } from './random/controller.js';
+import { RatingRandomService } from './random/service.js';
+import { RatingCompletePoolRepository } from './random/complete-pool.repository.js';
 import { RatingDeletionController } from './deletion/controller.js';
 import { RatingDeletionService } from './deletion/service.js';
 import { RatingAdminDeletionRequests } from './deletion/requests.js';
@@ -51,6 +55,7 @@ import { RatingsCursors } from './cursor.js';
     RatingRequestThrottlingModule,
   ],
   controllers: [
+    RatingRandomController,
     RatingDeletionController,
     RatingSubscriptionsController,
     RatingsController,
@@ -58,6 +63,9 @@ import { RatingsCursors } from './cursor.js';
     RatingLikesController,
   ],
   providers: [
+    RatingRandomService,
+    RatingRandomDraw,
+    RatingCompletePoolRepository,
     RatingDeletionService,
     RatingAdminDeletionRequests,
     RatingTargetOriginFacade,

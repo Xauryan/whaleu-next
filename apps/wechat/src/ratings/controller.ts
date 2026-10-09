@@ -1139,6 +1139,16 @@ export class RatingController extends CommunityController<RatingView> {
       ? `/pages/rating-catalog/rating-catalog?parentId=${id}${this.view.regionId ? `&regionId=${this.view.regionId}` : ''}`
       : null;
   }
+  randomPath(id: string): string | null {
+    return !this.inactive &&
+      !this.view.busy &&
+      this.view.loaded &&
+      !!this.accountId() &&
+      (id === this.view.parentId ||
+        this.view.categories.some((item) => item.id === id))
+      ? `/pages/rating-random/rating-random?categoryId=${id}`
+      : null;
+  }
   targetPath(id: string): string | null {
     return !this.inactive &&
       !this.view.busy &&

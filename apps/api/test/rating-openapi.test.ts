@@ -1,3 +1,4 @@
+import * as randomRatings from '../src/ratings/random/contracts.js';
 import * as deletion from '../src/ratings/deletion/contracts.js';
 import * as subscriptions from '../src/ratings/subscriptions/contracts.js';
 import * as subscriptionUpdates from '../src/notifications/ratings/subscription-contracts.js';
@@ -42,9 +43,14 @@ test('ratings OpenAPI is deterministic offline and artifact-current', async () =
       'utf8',
     ),
   ));
-test('all 47 rating operations have exact schemas and safe auth/error metadata', async () => {
+test('all 48 rating operations have exact schemas and safe auth/error metadata', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
+    [
+      '/v1/ratings/random-target',
+      'get',
+      randomRatings.ratingRandomResponseSchema,
+    ],
     [
       '/v1/ratings/comments/{id}/deletion-context',
       'get',

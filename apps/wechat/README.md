@@ -403,6 +403,22 @@ The updates page adds a separate Subscription category for new root evaluations 
 
 See [native R2C behavior and validation boundaries](docs/ratings-r2c.md). The synthetic emitted WXML/HTTP smoke, actual local AppModule/PostgreSQL integration and unverified WeChat physical-device/provider acceptance remain distinct. No personal cross-domain rating-saved list is introduced.
 
+## Ratings R3R: full-pool random selection
+
+Catalog categories link to a separate random page that initially displays an
+explicit global-only scope and waits for the user's draw. A temporary physical
+campus search can select the campus's institution-wide canonical region scope
+plus global, without changing identity or browsing preferences. Optional minimum
+average uses raw sum/count; no threshold includes zero/unknown summaries, while
+an eligible unknown under a threshold fails the whole request closed. Every draw
+comes from the server's complete pool and may repeat; no visible-page
+shuffle or cached sample is used. Results open the returned canonical region.
+
+Strict query/response decoders and account/session/Safety/page cancellation
+fences protect the new read-only surface. This is a new explicit contract, not a
+claim of equivalence to unknown legacy random SQL. See
+[native R3R behavior and validation boundaries](docs/ratings-r3r.md).
+
 ## Optional semantic community search client
 
 The search page defaults to keyword mode and offers an explicit semantic mode.

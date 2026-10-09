@@ -69,3 +69,7 @@ prevent cleaning up one's own content. Exact parent/revision CAS and the origina
 wire/hash/receipt remain unchanged. Separate minimal owner cleanup contexts and
 explicit administrator contexts/commands are documented in [R3A deletion](API_RATINGS_ADMIN.md).
 The [R3A acceptance record](acceptance/ratings-r3a.md) tracks pending gates.
+
+## R3R complete-pool random selection
+
+A separate [random-selection contract](API_RATINGS_RANDOM.md) adds explicit native-campus institution scope plus global, recursive category candidates, exact optional minimum score and a uniform single draw. It validates the whole candidate stream and rejects resource-budget overflow rather than sampling a page. Production-load acceptance and legacy equivalence remain open; see [acceptance](acceptance/ratings-r3r.md).

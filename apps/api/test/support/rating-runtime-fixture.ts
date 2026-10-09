@@ -116,6 +116,8 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
       count?: number;
       baseline?: boolean;
       depth?: 1 | 2 | 3;
+      categoryIds?: readonly string[];
+      sharedTargets?: readonly { id: string; categoryId: string }[];
       validUntil?: Date;
       hidden?: boolean;
     } = {},
@@ -123,7 +125,7 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
     withCommunityScopeWriter(f.pool, async (tx) => {
       const catalogId = randomUUID(),
         regionId = options.regionId ?? null,
-        rootId = randomUUID(),
+        rootId = options.categoryIds?.[0] ?? randomUUID(),
         categoryIds = [rootId],
         categoryRevisions = [randomUUID()];
       await tx.query(
@@ -132,7 +134,7 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
       );
       for (let i = 0; i < (options.depth ?? 1); i++) {
         if (i) {
-          categoryIds.push(randomUUID());
+          categoryIds.push(options.categoryIds?.[i] ?? randomUUID());
           categoryRevisions.push(randomUUID());
         }
         await tx.query(
@@ -216,6 +218,17 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
           [catalogId, id, categoryId, i],
         );
         targets.push({ id, revision, approval });
+      }
+      for (const [index, shared] of (options.sharedTargets ?? []).entries()) {
+        await tx.query(
+          'INSERT INTO whaleu_ratings.target_memberships(catalog_id,target_id,category_id,ordinal) VALUES($1,$2,$3,$4)',
+          [
+            catalogId,
+            shared.id,
+            shared.categoryId,
+            (options.count ?? 1) + index,
+          ],
+        );
       }
       await tx.query(
         'UPDATE whaleu_ratings.catalogs SET sealed=true WHERE id=$1',

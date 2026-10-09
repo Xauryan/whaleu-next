@@ -1,0 +1,52 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 校园评分</view>
+  <view class="title">随机选一个</view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录与会话管理 →</navigator>
+  <button bindtap="onRefresh">重新加载并重选条件</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">取消本次读取</button>
+  <block wx:if="{{categoryId &amp;&amp; hasSession &amp;&amp; configured}}">
+    <view class="card">
+      <view class="section-title">当前范围：{{campus ? '所选学校全部校区地区 + 全局' : '仅全局'}}</view>
+      <view wx:if="{{campus}}" class="body">所选物理校区：{{campus.fullName}} · {{campus.institutionName}}</view>
+      <view class="notice">首次进入默认仅全局，不沿用目录地区、身份校区或浏览偏好。选择物理校区后，服务端核验其所属学校全部校区地区及全局；任一必要授权无法确认，本次抽取整体不可用。</view>
+      <button bindtap="onGlobal">明确选择仅全局</button>
+      <button bindtap="onCampusPicker" disabled="{{pickerOpen}}">选择物理校区及所属学校范围</button>
+      <view class="section-title">最低均分（可选）</view>
+      <input type="digit" value="{{minimumAverageInput}}" bindinput="onMinimumAverage" placeholder="留空不限；1–5，最多一位小数" />
+      <view class="notice">不限均分时包含尚无评分或统计未知的目标。设置门槛时只接受有评分且原始总分 ÷ 人数达标的目标；池中统计未知时整体不可用，不按四舍五入后的展示均分筛选。</view>
+      <view class="meta">每次从服务端完整候选池等概率独立选一个，可能连续选中同一个。不会仅打乱当前目录页面。</view>
+      <button bindtap="onDraw" loading="{{busy &amp;&amp; !pickerOpen}}" disabled="{{busy || pickerOpen}}">{{result ? '再随机选一个（可能重复）' : '确认当前条件，随机选一个'}}</button>
+    </view>
+    <view wx:if="{{pickerOpen}}" class="card">
+      <view class="section-title">明确选择物理校区</view>
+      <input value="{{campusQuery}}" bindinput="onCampusQuery" placeholder="学校或校区名称" />
+      <input value="{{campusDistrict}}" bindinput="onCampusDistrict" placeholder="地区（可选）" />
+      <button bindtap="onSearchCampuses" disabled="{{busy}}">搜索校区</button>
+      <view wx:for="{{campuses}}" wx:key="id" class="card">
+        <view class="body">{{item.fullName}} · {{item.district}}</view>
+        <view class="meta">{{item.institutionName}}</view>
+        <button data-id="{{item.id}}" bindtap="onChooseCampus" disabled="{{busy || !item.isActive || !item.institutionId}}">{{item.isActive ? item.institutionId ? '使用此校区所属学校范围' : '当前不可选择' : '当前不可选择'}}</button>
+      </view>
+      <button wx:if="{{hasPreviousCampuses}}" bindtap="onPreviousCampuses" disabled="{{busy}}">上一页校区</button>
+      <button wx:if="{{hasNextCampuses}}" bindtap="onNextCampuses" disabled="{{busy}}">下一页校区</button>
+      <button bindtap="onCloseCampusPicker">关闭校区选择</button>
+    </view>
+    <view wx:if="{{result}}" class="card">
+      <view class="meta">完整候选池：{{result.candidateCount}} 个目标</view>
+      <block wx:if="{{result.item}}">
+        <view class="section-title">{{result.item.target.name}}</view>
+        <view class="body">{{result.item.target.description}}</view>
+        <view class="meta">{{result.item.regionId ? '将在学校校区地区目录中打开' : '将在全局目录中打开'}}</view>
+        <block wx:if="{{result.item.summary.status === 'known'}}">
+          <view wx:if="{{result.item.summary.count &gt; 0}}" class="meta">均分 {{result.item.summary.average}} · {{result.item.summary.count}} 人评分</view>
+          <view wx:else class="meta">尚无评分</view>
+        </block>
+        <view wx:else class="notice">评分统计未知，不能视为零分或尚无评分</view>
+        <button bindtap="onTarget" disabled="{{busy}}">查看此目标的评分与文字评价 →</button>
+      </block>
+      <view wx:else class="empty">当前条件下没有候选目标，可调整范围或最低均分。</view>
+    </view>
+  </block>
+</view>

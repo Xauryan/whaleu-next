@@ -1,4 +1,5 @@
 import { smokeRatingsR3A } from './smoke-ratings-r3a.mjs';
+import { smokeRatingsR3R } from './smoke-ratings-r3r.mjs';
 import { smokeRatings } from './smoke-ratings.mjs';
 import { smokeRatingsR2A } from './smoke-ratings-r2a.mjs';
 import { smokeRatingsR2B } from './smoke-ratings-r2b.mjs';
@@ -1847,6 +1848,7 @@ await smokeRatingsR2A({ app, dist, flush: flushTrading });
 await smokeRatingsR2B({ app, dist, flush: flushTrading });
 await smokeRatingsR2C({ app, dist, flush: flushTrading });
 await smokeRatingsR3A({ app, dist, flush: flushTrading });
+await smokeRatingsR3R({ app, dist, flush: flushTrading });
 await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeErrandAdminMutations({ app, dist, flush: flushTrading });
 await smokeErrandAdminNotices({ app, dist, flush: flushTrading });

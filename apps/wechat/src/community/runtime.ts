@@ -27,6 +27,10 @@ import {
   type RatingUpdatesGateway,
 } from '../ratings/updates-gateway';
 import { HttpRatingsGateway, type RatingsGateway } from '../ratings/gateway';
+import {
+  HttpRatingRandomGateway,
+  type RatingRandomGateway,
+} from '../ratings/random-gateway';
 import { PendingRatingStore } from '../ratings/pending';
 import {
   HttpErrandAdminCommandsGateway,
@@ -96,6 +100,7 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly ratingRandom?: RatingRandomGateway;
   readonly ratingDeletion?: RatingDeletionGateway;
   readonly ratingSubscriptions?: RatingSubscriptionsGateway;
   readonly ratingSubscriptionUpdates?: RatingSubscriptionUpdatesGateway;
@@ -156,6 +161,9 @@ export function createCommunityRuntime(
   const runtime: CommunityRuntime = {
     sessions: identity.sessions,
     ...(identity.api ? { ratings: new HttpRatingsGateway(identity.api) } : {}),
+    ...(identity.api
+      ? { ratingRandom: new HttpRatingRandomGateway(identity.api) }
+      : {}),
     ...(identity.api
       ? {
           ratingDeletion: new HttpRatingDeletionGateway(identity.api),

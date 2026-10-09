@@ -103,6 +103,12 @@ export function registerRatingPage(mode: RatingMode): void {
           null,
       );
     },
+    onRandom(event: Tap) {
+      this.navigator?.open(
+        this.controller?.randomPath(event.currentTarget.dataset.id ?? '') ??
+          null,
+      );
+    },
     onTarget(event: Tap) {
       this.navigator?.open(
         this.controller?.targetPath(event.currentTarget.dataset.id ?? '') ??
