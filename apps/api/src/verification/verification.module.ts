@@ -1,3 +1,4 @@
+import { RatingVerificationFacade } from './rating-eligibility.facade.js';
 import { LocalErrandBaseEligibilitySource } from './errand-base.source.js';
 import { LocalPublicationEligibilitySource } from './publication-eligibility.source.js';
 import { LocalReportEligibilitySource } from './report-eligibility.source.js';
@@ -35,6 +36,7 @@ export class VerificationController {
   imports: [DatabaseModule, IdentityModule],
   controllers: [VerificationController],
   providers: [
+    RatingVerificationFacade,
     LocalErrandBaseEligibilitySource,
     VerificationRepository,
     LocalReportEligibilitySource,
@@ -44,6 +46,7 @@ export class VerificationController {
     LocalSafetyPhoneSource,
   ],
   exports: [
+    RatingVerificationFacade,
     LocalErrandBaseEligibilitySource,
     LocalStudentIdentitySource,
     LocalSafetyPhoneSource,

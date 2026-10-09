@@ -1,0 +1,38 @@
+<import src="../../ratings/common.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 评分与评价</view>
+  <navigator class="link" url="/pages/rating-recovery/rating-recovery">独立查询原请求结果 →</navigator>
+  <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />
+  <block wx:if="{{loaded &amp;&amp; detail}}">
+    <view class="card"><view class="title">{{detail.name}}</view><view class="body">{{detail.description}}</view></view>
+    <view class="card"><view class="section-title">我的评分</view>
+      <view wx:if="{{!myScoreKnown}}" class="notice">自己的评分暂时未知，不能视为未评分；请稍后刷新。</view>
+      <view wx:elif="{{myScore}}">当前 {{myScore.score}} 分，可重新选择并确认改分。</view>
+      <view wx:else>你尚未评分。</view>
+      <view wx:if="{{myScoreKnown &amp;&amp; detail.allowedActions.setScore}}" class="scores"><button wx:for="{{scores}}" wx:key="*this" class="{{myScore &amp;&amp; myScore.score === item ? 'score-selected' : 'secondary'}}" data-score="{{item}}" bindtap="onScore" disabled="{{busy || frozen}}">{{item}} 分</button></view>
+      <view wx:if="{{!detail.allowedActions.setScore}}" class="notice">当前暂不能修改评分，请重新核验后再试。</view>
+      <view class="meta">评分只接受 1–5 整数；不会自动发布文字。重复提交同分不会增加评分人数。</view>
+    </view>
+    <view class="card"><view class="section-title">评分分布</view>
+      <view wx:if="{{!summary || summary.status === 'unavailable'}}" class="notice">统计暂时未知，不能显示为 0 人或 0 分。</view>
+      <block wx:else><view wx:if="{{summary.count === 0}}">暂无评分</view><view wx:else>{{summary.average}} 分 · {{summary.count}} 人评分</view>
+        <view wx:for="{{scores}}" wx:key="*this" class="distribution"><text>{{item}} 分</text><text>{{summary.distribution[item]}} 人</text></view>
+      </block>
+    </view>
+    <button wx:if="{{detail.allowedActions.createComment}}" bindtap="onCompose" disabled="{{busy || frozen}}">写文字评价</button>
+    <view class="notice">文字评价无需先打分。实名或目标范围分身需明确选择；发布还需服务端精确审核。图片不可用，审核签发尚未开放。</view>
+    <view class="section-title">文字评价 · 最新在前</view>
+    <view wx:for="{{comments}}" wx:key="id" class="card"><view class="author">{{item.author.displayName}}<text class="badge">{{item.author.mode === 'anonymous' ? '本目标分身' : '实名'}}</text><text wx:if="{{item.isMine}}" class="badge">我</text></view><view class="meta">{{item.createdAt}}</view><view class="body">{{item.body}}</view><button wx:if="{{item.isMine &amp;&amp; item.allowedActions.delete}}" data-id="{{item.id}}" bindtap="onDelete" disabled="{{busy || frozen}}">删除自己的文字评价</button></view>
+    <view wx:if="{{!comments.length}}" class="empty">当前页没有可见文字评价</view>
+    <button wx:if="{{canMoreComments}}" bindtap="onMoreComments" disabled="{{busy}}">继续读取评价</button>
+  </block>
+  <view wx:if="{{selectedScore !== null}}" class="modal-mask"><view class="modal"><view class="section-title">确认提交 {{selectedScore}} 分？</view><view class="notice">只修改此目标的评分，不发布文字。若其他设备已更新，需刷新后重新确认。</view><button bindtap="onConfirmScore" disabled="{{busy || frozen}}" loading="{{busy}}">确认评分</button><button bindtap="onDismissScore">关闭并清空</button></view></view>
+  <view wx:if="{{composerOpen &amp;&amp; detail}}" class="modal-mask"><view class="modal"><view class="section-title">文字评价</view>
+    <view class="chips"><button wx:for="{{detail.allowedActions.authorModes}}" wx:key="*this" data-mode="{{item}}" bindtap="onAuthorMode" class="{{authorMode === item ? 'active' : 'secondary'}}" disabled="{{busy || frozen}}">{{item === 'named' ? '实名发布' : '本目标分身发布'}}</button></view>
+    <view wx:if="{{!authorMode}}" class="notice">请明确选择发布身份。</view>
+    <textarea value="{{text}}" bindinput="onText" maxlength="-1" disabled="{{busy || frozen}}" placeholder="1–500 个 Unicode 字符，纯文字" />
+    <view class="meta">{{textLength}} / 500 字符 · 首尾空白会移除 · 图片不可用</view>
+    <button bindtap="onPublish" disabled="{{busy || frozen || !authorMode || textLength &lt; 1 || textLength &gt; 500}}" loading="{{busy}}">确认发布文字</button><button bindtap="onCloseComposer">关闭并清空</button>
+  </view></view>
+  <view wx:if="{{deleteId}}" class="modal-mask"><view class="modal"><view class="section-title">删除自己的文字评价？</view><view class="notice">正文将不再显示，你对此目标的独立评分仍保留。</view><button bindtap="onConfirmDelete" disabled="{{busy || frozen}}" loading="{{busy}}">确认删除文字</button><button bindtap="onDismissDelete">返回</button></view></view>
+</view>

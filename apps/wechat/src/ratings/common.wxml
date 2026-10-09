@@ -1,0 +1,14 @@
+<template name="rating-status">
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{receiptStatus}}" class="notice">{{receiptStatus}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录与会话管理 →</navigator>
+  <view wx:if="{{frozen}}" class="card recovery">
+    <view class="section-title">{{recoveryOperation || '原操作'}}结果待确认</view>
+    <view class="notice">未查到回执也不能创建替代请求。这里只恢复原编号和原意图，不会自动改分或重发新文字。</view>
+    <button bindtap="onRecover" disabled="{{busy}}">查询原回执</button>
+    <button bindtap="onRetry" disabled="{{busy}}">重试原请求</button>
+  </view>
+  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">{{needsRefresh ? '刷新后重新确认' : '重新加载'}}</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+</template>

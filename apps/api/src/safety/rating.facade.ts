@@ -1,0 +1,51 @@
+import { Inject, Injectable } from '@nestjs/common';
+import type { PoolClient } from 'pg';
+import { z } from 'zod';
+import type { Decision } from '../community/community-policy.js';
+import { SafetyRepository } from './repository.js';
+import { safetyCountProofOwner } from './count-epochs.js';
+import { requiredOwnerEpoch } from '../database/required-owner-proof.js';
+const navigation = requiredOwnerEpoch(
+  safetyCountProofOwner,
+  'SAFETY_UNAVAILABLE',
+);
+/** Negative relationships/coverage retain the same bounded epoch as allows.
+ * Anonymous callers never submit hidden author IDs to this facade. */
+@Injectable()
+export class RatingSafetyFacade {
+  constructor(
+    @Inject(SafetyRepository) private readonly records: SafetyRepository,
+  ) {}
+  async requireAllowed(accountId: string, tx: PoolClient): Promise<void> {
+    await navigation(tx);
+    await this.records.restriction(accountId, tx);
+  }
+  navigation(tx: PoolClient): Promise<string> {
+    return navigation(tx);
+  }
+  async named(
+    viewer: string,
+    author: string,
+    purpose: 'rating_list' | 'rating_direct',
+    tx: PoolClient,
+  ): Promise<Decision> {
+    await navigation(tx);
+    if (
+      !z.uuid().safeParse(viewer).success ||
+      !z.uuid().safeParse(author).success ||
+      !['rating_list', 'rating_direct'].includes(purpose)
+    )
+      return { kind: 'unavailable' };
+    const directions = await this.records.directions(
+      viewer,
+      author,
+      purpose,
+      tx,
+    );
+    if (!directions) return { kind: 'unavailable' };
+    return directions.outgoing ||
+      (purpose === 'rating_direct' && directions.incoming)
+      ? { kind: 'deny', reason: 'RATING_NOT_FOUND' }
+      : { kind: 'allow', value: undefined };
+  }
+}

@@ -294,3 +294,20 @@ account data, real grants/restrictions/deletions, provider calls or dependency
 changes were used. Deployment must separately verify the actual application
 role's final table-lock privileges; no persistent privilege expansion was made.
 Hosted CI for this E2B publication commit remains separate from this local gate.
+
+### E2B hosted publication verification
+
+Published commit `fef997fe1b7d3581fa4e12f636bc37d6bda8c412` subsequently
+passed [the hosted foundation workflow](https://github.com/Xauryan/whaleu-next/actions/runs/37857580838)
+(job `113585364406`). The hosted total was **3,193 tests**: 5 statistics,
+758 API, 1,125 native and 1,305 PostgreSQL tests, with zero failures,
+skips or cancellations. The separate real-cloc integration test also passed.
+Hosted PostgreSQL duration was 1,206.797726668 seconds; the workflow removed
+its database container and network. The local zero-schema cleanup assertion
+above is separate evidence, not an assertion printed by the hosted workflow.
+
+The published 1,115 source files and seven OpenAPI artifacts matched the
+verified freeze. [The statistics workflow](https://github.com/Xauryan/whaleu-next/actions/runs/37857580851)
+also succeeded and refreshed the branch image. This hosted result does not
+close the remaining production privileges, provider, migration or real-device
+acceptance boundaries described above.

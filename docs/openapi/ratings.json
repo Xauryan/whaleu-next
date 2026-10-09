@@ -1,0 +1,4893 @@
+{
+  "components": {
+    "schemas": {
+      "SafeErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              }
+            },
+            "required": ["code", "message", "requestId"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "accessToken": {
+        "description": "Current opaque owner session. Receipts never grant access to content.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "",
+    "title": "WhaleU independent ratings and text roots",
+    "version": "1"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/v1/ratings/categories": {
+      "get": {
+        "description": "Strict current-authorized R1 contract. Independent score and text; unknown authority fails closed.",
+        "operationId": "ratingCategories",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "regionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parentId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "pattern": "^[1-9][0-9]?$",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "context": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "catalogRevision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "parentId": {
+                          "format": "uuid",
+                          "nullable": true,
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "regionId": {
+                          "format": "uuid",
+                          "nullable": true,
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["regionId", "catalogRevision", "parentId"],
+                      "type": "object"
+                    },
+                    "continuation": {
+                      "enum": ["more", "scan", "end"],
+                      "type": "string"
+                    },
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "description": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "pattern": "^[a-z][a-z0-9_]{0,49}$",
+                            "type": "string"
+                          },
+                          "level": {
+                            "anyOf": [
+                              {
+                                "enum": [1],
+                                "type": "number"
+                              },
+                              {
+                                "enum": [2],
+                                "type": "number"
+                              },
+                              {
+                                "enum": [3],
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "parentId": {
+                            "format": "uuid",
+                            "nullable": true,
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "revision": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "systemKey": {
+                            "nullable": true,
+                            "pattern": "^[a-z][a-z0-9_]{1,48}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "parentId",
+                          "level",
+                          "kind",
+                          "systemKey",
+                          "name",
+                          "description",
+                          "revision"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 50,
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "pattern": "^[A-Za-z0-9_-]{43}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "context",
+                    "items",
+                    "nextCursor",
+                    "continuation"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Strict ratings contract",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Ratings"]
+      }
+    },
+    "/v1/ratings/comments/{id}": {
+      "delete": {
+        "description": "Strict current-authorized R1 contract. Independent score and text; unknown authority fails closed.",
+        "operationId": "ratingDeleteComment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "clientRequestId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "expectedRevision": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "expectedTargetRevision": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "regionId": {
+                    "format": "uuid",
+                    "nullable": true,
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "targetId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "clientRequestId",
+                  "regionId",
+                  "targetId",
+                  "expectedTargetRevision",
+                  "expectedRevision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "occurredAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "set_score",
+                            "create_comment",
+                            "delete_comment"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied", "noop"],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "revision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "subjectId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "targetId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "operation",
+                        "outcome",
+                        "targetId",
+                        "subjectId",
+                        "revision",
+                        "occurredAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "RATING_NOT_FOUND",
+                            "RATING_REVISION_CONFLICT",
+                            "PHONE_VERIFICATION_REQUIRED",
+                            "AFFILIATION_VERIFICATION_REQUIRED",
+                            "IDENTITY_CAMPUS_REQUIRED",
+                            "SAFETY_ACTION_RESTRICTED",
+                            "CONTENT_REJECTED"
+                          ],
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "set_score",
+                            "create_comment",
+                            "delete_comment"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId", "operation", "outcome", "code"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Strict ratings contract",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Ratings"]
+      },
+      "get": {
+        "description": "Strict current-authorized R1 contract. Independent score and text; unknown authority fails closed.",
+        "operationId": "ratingComment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "regionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "allowedActions": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "delete": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["delete"],
+                      "type": "object"
+                    },
+                    "author": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "displayName": {
+                              "type": "string"
+                            },
+                            "mode": {
+                              "enum": ["named"],
+                              "type": "string"
+                            },
+                            "profileId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["mode", "profileId", "displayName"],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "displayName": {
+                              "type": "string"
+                            },
+                            "mode": {
+                              "enum": ["anonymous"],
+                              "type": "string"
+                            },
+                            "personaId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "targetId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "mode",
+                            "targetId",
+                            "personaId",
+                            "displayName"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "body": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "isMine": {
+                      "type": "boolean"
+                    },
+                    "revision": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "targetId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "targetId",
+                    "body",
+                    "revision",
+                    "createdAt",
+                    "author",
+                    "isMine",
+                    "allowedActions"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Strict ratings contract",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Ratings"]
+      }
+    },
+    "/v1/ratings/context": {
+      "get": {
+        "description": "Strict current-authorized R1 contract. Independent score and text; unknown authority fails closed.",
+        "operationId": "ratingContext",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeRegion": {
+                      "additionalProperties": false,
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "label"],
+                      "type": "object"
+                    },
+                    "regions": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "relation": {
+                            "enum": ["home", "related", "managed"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "label", "relation"],
+                        "type": "object"
+                      },
+                      "maxItems": 200,
+                      "type": "array"
+                    }
+                  },
+                  "required": ["homeRegion", "regions"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Strict ratings contract",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Ratings"]
+      }
+    },
+    "/v1/ratings/requests/{id}": {
+      "get": {
+        "description": "Strict current-authorized R1 contract. Independent score and text; unknown authority fails closed.",
+        "operationId": "ratingReceipt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "occurredAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "set_score",
+                            "create_comment",
+                            "delete_comment"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied", "noop"],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "revision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "subjectId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "targetId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "operation",
+                        "outcome",
+                        "targetId",
+                        "subjectId",
+                        "revision",
+                        "occurredAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "RATING_NOT_FOUND",
+                            "RATING_REVISION_CONFLICT",
+                            "PHONE_VERIFICATION_REQUIRED",
+                            "AFFILIATION_VERIFICATION_REQUIRED",
+                            "IDENTITY_CAMPUS_REQUIRED",
+                            "SAFETY_ACTION_RESTRICTED",
+                            "CONTENT_REJECTED"
+                          ],
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "set_score",
+                            "create_comment",
+                            "delete_comment"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId", "operation", "outcome", "code"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Strict ratings contract",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Ratings"]
+      }
+    },
+    "/v1/ratings/targets": {
+      "get": {
+        "description": "Strict current-authorized R1 contract. Independent score and text; unknown authority fails closed.",
+        "operationId": "ratingTargets",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "regionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "pattern": "^[1-9][0-9]?$",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "context": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "catalogRevision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "categoryId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "regionId": {
+                          "format": "uuid",
+                          "nullable": true,
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["regionId", "catalogRevision", "categoryId"],
+                      "type": "object"
+                    },
+                    "continuation": {
+                      "enum": ["more", "scan", "end"],
+                      "type": "string"
+                    },
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "allowedActions": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "authorModes": {
+                                "items": {
+                                  "enum": ["named", "anonymous"],
+                                  "type": "string"
+                                },
+                                "maxItems": 2,
+                                "minItems": 1,
+                                "type": "array"
+                              },
+                              "createComment": {
+                                "type": "boolean"
+                              },
+                              "setScore": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "setScore",
+                              "createComment",
+                              "authorModes"
+                            ],
+                            "type": "object"
+                          },
+                          "categoryId": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "revision": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "categoryId",
+                          "name",
+                          "description",
+                          "revision",
+                          "allowedActions"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 50,
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "pattern": "^[A-Za-z0-9_-]{43}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "context",
+                    "items",
+                    "nextCursor",
+                    "continuation"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Strict ratings contract",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Ratings"]
+      }
+    },
+    "/v1/ratings/targets/{id}": {
+      "get": {
+        "description": "Strict current-authorized R1 contract. Independent score and text; unknown authority fails closed.",
+        "operationId": "ratingTarget",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "regionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "allowedActions": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "authorModes": {
+                          "items": {
+                            "enum": ["named", "anonymous"],
+                            "type": "string"
+                          },
+                          "maxItems": 2,
+                          "minItems": 1,
+                          "type": "array"
+                        },
+                        "createComment": {
+                          "type": "boolean"
+                        },
+                        "setScore": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["setScore", "createComment", "authorModes"],
+                      "type": "object"
+                    },
+                    "categoryId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "revision": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "categoryId",
+                    "name",
+                    "description",
+                    "revision",
+                    "allowedActions"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Strict ratings contract",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Ratings"]
+      }
+    },
+    "/v1/ratings/targets/{id}/comments": {
+      "get": {
+        "description": "Strict current-authorized R1 contract. Independent score and text; unknown authority fails closed.",
+        "operationId": "ratingComments",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "regionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "pattern": "^[1-9][0-9]?$",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "context": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "catalogRevision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "regionId": {
+                          "format": "uuid",
+                          "nullable": true,
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "targetId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["regionId", "catalogRevision", "targetId"],
+                      "type": "object"
+                    },
+                    "continuation": {
+                      "enum": ["more", "scan", "end"],
+                      "type": "string"
+                    },
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "allowedActions": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "delete": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": ["delete"],
+                            "type": "object"
+                          },
+                          "author": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "displayName": {
+                                    "type": "string"
+                                  },
+                                  "mode": {
+                                    "enum": ["named"],
+                                    "type": "string"
+                                  },
+                                  "profileId": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "mode",
+                                  "profileId",
+                                  "displayName"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "displayName": {
+                                    "type": "string"
+                                  },
+                                  "mode": {
+                                    "enum": ["anonymous"],
+                                    "type": "string"
+                                  },
+                                  "personaId": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "targetId": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "mode",
+                                  "targetId",
+                                  "personaId",
+                                  "displayName"
+                                ],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "isMine": {
+                            "type": "boolean"
+                          },
+                          "revision": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "targetId": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "targetId",
+                          "body",
+                          "revision",
+                          "createdAt",
+                          "author",
+                          "isMine",
+                          "allowedActions"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 50,
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "pattern": "^[A-Za-z0-9_-]{43}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "context",
+                    "items",
+                    "nextCursor",
+                    "continuation"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Strict ratings contract",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Ratings"]
+      },
+      "post": {
+        "description": "Strict current-authorized R1 contract. Independent score and text; unknown authority fails closed.",
+        "operationId": "ratingCreateComment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "assetIds": {
+                    "items": {
+                      "anyOf": []
+                    },
+                    "maxItems": 0,
+                    "type": "array"
+                  },
+                  "authorMode": {
+                    "enum": ["named", "anonymous"],
+                    "type": "string"
+                  },
+                  "body": {
+                    "maxLength": 1100,
+                    "type": "string"
+                  },
+                  "clientRequestId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "expectedTargetRevision": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "regionId": {
+                    "format": "uuid",
+                    "nullable": true,
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "clientRequestId",
+                  "regionId",
+                  "expectedTargetRevision",
+                  "authorMode",
+                  "body",
+                  "assetIds"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "occurredAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "set_score",
+                            "create_comment",
+                            "delete_comment"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied", "noop"],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "revision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "subjectId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "targetId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "operation",
+                        "outcome",
+                        "targetId",
+                        "subjectId",
+                        "revision",
+                        "occurredAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "RATING_NOT_FOUND",
+                            "RATING_REVISION_CONFLICT",
+                            "PHONE_VERIFICATION_REQUIRED",
+                            "AFFILIATION_VERIFICATION_REQUIRED",
+                            "IDENTITY_CAMPUS_REQUIRED",
+                            "SAFETY_ACTION_RESTRICTED",
+                            "CONTENT_REJECTED"
+                          ],
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "set_score",
+                            "create_comment",
+                            "delete_comment"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId", "operation", "outcome", "code"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Strict ratings contract",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Ratings"]
+      }
+    },
+    "/v1/ratings/targets/{id}/my-score": {
+      "get": {
+        "description": "Strict current-authorized R1 contract. Independent score and text; unknown authority fails closed.",
+        "operationId": "ratingMyScore",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "regionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "myScore": {
+                      "additionalProperties": false,
+                      "nullable": true,
+                      "properties": {
+                        "revision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "score": {
+                          "maximum": 5,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": ["score", "revision"],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["myScore"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Strict ratings contract",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Ratings"]
+      },
+      "put": {
+        "description": "Strict current-authorized R1 contract. Independent score and text; unknown authority fails closed.",
+        "operationId": "ratingSetScore",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "clientRequestId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "expectedRevision": {
+                    "format": "uuid",
+                    "nullable": true,
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "expectedTargetRevision": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "regionId": {
+                    "format": "uuid",
+                    "nullable": true,
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "score": {
+                    "maximum": 5,
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "clientRequestId",
+                  "regionId",
+                  "expectedTargetRevision",
+                  "expectedRevision",
+                  "score"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "occurredAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "set_score",
+                            "create_comment",
+                            "delete_comment"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied", "noop"],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "revision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "subjectId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "targetId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "operation",
+                        "outcome",
+                        "targetId",
+                        "subjectId",
+                        "revision",
+                        "occurredAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "RATING_NOT_FOUND",
+                            "RATING_REVISION_CONFLICT",
+                            "PHONE_VERIFICATION_REQUIRED",
+                            "AFFILIATION_VERIFICATION_REQUIRED",
+                            "IDENTITY_CAMPUS_REQUIRED",
+                            "SAFETY_ACTION_RESTRICTED",
+                            "CONTENT_REJECTED"
+                          ],
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "set_score",
+                            "create_comment",
+                            "delete_comment"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId", "operation", "outcome", "code"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Strict ratings contract",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Ratings"]
+      }
+    },
+    "/v1/ratings/targets/{id}/score-summary": {
+      "get": {
+        "description": "Strict current-authorized R1 contract. Independent score and text; unknown authority fails closed.",
+        "operationId": "ratingSummary",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "regionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "status": {
+                          "enum": ["unavailable"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["status"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "average": {
+                          "maximum": 5,
+                          "minimum": 1,
+                          "nullable": true,
+                          "type": "number"
+                        },
+                        "count": {
+                          "maximum": 2147483647,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "distribution": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "1": {
+                              "maximum": 2147483647,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "2": {
+                              "maximum": 2147483647,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "3": {
+                              "maximum": 2147483647,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "4": {
+                              "maximum": 2147483647,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "5": {
+                              "maximum": 2147483647,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": ["1", "2", "3", "4", "5"],
+                          "type": "object"
+                        },
+                        "revision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "status": {
+                          "enum": ["known"],
+                          "type": "string"
+                        },
+                        "sum": {
+                          "maximum": 10737418235,
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "count",
+                        "sum",
+                        "average",
+                        "distribution",
+                        "revision"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Strict ratings contract",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Ratings"]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

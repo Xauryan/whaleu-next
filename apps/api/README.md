@@ -281,3 +281,7 @@ identity-home list/detail, source-backed entry selection, opaque replay/continua
 and immutable global owner visit receipts. Profile still owns activity reminder
 preferences. Migration 0036 is empty canonical storage; no issuer, import,
 creation/media/admin/provider, enrollment or badge functionality is implied.
+
+## Independent ratings R1 development slice
+
+[Ratings API](../../docs/API_RATINGS.md) describes trusted bounded catalog reads, independent scores with transactional bucket summaries, named or target-scoped-persona text roots, own deletion and minimal durable recovery. Default AppModule uses canonical owner facades and exact review sidecars. Migrations add empty storage only; accepted catalog content does not establish fresh score coverage. No real source importer, review issuer, media, notifications, experience or target-management flow is enabled.

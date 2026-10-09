@@ -16,6 +16,9 @@ export class AuthorDisplayService {
   find(accountId: string, transaction: PoolClient) {
     return this.repository.existingAuthorDisplay(accountId, transaction);
   }
+  findRatingPublic(accountId: string, transaction: PoolClient) {
+    return this.repository.ratingAuthorDisplay(accountId, transaction);
+  }
   /** Named-public callers have already applied their own visibility policy. */
   async findPublic(accountId: string, transaction: PoolClient) {
     const display = await this.repository.existingAuthorDisplay(

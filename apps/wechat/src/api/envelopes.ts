@@ -43,6 +43,11 @@ export function responseError(response: HttpResponse): ClientError | null {
     ...(requestId ? { requestId } : {}),
   };
   const expectedStatus: Readonly<Record<string, number>> = {
+    RATING_UNAVAILABLE: 503,
+    RATING_NOT_FOUND: 404,
+    RATING_SCOPE_UNAVAILABLE: 403,
+    RATING_SCORE_UNAVAILABLE: 503,
+    RATING_REVISION_CONFLICT: 409,
     ERRAND_USE_OWNER_COMMAND: 409,
     ERRAND_RESTRICTION_TARGET_PROTECTED: 403,
     ERRAND_RESTRICTION_TARGET_NOT_FOUND: 404,

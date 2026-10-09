@@ -1,3 +1,4 @@
+import { CampusRatingScopeFacade } from './rating-scope.facade.js';
 import { CampusErrandScopeFacade } from './errand-scope.facade.js';
 import { CampusSearchRegionFacade } from './search-region.facade.js';
 import { IdentitySelectionRepository } from './community-policy/identity-selection.repository.js';
@@ -46,6 +47,7 @@ export class OperatingRegionController {
   imports: [DatabaseModule],
   controllers: [CampusController, OperatingRegionController],
   providers: [
+    CampusRatingScopeFacade,
     CampusErrandScopeFacade,
     CampusRepository,
     CampusService,
@@ -56,6 +58,7 @@ export class OperatingRegionController {
     CampusSearchRegionFacade,
   ],
   exports: [
+    CampusRatingScopeFacade,
     CampusErrandScopeFacade,
     CampusService,
     CampusCommunityPolicyService,

@@ -91,6 +91,18 @@ export class ProfileRepository {
     );
     return result.rows[0]!;
   }
+  /** Rating reads retain the exact safe display row through cursor waits. */
+  async ratingAuthorDisplay(
+    accountId: string,
+    transaction: PoolClient,
+  ): Promise<{ profileId: string; displayName: string } | null> {
+    await transaction.query(
+      'SELECT account_id FROM whaleu_profile.profiles WHERE account_id=$1 FOR SHARE',
+      [accountId],
+    );
+    return this.existingAuthorDisplay(accountId, transaction);
+  }
+
   async existingAuthorDisplay(
     accountId: string,
     transaction: PoolClient,

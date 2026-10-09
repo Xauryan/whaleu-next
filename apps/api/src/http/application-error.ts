@@ -3,6 +3,21 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  RATING_UNAVAILABLE: { status: 503, message: 'Ratings are unavailable' },
+  RATING_NOT_FOUND: { status: 404, message: 'Rating content not found' },
+  RATING_SCOPE_UNAVAILABLE: {
+    status: 403,
+    message: 'Rating scope unavailable',
+  },
+  RATING_SCORE_UNAVAILABLE: {
+    status: 503,
+    message: 'Score history is unavailable',
+  },
+  RATING_REVISION_CONFLICT: {
+    status: 409,
+    message: 'Rating changed; reload before saving',
+  },
+
   ERRAND_USE_OWNER_COMMAND: {
     status: 409,
     message: 'Use the publisher command for your own errand',

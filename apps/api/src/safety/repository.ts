@@ -127,12 +127,13 @@ export class SafetyRepository {
   async directions(
     viewer: string,
     author: string,
-    purpose: VisibilityPurpose | 'public_profile',
+    purpose:
+      VisibilityPurpose | 'public_profile' | 'rating_list' | 'rating_direct',
     tx: PoolClient,
     read?: SearchReadContext,
   ): Promise<{ outgoing: boolean; incoming: boolean } | null> {
     const ids =
-      purpose === 'list_projection'
+      purpose === 'list_projection' || purpose === 'rating_list'
         ? [viewer]
         : [...new Set([viewer, author])].sort();
     for (const id of ids) {
@@ -159,7 +160,12 @@ export class SafetyRepository {
         [viewer, author],
       )
     ).rows[0]!;
-    if (!row.outgoing && (purpose === 'list_projection' || !row.incoming))
+    if (
+      purpose !== 'rating_list' &&
+      purpose !== 'rating_direct' &&
+      !row.outgoing &&
+      (purpose === 'list_projection' || !row.incoming)
+    )
       requireAllowedSafetyRelationship(viewer, author, purpose, tx);
     return row;
   }

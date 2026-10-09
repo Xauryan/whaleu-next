@@ -1,0 +1,25 @@
+<import src="../../ratings/common.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 校园评分</view><view class="title">发现值得评价的校园事物</view>
+  <navigator class="link" url="/pages/rating-recovery/rating-recovery">独立查询评分与文字操作结果 →</navigator>
+  <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />
+  <view class="card"><view class="section-title">{{regionId ? '地区目录' : '全局目录'}}</view>
+    <view class="notice">浏览校区不会授予认证或管理权限。地区选项由服务器当前授权决定。</view>
+    <button bindtap="onRegions" disabled="{{busy}}">选择可访问地区</button>
+    <button data-id="" bindtap="onRegion" disabled="{{busy}}">返回全局根目录</button>
+    <button wx:for="{{regions}}" wx:key="id" data-id="{{item.id}}" bindtap="onRegion" disabled="{{busy}}">{{item.label}}{{item.relation === 'home' ? ' · 身份地区' : item.relation === 'managed' ? ' · 管理范围' : ' · 关联地区'}}</button>
+    <view wx:if="{{regionsLoaded &amp;&amp; !regions.length}}" class="meta">当前没有可选择的地区；全局目录仍独立核验。</view>
+  </view>
+  <block wx:if="{{loaded}}">
+    <view class="section-title">{{parentId ? '下一级分类' : '根分类'}}</view>
+    <view wx:for="{{categories}}" wx:key="id" class="card"><view class="section-title">{{item.name}}</view><view class="body">{{item.description}}</view><view class="meta">第 {{item.level}} 级分类</view><button data-id="{{item.id}}" bindtap="onCategory" disabled="{{busy}}">进入分类 →</button></view>
+    <view wx:if="{{!categories.length}}" class="empty">{{parentId ? '当前分类没有可见子分类' : '当前范围暂无分类'}}</view>
+    <button wx:if="{{canMoreCategories}}" bindtap="onMoreCategories" disabled="{{busy}}">继续加载分类</button>
+    <block wx:if="{{parentId}}"><view class="section-title">直属评价目标</view>
+      <view wx:for="{{targets}}" wx:key="id" class="card"><view class="section-title">{{item.name}}</view><view class="body">{{item.description}}</view><button data-id="{{item.id}}" bindtap="onTarget" disabled="{{busy}}">查看评分与文字评价 →</button></view>
+      <view wx:if="{{!targets.length}}" class="empty">此分类当前没有可见的直属目标</view>
+      <button wx:if="{{canMoreTargets}}" bindtap="onMoreTargets" disabled="{{busy}}">继续加载目标</button>
+    </block>
+  </block>
+  <view class="notice">图片未接入。目录只展示当前有效来源，不会自动填入示例或旧专项课程、食堂资料。</view>
+</view>

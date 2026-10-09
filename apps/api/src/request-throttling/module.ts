@@ -1,3 +1,4 @@
+import { RatingRequestGuard } from './rating-request.guard.js';
 import { ErrandRequestGuard } from './errand-request.guard.js';
 import { ActivityRequestGuard } from './activity-request.guard.js';
 import { AnnouncementRequestGuard } from './announcement-request.guard.js';
@@ -120,3 +121,24 @@ export class ActivityRequestThrottlingModule {}
   exports: [ErrandRequestGuard],
 })
 export class ErrandRequestThrottlingModule {}
+
+@Module({
+  imports: [
+    IdentityModule,
+    PostgresRequestThrottlingModule,
+    ThrottlerModule.forRootAsync({
+      imports: [PostgresRequestThrottlingModule],
+      inject: [PostgresThrottlerStorage],
+      useFactory: (storage: PostgresThrottlerStorage) => ({
+        storage,
+        setHeaders: false,
+        throttlers: [
+          { name: 'default', ttl: 60000, limit: 120, blockDuration: 60000 },
+        ],
+      }),
+    }),
+  ],
+  providers: [RatingRequestGuard],
+  exports: [RatingRequestGuard],
+})
+export class RatingRequestThrottlingModule {}

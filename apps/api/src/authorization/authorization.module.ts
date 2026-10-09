@@ -1,3 +1,4 @@
+import { RatingAuthorizationFacade } from './rating-grants.facade.js';
 import { AuthorizationReportWeightSource } from './report-weight.source.js';
 import {
   Controller,
@@ -32,10 +33,15 @@ export class AuthorizationController {
   imports: [DatabaseModule, IdentityModule, CampusModule],
   controllers: [AuthorizationController],
   providers: [
+    RatingAuthorizationFacade,
     AuthorizationRepository,
     AuthorizationService,
     AuthorizationReportWeightSource,
   ],
-  exports: [AuthorizationService, AuthorizationReportWeightSource],
+  exports: [
+    RatingAuthorizationFacade,
+    AuthorizationService,
+    AuthorizationReportWeightSource,
+  ],
 })
 export class AuthorizationModule {}

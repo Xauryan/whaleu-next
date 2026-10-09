@@ -4,7 +4,7 @@
 <import src="../../community/block-recovery.wxml" />
 <import src="../../community/trading-summary.wxml" />
 <import src="../../identity-privacy/view.wxml" />
-<view class="screen"><navigator class="link" url="/pages/errand-list/errand-list">校园跑腿 →</navigator><navigator class="link" url="/pages/activity-list/activity-list">校园活动（按身份校区核验） →</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/public-profile/public-profile">我的公开主页 →</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/community-liked/community-liked">我的点赞历史 →</navigator><template is="report-recovery" data="{{report}}" />
+<view class="screen"><navigator class="link" url="/pages/rating-catalog/rating-catalog">校园评分与文字评价 →</navigator><navigator class="link" url="/pages/errand-list/errand-list">校园跑腿 →</navigator><navigator class="link" url="/pages/activity-list/activity-list">校园活动（按身份校区核验） →</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/public-profile/public-profile">我的公开主页 →</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/community-liked/community-liked">我的点赞历史 →</navigator><template is="report-recovery" data="{{report}}" />
   <template is="announcement-popup" data="{{announcementPopup}}" />
   <navigator wx:if="{{campusId}}" class="link" url="/pages/announcements/announcements?campusId={{campusId}}">查看当前浏览校区公告 →</navigator>
   <navigator wx:else class="link" url="/pages/announcements/announcements">查看全体公告 →</navigator>

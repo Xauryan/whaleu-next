@@ -482,3 +482,72 @@ export async function createErrandsOpenApiDocument(): Promise<OpenAPIObject> {
 export async function renderErrandsOpenApiDocument(): Promise<string> {
   return renderDocument(await createErrandsOpenApiDocument());
 }
+
+/** Tooling-only rating routes. No live database, issuer or provider. */
+export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { RatingsController } = await import('../src/ratings/controller.js');
+  const { RatingsService } = await import('../src/ratings/service.js');
+  const { RatingRequestGuard } =
+    await import('../src/request-throttling/rating-request.guard.js');
+  for (const method of [
+    'context',
+    'categories',
+    'targets',
+    'target',
+    'myScore',
+    'summary',
+    'comments',
+    'comment',
+    'receipt',
+    'setScore',
+    'createComment',
+    'deleteComment',
+  ])
+    if (
+      !Reflect.hasMetadata(
+        PARAMTYPES_METADATA,
+        RatingsController.prototype,
+        method,
+      )
+    )
+      throw new Error(
+        'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+      );
+  const fail = () => {
+    throw new Error('OpenAPI must not execute application work');
+  };
+  const testing = await Test.createTestingModule({
+    controllers: [RatingsController],
+    providers: [{ provide: RatingsService, useValue: {} }],
+  })
+    .overrideGuard(RatingRequestGuard)
+    .useValue({ canActivate: fail })
+    .compile();
+  const app = testing.createNestApplication({ logger: false });
+  try {
+    return SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setOpenAPIVersion('3.0.3')
+        .setTitle('WhaleU independent ratings and text roots')
+        .setVersion('1')
+        .addSecurity('accessToken', {
+          type: 'http',
+          scheme: 'bearer',
+          description:
+            'Current opaque owner session. Receipts never grant access to content.',
+        })
+        .build(),
+      {
+        deepScanRoutes: false,
+        autoTagControllers: false,
+        excludeDynamicDefaults: true,
+      },
+    );
+  } finally {
+    await app.close();
+  }
+}
+export async function renderRatingsOpenApiDocument(): Promise<string> {
+  return renderDocument(await createRatingsOpenApiDocument());
+}

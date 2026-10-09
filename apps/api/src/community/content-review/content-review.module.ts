@@ -1,3 +1,4 @@
+import { RatingContentReviewFacade } from './rating-content-review.facade.js';
 import { ErrandContentReviewFacade } from './errand-content-review.facade.js';
 import { ContentReviewCountRepository } from './count-snapshot.repository.js';
 import { Module } from '@nestjs/common';
@@ -10,6 +11,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
 @Module({
   imports: [CampusModule],
   providers: [
+    RatingContentReviewFacade,
     ErrandContentReviewFacade,
     ContentReviewCountRepository,
     ApprovalRepository,
@@ -18,6 +20,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
     LocalApprovedContentVisibility,
   ],
   exports: [
+    RatingContentReviewFacade,
     ErrandContentReviewFacade,
     ContentReviewCountRepository,
     ApprovalRepository,

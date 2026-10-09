@@ -85,3 +85,7 @@ controllers and strict Zod schemas. It covers current member context, list/detai
 opaque first-page replay and continuation, and owner visit receipts. The offline
 metadata build and drift checks are part of the existing root commands. See
 [Activities](API_ACTIVITIES.md) for selection, replay and deferred parity boundaries.
+
+## Ratings R1
+
+[ratings.json](openapi/ratings.json) covers all twelve current authenticated ratings operations, with separate strict score, text, list, summary and minimal receipt schemas. The offline export uses the actual controller and Zod contracts and does not start PostgreSQL, an issuer, provider or runtime task. Unknown source coverage never appears as a known zero. See [Ratings API](API_RATINGS.md).
