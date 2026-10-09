@@ -52,3 +52,9 @@ Reply pages use numeric immutable ordinals and a per-root transition head, not a
 The existing Ratings 161-fact, Review 520-fact and Safety 128-slot limits remain unchanged; no fourth CountProofCollector owner is added. Focused local tests measure 104 Ratings and 205 Review facts for 50 replies with 50 distinct quotes; these measurements are not a full regression or production-throughput result. [Acceptance status](acceptance/ratings-r2a.md) tracks focused and final local acceptance. Final proofs remain READ COMMITTED, deferred-constraint-first, NOWAIT and bounded-read only. Raw child/root SQL updates never wait backward for a missing parent lock.
 
 The native implementation preserves pre-upgrade v1 journals, coordinates every new command through one account/origin pending slot, rejects mismatched recovery receipts and invalidates stale callbacks on session/navigation lifecycle changes. See [native implementation notes](../apps/wechat/docs/ratings-r2a.md).
+
+R3A permits an eligible reply author to clean up a live reply beneath a tombstoned
+root or hidden target with exact current parent/reply CAS. This grants no public
+read exemption. Administrator deletion uses a separate typed actor/audit and
+preserves the same reply transition/head stream. See [R3A contract](API_RATINGS_ADMIN.md)
+and [acceptance status](acceptance/ratings-r3a.md).

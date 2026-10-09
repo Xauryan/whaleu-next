@@ -169,6 +169,9 @@ function accessFixture() {
     requireAllowed: async () => {
       calls.push('safety');
     },
+    requireDeletionAllowed: async () => {
+      calls.push('safety');
+    },
     navigation: async () => {
       calls.push('safety-epoch');
       return 's';
@@ -707,4 +710,46 @@ test('grant current and upcoming horizon use one snapshot so cross-clock activat
       assert.match(sql, /LIMIT 1/);
     }
   }
+});
+
+test('owner cleanup retains global phone and safety gates without school or anonymous authority', async () => {
+  const f = accessFixture();
+  f.state.affiliation = 'unavailable';
+  f.state.grant = { kind: 'fixed', regionId: id(90), fingerprint: 'foreign' };
+  const result = await f.access.requireDeletionActor(id(1), f.tx);
+  assert.match(result.fingerprint, /^[a-f0-9]{64}$/);
+  assert.deepEqual(f.calls, ['phone', 'safety', 'safety-epoch']);
+});
+
+test('owner cleanup fails closed on missing phone and keeps unverified distinct', async () => {
+  for (const [status, code] of [
+    ['unavailable', 'VERIFICATION_UNAVAILABLE'],
+    ['unverified', 'PHONE_VERIFICATION_REQUIRED'],
+  ]) {
+    const f = accessFixture();
+    f.state.phone = status!;
+    await assert.rejects(
+      f.access.requireDeletionActor(id(1), f.tx),
+      errorIs(code!),
+    );
+    assert.deepEqual(f.calls, ['phone']);
+  }
+});
+
+test('cleanup restriction rejection preserves finite Safety coverage through final constraint waits', async () => {
+  const f = sqlFixture();
+  const facade = new RatingSafetyFacade({
+    restriction: async () => {
+      throw new ApplicationError('SAFETY_ACTION_RESTRICTED');
+    },
+    head: async () => ({ valid_until: new Date(now.getTime() - 1) }),
+  } as unknown as SafetyRepository);
+  await assert.rejects(
+    facade.requireDeletionAllowed(id(1), f.tx),
+    errorIs('SAFETY_ACTION_RESTRICTED'),
+  );
+  await assert.rejects(
+    checkTransactionDeadlines(f.tx),
+    errorIs('SAFETY_UNAVAILABLE'),
+  );
 });

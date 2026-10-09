@@ -116,7 +116,10 @@ export class RatingDiscussionRepository {
     };
   }
   async delete(
-    row: ReplyRow,
+    row: Pick<
+      ReplyRow,
+      'id' | 'target_id' | 'root_id' | 'account_id' | 'revision' | 'deleted_at'
+    >,
     actor: string,
     requestId: string,
     revision: string,

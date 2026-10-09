@@ -1,3 +1,5 @@
+import { ApplicationError } from '../http/application-error.js';
+import { registerTransactionDeadline } from '../database/transaction-deadlines.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
@@ -19,6 +21,32 @@ export class RatingSafetyFacade {
   async requireAllowed(accountId: string, tx: PoolClient): Promise<void> {
     await navigation(tx);
     await this.records.restriction(accountId, tx);
+  }
+  /** Deletion persists explicit denials, so their coverage expiry must also be
+   * retained through deferred constraint waits. Ordinary read behavior is unchanged. */
+  async requireDeletionAllowed(
+    accountId: string,
+    tx: PoolClient,
+  ): Promise<void> {
+    await navigation(tx);
+    try {
+      await this.records.restriction(accountId, tx);
+    } catch (error) {
+      if (
+        error instanceof ApplicationError &&
+        error.code === 'SAFETY_ACTION_RESTRICTED'
+      ) {
+        // restriction already holds this owner row lock. Re-read only its
+        // coverage deadline; never expose restriction details across owners.
+        const head = await this.records.head(accountId, tx);
+        registerTransactionDeadline(
+          tx,
+          head?.valid_until?.getTime() ?? null,
+          'SAFETY_UNAVAILABLE',
+        );
+      }
+      throw error;
+    }
   }
   navigation(tx: PoolClient): Promise<string> {
     return navigation(tx);

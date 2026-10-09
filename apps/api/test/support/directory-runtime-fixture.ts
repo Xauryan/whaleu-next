@@ -29,7 +29,7 @@ import {
 } from './community-scope-fixtures.js';
 import { migrationSchemaNames } from './migration-schemas.js';
 
-export async function directoryRuntimeFixture() {
+export async function directoryRuntimeFixture(maximumMigration?: number) {
   const database = process.env['TEST_DATABASE_URL'];
   assert.ok(
     database,
@@ -110,8 +110,14 @@ export async function directoryRuntimeFixture() {
     owns = true;
     await runMigrations(
       pool,
-      await readMigrations(
-        fileURLToPath(new URL('../../migrations', import.meta.url)),
+      (
+        await readMigrations(
+          fileURLToPath(new URL('../../migrations', import.meta.url)),
+        )
+      ).filter(
+        (migration) =>
+          maximumMigration === undefined ||
+          Number(migration.name.slice(0, 4)) <= maximumMigration,
       ),
       { mode: 'up' },
     );

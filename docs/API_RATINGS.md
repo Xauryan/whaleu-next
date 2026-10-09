@@ -60,3 +60,12 @@ The existing Safety writer capacity remains 128, with its existing supported-cap
 - WeChat device acceptance and iOS/Android/Harmony implementations
 
 Author cumulative received-like behavior after deletion remains an unresolved product decision. R1 does not create or modify that metric.
+
+## R3A cleanup and administrator deletion
+
+Owner deletion now uses private metadata and global account/phone/Safety
+eligibility, so hidden/inactive parents or withdrawn affiliation/review do not
+prevent cleaning up one's own content. Exact parent/revision CAS and the original
+wire/hash/receipt remain unchanged. Separate minimal owner cleanup contexts and
+explicit administrator contexts/commands are documented in [R3A deletion](API_RATINGS_ADMIN.md).
+The [R3A acceptance record](acceptance/ratings-r3a.md) tracks pending gates.

@@ -169,6 +169,12 @@ export function registerRatingPage(mode: RatingMode): void {
     onPublish() {
       void this.controller?.publish();
     },
+    onDeletionOptions(event: Tap) {
+      this.navigator?.open(
+        this.controller?.deletionPath(event.currentTarget.dataset.id ?? '') ??
+          null,
+      );
+    },
     onDelete(event: Tap) {
       this.controller?.confirmDelete(event.currentTarget.dataset.id ?? '');
     },

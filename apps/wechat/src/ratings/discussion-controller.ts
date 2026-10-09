@@ -1,3 +1,4 @@
+import { ratingDeletionPath } from './deletion-contract';
 import { decodeRatingSubscriptionNoticeTarget } from './subscription-updates-contract';
 import { readRatingLikeStates, type RatingLikeStates } from './like-controller';
 import { decodeRatingLikeNoticeTarget } from './like-updates-contract';
@@ -29,6 +30,8 @@ import {
 import {
   decodeRatingCommandIntent,
   isRatingSubscriptionIntent,
+  isRatingAdminDeletionIntent,
+  isRatingDeletionContextChanged,
   type RatingCommandIntent,
   type PendingRating,
   type RatingCommandReceipt,
@@ -707,6 +710,35 @@ export class RatingThreadController extends CommunityController<RatingThreadView
       },
     }));
   }
+  deletionPath(id?: string): string | null {
+    if (
+      this.inactive ||
+      this.view.busy ||
+      this.view.frozen ||
+      !this.available() ||
+      !this.route
+    )
+      return null;
+    const route = this.route,
+      subjectId = id ?? route.replyId ?? route.rootId;
+    // A hidden-parent cleanup may use only an already-known route locator, never an enumerated history.
+    const known =
+      subjectId === route.rootId ||
+      subjectId === route.replyId ||
+      this.view.replies.some(
+        (item) =>
+          item.id === subjectId &&
+          item.targetId === route.targetId &&
+          item.rootId === route.rootId,
+      );
+    if (!known) return null;
+    return ratingDeletionPath({
+      subjectKind: subjectId === route.rootId ? 'comment' : 'reply',
+      targetId: route.targetId,
+      rootId: route.rootId,
+      subjectId,
+    });
+  }
   confirmDelete(id: string): void {
     if (
       !this.canWrite() ||
@@ -798,7 +830,11 @@ export class RatingThreadController extends CommunityController<RatingThreadView
         if (cancel.isCancelled)
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const intent = decodeRatingCommandIntent(make(id));
-        if (isRatingSubscriptionIntent(intent)) invalidRating();
+        if (
+          isRatingSubscriptionIntent(intent) ||
+          isRatingAdminDeletionIntent(intent)
+        )
+          invalidRating();
         const attempt = this.runtime.pendingRatings!.freeze({
           version: 2,
           accountId,
@@ -879,6 +915,24 @@ export class RatingThreadController extends CommunityController<RatingThreadView
         refresh = this.settle(result);
       },
       (error) => {
+        if (
+          retry &&
+          isRatingAdminDeletionIntent(attempt.intent) &&
+          isRatingDeletionContextChanged(error)
+        ) {
+          if (!this.loadJournal()) return;
+          if (!this.pending) {
+            this.update({
+              frozen: false,
+              needsRefresh: true,
+              recoveryOperation: '',
+              error: ratingError(error),
+              status: '原请求未提交，请重新打开删除选项并核验后确认',
+            });
+            return;
+          }
+        }
+
         this.update({
           frozen: true,
           error: ratingError(error),

@@ -1,3 +1,4 @@
+import { RatingDeletionRepository } from './deletion/repository.js';
 import { Module } from '@nestjs/common';
 import { IdentityModule } from '../identity/identity.module.js';
 import { VerificationModule } from '../verification/verification.module.js';
@@ -21,12 +22,14 @@ import { RatingDiscussionProjection } from './discussion-projection.js';
     ContentReviewModule,
   ],
   providers: [
+    RatingDeletionRepository,
     RatingsAccessService,
     RatingsRepository,
     RatingDiscussionRepository,
     RatingDiscussionProjection,
   ],
   exports: [
+    RatingDeletionRepository,
     RatingsAccessService,
     RatingsRepository,
     RatingDiscussionRepository,

@@ -1,0 +1,24 @@
+<import src="../../ratings/common.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 删除与清理</view>
+  <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />
+  <view class="notice">只核验这条已知内容的编号、版本和删除资格，不显示正文或作者身份。父级已隐藏时，作者仍可核验清理资格。</view>
+  <view wx:if="{{locator}}" class="card">
+    <view class="section-title">{{locator.subjectKind === 'comment' ? '文字评价' : '单条回复'}}</view>
+    <view class="meta">内容编号 {{locator.subjectId}}</view>
+    <button bindtap="onOwner" disabled="{{busy || frozen || !hasSession || !configured}}">重新读取自己的清理资格</button>
+    <button bindtap="onAdmin" disabled="{{busy || frozen || !hasSession || !configured}}">查询此条内容的管理资格</button>
+    <view class="meta">管理资格由服务端按真实授权范围核验，浏览地区和显示身份不授予管理权限。</view>
+  </view>
+  <view wx:if="{{context}}" class="card">
+    <view class="section-title">{{context.deleted ? '此条内容已删除' : '此条内容尚未删除'}}</view>
+    <view class="meta">状态来自本次重新读取，历史回执不代表当前权限。</view>
+  </view>
+  <view wx:if="{{canConfirm &amp;&amp; context}}" class="card">
+    <view class="section-title">{{authority === 'admin' ? '确认以管理员身份删除？' : '确认删除自己的内容？'}}</view>
+    <view class="notice">{{context.subjectKind === 'comment' ? '此评价及其回复将不再公开显示。' : '只删除这条回复，其他后续回复仍保留。'}}独立评分和点赞历史保持不变。版本或资格变化后需要重新读取并确认。</view>
+    <button bindtap="onConfirm" disabled="{{busy || frozen}}" loading="{{busy}}">{{authority === 'admin' ? '确认管理员删除' : '确认清理自己的内容'}}</button>
+    <button bindtap="onCancel">取消确认</button>
+  </view>
+  <navigator class="link" url="/pages/rating-recovery/rating-recovery">独立查询原评分请求 →</navigator>
+</view>

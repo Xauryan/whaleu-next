@@ -103,8 +103,8 @@ export async function setRatingReviewState(
     return eventId;
   });
 }
-export async function ratingRuntimeFixture() {
-  const f = await directoryRuntimeFixture(),
+export async function ratingRuntimeFixture(maximumMigration?: number) {
+  const f = await directoryRuntimeFixture(maximumMigration),
     http = f.app.getHttpServer();
   type Actor = Awaited<ReturnType<typeof f.actor>>;
   const auth = (r: request.Test, a: Actor) =>

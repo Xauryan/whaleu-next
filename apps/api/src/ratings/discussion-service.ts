@@ -1,3 +1,4 @@
+import { RatingDeletionRepository } from './deletion/repository.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -32,6 +33,8 @@ export class RatingDiscussionService {
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(RatingsAccessService) private readonly access: RatingsAccessService,
     @Inject(RatingsRepository) private readonly records: RatingsRepository,
+    @Inject(RatingDeletionRepository)
+    private readonly deletion: RatingDeletionRepository,
     @Inject(RatingDiscussionRepository)
     private readonly replies: RatingDiscussionRepository,
     @Inject(RatingDiscussionProjection)
@@ -359,27 +362,18 @@ export class RatingDiscussionService {
       { replyId: id, ...command },
       async (actor, tx) => {
         this.records.enable(tx);
-        const c = await this.chain(
-          token,
-          command.rootId,
-          command.regionId,
-          tx,
-          true,
-          command.targetId,
-        );
+        await this.access.requireDeletionActor(actor, tx);
+        const target = await this.deletion.target(command.targetId, tx),
+          root = await this.deletion.root(command.rootId, target.id, tx),
+          row = await this.deletion.reply(id, root.id, target.id, tx);
+        if (row.account_id !== actor)
+          throw new ApplicationError('RATING_NOT_FOUND');
         if (
-          c.target.row.revision !== command.expectedTargetRevision ||
-          c.root.revision !== command.expectedRootRevision
+          target.revision !== command.expectedTargetRevision ||
+          root.revision !== command.expectedRootRevision
         )
           throw new ApplicationError('RATING_REVISION_CONFLICT');
-        const row = await this.replies.reply(
-          id,
-          c.root.id,
-          c.target.row.id,
-          tx,
-          true,
-          true,
-        );
+        this.records.retainComment(root, tx);
         return this.replies.delete(
           row,
           actor,

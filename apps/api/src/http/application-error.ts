@@ -3,6 +3,14 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  RATING_DELETION_CONTEXT_CHANGED: {
+    status: 409,
+    message: 'Deletion context changed; refresh and confirm again',
+  },
+  RATING_DELETION_AUTHORITY_UNAVAILABLE: {
+    status: 503,
+    message: 'Rating deletion authority is unavailable',
+  },
   RATING_UNAVAILABLE: { status: 503, message: 'Ratings are unavailable' },
   RATING_NOT_FOUND: { status: 404, message: 'Rating content not found' },
   RATING_SCOPE_UNAVAILABLE: {

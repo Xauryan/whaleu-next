@@ -497,6 +497,10 @@ export async function renderErrandsOpenApiDocument(): Promise<string> {
 
 /** Tooling-only rating routes. No live database, issuer or provider. */
 export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { RatingDeletionController } =
+    await import('../src/ratings/deletion/controller.js');
+  const { RatingDeletionService } =
+    await import('../src/ratings/deletion/service.js');
   const { RatingSubscriptionsController } =
     await import('../src/ratings/subscriptions/controller.js');
   const { RatingSubscriptionsService } =
@@ -554,6 +558,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
   };
   const testing = await Test.createTestingModule({
     controllers: [
+      RatingDeletionController,
       RatingSubscriptionsController,
       RatingSubscriptionUpdatesController,
       RatingsController,
@@ -563,6 +568,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       RatingLikeUpdatesController,
     ],
     providers: [
+      { provide: RatingDeletionService, useValue: {} },
       { provide: RatingSubscriptionsService, useValue: {} },
       { provide: RatingSubscriptionUpdatesReadService, useValue: {} },
       { provide: RatingsService, useValue: {} },
@@ -582,7 +588,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       new DocumentBuilder()
         .setOpenAPIVersion('3.0.3')
         .setTitle(
-          'WhaleU ratings, discussions, likes, subscriptions and local updates',
+          'WhaleU ratings, discussions, deletion, likes, subscriptions and local updates',
         )
         .setVersion('1')
         .addSecurity('accessToken', {

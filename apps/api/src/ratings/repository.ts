@@ -490,7 +490,10 @@ export class RatingsRepository {
     };
   }
   async deleteComment(
-    row: CommentRow,
+    row: Pick<
+      CommentRow,
+      'id' | 'target_id' | 'account_id' | 'revision' | 'deleted_at'
+    >,
     actor: string,
     requestId: string,
     expectedRevision: string,

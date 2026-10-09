@@ -1,3 +1,4 @@
+import { DirectoryNavigator } from '../../directory/navigation';
 import type { WhaleuApp } from '../../app';
 import {
   decodeRatingThreadRoute,
@@ -9,8 +10,28 @@ type Tap = { currentTarget: { dataset: { id?: string; mode?: string } } };
 Page({
   data: initialRatingThreadView(),
   route: null as RatingThreadRoute | null,
+  navigator: undefined as DirectoryNavigator | undefined,
+  unsubscribeSession: undefined as (() => void) | undefined,
+  unsubscribeHide: undefined as (() => void) | undefined,
   controller: undefined as RatingThreadController | undefined,
   onLoad(query: unknown = {}) {
+    const runtime = getApp<WhaleuApp>().community;
+    if (runtime) {
+      let owner = runtime.sessions.snapshot();
+      this.unsubscribeSession = runtime.sessions.subscribe(() => {
+        const current = runtime.sessions.snapshot();
+        if (
+          current.epoch !== owner.epoch ||
+          current.credentials?.accountId !== owner.credentials?.accountId
+        ) {
+          owner = current;
+          this.navigator?.dispose();
+        }
+      });
+      this.unsubscribeHide = runtime.privateViews?.subscribe((accountId) => {
+        if (accountId === undefined) this.navigator?.dispose();
+      });
+    }
     const previous = this.controller;
     this.controller = undefined;
     previous?.dispose();
@@ -21,6 +42,8 @@ Page({
     }
   },
   onShow() {
+    this.navigator?.dispose();
+    this.navigator = undefined;
     const previous = this.controller;
     this.controller = undefined;
     previous?.dispose();
@@ -32,6 +55,9 @@ Page({
       });
       return;
     }
+    this.navigator = new DirectoryNavigator(wx, () =>
+      this.setData({ error: '暂不能打开删除选项，请重试' }),
+    );
     this.controller = new RatingThreadController(runtime, (view) => {
       this.setData({ ...view });
       this.route = this.controller?.currentRoute() ?? this.route;
@@ -77,6 +103,11 @@ Page({
   onDismiss() {
     this.controller?.dismiss();
   },
+  onDeletionOptions(event: Tap) {
+    this.navigator?.open(
+      this.controller?.deletionPath(event.currentTarget.dataset.id) ?? null,
+    );
+  },
   onDelete(event: Tap) {
     this.controller?.confirmDelete(event.currentTarget.dataset.id ?? '');
   },
@@ -93,6 +124,8 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.navigator?.dispose();
+    this.navigator = undefined;
     const previous = this.controller;
     this.controller = undefined;
     previous?.dispose();
@@ -100,5 +133,7 @@ Page({
   onUnload() {
     this.onHide();
     this.route = null;
+    this.unsubscribeSession?.();
+    this.unsubscribeHide?.();
   },
 });

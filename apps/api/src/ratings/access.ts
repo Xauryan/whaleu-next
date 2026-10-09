@@ -25,6 +25,26 @@ export class RatingsAccessService {
     await lockSafetyPolicy(tx);
     return this.identity.session(token, tx);
   }
+  /** Cleanup retains global eligibility without asserting content visibility,
+   * school affiliation, anonymous privileges or bilateral relationships. */
+  async requireDeletionActor(accountId: string, tx: PoolClient) {
+    await lockSafetyPolicy(tx);
+    if (!(await this.identity.activeAccount(accountId, tx)))
+      throw new ApplicationError('RATING_NOT_FOUND');
+    const phone = await this.verification.phone(accountId, tx);
+    if (phone.status === 'unverified')
+      throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
+    if (phone.status !== 'verified')
+      throw new ApplicationError('VERIFICATION_UNAVAILABLE');
+    await this.safety.requireDeletionAllowed(accountId, tx);
+    return {
+      fingerprint: ownerFingerprint([
+        accountId,
+        phone.fingerprint,
+        await this.safety.navigation(tx),
+      ]),
+    };
+  }
   async resolve(
     token: string,
     regionId: string | null,

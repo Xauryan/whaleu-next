@@ -82,8 +82,13 @@ export class RatingReplyRequests {
             !ratingRejectionSchema.safeParse(error.code).success
           )
             throw error;
-          await tx.query('ROLLBACK TO SAVEPOINT rating_command');
-          restoreTransactionDeadlines(tx, checkpoint);
+          // Cleanup terminal errors are raised before its first mutation.
+          // Preserve the negative eligibility/CAS facts and their locks so a
+          // wait cannot turn an obsolete rejection into a durable receipt.
+          if (operation !== 'delete_reply') {
+            await tx.query('ROLLBACK TO SAVEPOINT rating_command');
+            restoreTransactionDeadlines(tx, checkpoint);
+          }
           receipt = {
             requestId,
             operation,

@@ -1,3 +1,10 @@
+import {
+  decodeRatingAdminDeletionIntent,
+  decodeRatingAdminDeletionReceipt,
+  matchRatingAdminDeletionReceipt,
+  type RatingAdminDeletionIntent,
+  type RatingAdminDeletionReceipt,
+} from './deletion-contract';
 import { ClientError, isRecord } from '../api/errors';
 import { exact } from '../community/contract';
 import type { Storage } from '../platform/contracts';
@@ -32,12 +39,14 @@ import {
   type RatingSubscriptionReceipt,
 } from './subscription-contract';
 type RatingV2Intent = RatingIntent | RatingReplyIntent | RatingLikeIntent;
-export type RatingCommandIntent = RatingV2Intent | RatingSubscriptionIntent;
+export type RatingCommandIntent =
+  RatingV2Intent | RatingSubscriptionIntent | RatingAdminDeletionIntent;
 export type RatingCommandReceipt =
   | RatingReceipt
   | RatingReplyReceipt
   | RatingLikeReceipt
-  | RatingSubscriptionReceipt;
+  | RatingSubscriptionReceipt
+  | RatingAdminDeletionReceipt;
 export type PendingRating =
   | {
       readonly version: 1;
@@ -53,7 +62,28 @@ export type PendingRating =
       readonly version: 3;
       readonly accountId: string;
       readonly intent: RatingSubscriptionIntent;
+    }
+  | {
+      readonly version: 4;
+      readonly accountId: string;
+      readonly intent: RatingAdminDeletionIntent;
     };
+export function isRatingAdminDeletionIntent(
+  intent: RatingCommandIntent,
+): intent is RatingAdminDeletionIntent {
+  return (
+    intent.operation === 'admin_delete_comment' ||
+    intent.operation === 'admin_delete_reply'
+  );
+}
+export function isRatingDeletionContextChanged(error: unknown): boolean {
+  return (
+    error instanceof ClientError &&
+    (error.kind === 'http' || error.kind === 'business') &&
+    error.details.httpStatus === 409 &&
+    error.details.serverCode === 'RATING_DELETION_CONTEXT_CHANGED'
+  );
+}
 export function isRatingReplyIntent(
   intent: RatingCommandIntent,
 ): intent is RatingReplyIntent {
@@ -75,6 +105,12 @@ export function isRatingSubscriptionIntent(
   return intent.operation === 'set_target_subscription';
 }
 export function decodeRatingCommandIntent(value: unknown): RatingCommandIntent {
+  if (
+    isRecord(value) &&
+    (value.operation === 'admin_delete_comment' ||
+      value.operation === 'admin_delete_reply')
+  )
+    return decodeRatingAdminDeletionIntent(value);
   return isRecord(value) && value.operation === 'set_target_subscription'
     ? decodeRatingSubscriptionIntent(value)
     : decodeRatingV2Intent(value);
@@ -92,7 +128,8 @@ function decodeRatingV2Intent(value: unknown): RatingV2Intent {
     : decodeRatingIntent(value);
 }
 export function ratingIntentTarget(intent: RatingCommandIntent): string {
-  return isRatingReplyIntent(intent) ||
+  return isRatingAdminDeletionIntent(intent) ||
+    isRatingReplyIntent(intent) ||
     isRatingLikeIntent(intent) ||
     intent.operation === 'delete_comment'
     ? intent.payload.targetId
@@ -105,7 +142,7 @@ const unavailable = (): ClientError =>
 function decode(
   value: unknown,
   accountId: string,
-  version: 1 | 2 | 3,
+  version: 1 | 2 | 3 | 4,
 ): PendingRating {
   exact(value, ['version', 'accountId', 'intent']);
   if (
@@ -119,21 +156,26 @@ function decode(
       ? decodeRatingIntent(value.intent)
       : version === 2
         ? decodeRatingV2Intent(value.intent)
-        : decodeRatingSubscriptionIntent(value.intent);
+        : version === 3
+          ? decodeRatingSubscriptionIntent(value.intent)
+          : decodeRatingAdminDeletionIntent(value.intent);
   if (!equal(intent, value.intent)) invalidRating();
   return Object.freeze({ version, accountId, intent }) as PendingRating;
 }
-/** One immutable command per origin/account. Recovery order is v1, v2, v3; every original key and payload stays unchanged. */
+/** One immutable command per origin/account. Recovery order is v1, v2, v3, v4; every original key and payload stays unchanged. */
 export class PendingRatingStore {
   constructor(
     private readonly storage: Storage,
     private readonly origin: string,
   ) {}
-  private key(accountId: string, version: 1 | 2 | 3): string {
+  private key(accountId: string, version: 1 | 2 | 3 | 4): string {
     if (!ratingId(accountId)) throw unavailable();
     return `whaleu.ratings.pending.v${version}:${this.origin}:${accountId}`;
   }
-  private read(accountId: string, version: 1 | 2 | 3): PendingRating | null {
+  private read(
+    accountId: string,
+    version: 1 | 2 | 3 | 4,
+  ): PendingRating | null {
     const raw = this.storage.get(this.key(accountId, version));
     return raw === undefined || raw === null || raw === ''
       ? null
@@ -144,7 +186,8 @@ export class PendingRatingStore {
       return (
         this.read(accountId, 1) ??
         this.read(accountId, 2) ??
-        this.read(accountId, 3)
+        this.read(accountId, 3) ??
+        this.read(accountId, 4)
       );
     } catch {
       throw unavailable();
@@ -153,7 +196,7 @@ export class PendingRatingStore {
   freeze(raw: PendingRating): PendingRating {
     try {
       exact(raw, ['version', 'accountId', 'intent']);
-      if (![1, 2, 3].includes(raw.version) || !ratingId(raw.accountId))
+      if (![1, 2, 3, 4].includes(raw.version) || !ratingId(raw.accountId))
         invalidRating();
       const attempt = Object.freeze({
         version: raw.version,
@@ -163,15 +206,18 @@ export class PendingRatingStore {
             ? decodeRatingIntent(raw.intent)
             : raw.version === 2
               ? decodeRatingV2Intent(raw.intent)
-              : decodeRatingSubscriptionIntent(raw.intent),
+              : raw.version === 3
+                ? decodeRatingSubscriptionIntent(raw.intent)
+                : decodeRatingAdminDeletionIntent(raw.intent),
       }) as PendingRating;
       // Read every version before writing. Any old unresolved or untrusted journal blocks a new command.
       const old1 = this.read(attempt.accountId, 1),
         old2 = this.read(attempt.accountId, 2),
-        old3 = this.read(attempt.accountId, 3);
-      if ([old1, old2, old3].some((old) => old && !equal(old, attempt)))
+        old3 = this.read(attempt.accountId, 3),
+        old4 = this.read(attempt.accountId, 4);
+      if ([old1, old2, old3, old4].some((old) => old && !equal(old, attempt)))
         throw unavailable();
-      if (!old1 && !old2 && !old3)
+      if (!old1 && !old2 && !old3 && !old4)
         this.storage.set(this.key(attempt.accountId, attempt.version), attempt);
       this.assertOriginal(attempt);
       return attempt;
@@ -182,12 +228,27 @@ export class PendingRatingStore {
   assertOriginal(attempt: PendingRating): void {
     if (!equal(this.load(attempt.accountId), attempt)) throw unavailable();
   }
+  /** Only the replay-first DELETE's definitive rollback permits a fresh context/key. */
+  releaseChangedAdminContext(attempt: PendingRating, error: unknown): void {
+    if (attempt.version !== 4 || !isRatingDeletionContextChanged(error))
+      invalidRating();
+    try {
+      this.assertOriginal(attempt);
+      this.storage.remove(this.key(attempt.accountId, 4));
+      if (this.read(attempt.accountId, 4)) throw unavailable();
+    } catch {
+      throw unavailable();
+    }
+  }
   settle(
     attempt: PendingRating,
     raw: RatingCommandReceipt,
   ): RatingCommandReceipt {
     let receipt: RatingCommandReceipt;
-    if (isRatingSubscriptionIntent(attempt.intent)) {
+    if (isRatingAdminDeletionIntent(attempt.intent)) {
+      receipt = decodeRatingAdminDeletionReceipt(raw);
+      matchRatingAdminDeletionReceipt(attempt.intent, receipt);
+    } else if (isRatingSubscriptionIntent(attempt.intent)) {
       receipt = decodeRatingSubscriptionReceipt(raw);
       matchRatingSubscriptionReceipt(attempt.intent, receipt);
     } else if (isRatingLikeIntent(attempt.intent)) {

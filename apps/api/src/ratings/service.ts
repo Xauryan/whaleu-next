@@ -1,3 +1,4 @@
+import { RatingDeletionRepository } from './deletion/repository.js';
 import { RatingRootOrderCursors } from './like-order-cursor.js';
 import { RatingRootOrderRepository } from './like-order-repository.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -49,6 +50,8 @@ export class RatingsService {
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(RatingsAccessService) private readonly access: RatingsAccessService,
     @Inject(RatingsRepository) private readonly records: RatingsRepository,
+    @Inject(RatingDeletionRepository)
+    private readonly deletion: RatingDeletionRepository,
     @Inject(RatingsRequests) private readonly requests: RatingsRequests,
     @Inject(RatingsCursors) private readonly cursors: RatingsCursors,
     @Inject(RatingContentReviewFacade)
@@ -534,7 +537,7 @@ export class RatingsService {
       },
     );
   }
-  private revision(row: TargetRow, expected: string) {
+  private revision(row: Pick<TargetRow, 'revision'>, expected: string) {
     if (row.revision !== expected)
       throw new ApplicationError('RATING_REVISION_CONFLICT');
   }
@@ -611,16 +614,12 @@ export class RatingsService {
       { commentId: id, ...command },
       async (actor, tx) => {
         this.records.enable(tx);
-        await this.access.resolve(token, command.regionId, tx, { phone: true });
-        const catalog = await this.records.catalog(command.regionId, tx),
-          { row: target } = await this.currentTarget(
-            catalog,
-            command.targetId,
-            tx,
-            true,
-          );
+        await this.access.requireDeletionActor(actor, tx);
+        const target = await this.deletion.target(command.targetId, tx),
+          row = await this.deletion.root(id, target.id, tx);
+        if (row.account_id !== actor)
+          throw new ApplicationError('RATING_NOT_FOUND');
         this.revision(target, command.expectedTargetRevision);
-        const row = await this.records.comment(id, target.id, tx, true, true);
         return this.records.deleteComment(
           row,
           actor,

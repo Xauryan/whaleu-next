@@ -189,3 +189,12 @@ restriction causes and retain independent source coverage. Final target-role
 absence is an Authorization-owned managed-transaction proof, not an early SQL
 EXISTS assertion or a newly assumed grant-writer lock protocol. See
 [administrative scope](../../../docs/API_ERRANDS.md#administrative-mutations-and-recorded-history-e2b).
+
+Migration 0053 adds empty independent target-origin provenance and typed
+administrator-deletion audits. Owner cleanup accepts hidden/inactive parents only
+in deletion branches; public read/create/interaction rules stay unchanged. Typed
+administrator causes preserve original authors, the existing transition/head
+pipeline and exact minimal receipts. Source-version 4 deletion effects create no
+Experience, notice or fan-out reward. No roles, original-campus facts, historical
+rewrites or production imports are seeded. See [R3A contract](../../../docs/API_RATINGS_ADMIN.md)
+and [passed local integrated acceptance](../../../docs/acceptance/ratings-r3a.md).

@@ -1,4 +1,8 @@
 import {
+  HttpRatingDeletionGateway,
+  type RatingDeletionGateway,
+} from '../ratings/deletion-gateway';
+import {
   HttpRatingSubscriptionsGateway,
   type RatingSubscriptionsGateway,
 } from '../ratings/subscription-gateway';
@@ -92,6 +96,7 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly ratingDeletion?: RatingDeletionGateway;
   readonly ratingSubscriptions?: RatingSubscriptionsGateway;
   readonly ratingSubscriptionUpdates?: RatingSubscriptionUpdatesGateway;
   readonly ratingLikes?: RatingLikesGateway;
@@ -153,6 +158,7 @@ export function createCommunityRuntime(
     ...(identity.api ? { ratings: new HttpRatingsGateway(identity.api) } : {}),
     ...(identity.api
       ? {
+          ratingDeletion: new HttpRatingDeletionGateway(identity.api),
           ratingSubscriptions: new HttpRatingSubscriptionsGateway(identity.api),
           ratingSubscriptionUpdates: new HttpRatingSubscriptionUpdatesGateway(
             identity.api,

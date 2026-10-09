@@ -1,3 +1,4 @@
+import { ratingDeletionPath } from './deletion-contract';
 import {
   readRatingSubscriptionState,
   readRatingSubscriptionStates,
@@ -37,6 +38,8 @@ import {
   ratingIntentTarget,
   decodeRatingCommandIntent,
   isRatingSubscriptionIntent,
+  isRatingAdminDeletionIntent,
+  isRatingDeletionContextChanged,
   type RatingCommandIntent,
   type PendingRating,
   type RatingCommandReceipt,
@@ -155,6 +158,8 @@ export function ratingError(error: unknown): string {
           '评分历史尚不能确认；自己的评分和统计不能视为零',
         RATING_REVISION_CONFLICT:
           '评分或目标已被更新，请刷新后重新选择并确认；未覆盖其他设备的修改',
+        RATING_DELETION_CONTEXT_CHANGED:
+          '删除资格或版本已变化，原请求未提交；请重新读取删除上下文并再次确认',
         CONTENT_REVIEW_UNAVAILABLE:
           '文字审核暂不可用；当前版本尚未开放审核签发，原请求仍保留',
       } as Record<string, string>
@@ -848,6 +853,17 @@ export class RatingController extends CommunityController<RatingView> {
       },
     }));
   }
+  deletionPath(id: string): string | null {
+    if (!this.canWrite()) return null;
+    const item = this.view.comments.find((comment) => comment.id === id);
+    if (!item || item.targetId !== this.view.detail?.id) return null;
+    return ratingDeletionPath({
+      subjectKind: 'comment',
+      targetId: item.targetId,
+      rootId: item.id,
+      subjectId: item.id,
+    });
+  }
   confirmDelete(id: string): void {
     if (
       !this.canWrite() ||
@@ -970,6 +986,7 @@ export class RatingController extends CommunityController<RatingView> {
         if (cancel.isCancelled)
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const intent = decodeRatingCommandIntent(make(id));
+        if (isRatingAdminDeletionIntent(intent)) invalidRating();
         const attempt = this.runtime.pendingRatings!.freeze(
           isRatingSubscriptionIntent(intent)
             ? { version: 3, accountId, intent }
@@ -1035,6 +1052,24 @@ export class RatingController extends CommunityController<RatingView> {
         reload = this.settle(receipt);
       },
       (error) => {
+        if (
+          retry &&
+          isRatingAdminDeletionIntent(attempt.intent) &&
+          isRatingDeletionContextChanged(error)
+        ) {
+          if (!this.loadJournal()) return;
+          if (!this.pending) {
+            this.update({
+              frozen: false,
+              needsRefresh: true,
+              recoveryOperation: '',
+              error: ratingError(error),
+              status: '原请求未提交，请重新打开删除选项并核验后确认',
+            });
+            return;
+          }
+        }
+
         this.clearCurrent();
         this.update({
           frozen: true,

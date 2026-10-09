@@ -39,7 +39,8 @@
     "pages/rating-detail/rating-detail",
     "pages/rating-thread/rating-thread",
     "pages/rating-updates/rating-updates",
-    "pages/rating-recovery/rating-recovery"
+    "pages/rating-recovery/rating-recovery",
+    "pages/rating-deletion/rating-deletion"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

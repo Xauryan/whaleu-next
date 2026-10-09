@@ -1,3 +1,7 @@
+import { RatingDeletionController } from './deletion/controller.js';
+import { RatingDeletionService } from './deletion/service.js';
+import { RatingAdminDeletionRequests } from './deletion/requests.js';
+import { RatingTargetOriginFacade } from './deletion/origin.facade.js';
 import { RatingSubscriptionsController } from './subscriptions/controller.js';
 import { RatingSubscriptionsService } from './subscriptions/service.js';
 import { RatingSubscriptionsRepository } from './subscriptions/repository.js';
@@ -47,12 +51,16 @@ import { RatingsCursors } from './cursor.js';
     RatingRequestThrottlingModule,
   ],
   controllers: [
+    RatingDeletionController,
     RatingSubscriptionsController,
     RatingsController,
     RatingDiscussionController,
     RatingLikesController,
   ],
   providers: [
+    RatingDeletionService,
+    RatingAdminDeletionRequests,
+    RatingTargetOriginFacade,
     RatingSubscriptionsService,
     RatingSubscriptionsRepository,
     RatingSubscriptionRequests,

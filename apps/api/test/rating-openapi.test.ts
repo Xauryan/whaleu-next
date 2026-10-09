@@ -1,3 +1,4 @@
+import * as deletion from '../src/ratings/deletion/contracts.js';
 import * as subscriptions from '../src/ratings/subscriptions/contracts.js';
 import * as subscriptionUpdates from '../src/notifications/ratings/subscription-contracts.js';
 import * as likes from '../src/ratings/likes/contracts.js';
@@ -41,9 +42,44 @@ test('ratings OpenAPI is deterministic offline and artifact-current', async () =
       'utf8',
     ),
   ));
-test('all 40 rating operations have exact schemas and safe auth/error metadata', async () => {
+test('all 47 rating operations have exact schemas and safe auth/error metadata', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
+    [
+      '/v1/ratings/comments/{id}/deletion-context',
+      'get',
+      deletion.ratingDeletionContextSchema,
+    ],
+    [
+      '/v1/ratings/replies/{id}/deletion-context',
+      'get',
+      deletion.ratingDeletionContextSchema,
+    ],
+    [
+      '/v1/ratings/admin/comments/{id}/deletion-context',
+      'get',
+      deletion.ratingAdminDeletionContextSchema,
+    ],
+    [
+      '/v1/ratings/admin/replies/{id}/deletion-context',
+      'get',
+      deletion.ratingAdminDeletionContextSchema,
+    ],
+    [
+      '/v1/ratings/admin/comments/{id}',
+      'delete',
+      deletion.ratingAdminDeletionReceiptSchema,
+    ],
+    [
+      '/v1/ratings/admin/replies/{id}',
+      'delete',
+      deletion.ratingAdminDeletionReceiptSchema,
+    ],
+    [
+      '/v1/ratings/admin/requests/{id}',
+      'get',
+      deletion.ratingAdminDeletionReceiptSchema,
+    ],
     [
       '/v1/ratings/targets/{id}/subscription',
       'get',

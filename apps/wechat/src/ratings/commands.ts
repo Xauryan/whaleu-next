@@ -3,12 +3,16 @@ import type { CommunityRuntime } from '../community/runtime';
 import type { Cancellation } from '../platform/contracts';
 import {
   isRatingReplyIntent,
+  isRatingAdminDeletionIntent,
+  isRatingDeletionContextChanged,
   isRatingSubscriptionIntent,
   isRatingLikeIntent,
   type PendingRating,
   type RatingCommandReceipt,
 } from './pending';
 export const ratingCommandLabels = {
+  admin_delete_comment: '管理员删除评价',
+  admin_delete_reply: '管理员删除回复',
   set_target_subscription: '目标订阅状态',
   set_score: '评分',
   create_comment: '文字评价发布',
@@ -24,11 +28,31 @@ export function runRatingCommand(
   cancel: Cancellation,
   retry: boolean,
 ): Promise<RatingCommandReceipt> {
-  const accountId = runtime.sessions.snapshot().credentials?.accountId;
+  const owner = runtime.sessions.snapshot();
+  const accountId = owner.credentials?.accountId;
   if (attempt.accountId !== accountId)
     throw new ClientError('stale-session', 'Account changed');
   runtime.pendingRatings!.assertOriginal(attempt);
   const intent = attempt.intent;
+  if (isRatingAdminDeletionIntent(intent)) {
+    if (!runtime.ratingDeletion)
+      throw new ClientError('configuration', 'Rating deletion unavailable');
+    if (!retry)
+      return runtime.ratingDeletion.receipt(
+        intent.payload.clientRequestId,
+        cancel,
+      );
+    return runtime.ratingDeletion
+      .command(intent, cancel)
+      .catch((error: unknown) => {
+        // GET failures and uncertain DELETE results cannot discard any journal.
+        if (!cancel.isCancelled && isRatingDeletionContextChanged(error)) {
+          runtime.sessions.assertCurrent(owner);
+          runtime.pendingRatings!.releaseChangedAdminContext(attempt, error);
+        }
+        throw error;
+      });
+  }
   if (isRatingSubscriptionIntent(intent)) {
     if (!runtime.ratingSubscriptions)
       throw new ClientError(

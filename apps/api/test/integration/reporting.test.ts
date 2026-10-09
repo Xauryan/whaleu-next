@@ -34,6 +34,7 @@ import {
 import { PublicationService } from '../../src/community/publication.service.js';
 import { ReplyPublicationService } from '../../src/community/discussion/publication.service.js';
 import { DeletionService } from '../../src/community/deletion.service.js';
+import { CommunityReportTargetFacade } from '../../src/community/report-target.facade.js';
 import { ReportingService } from '../../src/safety/reporting/service.js';
 import type {
   ReportReceipt,
@@ -1218,66 +1219,190 @@ test(
         },
       );
       await t.test(
-        'queued late vote versus due worker commits only prior ballots',
-        async () => {
-          const owner = await actor(),
-            p = await post(owner);
-          await due(p, 700);
-          const opened = await open(p),
-            a = await actor(),
-            b = await actor();
-          accepted(await ballot(a, p, opened.jury.id, 'remove'));
-          const barrier = await pool.connect();
-          let voting: Promise<ReportReceipt> | undefined,
-            processing: ReturnType<JuryWorker['run']> | undefined;
-          try {
-            await barrier.query('BEGIN');
-            await barrier.query(
-              'SELECT id FROM whaleu_community.posts WHERE id=$1 FOR UPDATE',
-              [p],
-            );
-            voting = ballot(b, p, opened.jury.id, 'keep');
-            voting.catch(() => undefined);
-            const barrierPid = (
-              await barrier.query<{ pid: number }>(
-                'SELECT pg_backend_pid() pid',
-              )
-            ).rows[0]!.pid;
-            // This vote is the sole outstanding operation before the worker
-            // starts. Prove it reached this exact post's UPDATE-lock queue;
-            // invoking ballot() or waiting until the deadline is not proof.
-            await eventually(async () => {
-              const queued = await pool.query<{ pid: number }>(
-                `SELECT pid FROM pg_stat_activity
+        'queued late vote and removed-target late vote preserve only prior ballots',
+        async (t) => {
+          for (const ordered of [true, false]) {
+            await t.test(
+              ordered
+                ? 'known vote-first source order'
+                : 'real competing source locks',
+              async () => {
+                const owner = await actor(),
+                  p = await post(owner);
+                await due(p, 700);
+                const opened = await open(p),
+                  a = await actor(),
+                  b = await actor();
+                accepted(await ballot(a, p, opened.jury.id, 'remove'));
+                const barrier = await pool.connect();
+                const targets = app!.get(CommunityReportTargetFacade);
+                const originalLock = targets.lockForSettlement;
+                let workerReachedSource = false;
+                let releaseWorker!: () => void;
+                const workerGate = new Promise<void>((resolve) => {
+                  releaseWorker = resolve;
+                });
+                // Prove the worker reached its source boundary, then keep it outside
+                // the post lock until the queued vote has committed its rejection.
+                // A queued tuple-lock waiter alone does not prove final acquisition
+                // order against a newly dispatched worker after barrier release.
+                targets.lockForSettlement = async (...args) => {
+                  if (ordered && args[0].id === p && !workerReachedSource) {
+                    workerReachedSource = true;
+                    await workerGate;
+                  }
+                  return originalLock.apply(targets, args);
+                };
+                const lateCommand = {
+                  clientRequestId: randomUUID(),
+                  postId: p,
+                  juryId: opened.jury.id,
+                  vote: 'keep' as const,
+                };
+                let voting: Promise<ReportReceipt> | undefined,
+                  processing: ReturnType<JuryWorker['run']> | undefined;
+                try {
+                  await barrier.query('BEGIN');
+                  await barrier.query(
+                    'SELECT id FROM whaleu_community.posts WHERE id=$1 FOR UPDATE',
+                    [p],
+                  );
+                  voting = reports.vote(b.accessToken, lateCommand);
+                  voting.catch(() => undefined);
+                  const barrierPid = (
+                    await barrier.query<{ pid: number }>(
+                      'SELECT pg_backend_pid() pid',
+                    )
+                  ).rows[0]!.pid;
+                  // This vote is the sole outstanding operation before the worker
+                  // starts. Prove it reached this exact post's UPDATE-lock queue;
+                  // invoking ballot() or waiting until the deadline is not proof.
+                  await eventually(async () => {
+                    const queued = await pool.query<{ pid: number }>(
+                      `SELECT pid FROM pg_stat_activity
                  WHERE datname=current_database() AND wait_event_type='Lock'
                    AND query=$1 AND $2::integer=ANY(pg_blocking_pids(pid))`,
-                [
-                  'SELECT * FROM whaleu_community.posts WHERE id=$1 FOR UPDATE',
-                  barrierPid,
-                ],
-              );
-              assert.ok(queued.rows.length <= 1);
-              return queued.rows.length === 1;
-            });
-            await sleep(
-              Math.max(0, opened.jury.deadline.getTime() - Date.now() + 30),
+                      [
+                        'SELECT * FROM whaleu_community.posts WHERE id=$1 FOR UPDATE',
+                        barrierPid,
+                      ],
+                    );
+                    assert.ok(queued.rows.length <= 1);
+                    return queued.rows.length === 1;
+                  });
+                  await sleep(
+                    Math.max(
+                      0,
+                      opened.jury.deadline.getTime() - Date.now() + 30,
+                    ),
+                  );
+                  processing = worker.run({
+                    mode: 'apply',
+                    juryIds: [opened.jury.id],
+                  });
+                  if (ordered)
+                    await eventually(async () => workerReachedSource);
+                  await barrier.query('COMMIT');
+                  const late = await voting;
+                  if (ordered) rejected(late, 'JURY_CLOSED');
+                  else {
+                    // The original failing run did not record final lock ownership.
+                    // Both exact outcomes are independently proved by ordered cases;
+                    // neither permits a late ballot or another settlement effect.
+                    assert.equal(late.outcome, 'rejected');
+                    if (late.outcome !== 'rejected')
+                      throw new Error('Late ballot accepted');
+                    assert.ok(
+                      ['JURY_CLOSED', 'REPORT_TARGET_UNAVAILABLE'].includes(
+                        late.code,
+                      ),
+                    );
+                  }
+                  assert.deepEqual(
+                    await reports.receipt(
+                      b.accessToken,
+                      lateCommand.clientRequestId,
+                    ),
+                    late,
+                  );
+                  assert.deepEqual(
+                    await reports.vote(b.accessToken, lateCommand),
+                    late,
+                  );
+                  releaseWorker();
+                  const settled = await processing;
+                  assert.equal(settled.failed, 0);
+                  assert.equal(settled.completed, 1);
+                  assert.deepEqual(
+                    await reports.receipt(
+                      b.accessToken,
+                      lateCommand.clientRequestId,
+                    ),
+                    late,
+                  );
+                  assert.deepEqual(
+                    await reports.vote(b.accessToken, lateCommand),
+                    late,
+                  );
+                } finally {
+                  releaseWorker();
+                  targets.lockForSettlement = originalLock;
+                  let rollbackFailed = true;
+                  try {
+                    await barrier.query('ROLLBACK');
+                    rollbackFailed = false;
+                  } finally {
+                    barrier.release(rollbackFailed);
+                    await Promise.allSettled([voting, processing]);
+                  }
+                }
+                // The opposite source ordering has a different exact terminal code:
+                // once the worker removed the post, its jury is no visibility grant.
+                const afterRemoval = await actor();
+                rejected(
+                  await ballot(afterRemoval, p, opened.jury.id, 'keep'),
+                  'REPORT_TARGET_UNAVAILABLE',
+                );
+                const ballots = await pool.query<{
+                  account_id: string;
+                  vote: string;
+                }>(
+                  'SELECT account_id,vote FROM whaleu_safety.jury_ballots WHERE jury_id=$1',
+                  [opened.jury.id],
+                );
+                assert.deepEqual(ballots.rows, [
+                  { account_id: a.accountId, vote: 'remove' },
+                ]);
+                assert.equal((await jury(p)).state, 'removed');
+                const decisions = await pool.query<{
+                  outcome: string;
+                  keep_votes: number;
+                  remove_votes: number;
+                }>(
+                  'SELECT outcome,keep_votes,remove_votes FROM whaleu_safety.report_decisions WHERE case_id=(SELECT case_id FROM whaleu_safety.post_juries WHERE id=$1)',
+                  [opened.jury.id],
+                );
+                assert.deepEqual(decisions.rows, [
+                  { outcome: 'removed', keep_votes: 0, remove_votes: 1 },
+                ]);
+                assert.equal(
+                  (
+                    await pool.query(
+                      'SELECT id FROM whaleu_community.posts WHERE id=$1 AND deleted_at IS NOT NULL',
+                      [p],
+                    )
+                  ).rowCount,
+                  1,
+                );
+                const page = await notices.list(owner.accessToken, {
+                  limit: 20,
+                });
+                assert.equal(page.items.length, 1);
+                assert.equal(page.items[0]!.keepVotes, 0);
+                assert.equal(page.items[0]!.removeVotes, 1);
+              },
             );
-            processing = worker.run({
-              mode: 'apply',
-              juryIds: [opened.jury.id],
-            });
-            await barrier.query('COMMIT');
-            rejected(await voting, 'JURY_CLOSED');
-            assert.equal((await processing).failed, 0);
-          } finally {
-            await barrier.query('ROLLBACK');
-            barrier.release();
-            await voting?.catch(() => undefined);
-            await processing?.catch(() => undefined);
           }
-          const page = await notices.list(owner.accessToken, { limit: 20 });
-          assert.equal(page.items[0]!.keepVotes, 0);
-          assert.equal(page.items[0]!.removeVotes, 1);
         },
       );
       await t.test(
