@@ -117,7 +117,7 @@ export class ContentReviewCountRepository {
     const posts = byId(
       await budget.rows<DefinitionPost>(
         tx,
-        `SELECT id,space_id,account_id,category,text,author_mode,comments_policy,visibility,deleted_at,published_at,publication_state FROM whaleu_community.posts WHERE id=ANY($1::uuid[])`,
+        `SELECT id,space_id,account_id,category,text,author_mode,comments_policy,publication_envelope_version,allow_anonymous_dm,visibility,deleted_at,published_at,publication_state FROM whaleu_community.posts WHERE id=ANY($1::uuid[])`,
         [postIds],
         postIds.length,
         ['deleted_at', 'published_at'],

@@ -96,9 +96,9 @@ export class ApprovalRepository {
     const candidate = (
       await tx.query<{ id: string }>(
         `SELECT id FROM whaleu_community.content_approval_decisions
-       WHERE account_id=$1 AND operation=$2 AND envelope_version=1 AND digest=$3
+       WHERE account_id=$1 AND operation=$2 AND envelope_version=$4 AND digest=$3
        ORDER BY evaluated_at DESC,id DESC LIMIT 1`,
-        [envelope.accountId, envelope.purpose, digest],
+        [envelope.accountId, envelope.purpose, digest, envelope.version],
       )
     ).rows[0];
     if (!candidate) return { kind: 'unavailable' };
@@ -169,7 +169,7 @@ export class ApprovalRepository {
     if (current.kind === 'deny') throw new ApplicationError(current.reason);
     if (
       current.kind !== 'allow' ||
-      accepted.version !== 1 ||
+      accepted.version !== current.value.version ||
       accepted.digest !== current.value.digest ||
       canonicalJson(accepted.envelope) !==
         canonicalJson(current.value.envelope) ||
@@ -179,7 +179,7 @@ export class ApprovalRepository {
     await tx.query(
       `INSERT INTO whaleu_community.content_approval_bindings
        (content_kind,content_id,content_version,decision_id,account_id,operation,envelope_version,digest,envelope,scope)
-       VALUES($1,$2,1,$3,$4,$5,1,$6,$7::jsonb,$8::jsonb)`,
+       VALUES($1,$2,1,$3,$4,$5,$9,$6,$7::jsonb,$8::jsonb)`,
       [
         kind,
         id,
@@ -189,6 +189,7 @@ export class ApprovalRepository {
         accepted.digest,
         JSON.stringify(accepted.envelope),
         JSON.stringify(accepted.envelope.scope),
+        accepted.envelope.version,
       ],
     );
   }

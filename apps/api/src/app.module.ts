@@ -1,3 +1,4 @@
+import { MessagingModule } from './messaging/module.js';
 import { RatingUpdatesModule } from './notifications/ratings/module.js';
 import { RatingsModule } from './ratings/module.js';
 import { ErrandsModule } from './errands/module.js';
@@ -63,6 +64,7 @@ export class AppModule {
         ActivitiesModule,
         ErrandsModule,
         RatingsModule,
+        MessagingModule,
         RatingUpdatesModule,
         SafetyModule,
         NotificationsModule,

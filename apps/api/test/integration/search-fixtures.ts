@@ -22,10 +22,14 @@ import {
 } from '../../src/database/migrations.js';
 import { configureHttp } from '../../src/http/http.js';
 import type { PublishPost } from '../../src/community/contracts.js';
-import type { EffectiveContentEnvelope } from '../../src/community/content-review/contracts.js';
+import type {
+  EffectiveContentEnvelope,
+  EffectiveContentEnvelopeV1,
+} from '../../src/community/content-review/contracts.js';
 import {
   createRuntimeActor,
   postApprovalEnvelope,
+  postApprovalEnvelopeV1,
   setRuntimeVerification,
 } from '../support/community-runtime-fixtures.js';
 import {
@@ -187,8 +191,13 @@ export async function searchHarness() {
       const envelope = (
         extra: Partial<PublishPost> = {},
         owner = author,
-      ): Promise<EffectiveContentEnvelope> =>
-        postApprovalEnvelope(application, pool, owner.accountId, input(extra));
+      ): Promise<EffectiveContentEnvelopeV1> =>
+        postApprovalEnvelopeV1(
+          application,
+          pool,
+          owner.accountId,
+          input(extra),
+        );
       const seed = async (
         count: number,
         definition?: (index: number) => EffectiveContentEnvelope,

@@ -45,7 +45,10 @@
     "pages/rating-create/rating-create",
     "pages/rating-category-create/rating-category-create",
     "pages/target-owner-delete/target-owner-delete",
-    "pages/target-owner-edit/target-owner-edit"
+    "pages/target-owner-edit/target-owner-edit",
+    "pages/private-message-list/private-message-list",
+    "pages/private-message-detail/private-message-detail",
+    "pages/private-message-recovery/private-message-recovery"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

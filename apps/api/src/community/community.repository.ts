@@ -23,6 +23,9 @@ export interface StoredPost {
   text: string;
   author_mode: AuthorMode;
   comments_policy: 'open' | 'restricted';
+  /** Missing on historical fixture projections; absent is always ineligible. */
+  publication_envelope_version?: 1 | 2;
+  allow_anonymous_dm?: boolean | null;
   visibility: 'approved' | 'hidden';
   deleted_at: Date | null;
   published_at: Date;

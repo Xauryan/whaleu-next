@@ -1,3 +1,9 @@
+import {
+  MessagingEntryNavigator,
+  postEntry,
+  commentEntry,
+  replyEntry,
+} from '../../messaging/entry';
 import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import { AuthorNavigator } from '../../profile/author-navigation';
 import {
@@ -54,7 +60,14 @@ Page({
     this.setData({ requestedReplyId: this.replyId ?? '' });
   },
   authorNavigator: undefined as AuthorNavigator | undefined,
+  messagingEntry: undefined as MessagingEntryNavigator | undefined,
   onShow() {
+    this.messagingEntry?.dispose();
+    this.messagingEntry = new MessagingEntryNavigator(
+      wx,
+      getApp<WhaleuApp>().community,
+      () => this.setData({ error: '暂不能打开私信，请重试' }),
+    );
     this.authorNavigator?.dispose();
     this.authorNavigator = new AuthorNavigator(
       wx,
@@ -249,6 +262,38 @@ Page({
   onBlockCancel() {
     this.blockMutations?.cancel();
   },
+  onPrivateMessage(event: {
+    currentTarget: { dataset: { kind: string; id: string; mode?: string } };
+  }) {
+    if (
+      !this.data.loaded ||
+      this.data.busy ||
+      this.data.needsReload ||
+      this.data.block.busy ||
+      this.data.block.frozen
+    )
+      return;
+    const post = this.data.post,
+      root = this.data.root;
+    if (!post || !root) return;
+    const { kind, id, mode } = event.currentTarget.dataset;
+    if (kind === 'post' && post.id === id) {
+      this.messagingEntry?.open(postEntry(post, mode === 'anonymous'));
+      return;
+    }
+    if (kind === 'comment' && root.id === id) {
+      this.messagingEntry?.open(commentEntry(post.id, root));
+      return;
+    }
+    if (kind === 'reply') {
+      const reply = [
+        ...this.data.replies,
+        ...this.data.contextReplies,
+        ...(this.data.locatedReply ? [this.data.locatedReply] : []),
+      ].find((item) => item.id === id);
+      if (reply) this.messagingEntry?.open(replyEntry(post.id, root.id, reply));
+    }
+  },
   onAuthor(event: {
     currentTarget: { dataset: { kind: string; id: string } };
   }) {
@@ -339,6 +384,8 @@ Page({
     this.mutations?.cancel();
   },
   onHide() {
+    this.messagingEntry?.dispose();
+    this.messagingEntry = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = undefined;
     this.reportMutations?.dispose();
@@ -354,6 +401,8 @@ Page({
     this.identityOverlay = undefined;
   },
   onUnload() {
+    this.messagingEntry?.dispose();
+    this.messagingEntry = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = undefined;
     this.onHide();

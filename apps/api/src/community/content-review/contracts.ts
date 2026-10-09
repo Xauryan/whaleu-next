@@ -24,35 +24,49 @@ export const contentScopeSchema = z.strictObject({
 export type ContentScopeSnapshot = z.input<typeof contentScopeSchema>;
 export type PublicationScope = ContentScopeSnapshot;
 export type ContentKind = 'post' | 'comment' | 'reply';
+const contentEnvelopeShape = {
+  accountId: z.uuid(),
+  purpose: z.enum(['publish_post', 'publish_comment', 'publish_reply']),
+  spaceId: z.uuid(),
+  category: categorySchema,
+  authorMode: authorModeSchema,
+  commentsPolicy: z.enum(['open', 'restricted']),
+  postId: z.uuid().nullable(),
+  rootCommentId: z.uuid().nullable(),
+  targetReplyId: z.uuid().nullable(),
+  text: textSchema(2500),
+  images: z
+    .array(
+      z.strictObject({
+        assetId: z.uuid(),
+        digest: z.string().regex(/^[a-f0-9]{64}$/),
+      }),
+    )
+    .max(9),
+  component: z.union([
+    z.strictObject({ kind: z.literal('none') }),
+    pollComponentSchema,
+    formationComponentSchema,
+  ]),
+  trading: tradingInputSchema.nullable(),
+  scope: contentScopeSchema,
+};
+const contentEnvelopeV1Schema = z.strictObject({
+  version: z.literal(1),
+  ...contentEnvelopeShape,
+});
+const contentEnvelopeV2Schema = z.strictObject({
+  ...contentEnvelopeShape,
+  version: z.literal(2),
+  purpose: z.literal('publish_post'),
+  authorMode: z.literal('named'),
+  allowAnonymousDm: z.boolean(),
+});
 export const effectiveContentEnvelopeSchema = z
-  .strictObject({
-    version: z.literal(1),
-    accountId: z.uuid(),
-    purpose: z.enum(['publish_post', 'publish_comment', 'publish_reply']),
-    spaceId: z.uuid(),
-    category: categorySchema,
-    authorMode: authorModeSchema,
-    commentsPolicy: z.enum(['open', 'restricted']),
-    postId: z.uuid().nullable(),
-    rootCommentId: z.uuid().nullable(),
-    targetReplyId: z.uuid().nullable(),
-    text: textSchema(2500),
-    images: z
-      .array(
-        z.strictObject({
-          assetId: z.uuid(),
-          digest: z.string().regex(/^[a-f0-9]{64}$/),
-        }),
-      )
-      .max(9),
-    component: z.union([
-      z.strictObject({ kind: z.literal('none') }),
-      pollComponentSchema,
-      formationComponentSchema,
-    ]),
-    trading: tradingInputSchema.nullable(),
-    scope: contentScopeSchema,
-  })
+  .discriminatedUnion('version', [
+    contentEnvelopeV1Schema,
+    contentEnvelopeV2Schema,
+  ])
   .superRefine((value, ctx) => {
     const invalid = (message: string) =>
       ctx.addIssue({ code: 'custom', message });
@@ -102,10 +116,21 @@ export const effectiveContentEnvelopeSchema = z
 export type EffectiveContentEnvelope = z.input<
   typeof effectiveContentEnvelopeSchema
 >;
+export type EffectiveContentEnvelopeV1 = Extract<
+  EffectiveContentEnvelope,
+  { version: 1 }
+>;
+export type EffectiveContentEnvelopeV2 = Extract<
+  EffectiveContentEnvelope,
+  { version: 2 }
+>;
+export type EffectiveContentEnvelopeDraft =
+  | Omit<z.input<typeof contentEnvelopeV1Schema>, 'images'>
+  | Omit<z.input<typeof contentEnvelopeV2Schema>, 'images'>;
 export interface AcceptedApproval {
   decisionId: string;
   digest: string;
-  version: 1;
+  version: 1 | 2;
   envelope: EffectiveContentEnvelope;
 }
 export interface ContentApprovalInput {
@@ -189,6 +214,13 @@ export function canonicalEqual(left: unknown, right: unknown): boolean {
     keys.every((key) => Object.hasOwn(b, key) && canonicalEqual(a[key], b[key]))
   );
 }
+export function canonicalEnvelope(
+  value: EffectiveContentEnvelopeV1,
+): EffectiveContentEnvelopeV1;
+export function canonicalEnvelope(
+  value: EffectiveContentEnvelopeV2,
+): EffectiveContentEnvelopeV2;
+export function canonicalEnvelope(value: unknown): EffectiveContentEnvelope;
 export function canonicalEnvelope(value: unknown): EffectiveContentEnvelope {
   if (typeof value === 'object' && value !== null && canonicalRoots.has(value))
     return value as EffectiveContentEnvelope;
@@ -211,7 +243,9 @@ export function approvalDigest(value: EffectiveContentEnvelope): string {
   const cached = canonicalDigests.get(envelope);
   if (cached !== undefined) return cached;
   const digest = createHash('sha256')
-    .update(`whaleu-content-approval:v1\n${canonicalJson(envelope)}`)
+    .update(
+      `whaleu-content-approval:v${envelope.version}\n${canonicalJson(envelope)}`,
+    )
     .digest('hex');
   canonicalDigests.set(envelope, digest);
   return digest;

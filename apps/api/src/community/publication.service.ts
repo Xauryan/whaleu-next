@@ -1,6 +1,6 @@
 import type {
   AcceptedApproval,
-  EffectiveContentEnvelope,
+  EffectiveContentEnvelopeDraft,
 } from './content-review/contracts.js';
 import { FormationRepository } from './formation/repository.js';
 import { TradingRepository } from './trading/repository.js';
@@ -62,7 +62,7 @@ export class PublicationService {
     structuredContent?: Parameters<
       ContentPublicationGate['check']
     >[0]['structuredContent'],
-    envelope?: Omit<EffectiveContentEnvelope, 'images'>,
+    envelope?: EffectiveContentEnvelopeDraft,
   ): Promise<{
     images: ApprovedAsset[];
     approval: AcceptedApproval | undefined;
@@ -156,6 +156,8 @@ export class PublicationService {
           !(authority.canDisableComments ?? authority.canManage)
         )
           throw new ApplicationError('COMMUNITY_ACTION_RESTRICTED');
+        if (body.allowAnonymousDm !== undefined && authorMode !== 'named')
+          throw new ApplicationError('AUTHOR_MODE_NOT_ALLOWED');
         const { images, approval } = await this.approved(
           actor,
           'publish_post',
@@ -188,12 +190,17 @@ export class PublicationService {
                   }
                 : undefined,
           {
-            version: 1,
+            ...(body.allowAnonymousDm === undefined
+              ? { version: 1 as const, authorMode }
+              : {
+                  version: 2 as const,
+                  authorMode: 'named' as const,
+                  allowAnonymousDm: body.allowAnonymousDm,
+                }),
             accountId: actor,
             purpose: 'publish_post',
             spaceId,
             category,
-            authorMode,
             commentsPolicy,
             postId: null,
             rootCommentId: null,
@@ -204,11 +211,29 @@ export class PublicationService {
             scope: this.scope(authority, space.id, space.operatingRegionId),
           },
         );
+        if (
+          body.allowAnonymousDm !== undefined &&
+          (!this.content.bind ||
+            approval?.version !== 2 ||
+            approval.envelope.version !== 2 ||
+            approval.envelope.allowAnonymousDm !== body.allowAnonymousDm)
+        )
+          throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
         if (authorMode === 'named') await this.profiles.prepare(actor, tx);
         const id = randomUUID();
         const result = await tx.query<{ published_at: Date }>(
-          'INSERT INTO whaleu_community.posts(id,space_id,account_id,category,text,author_mode,comments_policy) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING published_at',
-          [id, spaceId, actor, category, text, authorMode, commentsPolicy],
+          'INSERT INTO whaleu_community.posts(id,space_id,account_id,category,text,author_mode,comments_policy,publication_envelope_version,allow_anonymous_dm) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING published_at',
+          [
+            id,
+            spaceId,
+            actor,
+            category,
+            text,
+            authorMode,
+            commentsPolicy,
+            body.allowAnonymousDm === undefined ? 1 : 2,
+            body.allowAnonymousDm ?? null,
+          ],
         );
         if (authorMode === 'anonymous')
           await this.repository.persona(id, actor, tx);

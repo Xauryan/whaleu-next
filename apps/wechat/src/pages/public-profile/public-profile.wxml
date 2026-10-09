@@ -1,7 +1,7 @@
 <import src="../../experience/public-display.wxml" />
 <import src="../../community/block-recovery.wxml" />
 <import src="../../community/trading-summary.wxml" />
-<view class="screen">
+<view class="screen"><button wx:if="{{loaded &amp;&amp; profile.status === 'available' &amp;&amp; !profile.isOwn}}" bindtap="onPrivateMessage" disabled="{{busy || block.busy || block.frozen}}">以公开身份私信</button>
   <view class="eyebrow">WHALEU · 公开主页</view><view class="title">校园里的你</view>
   <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
   <button bindtap="onReload" disabled="{{busy}}" loading="{{busy}}">重新加载主页</button><button wx:if="{{busy}}" bindtap="onCancel">停止加载</button>

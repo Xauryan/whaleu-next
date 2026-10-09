@@ -1,3 +1,4 @@
+import { MessagingEntryNavigator } from '../../messaging/entry';
 import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import type { WhaleuApp } from '../../app';
 import {
@@ -23,6 +24,7 @@ Page({
   },
   controller: undefined as PublicProfileController | undefined,
   blockMutations: undefined as BlockMutationController | undefined,
+  messagingEntry: undefined as MessagingEntryNavigator | undefined,
   profileId: null as string | null,
   blockPending: false,
   onLoad(query: { profileId?: string } = {}) {
@@ -34,6 +36,12 @@ Page({
           : '';
   },
   onShow() {
+    this.messagingEntry?.dispose();
+    this.messagingEntry = new MessagingEntryNavigator(
+      wx,
+      getApp<WhaleuApp>().community,
+      () => this.setData({ error: '暂不能打开私信，请重试' }),
+    );
     this.controller?.dispose();
     this.blockMutations?.dispose();
     const runtime = getApp<WhaleuApp>().community;
@@ -66,6 +74,20 @@ Page({
       },
     );
     if (!this.blockPending) void this.controller.load();
+  },
+  onPrivateMessage() {
+    const profile = this.data.profile;
+    if (
+      this.data.loaded &&
+      !this.data.busy &&
+      !this.blockPending &&
+      profile?.status === 'available' &&
+      !profile.isOwn
+    )
+      this.messagingEntry?.open({
+        entry: { kind: 'profile', profileId: profile.profileId },
+        mode: 'named',
+      });
   },
   onTab(event: { currentTarget: { dataset: { key: string } } }) {
     if (this.blockPending) return;
@@ -125,6 +147,8 @@ Page({
     this.blockMutations?.cancel();
   },
   onHide() {
+    this.messagingEntry?.dispose();
+    this.messagingEntry = undefined;
     this.controller?.dispose();
     this.controller = undefined;
     this.blockMutations?.dispose();

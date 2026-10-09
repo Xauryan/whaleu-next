@@ -181,9 +181,20 @@ export function reconstructDefinition(
       } as EffectiveContentEnvelope['trading'];
     }
   }
+  const version =
+    kind === 'post' ? (post.publication_envelope_version ?? 1) : 1;
+  if (
+    kind === 'post' &&
+    ((version === 1 && post.allow_anonymous_dm != null) ||
+      (version === 2 &&
+        (post.author_mode !== 'named' ||
+          typeof post.allow_anonymous_dm !== 'boolean')))
+  )
+    return { kind: 'unavailable' };
   try {
     const envelope = canonicalEnvelope({
-      version: 1,
+      version,
+      ...(version === 2 ? { allowAnonymousDm: post.allow_anonymous_dm } : {}),
       accountId: content.account_id,
       purpose: operationForKind(kind),
       spaceId: post.space_id,

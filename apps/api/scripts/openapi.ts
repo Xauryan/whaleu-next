@@ -187,3 +187,22 @@ if (args[0] === '--check') {
   await writeFile(ratingsArtifact, ratingsRendered, 'utf8');
   console.log('Generated docs/openapi/ratings.json.');
 }
+
+const { renderMessagingOpenApiDocument } =
+  await import('./openapi-document.js');
+const messagingArtifact = new URL(
+  '../../../../docs/openapi/private-messages.json',
+  import.meta.url,
+);
+const messagingRendered = await renderMessagingOpenApiDocument();
+if (args[0] === '--check') {
+  const existing = await readFile(messagingArtifact, 'utf8');
+  if (existing !== messagingRendered)
+    throw new Error(
+      'Private messages OpenAPI artifact stale; run npm run openapi:generate.',
+    );
+  console.log('Private messages OpenAPI artifact is current.');
+} else {
+  await writeFile(messagingArtifact, messagingRendered, 'utf8');
+  console.log('Generated docs/openapi/private-messages.json.');
+}

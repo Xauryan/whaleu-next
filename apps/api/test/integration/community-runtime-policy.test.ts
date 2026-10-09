@@ -280,6 +280,87 @@ test(
         },
       );
       await t.test(
+        'anonymous DM consent is exact reviewed v2 named-post provenance, never a v1 backfill',
+        async () => {
+          const historical = await pool.query<{
+            publication_envelope_version: number;
+            allow_anonymous_dm: boolean | null;
+          }>(
+            'SELECT publication_envelope_version,allow_anonymous_dm FROM whaleu_community.posts WHERE id=$1',
+            [named],
+          );
+          assert.deepEqual(historical.rows[0], {
+            publication_envelope_version: 1,
+            allow_anonymous_dm: null,
+          });
+          assert.equal((await detail(named)).body.allowAnonymousDm, false);
+
+          const input = body();
+          await approve(input);
+          const optIn = { ...input, allowAnonymousDm: true };
+          assert.equal(
+            (await publish(optIn)).body.code,
+            'CONTENT_REVIEW_UNAVAILABLE',
+          );
+          const reviewed = await accepted(optIn);
+          assert.equal(reviewed.approval.version, 2);
+          assert.deepEqual((await publish(optIn)).body, reviewed.receipt);
+          assert.equal(
+            (await publish({ ...optIn, allowAnonymousDm: false })).body.code,
+            'REQUEST_CONFLICT',
+          );
+          const persisted = await pool.query<{
+            publication_envelope_version: number;
+            allow_anonymous_dm: boolean;
+            envelope_version: number;
+            envelope: { allowAnonymousDm: boolean };
+          }>(
+            `SELECT p.publication_envelope_version,p.allow_anonymous_dm,b.envelope_version,b.envelope
+              FROM whaleu_community.posts p JOIN whaleu_community.content_approval_bindings b
+                ON b.content_kind='post' AND b.content_id=p.id AND b.content_version=1 WHERE p.id=$1`,
+            [reviewed.id],
+          );
+          assert.equal(persisted.rows[0]!.publication_envelope_version, 2);
+          assert.equal(persisted.rows[0]!.allow_anonymous_dm, true);
+          assert.equal(persisted.rows[0]!.envelope_version, 2);
+          assert.equal(persisted.rows[0]!.envelope.allowAnonymousDm, true);
+          assert.equal((await detail(reviewed.id)).body.allowAnonymousDm, true);
+          await assert.rejects(
+            () =>
+              pool.query(
+                'UPDATE whaleu_community.posts SET allow_anonymous_dm=false WHERE id=$1',
+                [reviewed.id],
+              ),
+            (error: unknown) => (error as { code?: string }).code === '23514',
+          );
+          await assert.rejects(
+            () =>
+              pool.query(
+                'UPDATE whaleu_community.posts SET publication_envelope_version=2,allow_anonymous_dm=true WHERE id=$1',
+                [named],
+              ),
+            (error: unknown) => (error as { code?: string }).code === '23514',
+          );
+          await assert.rejects(
+            () =>
+              pool.query(
+                `INSERT INTO whaleu_community.posts(id,space_id,account_id,category,text,author_mode,comments_policy,publication_envelope_version,allow_anonymous_dm)
+            VALUES($1,$2,$3,'discussion','Unbound consent','named','open',2,true)`,
+                [randomUUID(), scope.home.spaceId, author.accountId],
+              ),
+            (error: unknown) => (error as { code?: string }).code === '23514',
+          );
+          const optedOut = await accepted(body({ allowAnonymousDm: false }));
+          assert.equal(optedOut.approval.version, 2);
+          assert.equal(
+            (await detail(optedOut.id)).body.allowAnonymousDm,
+            false,
+          );
+          await setReviewState(pool, reviewed.approval.decisionId, 'revoked');
+          assert.equal((await detail(reviewed.id)).status, 404);
+        },
+      );
+      await t.test(
         'home and related anonymous succeed; same-institution foreign anonymous fails; named foreign and global succeed',
         async () => {
           anonymous = (await accepted(body({ authorMode: 'anonymous' }))).id;

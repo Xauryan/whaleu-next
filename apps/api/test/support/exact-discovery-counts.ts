@@ -13,6 +13,7 @@ import {
 import type {
   ContentKind,
   EffectiveContentEnvelope,
+  EffectiveContentEnvelopeV1,
 } from '../../src/community/content-review/contracts.js';
 import { withCommunityScopeWriter } from './community-scope-fixtures.js';
 
@@ -22,7 +23,7 @@ export interface ExactSeedRow {
   event: string;
   at: string;
   state: 'allow' | 'held' | 'revoked';
-  envelope: EffectiveContentEnvelope;
+  envelope: EffectiveContentEnvelopeV1;
   digest: string;
 }
 export async function seedExactContent(
@@ -47,6 +48,8 @@ export async function seedExactContent(
       (_, j) => {
         const index = offset + j,
           envelope = canonicalEnvelope(definition(index));
+        if (envelope.version !== 1)
+          throw new Error('Exact historical fixture requires Review v1');
         return {
           id: options.id?.(index) ?? randomUUID(),
           decision: randomUUID(),

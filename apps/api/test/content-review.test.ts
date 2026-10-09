@@ -26,7 +26,7 @@ import type {
 const accountId = randomUUID(),
   spaceId = randomUUID(),
   regionId = randomUUID();
-const raw = (): EffectiveContentEnvelope => ({
+const raw = (): Extract<EffectiveContentEnvelope, { version: 1 }> => ({
   version: 1,
   accountId,
   purpose: 'publish_post',
@@ -50,7 +50,8 @@ const raw = (): EffectiveContentEnvelope => ({
     sync: 'none',
   },
 });
-const copy = (value: EffectiveContentEnvelope) => structuredClone(value);
+const copy = <T extends EffectiveContentEnvelope>(value: T): T =>
+  structuredClone(value);
 const accepted = (envelope: EffectiveContentEnvelope): AcceptedApproval => ({
   decisionId: randomUUID(),
   version: 1,
@@ -59,7 +60,10 @@ const accepted = (envelope: EffectiveContentEnvelope): AcceptedApproval => ({
 });
 
 test('exact approval V1 binds actor, effective scope, ancestry, ordered assets and every component definition', () => {
-  const envelope = canonicalEnvelope(raw()),
+  const envelope = canonicalEnvelope(raw()) as Extract<
+      EffectiveContentEnvelope,
+      { version: 1 }
+    >,
     digest = approvalDigest(envelope);
   const mutations: ((value: EffectiveContentEnvelope) => void)[] = [
     (value) => {

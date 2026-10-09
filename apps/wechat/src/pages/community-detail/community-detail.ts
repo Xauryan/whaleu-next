@@ -1,3 +1,9 @@
+import {
+  MessagingEntryNavigator,
+  postEntry,
+  commentEntry,
+  replyEntry,
+} from '../../messaging/entry';
 import { ViewObserver } from '../../community/view-observer';
 import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import {
@@ -110,7 +116,14 @@ Page({
   },
   authorNavigator: undefined as AuthorNavigator | undefined,
   viewObserver: undefined as ViewObserver | undefined,
+  messagingEntry: undefined as MessagingEntryNavigator | undefined,
   onShow() {
+    this.messagingEntry?.dispose();
+    this.messagingEntry = new MessagingEntryNavigator(
+      wx,
+      getApp<WhaleuApp>().community,
+      () => this.setData({ error: '暂不能打开私信，请重试' }),
+    );
     this.viewObserver?.dispose();
     this.viewObserver = undefined;
     this.authorNavigator?.dispose();
@@ -701,6 +714,43 @@ Page({
   onBlockCancel() {
     this.blockMutations?.cancel();
   },
+  onPrivateMessage(event: {
+    currentTarget: { dataset: { kind: string; id: string; mode?: string } };
+  }) {
+    if (
+      !this.data.loaded ||
+      this.data.busy ||
+      this.data.needsReload ||
+      this.data.block.busy ||
+      this.data.block.frozen
+    )
+      return;
+    const post = this.data.post;
+    if (!post) return;
+    const { kind, id, mode } = event.currentTarget.dataset;
+    if (kind === 'post' && post.id === id) {
+      this.messagingEntry?.open(postEntry(post, mode === 'anonymous'));
+      return;
+    }
+    const comments = [
+      ...this.data.comments,
+      ...(this.data.locatedComment ? [this.data.locatedComment] : []),
+    ];
+    if (kind === 'comment') {
+      const comment = comments.find((item) => item.id === id);
+      if (comment) this.messagingEntry?.open(commentEntry(post.id, comment));
+      return;
+    }
+    if (kind === 'reply') {
+      for (const comment of comments) {
+        const reply = comment.replyPreview.items.find((item) => item.id === id);
+        if (reply) {
+          this.messagingEntry?.open(replyEntry(post.id, comment.id, reply));
+          return;
+        }
+      }
+    }
+  },
   onAuthor(event: {
     currentTarget: { dataset: { kind: string; id: string } };
   }) {
@@ -804,6 +854,8 @@ Page({
     this.savedMutations?.cancel();
   },
   onHide() {
+    this.messagingEntry?.dispose();
+    this.messagingEntry = undefined;
     this.viewObserver?.dispose();
     this.viewObserver = undefined;
     this.authorNavigator?.dispose();
@@ -841,6 +893,8 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.messagingEntry?.dispose();
+    this.messagingEntry = undefined;
     this.viewObserver?.dispose();
     this.viewObserver = undefined;
     this.authorNavigator?.dispose();

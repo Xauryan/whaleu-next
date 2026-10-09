@@ -1,3 +1,4 @@
+import { CommunityDmEntryFacade } from './dm-entry.facade.js';
 import { SemanticSearchController } from './search/semantic/controller.js';
 import {
   SemanticSearchRuntime,
@@ -299,6 +300,7 @@ export class CommunityRecoveryController {
     CommunityProfileDiscoveryFacade,
     CommunityContentIdentityService,
     CommunityUpdatesFacade,
+    CommunityDmEntryFacade,
     CommunityNamedBlockSourceFacade,
     CommunityReportTargetFacade,
     CommunityModerationRemovalFacade,
@@ -326,6 +328,7 @@ export class CommunityRecoveryController {
     LikedHistoryService,
     LikedHistoryRepository,
     CommunityProfileDiscoveryFacade,
+    CommunityDmEntryFacade,
     CommunityNamedBlockSourceFacade,
     CommunityReportTargetFacade,
     CommunityModerationRemovalFacade,

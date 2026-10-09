@@ -1,3 +1,12 @@
+import {
+  boundedOwnerProof,
+  ownerFingerprint,
+} from '../database/required-owner-proof.js';
+import {
+  enableRequiredTransactionProof,
+  registerRequiredTransactionFact,
+} from '../database/transaction-deadlines.js';
+import type { RequiredTransactionProof } from '../database/transaction-deadlines.js';
 import { initializeNativeExperienceAccount } from '../experience/lifecycle.js';
 import { registerTransactionDeadline } from '../database/transaction-deadlines.js';
 import { initializeNativeSafetyAccount } from '../safety/lifecycle.js';
@@ -51,11 +60,60 @@ async function databaseTime(client: PoolClient): Promise<number> {
   return result.rows[0]!.now.getTime();
 }
 
+interface DmAccountFact {
+  accountId: string;
+  fingerprint: string;
+}
+async function dmAccountState(accountId: string, tx: PoolClient, lock = false) {
+  const row =
+    (
+      await tx.query<{ status: string; state_version: string }>(
+        `SELECT status,xmin::text state_version FROM whaleu_identity.accounts WHERE id=$1${lock ? ' FOR SHARE' : ''}`,
+        [accountId],
+      )
+    ).rows[0] ?? null;
+  return {
+    active: row?.status === 'active',
+    fingerprint: ownerFingerprint(row),
+  };
+}
+const dmAccountProof: RequiredTransactionProof<DmAccountFact> = {
+  maximumFacts: 512,
+  failureCode: 'DM_UNAVAILABLE',
+  validate: (facts, tx) =>
+    boundedOwnerProof(tx, 'DM_UNAVAILABLE', async (read) => {
+      await read.query(
+        'LOCK TABLE whaleu_identity.accounts IN SHARE MODE NOWAIT',
+      );
+      for (const fact of facts)
+        if (
+          (await dmAccountState(fact.accountId, read)).fingerprint !==
+          fact.fingerprint
+        )
+          throw new ApplicationError('DM_UNAVAILABLE');
+    }),
+};
+
 @Injectable()
 export class IdentityRepository {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
+
+  /** DM commands can retain an authoritative negative receipt after rolling back
+   * their work savepoint. Preserve absent/blocked/active evidence independently
+   * of locks released by that rollback; no account data crosses this owner. */
+  async dmActiveAccount(accountId: string, tx: PoolClient): Promise<boolean> {
+    enableRequiredTransactionProof(tx, dmAccountProof);
+    const state = await dmAccountState(accountId, tx, true);
+    registerRequiredTransactionFact(
+      tx,
+      dmAccountProof,
+      `${accountId}:${state.fingerprint}`,
+      Object.freeze({ accountId, fingerprint: state.fingerprint }),
+    );
+    return state.active;
+  }
 
   /** Internal lifecycle facade, deliberately independent of user sessions. */
   async activeAccount(accountId: string, tx: PoolClient): Promise<boolean> {

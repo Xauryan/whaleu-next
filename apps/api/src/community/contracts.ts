@@ -41,9 +41,16 @@ export const publishPostSchema = z
     imageAssetIds: imagesSchema(9),
     authorMode: authorModeSchema,
     commentsPolicy: z.enum(['open', 'restricted']).default('open'),
+    // Absence retains the historical publication intent and Review v1 bytes.
+    allowAnonymousDm: z.boolean().optional(),
     component: postComponentSchema.optional(),
     trading: tradingInputSchema.optional(),
   })
+  .refine(
+    (body) =>
+      body.allowAnonymousDm === undefined || body.authorMode === 'named',
+    'Anonymous DM opt-in belongs only to named posts',
+  )
   .refine((body) =>
     body.category === 'trading'
       ? !!body.trading &&
@@ -157,6 +164,8 @@ export interface PostView {
     canSetUpdatePreference: boolean;
   };
   commentsPolicy: 'open' | 'restricted';
+  /** Advisory only. Entry creation rechecks exact current reviewed provenance. */
+  allowAnonymousDm: boolean;
 }
 export interface CommentView {
   id: string;

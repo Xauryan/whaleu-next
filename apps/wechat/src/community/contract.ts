@@ -74,6 +74,8 @@ export type Author =
       readonly isPostAuthor: boolean;
     };
 export interface Post {
+  /** Missing legacy projection is never an opt-in. */
+  readonly allowAnonymousDm?: boolean;
   readonly trading: TradingView | null;
   readonly component: PostComponent;
   readonly id: string;
@@ -159,6 +161,7 @@ export interface Capabilities {
   };
 }
 export interface PostIntent {
+  readonly allowAnonymousDm?: boolean;
   readonly trading?: TradingIntent;
   readonly component?: PollComponent | FormationComponent;
   readonly clientRequestId: string;
@@ -387,7 +390,13 @@ export function decodeAuthor(value: unknown): Author {
   });
 }
 export function decodePost(value: unknown): Post {
+  if (!isRecord(value)) invalid();
+  const hasAnonymousDm = Object.prototype.hasOwnProperty.call(
+    value,
+    'allowAnonymousDm',
+  );
   exact(value, [
+    ...(hasAnonymousDm ? ['allowAnonymousDm'] : []),
     'trading',
     'id',
     'space',
@@ -416,6 +425,7 @@ export function decodePost(value: unknown): Post {
     'canSetUpdatePreference',
   ]);
   if (
+    (hasAnonymousDm && typeof value.allowAnonymousDm !== 'boolean') ||
     !isUuid(value.id) ||
     !isUuid(value.space.id) ||
     !['regional', 'global'].includes(String(value.space.kind)) ||
@@ -451,7 +461,11 @@ export function decodePost(value: unknown): Post {
     invalid();
   if (component.kind === 'formation')
     checkFormationCreator(component.formation, author);
+  if (value.allowAnonymousDm === true && author.kind !== 'named') invalid();
   return Object.freeze({
+    ...(hasAnonymousDm
+      ? { allowAnonymousDm: value.allowAnonymousDm === true }
+      : {}),
     trading,
     component,
     id: value.id,
@@ -714,6 +728,10 @@ function assets(value: unknown, max: number): readonly string[] {
 }
 export function decodePostIntent(value: unknown): PostIntent {
   if (!isRecord(value)) invalid();
+  const hasAnonymousDm = Object.prototype.hasOwnProperty.call(
+    value,
+    'allowAnonymousDm',
+  );
   const hasTrading = Object.prototype.hasOwnProperty.call(value, 'trading');
   const hasComponent = Object.prototype.hasOwnProperty.call(value, 'component');
   exact(value, [
@@ -726,8 +744,12 @@ export function decodePostIntent(value: unknown): PostIntent {
     'commentsPolicy',
     ...(hasComponent ? ['component'] : []),
     ...(hasTrading ? ['trading'] : []),
+    ...(hasAnonymousDm ? ['allowAnonymousDm'] : []),
   ]);
   if (
+    (hasAnonymousDm &&
+      (typeof value.allowAnonymousDm !== 'boolean' ||
+        value.authorMode !== 'named')) ||
     !uuid4(value.clientRequestId) ||
     !isUuid(value.spaceId) ||
     !isCategory(value.category) ||
@@ -751,6 +773,9 @@ export function decodePostIntent(value: unknown): PostIntent {
   )
     invalid();
   return Object.freeze({
+    ...(hasAnonymousDm
+      ? { allowAnonymousDm: value.allowAnonymousDm as boolean }
+      : {}),
     ...(hasTrading ? { trading: decodeTradingIntent(value.trading) } : {}),
     ...(hasComponent ? { component: component! } : {}),
     clientRequestId: value.clientRequestId,

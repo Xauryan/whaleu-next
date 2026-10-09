@@ -1,3 +1,7 @@
+import {
+  createMessagingRuntime,
+  type MessagingRuntime,
+} from '../messaging/runtime';
 import { RatingCatalogChanges } from '../ratings/catalog-changes';
 import {
   HttpRatingCategoryManagementGateway,
@@ -118,6 +122,7 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly messaging?: MessagingRuntime;
   readonly ratingCatalogChanges?: RatingCatalogChanges;
   readonly ratingCategoryManagement?: RatingCategoryManagementGateway;
   readonly ratingTargetChanges?: RatingTargetChanges;
@@ -323,6 +328,14 @@ export function createCommunityRuntime(
   };
   return {
     ...runtime,
+    messaging: createMessagingRuntime(
+      identity,
+      storage,
+      origin,
+      runtime.newRequestId,
+      clock,
+      runtime,
+    ),
     ...(identity.api
       ? {
           views: new ViewRuntime(

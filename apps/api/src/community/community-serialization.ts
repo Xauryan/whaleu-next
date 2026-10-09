@@ -217,6 +217,10 @@ export class CommunitySerializer {
         ),
       },
       commentsPolicy: post.comments_policy,
+      allowAnonymousDm:
+        post.author_mode === 'named' &&
+        post.publication_envelope_version === 2 &&
+        post.allow_anonymous_dm === true,
     };
   }
   async comment(

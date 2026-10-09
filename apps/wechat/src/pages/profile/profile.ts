@@ -1,11 +1,25 @@
+import { messagingRuntime } from '../../messaging/entry';
+import {
+  MessagingUnreadController,
+  initialUnreadView,
+} from '../../messaging/unread-controller';
 import type { WhaleuApp } from '../../app';
 import type { PreferenceKey } from '../../profile/contract';
 import { HttpProfileGateway } from '../../profile/gateway';
 import { initialProfileView, ProfileController } from './controller';
 Page({
-  data: { ...initialProfileView() },
+  data: { ...initialProfileView(), privateMessages: initialUnreadView() },
+  messagingUnread: undefined as MessagingUnreadController | undefined,
   controller: undefined as ProfileController | undefined,
   onShow() {
+    this.messagingUnread?.dispose();
+    const messaging = messagingRuntime(getApp<WhaleuApp>().community);
+    if (messaging) {
+      this.messagingUnread = new MessagingUnreadController(messaging, (view) =>
+        this.setData({ privateMessages: view }),
+      );
+      void this.messagingUnread.load();
+    }
     this.controller?.dispose();
     const runtime = getApp<WhaleuApp>().identity;
     if (!runtime) {
@@ -50,10 +64,14 @@ Page({
     this.controller?.cancelOperation();
   },
   onHide() {
+    this.messagingUnread?.dispose();
+    this.messagingUnread = undefined;
     this.controller?.dispose();
     this.controller = undefined;
   },
   onUnload() {
+    this.messagingUnread?.dispose();
+    this.messagingUnread = undefined;
     this.controller?.dispose();
     this.controller = undefined;
   },

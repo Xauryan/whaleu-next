@@ -15,7 +15,10 @@ import type {
   PublishComment,
 } from '../../src/community/contracts.js';
 import type { PublishReply } from '../../src/community/discussion/contracts.js';
-import type { EffectiveContentEnvelope } from '../../src/community/content-review/contracts.js';
+import type {
+  EffectiveContentEnvelope,
+  EffectiveContentEnvelopeV1,
+} from '../../src/community/content-review/contracts.js';
 import {
   setSyntheticSnapshot,
   syntheticAssertion,
@@ -75,6 +78,18 @@ export async function setRuntimeVerification(
     validUntil: expiresAt.getTime(),
   };
 }
+export function postApprovalEnvelope(
+  app: INestApplication,
+  pool: Pool,
+  accountId: string,
+  input: PublishPost & { allowAnonymousDm?: undefined },
+): Promise<EffectiveContentEnvelopeV1>;
+export function postApprovalEnvelope(
+  app: INestApplication,
+  pool: Pool,
+  accountId: string,
+  input: PublishPost,
+): Promise<EffectiveContentEnvelope>;
 export async function postApprovalEnvelope(
   app: INestApplication,
   pool: Pool,
@@ -90,12 +105,17 @@ export async function postApprovalEnvelope(
       .authority(accountId, space, tx, { publication: true });
     if (!authority.publicationScope) throw new Error('Canonical scope missing');
     return {
-      version: 1,
+      ...(body.allowAnonymousDm === undefined
+        ? { version: 1 as const, authorMode: body.authorMode }
+        : {
+            version: 2 as const,
+            authorMode: 'named' as const,
+            allowAnonymousDm: body.allowAnonymousDm,
+          }),
       accountId,
       purpose: 'publish_post',
       spaceId: body.spaceId,
       category: body.category,
-      authorMode: body.authorMode,
       commentsPolicy: body.commentsPolicy,
       postId: null,
       rootCommentId: null,
@@ -108,6 +128,19 @@ export async function postApprovalEnvelope(
     };
   });
 }
+/** Deliberately v1 fixture for historical/search shape transformations. New
+ * explicit opt-in tests use postApprovalEnvelope and preserve its v2 union. */
+export async function postApprovalEnvelopeV1(
+  app: INestApplication,
+  pool: Pool,
+  accountId: string,
+  input: PublishPost,
+): Promise<EffectiveContentEnvelopeV1> {
+  const envelope = await postApprovalEnvelope(app, pool, accountId, input);
+  if (envelope.version !== 1)
+    throw new Error('Historical fixture requires Review v1');
+  return envelope;
+}
 export async function discussionApprovalEnvelope(
   app: INestApplication,
   pool: Pool,
@@ -115,7 +148,7 @@ export async function discussionApprovalEnvelope(
   postId: string,
   body: PublishComment | PublishReply,
   rootCommentId: string | null = null,
-): Promise<EffectiveContentEnvelope> {
+): Promise<EffectiveContentEnvelopeV1> {
   return inTransaction(pool, async (tx) => {
     await lockSafetyPolicy(tx);
     const repo = app.get(CommunityRepository),

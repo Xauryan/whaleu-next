@@ -641,3 +641,57 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
 export async function renderRatingsOpenApiDocument(): Promise<string> {
   return renderDocument(await createRatingsOpenApiDocument());
 }
+
+import { MessagingController } from '../src/messaging/controller.js';
+import { MessagingReadService } from '../src/messaging/read.service.js';
+import { MessagingMutationService } from '../src/messaging/mutation.service.js';
+import { MessagingRequests } from '../src/messaging/requests.js';
+import { MessagingRequestGuard } from '../src/messaging/request.guard.js';
+export async function createMessagingOpenApiDocument(): Promise<OpenAPIObject> {
+  if (
+    !Reflect.hasMetadata(
+      PARAMTYPES_METADATA,
+      MessagingController.prototype,
+      'send',
+    )
+  )
+    throw new Error('Messaging OpenAPI requires emitted TypeScript metadata');
+  const fail = () => {
+    throw new Error('OpenAPI must not execute application work');
+  };
+  const testing = await Test.createTestingModule({
+    controllers: [MessagingController],
+    providers: [
+      { provide: MessagingReadService, useValue: {} },
+      { provide: MessagingMutationService, useValue: {} },
+      { provide: MessagingRequests, useValue: {} },
+    ],
+  })
+    .overrideGuard(MessagingRequestGuard)
+    .useValue({ canActivate: fail })
+    .compile();
+  const app = testing.createNestApplication({ logger: false });
+  try {
+    return SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setOpenAPIVersion('3.0.3')
+        .setTitle('WhaleU private messages local text')
+        .setVersion('1')
+        .addBearerAuth(undefined, 'accessToken')
+        .build(),
+      {
+        deepScanRoutes: false,
+        autoTagControllers: false,
+        excludeDynamicDefaults: true,
+      },
+    );
+  } finally {
+    await app.close();
+  }
+}
+export async function renderMessagingOpenApiDocument() {
+  return format(JSON.stringify(await createMessagingOpenApiDocument()), {
+    parser: 'json',
+  });
+}

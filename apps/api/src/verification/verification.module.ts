@@ -1,3 +1,4 @@
+import { DmVerificationFacade } from './dm-eligibility.facade.js';
 import { RatingVerificationFacade } from './rating-eligibility.facade.js';
 import { LocalErrandBaseEligibilitySource } from './errand-base.source.js';
 import { LocalPublicationEligibilitySource } from './publication-eligibility.source.js';
@@ -36,6 +37,7 @@ export class VerificationController {
   imports: [DatabaseModule, IdentityModule],
   controllers: [VerificationController],
   providers: [
+    DmVerificationFacade,
     RatingVerificationFacade,
     LocalErrandBaseEligibilitySource,
     VerificationRepository,
@@ -46,6 +48,7 @@ export class VerificationController {
     LocalSafetyPhoneSource,
   ],
   exports: [
+    DmVerificationFacade,
     RatingVerificationFacade,
     LocalErrandBaseEligibilitySource,
     LocalStudentIdentitySource,

@@ -1,3 +1,4 @@
+import { DmContentReviewFacade } from './dm-content-review.facade.js';
 import { RatingCategoryContentReviewFacade } from './rating-category-content-review.facade.js';
 import { RatingContentReviewFacade } from './rating-content-review.facade.js';
 import { ErrandContentReviewFacade } from './errand-content-review.facade.js';
@@ -12,6 +13,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
 @Module({
   imports: [CampusModule],
   providers: [
+    DmContentReviewFacade,
     RatingContentReviewFacade,
     RatingCategoryContentReviewFacade,
     ErrandContentReviewFacade,
@@ -22,6 +24,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
     LocalApprovedContentVisibility,
   ],
   exports: [
+    DmContentReviewFacade,
     RatingContentReviewFacade,
     RatingCategoryContentReviewFacade,
     ErrandContentReviewFacade,

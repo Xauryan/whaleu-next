@@ -1,0 +1,73 @@
+@import '../community/forms.wxss';
+.screen {
+  padding: 32rpx;
+}
+.row {
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.row .section-title {
+  flex: 1;
+}
+.identity-banner {
+  padding: 20rpx;
+  background: #ecf6f5;
+  border-radius: 12rpx;
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+.history {
+  height: 55vh;
+  margin: 24rpx 0;
+}
+.message {
+  max-width: 86%;
+  padding: 20rpx;
+  margin: 18rpx 0;
+  border-radius: 16rpx;
+  background: #fff;
+  border: 1rpx solid #e1e8e7;
+}
+.message.self {
+  margin-left: auto;
+  background: #e9f5f2;
+}
+.message .body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.message .row {
+  margin-top: 10rpx;
+}
+.preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  margin: 14rpx 0;
+}
+.confirm {
+  padding: 24rpx;
+  border: 2rpx solid #cf7b5d;
+  border-radius: 16rpx;
+  background: #fff7ef;
+  margin: 20rpx 0;
+}
+.badge {
+  padding: 4rpx 12rpx;
+  background: #d8eee8;
+  border-radius: 18rpx;
+}
+.card textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 20rpx;
+  border: 1rpx solid #d9e4df;
+  border-radius: 12rpx;
+  min-height: 150rpx;
+}
+.meta {
+  overflow-wrap: anywhere;
+}

@@ -12,5 +12,8 @@ export function postIntent(body: PublishPost) {
     ...(body.component?.kind === 'poll' || body.component?.kind === 'formation'
       ? { component: body.component }
       : {}),
+    ...(body.allowAnonymousDm === undefined
+      ? {}
+      : { allowAnonymousDm: body.allowAnonymousDm }),
   };
 }

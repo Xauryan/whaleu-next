@@ -59,6 +59,8 @@ export type ComposeTarget =
       readonly targetReplyId: string | null;
     };
 export interface ComposeView extends CommunityView {
+  readonly allowAnonymousDm: boolean;
+  readonly canChooseAnonymousDm: boolean;
   readonly loaded: boolean;
   readonly text: string;
   readonly authorMode: AuthorMode;
@@ -88,6 +90,8 @@ export interface ComposeView extends CommunityView {
 }
 export const initialComposeView = (): ComposeView => ({
   ...initialCommunityView(),
+  allowAnonymousDm: false,
+  canChooseAnonymousDm: false,
   loaded: false,
   text: '',
   authorMode: 'named',
@@ -386,6 +390,11 @@ export class ComposeController extends CommunityController<ComposeView> {
               : emptyFormationDraft(),
           canAddFormation: target.operation === 'publish_post' && !trading,
           authorMode: chosen.mode,
+          canChooseAnonymousDm: target.operation === 'publish_post',
+          allowAnonymousDm:
+            draft?.allowAnonymousDm ??
+            result.profile.preferences.defaultAllowAnonymousDm ??
+            false,
           commentsPolicy: draft?.commentsPolicy ?? 'open',
           identityForced: forced || trading,
           canDisableComments:
@@ -445,6 +454,11 @@ export class ComposeController extends CommunityController<ComposeView> {
         pending.operation === 'publish_post' &&
         pending.payload.category !== 'trading',
       authorMode: pending.payload.authorMode,
+      canChooseAnonymousDm: pending.operation === 'publish_post',
+      allowAnonymousDm:
+        pending.operation === 'publish_post'
+          ? pending.payload.allowAnonymousDm === true
+          : false,
       effectiveIdentity:
         pending.payload.authorMode === 'anonymous'
           ? '匿名身份（原请求，保持不变）'
@@ -520,6 +534,16 @@ export class ComposeController extends CommunityController<ComposeView> {
     });
     this.persistDraft();
     this.recompute();
+  }
+  setAllowAnonymousDm(value: boolean): void {
+    if (
+      !this.editable() ||
+      !this.view.canChooseAnonymousDm ||
+      this.view.authorMode !== 'named'
+    )
+      return;
+    this.update({ allowAnonymousDm: value });
+    this.persistDraft();
   }
   setRestricted(restricted: boolean): void {
     if (!this.editable() || !this.view.canDisableComments) return;
@@ -666,6 +690,9 @@ export class ComposeController extends CommunityController<ComposeView> {
       this.runtime.drafts.save(accountId, targetKey(this.target), {
         version: 1,
         text: this.view.text,
+        ...(this.target.operation === 'publish_post'
+          ? { allowAnonymousDm: this.view.allowAnonymousDm }
+          : {}),
         authorMode: this.view.authorMode,
         commentsPolicy: this.view.commentsPolicy,
         ...(this.target.operation === 'publish_post'
@@ -786,6 +813,7 @@ export class ComposeController extends CommunityController<ComposeView> {
     const draft = {
       ...(component.kind !== 'none' ? { component } : {}),
       ...(trading ? { trading } : {}),
+      allowAnonymousDm: this.view.allowAnonymousDm,
       text: this.view.text.replace(/\r\n/g, '\n'),
       authorMode: this.view.authorMode,
       commentsPolicy: this.view.commentsPolicy,
@@ -806,8 +834,15 @@ export class ComposeController extends CommunityController<ComposeView> {
                   clientRequestId: requestId,
                   spaceId: target.spaceId,
                   category: target.category,
-                  ...draft,
+                  ...(draft.component ? { component: draft.component } : {}),
+                  ...(draft.trading ? { trading: draft.trading } : {}),
+                  text: draft.text,
+                  authorMode: draft.authorMode,
+                  commentsPolicy: draft.commentsPolicy,
                   imageAssetIds: [],
+                  ...(draft.authorMode === 'named'
+                    ? { allowAnonymousDm: draft.allowAnonymousDm }
+                    : {}),
                 }),
               }
             : target.operation === 'publish_reply'

@@ -30,14 +30,16 @@ await copyAssets(path.join(root, 'src'), out);
 
 // TypeScript emits CommonJS, not an npm bundle. Ship the vetted browser-only
 // implementation under a relative Mini Program path (never Node's crypto entry).
-const cryptoModule = path.join(out, 'community/view-contract.js');
-const compiled = await readFile(cryptoModule, 'utf8');
-if (!compiled.includes('require("js-sha256")'))
-  throw new Error('Missing native SHA-256 import');
-await writeFile(
-  cryptoModule,
-  compiled.replace('require("js-sha256")', 'require("../vendor/sha256")'),
-);
+for (const relative of ['community/view-contract.js', 'messaging/pending.js']) {
+  const cryptoModule = path.join(out, relative);
+  const compiled = await readFile(cryptoModule, 'utf8');
+  if (!compiled.includes('require("js-sha256")'))
+    throw new Error('Missing native SHA-256 import');
+  await writeFile(
+    cryptoModule,
+    compiled.replace('require("js-sha256")', 'require("../vendor/sha256")'),
+  );
+}
 await mkdir(path.join(out, 'vendor'), { recursive: true });
 await cp(
   require.resolve('js-sha256/build/sha256.cjs'),

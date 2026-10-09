@@ -64,7 +64,7 @@ export async function approveEnvelope(
       `INSERT INTO whaleu_community.content_approval_decisions
        (id,account_id,operation,envelope_version,digest,envelope,policy_revision_id,result,
         coverage,provenance,issuer,provenance_ref,evaluated_at,consume_until,visibility_model,visibility_until)
-       VALUES($1,$2,$3,1,$4,$5::jsonb,$6,$7,$8,$9,'synthetic-review-owner','synthetic-exact-review',$10,$11,$12,$13)`,
+       VALUES($1,$2,$3,$14,$4,$5::jsonb,$6,$7,$8,$9,'synthetic-review-owner','synthetic-exact-review',$10,$11,$12,$13)`,
       [
         id,
         envelope.accountId,
@@ -79,6 +79,7 @@ export async function approveEnvelope(
         options.consumeUntil ?? new Date(Date.now() + 3_600_000),
         visibilityUntil === null ? 'durable' : 'until',
         visibilityUntil,
+        envelope.version,
       ],
     );
     await tx.query(
@@ -91,7 +92,7 @@ export async function approveEnvelope(
       'INSERT INTO whaleu_community.content_approval_heads(decision_id,event_id) VALUES($1,$2)',
       [id, eventId],
     );
-    return { decisionId: id, digest, version: 1, envelope };
+    return { decisionId: id, digest, version: envelope.version, envelope };
   });
 }
 export async function setReviewState(

@@ -57,7 +57,7 @@ export function validateApprovalRow(
     return { decision: { kind: 'unavailable' }, optionalUntil: null };
   }
   if (
-    row.envelope_version !== 1 ||
+    row.envelope_version !== envelope.version ||
     row.account_id !== envelope.accountId ||
     row.operation !== envelope.purpose
   )
@@ -72,7 +72,7 @@ export function validateApprovalRow(
             value: {
               decisionId: row.id,
               digest: row.digest,
-              version: 1,
+              version: envelope.version,
               envelope,
             },
           }
@@ -90,7 +90,7 @@ export function validateApprovalBinding(
   try {
     if (
       binding.content_version !== 1 ||
-      binding.envelope_version !== 1 ||
+      binding.envelope_version !== accepted.envelope.version ||
       binding.operation !== operationForKind(binding.content_kind) ||
       binding.account_id !== accepted.envelope.accountId ||
       binding.operation !== accepted.envelope.purpose ||

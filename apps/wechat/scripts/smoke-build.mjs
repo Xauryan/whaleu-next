@@ -1,3 +1,4 @@
+import { smokeMessaging } from './smoke-messaging.mjs';
 import { smokeRatingCategoryManagement } from './smoke-rating-category-management.mjs';
 import { smokeRatingOwnerEditing } from './smoke-rating-owner-editing.mjs';
 import { smokeRatingOwnerManagement } from './smoke-rating-owner-management.mjs';
@@ -41,6 +42,8 @@ let app;
 let page;
 let calls = 0;
 let storageCalls = 0;
+const bootstrapStorageReads = [];
+const bootstrapStorageWrites = [];
 const storage = new Map();
 const forbiddenNativeCall = () => {
   calls += 1;
@@ -53,9 +56,13 @@ globalThis.wx = {
   login: forbiddenNativeCall,
   getStorageSync: (key) => {
     storageCalls += 1;
+    bootstrapStorageReads.push(key);
     return storage.get(key);
   },
-  setStorageSync: (key, value) => storage.set(key, value),
+  setStorageSync: (key, value) => {
+    bootstrapStorageWrites.push(key);
+    storage.set(key, value);
+  },
   removeStorageSync: (key) => storage.delete(key),
 };
 globalThis.App = (options) => {
@@ -70,7 +77,15 @@ assert.ok(app);
 app.onLaunch();
 assert.ok(app.identity);
 const configured = app.identity.auth !== undefined;
-if (!configured) assert.equal(storageCalls, 0);
+if (!configured) {
+  assert.ok(
+    bootstrapStorageReads.every((key) =>
+      /^whaleu\.private-messages\.pending\.v[12]:/.test(key),
+    ),
+  );
+  assert.equal(bootstrapStorageWrites.length, 0);
+  assert.ok(storageCalls <= 2);
+}
 const config = JSON.parse(readFileSync(path.join(dist, 'app.json'), 'utf8'));
 assert.equal(config.pages[0], 'pages/login/login');
 for (const route of config.pages) {
@@ -186,6 +201,18 @@ for (const route of config.pages.filter(
   current.setData = (data) => {
     current.data = { ...current.data, ...data };
   };
+  if (route === 'pages/private-message-detail/private-message-detail') {
+    for (const invalidRoute of [{}, { conversationId: 'not-a-uuid' }]) {
+      current.onLoad(invalidRoute);
+      current.onShow();
+      assert.equal(current.route, null);
+      assert.equal(current.controller, undefined);
+      assert.equal(current.data.loaded, false);
+      assert.deepEqual(current.data.messages, []);
+      assert.ok(current.data.error);
+      current.onHide();
+    }
+  }
   current.onLoad?.(
     [
       'pages/activity-list/activity-list',
@@ -198,6 +225,9 @@ for (const route of config.pages.filter(
           category: 'discussion',
           ...(route.endsWith('community-thread')
             ? { rootCommentId: '88888888-8888-4888-8888-888888888888' }
+            : {}),
+          ...(route === 'pages/private-message-detail/private-message-detail'
+            ? { conversationId: '77777777-7777-4777-8777-777777777777' }
             : {}),
         },
   );
@@ -1979,6 +2009,174 @@ await smokeAnnouncements({
   mountPage: mountTradingPage,
   flush: flushTrading,
 });
+// Isolated synthetic messaging account; exercise emitted Pages through real ApiClient decoding.
+{
+  const { SessionStore } = require(path.join(dist, 'auth/session.js'));
+  const { ApiClient } = require(path.join(dist, 'api/client.js'));
+  const { HttpMessagingGateway } = require(
+    path.join(dist, 'messaging/gateway.js'),
+  );
+  const { PendingMessagingStore } = require(
+    path.join(dist, 'messaging/pending.js'),
+  );
+  const sessions = new SessionStore();
+  const accountId = '12345678-1234-4123-8123-123456789abc';
+  const conversationId = '55555555-5555-4555-8555-555555555555';
+  const messageId = '66666666-6666-4666-8666-666666666666';
+  const requestId = '77777777-7777-4777-8777-777777777777';
+  const observationId = '88888888-8888-4888-8888-888888888888';
+  const occurredAt = '2026-10-09T18:00:00.000Z';
+  sessions.completeLogin(sessions.beginLogin(), {
+    accountId,
+    sessionId: '22345678-1234-4123-8123-123456789abc',
+    accessToken: `wu_a_${'a'.repeat(43)}`,
+    refreshToken: `wu_r_${'a'.repeat(43)}`,
+    expiresAt: 1900000000000,
+    refreshExpiresAt: 1900600000000,
+  });
+  const conversation = {
+    id: conversationId,
+    self: { mode: 'named', displayName: '合成自己', profileId: accountId },
+    peer: {
+      mode: 'named',
+      displayName: '合成对方',
+      profileId: '99999999-9999-4999-8999-999999999999',
+    },
+    source: null,
+    unreadCount: 1,
+    hidden: false,
+    sendAvailability: 'available',
+    blockScope: 'named',
+    blockedByYou: false,
+  };
+  const message = {
+    id: messageId,
+    sequence: '1',
+    sender: 'peer',
+    state: 'text',
+    text: '原生合成私信',
+    createdAt: occurredAt,
+    canRecall: false,
+  };
+  const requests = [];
+  const gateway = new HttpMessagingGateway(
+    new ApiClient(
+      'https://synthetic.example',
+      {
+        async send(request) {
+          requests.push(request);
+          const url = new URL(request.url);
+          let body;
+          if (request.method === 'GET' && url.pathname.endsWith('/unread'))
+            body = { count: 1, coverage: 'local' };
+          else if (
+            request.method === 'GET' &&
+            url.pathname.endsWith('/conversations')
+          )
+            body = {
+              items: [{ conversation, latest: message, updatedAt: occurredAt }],
+              nextCursor: null,
+              coverage: 'local',
+            };
+          else if (
+            request.method === 'GET' &&
+            url.pathname.endsWith('/messages')
+          )
+            body = {
+              items: [message],
+              nextCursor: null,
+              observationId,
+              throughSequence: '1',
+              eventCursor: 'synthetic_events',
+              coverage: 'local',
+            };
+          else if (request.method === 'GET' && url.pathname.endsWith('/events'))
+            body = {
+              items: [],
+              nextCursor: url.searchParams.get('cursor'),
+              hasMore: false,
+              observationId,
+              throughSequence: '0',
+            };
+          else if (
+            request.method === 'GET' &&
+            url.pathname.endsWith(conversationId)
+          )
+            body = conversation;
+          else if (
+            request.method === 'POST' &&
+            url.pathname.endsWith('/cancel')
+          )
+            body = {
+              outcome: 'cancelled',
+              receipt: {
+                requestId: url.pathname.split('/').slice(-2)[0],
+                operation: request.body.operation,
+                outcome: 'rejected',
+                code: 'DM_COMMAND_CANCELLED',
+              },
+            };
+          else if (
+            request.method === 'POST' &&
+            (url.pathname.endsWith('/messages') ||
+              url.pathname.endsWith('/read'))
+          )
+            body = {
+              requestId: request.body.clientRequestId,
+              operation: url.pathname.endsWith('/messages') ? 'send' : 'read',
+              outcome: 'applied',
+              conversationId,
+              messageId: url.pathname.endsWith('/messages') ? messageId : null,
+              occurredAt,
+            };
+          else
+            throw new Error(
+              `Unexpected synthetic messaging route ${request.method} ${url.pathname}`,
+            );
+          return { status: 200, headers: {}, body };
+        },
+      },
+      sessions,
+      {
+        refresh: async () => {
+          throw new Error('Unexpected synthetic messaging refresh');
+        },
+      },
+    ),
+  );
+  const values = new Map();
+  const messaging = {
+    sessions,
+    gateway,
+    pending: new PendingMessagingStore(
+      {
+        get: (key) => values.get(key),
+        set: (key, value) => values.set(key, value),
+        remove: (key) => values.delete(key),
+      },
+      'synthetic-build',
+    ),
+    newRequestId: async () => requestId,
+    clock: { now: () => 0, schedule: () => () => undefined },
+    assertStorage: () => undefined,
+  };
+  await smokeMessaging({
+    app: { identity: { sessions }, community: { messaging } },
+    dist,
+    flush: flushTrading,
+    conversationId,
+    messageId,
+  });
+  assert.equal(
+    requests.filter(
+      (request) =>
+        request.method === 'POST' &&
+        new URL(request.url).pathname.endsWith('/messages'),
+    ).length,
+    1,
+  );
+  assert.ok(requests.every((request) => request.headers.Authorization));
+}
 app.community.identityPrivacy = originalIdentityPrivacy;
 app.community.profiles = originalProfiles;
 app.identity.sessions.logout();

@@ -3,6 +3,35 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  DM_COMMAND_CANCELLED: {
+    status: 409,
+    message: 'The original private message command was cancelled',
+  },
+  DM_NOT_FOUND: { status: 404, message: 'Private conversation is unavailable' },
+  DM_UNAVAILABLE: { status: 503, message: 'Private messages are unavailable' },
+  DM_ENTRY_UNAVAILABLE: {
+    status: 403,
+    message: 'This private message entry is unavailable',
+  },
+  DM_SEND_UNAVAILABLE: { status: 403, message: 'Sending is unavailable' },
+  DM_FIRST_CONTACT_LIMIT: {
+    status: 409,
+    message: 'Wait for a reply before sending another message',
+  },
+  DM_RATE_LIMITED: {
+    status: 429,
+    message: 'Private message rate limit reached; retry later',
+  },
+  DM_RECALL_EXPIRED: { status: 409, message: 'The recall window has ended' },
+  DM_CURSOR_STALE: {
+    status: 409,
+    message: 'Conversation list changed; restart paging',
+  },
+  DM_OBSERVATION_UNAVAILABLE: {
+    status: 409,
+    message: 'Refresh the conversation before marking it read',
+  },
+
   RATING_DELETION_CONTEXT_CHANGED: {
     status: 409,
     message: 'Deletion context changed; refresh and confirm again',

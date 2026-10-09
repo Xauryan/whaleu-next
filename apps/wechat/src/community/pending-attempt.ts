@@ -162,6 +162,7 @@ export class PendingAttemptStore {
   }
 }
 export interface Draft {
+  readonly allowAnonymousDm?: boolean;
   readonly trading?: TradingDraft;
   readonly poll?: PollDraft;
   readonly formation?: FormationDraft;
@@ -232,6 +233,16 @@ export class DraftStore {
       const value = this.storage.get(this.key(accountId, target));
       if (value === undefined || value === null || value === '') return null;
       if (!isRecord(value)) throw storageError();
+      const hasAnonymousDm = Object.prototype.hasOwnProperty.call(
+        value,
+        'allowAnonymousDm',
+      );
+      if (
+        hasAnonymousDm &&
+        (typeof value.allowAnonymousDm !== 'boolean' ||
+          !target.startsWith('post:'))
+      )
+        throw storageError();
       const hasTrading = Object.prototype.hasOwnProperty.call(value, 'trading');
       const hasPoll = Object.prototype.hasOwnProperty.call(value, 'poll');
       const hasFormation = Object.prototype.hasOwnProperty.call(
@@ -245,6 +256,7 @@ export class DraftStore {
       )
         throw storageError();
       exact(value, [
+        ...(hasAnonymousDm ? ['allowAnonymousDm'] : []),
         'version',
         'text',
         'authorMode',
@@ -270,6 +282,9 @@ export class DraftStore {
       if (poll?.enabled && formation?.enabled) throw storageError();
       return Object.freeze({
         version: 1,
+        ...(hasAnonymousDm
+          ? { allowAnonymousDm: value.allowAnonymousDm as boolean }
+          : {}),
         ...(hasPoll ? { poll: poll! } : {}),
         ...(hasFormation ? { formation: formation! } : {}),
         ...(hasTrading ? { trading: decodeTradingDraft(value.trading) } : {}),
@@ -283,6 +298,16 @@ export class DraftStore {
   }
   save(accountId: string, target: string, draft: Draft): void {
     try {
+      const hasAnonymousDm = Object.prototype.hasOwnProperty.call(
+        draft,
+        'allowAnonymousDm',
+      );
+      if (
+        hasAnonymousDm &&
+        (typeof draft.allowAnonymousDm !== 'boolean' ||
+          !target.startsWith('post:'))
+      )
+        throw storageError();
       if (!boundedText(draft.text.replace(/\r\n/g, '\n'), 0, 10000))
         throw storageError();
       if ((draft.poll || draft.formation) && draft.trading)
@@ -299,6 +324,9 @@ export class DraftStore {
       if (poll?.enabled && formation?.enabled) throw storageError();
       const checked: Draft = {
         version: 1,
+        ...(hasAnonymousDm
+          ? { allowAnonymousDm: draft.allowAnonymousDm! }
+          : {}),
         ...(poll ? { poll } : {}),
         ...(formation ? { formation } : {}),
         ...(draft.trading

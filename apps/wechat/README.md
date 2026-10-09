@@ -488,3 +488,33 @@ random results and affected authoring confirmations, including in-flight reads.
 The historical receipt never installs a new current projection. There are no
 new rewards, subscriptions, pushes or notice kinds. See
 [native M3A boundaries and acceptance coverage](docs/ratings-m3a.md).
+
+## Private messages PM0–PM2: local text
+
+Registered `private-message-list`, `private-message-detail` and
+`private-message-recovery` pages provide exact profile/post/comment/reply entry,
+three immutable identity contexts, independent unread, bounded foreground
+history/event polling and visible-render read acknowledgements. List pull-to-refresh
+stops its native spinner on success, failure or page disposal. Named profile IDs
+are navigation locators; an explicit target page visit always reauthorizes access.
+
+The DM journal is separate from ratings. It freezes one original intent per
+account before dispatch, retains at most eight unresolved account commitments,
+and refuses overflow instead of evicting unknown results. Logout/account switch
+scrubs private text while retaining only request ID, operation and original hash.
+Without the original body, recovery can query the original receipt or explicitly
+cancel that same key; it cannot recreate or retry text. Server cancellation
+reports an already committed send honestly. A rejected send can be explicitly
+re-edited only from current-account page memory into a new reviewed request.
+
+Successful source-open receipts preserve the confirmed conversation route even
+if the subsequent view fetch fails or the source disappears. Hide/dispose/session
+changes cancel outstanding continuations and clear displayed bodies and drafts.
+A client stop-wait action does not cancel the server command and keeps uncertain
+state frozen for recovery.
+
+The emitted Page/WXML smoke and focused unit tests are synthetic native evidence,
+not physical-device or provider acceptance. Private images, real Review issuance,
+provider delivery and authoritative legacy-history migration remain unavailable.
+See the [local text API contract](../../docs/API_PRIVATE_MESSAGES.md) and
+[acceptance boundary](../../docs/acceptance/private-messages-pm012.md).

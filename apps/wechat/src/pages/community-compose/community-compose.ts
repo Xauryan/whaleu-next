@@ -104,6 +104,9 @@ Page({
   onMode(event: { currentTarget: { dataset: { mode: string } } }) {
     this.controller?.setAuthorMode(event.currentTarget.dataset.mode);
   },
+  onAllowAnonymousDm(event: { detail: { value: boolean } }) {
+    this.controller?.setAllowAnonymousDm(event.detail.value);
+  },
   onRestricted(event: { detail: { value: boolean } }) {
     this.controller?.setRestricted(event.detail.value);
   },

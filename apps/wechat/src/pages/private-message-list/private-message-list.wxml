@@ -1,0 +1,17 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 私信</view><view class="title">我的私信 <text wx:if="{{unread !== null}}" class="badge">{{unread}}</text></view>
+  <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看私信</navigator>
+  <navigator class="link" url="/pages/private-message-recovery/private-message-recovery">{{pending ? '有原请求待确认，进入恢复页 →' : '私信请求恢复 →'}}</navigator>
+  <button bindtap="onReload" disabled="{{busy}}" loading="{{busy}}">{{browsingOlder || needsRestart ? '刷新并回到第一页' : '刷新私信'}}</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">当前已核验范围内暂无私信</view>
+  <view wx:for="{{items}}" wx:key="id" class="card" data-id="{{item.conversation.id}}" bindlongpress="onHideConversation">
+    <navigator url="/pages/private-message-detail/private-message-detail?conversationId={{item.conversation.id}}"><view class="row"><view class="section-title">{{item.conversation.peer.displayName}}</view><text wx:if="{{item.conversation.unreadCount}}" class="badge">{{item.conversation.unreadCount}}</text></view>
+      <view class="meta">我：{{item.conversation.self.mode === 'anonymous' ? '本帖分身' : '公开身份'}} · 对方：{{item.conversation.peer.mode === 'anonymous' ? '本帖分身' : '公开身份'}}</view>
+      <view class="preview">{{!item.latest ? '消息暂不可查看' : item.latest.state === 'text' ? item.latest.text : item.latest.state === 'recalled' ? '消息已撤回' : '消息暂不可查看'}}</view><view class="meta">{{item.updatedAt}}</view></navigator>
+    <button size="mini" data-id="{{item.conversation.id}}" bindtap="onHideConversation" disabled="{{busy || pending}}">隐藏会话</button>
+  </view>
+  <button wx:if="{{canMore}}" bindtap="onMore" disabled="{{busy}}">查看更多</button>
+  <view wx:if="{{confirmHide}}" class="confirm" aria-role="dialog"><view class="section-title">隐藏此会话？</view><view class="notice">只清理你的列表和当前未读，历史不会删除；新消息可能让会话重新出现。</view><button bindtap="onConfirmHide" disabled="{{busy || pending}}">确认隐藏</button><button bindtap="onDismiss">取消</button></view>
+  <view class="notice">私信未读数独立于社区更新。当前仅提供文字私信；图片和站外通知投递尚未开放。</view>
+</view>

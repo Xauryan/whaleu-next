@@ -128,7 +128,11 @@ export class SafetyRepository {
     viewer: string,
     author: string,
     purpose:
-      VisibilityPurpose | 'public_profile' | 'rating_list' | 'rating_direct',
+      | VisibilityPurpose
+      | 'public_profile'
+      | 'rating_list'
+      | 'rating_direct'
+      | 'private_messages',
     tx: PoolClient,
     read?: SearchReadContext,
   ): Promise<{ outgoing: boolean; incoming: boolean } | null> {
@@ -150,7 +154,9 @@ export class SafetyRepository {
       registerTransactionDeadline(
         tx,
         coverage.validUntil,
-        'COMMUNITY_UNAVAILABLE',
+        purpose === 'private_messages'
+          ? 'SAFETY_UNAVAILABLE'
+          : 'COMMUNITY_UNAVAILABLE',
       );
     }
     const row = (
@@ -161,6 +167,7 @@ export class SafetyRepository {
       )
     ).rows[0]!;
     if (
+      purpose !== 'private_messages' &&
       purpose !== 'rating_list' &&
       purpose !== 'rating_direct' &&
       !row.outgoing &&
