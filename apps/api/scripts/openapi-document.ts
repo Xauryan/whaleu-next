@@ -501,6 +501,10 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
     await import('../src/ratings/random/controller.js');
   const { RatingRandomService } =
     await import('../src/ratings/random/service.js');
+  const { RatingTargetOwnerDeletionController } =
+    await import('../src/ratings/management/target-deletion/controller.js');
+  const { RatingTargetOwnerDeletionService } =
+    await import('../src/ratings/management/target-deletion/service.js');
   const { RatingManagementController } =
     await import('../src/ratings/management/controller.js');
   const { RatingManagementService } =
@@ -568,6 +572,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
     controllers: [
       RatingRandomController,
       RatingManagementController,
+      RatingTargetOwnerDeletionController,
       RatingDeletionController,
       RatingSubscriptionsController,
       RatingSubscriptionUpdatesController,
@@ -580,6 +585,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
     providers: [
       { provide: RatingRandomService, useValue: {} },
       { provide: RatingManagementService, useValue: {} },
+      { provide: RatingTargetOwnerDeletionService, useValue: {} },
       { provide: RatingDeletionService, useValue: {} },
       { provide: RatingSubscriptionsService, useValue: {} },
       { provide: RatingSubscriptionUpdatesReadService, useValue: {} },

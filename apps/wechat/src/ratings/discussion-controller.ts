@@ -18,7 +18,11 @@ import {
   type RatingTarget,
 } from './contract';
 import { ratingError } from './controller';
-import { ratingCommandLabels, runRatingCommand } from './commands';
+import {
+  ratingCommandLabels,
+  runRatingCommand,
+  settleRatingCommand,
+} from './commands';
 import {
   decodeRatingDiscussion,
   decodeRatingReplyPage,
@@ -31,6 +35,7 @@ import {
   decodeRatingCommandIntent,
   isRatingSubscriptionIntent,
   isRatingTargetCreationIntent,
+  isRatingTargetOwnerDeletionIntent,
   isRatingAdminDeletionIntent,
   isRatingDeletionContextChanged,
   type RatingCommandIntent,
@@ -147,6 +152,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
   private inactive = false;
   private readonly unsubscribeScope: () => void;
   private readonly unsubscribeBrowse: () => void;
+  private readonly unsubscribeTarget: () => void;
   constructor(
     runtime: CommunityRuntime,
     render: (view: RatingThreadView) => void,
@@ -165,6 +171,18 @@ export class RatingThreadController extends CommunityController<RatingThreadView
       runtime.directoryScopeChanges?.subscribe(invalidate) ?? (() => undefined);
     this.unsubscribeBrowse =
       runtime.browsingScopeChanges?.subscribe(invalidate) ?? (() => undefined);
+    this.unsubscribeTarget =
+      runtime.ratingTargetChanges?.subscribe((change) => {
+        if (!this.accountId() || this.route?.targetId !== change.targetId)
+          return;
+        this.stop();
+        this.clearContent();
+        this.update({
+          busy: false,
+          needsRefresh: true,
+          status: '评分对象已变化，评价、回复和输入已清除，请重新加载',
+        });
+      }) ?? (() => undefined);
     this.update({ configured: this.configured() });
   }
   private configured(): boolean {
@@ -261,12 +279,14 @@ export class RatingThreadController extends CommunityController<RatingThreadView
       this.route = decodeRatingThreadRoute(raw);
     } catch {
       this.route = null;
-      this.update({ error: '评分回复链接无效，请返回评价列表' });
-      return;
     }
     if (!this.loadJournal()) return;
     if (this.pending) {
       await this.recover(false);
+      return;
+    }
+    if (!this.route) {
+      this.update({ error: '评分回复链接无效，请返回评价列表' });
       return;
     }
     await this.refresh();
@@ -832,6 +852,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const intent = decodeRatingCommandIntent(make(id));
         if (
+          isRatingTargetOwnerDeletionIntent(intent) ||
           isRatingTargetCreationIntent(intent) ||
           isRatingSubscriptionIntent(intent) ||
           isRatingAdminDeletionIntent(intent)
@@ -864,7 +885,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
   private settle(raw: RatingCommandReceipt): boolean {
     if (!this.pending || this.pending.accountId !== this.accountId())
       invalidRating();
-    const result = this.runtime.pendingRatings!.settle(this.pending, raw);
+    const result = settleRatingCommand(this.runtime, this.pending, raw);
     this.pending = this.runtime.pendingRatings!.load(this.accountId()!);
     const success = result.outcome !== 'rejected';
     this.update({
@@ -957,6 +978,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
     this.inactive = true;
     this.unsubscribeScope();
     this.unsubscribeBrowse();
+    this.unsubscribeTarget();
     super.dispose();
   }
 }

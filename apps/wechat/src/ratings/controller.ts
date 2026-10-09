@@ -1,3 +1,4 @@
+import { ratingTargetOwnerDeletionPath } from './target-owner-deletion-contract';
 import { ratingDeletionPath } from './deletion-contract';
 import {
   readRatingSubscriptionState,
@@ -39,13 +40,18 @@ import {
   decodeRatingCommandIntent,
   isRatingSubscriptionIntent,
   isRatingTargetCreationIntent,
+  isRatingTargetOwnerDeletionIntent,
   isRatingAdminDeletionIntent,
   isRatingDeletionContextChanged,
   type RatingCommandIntent,
   type PendingRating,
   type RatingCommandReceipt,
 } from './pending';
-import { ratingCommandLabels as labels, runRatingCommand } from './commands';
+import {
+  ratingCommandLabels as labels,
+  runRatingCommand,
+  settleRatingCommand,
+} from './commands';
 export type RatingMode = 'catalog' | 'detail' | 'recovery';
 export interface RatingRoute {
   readonly regionId?: string;
@@ -162,6 +168,7 @@ export function ratingError(error: unknown): string {
         RATING_CREATION_CONTEXT_CHANGED:
           '原创建申请已关闭；请刷新目录后重新填写并确认',
         RATING_CREATION_CANCELLED: '原创建申请已撤销，没有创建对象',
+        RATING_TARGET_DELETION_CANCELLED: '原删除申请已撤销，没有执行此次删除',
         RATING_DELETION_CONTEXT_CHANGED:
           '删除资格或版本已变化，原请求未提交；请重新读取删除上下文并再次确认',
         CONTENT_REVIEW_UNAVAILABLE:
@@ -191,6 +198,7 @@ export class RatingController extends CommunityController<RatingView> {
   };
   private readonly unsubscribeScope: () => void;
   private readonly unsubscribeBrowse: () => void;
+  private readonly unsubscribeTarget: () => void;
   constructor(
     runtime: CommunityRuntime,
     private readonly mode: RatingMode,
@@ -212,6 +220,17 @@ export class RatingController extends CommunityController<RatingView> {
       runtime.directoryScopeChanges?.subscribe(invalidate) ?? (() => undefined);
     this.unsubscribeBrowse =
       runtime.browsingScopeChanges?.subscribe(invalidate) ?? (() => undefined);
+    this.unsubscribeTarget =
+      runtime.ratingTargetChanges?.subscribe((change) => {
+        if (!this.accountId()) return;
+        if (this.mode !== 'catalog' && this.route.targetId !== change.targetId)
+          return;
+        this.clearCurrent();
+        this.update({
+          needsRefresh: true,
+          status: '评分对象已变化，请重新加载当前内容',
+        });
+      }) ?? (() => undefined);
     this.update({ configured: !!runtime.ratings && !!runtime.pendingRatings });
   }
   protected override available(): boolean {
@@ -327,10 +346,24 @@ export class RatingController extends CommunityController<RatingView> {
       confirmedTargetId: '',
       needsRefresh: false,
     });
+    // Remember only safe route IDs, but never let an invalid route block recovery.
+    let invalidRoute = false;
     try {
       this.route = decodeRatingRoute(raw, this.mode);
     } catch {
       this.route = {};
+      invalidRoute = true;
+    }
+    if (!this.loadJournal()) return;
+    if (this.pending) await this.recover(false, false);
+    if (
+      !this.same(sequence) ||
+      this.pending ||
+      this.view.frozen ||
+      this.view.needsRefresh
+    )
+      return;
+    if (invalidRoute) {
       this.update({
         error: '评分链接无效，请返回目录',
         status: '无法打开评分',
@@ -341,15 +374,6 @@ export class RatingController extends CommunityController<RatingView> {
       regionId: this.route.regionId ?? null,
       parentId: this.route.parentId ?? null,
     });
-    if (!this.loadJournal()) return;
-    if (this.pending) await this.recover(false, false);
-    if (
-      !this.same(sequence) ||
-      this.pending ||
-      this.view.frozen ||
-      this.view.needsRefresh
-    )
-      return;
     await this.refresh();
   }
   async reload(): Promise<void> {
@@ -992,7 +1016,8 @@ export class RatingController extends CommunityController<RatingView> {
         const intent = decodeRatingCommandIntent(make(id));
         if (
           isRatingAdminDeletionIntent(intent) ||
-          isRatingTargetCreationIntent(intent)
+          isRatingTargetCreationIntent(intent) ||
+          isRatingTargetOwnerDeletionIntent(intent)
         )
           invalidRating();
         const attempt = this.runtime.pendingRatings!.freeze(
@@ -1097,7 +1122,7 @@ export class RatingController extends CommunityController<RatingView> {
   private settle(raw: RatingCommandReceipt): boolean {
     if (!this.pending || this.pending.accountId !== this.accountId())
       invalidRating();
-    const receipt = this.runtime.pendingRatings!.settle(this.pending, raw);
+    const receipt = settleRatingCommand(this.runtime, this.pending, raw);
     this.pending = this.runtime.pendingRatings!.load(this.accountId()!);
     const success = receipt.outcome !== 'rejected';
     this.update({
@@ -1137,6 +1162,17 @@ export class RatingController extends CommunityController<RatingView> {
       root &&
       root.targetId === this.view.detail?.id
       ? `/pages/rating-thread/rating-thread?targetId=${root.targetId}&rootId=${root.id}${this.view.regionId ? `&regionId=${this.view.regionId}` : ''}`
+      : null;
+  }
+  ownerDeletionPath(): string | null {
+    // A known locator remains usable when public detail is hidden. The destination
+    // verifies exact ownership independently; no creator ID or public read is needed.
+    return !this.inactive &&
+      !!this.accountId() &&
+      this.mode === 'detail' &&
+      !!this.runtime.ratingTargetOwnerDeletion &&
+      ratingId(this.route.targetId)
+      ? ratingTargetOwnerDeletionPath(this.route.targetId)
       : null;
   }
   creationPath(id: string): string | null {
@@ -1191,6 +1227,7 @@ export class RatingController extends CommunityController<RatingView> {
     this.sequence++;
     this.unsubscribeScope();
     this.unsubscribeBrowse();
+    this.unsubscribeTarget();
     super.dispose();
   }
 }

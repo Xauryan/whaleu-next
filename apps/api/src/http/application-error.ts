@@ -15,6 +15,10 @@ const conditions = {
     status: 409,
     message: 'Rating creation context changed; request is closed',
   },
+  RATING_TARGET_DELETION_CANCELLED: {
+    status: 409,
+    message: 'Rating target deletion cancelled',
+  },
   RATING_CREATION_CANCELLED: {
     status: 409,
     message: 'Rating creation request cancelled',

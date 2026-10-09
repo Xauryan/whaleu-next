@@ -1,3 +1,4 @@
+import { smokeRatingOwnerManagement } from './smoke-rating-owner-management.mjs';
 import { smokeRatingsR3A } from './smoke-ratings-r3a.mjs';
 import { smokeRatingsR3R } from './smoke-ratings-r3r.mjs';
 import { smokeRatings } from './smoke-ratings.mjs';
@@ -117,6 +118,23 @@ function assertColdRatingCreation(current) {
     assert.equal(current.data[key], '', `rating-create: ${key}`);
   assert.equal(current.context, null);
 }
+function assertColdTargetOwnerDeletion(current) {
+  for (const key of [
+    'ready',
+    'deleted',
+    'deleteConfirmation',
+    'canCancelDeletion',
+    'cancelDeletionConfirmation',
+    'frozen',
+    'needsRefresh',
+    'returnToCatalog',
+    'busy',
+  ])
+    assert.equal(current.data[key], false, `target-owner-delete: ${key}`);
+  for (const key of ['receiptStatus', 'recoveryOperation'])
+    assert.equal(current.data[key], '', `target-owner-delete: ${key}`);
+  assert.equal(current.locator, null);
+}
 for (const route of config.pages.filter(
   (route) => !['pages/login/login', 'pages/status/status'].includes(route),
 )) {
@@ -143,6 +161,8 @@ for (const route of config.pages.filter(
   current.onShow();
   if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
+  else if (route === 'pages/target-owner-delete/target-owner-delete')
+    assertColdTargetOwnerDeletion(current);
   else assert.equal(current.data.loaded, false);
   assert.ok(current.data.error);
   const template = readFileSync(path.join(dist, `${route}.wxml`), 'utf8');
@@ -160,6 +180,8 @@ for (const route of config.pages.filter(
   assert.equal(current.controller, undefined);
   if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
+  else if (route === 'pages/target-owner-delete/target-owner-delete')
+    assertColdTargetOwnerDeletion(current);
   else assert.equal(current.data.loaded, false);
   current.onShow();
   assert.ok(current.controller);
@@ -167,6 +189,11 @@ for (const route of config.pages.filter(
   if (route === 'pages/rating-create/rating-create') {
     assertColdRatingCreation(current);
     assert.equal(current.controller, undefined);
+  }
+  if (route === 'pages/target-owner-delete/target-owner-delete') {
+    assertColdTargetOwnerDeletion(current);
+    assert.equal(current.controller, undefined);
+    assert.equal(current.navigator, undefined);
   }
 }
 // The compiled own-account page must honor the root app-hide boundary even
@@ -1878,6 +1905,7 @@ await smokeRatingsR2B({ app, dist, flush: flushTrading });
 await smokeRatingsR2C({ app, dist, flush: flushTrading });
 await smokeRatingsR3A({ app, dist, flush: flushTrading });
 await smokeRatingsR3R({ app, dist, flush: flushTrading });
+await smokeRatingOwnerManagement({ app, dist, flush: flushTrading });
 await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeErrandAdminMutations({ app, dist, flush: flushTrading });
 await smokeErrandAdminNotices({ app, dist, flush: flushTrading });

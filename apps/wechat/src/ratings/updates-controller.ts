@@ -47,6 +47,7 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
   private inactive = false;
   private readonly unsubscribeScope: () => void;
   private readonly unsubscribeBrowse: () => void;
+  private readonly unsubscribeTarget: () => void;
   constructor(
     runtime: CommunityRuntime,
     render: (view: RatingUpdatesView) => void,
@@ -66,6 +67,15 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
       runtime.directoryScopeChanges?.subscribe(invalidate) ?? (() => undefined);
     this.unsubscribeBrowse =
       runtime.browsingScopeChanges?.subscribe(invalidate) ?? (() => undefined);
+    this.unsubscribeTarget =
+      runtime.ratingTargetChanges?.subscribe(() => {
+        if (this.inactive) return;
+        this.stop();
+        this.clear();
+        this.update({
+          status: '评分对象已变化，旧预览和分页已清除，请重新加载',
+        });
+      }) ?? (() => undefined);
     this.update({ configured: !!runtime.ratingUpdates });
   }
   private gateway() {
@@ -323,6 +333,7 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
     this.inactive = true;
     this.unsubscribeScope();
     this.unsubscribeBrowse();
+    this.unsubscribeTarget();
     super.dispose();
   }
 }

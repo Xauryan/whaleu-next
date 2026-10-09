@@ -7,7 +7,11 @@ import {
 import type { CommunityRuntime } from '../community/runtime';
 import { invalidRating } from './contract';
 import { ratingError } from './controller';
-import { ratingCommandLabels, runRatingCommand } from './commands';
+import {
+  ratingCommandLabels,
+  runRatingCommand,
+  settleRatingCommand,
+} from './commands';
 import {
   decodeRatingDeletionLocator,
   decodeRatingDeletionContext,
@@ -23,6 +27,7 @@ import {
 import {
   decodeRatingCommandIntent,
   isRatingTargetCreationIntent,
+  isRatingTargetOwnerDeletionIntent,
   isRatingAdminDeletionIntent,
   isRatingDeletionContextChanged,
   isRatingReplyIntent,
@@ -156,6 +161,13 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
       this.locator = decodeRatingDeletionLocator(raw);
     } catch {
       this.locator = null;
+    }
+    if (!this.loadJournal()) return;
+    if (this.pending) {
+      await this.recover();
+      return;
+    }
+    if (!this.locator) {
       this.update({ error: '删除链接无效，请从已知评价或回复打开' });
       return;
     }
@@ -163,7 +175,6 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
       locator: this.locator,
       status: '请选择并核验此条内容的删除资格；不会读取正文或身份',
     });
-    if (this.loadJournal() && this.pending) await this.recover();
   }
   async readContext(
     authority: RatingDeletionAuthority,
@@ -266,6 +277,7 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
             : ratingOwnerDeletionIntent(confirmation.context, id),
         );
         if (
+          isRatingTargetOwnerDeletionIntent(intent) ||
           isRatingTargetCreationIntent(intent) ||
           isRatingLikeIntent(intent) ||
           isRatingSubscriptionIntent(intent)
@@ -315,7 +327,7 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
   private settle(raw: RatingCommandReceipt): void {
     if (!this.pending || this.pending.accountId !== this.accountId())
       invalidRating();
-    const receipt = this.runtime.pendingRatings!.settle(this.pending, raw);
+    const receipt = settleRatingCommand(this.runtime, this.pending, raw);
     this.pending = this.runtime.pendingRatings!.load(this.accountId()!);
     this.update({
       frozen: false,

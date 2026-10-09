@@ -3,6 +3,7 @@ import type { CommunityRuntime } from '../community/runtime';
 import type { Cancellation } from '../platform/contracts';
 import {
   isRatingTargetCreationIntent,
+  isRatingTargetOwnerDeletionIntent,
   isRatingReplyIntent,
   isRatingAdminDeletionIntent,
   isRatingDeletionContextChanged,
@@ -13,6 +14,7 @@ import {
 } from './pending';
 export const ratingCommandLabels = {
   create_target: '评分对象创建',
+  delete_target: '创建者删除评分对象',
   admin_delete_comment: '管理员删除评价',
   admin_delete_reply: '管理员删除回复',
   set_target_subscription: '目标订阅状态',
@@ -36,6 +38,19 @@ export function runRatingCommand(
     throw new ClientError('stale-session', 'Account changed');
   runtime.pendingRatings!.assertOriginal(attempt);
   const intent = attempt.intent;
+  if (isRatingTargetOwnerDeletionIntent(intent)) {
+    if (!runtime.ratingTargetOwnerDeletion)
+      throw new ClientError(
+        'configuration',
+        'Target owner deletion unavailable',
+      );
+    return retry
+      ? runtime.ratingTargetOwnerDeletion.command(intent, cancel)
+      : runtime.ratingTargetOwnerDeletion.receipt(
+          intent.payload.clientRequestId,
+          cancel,
+        );
+  }
   if (isRatingTargetCreationIntent(intent)) {
     if (!runtime.ratingManagement)
       throw new ClientError('configuration', 'Rating management unavailable');
@@ -100,4 +115,21 @@ export function runRatingCommand(
   return retry
     ? runtime.ratings.command(intent, cancel)
     : runtime.ratings.receipt(intent.payload.clientRequestId, cancel);
+}
+
+/** Only a verified durable receipt releases the shared slot and invalidates current public snapshots. */
+export function settleRatingCommand(
+  runtime: CommunityRuntime,
+  attempt: PendingRating,
+  raw: RatingCommandReceipt,
+): RatingCommandReceipt {
+  if (attempt.accountId !== runtime.sessions.snapshot().credentials?.accountId)
+    throw new ClientError('stale-session', 'Account changed');
+  const receipt = runtime.pendingRatings!.settle(attempt, raw);
+  if (receipt.operation === 'delete_target' && receipt.outcome !== 'rejected')
+    runtime.ratingTargetChanges?.publish({
+      targetId: receipt.targetId,
+      revision: receipt.revision,
+    });
+  return receipt;
 }

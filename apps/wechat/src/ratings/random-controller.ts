@@ -74,6 +74,7 @@ export class RatingRandomController extends CommunityController<RatingRandomView
   private inactive = false;
   private readonly unsubscribeScope: () => void;
   private readonly unsubscribeBrowse: () => void;
+  private readonly unsubscribeTarget: () => void;
   constructor(
     runtime: CommunityRuntime,
     render: (view: RatingRandomView) => void,
@@ -93,6 +94,16 @@ export class RatingRandomController extends CommunityController<RatingRandomView
       runtime.directoryScopeChanges?.subscribe(invalidate) ?? (() => undefined);
     this.unsubscribeBrowse =
       runtime.browsingScopeChanges?.subscribe(invalidate) ?? (() => undefined);
+    this.unsubscribeTarget =
+      runtime.ratingTargetChanges?.subscribe(() => {
+        if (this.inactive || !this.accountId()) return;
+        // A pending draw may return any member of the complete pool. Even a
+        // different deleted ID invalidates its count/probability snapshot.
+        this.clearResult();
+        this.update({
+          status: '评分对象已变化，旧随机结果已清除，请重新抽取',
+        });
+      }) ?? (() => undefined);
     this.update({ configured: !!runtime.ratingRandom });
   }
   protected override available(): boolean {
@@ -347,6 +358,7 @@ export class RatingRandomController extends CommunityController<RatingRandomView
     this.inactive = true;
     this.unsubscribeScope();
     this.unsubscribeBrowse();
+    this.unsubscribeTarget();
     super.dispose();
   }
 }

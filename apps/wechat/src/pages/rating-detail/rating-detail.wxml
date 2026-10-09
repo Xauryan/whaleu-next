@@ -2,6 +2,7 @@
 <view class="screen">
   <view class="eyebrow">WHALEU · 评分与评价</view>
   <navigator class="link" url="/pages/rating-recovery/rating-recovery">独立查询原请求结果 →</navigator>
+  <button wx:if="{{hasSession}}" bindtap="onOwnerDeletion">删除我创建的此对象 →</button>
   <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />
   <view class="chips"><button data-sort="time" data-order="desc" bindtap="onSort" disabled="{{frozen || !hasSession || !configured}}">最新</button><button data-sort="time" data-order="asc" bindtap="onSort" disabled="{{frozen || !hasSession || !configured}}">最早</button><button data-sort="likes" data-order="desc" bindtap="onSort" disabled="{{frozen || !hasSession || !configured}}">赞最多</button><button data-sort="likes" data-order="asc" bindtap="onSort" disabled="{{frozen || !hasSession || !configured}}">赞最少</button></view>
   <view class="meta">点赞使用实名身份。赞数未知时不能按零排序；切换排序将重新读取。</view>

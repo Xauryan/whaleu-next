@@ -9,7 +9,11 @@ import type { CommunityRuntime } from '../community/runtime';
 import { invalidRating, ratingId } from './contract';
 import { ratingNullableId } from './discussion-contract';
 import { ratingError } from './controller';
-import { ratingCommandLabels, runRatingCommand } from './commands';
+import {
+  ratingCommandLabels,
+  runRatingCommand,
+  settleRatingCommand,
+} from './commands';
 import { decodeRatingTargetCreationIntent } from './management-contract';
 import {
   isRatingTargetCreationIntent,
@@ -224,7 +228,7 @@ export class RatingManagementController extends CommunityController<RatingManage
   private settle(receipt: RatingCommandReceipt): void {
     if (!this.pending || this.pending.accountId !== this.accountId())
       invalidRating();
-    this.runtime.pendingRatings!.settle(this.pending, receipt);
+    settleRatingCommand(this.runtime, this.pending, receipt);
     this.pending = null;
     this.context = null;
     this.update({

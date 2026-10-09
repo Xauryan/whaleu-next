@@ -1,3 +1,8 @@
+import { RatingTargetChanges } from '../ratings/target-changes';
+import {
+  HttpRatingTargetOwnerDeletionGateway,
+  type RatingTargetOwnerDeletionGateway,
+} from '../ratings/target-owner-deletion-gateway';
 import {
   HttpRatingManagementGateway,
   type RatingManagementGateway,
@@ -104,7 +109,9 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly ratingTargetChanges?: RatingTargetChanges;
   readonly ratingRandom?: RatingRandomGateway;
+  readonly ratingTargetOwnerDeletion?: RatingTargetOwnerDeletionGateway;
   readonly ratingManagement?: RatingManagementGateway;
   readonly ratingDeletion?: RatingDeletionGateway;
   readonly ratingSubscriptions?: RatingSubscriptionsGateway;
@@ -165,12 +172,16 @@ export function createCommunityRuntime(
   const browsingScopeChanges = new PrivateViewLifecycle();
   const runtime: CommunityRuntime = {
     sessions: identity.sessions,
+    ratingTargetChanges: new RatingTargetChanges(),
     ...(identity.api ? { ratings: new HttpRatingsGateway(identity.api) } : {}),
     ...(identity.api
       ? { ratingRandom: new HttpRatingRandomGateway(identity.api) }
       : {}),
     ...(identity.api
       ? {
+          ratingTargetOwnerDeletion: new HttpRatingTargetOwnerDeletionGateway(
+            identity.api,
+          ),
           ratingManagement: new HttpRatingManagementGateway(identity.api),
           ratingDeletion: new HttpRatingDeletionGateway(identity.api),
           ratingSubscriptions: new HttpRatingSubscriptionsGateway(identity.api),

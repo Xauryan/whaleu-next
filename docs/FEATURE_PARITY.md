@@ -482,3 +482,14 @@ create grant. Original campus remains explicitly unknown when unproven. See
 [acceptance limits](acceptance/ratings-management-m1.md). This does not complete
 creator metadata edit/delete, category management or school overrides, real
 issuer/provider wiring, native device acceptance, or production import.
+
+### Rating management M2A focused validation
+
+Creator-only target cleanup now has an independent retained owner tombstone,
+known-locator metadata and native v6 same-key recovery. Isolated TypeScript,
+contract/native tests, 44 real PostgreSQL checks, OpenAPI and emitted build passed;
+integrated full acceptance remains pending. Public target text and Review remain
+unchanged. M2B multi-version editing, category management and school overrides
+remain open.
+See [contract](API_RATINGS_TARGET_OWNER_DELETION.md) and
+[acceptance status](acceptance/ratings-management-m2a.md).

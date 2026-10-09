@@ -25,6 +25,7 @@ import {
   PendingRatingStore,
   isRatingReplyIntent,
   isRatingTargetCreationIntent,
+  isRatingTargetOwnerDeletionIntent,
   isRatingAdminDeletionIntent,
   isRatingLikeIntent,
   isRatingSubscriptionIntent,
@@ -174,6 +175,7 @@ export const receipt = (
 ): Extract<RatingReceipt, { outcome: 'applied' | 'noop' }> => {
   if (
     isRatingTargetCreationIntent(command) ||
+    isRatingTargetOwnerDeletionIntent(command) ||
     isRatingAdminDeletionIntent(command) ||
     isRatingReplyIntent(command) ||
     isRatingLikeIntent(command) ||
@@ -210,6 +212,7 @@ export const rejected = (
 ): RatingReceipt => {
   if (
     isRatingTargetCreationIntent(command) ||
+    isRatingTargetOwnerDeletionIntent(command) ||
     isRatingAdminDeletionIntent(command) ||
     isRatingReplyIntent(command) ||
     isRatingLikeIntent(command) ||
