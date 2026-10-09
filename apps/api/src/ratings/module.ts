@@ -1,3 +1,10 @@
+import { RatingRootOrderCursors } from './like-order-cursor.js';
+import { RatingRootOrderRepository } from './like-order-repository.js';
+import { RatingLikesController } from './likes/controller.js';
+import { RatingLikesService } from './likes/service.js';
+import { RatingLikesRepository } from './likes/repository.js';
+import { RatingLikeRequests } from './likes/requests.js';
+import { RatingLikeSubjectFacade } from './likes/subject.facade.js';
 import { RatingsReadModule } from './read.module.js';
 import { ExperienceIngressModule } from '../experience/ingress.js';
 import { RatingEffectsCapture } from './effects/capture.js';
@@ -34,8 +41,18 @@ import { RatingsCursors } from './cursor.js';
     DiscoveryContinuationModule,
     RatingRequestThrottlingModule,
   ],
-  controllers: [RatingsController, RatingDiscussionController],
+  controllers: [
+    RatingsController,
+    RatingDiscussionController,
+    RatingLikesController,
+  ],
   providers: [
+    RatingRootOrderCursors,
+    RatingRootOrderRepository,
+    RatingLikesService,
+    RatingLikesRepository,
+    RatingLikeRequests,
+    RatingLikeSubjectFacade,
     RatingsService,
     RatingEffectsCapture,
     RatingDiscussionService,

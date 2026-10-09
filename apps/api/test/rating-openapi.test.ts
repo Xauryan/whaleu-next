@@ -1,3 +1,5 @@
+import * as likes from '../src/ratings/likes/contracts.js';
+import * as likeUpdates from '../src/notifications/ratings/like-contracts.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
@@ -37,9 +39,34 @@ test('ratings OpenAPI is deterministic offline and artifact-current', async () =
       'utf8',
     ),
   ));
-test('all 23 rating operations have exact schemas and safe auth/error metadata', async () => {
+test('all 32 rating operations have exact schemas and safe auth/error metadata', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
+    ['/v1/ratings/comments/{id}/like', 'get', likes.ratingLikeStateSchema],
+    ['/v1/ratings/replies/{id}/like', 'get', likes.ratingLikeStateSchema],
+    ['/v1/ratings/comments/{id}/like', 'put', likes.ratingLikeReceiptSchema],
+    ['/v1/ratings/replies/{id}/like', 'put', likes.ratingLikeReceiptSchema],
+    ['/v1/ratings/like-requests/{id}', 'get', likes.ratingLikeReceiptSchema],
+    [
+      '/v1/me/ratings/like-updates',
+      'get',
+      likeUpdates.ratingLikeUpdatesPageSchema,
+    ],
+    [
+      '/v1/me/ratings/like-updates/unread-count',
+      'get',
+      updates.ratingUnreadCountSchema,
+    ],
+    [
+      '/v1/me/ratings/like-updates/{noticeId}/target',
+      'get',
+      likeUpdates.ratingLikeNoticeTargetSchema,
+    ],
+    [
+      '/v1/me/ratings/like-updates/{noticeId}/read',
+      'put',
+      updates.ratingNoticeReadSchema,
+    ],
     ['/v1/ratings/context', 'get', contracts.ratingContextSchema],
     ['/v1/ratings/categories', 'get', contracts.ratingCategoryPageSchema],
     ['/v1/ratings/targets', 'get', contracts.ratingTargetPageSchema],

@@ -53,6 +53,9 @@ Page({
   onExpand() {
     void this.controller?.expand();
   },
+  onLike(event: Tap) {
+    void this.controller?.toggleLike(event.currentTarget.dataset.id ?? '');
+  },
   onRootReply() {
     this.controller?.compose();
   },

@@ -17,8 +17,17 @@ import {
   type RatingReplyIntent,
   type RatingReplyReceipt,
 } from './discussion-contract';
-export type RatingCommandIntent = RatingIntent | RatingReplyIntent;
-export type RatingCommandReceipt = RatingReceipt | RatingReplyReceipt;
+import {
+  decodeRatingLikeIntent,
+  decodeRatingLikeReceipt,
+  matchRatingLikeReceipt,
+  type RatingLikeIntent,
+  type RatingLikeReceipt,
+} from './like-contract';
+export type RatingCommandIntent =
+  RatingIntent | RatingReplyIntent | RatingLikeIntent;
+export type RatingCommandReceipt =
+  RatingReceipt | RatingReplyReceipt | RatingLikeReceipt;
 export type PendingRating =
   | {
       readonly version: 1;
@@ -37,14 +46,30 @@ export function isRatingReplyIntent(
     intent.operation === 'create_reply' || intent.operation === 'delete_reply'
   );
 }
+export function isRatingLikeIntent(
+  intent: RatingCommandIntent,
+): intent is RatingLikeIntent {
+  return (
+    intent.operation === 'set_comment_like' ||
+    intent.operation === 'set_reply_like'
+  );
+}
 export function decodeRatingCommandIntent(value: unknown): RatingCommandIntent {
+  if (
+    isRecord(value) &&
+    (value.operation === 'set_comment_like' ||
+      value.operation === 'set_reply_like')
+  )
+    return decodeRatingLikeIntent(value);
   return isRecord(value) &&
     (value.operation === 'create_reply' || value.operation === 'delete_reply')
     ? decodeRatingReplyIntent(value)
     : decodeRatingIntent(value);
 }
 export function ratingIntentTarget(intent: RatingCommandIntent): string {
-  return isRatingReplyIntent(intent) || intent.operation === 'delete_comment'
+  return isRatingReplyIntent(intent) ||
+    isRatingLikeIntent(intent) ||
+    intent.operation === 'delete_comment'
     ? intent.payload.targetId
     : intent.targetId;
 }
@@ -128,7 +153,10 @@ export class PendingRatingStore {
     raw: RatingCommandReceipt,
   ): RatingCommandReceipt {
     let receipt: RatingCommandReceipt;
-    if (isRatingReplyIntent(attempt.intent)) {
+    if (isRatingLikeIntent(attempt.intent)) {
+      receipt = decodeRatingLikeReceipt(raw);
+      matchRatingLikeReceipt(attempt.intent, receipt);
+    } else if (isRatingReplyIntent(attempt.intent)) {
       receipt = decodeRatingReplyReceipt(raw);
       matchRatingReplyReceipt(attempt.intent, receipt);
     } else {

@@ -38,8 +38,13 @@ const reference = {
   action: unit.action,
   enrollmentOrder: '9007199254740993',
   sourceDomain: 'ratings' as const,
+  sourceVersion: 1,
 };
-const routed: RoutedExperienceSourceUnit = { ...unit, ...reference };
+const routed: RoutedExperienceSourceUnit = {
+  ...unit,
+  sourceDomain: reference.sourceDomain,
+  enrollmentOrder: reference.enrollmentOrder,
+};
 
 function routerFixture(
   registry: object | null = reference,
@@ -81,10 +86,42 @@ test('typed rating source preserves exact event identity, microseconds and enrol
   assert.deepEqual(f.calls, ['registry', 'ratings:load']);
   assert.deepEqual(f.queries[0]!.args, [unit.unitId]);
   assert.match(f.queries[0]!.sql, /g\.source_version=1/);
+  assert.match(
+    f.queries[0]!.sql,
+    /source_domain='community' AND g\.source_version=1/,
+  );
+  assert.match(
+    f.queries[0]!.sql,
+    /source_domain='ratings' AND g\.source_version IN \(1,2\)/,
+  );
   assert.match(f.queries[0]!.sql, /u\.rating_unit_id=u\.unit_id/);
   assert.match(f.queries[0]!.sql, /g\.community_group_id IS NULL/);
   assert.doesNotMatch(f.queries[0]!.sql, /FOR (UPDATE|SHARE)/);
 });
+
+for (const action of ['like_save', 'received_like_save'] as const)
+  test(`ratings v2 ${action} follows the exact registered immutable source`, async () => {
+    const source = { ...unit, action };
+    const f = routerFixture({ ...reference, action, sourceVersion: 2 }, source);
+    assert.deepEqual(await f.router.loadUnit(unit.unitId, f.tx), {
+      ...source,
+      sourceDomain: 'ratings',
+      enrollmentOrder: reference.enrollmentOrder,
+    });
+    assert.deepEqual(f.calls, ['registry', 'ratings:load']);
+  });
+
+for (const [sourceDomain, sourceVersion] of [
+  ['community', 2],
+  ['community', 0],
+  ['ratings', 0],
+  ['ratings', 3],
+] as const)
+  test(`unsupported ${sourceDomain} v${sourceVersion} fails before any domain probe`, async () => {
+    const f = routerFixture({ ...reference, sourceDomain, sourceVersion });
+    assert.equal(await f.router.loadUnit(unit.unitId, f.tx), null);
+    assert.deepEqual(f.calls, ['registry']);
+  });
 
 for (const kind of ['community_outbox', 'saved_obligation'] as const)
   test(`community ${kind} keeps its original source and acknowledgement path`, async () => {
@@ -191,6 +228,15 @@ test('rating facade reads immutable captured facts only and preserves SQL source
   assert.match(query.sql, /g\.occurred_at::text/);
   assert.match(query.sql, /u\.event_id AS "sourceId"/);
   assert.match(query.sql, /g\.event_id,g\.enrollment_order/);
+  assert.match(query.sql, /g\.source_version=1 AND g\.event_kind IN/);
+  assert.match(
+    query.sql,
+    /g\.source_version=2 AND g\.event_kind='content_liked'/,
+  );
+  assert.match(query.sql, /g\.like_transition_id IS NOT NULL/);
+  assert.match(query.sql, /g\.subject_author_mode IN \('named','anonymous'\)/);
+  assert.match(query.sql, /u\.action IN \('like_save','received_like_save'\)/);
+  assert.doesNotMatch(query.sql, /content_unliked/);
   assert.doesNotMatch(
     query.sql,
     /whaleu_(identity|safety|profile|review)|whaleu_ratings\.(targets|comments|replies)|deleted_at|FOR (UPDATE|SHARE)/,

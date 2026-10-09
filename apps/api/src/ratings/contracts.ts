@@ -57,8 +57,11 @@ export const ratingTargetQuerySchema = ratingScopeQuerySchema.extend({
   categoryId: ratingIdSchema,
   ...pageInput,
 });
-export const ratingCommentQuerySchema =
-  ratingScopeQuerySchema.extend(pageInput);
+export const ratingCommentQuerySchema = ratingScopeQuerySchema.extend({
+  ...pageInput,
+  sort: z.enum(['time', 'likes']).optional(),
+  order: z.enum(['asc', 'desc']).optional(),
+});
 export const setRatingScoreSchema = z.strictObject({
   clientRequestId: ratingIdSchema,
   regionId: ratingPublicIdSchema.nullable(),

@@ -15,6 +15,7 @@ interface SourceReference {
   action: ExperienceSourceUnit['action'];
   enrollmentOrder: string;
   sourceDomain: ExperienceSourceDomain;
+  sourceVersion: number;
 }
 
 @Injectable()
@@ -36,14 +37,14 @@ export class ExperienceSourceRouter {
       await tx.query<SourceReference>(
         `SELECT u.unit_id AS "unitId",u.group_id AS "groupId",
          u.beneficiary_id AS "beneficiaryId",u.action,
-         u.enrollment_order::text AS "enrollmentOrder",u.source_domain AS "sourceDomain"
+         u.enrollment_order::text AS "enrollmentOrder",u.source_domain AS "sourceDomain",g.source_version AS "sourceVersion"
          FROM whaleu_experience.source_units u
          JOIN whaleu_experience.source_groups g
           ON (g.group_id,g.source_domain,g.enrollment_order)=(u.group_id,u.source_domain,u.enrollment_order)
-         WHERE u.unit_id=$1 AND g.source_version=1
-          AND ((u.source_domain='community' AND u.community_unit_id=u.unit_id AND u.rating_unit_id IS NULL
+         WHERE u.unit_id=$1
+          AND ((u.source_domain='community' AND g.source_version=1 AND u.community_unit_id=u.unit_id AND u.rating_unit_id IS NULL
                 AND g.community_group_id=g.group_id AND g.rating_group_id IS NULL)
-            OR (u.source_domain='ratings' AND u.rating_unit_id=u.unit_id AND u.community_unit_id IS NULL
+            OR (u.source_domain='ratings' AND g.source_version IN (1,2) AND u.rating_unit_id=u.unit_id AND u.community_unit_id IS NULL
                 AND g.rating_group_id=g.group_id AND g.community_group_id IS NULL))`,
         [unitId],
       )
@@ -52,6 +53,7 @@ export class ExperienceSourceRouter {
     let unit: ExperienceSourceUnit | null;
     switch (reference.sourceDomain) {
       case 'community':
+        if (reference.sourceVersion !== 1) return null;
         unit = await this.community.loadUnit(unitId, tx);
         if (
           unit &&
@@ -61,6 +63,8 @@ export class ExperienceSourceRouter {
           return null;
         break;
       case 'ratings':
+        if (reference.sourceVersion !== 1 && reference.sourceVersion !== 2)
+          return null;
         unit = await this.ratings.loadUnit(unitId, tx);
         if (unit?.sourceKind !== 'rating_event') return null;
         break;

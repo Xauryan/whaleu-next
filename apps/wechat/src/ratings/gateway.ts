@@ -27,6 +27,10 @@ import {
   type RatingIntent,
   type RatingReceipt,
 } from './contract';
+export interface RatingCommentSort {
+  readonly sort: 'time' | 'likes';
+  readonly order: 'asc' | 'desc';
+}
 export interface RatingsGateway {
   context(cancel: Cancellation): Promise<RatingContext>;
   categories(
@@ -64,6 +68,7 @@ export interface RatingsGateway {
     cursor: string | null,
     cancel: Cancellation,
     limit?: number,
+    sort?: RatingCommentSort,
   ): Promise<RatingCommentPage>;
   comment(
     regionId: string | null,
@@ -213,13 +218,25 @@ export class HttpRatingsGateway implements RatingsGateway {
     cursor: string | null,
     cancel: Cancellation,
     limit = 20,
+    sort?: RatingCommentSort,
   ): Promise<RatingCommentPage> {
+    if (
+      sort &&
+      (!['time', 'likes'].includes(sort.sort) ||
+        !['asc', 'desc'].includes(sort.order) ||
+        Object.keys(sort).some((k) => !['sort', 'order'].includes(k)))
+    )
+      invalidRating();
     if (!ratingId(targetId)) invalidRating();
     const page = await this.read(
       `/v1/ratings/targets/${targetId}/comments`,
       decodeRatingCommentPage,
       cancel,
-      { ...scope(regionId), ...pagination(cursor, limit) },
+      {
+        ...scope(regionId),
+        ...pagination(cursor, limit),
+        ...(sort ? { sort: sort.sort, order: sort.order } : {}),
+      },
     );
     checkPage(page, regionId, cursor, limit);
     if (page.context.targetId !== targetId) invalidRating();

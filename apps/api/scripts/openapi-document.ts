@@ -495,6 +495,14 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
     await import('../src/notifications/ratings/controller.js');
   const { RatingUpdatesReadService } =
     await import('../src/notifications/ratings/read.service.js');
+  const { RatingLikesController } =
+    await import('../src/ratings/likes/controller.js');
+  const { RatingLikesService } =
+    await import('../src/ratings/likes/service.js');
+  const { RatingLikeUpdatesController } =
+    await import('../src/notifications/ratings/like-controller.js');
+  const { RatingLikeUpdatesReadService } =
+    await import('../src/notifications/ratings/like-read.service.js');
   const { RatingRequestGuard } =
     await import('../src/request-throttling/rating-request.guard.js');
   for (const method of [
@@ -529,11 +537,15 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       RatingsController,
       RatingDiscussionController,
       RatingUpdatesController,
+      RatingLikesController,
+      RatingLikeUpdatesController,
     ],
     providers: [
       { provide: RatingsService, useValue: {} },
       { provide: RatingDiscussionService, useValue: {} },
       { provide: RatingUpdatesReadService, useValue: {} },
+      { provide: RatingLikesService, useValue: {} },
+      { provide: RatingLikeUpdatesReadService, useValue: {} },
     ],
   })
     .overrideGuard(RatingRequestGuard)
@@ -545,7 +557,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       app,
       new DocumentBuilder()
         .setOpenAPIVersion('3.0.3')
-        .setTitle('WhaleU ratings, text discussions and local direct updates')
+        .setTitle('WhaleU ratings, discussions, likes and local updates')
         .setVersion('1')
         .addSecurity('accessToken', {
           type: 'http',

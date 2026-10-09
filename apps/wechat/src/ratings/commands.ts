@@ -3,6 +3,7 @@ import type { CommunityRuntime } from '../community/runtime';
 import type { Cancellation } from '../platform/contracts';
 import {
   isRatingReplyIntent,
+  isRatingLikeIntent,
   type PendingRating,
   type RatingCommandReceipt,
 } from './pending';
@@ -12,6 +13,8 @@ export const ratingCommandLabels = {
   delete_comment: '文字评价删除',
   create_reply: '回复发布',
   delete_reply: '回复删除',
+  set_comment_like: '评价点赞状态',
+  set_reply_like: '回复点赞状态',
 } as const;
 export function runRatingCommand(
   runtime: CommunityRuntime,
@@ -24,6 +27,13 @@ export function runRatingCommand(
     throw new ClientError('stale-session', 'Account changed');
   runtime.pendingRatings!.assertOriginal(attempt);
   const intent = attempt.intent;
+  if (isRatingLikeIntent(intent)) {
+    if (!runtime.ratingLikes)
+      throw new ClientError('configuration', 'Rating likes unavailable');
+    return retry
+      ? runtime.ratingLikes.command(intent, cancel)
+      : runtime.ratingLikes.receipt(intent.payload.clientRequestId, cancel);
+  }
   if (isRatingReplyIntent(intent)) {
     if (!runtime.ratingDiscussion)
       throw new ClientError('configuration', 'Rating discussion unavailable');

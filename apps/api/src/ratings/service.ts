@@ -1,3 +1,5 @@
+import { RatingRootOrderCursors } from './like-order-cursor.js';
+import { RatingRootOrderRepository } from './like-order-repository.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -40,6 +42,10 @@ import type {
 @Injectable()
 export class RatingsService {
   constructor(
+    @Inject(RatingRootOrderCursors)
+    private readonly orderCursors: RatingRootOrderCursors,
+    @Inject(RatingRootOrderRepository)
+    private readonly rootOrder: RatingRootOrderRepository,
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(RatingsAccessService) private readonly access: RatingsAccessService,
     @Inject(RatingsRepository) private readonly records: RatingsRepository,
@@ -346,6 +352,8 @@ export class RatingsService {
     });
   }
   comments(token: string, id: string, query: RatingCommentQuery) {
+    if (query.sort !== undefined || query.order !== undefined)
+      return this.orderedComments(token, id, query);
     return this.run(async (tx) => {
       const { access, catalog, epoch } = await this.navigation(
           token,
@@ -393,6 +401,91 @@ export class RatingsService {
             tx,
           )
         : null;
+      return ratingCommentPageSchema.parse({
+        context: {
+          regionId: catalog.regionId,
+          catalogRevision: catalog.id,
+          targetId: id,
+        },
+        items,
+        nextCursor,
+        continuation: more ? (items.length ? 'more' : 'scan') : 'end',
+      });
+    });
+  }
+  private orderedComments(
+    token: string,
+    id: string,
+    query: RatingCommentQuery,
+  ) {
+    return this.run(async (tx) => {
+      const { access, catalog, epoch } = await this.navigation(
+          token,
+          query.regionId ?? null,
+          tx,
+        ),
+        { row: target } = await this.currentTarget(catalog, id, tx),
+        sort = query.sort ?? 'time',
+        order = query.order ?? 'desc';
+      const head = await this.rootOrder.head(id, sort, tx),
+        scope = ratingCursorScope([
+          'ratings',
+          2,
+          'root-order',
+          access.session.accountId,
+          access.session.sessionId,
+          access.fingerprint,
+          catalog.regionId,
+          catalog.id,
+          id,
+          target.revision,
+          query.limit,
+          sort,
+          order,
+          ...epoch,
+          ...head,
+        ]);
+      const after = query.cursor
+          ? await this.orderCursors.get(query.cursor, scope, sort, order, tx)
+          : null,
+        rows = await this.rootOrder.page(
+          id,
+          sort,
+          order,
+          after,
+          query.limit,
+          tx,
+        ),
+        more = rows.length > query.limit,
+        chosen = rows.slice(0, query.limit),
+        items: RatingComment[] = [];
+      for (const c of chosen) {
+        const row = await this.records.comment(c.id, id, tx),
+          item = await this.projectComment(
+            row,
+            access.session.accountId,
+            tx,
+            'rating_list',
+          );
+        if (item) items.push(item);
+      }
+      await this.access.recheck(token, tx);
+      const last = chosen.at(-1),
+        nextCursor =
+          more && last
+            ? await this.orderCursors.create(
+                access.session.accountId,
+                scope,
+                sort,
+                order,
+                {
+                  createdMicros: last.createdMicros,
+                  ordinal: last.ordinal,
+                  count: last.count,
+                },
+                tx,
+              )
+            : null;
       return ratingCommentPageSchema.parse({
         context: {
           regionId: catalog.regionId,

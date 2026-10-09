@@ -50,6 +50,11 @@ Page({
   onRefresh() {
     void this.controller?.load();
   },
+  onCategory(event: { currentTarget: { dataset: { category?: string } } }) {
+    const category = event.currentTarget.dataset.category;
+    if (category === 'reply' || category === 'like')
+      void this.controller?.selectCategory(category);
+  },
   onMore() {
     void this.controller?.more();
   },

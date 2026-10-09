@@ -1,3 +1,5 @@
+import { readRatingLikeStates, type RatingLikeStates } from './like-controller';
+import { decodeRatingLikeNoticeTarget } from './like-updates-contract';
 import { ClientError, isRecord } from '../api/errors';
 import {
   CommunityController,
@@ -17,15 +19,18 @@ import { ratingError } from './controller';
 import { ratingCommandLabels, runRatingCommand } from './commands';
 import {
   decodeRatingDiscussion,
-  decodeRatingReplyIntent,
   decodeRatingReplyPage,
   decodeRatingReplyPosition,
   type RatingDiscussionContext,
   type RatingReply,
-  type RatingReplyIntent,
   type RatingReplyPage,
 } from './discussion-contract';
-import { type PendingRating, type RatingCommandReceipt } from './pending';
+import {
+  decodeRatingCommandIntent,
+  type RatingCommandIntent,
+  type PendingRating,
+  type RatingCommandReceipt,
+} from './pending';
 import {
   decodeRatingNoticeRead,
   decodeRatingNoticeTarget,
@@ -37,20 +42,27 @@ export interface RatingThreadRoute {
   readonly rootId: string;
   readonly replyId?: string;
   readonly noticeId?: string;
+  readonly likeNoticeId?: string;
 }
 export function decodeRatingThreadRoute(value: unknown): RatingThreadRoute {
   if (
     !isRecord(value) ||
     Object.keys(value).some(
       (key) =>
-        !['regionId', 'targetId', 'rootId', 'replyId', 'noticeId'].includes(
-          key,
-        ),
+        ![
+          'regionId',
+          'targetId',
+          'rootId',
+          'replyId',
+          'noticeId',
+          'likeNoticeId',
+        ].includes(key),
     ) ||
     Object.values(value).some((id) => !ratingId(id)) ||
     !ratingId(value.targetId) ||
     !ratingId(value.rootId) ||
-    (value.noticeId !== undefined && !ratingId(value.replyId))
+    (value.noticeId !== undefined &&
+      (!ratingId(value.replyId) || value.likeNoticeId !== undefined))
   )
     invalidRating();
   return Object.freeze({
@@ -59,6 +71,9 @@ export function decodeRatingThreadRoute(value: unknown): RatingThreadRoute {
     ...(value.regionId ? { regionId: value.regionId as string } : {}),
     ...(value.replyId ? { replyId: value.replyId as string } : {}),
     ...(value.noticeId ? { noticeId: value.noticeId as string } : {}),
+    ...(value.likeNoticeId
+      ? { likeNoticeId: value.likeNoticeId as string }
+      : {}),
   });
 }
 export function ratingThreadPath(
@@ -73,6 +88,7 @@ export interface RatingThreadView extends CommunityView {
   readonly detail: RatingTarget | null;
   readonly discussion: RatingDiscussionContext | null;
   readonly replies: readonly RatingReply[];
+  readonly likes: RatingLikeStates;
   readonly canMore: boolean;
   readonly anchorReplyId: string;
   readonly composerOpen: boolean;
@@ -94,6 +110,7 @@ export const initialRatingThreadView = (): RatingThreadView => ({
   detail: null,
   discussion: null,
   replies: [],
+  likes: {},
   canMore: false,
   anchorReplyId: '',
   composerOpen: false,
@@ -185,6 +202,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
       detail: null,
       discussion: null,
       replies: [],
+      likes: {},
       canMore: false,
       anchorReplyId: '',
       composerOpen: false,
@@ -267,6 +285,30 @@ export class RatingThreadController extends CommunityController<RatingThreadView
     let loaded = false;
     await this.run(
       async (cancel) => {
+        if (route.likeNoticeId) {
+          if (!this.runtime.ratingLikeUpdates)
+            throw new ClientError(
+              'configuration',
+              'Rating like updates unavailable',
+            );
+          const resolved = decodeRatingLikeNoticeTarget(
+            await this.runtime.ratingLikeUpdates.target(
+              route.likeNoticeId,
+              cancel,
+            ),
+          );
+          if (
+            resolved.noticeId !== route.likeNoticeId ||
+            resolved.status !== 'available' ||
+            resolved.target.regionId !== (route.regionId ?? null) ||
+            resolved.target.targetId !== route.targetId ||
+            resolved.target.rootId !== route.rootId ||
+            resolved.target.replyId !== (route.replyId ?? null)
+          )
+            throw new ClientError('business', 'Notice target unavailable', {
+              serverCode: 'RATING_NOT_FOUND',
+            });
+        }
         if (route.noticeId) {
           if (!this.runtime.ratingUpdates)
             throw new ClientError(
@@ -330,7 +372,20 @@ export class RatingThreadController extends CommunityController<RatingThreadView
             ),
           );
         this.validatePage(page, discussion);
-        return { detail, discussion, page };
+        const likes = await readRatingLikeStates(
+          this.runtime.ratingLikes,
+          route.regionId ?? null,
+          [
+            { targetId: route.targetId, rootId: route.rootId, replyId: null },
+            ...page.items.map((item) => ({
+              targetId: item.targetId,
+              rootId: item.rootId,
+              replyId: item.id,
+            })),
+          ],
+          cancel,
+        );
+        return { detail, discussion, page, likes };
       },
       (result) => {
         this.cursor = result.page.nextCursor;
@@ -339,6 +394,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
           detail: result.detail,
           discussion: result.discussion,
           replies: result.page.items,
+          likes: result.likes,
           canMore: !!result.page.nextCursor,
           anchorReplyId: route.replyId ?? '',
           needsRefresh: false,
@@ -362,21 +418,33 @@ export class RatingThreadController extends CommunityController<RatingThreadView
       !this.inactive &&
       this.route === route &&
       this.view.loaded &&
-      route.noticeId &&
+      (route.noticeId || route.likeNoticeId) &&
       this.accountId()
     ) {
       await this.run(
         (cancel) =>
-          this.runtime.ratingUpdates!.markRead(route.noticeId!, cancel),
+          route.likeNoticeId
+            ? this.runtime.ratingLikeUpdates!.markRead(
+                route.likeNoticeId,
+                cancel,
+              )
+            : this.runtime.ratingUpdates!.markRead(route.noticeId!, cancel),
         (raw) => {
           const receipt = decodeRatingNoticeRead(raw);
-          if (receipt.noticeId !== route.noticeId) invalidRating();
-          this.update({ status: '已定位当前回复，并确认这条评分更新已读' });
+          if (receipt.noticeId !== (route.likeNoticeId ?? route.noticeId))
+            invalidRating();
+          this.update({
+            status: route.likeNoticeId
+              ? '已定位当前被赞内容，并确认这条赞已读'
+              : '已定位当前回复，并确认这条评分更新已读',
+          });
         },
         (error) => {
           this.update({
             error: ratingError(error),
-            status: '回复已读取，但这条更新的已读状态尚未确认',
+            status: route.likeNoticeId
+              ? '被赞内容已读取，但这条赞的已读状态尚未确认'
+              : '回复已读取，但这条更新的已读状态尚未确认',
           });
         },
       );
@@ -417,15 +485,29 @@ export class RatingThreadController extends CommunityController<RatingThreadView
       return;
     this.closeForm();
     await this.run(
-      (cancel) =>
-        this.runtime.ratingDiscussion!.replies(
+      async (cancel) => {
+        const page = decodeRatingReplyPage(
+          await this.runtime.ratingDiscussion!.replies(
+            discussion.context.regionId,
+            discussion.context.rootId,
+            cursor,
+            cancel,
+          ),
+        );
+        this.validatePage(page, discussion);
+        const likes = await readRatingLikeStates(
+          this.runtime.ratingLikes,
           discussion.context.regionId,
-          discussion.context.rootId,
-          cursor,
+          page.items.map((item) => ({
+            targetId: item.targetId,
+            rootId: item.rootId,
+            replyId: item.id,
+          })),
           cancel,
-        ),
-      (raw) => {
-        const page = decodeRatingReplyPage(raw);
+        );
+        return { page, likes };
+      },
+      ({ page, likes }) => {
         this.validatePage(page, discussion);
         if (
           page.nextCursor &&
@@ -438,6 +520,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
         for (const item of page.items) items.set(item.id, item);
         this.update({
           replies: [...items.values()],
+          likes: { ...this.view.likes, ...likes },
           canMore: !!page.nextCursor,
           status:
             page.continuation === 'end'
@@ -616,7 +699,49 @@ export class RatingThreadController extends CommunityController<RatingThreadView
       },
     }));
   }
-  private async start(make: (id: string) => RatingReplyIntent): Promise<void> {
+  async toggleLike(id: string): Promise<void> {
+    const discussion = this.view.discussion,
+      detail = this.view.detail,
+      state = this.view.likes[id];
+    if (
+      !this.canWrite() ||
+      !this.runtime.ratingLikes ||
+      !discussion ||
+      !detail ||
+      state?.status !== 'known' ||
+      !state.allowedActions.setLike
+    )
+      return;
+    const root = discussion.root;
+    const reply =
+      id === root.id ? null : this.view.replies.find((item) => item.id === id);
+    if (id !== root.id && !reply) return;
+    await this.start((clientRequestId) => {
+      const payload = {
+        clientRequestId,
+        regionId: discussion.context.regionId,
+        targetId: detail.id,
+        expectedTargetRevision: detail.revision,
+        expectedRevision: reply?.revision ?? root.revision,
+        expectedLikeRevision: state.revision,
+        liked: !state.liked,
+      };
+      return reply
+        ? {
+            operation: 'set_reply_like',
+            replyId: reply.id,
+            payload: {
+              ...payload,
+              rootId: root.id,
+              expectedRootRevision: root.revision,
+            },
+          }
+        : { operation: 'set_comment_like', rootId: root.id, payload };
+    });
+  }
+  private async start(
+    make: (id: string) => RatingCommandIntent,
+  ): Promise<void> {
     if (!this.loadJournal() || this.pending) return;
     const owner = this.runtime.sessions.snapshot(),
       accountId = this.accountId()!;
@@ -630,7 +755,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
         const attempt = this.runtime.pendingRatings!.freeze({
           version: 2,
           accountId,
-          intent: decodeRatingReplyIntent(make(id)),
+          intent: decodeRatingCommandIntent(make(id)),
         });
         this.clearContent();
         this.showPending(attempt);

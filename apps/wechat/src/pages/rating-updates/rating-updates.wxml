@@ -1,24 +1,26 @@
 <view class="screen">
-  <view class="eyebrow">WHALEU · 本地评分更新</view><view class="title">评分回复</view>
-  <view class="notice">仅展示本账号已生成的直接评分回复通知。未接入微信外部推送，历史通知覆盖不作推断。</view>
+  <view class="eyebrow">WHALEU · 本地评分更新</view><view class="title">评分更新</view>
+  <view class="chips"><button data-category="reply" bindtap="onCategory" class="{{category === 'reply' ? 'active' : 'secondary'}}">回复</button><button data-category="like" bindtap="onCategory" class="{{category === 'like' ? 'active' : 'secondary'}}">赞</button></view>
+  <view class="notice">按分类展示本账号已生成的直接评分回复或赞通知。同一个人对同一条内容的赞只通知一次；取消后再赞不重置已读。未接入微信外部推送，历史通知覆盖不作推断。</view>
   <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
-  <view wx:if="{{loaded}}" class="section-title">评分更新未读 {{unreadCount}} 条</view>
+  <view wx:if="{{loaded}}" class="section-title">{{category === 'like' ? '赞' : '回复'}}未读 {{unreadCount}} 条</view>
   <view wx:if="{{loaded}}" class="meta">包含当前不可查看的已生成记录；不包含待处理义务或社区更新。</view>
   <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新评分更新</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
   <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看自己的更新 →</navigator>
   <view wx:for="{{items}}" wx:key="noticeId" class="card">
     <view class="meta">{{item.createdAt}} · {{item.readAt ? '已读' : '未读'}}</view>
     <block wx:if="{{item.status === 'available'}}">
-      <view class="section-title">{{item.reason === 'direct_root' ? '你的评价有新回复' : '有人回复了你的回复'}}</view>
-      <view class="author">{{item.preview.author.displayName}}<text class="badge">{{item.preview.author.mode === 'anonymous' ? '本目标分身' : '实名'}}</text></view>
+      <view class="section-title">{{item.kind === 'like' ? (item.target.replyId ? '有人赞了你的回复' : '有人赞了你的评价') : (item.reason === 'direct_root' ? '你的评价有新回复' : '有人回复了你的回复')}}</view>
+      <view wx:if="{{item.kind === 'like'}}" class="author">{{item.actor.displayName}}<text class="badge">实名</text></view>
+      <view wx:else class="author">{{item.preview.author.displayName}}<text class="badge">{{item.preview.author.mode === 'anonymous' ? '本目标分身' : '实名'}}</text></view>
       <view class="body">{{item.preview.text}}</view>
-      <button data-id="{{item.noticeId}}" bindtap="onOpen" disabled="{{busy}}">查看这条评分回复</button>
+      <button data-id="{{item.noticeId}}" bindtap="onOpen" disabled="{{busy}}">{{item.kind === 'like' ? '查看被赞内容' : '查看这条评分回复'}}</button>
     </block>
     <view wx:else class="notice">此条评分更新的内容当前不可查看</view>
     <button wx:if="{{!item.readAt}}" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy}}">标记这一条已读</button>
   </view>
   <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">当前没有已生成的评分更新</view>
   <button wx:if="{{canMore}}" bindtap="onMore" disabled="{{busy}}">读取更多评分更新</button>
-  <view class="notice">仅浏览列表不会清空未读。打开时会重新核验并定位当前回复，成功读取后才确认这一条已读。</view>
+  <view class="notice">仅浏览列表不会清空未读。打开时会重新核验并定位当前内容，成功读取后才确认这一条已读。</view>
   <navigator class="link" url="/pages/community-updates/community-updates">社区更新 →</navigator><navigator class="link" url="/pages/rating-catalog/rating-catalog">评分目录 →</navigator>
 </view>

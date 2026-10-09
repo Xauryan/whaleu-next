@@ -1,3 +1,5 @@
+import { readRatingLikeStates, type RatingLikeStates } from './like-controller';
+import type { RatingCommentSort } from './gateway';
 import { ClientError, isRecord } from '../api/errors';
 import {
   CommunityController,
@@ -12,7 +14,6 @@ import {
   decodeRatingCategoryPage,
   decodeRatingCommentPage,
   decodeRatingContext,
-  decodeRatingIntent,
   decodeRatingMyScore,
   decodeRatingSummary,
   decodeRatingTarget,
@@ -23,13 +24,14 @@ import {
   type RatingCategory,
   type RatingComment,
   type RatingContext,
-  type RatingIntent,
   type RatingMyScore,
   type RatingSummary,
   type RatingTarget,
 } from './contract';
 import {
   ratingIntentTarget,
+  decodeRatingCommandIntent,
+  type RatingCommandIntent,
   type PendingRating,
   type RatingCommandReceipt,
 } from './pending';
@@ -76,6 +78,9 @@ export interface RatingView extends CommunityView {
   readonly myScoreKnown: boolean;
   readonly summary: RatingSummary | null;
   readonly comments: readonly RatingComment[];
+  readonly likes: RatingLikeStates;
+  readonly commentSort: 'time' | 'likes';
+  readonly commentOrder: 'asc' | 'desc';
   readonly canMoreCategories: boolean;
   readonly canMoreTargets: boolean;
   readonly canMoreComments: boolean;
@@ -106,6 +111,9 @@ export const initialRatingView = (): RatingView => ({
   myScoreKnown: false,
   summary: null,
   comments: [],
+  likes: {},
+  commentSort: 'time',
+  commentOrder: 'desc',
   canMoreCategories: false,
   canMoreTargets: false,
   canMoreComments: false,
@@ -127,6 +135,8 @@ export function ratingError(error: unknown): string {
   return (
     (
       {
+        DISCOVERY_RESTART_REQUIRED:
+          '评价排序或访问状态已变化，请重新加载；旧分页已清除',
         RATING_NOT_FOUND: '评分目标或文字评价不存在，或当前不可查看',
         RATING_UNAVAILABLE: '评分目录或必要授权暂不能确认，请稍后重新加载',
         RATING_SCOPE_UNAVAILABLE:
@@ -145,6 +155,7 @@ type PageKind = 'categories' | 'targets' | 'comments';
 /** Current views have an account/epoch/selection owner. Receipts settle history, never current score or text. */
 export class RatingController extends CommunityController<RatingView> {
   private route: RatingRoute = {};
+  private sortSelection: RatingCommentSort | undefined;
   private inactive = false;
   private sequence = 0;
   private pending: PendingRating | null = null;
@@ -203,6 +214,7 @@ export class RatingController extends CommunityController<RatingView> {
     return true;
   }
   protected override resetPrivate(): void {
+    this.sortSelection = undefined;
     this.sequence++;
     this.pending = null;
     this.resetPaging();
@@ -235,6 +247,7 @@ export class RatingController extends CommunityController<RatingView> {
       myScoreKnown: false,
       summary: null,
       comments: [],
+      likes: {},
       canMoreCategories: false,
       canMoreTargets: false,
       canMoreComments: false,
@@ -402,6 +415,8 @@ export class RatingController extends CommunityController<RatingView> {
             targetId,
             null,
             cancel,
+            20,
+            this.sortSelection,
           ),
         );
         if (
@@ -409,7 +424,24 @@ export class RatingController extends CommunityController<RatingView> {
           comments.context.targetId !== targetId
         )
           invalidRating();
-        return { kind: 'detail' as const, detail, own, summary, comments };
+        const likes = await readRatingLikeStates(
+          this.runtime.ratingLikes,
+          regionId,
+          comments.items.map((item) => ({
+            targetId,
+            rootId: item.id,
+            replyId: null,
+          })),
+          cancel,
+        );
+        return {
+          kind: 'detail' as const,
+          detail,
+          own,
+          summary,
+          comments,
+          likes,
+        };
       },
       (result) => {
         if (result.kind === 'catalog') {
@@ -434,6 +466,7 @@ export class RatingController extends CommunityController<RatingView> {
             myScore: result.own?.myScore ?? null,
             summary: result.summary,
             comments: result.comments.items,
+            likes: result.likes,
             canMoreComments: !!result.comments.nextCursor,
             status: '已重新核验目标、自己的评分与文字评价',
           });
@@ -447,6 +480,25 @@ export class RatingController extends CommunityController<RatingView> {
         });
       },
     );
+  }
+  async selectSort(
+    sort: 'time' | 'likes',
+    order: 'asc' | 'desc',
+  ): Promise<void> {
+    if (
+      this.mode !== 'detail' ||
+      this.inactive ||
+      this.view.frozen ||
+      !this.available() ||
+      !['time', 'likes'].includes(sort) ||
+      !['asc', 'desc'].includes(order)
+    )
+      return;
+    this.sortSelection = { sort, order };
+    this.sequence++;
+    this.clearCurrent();
+    this.update({ commentSort: sort, commentOrder: order });
+    await this.refresh();
   }
   async loadRegions(): Promise<void> {
     if (this.mode !== 'catalog' || this.view.busy || !this.available()) return;
@@ -492,6 +544,7 @@ export class RatingController extends CommunityController<RatingView> {
       !['categories', 'targets', 'comments'].includes(kind)
     )
       return;
+    let likes: RatingLikeStates = {};
     const cursor = this.cursors[kind],
       regionId = this.view.regionId,
       revision = this.catalogRevision;
@@ -539,9 +592,21 @@ export class RatingController extends CommunityController<RatingView> {
             this.route.targetId,
             cursor,
             cancel,
+            20,
+            this.sortSelection,
           ),
         );
         if (page.context.targetId !== this.route.targetId) invalidRating();
+        likes = await readRatingLikeStates(
+          this.runtime.ratingLikes,
+          regionId,
+          page.items.map((item) => ({
+            targetId: page.context.targetId,
+            rootId: item.id,
+            replyId: null,
+          })),
+          cancel,
+        );
         return page;
       },
       (page) => {
@@ -553,6 +618,8 @@ export class RatingController extends CommunityController<RatingView> {
               this.seen[kind].has(page.nextCursor)))
         )
           invalidRating();
+        if (kind === 'comments')
+          this.update({ likes: { ...this.view.likes, ...likes } });
         this.seen[kind].add(cursor);
         this.cursors[kind] = page.nextCursor;
         const current = this.view[kind] as readonly { readonly id: string }[];
@@ -775,7 +842,37 @@ export class RatingController extends CommunityController<RatingView> {
       },
     }));
   }
-  private async start(make: (id: string) => RatingIntent): Promise<void> {
+  async toggleLike(id: string): Promise<void> {
+    const detail = this.view.detail,
+      root = this.view.comments.find((item) => item.id === id),
+      state = this.view.likes[id];
+    if (
+      !this.canWrite() ||
+      !this.runtime.ratingLikes ||
+      !detail ||
+      !root ||
+      root.targetId !== detail.id ||
+      state?.status !== 'known' ||
+      !state.allowedActions.setLike
+    )
+      return;
+    await this.start((clientRequestId) => ({
+      operation: 'set_comment_like',
+      rootId: id,
+      payload: {
+        clientRequestId,
+        regionId: this.view.regionId,
+        targetId: detail.id,
+        expectedTargetRevision: detail.revision,
+        expectedRevision: root.revision,
+        expectedLikeRevision: state.revision,
+        liked: !state.liked,
+      },
+    }));
+  }
+  private async start(
+    make: (id: string) => RatingCommandIntent,
+  ): Promise<void> {
     if (!this.loadJournal() || this.pending) return;
     const accountId = this.accountId()!,
       owner = this.runtime.sessions.snapshot();
@@ -789,7 +886,7 @@ export class RatingController extends CommunityController<RatingView> {
         const attempt = this.runtime.pendingRatings!.freeze({
           version: 2,
           accountId,
-          intent: decodeRatingIntent(make(id)),
+          intent: decodeRatingCommandIntent(make(id)),
         });
         this.pending = attempt;
         // Do not cancel this command while clearing the visible snapshots and private form.
@@ -803,6 +900,7 @@ export class RatingController extends CommunityController<RatingView> {
           myScoreKnown: false,
           summary: null,
           comments: [],
+          likes: {},
           canMoreCategories: false,
           canMoreTargets: false,
           canMoreComments: false,

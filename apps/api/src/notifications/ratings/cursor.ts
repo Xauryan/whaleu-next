@@ -20,9 +20,10 @@ export function ratingUpdatesCursorScope(
   sessionId: string,
   token: string,
   limit: number,
+  kind: 'reply' | 'like' = 'reply',
 ): string {
   return discoveryContinuationScope([
-    'rating-updates',
+    kind === 'like' ? 'rating-like-updates' : 'rating-updates',
     1,
     accountId,
     sessionId,

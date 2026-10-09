@@ -10,7 +10,10 @@ import {
   ratingRejectionSchema,
   ratingCommentQuerySchema,
 } from './contracts.js';
-export const ratingReplyQuerySchema = ratingCommentQuerySchema;
+export const ratingReplyQuerySchema = ratingCommentQuerySchema.omit({
+  sort: true,
+  order: true,
+});
 export const ratingReplyPositionQuerySchema = ratingReplyQuerySchema.omit({
   cursor: true,
 });

@@ -9,7 +9,13 @@ import {
 } from './controller';
 type Tap = {
   currentTarget: {
-    dataset: { id?: string; score?: number | string; mode?: string };
+    dataset: {
+      id?: string;
+      score?: number | string;
+      mode?: string;
+      sort?: string;
+      order?: string;
+    };
   };
 };
 /** Route IDs survive page hide. No body, score, cursor, author input or pending payload enters page persistence. */
@@ -103,6 +109,17 @@ export function registerRatingPage(mode: RatingMode): void {
         this.controller?.targetPath(event.currentTarget.dataset.id ?? '') ??
           null,
       );
+    },
+    onLike(event: Tap) {
+      void this.controller?.toggleLike(event.currentTarget.dataset.id ?? '');
+    },
+    onSort(event: Tap) {
+      const { sort, order } = event.currentTarget.dataset;
+      if (
+        (sort === 'time' || sort === 'likes') &&
+        (order === 'asc' || order === 'desc')
+      )
+        void this.controller?.selectSort(sort, order);
     },
     onDiscussion(event: Tap) {
       this.navigator?.open(

@@ -18,6 +18,13 @@ import {
   ratingNoticePreviewSchema,
   ratingNoticeReasonSchema,
 } from './contracts.js';
+import {
+  ratingLikeNoticeActorSchema,
+  ratingLikeNoticeLocatorSchema,
+  ratingLikeNoticePreviewSchema,
+} from './like-contracts.js';
+import type { RatingLikeNoticeRecipient } from './like-contracts.js';
+import type { RatingNoticeRecipient } from './contracts.js';
 import { RatingUpdatesRepository } from './repository.js';
 
 export const ratingUpdatesWorkerSchema = z
@@ -33,7 +40,8 @@ export const ratingUpdatesWorkerSchema = z
 export type RatingUpdatesWorkerOptions = z.infer<
   typeof ratingUpdatesWorkerSchema
 >;
-const eventSchema = z.strictObject({
+const replyEventSchema = z.strictObject({
+  kind: z.literal('reply').default('reply'),
   id: ratingPublicIdSchema,
   sequence: ratingOrdinalSchema,
   occurredAt: ratingTimeSchema,
@@ -52,6 +60,29 @@ const eventSchema = z.strictObject({
         recipients.length,
     ),
 });
+const likeEventSchema = z
+  .strictObject({
+    kind: z.literal('like'),
+    id: ratingPublicIdSchema,
+    sequence: ratingOrdinalSchema,
+    occurredAt: ratingTimeSchema,
+    actorAccountId: ratingPublicIdSchema,
+    target: ratingLikeNoticeLocatorSchema,
+    recipients: z
+      .array(
+        z.strictObject({
+          accountId: ratingPublicIdSchema,
+          reason: z.literal('like'),
+        }),
+      )
+      .max(1),
+  })
+  .refine((event) =>
+    event.recipients.every(
+      (recipient) => recipient.accountId !== event.actorAccountId,
+    ),
+  );
+const eventSchema = z.union([replyEventSchema, likeEventSchema]);
 export function assertLocalRatingUpdatesWorker(config: RuntimeConfig): void {
   const url = new URL(config.DATABASE_URL);
   if (
@@ -100,6 +131,7 @@ const emptyCounts = () => ({
   ignored: 0,
   retryable: 0,
   materialized: 0,
+  existing: 0,
   suppressed: 0,
   failed: 0,
 });
@@ -169,12 +201,25 @@ export class RatingUpdatesWorker {
             // Resolve every recipient's current authority and complete parent chain
             // before acquiring ANY notification owner. A failure rolls back all.
             for (const recipient of recipients) {
-              const decision = await this.projection.eligible(
-                event.target,
-                recipient,
-                tx,
-              );
-              if (decision.outcome === 'eligible') {
+              const decision =
+                event.kind === 'like'
+                  ? await this.projection.eligibleLike(
+                      event.target,
+                      recipient as RatingLikeNoticeRecipient,
+                      event.actorAccountId,
+                      tx,
+                    )
+                  : await this.projection.eligible(
+                      event.target,
+                      recipient as RatingNoticeRecipient,
+                      tx,
+                    );
+              if (decision.outcome === 'eligible' && event.kind === 'like') {
+                ratingLikeNoticePreviewSchema.parse(decision.preview);
+                if (!('actor' in decision))
+                  throw new Error('Missing rating like actor');
+                ratingLikeNoticeActorSchema.parse(decision.actor);
+              } else if (decision.outcome === 'eligible') {
                 const preview = ratingNoticePreviewSchema.parse(
                   decision.preview,
                 );
@@ -203,9 +248,32 @@ export class RatingUpdatesWorker {
                 await this.records.owner(recipient.accountId, tx, true);
             for (const { recipient, decision } of decisions) {
               if (decision.outcome === 'eligible') {
-                counts.materialized++;
-                if (options.mode === 'apply')
-                  await this.records.materialize(event, recipient, tx);
+                if (event.kind === 'like') {
+                  const likeRecipient = recipient as RatingLikeNoticeRecipient;
+                  const outcome =
+                    options.mode === 'apply'
+                      ? await this.records.materializeLike(
+                          event,
+                          likeRecipient,
+                          tx,
+                        )
+                      : (await this.records.existingLike(
+                            event,
+                            likeRecipient,
+                            tx,
+                          ))
+                        ? 'existing'
+                        : 'materialized';
+                  counts[outcome]++;
+                } else {
+                  counts.materialized++;
+                  if (options.mode === 'apply')
+                    await this.records.materialize(
+                      event,
+                      recipient as RatingNoticeRecipient,
+                      tx,
+                    );
+                }
               } else if (decision.outcome === 'suppressed') {
                 counts.suppressed++;
                 if (options.mode === 'apply')

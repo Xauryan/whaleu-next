@@ -1,0 +1,143 @@
+{
+  "rootLikeState": {
+    "status": "known",
+    "targetId": "4986d72e-3d5a-41af-8ecd-a56e2c1acd47",
+    "rootId": "ee5e6f6d-e61d-40ac-8720-7966ecd92af3",
+    "replyId": null,
+    "count": 0,
+    "liked": false,
+    "revision": "7bfca3e8-f575-4021-b358-766f42e522e7",
+    "allowedActions": {
+      "setLike": true
+    }
+  },
+  "rootLikeReceipt": {
+    "requestId": "7382817d-c7cf-4210-872b-c1c18633f32c",
+    "operation": "set_comment_like",
+    "outcome": "applied",
+    "targetId": "4986d72e-3d5a-41af-8ecd-a56e2c1acd47",
+    "rootId": "ee5e6f6d-e61d-40ac-8720-7966ecd92af3",
+    "replyId": null,
+    "liked": false,
+    "revision": "60d320f2-1ff3-4831-9e1b-23228f26e7cf",
+    "occurredAt": "2026-10-09T02:42:43.264700Z"
+  },
+  "replyLikeState": {
+    "status": "known",
+    "targetId": "4986d72e-3d5a-41af-8ecd-a56e2c1acd47",
+    "rootId": "ee5e6f6d-e61d-40ac-8720-7966ecd92af3",
+    "replyId": "e520733f-b51b-40fd-a804-8a96c262dd2f",
+    "count": 0,
+    "liked": false,
+    "revision": "6689eee9-0889-4b54-ad33-38a2951a76dd",
+    "allowedActions": {
+      "setLike": true
+    }
+  },
+  "replyLikeReceipt": {
+    "requestId": "bc03a143-4c1e-4ca3-be73-51da67cf4131",
+    "operation": "set_reply_like",
+    "outcome": "applied",
+    "targetId": "4986d72e-3d5a-41af-8ecd-a56e2c1acd47",
+    "rootId": "ee5e6f6d-e61d-40ac-8720-7966ecd92af3",
+    "replyId": "e520733f-b51b-40fd-a804-8a96c262dd2f",
+    "liked": false,
+    "revision": "c6eb3596-5f8d-4bc8-9f89-704138fca8c1",
+    "occurredAt": "2026-10-09T02:42:43.802073Z"
+  },
+  "likeUpdatesPage": {
+    "items": [
+      {
+        "noticeId": "5dc2f680-4c0d-43d0-9e45-b546697899d5",
+        "createdAt": "2026-10-09T02:42:44.167313Z",
+        "readAt": null,
+        "status": "available",
+        "domain": "ratings",
+        "kind": "like",
+        "reason": "like",
+        "actor": {
+          "mode": "named",
+          "profileId": "74b663f7-8a1b-421c-b79e-c51f25baadfc",
+          "displayName": "鲸鱼用户"
+        },
+        "target": {
+          "regionId": null,
+          "targetId": "4986d72e-3d5a-41af-8ecd-a56e2c1acd47",
+          "rootId": "ee5e6f6d-e61d-40ac-8720-7966ecd92af3",
+          "replyId": null
+        },
+        "preview": {
+          "text": "Synthetic root comment"
+        }
+      }
+    ],
+    "nextCursor": null,
+    "unreadCount": 1
+  },
+  "rootLikeNoticeTarget": {
+    "noticeId": "5dc2f680-4c0d-43d0-9e45-b546697899d5",
+    "status": "available",
+    "target": {
+      "regionId": null,
+      "targetId": "4986d72e-3d5a-41af-8ecd-a56e2c1acd47",
+      "rootId": "ee5e6f6d-e61d-40ac-8720-7966ecd92af3",
+      "replyId": null
+    }
+  },
+  "replyLikeNoticeTarget": {
+    "noticeId": "4eded4b4-e692-442f-a6b3-a0ba454f07f9",
+    "status": "available",
+    "target": {
+      "regionId": null,
+      "targetId": "4986d72e-3d5a-41af-8ecd-a56e2c1acd47",
+      "rootId": "ee5e6f6d-e61d-40ac-8720-7966ecd92af3",
+      "replyId": "e520733f-b51b-40fd-a804-8a96c262dd2f"
+    }
+  },
+  "sortedCommentPage": {
+    "context": {
+      "regionId": null,
+      "catalogRevision": "120744f3-ebaf-4c22-b876-be578e541e2c",
+      "targetId": "e47d45ad-5b61-412c-98e0-9452c67ceece"
+    },
+    "items": [
+      {
+        "id": "67ab632a-2a95-4458-baec-d848c7623147",
+        "targetId": "e47d45ad-5b61-412c-98e0-9452c67ceece",
+        "body": "Native ordered root 0",
+        "revision": "f03215de-2d52-4921-8352-4c422cdeef4e",
+        "createdAt": "2026-10-09T02:42:44.837730Z",
+        "author": {
+          "mode": "named",
+          "profileId": "0cbb27b7-a0f7-4cc1-b3f9-8a10f50f9d2f",
+          "displayName": "鲸鱼用户"
+        },
+        "isMine": false,
+        "allowedActions": {
+          "delete": false
+        }
+      },
+      {
+        "id": "6e1506a6-b842-4382-83b9-4f0397230a45",
+        "targetId": "e47d45ad-5b61-412c-98e0-9452c67ceece",
+        "body": "Native ordered root 1",
+        "revision": "219f368d-b39a-4619-af5b-d00b4b1f5f3b",
+        "createdAt": "2026-10-09T02:42:44.872063Z",
+        "author": {
+          "mode": "named",
+          "profileId": "0cbb27b7-a0f7-4cc1-b3f9-8a10f50f9d2f",
+          "displayName": "鲸鱼用户"
+        },
+        "isMine": false,
+        "allowedActions": {
+          "delete": false
+        }
+      }
+    ],
+    "nextCursor": "pazzKOi6SF--lMQXhLVaOfcX9TxwntrIp6SWoE4Fnrc",
+    "continuation": "more"
+  },
+  "unavailableLikeState": {
+    "status": "unavailable"
+  }
+}

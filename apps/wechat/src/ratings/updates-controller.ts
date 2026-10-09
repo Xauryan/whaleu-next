@@ -1,3 +1,8 @@
+import {
+  decodeRatingLikeNoticeTarget,
+  decodeRatingLikeUpdatesPage,
+  type RatingLikeNotice,
+} from './like-updates-contract';
 import { ClientError } from '../api/errors';
 import {
   CommunityController,
@@ -16,13 +21,15 @@ import {
 } from './updates-contract';
 export interface RatingUpdatesView extends CommunityView {
   readonly loaded: boolean;
-  readonly items: readonly RatingNotice[];
+  readonly items: readonly (RatingNotice | RatingLikeNotice)[];
+  readonly category: 'reply' | 'like';
   readonly unreadCount: number | null;
   readonly canMore: boolean;
 }
 export const initialRatingUpdatesView = (): RatingUpdatesView => ({
   ...initialCommunityView(),
   loaded: false,
+  category: 'reply',
   items: [],
   unreadCount: null,
   canMore: false,
@@ -54,11 +61,27 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
       runtime.browsingScopeChanges?.subscribe(invalidate) ?? (() => undefined);
     this.update({ configured: !!runtime.ratingUpdates });
   }
+  private gateway() {
+    return this.view.category === 'like'
+      ? this.runtime.ratingLikeUpdates
+      : this.runtime.ratingUpdates;
+  }
+  private decodePage(raw: unknown) {
+    return this.view.category === 'like'
+      ? decodeRatingLikeUpdatesPage(raw)
+      : decodeRatingUpdatesPage(raw);
+  }
+  async selectCategory(category: 'reply' | 'like'): Promise<void> {
+    if (this.inactive || !['reply', 'like'].includes(category)) return;
+    this.stop();
+    this.clear(category);
+    await this.load();
+  }
   protected override available(): boolean {
     if (this.inactive) return false;
-    if (!this.runtime.ratingUpdates || !this.accountId()) {
+    if (!this.gateway() || !this.accountId()) {
       this.update({
-        configured: !!this.runtime.ratingUpdates,
+        configured: !!this.gateway(),
         error: this.accountId()
           ? '当前构建尚未配置评分更新服务'
           : '请先登录查看自己的评分更新',
@@ -73,15 +96,18 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
   }
   protected override onSafetyInvalidated(): void {
     this.update({
-      configured: !!this.runtime.ratingUpdates,
+      configured: !!this.gateway(),
       status: '安全状态已变化，旧预览和分页已清除，请重新加载',
     });
   }
-  private clear(): void {
+  private clear(category: 'reply' | 'like' = this.view.category): void {
     this.resetPrivate();
     this.update({
       ...initialRatingUpdatesView(),
-      configured: !!this.runtime.ratingUpdates,
+      category,
+      configured: !!(category === 'like'
+        ? this.runtime.ratingLikeUpdates
+        : this.runtime.ratingUpdates),
       hasSession: !!this.accountId(),
     });
   }
@@ -90,16 +116,19 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
     this.clear();
     if (!this.available()) return;
     await this.run(
-      (cancel) => this.runtime.ratingUpdates!.list(null, cancel),
+      async (cancel) => await this.gateway()!.list(null, cancel),
       (raw) => {
-        const page = decodeRatingUpdatesPage(raw);
+        const page = this.decodePage(raw);
         this.cursor = page.nextCursor;
         this.update({
           loaded: true,
           items: page.items,
           unreadCount: page.unreadCount,
           canMore: !!page.nextCursor,
-          status: '已读取本账号当前本地评分回复更新',
+          status:
+            this.view.category === 'like'
+              ? '已读取本账号当前本地赞通知'
+              : '已读取本账号当前本地评分回复更新',
         });
       },
       (error) => {
@@ -116,9 +145,9 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
     if (!this.available() || !this.view.loaded || this.view.busy || !cursor)
       return;
     await this.run(
-      (cancel) => this.runtime.ratingUpdates!.list(cursor, cancel),
+      async (cancel) => await this.gateway()!.list(cursor, cancel),
       (raw) => {
-        const page = decodeRatingUpdatesPage(raw);
+        const page = this.decodePage(raw);
         if (
           page.nextCursor &&
           (page.nextCursor === cursor || this.seen.has(page.nextCursor))
@@ -134,7 +163,10 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
           items: [...items.values()],
           unreadCount: page.unreadCount,
           canMore: !!page.nextCursor,
-          status: '已读取更多本地评分回复更新',
+          status:
+            this.view.category === 'like'
+              ? '已读取更多本地赞通知'
+              : '已读取更多本地评分回复更新',
         });
       },
       (error) => {
@@ -160,15 +192,24 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
     const owner = this.runtime.sessions.snapshot();
     await this.run(
       async (cancel) => {
-        const result = decodeRatingNoticeTarget(
-          await this.runtime.ratingUpdates!.target(noticeId, cancel),
-        );
+        const raw = await this.gateway()!.target(noticeId, cancel);
+        const result =
+          this.view.category === 'like'
+            ? decodeRatingLikeNoticeTarget(raw)
+            : decodeRatingNoticeTarget(raw);
         if (result.noticeId !== noticeId) invalidRating();
         this.runtime.sessions.assertCurrent(owner);
         if (cancel.isCancelled || this.inactive)
           throw new ClientError('cancelled', 'Navigation cancelled');
         if (result.status === 'available')
-          await this.navigate(ratingThreadPath(result.target, noticeId));
+          await this.navigate(
+            this.view.category === 'like'
+              ? `/pages/rating-thread/rating-thread?targetId=${result.target.targetId}&rootId=${result.target.rootId}${result.target.replyId ? `&replyId=${result.target.replyId}` : ''}${result.target.regionId ? `&regionId=${result.target.regionId}` : ''}&likeNoticeId=${noticeId}`
+              : ratingThreadPath(
+                  { ...result.target, replyId: result.target.replyId! },
+                  noticeId,
+                ),
+          );
         return result;
       },
       (result) => {
@@ -188,14 +229,20 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
           });
         } else
           this.update({
-            status: '打开回复后会重新定位；成功读取当前回复才确认这条更新已读',
+            status:
+              this.view.category === 'like'
+                ? '打开后会重新定位；成功读取被赞内容才确认这条赞已读'
+                : '打开回复后会重新定位；成功读取当前回复才确认这条更新已读',
           });
       },
       (error) => {
         this.clear();
         this.update({
           error: ratingError(error),
-          status: '未确认打开回复，未自动标记已读',
+          status:
+            this.view.category === 'like'
+              ? '未确认打开被赞内容，未自动标记已读'
+              : '未确认打开回复，未自动标记已读',
         });
       },
     );
@@ -212,7 +259,7 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
     )
       return;
     await this.run(
-      (cancel) => this.runtime.ratingUpdates!.markRead(noticeId, cancel),
+      (cancel) => this.gateway()!.markRead(noticeId, cancel),
       (raw) => {
         const result = decodeRatingNoticeRead(raw);
         if (result.noticeId !== noticeId) invalidRating();

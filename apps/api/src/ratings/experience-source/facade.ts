@@ -2,6 +2,19 @@ import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import type { ExperienceSourceUnit } from '../../experience/source-contracts.js';
 
+// Keep load and acknowledgement on exactly the same known source branches.
+// Negative transitions never have a group and cannot become deductions here.
+const supportedSource = `(
+  (g.source_version=1 AND g.event_kind IN ('root_created','reply_created')
+    AND g.like_transition_id IS NULL AND g.subject_author_id IS NULL AND g.subject_author_mode IS NULL
+    AND u.action IN ('comment','received_comment'))
+  OR (g.source_version=2 AND g.event_kind='content_liked'
+    AND g.like_transition_id IS NOT NULL AND g.subject_author_id IS NOT NULL
+    AND g.subject_author_mode IN ('named','anonymous')
+    AND g.reply_to_id IS NULL AND g.direct_reply_author_id IS NULL
+    AND u.action IN ('like_save','received_like_save'))
+)`;
+
 /** Settles the captured private beneficiary, even if content is subsequently
  * deleted or authority, Safety, Profile, or visible identity changes. */
 @Injectable()
@@ -16,9 +29,7 @@ export class RatingExperienceSourceFacade {
        FROM whaleu_ratings.reward_units u
        JOIN whaleu_ratings.reward_groups g
         ON (g.id,g.event_id,g.enrollment_order)=(u.group_id,u.event_id,u.enrollment_order)
-       WHERE u.id=$1 AND g.source_version=1
-        AND g.event_kind IN ('root_created','reply_created')
-        AND u.action IN ('comment','received_comment')`,
+       WHERE u.id=$1 AND ${supportedSource}`,
       [unitId],
     );
     return result.rows[0] ?? null;
@@ -49,9 +60,7 @@ export class RatingExperienceSourceFacade {
           =(u.id,u.group_id,u.beneficiary_id,u.action,u.enrollment_order)
        JOIN whaleu_experience.settlements s
         ON (s.unit_id,s.owner_id,s.action)=(u.id,u.beneficiary_id,u.action)
-       WHERE u.id=$1 AND s.id=$2 AND g.source_version=1
-        AND g.event_kind IN ('root_created','reply_created')
-        AND u.action IN ('comment','received_comment')`,
+       WHERE u.id=$1 AND s.id=$2 AND ${supportedSource}`,
       [unitId, settlementId],
     );
     if (!result.rows[0])

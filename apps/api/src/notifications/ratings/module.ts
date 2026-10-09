@@ -4,6 +4,8 @@ import { IdentityModule } from '../../identity/identity.module.js';
 import { DiscoveryContinuationModule } from '../../community/discovery-continuation.module.js';
 import { RatingRequestThrottlingModule } from '../../request-throttling/module.js';
 import { RatingUpdatesSourceModule } from '../../ratings/updates-source/module.js';
+import { RatingLikeUpdatesController } from './like-controller.js';
+import { RatingLikeUpdatesReadService } from './like-read.service.js';
 import { RatingUpdatesController } from './controller.js';
 import { RatingUpdatesCursors } from './cursor.js';
 import { RatingUpdatesRepository } from './repository.js';
@@ -18,13 +20,18 @@ import { RatingUpdatesWorker } from './worker.js';
     RatingRequestThrottlingModule,
     RatingUpdatesSourceModule,
   ],
-  controllers: [RatingUpdatesController],
+  controllers: [RatingUpdatesController, RatingLikeUpdatesController],
   providers: [
     RatingUpdatesCursors,
     RatingUpdatesRepository,
     RatingUpdatesReadService,
+    RatingLikeUpdatesReadService,
     RatingUpdatesWorker,
   ],
-  exports: [RatingUpdatesWorker, RatingUpdatesReadService],
+  exports: [
+    RatingUpdatesWorker,
+    RatingUpdatesReadService,
+    RatingLikeUpdatesReadService,
+  ],
 })
 export class RatingUpdatesModule {}

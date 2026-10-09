@@ -3,6 +3,8 @@
   <view class="eyebrow">WHALEU · 评分与评价</view>
   <navigator class="link" url="/pages/rating-recovery/rating-recovery">独立查询原请求结果 →</navigator>
   <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />
+  <view class="chips"><button data-sort="time" data-order="desc" bindtap="onSort" disabled="{{frozen || !hasSession || !configured}}">最新</button><button data-sort="time" data-order="asc" bindtap="onSort" disabled="{{frozen || !hasSession || !configured}}">最早</button><button data-sort="likes" data-order="desc" bindtap="onSort" disabled="{{frozen || !hasSession || !configured}}">赞最多</button><button data-sort="likes" data-order="asc" bindtap="onSort" disabled="{{frozen || !hasSession || !configured}}">赞最少</button></view>
+  <view class="meta">点赞使用实名身份。赞数未知时不能按零排序；切换排序将重新读取。</view>
   <block wx:if="{{loaded &amp;&amp; detail}}">
     <view class="card"><view class="title">{{detail.name}}</view><view class="body">{{detail.description}}</view></view>
     <view class="card"><view class="section-title">我的评分</view>
@@ -21,8 +23,9 @@
     </view>
     <button wx:if="{{detail.allowedActions.createComment}}" bindtap="onCompose" disabled="{{busy || frozen}}">写文字评价</button>
     <view class="notice">文字评价无需先打分。实名或目标范围分身需明确选择；发布还需服务端精确审核。图片不可用，审核签发尚未开放。</view>
-    <view class="section-title">文字评价 · 最新在前</view>
-    <view wx:for="{{comments}}" wx:key="id" class="card"><view class="author">{{item.author.displayName}}<text class="badge">{{item.author.mode === 'anonymous' ? '本目标分身' : '实名'}}</text><text wx:if="{{item.isMine}}" class="badge">我</text></view><view class="meta">{{item.createdAt}}</view><view class="body">{{item.body}}</view><button data-id="{{item.id}}" bindtap="onDiscussion" disabled="{{busy || frozen}}">查看回复 / 回复评价</button><button wx:if="{{item.isMine &amp;&amp; item.allowedActions.delete}}" data-id="{{item.id}}" bindtap="onDelete" disabled="{{busy || frozen}}">删除自己的文字评价</button></view>
+    <view class="section-title">文字评价 · {{commentSort === 'time' ? (commentOrder === 'desc' ? '最新在前' : '最早在前') : (commentOrder === 'desc' ? '赞数从多到少' : '赞数从少到多')}}</view>
+
+    <view wx:for="{{comments}}" wx:key="id" class="card"><view class="author">{{item.author.displayName}}<text class="badge">{{item.author.mode === 'anonymous' ? '本目标分身' : '实名'}}</text><text wx:if="{{item.isMine}}" class="badge">我</text></view><view class="meta">{{item.createdAt}}</view><view class="body">{{item.body}}</view><template is="rating-like" data="{{state:likes[item.id],id:item.id,busy,frozen}}" /><button data-id="{{item.id}}" bindtap="onDiscussion" disabled="{{busy || frozen}}">查看回复 / 回复评价</button><button wx:if="{{item.isMine &amp;&amp; item.allowedActions.delete}}" data-id="{{item.id}}" bindtap="onDelete" disabled="{{busy || frozen}}">删除自己的文字评价</button></view>
     <view wx:if="{{!comments.length}}" class="empty">当前页没有可见文字评价</view>
     <button wx:if="{{canMoreComments}}" bindtap="onMoreComments" disabled="{{busy}}">继续读取评价</button>
   </block>
