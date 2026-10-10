@@ -1,3 +1,4 @@
+import { lockSafetyPolicy } from '../safety/locks.js';
 import { enrollPublishedHotProcessing } from './hot-score/storage.js';
 import { CommunityCommentEnrollment } from './comment-component/enrollment.js';
 import { CommunityViewEnrollment } from './view-component/enrollment.js';
@@ -70,6 +71,16 @@ export class PublicationRepository {
     ) => Promise<{ resourceId: string; createdAt: string }>,
   ): Promise<PublicationReceipt> {
     return this.repository.database.transaction(async (tx) => {
+      // Nonempty Media publication writes the Media owner and must take its
+      // outer writer gate before actor/business locks, never upgrade afterwards.
+      if (
+        typeof intent === 'object' &&
+        intent !== null &&
+        'imageAssetIds' in intent &&
+        Array.isArray(intent.imageAssetIds) &&
+        intent.imageAssetIds.length
+      )
+        await lockSafetyPolicy(tx, true);
       // Authentication/active account lock precedes even successful replay.
       const actor = await this.access.actor(token, tx);
       const hash = publicationHash(operation, intent);

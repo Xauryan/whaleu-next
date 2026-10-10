@@ -1,4 +1,8 @@
 import {
+  initialMediaReadView,
+  type MediaReadController,
+} from '../../media/read-controller';
+import {
   MessagingEntryNavigator,
   postEntry,
   commentEntry,
@@ -58,6 +62,7 @@ import {
 } from '../../community/poll-controller';
 Page({
   data: {
+    mediaRead: initialMediaReadView(),
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     report: initialReportMutationView(),
     juryVote: initialReportMutationView('vote'),
@@ -76,6 +81,7 @@ Page({
     tradingMutation: initialTradingMutationView(),
     tradingContacts: initialTradingContactsView(),
   },
+  mediaReadController: undefined as MediaReadController | undefined,
   reportMutations: undefined as ReportMutationController | undefined,
   juryVotes: undefined as ReportMutationController | undefined,
   reportProgressController: undefined as ReportProgressController | undefined,
@@ -118,6 +124,10 @@ Page({
   viewObserver: undefined as ViewObserver | undefined,
   messagingEntry: undefined as MessagingEntryNavigator | undefined,
   onShow() {
+    this.mediaReadController?.dispose();
+    this.mediaReadController = getApp<WhaleuApp>().mediaRead?.create((view) =>
+      this.setData({ mediaRead: view }),
+    );
     this.messagingEntry?.dispose();
     this.messagingEntry = new MessagingEntryNavigator(
       wx,
@@ -440,6 +450,9 @@ Page({
         }
       },
       (post, readGeneration) => {
+        void this.mediaReadController?.load(
+          post?.images.length === 1 ? post.images[0]! : null,
+        );
         void this.pollController?.load(post);
         void this.formationController?.load(post);
         this.formationContactsController?.load(null);
@@ -457,6 +470,16 @@ Page({
       this.located,
     );
     void this.controller.load();
+  },
+  onOpenMedia() {
+    void this.mediaReadController?.open();
+  },
+  onCloseMedia() {
+    void this.mediaReadController?.close();
+  },
+  onMediaError(event: { currentTarget: { dataset: { src?: string } } }) {
+    if (event.currentTarget.dataset.src)
+      this.mediaReadController?.imageFailed(event.currentTarget.dataset.src);
   },
   onFormationContact(event: {
     detail: { value: string };
@@ -817,6 +840,8 @@ Page({
     this.controller?.requestDelete('comment', event.currentTarget.dataset.id);
   },
   onConfirmDelete() {
+    if (this.data.deleteTarget?.kind === 'post')
+      this.mediaReadController?.clear();
     void this.controller?.confirmDelete();
   },
   onDismissDelete() {
@@ -854,6 +879,8 @@ Page({
     this.savedMutations?.cancel();
   },
   onHide() {
+    this.mediaReadController?.dispose();
+    this.mediaReadController = undefined;
     this.messagingEntry?.dispose();
     this.messagingEntry = undefined;
     this.viewObserver?.dispose();
@@ -893,6 +920,8 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.mediaReadController?.dispose();
+    this.mediaReadController = undefined;
     this.messagingEntry?.dispose();
     this.messagingEntry = undefined;
     this.viewObserver?.dispose();

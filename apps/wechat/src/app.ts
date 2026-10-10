@@ -1,3 +1,4 @@
+import { createMediaReadRuntime, type MediaReadRuntime } from './media/runtime';
 import {
   createExperienceRuntime,
   type ExperienceRuntime,
@@ -20,6 +21,7 @@ import {
 } from './verification/runtime';
 
 export interface WhaleuApp {
+  mediaRead?: MediaReadRuntime;
   identity: IdentityRuntime | undefined;
   community: CommunityRuntime | undefined;
   verification: VerificationRuntime | undefined;
@@ -55,6 +57,13 @@ App<WhaleuApp>({
       this.identity,
       wx,
       clientConfiguration.apiOrigin,
+    );
+    this.mediaRead = createMediaReadRuntime(
+      this.identity,
+      wx,
+      clientConfiguration.apiOrigin,
+      systemClock,
+      this.community.privateViews,
     );
     this.identityCampus = createIdentityCampusRuntime(
       this.identity,

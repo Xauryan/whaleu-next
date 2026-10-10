@@ -141,16 +141,34 @@ export interface ContentPublicationGate {
     >
   >;
 }
+export interface MediaDisplayContext {
+  viewerAccountId: string | null;
+  parent: import('../media/contracts.js').MediaParent;
+  purpose: import('../media/owner-proof.js').MediaReadPurpose;
+}
 export interface MediaAttachmentPort {
   resolveOwned(
     accountId: string,
     purpose: PublicationOperation,
     ids: string[],
     transaction: PoolClient,
+    envelope: import('./content-review/contracts.js').EffectiveContentEnvelopeDraft,
   ): Promise<Decision<ApprovedAsset[]>>;
+  bind(
+    images: ApprovedAsset[],
+    kind: 'post' | 'comment' | 'reply',
+    id: string,
+    transaction: PoolClient,
+  ): Promise<void>;
+  detach(
+    kind: 'post' | 'comment' | 'reply',
+    id: string,
+    transaction: PoolClient,
+  ): Promise<void>;
   display(
     assets: ApprovedAsset[],
     transaction: PoolClient,
+    context: MediaDisplayContext,
   ): Promise<Decision<MediaView[]>>;
 }
 export const COMMUNITY_AUTHORIZATION = Symbol('COMMUNITY_AUTHORIZATION');
@@ -174,6 +192,16 @@ export class UnavailableContentGate implements ContentPublicationGate {
   }
 }
 export class UnavailableMedia implements MediaAttachmentPort {
+  async bind(): Promise<void> {
+    throw new ApplicationError('MEDIA_UNAVAILABLE');
+  }
+  async detach(
+    _kind: 'post' | 'comment' | 'reply',
+    _id: string,
+    _tx: PoolClient,
+  ): Promise<void> {
+    throw new ApplicationError('MEDIA_UNAVAILABLE');
+  }
   async resolveOwned(): Promise<Decision<ApprovedAsset[]>> {
     return { kind: 'unavailable' };
   }

@@ -1,3 +1,4 @@
+import { mediaAttachmentDescriptorSchema } from '../../media/contracts.js';
 import { z } from 'zod';
 import { categorySchema } from '../contracts.js';
 import { tradingSubtypeSchema } from '../trading/contracts.js';
@@ -5,14 +6,7 @@ const uuid = z.uuid(),
   text = z.string(),
   count = z.number().int().nonnegative(),
   bool = z.boolean();
-const media = z.strictObject({
-  assetId: uuid,
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
-  displayUrl: text,
-  thumbnailUrl: text,
-  expiresAt: text.nullable(),
-});
+const media = mediaAttachmentDescriptorSchema;
 const unavailable = z.strictObject({
   status: z.literal('unavailable'),
   value: z.null(),

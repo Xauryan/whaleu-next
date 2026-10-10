@@ -1,3 +1,8 @@
+import { UnavailableCommunityMediaAttachment } from './media/unavailable-attachment.js';
+import { MediaController } from '../media/controller.js';
+import { MEDIA_APPLICATION } from '../media/application.js';
+import { UnavailableCommunityMediaApplication } from './media/application.js';
+import { DatabaseService } from '../database/database.js';
 import { CommunityDmEntryFacade } from './dm-entry.facade.js';
 import { SemanticSearchController } from './search/semantic/controller.js';
 import {
@@ -129,7 +134,6 @@ import {
   COMMUNITY_VISIBILITY,
   CONTENT_PUBLICATION_GATE,
   MEDIA_ATTACHMENT,
-  UnavailableMedia,
 } from './community-policy.js';
 import { CommunityRepository } from './community.repository.js';
 import { CommunityAccessService } from './community-access.service.js';
@@ -274,6 +278,7 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    MediaController,
     HotController,
     ViewReportingController,
     SearchController,
@@ -306,6 +311,12 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    {
+      provide: MEDIA_APPLICATION,
+      useFactory: (database: DatabaseService, access: CommunityAccessService) =>
+        new UnavailableCommunityMediaApplication(database, access),
+      inject: [DatabaseService, CommunityAccessService],
+    },
     HotFeedService,
     HotRepository,
     ViewReportingService,
@@ -365,7 +376,10 @@ export class CommunityRecoveryController {
       provide: CONTENT_PUBLICATION_GATE,
       useExisting: LocalContentPublicationGate,
     },
-    { provide: MEDIA_ATTACHMENT, useClass: UnavailableMedia },
+    {
+      provide: MEDIA_ATTACHMENT,
+      useClass: UnavailableCommunityMediaAttachment,
+    },
   ],
 })
 export class CommunityModule {}

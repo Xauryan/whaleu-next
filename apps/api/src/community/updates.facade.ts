@@ -315,6 +315,7 @@ export class CommunityUpdatesFacade {
             target.replyId ? 'reply' : 'comment',
             content.id,
             tx,
+            recipient.accountId,
           ),
           author: await this.serializer.author(content, post, tx),
         },

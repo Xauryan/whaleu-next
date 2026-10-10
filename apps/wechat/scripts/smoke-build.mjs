@@ -1,3 +1,4 @@
+import { smokeMediaRead } from './smoke-media-read.mjs';
 import {
   assertCategoryScopedShaPackaging,
   smokeRatingCategoryScoped,
@@ -1982,6 +1983,13 @@ await smokeHot({
   postWire: pollPostWire,
 });
 await smokePublicExperience({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
+  postWire: pollPostWire,
+});
+await smokeMediaRead({
   app,
   dist,
   mountPage: mountTradingPage,

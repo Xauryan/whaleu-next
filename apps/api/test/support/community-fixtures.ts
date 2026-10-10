@@ -106,6 +106,12 @@ interface AssetRow {
   ready: boolean;
 }
 export class FixtureMedia implements MediaAttachmentPort {
+  async bind(): Promise<void> {
+    /* Legacy isolated Community policy fixture only. */
+  }
+  async detach(): Promise<void> {
+    /* No shared Media rows in this old fixture. */
+  }
   async resolveOwned(
     actor: string,
     purpose: PublicationOperation,
@@ -142,12 +148,13 @@ export class FixtureMedia implements MediaAttachmentPort {
       );
       if (!result.rowCount) return { kind: 'unavailable' };
       views.push({
+        version: 1,
+        kind: 'authenticated-media',
+        bindingId: asset.assetId,
+        variants: ['thumb-v1', 'display-v1'],
         assetId: asset.assetId,
         width: 100,
         height: 100,
-        displayUrl: `https://synthetic.invalid/media/${asset.assetId}`,
-        thumbnailUrl: `https://synthetic.invalid/thumb/${asset.assetId}`,
-        expiresAt: null,
       });
     }
     return { kind: 'allow', value: views };

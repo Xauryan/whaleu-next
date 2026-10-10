@@ -1,3 +1,5 @@
+import type { MediaAttachment } from '../media/contracts';
+import { decodeMediaAttachment } from '../media/decoders';
 import {
   checkFormationCreator,
   decodeFormationComponent,
@@ -50,14 +52,7 @@ export interface Spaces {
   readonly regional: CommunitySpace | null;
   readonly global: readonly CommunitySpace[];
 }
-export interface MediaView {
-  readonly assetId: string;
-  readonly width: number;
-  readonly height: number;
-  readonly displayUrl: string;
-  readonly thumbnailUrl: string;
-  readonly expiresAt: string | null;
-}
+export type MediaView = MediaAttachment;
 export type Author =
   | {
       readonly kind: 'named';
@@ -272,17 +267,6 @@ export function cursor(value: unknown): value is string | null {
       !/[^A-Za-z0-9_-]/.test(value))
   );
 }
-function https(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    value.length <= 4096 &&
-    /^https:\/\/[a-z0-9.-]+(?::443)?(?:\/[^\s\\]*)?$/i.test(value) &&
-    [...value].every((character) => {
-      const code = character.codePointAt(0)!;
-      return code > 32 && code !== 127;
-    })
-  );
-}
 function unique<T extends { readonly id: string }>(items: readonly T[]): void {
   if (new Set(items.map((item) => item.id)).size !== items.length) invalid();
 }
@@ -320,31 +304,7 @@ export function decodeSpaces(value: unknown): Spaces {
   return Object.freeze({ regional, global: Object.freeze(global) });
 }
 export function decodeMedia(value: unknown): MediaView {
-  exact(value, [
-    'assetId',
-    'width',
-    'height',
-    'displayUrl',
-    'thumbnailUrl',
-    'expiresAt',
-  ]);
-  if (
-    !isUuid(value.assetId) ||
-    !integer(value.width, 1, 32768) ||
-    !integer(value.height, 1, 32768) ||
-    !https(value.displayUrl) ||
-    !https(value.thumbnailUrl) ||
-    !(value.expiresAt === null || timestamp(value.expiresAt))
-  )
-    invalid();
-  return Object.freeze({
-    assetId: value.assetId,
-    width: value.width,
-    height: value.height,
-    displayUrl: value.displayUrl,
-    thumbnailUrl: value.thumbnailUrl,
-    expiresAt: value.expiresAt,
-  });
+  return decodeMediaAttachment(value);
 }
 function mediaList(value: unknown, max: number): readonly MediaView[] {
   if (!Array.isArray(value) || value.length > max) invalid();

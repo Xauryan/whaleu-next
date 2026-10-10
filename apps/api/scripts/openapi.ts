@@ -206,3 +206,25 @@ if (args[0] === '--check') {
   await writeFile(messagingArtifact, messagingRendered, 'utf8');
   console.log('Generated docs/openapi/private-messages.json.');
 }
+
+const { renderMediaOpenApiDocument } = await import('./openapi-document.js');
+const mediaArtifact = new URL(
+  '../../../../docs/openapi/media.json',
+  import.meta.url,
+);
+const mediaRendered = await renderMediaOpenApiDocument();
+if (args[0] === '--check') {
+  const existing = await readFile(mediaArtifact, 'utf8').catch(() => {
+    throw new Error(
+      'Media OpenAPI artifact missing; run npm run openapi:generate.',
+    );
+  });
+  if (existing !== mediaRendered)
+    throw new Error(
+      'Media OpenAPI artifact stale; run npm run openapi:generate.',
+    );
+  console.log('Media OpenAPI artifact is current.');
+} else {
+  await writeFile(mediaArtifact, mediaRendered, 'utf8');
+  console.log('Generated docs/openapi/media.json.');
+}

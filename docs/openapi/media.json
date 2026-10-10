@@ -1,0 +1,2555 @@
+{
+  "components": {
+    "schemas": {
+      "MediaAttachmentDescriptor": {
+        "additionalProperties": false,
+        "properties": {
+          "assetId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "bindingId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "height": {
+            "exclusiveMinimum": true,
+            "maximum": 2048,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "enum": ["authenticated-media"],
+            "type": "string"
+          },
+          "variants": {
+            "items": {
+              "anyOf": [
+                {
+                  "enum": ["thumb-v1"],
+                  "type": "string"
+                },
+                {
+                  "enum": ["display-v1"],
+                  "type": "string"
+                }
+              ]
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "version": {
+            "enum": [1],
+            "type": "number"
+          },
+          "width": {
+            "exclusiveMinimum": true,
+            "maximum": 2048,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "kind",
+          "assetId",
+          "bindingId",
+          "width",
+          "height",
+          "variants"
+        ],
+        "type": "object"
+      },
+      "SafeErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              }
+            },
+            "required": ["code", "message", "requestId"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "accessToken": {
+        "description": "Current opaque WhaleU access token required on every route. Attachment descriptors never grant access.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "",
+    "title": "WhaleU authenticated static media",
+    "version": "1"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/v1/media/bindings/{id}/{variant}": {
+      "get": {
+        "description": "Stream a current-authorized binding variant (thumb-v1 or display-v1) as fixed JPEG/PNG bytes. No original, public URL, signed read URL, redirect or Range support. Range returns 503 MEDIA_UNAVAILABLE. The v1 authenticated-media attachment descriptor identifies asset/binding only and never grants access.",
+        "operationId": "readAuthenticatedMediaVariant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "variant",
+            "required": true,
+            "schema": {
+              "enum": ["thumb-v1", "display-v1"],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Authenticated canonical image bytes; never JSON or a redirect.",
+            "headers": {
+              "accept-ranges": {
+                "schema": {
+                  "enum": ["none"],
+                  "type": "string"
+                }
+              },
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "content-length": {
+                "schema": {
+                  "pattern": "^[1-9][0-9]*$",
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              },
+              "x-content-type-options": {
+                "schema": {
+                  "enum": ["nosniff"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict validation rejects unknown query/body keys and invalid identifiers or variants.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current valid opaque bearer session required; no anonymous access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current owner or parent authority denies access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or inaccessible intent/binding; no hidden parent or storage disclosure.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_NOT_READY or command conflict; refresh intent status.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Request exceeds body size limit.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported request format.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_UNAVAILABLE: default runtime is disabled. Missing storage, transform, safety or owner authority fails closed. Range requests are unsupported and return MEDIA_UNAVAILABLE; no partial content or redirect.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Authenticated media"]
+      }
+    },
+    "/v1/media/upload-intents": {
+      "post": {
+        "description": "Prepare a single Community post-image intent (JPEG/PNG, at most 5 MiB). Declaration is untrusted; current authority and immutable measured bytes decide readiness. Default runtime returns MEDIA_UNAVAILABLE.",
+        "operationId": "prepareMediaUploadIntent",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "clientRequestId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "declaration": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "bytes": {
+                        "exclusiveMinimum": true,
+                        "maximum": 5242880,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "mime": {
+                        "enum": ["image/jpeg", "image/png"],
+                        "type": "string"
+                      }
+                    },
+                    "required": ["mime", "bytes"],
+                    "type": "object"
+                  },
+                  "draftId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "ordinal": {
+                    "enum": [0],
+                    "type": "number"
+                  },
+                  "purpose": {
+                    "enum": ["community-post-image"],
+                    "type": "string"
+                  },
+                  "slot": {
+                    "enum": ["images"],
+                    "type": "string"
+                  },
+                  "spaceId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "clientRequestId",
+                  "purpose",
+                  "draftId",
+                  "spaceId",
+                  "slot",
+                  "ordinal",
+                  "declaration"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["prepared"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["uploading"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["processing"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "assetId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["ready"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status",
+                        "assetId"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["expired"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["cancelled"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["unavailable"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Strict upload intent status; only ready includes assetId.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict validation rejects unknown query/body keys and invalid identifiers or variants.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current valid opaque bearer session required; no anonymous access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current owner or parent authority denies access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or inaccessible intent/binding; no hidden parent or storage disclosure.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_NOT_READY or command conflict; refresh intent status.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Request exceeds body size limit.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported request format.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_UNAVAILABLE: default runtime is disabled. Missing storage, transform, safety or owner authority fails closed. Range requests are unsupported and return MEDIA_UNAVAILABLE; no partial content or redirect.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Authenticated media"]
+      }
+    },
+    "/v1/media/upload-intents/{id}": {
+      "get": {
+        "description": "Read the current owner-scoped status union. Only ready includes assetId; ready does not grant parent binding or read authorization.",
+        "operationId": "readMediaUploadIntent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["prepared"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["uploading"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["processing"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "assetId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["ready"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status",
+                        "assetId"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["expired"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["cancelled"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["unavailable"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Strict upload intent status; only ready includes assetId.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict validation rejects unknown query/body keys and invalid identifiers or variants.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current valid opaque bearer session required; no anonymous access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current owner or parent authority denies access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or inaccessible intent/binding; no hidden parent or storage disclosure.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_NOT_READY or command conflict; refresh intent status.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Request exceeds body size limit.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported request format.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_UNAVAILABLE: default runtime is disabled. Missing storage, transform, safety or owner authority fails closed. Range requests are unsupported and return MEDIA_UNAVAILABLE; no partial content or redirect.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Authenticated media"]
+      }
+    },
+    "/v1/media/upload-intents/{id}/cancel": {
+      "post": {
+        "description": "Cancel the owner-scoped upload intent. Empty JSON object required; cancellation does not expose or authorize stored objects.",
+        "operationId": "cancelMediaUploadIntent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Intent cancelled; no response body.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict validation rejects unknown query/body keys and invalid identifiers or variants.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current valid opaque bearer session required; no anonymous access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current owner or parent authority denies access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or inaccessible intent/binding; no hidden parent or storage disclosure.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_NOT_READY or command conflict; refresh intent status.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Request exceeds body size limit.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported request format.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_UNAVAILABLE: default runtime is disabled. Missing storage, transform, safety or owner authority fails closed. Range requests are unsupported and return MEDIA_UNAVAILABLE; no partial content or redirect.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Authenticated media"]
+      }
+    },
+    "/v1/media/upload-intents/{id}/finalize": {
+      "post": {
+        "description": "Finalize the exact immutable upload under current owner authority. Empty JSON object required; no client manifest, URL or storage locator is accepted.",
+        "operationId": "finalizeMediaUploadIntent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["prepared"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["uploading"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["processing"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "assetId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["ready"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status",
+                        "assetId"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["expired"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["cancelled"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "MEDIA_REJECTED",
+                            "MEDIA_EXPIRED",
+                            "MEDIA_CANCELLED",
+                            "MEDIA_UNAVAILABLE"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": ["unavailable"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "intentId",
+                        "expiresAt",
+                        "reasonCode",
+                        "retryable",
+                        "status"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Strict upload intent status; only ready includes assetId.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict validation rejects unknown query/body keys and invalid identifiers or variants.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current valid opaque bearer session required; no anonymous access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current owner or parent authority denies access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or inaccessible intent/binding; no hidden parent or storage disclosure.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_NOT_READY or command conflict; refresh intent status.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Request exceeds body size limit.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported request format.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_UNAVAILABLE: default runtime is disabled. Missing storage, transform, safety or owner authority fails closed. Range requests are unsupported and return MEDIA_UNAVAILABLE; no partial content or redirect.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Authenticated media"]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

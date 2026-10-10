@@ -48,9 +48,10 @@ test('strict tagged anonymous projections reject identity leakage recursively', 
         assetId: otherId,
         width: 2,
         height: 2,
-        displayUrl: 'https://media.example/a',
-        thumbnailUrl: 'https://media.example/b',
-        expiresAt: null,
+        version: 1,
+        kind: 'authenticated-media',
+        bindingId: otherId,
+        variants: ['thumb-v1', 'display-v1'],
         ownerId: otherId,
       },
     }),
@@ -62,29 +63,43 @@ test('strict tagged anonymous projections reject identity leakage recursively', 
     false,
   );
 });
-test('media only accepts exact safe HTTPS views and bounded dimensions, never paths or arbitrary schemes', () => {
+test('media accepts only authenticated binding descriptors, never legacy URLs or endpoint overrides', () => {
   const media = {
+    version: 1,
+    kind: 'authenticated-media',
     assetId: otherId,
+    bindingId: spaceId,
     width: 200,
     height: 300,
-    displayUrl: 'https://media.example/a',
-    thumbnailUrl: 'https://media.example/b?sig=abc',
-    expiresAt: createdAt,
+    variants: ['thumb-v1', 'display-v1'],
   };
   assert.deepEqual(decodeMedia(media), media);
-  for (const url of [
-    'http://media.example/a',
-    'javascript:alert(1)',
-    'file:///tmp/a',
-    'https://u:p@media.example/a',
-    'https://media.example\\evil/a',
-    'https://media.example/a\n',
+  for (const extra of [
+    { displayUrl: 'https://media.example/a' },
+    { thumbnailUrl: 'https://media.example/b' },
+    { endpoint: '/v1/media/bindings/anything/content' },
+    { expiresAt: createdAt },
   ])
-    assert.throws(() => decodeMedia({ ...media, displayUrl: url }));
-  for (const width of [0, -1, 1.5, 32769, '200'])
+    assert.throws(() => decodeMedia({ ...media, ...extra }));
+  for (const width of [0, -1, 1.5, 2049, '200'])
     assert.throws(() => decodeMedia({ ...media, width }));
+  for (const variants of [
+    ['display-v1', 'thumb-v1'],
+    ['thumb-v1'],
+    ['thumb-v1', 'display-v1', 'original'],
+  ])
+    assert.throws(() => decodeMedia({ ...media, variants }));
+  assert.throws(() => decodeMedia({ ...media, bindingId: 'not-a-uuid' }));
+  assert.throws(() => decodeMedia({ ...media, kind: 'public-media' }));
   assert.throws(() =>
-    decodeMedia({ ...media, expiresAt: '2026-02-31T00:00:00.000Z' }),
+    decodeMedia({
+      assetId: otherId,
+      width: 200,
+      height: 300,
+      displayUrl: 'https://media.example/a',
+      thumbnailUrl: 'https://media.example/b',
+      expiresAt: null,
+    }),
   );
 });
 test('feed, comments, spaces and recovery contracts reject forged variants and pagination', () => {

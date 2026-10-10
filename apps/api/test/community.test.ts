@@ -236,7 +236,7 @@ test('ordinary dependency adapters always fail closed', async () => {
   });
 });
 
-test('media projection rejects malformed expiry, credentials, controls, asset substitution and dimensions', async () => {
+test('media projection rejects legacy URLs, wrong variants, asset substitution and dimensions', async () => {
   const { CommunitySerializer } =
     await import('../src/community/community-serialization.js');
   const assetId = randomUUID();
@@ -247,9 +247,10 @@ test('media projection rejects malformed expiry, credentials, controls, asset su
     assetId,
     width: 100,
     height: 100,
-    displayUrl: 'https://synthetic.invalid/full',
-    thumbnailUrl: 'https://synthetic.invalid/thumb',
-    expiresAt: null,
+    version: 1 as const,
+    kind: 'authenticated-media' as const,
+    bindingId: randomUUID(),
+    variants: ['thumb-v1', 'display-v1'] as ['thumb-v1', 'display-v1'],
   };
   for (const change of [
     { expiresAt: '2099-99-99T00:00:00.000Z' },
@@ -267,6 +268,8 @@ test('media projection rejects malformed expiry, credentials, controls, asset su
         value: [{ ...view, ...change }],
       }),
       resolveOwned: async () => ({ kind: 'unavailable' as const }),
+      bind: async () => undefined,
+      detach: async () => undefined,
     };
     const serializer = new CommunitySerializer(
       {} as import('../src/community/saved/repository.js').SavedRepository,
@@ -279,7 +282,12 @@ test('media projection rejects malformed expiry, credentials, controls, asset su
       {} as import('../src/community/trading/repository.js').TradingRepository,
     );
     await assert.rejects(
-      serializer.images('post', randomUUID(), {} as import('pg').PoolClient),
+      serializer.images(
+        'post',
+        randomUUID(),
+        {} as import('pg').PoolClient,
+        randomUUID(),
+      ),
       code('MEDIA_UNAVAILABLE'),
     );
   }

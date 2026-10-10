@@ -15,7 +15,7 @@
       <view class="section-title">{{item.reason === 'saved' ? '收藏帖的新评论' : item.kind === 'root' ? '你的帖子有新评论' : '与你有关的新回复'}}</view>
       <view class="author">{{item.preview.author.displayName}}<template wx:if="{{item.preview.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.preview.author.experienceDisplay,colors:experienceColorStyles}}" /><text class="badge">{{item.preview.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text></view>
       <view class="body">{{item.preview.text}}</view><template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[item.target.replyId || item.target.commentId]}}" />
-      <view class="image-grid"><image wx:for="{{item.preview.images}}" wx:for-item="media" wx:key="assetId" src="{{media.thumbnailUrl}}" mode="aspectFill" /></view>
+      <view wx:if="{{item.preview.images.length}}" class="notice">图片暂不可用，等待安全下载接入</view>
       <button data-id="{{item.noticeId}}" bindtap="onOpen" disabled="{{busy}}">{{item.kind === 'reply' ? '查看这条新回复' : '查看这条新评论'}}</button>
     </block>
     <view wx:else class="notice">此条更新的内容当前不可查看</view>

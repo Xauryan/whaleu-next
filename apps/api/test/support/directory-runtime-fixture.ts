@@ -9,6 +9,7 @@ import { Pool } from 'pg';
 import type { PoolClient } from 'pg';
 import { AppModule } from '../../src/app.module.js';
 import { loadConfig } from '../../src/config/config.js';
+import type { RuntimeConfig } from '../../src/config/config.js';
 import {
   poolOptions,
   supportedPostgresVersion,
@@ -29,7 +30,12 @@ import {
 } from './community-scope-fixtures.js';
 import { migrationSchemaNames } from './migration-schemas.js';
 
-export async function directoryRuntimeFixture(maximumMigration?: number) {
+export async function directoryRuntimeFixture(
+  maximumMigration?: number,
+  options: {
+    createApp?: (config: RuntimeConfig) => Promise<INestApplication>;
+  } = {},
+) {
   const database = process.env['TEST_DATABASE_URL'];
   assert.ok(
     database,
@@ -121,9 +127,9 @@ export async function directoryRuntimeFixture(maximumMigration?: number) {
       ),
       { mode: 'up' },
     );
-    app = await NestFactory.create(AppModule.register(config), {
-      logger: false,
-    });
+    app = options.createApp
+      ? await options.createApp(config)
+      : await NestFactory.create(AppModule.register(config), { logger: false });
     configureHttp(app);
     await app.listen(0, '127.0.0.1');
     const runtime = app,

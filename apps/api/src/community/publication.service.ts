@@ -67,9 +67,11 @@ export class PublicationService {
     images: ApprovedAsset[];
     approval: AcceptedApproval | undefined;
   }> {
+    if (ids.length && !envelope)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
     const images = ids.length
       ? requireDecision(
-          await this.media.resolveOwned(actor, purpose, ids, tx),
+          await this.media.resolveOwned(actor, purpose, ids, tx, envelope!),
           'MEDIA_UNAVAILABLE',
         )
       : [];
@@ -102,11 +104,13 @@ export class PublicationService {
     kind: 'post' | 'comment' | 'reply',
     id: string,
     tx: PoolClient,
+    images: ApprovedAsset[],
   ) {
     if (this.content.bind) {
       if (!approval) throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
       await this.content.bind(approval, kind, id, tx);
     }
+    if (images.length) await this.media.bind(images, kind, id, tx);
   }
   scope(authority: Authority, spaceId: string, regionId: string | null) {
     if (authority.runtime && !authority.publicationScope)
@@ -244,7 +248,7 @@ export class PublicationService {
         if (body.component?.kind === 'formation') {
           await this.formations.create(id, actor, body.component, tx);
         }
-        await this.bind(approval, 'post', id, tx);
+        await this.bind(approval, 'post', id, tx, images);
         await this.repository.event(
           `post:${id}:created`,
           'post_created',
@@ -341,7 +345,7 @@ export class PublicationService {
         if (effectiveMode === 'anonymous')
           await this.repository.persona(postId, actor, tx);
         await this.repository.attach('comment', id, images, tx);
-        await this.bind(approval, 'comment', id, tx);
+        await this.bind(approval, 'comment', id, tx, images);
         await this.repository.event(
           `comment:${id}:created`,
           'comment_created',

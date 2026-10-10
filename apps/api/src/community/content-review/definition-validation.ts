@@ -228,10 +228,11 @@ export function reconstructDefinition(
 export function definitionMatchesApproval(
   stored: CurrentContent,
   accepted: { digest: string; envelope: EffectiveContentEnvelope },
+  currentMediaProved = false,
 ): boolean {
   return (
     approvalDigest(stored.envelope) === accepted.digest &&
     canonicalEqual(stored.envelope, accepted.envelope) &&
-    !stored.envelope.images.length
+    (!stored.envelope.images.length || currentMediaProved)
   );
 }

@@ -740,3 +740,79 @@ export async function renderMessagingOpenApiDocument() {
     parser: 'json',
   });
 }
+
+/** Offline-only Media contract: no runtime module, database or provider graph. */
+export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
+  const { MediaController } = await import('../src/media/controller.js');
+  const { MEDIA_APPLICATION } = await import('../src/media/application.js');
+  const { mediaAttachmentDescriptorSchema } =
+    await import('../src/media/contracts.js');
+  const { z } = await import('zod');
+  for (const method of ['prepare', 'status', 'finalize', 'cancel', 'download'])
+    if (
+      !Reflect.hasMetadata(
+        PARAMTYPES_METADATA,
+        MediaController.prototype,
+        method,
+      )
+    )
+      throw new Error(
+        'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+      );
+  const fail = () => {
+    throw new Error('OpenAPI must not execute application work');
+  };
+  const testing = await Test.createTestingModule({
+    controllers: [MediaController],
+    providers: [
+      {
+        provide: MEDIA_APPLICATION,
+        useValue: {
+          prepare: fail,
+          status: fail,
+          finalize: fail,
+          cancel: fail,
+          open: fail,
+        },
+      },
+    ],
+  }).compile();
+  const app = testing.createNestApplication({ logger: false });
+  try {
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setOpenAPIVersion('3.0.3')
+        .setTitle('WhaleU authenticated static media')
+        .setVersion('1')
+        .addSecurity('accessToken', {
+          type: 'http',
+          scheme: 'bearer',
+          description:
+            'Current opaque WhaleU access token required on every route. Attachment descriptors never grant access.',
+        })
+        .build(),
+      {
+        deepScanRoutes: false,
+        autoTagControllers: false,
+        excludeDynamicDefaults: true,
+      },
+    );
+    // Shared owner projection, not a fictitious response from an intent route.
+    // Derive it from the exact runtime Zod schema with the official converter.
+    document.components ??= {};
+    document.components.schemas ??= {};
+    document.components.schemas['MediaAttachmentDescriptor'] = z.toJSONSchema(
+      mediaAttachmentDescriptorSchema,
+      { target: 'openapi-3.0', io: 'output' },
+    ) as NonNullable<
+      NonNullable<OpenAPIObject['components']>['schemas']
+    >[string];
+    return document;
+  } finally {
+    await app.close();
+  }
+}
+export async function renderMediaOpenApiDocument(): Promise<string> {
+  return renderDocument(await createMediaOpenApiDocument());
+}

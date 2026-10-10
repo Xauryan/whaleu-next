@@ -75,11 +75,16 @@ export function configureHttp(app: INestApplication): void {
     const requestId = randomUUID();
     const started = performance.now();
     response.setHeader('x-request-id', requestId);
-    response.setHeader('cache-control', 'no-store');
+    response.setHeader(
+      'cache-control',
+      /^\/v1\/media(?:\/|$)/.test(request.path)
+        ? 'private, no-store'
+        : 'no-store',
+    );
     // Announcement parser failures occur before guards; keep optional-auth
     // cache separation on these error responses too.
     if (
-      /^\/v1\/(?:me\/)?(?:announcements|errands|errand-notices|errand-requests|ratings)(?:\/|$)/.test(
+      /^\/v1\/(?:me\/)?(?:announcements|errands|errand-notices|errand-requests|ratings|media)(?:\/|$)/.test(
         request.path,
       ) ||
       /^\/v1\/admin\/errands(?:\/|$)/.test(request.path)

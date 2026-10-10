@@ -1142,9 +1142,9 @@ test(
           await like('post', expiring.id);
           const serializer = app!.get(CommunitySerializer),
             original = serializer.images;
-          serializer.images = async function (kind, id, tx) {
+          serializer.images = async function (kind, id, tx, viewer) {
             if (id === expiring.id) await sleep(2100);
-            return original.call(this, kind, id, tx);
+            return original.call(this, kind, id, tx, viewer);
           };
           try {
             const response = await list();

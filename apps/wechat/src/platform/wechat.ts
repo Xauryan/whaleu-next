@@ -1,3 +1,4 @@
+import type { WxMediaApi } from './wechat-media';
 import { ClientError, isRecord } from '../api/errors';
 import type {
   Clock,
@@ -19,7 +20,7 @@ export interface WxIntersectionObserver {
   ): void;
   disconnect(): void;
 }
-export interface WxApi {
+export interface WxApi extends WxMediaApi {
   nextTick?(callback: () => void): void;
   createIntersectionObserver?(
     page: object,

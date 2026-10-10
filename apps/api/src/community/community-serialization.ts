@@ -1,3 +1,4 @@
+import { mediaAttachmentDescriptorSchema } from '../media/contracts.js';
 import { SavedRepository } from './saved/repository.js';
 import { FormationService } from './formation/service.js';
 import { TradingRepository } from './trading/repository.js';
@@ -87,41 +88,35 @@ export class CommunitySerializer {
     kind: 'post' | 'comment' | 'reply',
     id: string,
     tx: PoolClient,
+    viewer: string | null,
   ): Promise<MediaView[]> {
     const assets = await this.repository.images(kind, id, tx);
     if (!assets.length) return [];
     const views = requireDecision(
-      await this.media.display(assets, tx),
+      await this.media.display(assets, tx, {
+        viewerAccountId: viewer,
+        parent: {
+          ownerKind: 'community',
+          resourceKind: kind,
+          resourceId: id,
+          contentVersion: 1,
+        },
+        purpose: 'list-projection',
+      }),
       'MEDIA_UNAVAILABLE',
     );
     if (
       views.length !== assets.length ||
-      views.some(
-        (view, index) =>
-          view.assetId !== assets[index]?.assetId ||
-          !Number.isInteger(view.width) ||
-          !Number.isInteger(view.height) ||
-          view.width < 1 ||
-          view.height < 1 ||
-          view.width > 20000 ||
-          view.height > 20000 ||
-          !safeUrl(view.displayUrl) ||
-          !safeUrl(view.thumbnailUrl) ||
-          !safeExpiration(view.expiresAt),
-      )
+      views.some((view, index) => view.assetId !== assets[index]?.assetId)
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
-    return views.map(
-      ({ assetId, width, height, displayUrl, thumbnailUrl, expiresAt }) => ({
-        assetId,
-        width,
-        height,
-        displayUrl,
-        thumbnailUrl,
-        expiresAt,
-      }),
-    );
+    return views.map((view) => {
+      const parsed = mediaAttachmentDescriptorSchema.safeParse(view);
+      if (!parsed.success) throw new ApplicationError('MEDIA_UNAVAILABLE');
+      return parsed.data;
+    });
   }
+
   async post(
     post: StoredPost,
     space: CommunitySpace,
@@ -196,7 +191,7 @@ export class CommunitySerializer {
       space: { id: space.id, kind: space.kind, name: space.name },
       category: post.category,
       text: post.text,
-      images: await this.images('post', post.id, tx),
+      images: await this.images('post', post.id, tx, viewer),
       author: await this.author(post, post, tx),
       publishedAt: post.published_at.toISOString(),
       likeCount: likes.rows[0]!.count,
@@ -248,7 +243,7 @@ export class CommunitySerializer {
       id: comment.id,
       postId: post.id,
       text: comment.text,
-      images: await this.images('comment', comment.id, tx),
+      images: await this.images('comment', comment.id, tx, viewer),
       likeCount: likes.count,
       replyCount: replies.length,
       isPinned,
@@ -344,7 +339,7 @@ export class CommunitySerializer {
       rootCommentId: root.id,
       target,
       text: reply.text,
-      images: await this.images('reply', reply.id, tx),
+      images: await this.images('reply', reply.id, tx, viewer),
       author: await this.author(reply, post, tx),
       createdAt: reply.created_at.toISOString(),
       likeCount: likes.count,
@@ -390,31 +385,4 @@ export class CommunitySerializer {
           : null,
     };
   }
-}
-function safeUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (
-      url.protocol === 'https:' &&
-      !url.username &&
-      !url.password &&
-      !/\s/u.test(value) &&
-      [...value].every((character) => {
-        const code = character.codePointAt(0)!;
-        return code >= 32 && !(code >= 127 && code <= 159);
-      })
-    );
-  } catch {
-    return false;
-  }
-}
-
-function safeExpiration(value: string | null): boolean {
-  if (value === null) return true;
-  const epoch = Date.parse(value);
-  return (
-    Number.isFinite(epoch) &&
-    epoch > Date.now() &&
-    new Date(epoch).toISOString() === value
-  );
 }

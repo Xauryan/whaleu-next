@@ -9,7 +9,7 @@
   <view wx:for="{{items}}" wx:key="likeId" class="card">
     <view class="author"><text wx:if="{{item.preview.author.kind === 'named'}}" class="link" data-id="{{item.likeId}}" bindtap="onAuthor">{{item.preview.author.displayName}} →</text><text wx:else>{{item.preview.author.displayName}}</text><template wx:if="{{item.preview.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.preview.author.experienceDisplay,colors:experienceColorStyles}}" /><text class="badge">{{item.preview.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text><text wx:if="{{item.preview.isSelf}}" class="badge">我</text></view>
     <view class="meta">{{item.kind === 'post' ? '帖子' : item.kind === 'comment' ? '根评论' : '回复'}} · 点赞时间：{{item.likedAt === null ? '时间未知' : item.likedAt}}</view>
-    <view class="body"><text>{{item.preview.text}}</text></view><view class="image-grid"><image wx:for="{{item.preview.images}}" wx:for-item="media" wx:key="assetId" src="{{media.thumbnailUrl}}" mode="aspectFill" /></view>
+    <view class="body"><text>{{item.preview.text}}</text></view><view wx:if="{{item.preview.images.length}}" class="notice">图片暂不可用，等待安全下载接入</view>
     <navigator wx:if="{{item.kind === 'post'}}" class="link" url="/pages/community-detail/community-detail?postId={{item.postId}}">查看帖子 →</navigator>
     <navigator wx:elif="{{item.kind === 'comment'}}" class="link" url="/pages/community-detail/community-detail?postId={{item.postId}}&amp;rootCommentId={{item.rootCommentId}}">定位根评论 →</navigator>
     <navigator wx:else class="link" url="/pages/community-thread/community-thread?postId={{item.postId}}&amp;rootCommentId={{item.rootCommentId}}&amp;replyId={{item.targetId}}">定位回复 →</navigator>

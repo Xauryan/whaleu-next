@@ -226,6 +226,7 @@ export class LikedHistoryService {
                 candidate.kind,
                 target.id,
                 tx,
+                actor,
               ),
               author: await this.serializer.author(target, post, tx),
               createdAt: ('published_at' in target

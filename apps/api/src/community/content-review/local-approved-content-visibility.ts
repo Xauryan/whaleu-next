@@ -1,3 +1,8 @@
+import {
+  CONTENT_MEDIA_PROOF,
+  UnavailableContentMediaProof,
+} from './media-proof.js';
+import type { ContentMediaProof } from './media-proof.js';
 import type { SearchReadContext } from './search-read-context.js';
 import type { ApprovalBinding } from './approval.repository.js';
 const canonicalOwner = {};
@@ -23,6 +28,8 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
     @Inject(ApprovalRepository) private readonly approvals: ApprovalRepository,
     @Inject(ContentDefinitionRepository)
     private readonly definitions: ContentDefinitionRepository,
+    @Inject(CONTENT_MEDIA_PROOF)
+    private readonly media: ContentMediaProof = new UnavailableContentMediaProof(),
   ) {}
   private async visible(
     kind: ContentKind,
@@ -30,16 +37,17 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
     tx: PoolClient,
     visited: Set<string>,
     read?: SearchReadContext,
+    currentMediaAllowed = true,
   ): Promise<Decision<CanonicalProof>> {
     if (read)
       return read.read(
         canonicalOwner,
-        `${kind}:${id}:1`,
+        `${kind}:${id}:1:${currentMediaAllowed ? 'media-current' : 'text-only'}`,
         tx,
-        () => this.prove(kind, id, tx, visited, read),
+        () => this.prove(kind, id, tx, visited, read, currentMediaAllowed),
         (result) => result.kind === 'allow',
       );
-    return this.prove(kind, id, tx, visited);
+    return this.prove(kind, id, tx, visited, undefined, currentMediaAllowed);
   }
   private async prove(
     kind: ContentKind,
@@ -47,6 +55,7 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
     tx: PoolClient,
     visited: Set<string>,
     read?: SearchReadContext,
+    currentMediaAllowed = true,
   ): Promise<Decision<CanonicalProof>> {
     const key = `${kind}:${id}`;
     if (visited.has(key)) return { kind: 'unavailable' };
@@ -63,7 +72,19 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
       read,
     );
     if (stored.kind !== 'allow') return stored;
-    if (!definitionMatchesApproval(stored.value, accepted.value))
+    const images = stored.value.envelope.images;
+    if (images.length && !currentMediaAllowed) return { kind: 'unavailable' };
+    if (images.length) {
+      const decision = await this.media.current(kind, id, images, tx);
+      if (decision.kind !== 'allow') return decision;
+    }
+    if (
+      !definitionMatchesApproval(
+        stored.value,
+        accepted.value,
+        images.length > 0,
+      )
+    )
       return { kind: 'unavailable' };
     for (const parent of stored.value.parents) {
       // A post reached again via its root is already checked in this traversal.
@@ -74,6 +95,7 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
         tx,
         visited,
         read,
+        currentMediaAllowed,
       );
       if (decision.kind !== 'allow') return decision;
     }
@@ -92,6 +114,7 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
     tx: PoolClient,
     _purpose: VisibilityPurpose,
     read?: SearchReadContext,
+    currentMediaAllowed = true,
   ): Promise<Decision> {
     const typed = subject as VisibilitySubject & {
       contentKind?: ContentKind;
@@ -110,6 +133,7 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
         tx,
         new Set(),
         read,
+        currentMediaAllowed,
       );
       if (result.kind !== 'allow') return result;
       const binding = read

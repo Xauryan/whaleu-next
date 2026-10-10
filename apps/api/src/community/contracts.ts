@@ -113,14 +113,8 @@ export interface CommunitySpace {
   isActive: boolean;
   operatingRegionId: string | null;
 }
-export interface MediaView {
-  assetId: string;
-  width: number;
-  height: number;
-  displayUrl: string;
-  thumbnailUrl: string;
-  expiresAt: string | null;
-}
+export type MediaView =
+  import('../media/contracts.js').MediaAttachmentDescriptor;
 export type AuthorView =
   | {
       kind: 'named';

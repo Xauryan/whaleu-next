@@ -1,3 +1,7 @@
+import {
+  CONTENT_MEDIA_PROOF,
+  UnavailableContentMediaProof,
+} from './media-proof.js';
 import { RatingScopedContentReviewFacade } from './rating-scoped-content-review.facade.js';
 import { DmContentReviewFacade } from './dm-content-review.facade.js';
 import { RatingCategoryContentReviewFacade } from './rating-category-content-review.facade.js';
@@ -14,6 +18,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
 @Module({
   imports: [CampusModule],
   providers: [
+    { provide: CONTENT_MEDIA_PROOF, useClass: UnavailableContentMediaProof },
     DmContentReviewFacade,
     RatingContentReviewFacade,
     RatingScopedContentReviewFacade,

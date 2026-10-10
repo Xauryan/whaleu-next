@@ -39,3 +39,11 @@
   word-break: break-all;
   box-shadow: 0 20rpx 70rpx rgba(17, 40, 48, 0.2);
 }
+
+.private-image-inline {
+  width: 360rpx;
+  max-width: 100%;
+}
+.private-image-expanded {
+  width: 100%;
+}

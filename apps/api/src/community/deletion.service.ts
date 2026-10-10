@@ -1,3 +1,5 @@
+import { MEDIA_ATTACHMENT } from './community-policy.js';
+import type { MediaAttachmentPort } from './community-policy.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { ApplicationError } from '../http/application-error.js';
 import { CommunityRepository } from './community.repository.js';
@@ -11,6 +13,7 @@ export class DeletionService {
     private readonly repository: CommunityRepository,
     @Inject(CommunityAccessService)
     private readonly access: CommunityAccessService,
+    @Inject(MEDIA_ATTACHMENT) private readonly media: MediaAttachmentPort,
   ) {}
   post(token: string, id: string): Promise<void> {
     return this.repository.database.transaction(async (tx) => {
@@ -25,6 +28,8 @@ export class DeletionService {
         "UPDATE whaleu_community.posts SET deleted_at=date_trunc('milliseconds',clock_timestamp()) WHERE id=$1",
         [id],
       );
+      if ((await this.repository.images('post', id, tx)).length)
+        await this.media.detach('post', id, tx);
       await this.repository.event(
         `post:${id}:deleted`,
         'post_deleted',
@@ -70,6 +75,8 @@ export class DeletionService {
         "UPDATE whaleu_community.root_comments SET deleted_at=date_trunc('milliseconds',clock_timestamp()) WHERE id=$1",
         [id],
       );
+      if ((await this.repository.images('comment', id, tx)).length)
+        await this.media.detach('comment', id, tx);
       await this.repository.event(
         `comment:${id}:deleted`,
         'comment_deleted',

@@ -354,6 +354,7 @@ export class ContentReviewSearchEligibilityFacade {
         tx,
         'list_projection',
         read,
+        false, // Persisted text certificates do not bind Media safety revisions.
       );
       if (checked.kind === 'unavailable') return { decision: 'unknown' };
       const evaluated = validateApprovalMetadata(

@@ -47,36 +47,57 @@
                         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                         "type": "string"
                       },
-                      "displayUrl": {
-                        "type": "string"
-                      },
-                      "expiresAt": {
-                        "nullable": true,
+                      "bindingId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                         "type": "string"
                       },
                       "height": {
                         "exclusiveMinimum": true,
-                        "maximum": 9007199254740991,
+                        "maximum": 2048,
                         "minimum": 0,
                         "type": "integer"
                       },
-                      "thumbnailUrl": {
+                      "kind": {
+                        "enum": ["authenticated-media"],
                         "type": "string"
+                      },
+                      "variants": {
+                        "items": {
+                          "anyOf": [
+                            {
+                              "enum": ["thumb-v1"],
+                              "type": "string"
+                            },
+                            {
+                              "enum": ["display-v1"],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
+                      },
+                      "version": {
+                        "enum": [1],
+                        "type": "number"
                       },
                       "width": {
                         "exclusiveMinimum": true,
-                        "maximum": 9007199254740991,
+                        "maximum": 2048,
                         "minimum": 0,
                         "type": "integer"
                       }
                     },
                     "required": [
+                      "version",
+                      "kind",
                       "assetId",
+                      "bindingId",
                       "width",
                       "height",
-                      "displayUrl",
-                      "thumbnailUrl",
-                      "expiresAt"
+                      "variants"
                     ],
                     "type": "object"
                   },
@@ -239,36 +260,57 @@
                         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                         "type": "string"
                       },
-                      "displayUrl": {
-                        "type": "string"
-                      },
-                      "expiresAt": {
-                        "nullable": true,
+                      "bindingId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                         "type": "string"
                       },
                       "height": {
                         "exclusiveMinimum": true,
-                        "maximum": 9007199254740991,
+                        "maximum": 2048,
                         "minimum": 0,
                         "type": "integer"
                       },
-                      "thumbnailUrl": {
+                      "kind": {
+                        "enum": ["authenticated-media"],
                         "type": "string"
+                      },
+                      "variants": {
+                        "items": {
+                          "anyOf": [
+                            {
+                              "enum": ["thumb-v1"],
+                              "type": "string"
+                            },
+                            {
+                              "enum": ["display-v1"],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
+                      },
+                      "version": {
+                        "enum": [1],
+                        "type": "number"
                       },
                       "width": {
                         "exclusiveMinimum": true,
-                        "maximum": 9007199254740991,
+                        "maximum": 2048,
                         "minimum": 0,
                         "type": "integer"
                       }
                     },
                     "required": [
+                      "version",
+                      "kind",
                       "assetId",
+                      "bindingId",
                       "width",
                       "height",
-                      "displayUrl",
-                      "thumbnailUrl",
-                      "expiresAt"
+                      "variants"
                     ],
                     "type": "object"
                   },
@@ -496,36 +538,57 @@
                                           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                                           "type": "string"
                                         },
-                                        "displayUrl": {
-                                          "type": "string"
-                                        },
-                                        "expiresAt": {
-                                          "nullable": true,
+                                        "bindingId": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                                           "type": "string"
                                         },
                                         "height": {
                                           "exclusiveMinimum": true,
-                                          "maximum": 9007199254740991,
+                                          "maximum": 2048,
                                           "minimum": 0,
                                           "type": "integer"
                                         },
-                                        "thumbnailUrl": {
+                                        "kind": {
+                                          "enum": ["authenticated-media"],
                                           "type": "string"
+                                        },
+                                        "variants": {
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "enum": ["thumb-v1"],
+                                                "type": "string"
+                                              },
+                                              {
+                                                "enum": ["display-v1"],
+                                                "type": "string"
+                                              }
+                                            ]
+                                          },
+                                          "maxItems": 2,
+                                          "minItems": 2,
+                                          "type": "array"
+                                        },
+                                        "version": {
+                                          "enum": [1],
+                                          "type": "number"
                                         },
                                         "width": {
                                           "exclusiveMinimum": true,
-                                          "maximum": 9007199254740991,
+                                          "maximum": 2048,
                                           "minimum": 0,
                                           "type": "integer"
                                         }
                                       },
                                       "required": [
+                                        "version",
+                                        "kind",
                                         "assetId",
+                                        "bindingId",
                                         "width",
                                         "height",
-                                        "displayUrl",
-                                        "thumbnailUrl",
-                                        "expiresAt"
+                                        "variants"
                                       ],
                                       "type": "object"
                                     },
@@ -688,36 +751,57 @@
                                           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                                           "type": "string"
                                         },
-                                        "displayUrl": {
-                                          "type": "string"
-                                        },
-                                        "expiresAt": {
-                                          "nullable": true,
+                                        "bindingId": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                                           "type": "string"
                                         },
                                         "height": {
                                           "exclusiveMinimum": true,
-                                          "maximum": 9007199254740991,
+                                          "maximum": 2048,
                                           "minimum": 0,
                                           "type": "integer"
                                         },
-                                        "thumbnailUrl": {
+                                        "kind": {
+                                          "enum": ["authenticated-media"],
                                           "type": "string"
+                                        },
+                                        "variants": {
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "enum": ["thumb-v1"],
+                                                "type": "string"
+                                              },
+                                              {
+                                                "enum": ["display-v1"],
+                                                "type": "string"
+                                              }
+                                            ]
+                                          },
+                                          "maxItems": 2,
+                                          "minItems": 2,
+                                          "type": "array"
+                                        },
+                                        "version": {
+                                          "enum": [1],
+                                          "type": "number"
                                         },
                                         "width": {
                                           "exclusiveMinimum": true,
-                                          "maximum": 9007199254740991,
+                                          "maximum": 2048,
                                           "minimum": 0,
                                           "type": "integer"
                                         }
                                       },
                                       "required": [
+                                        "version",
+                                        "kind",
                                         "assetId",
+                                        "bindingId",
                                         "width",
                                         "height",
-                                        "displayUrl",
-                                        "thumbnailUrl",
-                                        "expiresAt"
+                                        "variants"
                                       ],
                                       "type": "object"
                                     },
@@ -864,36 +948,57 @@
                   "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                   "type": "string"
                 },
-                "displayUrl": {
-                  "type": "string"
-                },
-                "expiresAt": {
-                  "nullable": true,
+                "bindingId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                   "type": "string"
                 },
                 "height": {
                   "exclusiveMinimum": true,
-                  "maximum": 9007199254740991,
+                  "maximum": 2048,
                   "minimum": 0,
                   "type": "integer"
                 },
-                "thumbnailUrl": {
+                "kind": {
+                  "enum": ["authenticated-media"],
                   "type": "string"
+                },
+                "variants": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "enum": ["thumb-v1"],
+                        "type": "string"
+                      },
+                      {
+                        "enum": ["display-v1"],
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "version": {
+                  "enum": [1],
+                  "type": "number"
                 },
                 "width": {
                   "exclusiveMinimum": true,
-                  "maximum": 9007199254740991,
+                  "maximum": 2048,
                   "minimum": 0,
                   "type": "integer"
                 }
               },
               "required": [
+                "version",
+                "kind",
                 "assetId",
+                "bindingId",
                 "width",
                 "height",
-                "displayUrl",
-                "thumbnailUrl",
-                "expiresAt"
+                "variants"
               ],
               "type": "object"
             },

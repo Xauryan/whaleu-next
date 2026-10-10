@@ -154,7 +154,7 @@ export class ReplyPublicationService {
           [id, post.id, root.id, body.targetReplyId, actor, body.text, mode],
         );
         await this.repository.attach('reply', id, assets, tx);
-        await this.approval.bind(approval, 'reply', id, tx);
+        await this.approval.bind(approval, 'reply', id, tx, assets);
         await this.repository.event(
           `reply:${id}:created`,
           'reply_created',
