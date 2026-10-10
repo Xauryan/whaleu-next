@@ -1,4 +1,8 @@
 import {
+  initialGalleryView,
+  type MediaGalleryController,
+} from '../../media/gallery-controller';
+import {
   initialMediaReadView,
   type MediaReadController,
 } from '../../media/read-controller';
@@ -63,6 +67,7 @@ import {
 Page({
   data: {
     mediaRead: initialMediaReadView(),
+    mediaGallery: initialGalleryView(),
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     report: initialReportMutationView(),
     juryVote: initialReportMutationView('vote'),
@@ -82,6 +87,7 @@ Page({
     tradingContacts: initialTradingContactsView(),
   },
   mediaReadController: undefined as MediaReadController | undefined,
+  mediaGalleryController: undefined as MediaGalleryController | undefined,
   reportMutations: undefined as ReportMutationController | undefined,
   juryVotes: undefined as ReportMutationController | undefined,
   reportProgressController: undefined as ReportProgressController | undefined,
@@ -124,7 +130,13 @@ Page({
   viewObserver: undefined as ViewObserver | undefined,
   messagingEntry: undefined as MessagingEntryNavigator | undefined,
   onShow() {
+    this.mediaGalleryController?.dispose();
+    this.mediaGalleryController = undefined;
     this.mediaReadController?.dispose();
+    this.mediaGalleryController =
+      getApp<WhaleuApp>().mediaRead?.createGallery?.((view) =>
+        this.setData({ mediaGallery: view }),
+      );
     this.mediaReadController = getApp<WhaleuApp>().mediaRead?.create((view) =>
       this.setData({ mediaRead: view }),
     );
@@ -450,6 +462,9 @@ Page({
         }
       },
       (post, readGeneration) => {
+        void this.mediaGalleryController?.load(
+          post && post.images.length > 1 ? post.images : null,
+        );
         void this.mediaReadController?.load(
           post?.images.length === 1 ? post.images[0]! : null,
         );
@@ -470,6 +485,33 @@ Page({
       this.located,
     );
     void this.controller.load();
+  },
+  onGalleryOpen(event: { currentTarget: { dataset: { index: number } } }) {
+    void this.mediaGalleryController?.open(
+      Number(event.currentTarget.dataset.index),
+    );
+  },
+  onGalleryWindow(event: { currentTarget: { dataset: { start: number } } }) {
+    void this.mediaGalleryController?.window(
+      Number(event.currentTarget.dataset.start),
+    );
+  },
+  onGalleryRetry(event: { currentTarget: { dataset: { index: number } } }) {
+    void this.mediaGalleryController?.retry(
+      Number(event.currentTarget.dataset.index),
+    );
+  },
+  onGalleryClose() {
+    void this.mediaGalleryController?.close();
+  },
+  onGalleryError(event: {
+    currentTarget: { dataset: { index: number; src: string; viewId: string } };
+  }) {
+    this.mediaGalleryController?.imageFailed(
+      Number(event.currentTarget.dataset.index),
+      event.currentTarget.dataset.src,
+      event.currentTarget.dataset.viewId,
+    );
   },
   onOpenMedia() {
     void this.mediaReadController?.open();
@@ -842,6 +884,8 @@ Page({
   onConfirmDelete() {
     if (this.data.deleteTarget?.kind === 'post')
       this.mediaReadController?.clear();
+    if (this.data.deleteTarget?.kind === 'post')
+      this.mediaGalleryController?.clear();
     void this.controller?.confirmDelete();
   },
   onDismissDelete() {
@@ -879,6 +923,8 @@ Page({
     this.savedMutations?.cancel();
   },
   onHide() {
+    this.mediaGalleryController?.dispose();
+    this.mediaGalleryController = undefined;
     this.mediaReadController?.dispose();
     this.mediaReadController = undefined;
     this.messagingEntry?.dispose();
@@ -920,6 +966,8 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.mediaGalleryController?.dispose();
+    this.mediaGalleryController = undefined;
     this.mediaReadController?.dispose();
     this.mediaReadController = undefined;
     this.messagingEntry?.dispose();

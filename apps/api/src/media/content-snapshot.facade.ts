@@ -136,9 +136,14 @@ export class MediaContentSnapshotFacade {
       }
       if (
         parent.resourceKind !== 'post' ||
-        expected.length !== 1 ||
-        !mediaIdSchema.safeParse(expected[0]!.assetId).success ||
-        !mediaDigestSchema.safeParse(expected[0]!.digest).success
+        expected.length > 9 ||
+        new Set(expected.map((image) => image.assetId)).size !==
+          expected.length ||
+        expected.some(
+          (image) =>
+            !mediaIdSchema.safeParse(image.assetId).success ||
+            !mediaDigestSchema.safeParse(image.digest).success,
+        )
       )
         continue;
       requested.set(
@@ -172,7 +177,10 @@ export class MediaContentSnapshotFacade {
        LEFT JOIN whaleu_media.asset_safety_events e ON e.asset_id=a.id AND e.revision=h.revision AND e.id=h.event_id
        ORDER BY p.id,b.ordinal,b.id`,
       [ids],
-      ids.length,
+      [...requested.values()].reduce(
+        (sum, reference) => sum + reference.expected.length,
+        0,
+      ),
       ['effective_at', 'valid_until', 'read_at'],
     );
     const grouped = new Map<string, SnapshotRow[]>();
@@ -183,71 +191,93 @@ export class MediaContentSnapshotFacade {
     }
     for (const [key, reference] of requested) {
       const records = grouped.get(reference.parent.resourceId);
-      if (records?.length !== 1) continue;
-      const row = records[0]!,
-        expected = reference.expected[0]!;
       if (
-        !row.binding_id ||
-        !row.id ||
-        !row.intent_id ||
-        !row.event_id ||
-        !row.head_revision ||
-        !/^[1-9][0-9]*$/.test(row.head_revision) ||
-        row.asset_id !== expected.assetId ||
-        row.id !== expected.assetId ||
-        row.binding_digest !== expected.digest ||
-        row.manifest_digest !== expected.digest ||
-        row.ordinal !== 0 ||
-        row.slot !== 'images' ||
-        row.audience !== 'content-gated' ||
-        row.purpose !== 'community-post-image' ||
-        row.owner_kind !== 'community' ||
-        row.resource_kind !== 'post' ||
-        row.content_version !== '1' ||
-        !row.policy_revision ||
-        !row.effective_at ||
-        !row.valid_until
+        !records ||
+        records.length !== reference.expected.length ||
+        new Set(records.map((row) => row.binding_id)).size !== records.length
       )
         continue;
-      const checked = validateCurrentMedia(
-        {
-          manifest: row.manifest,
-          manifest_digest: row.manifest_digest,
-          policy_revision: row.policy_revision,
-        },
-        row.intent_state ?? undefined,
-        {
-          state: row.state ?? '',
-          manifest_digest: row.event_digest ?? '',
-          policy_revision: row.event_policy ?? '',
-          effective_at: row.effective_at,
-          valid_until: row.valid_until,
-        },
-        row.read_at.getTime(),
-        row.exact_time_valid,
-      );
-      if (checked.decision === 'unknown') continue;
+      const attachments: MediaContentAttachment[] = [];
+      let decision: 'allow' | 'deny' | 'unknown' = 'allow';
+      let validUntil = Number.POSITIVE_INFINITY;
+      for (const [ordinal, row] of records.entries()) {
+        const expected = reference.expected[ordinal]!;
+        if (
+          !row.binding_id ||
+          !row.id ||
+          !row.intent_id ||
+          !row.event_id ||
+          !row.head_revision ||
+          !/^[1-9][0-9]*$/.test(row.head_revision) ||
+          row.asset_id !== expected.assetId ||
+          row.id !== expected.assetId ||
+          row.binding_digest !== expected.digest ||
+          row.manifest_digest !== expected.digest ||
+          row.ordinal !== ordinal ||
+          row.slot !== 'images' ||
+          row.audience !== 'content-gated' ||
+          row.purpose !== 'community-post-image' ||
+          row.owner_kind !== 'community' ||
+          row.resource_kind !== 'post' ||
+          row.content_version !== '1' ||
+          !row.policy_revision ||
+          !row.effective_at ||
+          !row.valid_until
+        ) {
+          decision = 'unknown';
+          break;
+        }
+        const checked = validateCurrentMedia(
+          {
+            manifest: row.manifest,
+            manifest_digest: row.manifest_digest,
+            policy_revision: row.policy_revision,
+          },
+          row.intent_state ?? undefined,
+          {
+            state: row.state ?? '',
+            manifest_digest: row.event_digest ?? '',
+            policy_revision: row.event_policy ?? '',
+            effective_at: row.effective_at,
+            valid_until: row.valid_until,
+          },
+          row.read_at.getTime(),
+          row.exact_time_valid,
+        );
+        if (checked.decision === 'unknown') {
+          decision = 'unknown';
+          break;
+        }
+        if (checked.decision === 'deny') decision = 'deny';
+        validUntil = Math.min(validUntil, checked.validUntil);
+        attachments.push(
+          Object.freeze({
+            slot: 'images',
+            ordinal,
+            bindingId: row.binding_id,
+            assetId: row.id,
+            manifestDigest: row.manifest_digest,
+            policyRevision: row.policy_revision,
+            intentId: row.intent_id,
+            intentState: 'ready',
+            headRevision: row.head_revision,
+            eventId: row.event_id,
+          }),
+        );
+      }
+      if (
+        decision === 'unknown' ||
+        attachments.length !== reference.expected.length
+      )
+        continue;
       result.set(
         key,
         Object.freeze({
           version: 1,
           parent: Object.freeze({ ...reference.parent }),
-          decision: checked.decision,
-          validUntil: checked.validUntil,
-          attachments: Object.freeze([
-            Object.freeze({
-              slot: 'images' as const,
-              ordinal: 0,
-              bindingId: row.binding_id,
-              assetId: row.id,
-              manifestDigest: row.manifest_digest,
-              policyRevision: row.policy_revision,
-              intentId: row.intent_id,
-              intentState: 'ready' as const,
-              headRevision: row.head_revision,
-              eventId: row.event_id,
-            }),
-          ]),
+          decision,
+          validUntil,
+          attachments: Object.freeze(attachments),
         }),
       );
     }

@@ -1,7 +1,11 @@
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import { transactionReadEpoch } from '../database/transaction-deadlines.js';
-import { mediaParentSchema } from './contracts.js';
+import {
+  mediaParentSchema,
+  mediaIdSchema,
+  mediaDigestSchema,
+} from './contracts.js';
 import type { MediaAudience, MediaParent } from './contracts.js';
 
 export type MediaReadPurpose =
@@ -18,6 +22,12 @@ export interface OwnerReadRequest {
 export interface MediaOwnerReadPort {
   readonly ownerKind: MediaParent['ownerKind'];
   authorizeCurrent(request: OwnerReadRequest, tx: PoolClient): Promise<void>;
+  /** Called only after current owner authorization, in the same transaction.
+   * Expected identities come from the owner definition, never existing bindings. */
+  resolveAuthorizedContentMedia?(
+    request: OwnerReadRequest,
+    tx: PoolClient,
+  ): Promise<readonly { assetId: string; digest: string }[]>;
 }
 const brand: unique symbol = Symbol('media-owner-read-proof');
 export interface MediaOwnerReadProof {
@@ -27,6 +37,7 @@ interface ProofFacts {
   readonly tx: PoolClient;
   readonly epoch: object;
   readonly request: OwnerReadRequest;
+  readonly images: readonly { assetId: string; digest: string }[] | null;
 }
 /** A DI-only capability issuer. Proof objects cannot be reconstructed from JSON,
  * used for a different parent/purpose, or retained across transaction rollback. */
@@ -68,13 +79,45 @@ export class MediaOwnerProofRegistry {
       parent: Object.freeze(parent),
     });
     await port.authorizeCurrent(snapshot, tx);
+    const images = port.resolveAuthorizedContentMedia
+      ? await port.resolveAuthorizedContentMedia(snapshot, tx)
+      : null;
+    if (
+      images &&
+      (images.length > 9 ||
+        new Set(images.map((image) => image.assetId)).size !== images.length ||
+        images.some(
+          (image) =>
+            !mediaIdSchema.safeParse(image.assetId).success ||
+            !mediaDigestSchema.safeParse(image.digest).success,
+        ))
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
     if (transactionReadEpoch(tx) !== epoch)
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const proof: MediaOwnerReadProof = Object.freeze({
       [brand]: true as const,
     });
-    this.proofs.set(proof, { tx, epoch, request: snapshot });
+    this.proofs.set(proof, {
+      tx,
+      epoch,
+      request: snapshot,
+      images:
+        images === null
+          ? null
+          : Object.freeze(images.map((image) => Object.freeze({ ...image }))),
+    });
     return proof;
+  }
+  contentMedia(
+    proof: MediaOwnerReadProof,
+    tx: PoolClient,
+    request: OwnerReadRequest,
+  ): readonly { assetId: string; digest: string }[] {
+    this.require(proof, tx, request);
+    const images = this.proofs.get(proof)?.images;
+    if (!images) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return images;
   }
   require(
     proof: MediaOwnerReadProof,

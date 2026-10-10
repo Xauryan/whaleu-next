@@ -35,6 +35,7 @@ for (const relative of [
   'messaging/pending.js',
   'media/upload-contracts.js',
   'media/upload-runtime.js',
+  'media/batch-contracts.js',
   'platform/wechat-upload.js',
   'ratings/scoped-contract.js',
   'ratings/category-scoped-contract.js',

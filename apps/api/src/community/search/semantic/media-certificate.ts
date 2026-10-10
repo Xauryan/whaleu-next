@@ -18,7 +18,7 @@ export const semanticMediaAttachmentSchema = z.strictObject({
   intentState: z.literal('ready'),
   headRevision: revision,
   eventId: uuid,
-  ordinal: z.literal(0),
+  ordinal: z.number().int().min(0).max(8),
 });
 /** A review denial short-circuits Media. Null means deliberately unconsulted,
  * never an assertion that the ancestor has no attachments. Empty [] is exact. */
@@ -28,7 +28,7 @@ export const semanticMediaNodeSchema = z.discriminatedUnion('decision', [
     id: uuid,
     decision: z.enum(['allow', 'deny']),
     validUntil: z.number().finite().nullable(),
-    attachments: z.array(semanticMediaAttachmentSchema).max(1),
+    attachments: z.array(semanticMediaAttachmentSchema).max(9),
   }),
   z.strictObject({
     kind: z.enum(['post', 'comment', 'reply']),
@@ -50,6 +50,20 @@ export const semanticMediaChainSchema = z
         (node.decision !== 'allow' && index !== nodes.length - 1)
       )
         ctx.addIssue({ code: 'custom', message: 'Invalid Media ancestry' });
+      if (
+        node.attachments &&
+        (node.attachments.some(
+          (attachment, ordinal) => attachment.ordinal !== ordinal,
+        ) ||
+          new Set(node.attachments.map((attachment) => attachment.assetId))
+            .size !== node.attachments.length ||
+          new Set(node.attachments.map((attachment) => attachment.bindingId))
+            .size !== node.attachments.length)
+      )
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Invalid complete ordered Media set',
+        });
       if (node.decision === 'deny' && !node.attachments.length)
         ctx.addIssue({ code: 'custom', message: 'Missing denied attachment' });
     }

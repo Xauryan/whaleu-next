@@ -23,6 +23,21 @@ import {
   mediaV2IdSchema,
   prepareMediaV2Schema,
 } from '../src/media/contracts-v2.js';
+import {
+  mediaBatchIdentitySchema,
+  mediaBatchLayoutSchema,
+  mediaBatchSealSchema,
+  mediaBatchReopenSchema,
+  mediaBatchCancelSchema,
+  mediaBatchRecoverPublicationSchema,
+  mediaBatchFencePublicationSchema,
+  mediaBatchFencePublicationResultSchema,
+  mediaMemberPrepareSchema,
+  mediaBatchStatusSchema,
+  mediaBatchRecoverySchema,
+  mediaBatchPublicationRecoverySchema,
+  mediaMemberStatusSchema,
+} from '../src/media/contracts-v3.js';
 import { safeErrorResponseSchema } from '../src/http/error-contracts.js';
 import {
   mediaBinaryResponseHeaders,
@@ -55,7 +70,9 @@ async function render() {
     {
       cwd: fileURLToPath(new URL('../', import.meta.url)),
       timeout: 30000,
-      maxBuffer: 1024 * 1024,
+      // Inline union schemas repeat per operation in the official exporter.
+      // This is a tooling stdout cap, not a runtime request or journal budget.
+      maxBuffer: 8 * 1024 * 1024,
       env: {
         ...process.env,
         DATABASE_URL: 'invalid:offline-only',
@@ -120,6 +137,88 @@ const v2cases = [
   ],
 ] as const;
 
+const v3cases = [
+  [
+    '/v3/media/batches/prepare',
+    'post',
+    mediaBatchIdentitySchema,
+    mediaBatchStatusSchema,
+  ],
+  [
+    '/v3/media/batches/requests/{id}',
+    'get',
+    undefined,
+    mediaBatchRecoverySchema,
+  ],
+  [
+    '/v3/media/batches/requests/{id}/cancel',
+    'post',
+    mediaBatchCancelSchema,
+    mediaBatchRecoverySchema,
+  ],
+  [
+    '/v3/media/batches/recover-publication',
+    'post',
+    mediaBatchRecoverPublicationSchema,
+    mediaBatchPublicationRecoverySchema,
+  ],
+  [
+    '/v3/media/batches/{id}/fence-publication',
+    'post',
+    mediaBatchFencePublicationSchema,
+    mediaBatchFencePublicationResultSchema,
+  ],
+  [
+    '/v3/media/batches/{id}/layout',
+    'post',
+    mediaBatchLayoutSchema,
+    mediaBatchStatusSchema,
+  ],
+  [
+    '/v3/media/batches/{id}/seal',
+    'post',
+    mediaBatchSealSchema,
+    mediaBatchStatusSchema,
+  ],
+  [
+    '/v3/media/batches/{id}/reopen',
+    'post',
+    mediaBatchReopenSchema,
+    mediaBatchStatusSchema,
+  ],
+  [
+    '/v3/media/batches/{id}/members/prepare',
+    'post',
+    mediaMemberPrepareSchema,
+    mediaMemberStatusSchema,
+  ],
+  ['/v3/media/upload-intents/{id}', 'get', undefined, mediaMemberStatusSchema],
+  [
+    '/v3/media/upload-intents/{id}/grant',
+    'post',
+    z.strictObject({}),
+    mediaGrantSchema,
+  ],
+  [
+    '/v3/media/upload-intents/{id}/finalize',
+    'post',
+    z.strictObject({}),
+    mediaMemberStatusSchema,
+  ],
+  [
+    '/v3/media/upload-intents/{id}/cancel',
+    'post',
+    z.strictObject({}),
+    mediaMemberStatusSchema,
+  ],
+  [
+    '/v3/media/upload-intents/{id}/uploads/{grantId}',
+    'post',
+    undefined,
+    mediaUploadObservedSchema,
+  ],
+] as const;
+
 test('Media official Swagger export is offline, deterministic and artifact-current', async () => {
   assert.equal(
     await render(),
@@ -135,7 +234,7 @@ test('Media operations require bearer auth and private sanitized responses', asy
   assert.equal(doc.openapi, '3.0.3');
   assert.deepEqual(
     Object.keys(doc.paths).sort(),
-    [...cases, ...v2cases].map(([p]) => p).sort(),
+    [...cases, ...v2cases, ...v3cases].map(([p]) => p).sort(),
   );
   for (const [path, method, success] of cases) {
     assert.deepEqual(Object.keys(doc.paths[path]!), [method]);
@@ -257,12 +356,39 @@ test('Media binary delivery and v1 descriptor expose no storage address or origi
   );
 });
 
-test('Media v2 exports distinct strict recovery/grant/status and actual multipart contracts', async () => {
+test('Media v2 and v3 export exact strict recovery, batch, member and shared multipart contracts', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
-  for (const [path, method, input, output] of v2cases) {
+  for (const [path, method, input, output] of [...v2cases, ...v3cases]) {
+    assert.deepEqual(Object.keys(doc.paths[path]!), [method]);
     const operation = doc.paths[path]![method]!;
     assert.deepEqual(operation.security, [{ accessToken: [] }]);
     assert.ok(operation.operationId);
+    assert.equal(operation.responses['206'], undefined);
+    assert.equal(operation.responses['302'], undefined);
+    for (const code of [
+      '400',
+      '401',
+      '403',
+      '404',
+      '409',
+      '413',
+      '415',
+      '429',
+      '500',
+      '503',
+    ]) {
+      const error = operation.responses[code];
+      assert.ok(error && !('$ref' in error));
+      assert.deepEqual(error.headers, mediaResponseHeaders);
+      assert.deepEqual(error.content!['application/json']!.schema, {
+        $ref: '#/components/schemas/SafeErrorResponse',
+      });
+      if (code === '503')
+        assert.match(
+          error.description,
+          /MEDIA_UNAVAILABLE.*default runtime is disabled/i,
+        );
+    }
     const response = operation.responses['200']!;
     assert.ok(!('$ref' in response));
     assert.deepEqual(response.headers, mediaResponseHeaders);
@@ -312,4 +438,72 @@ test('Media v2 exports distinct strict recovery/grant/status and actual multipar
       }
     }
   }
+});
+
+test('Media v3 documents nine-member bounds, immutable source slots and metadata-only cancellation', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  function inputSchema(path: string) {
+    const body = doc.paths[path]!.post!.requestBody;
+    assert.ok(body && !('$ref' in body));
+    const schema = body.content['application/json']!.schema;
+    assert.ok(schema && !('$ref' in schema));
+    assert.equal(schema.additionalProperties, false);
+    return schema;
+  }
+  const identity = inputSchema('/v3/media/batches/prepare');
+  assert.deepEqual(identity.required, [
+    'version',
+    'batchRequestId',
+    'draftId',
+    'spaceId',
+    'purpose',
+  ]);
+  const member = inputSchema('/v3/media/batches/{id}/members/prepare');
+  const slot = member.properties?.['sourceSlot'];
+  assert.ok(slot && !('$ref' in slot));
+  assert.equal(slot.type, 'integer');
+  assert.equal(slot.minimum, 0);
+  assert.equal(slot.maximum, 8);
+  const declaration = member.properties?.['declaration'];
+  assert.ok(declaration && !('$ref' in declaration));
+  assert.equal(declaration.additionalProperties, false);
+  const bytes = declaration.properties?.['bytes'];
+  assert.ok(bytes && !('$ref' in bytes));
+  assert.equal(bytes.maximum, 5242880);
+  for (const operation of ['layout', 'seal']) {
+    const schema = inputSchema(`/v3/media/batches/{id}/${operation}`);
+    const ordered = schema.properties?.['orderedMemberIds'];
+    assert.ok(ordered && !('$ref' in ordered));
+    assert.equal(ordered.maxItems, 9);
+    if (operation === 'seal') assert.equal(ordered.minItems, 1);
+    assert.ok(schema.required?.includes('commandId'));
+    assert.ok(schema.required?.includes('expectedRevision'));
+  }
+  const fence = inputSchema('/v3/media/batches/{id}/fence-publication');
+  const assets = fence.properties?.['assetIds'];
+  assert.ok(assets && !('$ref' in assets));
+  assert.equal(assets.minItems, 1);
+  assert.equal(assets.maxItems, 9);
+  for (const schema of [
+    mediaBatchStatusSchema,
+    mediaMemberStatusSchema,
+    mediaBatchFencePublicationResultSchema,
+  ]) {
+    assert.doesNotMatch(
+      JSON.stringify(
+        z.toJSONSchema(schema, { target: 'openapi-3.0', io: 'output' }),
+      ),
+      /"(?:url|provider|bucket|objectKey|body|token|bearer|path)"\s*:/,
+    );
+  }
+  const response =
+    doc.paths['/v3/media/batches/{id}/fence-publication']!.post!.responses[
+      '200'
+    ]!;
+  assert.ok(!('$ref' in response));
+  const result = response.content!['application/json']!.schema;
+  assert.ok(result && !('$ref' in result));
+  assert.deepEqual(result.required, ['version', 'status', 'cancellation']);
+  assert.ok(result.properties?.['cancellation']);
+  assert.equal(result.properties?.['receipt'], undefined);
 });

@@ -71,6 +71,7 @@ export class CommunityMediaApplication implements MediaApplication {
   }
   status(token: string, id: string): Promise<MediaIntentStatus> {
     return this.authorized(token, async (actor, tx) => {
+      await this.requireLegacyIntent(actor, id, tx);
       const receipt = await this.intents.status(actor, id, tx);
       const ready = await this.assets.readyOwned(actor, id, tx);
       return ready
@@ -86,6 +87,7 @@ export class CommunityMediaApplication implements MediaApplication {
   }
   finalize(token: string, id: string): Promise<MediaIntentStatus> {
     return this.authorized(token, async (actor, tx) => {
+      await this.requireLegacyIntent(actor, id, tx);
       const receipt = await this.lifecycle.finalize(actor, id, tx);
       const ready = await this.assets.readyOwned(actor, id, tx);
       return ready
@@ -101,11 +103,23 @@ export class CommunityMediaApplication implements MediaApplication {
   }
   cancel(token: string, id: string): Promise<void> {
     return this.authorized(token, async (actor, tx) => {
+      await this.requireLegacyIntent(actor, id, tx);
       await this.lifecycle.cancel(actor, id, tx);
     });
   }
   open(token: string, id: string, variant: MediaVariantName, range?: string) {
     return this.delivery.open(token, id, variant, range);
+  }
+  private async requireLegacyIntent(
+    actor: string,
+    id: string,
+    tx: PoolClient,
+  ): Promise<void> {
+    const row = await tx.query(
+      'SELECT 1 FROM whaleu_media.upload_intents WHERE id=$1 AND actor_id=$2 AND protocol_version IN (1,2)',
+      [id, actor],
+    );
+    if (row.rowCount !== 1) throw new ApplicationError('MEDIA_UNAVAILABLE');
   }
   private authorized<T>(
     token: string,

@@ -89,6 +89,19 @@ Page({
   onCancelImage() {
     void this.controller?.cancelImage();
   },
+  onRemoveImage(event: { currentTarget: { dataset: { id: string } } }) {
+    void this.controller?.removeImage(event.currentTarget.dataset.id);
+  },
+  onMoveImage(event: {
+    currentTarget: { dataset: { id: string; direction: number } };
+  }) {
+    const { id, direction } = event.currentTarget.dataset;
+    if (Number(direction) === -1 || Number(direction) === 1)
+      void this.controller?.moveImage(id, Number(direction) as -1 | 1);
+  },
+  onReplaceImage(event: { currentTarget: { dataset: { id: string } } }) {
+    void this.controller?.replaceImage(event.currentTarget.dataset.id);
+  },
   onTradingField(event: {
     detail: { value: string };
     currentTarget: { dataset: { field: string } };

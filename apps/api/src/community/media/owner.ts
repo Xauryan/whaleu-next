@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
+import type { PrepareMediaV3Input } from '../../media/contracts-v3.js';
+import type { PrepareMediaV2Input } from '../../media/contracts-v2.js';
 import { ApplicationError } from '../../http/application-error.js';
 import { boundedOwnerProof } from '../../database/required-owner-proof.js';
 import {
@@ -86,7 +88,7 @@ export class CommunityMediaOwner
   }
   async authorizePrepare(
     actor: string,
-    input: PrepareMediaInput,
+    input: PrepareMediaInput | PrepareMediaV2Input | PrepareMediaV3Input,
     tx: PoolClient,
   ): Promise<AuthorizedMediaDraft> {
     const space = await this.community.space(input.spaceId, tx);
@@ -135,7 +137,7 @@ export class CommunityMediaOwner
       audience: 'content-gated',
       purpose: 'community-post-image',
       slot: 'images',
-      ordinal: 0,
+      ordinal: input.ordinal,
     };
   }
   async requireDraft(
@@ -173,6 +175,28 @@ export class CommunityMediaOwner
     });
     registerRequiredTransactionFact(tx, this.proof, JSON.stringify(fact), fact);
     registerTransactionDeadline(tx, fact.expires, 'MEDIA_UNAVAILABLE');
+  }
+  async resolveAuthorizedContentMedia(
+    request: OwnerReadRequest,
+    tx: PoolClient,
+  ): Promise<readonly { assetId: string; digest: string }[]> {
+    // authorizeCurrent has already validated the full approved definition and
+    // enrolled its final proof. Re-read the owner-owned list under the same
+    // transaction; its positions, not whatever bindings remain, are authority.
+    const rows = (
+      await tx.query<{ assetId: string; digest: string; position: number }>(
+        'SELECT asset_id AS "assetId",digest,position FROM whaleu_community.post_images WHERE post_id=$1 ORDER BY position LIMIT 10 FOR SHARE',
+        [request.parent.resourceId],
+      )
+    ).rows;
+    if (
+      request.parent.ownerKind !== 'community' ||
+      request.parent.resourceKind !== 'post' ||
+      rows.length > 9 ||
+      rows.some((image, index) => image.position !== index)
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return rows.map(({ assetId, digest }) => ({ assetId, digest }));
   }
   async authorizeCurrent(
     request: OwnerReadRequest,

@@ -341,3 +341,48 @@ test('exact current Media denial distinguishes held/revoked from missing, stale 
     'unknown',
   );
 });
+
+test('authorized whole-set identities are owner-derived, immutable and transaction-bound', async () => {
+  const tx = {} as PoolClient;
+  startTransactionDeadlines(tx);
+  const images = Array.from({ length: 9 }, () => ({
+    assetId: randomUUID(),
+    digest: 'a'.repeat(64),
+  }));
+  let authorized = false;
+  const registry = new MediaOwnerProofRegistry([
+    {
+      ownerKind: 'community',
+      authorizeCurrent: async () => {
+        authorized = true;
+      },
+      resolveAuthorizedContentMedia: async () => {
+        assert.equal(authorized, true);
+        return images;
+      },
+    },
+  ]);
+  const request: OwnerReadRequest = {
+    viewerAccountId: randomUUID(),
+    parent: {
+      ownerKind: 'community',
+      resourceKind: 'post',
+      resourceId: randomUUID(),
+      contentVersion: 1,
+    },
+    audience: 'content-gated',
+    purpose: 'download',
+  };
+  const proof = await registry.authorize(request, tx);
+  const original = images[8]!.assetId;
+  images[8]!.assetId = randomUUID();
+  assert.equal(registry.contentMedia(proof, tx, request)[8]!.assetId, original);
+  assert.equal(
+    Object.isFrozen(registry.contentMedia(proof, tx, request)),
+    true,
+  );
+  clearTransactionDeadlines(tx);
+  startTransactionDeadlines(tx);
+  assert.throws(() => registry.contentMedia(proof, tx, request));
+  clearTransactionDeadlines(tx);
+});

@@ -150,5 +150,9 @@ Only documentation status changes followed, with formatting checked again.
 
 Historical main migrations 0001–0073 and semantic migration 0001 remain unchanged.
 Only additive semantic migration 0002 is introduced. No model/provider calls or
-production activation occurred. Hosted CI is a separate pending gate; real-device
-and real-provider acceptance remain outstanding.
+production activation occurred. Hosted [Verify](https://github.com/Xauryan/whaleu-next/actions/runs/38045376032)
+and [stats](https://github.com/Xauryan/whaleu-next/actions/runs/38045376103) passed
+on signed `a1fbcf1`. The main job took 60 minutes 45 seconds. Hosted Verify
+test-level counts were not independently retrieved; the 5,944 count above is
+the verified local result. Real-device and real-provider acceptance remain
+outstanding.

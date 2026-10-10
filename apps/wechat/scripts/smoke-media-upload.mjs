@@ -266,7 +266,18 @@ export async function smokeMediaUpload({ app, dist, mountPage, postWire }) {
       path.join(dist, 'pages/community-compose/community-compose.wxml'),
       'utf8',
     );
-    assert.match(template, /wx:if="\{\{canSelectImage\}\}"/);
+    assert.match(
+      template,
+      /<view wx:if="\{\{batchMode\}\}" class="media-batch">/,
+    );
+    assert.match(
+      template,
+      /<view wx:elif="\{\{canSelectImage\}\}"><button bindtap="onSelectImage"/,
+    );
+    assert.match(
+      template,
+      /mediaStatus !== 'idle' &amp;&amp; mediaStatus !== 'terminal' &amp;&amp; mediaStatus !== 'bound_history'/,
+    );
     assert.match(template, /mediaBusy/);
     page = mountPage(module, query);
     let state = observe(page);

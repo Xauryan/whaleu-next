@@ -32,6 +32,12 @@ import type { StoredObjectMeasurement } from './storage-port.js';
 import type { MediaPrepareScope } from './prepare-scope.js';
 import { MediaPrepareScopes } from './prepare-scope.js';
 import { MediaRequiredProof } from './required-proof.js';
+import {
+  prepareMediaV3Schema,
+  mediaMemberRequestHash,
+} from './contracts-v3.js';
+import type { PrepareMediaV3Input } from './contracts-v3.js';
+import { lockMediaBatchesForIntents } from './batch-locks.js';
 
 interface Intent {
   id: string;
@@ -45,6 +51,8 @@ interface Intent {
   declared_sha256: string;
   resource_id: string;
   scope_revision: string;
+  ordinal: number;
+  request_hash: string;
 }
 interface Ingress {
   object_attempt_id: string;
@@ -83,7 +91,10 @@ export interface MediaIngressGrantBlocked {
 }
 export class MediaIngressRepository {
   private readonly proof = new MediaRequiredProof();
-  constructor(readonly planning: MediaIngressPlanningPort) {
+  constructor(
+    readonly planning: MediaIngressPlanningPort,
+    private readonly protocolVersion: 2 | 3 = 2,
+  ) {
     mediaIdSchema.parse(planning.writerInstanceId);
   }
   /** Nonlocking routing hint only; authority is re-established by scopes and the
@@ -92,17 +103,48 @@ export class MediaIngressRepository {
     actor: string,
     id: string,
     tx: PoolClient,
-  ): Promise<PrepareMediaV2Input> {
+  ): Promise<PrepareMediaV2Input | PrepareMediaV3Input> {
     this.managed(tx);
     const row = (
       await tx.query<Intent & { client_draft_id: string; space_id: string }>(
         `SELECT i.*,d.client_draft_id,d.space_id FROM whaleu_media.upload_intents i
        JOIN whaleu_community.media_drafts d ON d.id=i.resource_id AND d.actor_id=i.actor_id
-       WHERE i.id=$1 AND i.actor_id=$2 AND i.protocol_version=2`,
-        [mediaIdSchema.parse(id), actor],
+       WHERE i.id=$1 AND i.actor_id=$2 AND i.protocol_version=$3`,
+        [mediaIdSchema.parse(id), actor, this.protocolVersion],
       )
     ).rows[0];
     if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    if (this.protocolVersion === 3) {
+      const member = (
+        await tx.query<{
+          batch_id: string;
+          member_id: string;
+          source_slot: number;
+          identity: unknown;
+        }>(
+          `SELECT m.batch_id,m.member_id,m.source_slot,b.identity FROM whaleu_media.publication_batch_members m JOIN whaleu_media.publication_batches b ON b.id=m.batch_id WHERE m.intent_id=$1 AND m.actor_id=$2 AND m.state='live' AND b.state='editing'`,
+          [id, actor],
+        )
+      ).rows[0];
+      if (!member) throw new ApplicationError('MEDIA_UNAVAILABLE');
+      return prepareMediaV3Schema.parse({
+        protocolVersion: 3,
+        batchId: member.batch_id,
+        batchIdentity: member.identity,
+        memberId: member.member_id,
+        clientRequestId: row.client_request_id,
+        purpose: 'community-post-image',
+        draftId: row.client_draft_id,
+        spaceId: row.space_id,
+        slot: 'images',
+        ordinal: member.source_slot,
+        declaration: {
+          bytes: Number(row.declared_bytes),
+          mime: row.declared_mime,
+          sha256: row.declared_sha256,
+        },
+      });
+    }
     return prepareMediaV2Schema.parse({
       clientRequestId: row.client_request_id,
       purpose: 'community-post-image',
@@ -474,6 +516,7 @@ export class MediaIngressRepository {
     tx: PoolClient,
   ): Promise<boolean> {
     this.managed(tx);
+    await lockMediaBatchesForIntents([claim.intentId], tx, true);
     await lockMediaActor(claim.actorAccountId, tx);
     const intent = (
       await tx.query<Intent>(
@@ -556,20 +599,42 @@ export class MediaIngressRepository {
     const issued = scopes.require(capability, tx);
     if (issued.scope.actorAccountId !== session.accountId)
       throw new ApplicationError('MEDIA_UNAVAILABLE');
+    await lockMediaBatchesForIntents([id], tx, true);
+    if (this.protocolVersion === 3) {
+      const member = (
+        await tx.query(
+          `SELECT 1 FROM whaleu_media.publication_batch_members m JOIN whaleu_media.publication_batches b ON b.id=m.batch_id WHERE m.intent_id=$1 AND m.actor_id=$2 AND m.state='live' AND b.state='editing'`,
+          [id, session.accountId],
+        )
+      ).rowCount;
+      if (member !== 1) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    }
     await lockMediaActor(session.accountId, tx);
     const row = (
       await tx.query<Intent>(
-        'SELECT * FROM whaleu_media.upload_intents WHERE id=$1 AND actor_id=$2 AND protocol_version=2 FOR UPDATE',
-        [mediaIdSchema.parse(id), session.accountId],
+        'SELECT * FROM whaleu_media.upload_intents WHERE id=$1 AND actor_id=$2 AND protocol_version=$3 FOR UPDATE',
+        [mediaIdSchema.parse(id), session.accountId, this.protocolVersion],
       )
     ).rows[0];
-    const input = prepareMediaV2Schema.parse(issued.input);
+    const input =
+      this.protocolVersion === 3
+        ? prepareMediaV3Schema.parse(issued.input)
+        : prepareMediaV2Schema.parse(issued.input);
     if (
       !row ||
       row.state !== 'prepared' ||
       row.expires_at.getTime() <= (await this.now(tx)) ||
       row.resource_id !== issued.scope.serverScopeId ||
       row.scope_revision !== issued.scope.scopeRevision ||
+      ('protocolVersion' in input &&
+        (row.ordinal !== input.ordinal ||
+          row.request_hash !==
+            mediaMemberRequestHash(session.accountId, input.batchIdentity, {
+              clientRequestId: input.clientRequestId,
+              memberId: input.memberId,
+              sourceSlot: input.ordinal,
+              declaration: input.declaration,
+            }))) ||
       row.client_request_id !== input.clientRequestId ||
       row.declared_sha256 !== input.declaration.sha256 ||
       Number(row.declared_bytes) !== input.declaration.bytes ||

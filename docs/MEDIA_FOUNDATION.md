@@ -183,4 +183,18 @@ posts and their plain-text children. Count-only failures remain independent from
 proved pages; missing semantic coverage remains explicit unavailable. Old v1
 certificate and text-vector identities are preserved. Nine-image publication,
 image-only posts and additional attachment owners remain separate work. Hosted
-checks for this stage are pending; ordinary provider/device activation is closed.
+checks passed on signed `a1fbcf1`; ordinary provider/device activation is closed.
+
+## Additive v3 ordinary-post batches
+
+[Publication batches](MEDIA_PUBLICATION_BATCH.md) describe the separate v3
+metadata-only protocol for nonempty text plus one to nine JPEG/PNG post images,
+exact original-command recovery, atomic whole-set binding and bounded native detail
+gallery. V1/v2 request and receipt branches remain separate. Comments, replies and
+other attachment owners are outside this increment. Normal AppModule and native
+runtime still do not enable upload/provider/device capabilities; test-DI validation
+is not production activation. Acceptance must refer to the exact final frozen tree.
+
+This v3 increment passed integrated local acceptance with 6,046 tests on exact
+tree `bd9cf779aa4173fb1c133a76b6d77e026290e6ff`. Hosted verification remains
+pending for the v3 increment; see its protocol document for evidence and limits.

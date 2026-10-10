@@ -27,7 +27,8 @@ export const mediaCountProofOwner: CountProofOwner = {
           whaleu_media.assets,whaleu_media.variants,whaleu_media.asset_safety_events,whaleu_media.asset_safety_heads,
           whaleu_media.scope_consumptions,whaleu_media.bindings,whaleu_media.jobs,whaleu_media.cleanup_obligations,
           whaleu_media.derived_object_attempts,whaleu_media.upload_request_fences,
-          whaleu_media.upload_ingress,whaleu_media.upload_ingress_writers IN SHARE MODE NOWAIT`,
+          whaleu_media.upload_ingress,whaleu_media.upload_ingress_writers,
+          whaleu_media.publication_batches,whaleu_media.publication_batch_members,whaleu_media.publication_batch_commands IN SHARE MODE NOWAIT`,
     );
     return true;
   },

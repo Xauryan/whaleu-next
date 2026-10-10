@@ -49,6 +49,7 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
     private readonly sessions: SessionStore,
     private readonly clock: Clock,
     private readonly auth?: Pick<AuthService, 'refresh'>,
+    private readonly protocolVersion: 2 | 3 = 2,
   ) {
     this.origin = normalizeOrigin(origin);
   }
@@ -78,6 +79,8 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
       !this.registry.capacityAvailable
     )
       throw new ClientError('configuration', 'Image selection unavailable');
+    const reservation = this.registry.reserve();
+    const releaseNativeReservation = this.registry.holdReservation(reservation);
     this.pickerActive++;
     this.operations++;
     let path: string | undefined;
@@ -101,6 +104,7 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
           if (!completed) {
             completed = true;
             this.pickerActive--;
+            releaseNativeReservation();
           }
           if (!settled)
             finish(new ClientError('network', 'Image selection incomplete'));
@@ -130,7 +134,7 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
               }
               if (settled) {
                 if (isNativeTemporaryPath(output) && output !== path)
-                  void this.registry.discard(output);
+                  void this.registry.discard(output, reservation);
                 return;
               }
               try {
@@ -144,7 +148,7 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
                 finish(output);
               } catch (error) {
                 if (isNativeTemporaryPath(output))
-                  void this.registry.discard(output);
+                  void this.registry.discard(output, reservation);
                 finish(clientError(error));
               }
             },
@@ -166,13 +170,20 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
       const size = await cancellable(this.files.stat(path), cancel);
       this.current(session, cancel, ticket);
       if (!uploadInteger(size, 1, MEDIA_UPLOAD_MAX_BYTES)) uploadInvalid();
-      const file = this.registry.adopt(path, size, this.owner, ticket);
+      const file = this.registry.adopt(
+        path,
+        size,
+        this.owner,
+        ticket,
+        reservation,
+      );
       this.owned.set(file, ticket);
       adopted = true;
       return file;
     } finally {
       this.operations--;
-      if (path && !adopted) await this.registry.discard(path);
+      if (path && !adopted) await this.registry.discard(path, reservation);
+      this.registry.releaseReservation(reservation);
     }
   }
   async inspect(
@@ -310,6 +321,9 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
       throw new ClientError('configuration', 'Native upload unavailable');
     const { grant } = lease;
     const sent = current();
+    const releaseTransfer = this.registry.acquireTransfer(
+      sent.credentials!.accountId,
+    );
     this.nativeUploads++;
     return new Promise<UploadObserved>((resolve, reject) => {
       let settled = false,
@@ -354,6 +368,7 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
         if (!completed) {
           completed = true;
           this.nativeUploads--;
+          releaseTransfer();
         }
         if (!settled)
           finish(
@@ -410,7 +425,7 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
         task = this.wx.uploadFile!({
           url: endpointUrl(
             this.origin,
-            `/v2/media/upload-intents/${grant.intentId}/uploads/${grant.grantId}`,
+            `/v${this.protocolVersion}/media/upload-intents/${grant.intentId}/uploads/${grant.grantId}`,
           ),
           filePath: path,
           name: 'file',
@@ -452,6 +467,9 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
                   'timeout',
                   'Upload response passed local deadline; recover status',
                 );
+              // This exact authenticated receipt proves the server finished its
+              // writer. A missing native complete still retains the native slot.
+              releaseTransfer.releaseWriter();
               finish(receipt);
             } catch (error) {
               finish(clientError(error));

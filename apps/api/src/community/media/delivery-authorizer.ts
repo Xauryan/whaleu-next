@@ -33,7 +33,7 @@ export class CommunityMediaDeliveryAuthorizer implements CurrentMediaDeliveryAut
       proof,
       request,
       bindingId,
-      reference.images,
+      this.owners.contentMedia(proof, tx, request),
       variant,
       tx,
     );

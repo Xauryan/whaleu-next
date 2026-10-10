@@ -7,7 +7,11 @@ import { MediaDeliveryService } from '../src/media/delivery.js';
 import type { InternalMediaDeliveryPlan } from '../src/media/delivery.js';
 import type { ImmutableMediaStorage } from '../src/media/storage-port.js';
 
-function setup(changeSecond = false, failSecond = false) {
+function setup(
+  changeSecond = false,
+  failSecond = false,
+  changeOtherAttachment = false,
+) {
   const bytes = Buffer.from('synthetic-delivery-protocol-bytes');
   const plan: InternalMediaDeliveryPlan = {
     bindingId: randomUUID(),
@@ -29,6 +33,7 @@ function setup(changeSecond = false, failSecond = false) {
     sha256: createHash('sha256').update(bytes).digest('hex'),
     manifestDigest: 'a'.repeat(64),
     safetyRevision: '1',
+    attachmentSetRevision: 'b'.repeat(64),
     bytes: bytes.length,
     mime: 'image/png',
   };
@@ -77,6 +82,8 @@ function setup(changeSecond = false, failSecond = false) {
         authorizations++;
         assert.equal(consumed, 0, 'No source bytes before final authority');
         if (authorizations === 2 && failSecond) throw new Error('revoked');
+        if (authorizations === 2 && changeOtherAttachment)
+          return { ...plan, attachmentSetRevision: 'c'.repeat(64) };
         return authorizations === 2 && changeSecond
           ? { ...plan, safetyRevision: '2' }
           : plan;
@@ -130,4 +137,13 @@ test('range requests are rejected before authorization or object open', async ()
     ),
   );
   assert.deepEqual(f.counts(), { authorizations: 0, opened: 0, consumed: 0 });
+});
+
+test('a non-target attachment change after exact object open withholds all target bytes', async () => {
+  const f = setup(false, false, true);
+  await assert.rejects(
+    f.service.open('synthetic-token', f.plan.bindingId, 'display-v1'),
+  );
+  assert.equal(f.counts().opened, 1);
+  assert.equal(f.counts().consumed, 0);
 });

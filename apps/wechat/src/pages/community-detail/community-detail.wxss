@@ -47,3 +47,13 @@
 .private-image-expanded {
   width: 100%;
 }
+
+.private-gallery-thumb {
+  width: 200rpx;
+  max-height: 260rpx;
+}
+.private-gallery-slot {
+  display: inline-block;
+  margin: 8rpx;
+  vertical-align: top;
+}

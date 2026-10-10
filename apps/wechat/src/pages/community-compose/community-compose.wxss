@@ -20,3 +20,12 @@
   font-size: 25rpx;
   line-height: 1.8;
 }
+
+.media-batch-member {
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid #ddd;
+}
+.media-batch-member text {
+  display: block;
+  margin-bottom: 8rpx;
+}

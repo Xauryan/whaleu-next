@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import { mediaRequestHash } from './contracts-v2.js';
+import { mediaMemberRequestHash } from './contracts-v3.js';
 import { MEDIA_POLICY_VERSION } from './contracts.js';
 import type { MediaPrepareScope } from './prepare-scope.js';
 import { MediaPrepareScopes } from './prepare-scope.js';
@@ -40,14 +41,41 @@ export class MediaIntentRepository {
     const declaredSha256 =
       'sha256' in input.declaration ? input.declaration.sha256 : null;
     const v2 = declaredSha256 !== null;
-    const requestHash = v2
-      ? mediaRequestHash(scope.actorAccountId, input)
-      : null;
+    const v3 = 'protocolVersion' in input && input.protocolVersion === 3;
+    const requestHash = v3
+      ? mediaMemberRequestHash(scope.actorAccountId, input.batchIdentity, {
+          clientRequestId: input.clientRequestId,
+          memberId: input.memberId,
+          sourceSlot: input.ordinal,
+          declaration: input.declaration,
+        })
+      : v2
+        ? mediaRequestHash(scope.actorAccountId, input)
+        : null;
+    if (v3) {
+      const batch = await tx.query(
+        `SELECT id FROM whaleu_media.publication_batches WHERE id=$1 AND actor_id=$2 AND state='editing' AND server_scope_id=$3 AND scope_revision=$4 AND identity=$5::jsonb FOR UPDATE`,
+        [
+          input.batchId,
+          scope.actorAccountId,
+          scope.serverScopeId,
+          scope.scopeRevision,
+          JSON.stringify(input.batchIdentity),
+        ],
+      );
+      if (batch.rowCount !== 1) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    }
     // Serialize all reservation changes for this account; same-key retry neither
     // allocates another object obligation nor consumes quota a second time.
     await this.actorLock(scope.actorAccountId, tx);
     const hash = createHash('sha256')
-      .update(v2 ? 'whaleu-media-intent:v2\n' : 'whaleu-media-intent:v1\n')
+      .update(
+        v3
+          ? 'whaleu-media-intent:v3\n'
+          : v2
+            ? 'whaleu-media-intent:v2\n'
+            : 'whaleu-media-intent:v1\n',
+      )
       .update(
         JSON.stringify({
           actor: scope.actorAccountId,
@@ -67,7 +95,12 @@ export class MediaIntentRepository {
           mime: input.declaration.mime,
           bytes: input.declaration.bytes,
           policyVersion: MEDIA_POLICY_VERSION,
-          ...(v2 ? { protocolVersion: 2, sha256: declaredSha256 } : {}),
+          ...(v2
+            ? { protocolVersion: v3 ? 3 : 2, sha256: declaredSha256 }
+            : {}),
+          ...(v3
+            ? { batchId: input.batchId, memberId: input.memberId, requestHash }
+            : {}),
         }),
       )
       .digest('hex');
@@ -139,7 +172,7 @@ export class MediaIntentRepository {
           MEDIA_POLICY_VERSION,
           input.declaration.bytes,
           input.declaration.mime,
-          v2 ? 2 : 1,
+          v3 ? 3 : v2 ? 2 : 1,
           requestHash,
           declaredSha256,
         ],

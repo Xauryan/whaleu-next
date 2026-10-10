@@ -1,3 +1,7 @@
+import { MediaBatchController } from '../media/controller-v3.js';
+import { MEDIA_BATCH_APPLICATION } from '../media/application-v3.js';
+import { MediaMultipartInterceptorV3 } from '../media/multipart-ingress.js';
+import { UnavailableCommunityMediaBatchApplication } from './media/application-v3.js';
 import { MediaUploadControllerV2 } from '../media/controller-v2.js';
 import { MEDIA_UPLOAD_APPLICATION_V2 } from '../media/application-v2.js';
 import { MEDIA_INGRESS_STORAGE } from '../media/ingress-storage.js';
@@ -285,6 +289,7 @@ export class CommunityRecoveryController {
   controllers: [
     MediaController,
     MediaUploadControllerV2,
+    MediaBatchController,
     HotController,
     ViewReportingController,
     SearchController,
@@ -318,6 +323,13 @@ export class CommunityRecoveryController {
   ],
   providers: [
     MediaMultipartInterceptor,
+    MediaMultipartInterceptorV3,
+    {
+      provide: MEDIA_BATCH_APPLICATION,
+      useFactory: (database: DatabaseService, access: CommunityAccessService) =>
+        new UnavailableCommunityMediaBatchApplication(database, access),
+      inject: [DatabaseService, CommunityAccessService],
+    },
     { provide: MEDIA_INGRESS_STORAGE, useValue: null },
     {
       provide: MEDIA_UPLOAD_APPLICATION_V2,

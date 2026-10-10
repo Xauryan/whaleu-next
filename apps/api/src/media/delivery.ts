@@ -19,6 +19,8 @@ export interface InternalMediaDeliveryPlan {
   readonly sha256: string;
   readonly manifestDigest: string;
   readonly safetyRevision: string;
+  /** Whole ordered set, including non-target safety dependencies. */
+  readonly attachmentSetRevision: string;
   readonly bytes: number;
   readonly mime: 'image/jpeg' | 'image/png';
 }
@@ -65,7 +67,11 @@ export class MediaDeliveryService {
       (tx) => this.authorizer.authorize(token, bindingId, variant, tx),
       { isolationLevel: 'read committed' },
     );
-    if (plan.bytes < 1 || plan.bytes > 5 * 1024 * 1024)
+    if (
+      plan.bytes < 1 ||
+      plan.bytes > 5 * 1024 * 1024 ||
+      !/^[a-f0-9]{64}$/.test(plan.attachmentSetRevision)
+    )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const count = this.active.get(plan.viewerAccountId) ?? 0;
     if (count >= 2) throw new ApplicationError('MEDIA_UNAVAILABLE');

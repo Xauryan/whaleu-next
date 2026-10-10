@@ -20,6 +20,7 @@ import { lockMediaActor, reserveMediaRequestKey } from './intent-repository.js';
 import type { MediaLifecycleRepository } from './lifecycle-repository.js';
 import type { MediaAssetRepository } from './asset-repository.js';
 import { MediaRequiredProof } from './required-proof.js';
+import { lockMediaBatchesForIntents } from './batch-locks.js';
 
 interface Intent {
   id: string;
@@ -39,7 +40,8 @@ export class MediaRecoveryRepository {
   private readonly proof = new MediaRequiredProof();
   constructor(
     private readonly lifecycle: MediaLifecycleRepository,
-    private readonly assets: MediaAssetRepository,
+    private readonly assets: Pick<MediaAssetRepository, 'readyOwned'>,
+    private readonly protocolVersion: 2 | 3 = 2,
   ) {}
   async recover(
     actor: string,
@@ -69,6 +71,14 @@ export class MediaRecoveryRepository {
         reason: 'cancelled',
         status: null,
       });
+    const protocol = (
+      await tx.query<{ protocol_version: number }>(
+        'SELECT protocol_version FROM whaleu_media.upload_intents WHERE id=$1',
+        [fence.intent_id],
+      )
+    ).rows[0];
+    if (protocol?.protocol_version !== this.protocolVersion)
+      throw new ApplicationError('MEDIA_REQUEST_CONFLICT');
     const status = await this.status(actor, fence.intent_id, tx);
     return mediaRequestRecoverySchema.parse({
       ...base,
@@ -90,10 +100,11 @@ export class MediaRecoveryRepository {
     write = false,
   ): Promise<MediaStatusV2> {
     this.managed(tx);
+    await lockMediaBatchesForIntents([id], tx, write);
     const intent = (
       await tx.query<Intent>(
-        `SELECT * FROM whaleu_media.upload_intents WHERE id=$1 AND actor_id=$2 AND protocol_version=2 FOR ${write ? 'UPDATE' : 'SHARE'}`,
-        [mediaIdSchema.parse(id), actor],
+        `SELECT * FROM whaleu_media.upload_intents WHERE id=$1 AND actor_id=$2 AND protocol_version=$3 FOR ${write ? 'UPDATE' : 'SHARE'}`,
+        [mediaIdSchema.parse(id), actor, this.protocolVersion],
       )
     ).rows[0];
     if (!intent) throw new ApplicationError('MEDIA_UNAVAILABLE');
@@ -270,6 +281,10 @@ export class MediaRecoveryRepository {
     input: unknown,
     tx: PoolClient,
   ): Promise<MediaRequestRecovery> {
+    // V3 pre-prepare cancellation belongs to the durable batch request fence;
+    // exposing an actor-first member fence would invert the batch lock order.
+    if (this.protocolVersion !== 2)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
     const { requestHash } = mediaCancelRequestSchema.parse(input);
     mediaIdSchema.parse(requestId);
     await lockMediaActor(actor, tx);
@@ -298,7 +313,17 @@ export class MediaRecoveryRepository {
         VALUES($1,$2,$3,'cancelled_before_prepare','cancelled')`,
         [actor, requestId, requestHash],
       );
-    } else if (fence.intent_id) await this.cancel(actor, fence.intent_id, tx);
+    } else if (fence.intent_id) {
+      const protocol = (
+        await tx.query<{ protocol_version: number }>(
+          'SELECT protocol_version FROM whaleu_media.upload_intents WHERE id=$1',
+          [fence.intent_id],
+        )
+      ).rows[0];
+      if (protocol?.protocol_version !== this.protocolVersion)
+        throw new ApplicationError('MEDIA_REQUEST_CONFLICT');
+      await this.cancel(actor, fence.intent_id, tx);
+    }
     return this.recover(actor, requestId, tx);
   }
   async cancel(
@@ -306,6 +331,7 @@ export class MediaRecoveryRepository {
     id: string,
     tx: PoolClient,
   ): Promise<MediaCancelV2> {
+    await lockMediaBatchesForIntents([id], tx, true);
     await lockMediaActor(actor, tx);
     const before = await this.status(actor, id, tx, true);
     if (before.status === 'bound_history')

@@ -43,6 +43,9 @@ const sources = [
   'upload_request_fences',
   'upload_ingress',
   'upload_ingress_writers',
+  'publication_batches',
+  'publication_batch_members',
+  'publication_batch_commands',
 ] as const;
 
 /** Run inside the disposable synthetic Media fixture's existing migration lease.

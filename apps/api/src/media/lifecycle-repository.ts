@@ -7,6 +7,10 @@ import {
 } from '../database/transaction-deadlines.js';
 import type { ExactObject } from './contracts.js';
 import type { MediaIntentReceipt } from './intent-repository.js';
+import {
+  lockMediaBatchesForIntents,
+  tryLockMediaBatchForIntent,
+} from './batch-locks.js';
 
 const MAX_ATTEMPTS = 5;
 const ACTIVE = [
@@ -155,6 +159,7 @@ export class MediaLifecycleRepository {
    * The caller has already locked the owner, then intent/assets/bindings. */
   async detachedOwnerIntent(intentId: string, tx: PoolClient): Promise<void> {
     this.managed(tx);
+    await lockMediaBatchesForIntents([intentId], tx, true);
     const intent = (
       await tx.query<IntentRow>(
         'SELECT * FROM whaleu_media.upload_intents WHERE id=$1 FOR UPDATE',
@@ -182,18 +187,20 @@ export class MediaLifecycleRepository {
   ): Promise<MediaJobLease | null> {
     this.managed(tx);
     // All lifecycle paths lock intent before job, avoiding cancel/settle inversion.
-    const candidate = (
-      await tx.query<{ id: string; expires_at: Date }>(
-        `SELECT i.id,i.expires_at FROM whaleu_media.upload_intents i
+    const candidate = await this.lockCandidate<{
+      id: string;
+      expires_at: Date;
+    }>(
+      `SELECT i.id,i.expires_at FROM whaleu_media.upload_intents i
       WHERE i.state IN ('sealing','processing','awaiting_review') AND i.expires_at>clock_timestamp()
       AND EXISTS(SELECT 1 FROM whaleu_media.jobs j WHERE j.intent_id=i.id AND j.kind=$1
         AND j.expected_generation=i.generation AND j.attempt<$2 AND
         ((j.status IN ('pending','retryable') AND j.next_attempt_at<=clock_timestamp()) OR
          (j.status='leased' AND j.lease_until<=clock_timestamp())))
       ORDER BY i.id FOR UPDATE OF i SKIP LOCKED LIMIT 1`,
-        [kind, MAX_ATTEMPTS],
-      )
-    ).rows[0];
+      [kind, MAX_ATTEMPTS],
+      tx,
+    );
     if (!candidate) return null;
     registerTransactionDeadline(
       tx,
@@ -249,6 +256,7 @@ export class MediaLifecycleRepository {
     tx: PoolClient,
   ): Promise<boolean> {
     this.managed(tx);
+    await lockMediaBatchesForIntents([lease.intentId], tx, true);
     const intent = (
       await tx.query<IntentRow>(
         `SELECT *,expires_at<=clock_timestamp() AS expired
@@ -301,11 +309,8 @@ export class MediaLifecycleRepository {
    * Does not claim the storage effects themselves have stopped or disappeared. */
   async expireOne(tx: PoolClient): Promise<boolean> {
     this.managed(tx);
-    const row = (
-      await tx.query<{
-        id: string;
-        state: string;
-      }>(`SELECT i.id,i.state FROM whaleu_media.upload_intents i
+    const row = await this.lockCandidate<{ id: string; state: string }>(
+      `SELECT i.id,i.state FROM whaleu_media.upload_intents i
       WHERE (i.state IN ('prepared','upload_observed','sealing','processing','awaiting_review')
         AND i.expires_at<=clock_timestamp())
       OR (i.state='ready' AND (EXISTS (SELECT 1 FROM whaleu_media.assets a
@@ -315,8 +320,10 @@ export class MediaLifecycleRepository {
         AND NOT EXISTS (SELECT 1 FROM whaleu_media.bindings b
           JOIN whaleu_media.assets a ON a.id=b.asset_id WHERE a.intent_id=i.id))
       ORDER BY i.expires_at,i.id
-      FOR UPDATE OF i SKIP LOCKED LIMIT 1`)
-    ).rows[0];
+      FOR UPDATE OF i SKIP LOCKED LIMIT 1`,
+      [],
+      tx,
+    );
     if (!row) return false;
     await this.lockUnboundAssets(row.id, false, tx);
     await this.stageKnownCleanup(row.id, tx);
@@ -410,9 +417,8 @@ export class MediaLifecycleRepository {
     // Fence cleanup against attachment using the same intent-first order as
     // cancellation. This narrow collector intentionally handles terminal intents
     // only; retention cleanup for live assets needs a different owner protocol.
-    const candidate = (
-      await tx.query<{ id: string }>(
-        `SELECT i.id FROM whaleu_media.upload_intents i
+    const candidate = await this.lockCandidate<{ id: string }>(
+      `SELECT i.id FROM whaleu_media.upload_intents i
       WHERE i.state IN ('cancelled','expired','rejected','cleanup_pending','deleting','deleted')
       AND NOT EXISTS(SELECT 1 FROM whaleu_media.assets a JOIN whaleu_media.bindings b ON b.asset_id=a.id
         WHERE a.intent_id=i.id AND b.detached_at IS NULL)
@@ -426,9 +432,9 @@ export class MediaLifecycleRepository {
           ((c.state IN ('pending','retryable') AND c.not_before<=clock_timestamp()) OR
            (c.state='deleting' AND c.lease_until<=clock_timestamp())))
       ORDER BY i.id FOR UPDATE OF i SKIP LOCKED LIMIT 1`,
-        [MAX_ATTEMPTS],
-      )
-    ).rows[0];
+      [MAX_ATTEMPTS],
+      tx,
+    );
     if (!candidate) return null;
     await this.lockUnboundAssets(candidate.id, true, tx);
     const token = randomUUID();
@@ -513,6 +519,7 @@ export class MediaLifecycleRepository {
       )
     ).rows[0];
     if (!cleanupIntent) return 'stale';
+    await lockMediaBatchesForIntents([cleanupIntent.intent_id], tx, true);
     const terminalIntent = (
       await tx.query<{ state: string }>(
         'SELECT state FROM whaleu_media.upload_intents WHERE id=$1 FOR UPDATE',
@@ -580,6 +587,43 @@ export class MediaLifecycleRepository {
     return previousLease?.settled_state ?? 'stale';
   }
 
+  /** Candidate discovery grants no ownership. The same predicate is checked
+   * again after batch lock waits before locking the selected intent. */
+  private async lockCandidate<T extends { id: string }>(
+    sql: string,
+    values: readonly unknown[],
+    tx: PoolClient,
+  ): Promise<T | undefined> {
+    const where = sql.indexOf('WHERE'),
+      order = sql.lastIndexOf('ORDER BY');
+    if (where < 0 || order <= where)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const prefix = sql.slice(0, where),
+      predicate = sql.slice(where + 5, order),
+      tail = sql.slice(order);
+    const skipped: string[] = [];
+    // Bounded metadata scan; each skipped candidate releases its batch lock.
+    // This keeps independent queue work moving without locking intents first.
+    for (let attempt = 0; attempt < 128; attempt++) {
+      const hintSql = `${prefix} WHERE (${predicate}) AND NOT(i.id=ANY($${values.length + 1}::uuid[])) ${tail.replace('FOR UPDATE OF i SKIP LOCKED', '')}`;
+      const hint = (await tx.query<T>(hintSql, [...values, skipped])).rows[0];
+      if (!hint) return undefined;
+      await tx.query('SAVEPOINT media_batch_candidate');
+      if (await tryLockMediaBatchForIntent(hint.id, tx)) {
+        const locked = `${prefix} WHERE (${predicate}) AND i.id=$${values.length + 1} ${tail}`;
+        const row = (await tx.query<T>(locked, [...values, hint.id])).rows[0];
+        if (row) {
+          await tx.query('RELEASE SAVEPOINT media_batch_candidate');
+          return row;
+        }
+      }
+      await tx.query('ROLLBACK TO SAVEPOINT media_batch_candidate');
+      await tx.query('RELEASE SAVEPOINT media_batch_candidate');
+      skipped.push(hint.id);
+    }
+    return undefined;
+  }
+
   private async lockUnboundAssets(
     intentId: string,
     detachedAllowed: boolean,
@@ -608,6 +652,7 @@ export class MediaLifecycleRepository {
     tx: PoolClient,
   ): Promise<IntentRow> {
     this.managed(tx);
+    await lockMediaBatchesForIntents([id], tx, true);
     const row = (
       await tx.query<IntentRow>(
         `SELECT *,expires_at<=clock_timestamp() AS expired

@@ -749,32 +749,96 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
     await import('../src/media/controller-v2.js');
   const { MEDIA_UPLOAD_APPLICATION_V2 } =
     await import('../src/media/application-v2.js');
+  const { MediaBatchController } =
+    await import('../src/media/controller-v3.js');
+  const { MEDIA_BATCH_APPLICATION } =
+    await import('../src/media/application-v3.js');
   const { MEDIA_INGRESS_STORAGE } =
     await import('../src/media/ingress-storage.js');
-  const { MediaMultipartInterceptor } =
+  const { MediaMultipartInterceptor, MediaMultipartInterceptorV3 } =
     await import('../src/media/multipart-ingress.js');
   const { mediaAttachmentDescriptorSchema } =
     await import('../src/media/contracts.js');
   const { z } = await import('zod');
-  for (const method of ['prepare', 'status', 'finalize', 'cancel', 'download'])
-    if (
-      !Reflect.hasMetadata(
-        PARAMTYPES_METADATA,
-        MediaController.prototype,
-        method,
+  for (const [controller, methods] of [
+    [MediaController, ['prepare', 'status', 'finalize', 'cancel', 'download']],
+    [
+      MediaUploadControllerV2,
+      [
+        'prepare',
+        'recover',
+        'cancelRequest',
+        'status',
+        'grant',
+        'upload',
+        'finalize',
+        'cancel',
+      ],
+    ],
+    [
+      MediaBatchController,
+      [
+        'prepare',
+        'recover',
+        'cancel',
+        'recoverPublication',
+        'fencePublication',
+        'layout',
+        'seal',
+        'reopen',
+        'prepareMember',
+        'memberStatus',
+        'grant',
+        'finalize',
+        'cancelMember',
+        'upload',
+      ],
+    ],
+  ] as const) {
+    for (const method of methods)
+      if (
+        !Reflect.hasMetadata(PARAMTYPES_METADATA, controller.prototype, method)
       )
-    )
-      throw new Error(
-        'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
-      );
+        throw new Error(
+          'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+        );
+  }
   const fail = () => {
     throw new Error('OpenAPI must not execute application work');
   };
   const testing = await Test.createTestingModule({
-    controllers: [MediaController, MediaUploadControllerV2],
+    controllers: [
+      MediaController,
+      MediaUploadControllerV2,
+      MediaBatchController,
+    ],
     providers: [
       MediaMultipartInterceptor,
+      MediaMultipartInterceptorV3,
       { provide: MEDIA_INGRESS_STORAGE, useValue: null },
+      {
+        // Closed tooling-only application: constructing the actual unavailable
+        // runtime would unnecessarily introduce Identity/Database dependencies.
+        provide: MEDIA_BATCH_APPLICATION,
+        useValue: {
+          prepareBatch: fail,
+          recoverBatch: fail,
+          cancelBatch: fail,
+          recoverPublication: fail,
+          fencePublication: fail,
+          layout: fail,
+          seal: fail,
+          reopen: fail,
+          prepareMember: fail,
+          memberStatus: fail,
+          finalizeMember: fail,
+          cancelMember: fail,
+          grant: fail,
+          admit: fail,
+          observe: fail,
+          retire: fail,
+        },
+      },
       {
         provide: MEDIA_UPLOAD_APPLICATION_V2,
         useValue: {

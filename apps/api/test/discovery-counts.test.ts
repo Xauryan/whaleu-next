@@ -533,6 +533,9 @@ test('unsupported writer capacity permits image counts only under complete Media
       'asset_safety_heads',
       'upload_ingress',
       'upload_ingress_writers',
+      'publication_batches',
+      'publication_batch_members',
+      'publication_batch_commands',
     ])
       assert.ok(final[fence]!.sql.includes(`whaleu_media.${source}`));
     clearTransactionDeadlines(f.tx);

@@ -153,6 +153,7 @@ export interface MediaAttachmentPort {
     ids: string[],
     transaction: PoolClient,
     envelope: import('./content-review/contracts.js').EffectiveContentEnvelopeDraft,
+    publication?: import('../media/batch-repository.js').PublicationMediaContext,
   ): Promise<Decision<ApprovedAsset[]>>;
   bind(
     images: ApprovedAsset[],

@@ -31,12 +31,15 @@ export class CommunityMediaAttachmentAdapter implements MediaAttachmentPort {
     ids: string[],
     tx: PoolClient,
     envelope: EffectiveContentEnvelopeDraft,
+    publication?: import('../../media/batch-repository.js').PublicationMediaContext,
   ): Promise<Decision<ApprovedAsset[]>> {
     if (
       purpose !== 'publish_post' ||
       envelope.purpose !== purpose ||
       envelope.accountId !== actor ||
-      ids.length !== 1
+      !ids.length ||
+      ids.length > 9 ||
+      new Set(ids).size !== ids.length
     )
       return { kind: 'unavailable' };
     const scope = await this.assets.peekOwnedScope(actor, ids, tx);
@@ -66,6 +69,7 @@ export class CommunityMediaAttachmentAdapter implements MediaAttachmentPort {
       },
       ids,
       tx,
+      publication,
     );
     let entries = this.accepted.get(tx);
     if (!entries) {

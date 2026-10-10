@@ -383,3 +383,53 @@ test('unavailable Media capture permits text-only work but cannot become image a
     clearTransactionDeadlines(g.tx);
   }
 });
+
+test('semantic v2 nine-image ordered chain preserves all identities and changes on any attachment revision', () => {
+  const f = fixture();
+  const first = f.media.attachments[0]!;
+  const attachments = Array.from({ length: 9 }, (_, ordinal) => ({
+    ...first,
+    ordinal,
+    assetId: randomUUID(),
+    bindingId: randomUUID(),
+    intentId: randomUUID(),
+    eventId: randomUUID(),
+  }));
+  const media: MediaContentFact = { ...f.media, attachments };
+  const node = semanticMediaNode('post', f.node.id, media)!;
+  assert.ok(node);
+  assert.equal(node.attachments!.length, 9);
+  assert.equal(semanticMediaChainSchema.safeParse([node]).success, true);
+  const encoded = JSON.stringify(node);
+  const changed = semanticMediaNode('post', f.node.id, {
+    ...media,
+    attachments: attachments.map((attachment, ordinal) =>
+      ordinal === 8
+        ? { ...attachment, headRevision: '2', eventId: randomUUID() }
+        : attachment,
+    ),
+  });
+  assert.notEqual(JSON.stringify(changed), encoded);
+  for (const values of [
+    [...attachments, { ...attachments[8]!, ordinal: 9 }],
+    attachments.map((attachment, ordinal) =>
+      ordinal === 8 ? { ...attachment, ordinal: 7 } : attachment,
+    ),
+    attachments.map((attachment, ordinal) =>
+      ordinal === 8
+        ? { ...attachment, assetId: attachments[0]!.assetId }
+        : attachment,
+    ),
+    attachments.map((attachment, ordinal) =>
+      ordinal === 8
+        ? { ...attachment, bindingId: attachments[0]!.bindingId }
+        : attachment,
+    ),
+  ]) {
+    assert.equal(
+      semanticMediaChainSchema.safeParse([{ ...node, attachments: values }])
+        .success,
+      false,
+    );
+  }
+});

@@ -363,3 +363,163 @@ test('Media shared validator rejects a sealed manifest under a different current
     'unknown',
   );
 });
+
+function galleryFixture(size = 9) {
+  const first = fixture();
+  const rows = Array.from({ length: size }, (_, ordinal) => ({
+    ...first.row,
+    ordinal,
+    binding_id: randomUUID(),
+    asset_id: randomUUID(),
+    id: '',
+    intent_id: randomUUID(),
+    event_id: randomUUID(),
+  }));
+  for (const row of rows) row.id = row.asset_id;
+  return {
+    reference: {
+      ...first.reference,
+      expected: rows.map((row) => ({
+        assetId: row.id,
+        digest: row.manifest_digest,
+      })),
+    },
+    rows,
+  };
+}
+
+test('complete nine-image snapshot is one parent composite with ordered identities and earliest deadline', async () => {
+  const f = galleryFixture();
+  f.rows[8]!.valid_until = new Date(9000);
+  const facts = await new MediaContentSnapshotFacade().readBatch(
+    [f.reference],
+    noRead,
+    budget(f.rows),
+  );
+  assert.equal(facts.size, 1);
+  const fact = facts.get(mediaContentKey(f.reference.parent))!;
+  assert.equal(fact.decision, 'allow');
+  assert.equal(fact.validUntil, 9000);
+  assert.deepEqual(
+    fact.attachments.map((attachment) => attachment.assetId),
+    f.reference.expected.map((image) => image.assetId),
+  );
+  assert.deepEqual(
+    fact.attachments.map((attachment) => attachment.ordinal),
+    [0, 1, 2, 3, 4, 5, 6, 7, 8],
+  );
+});
+
+test('whole nine-image snapshot retains every denied identity; first middle and last revocation deny the parent', async () => {
+  for (const ordinal of [0, 4, 8]) {
+    const f = galleryFixture();
+    f.rows[ordinal]!.state = 'revoked';
+    const fact = (
+      await new MediaContentSnapshotFacade().readBatch(
+        [f.reference],
+        noRead,
+        budget(f.rows),
+      )
+    ).get(mediaContentKey(f.reference.parent))!;
+    assert.equal(fact.decision, 'deny');
+    assert.equal(fact.attachments.length, 9);
+    assert.equal(fact.attachments[ordinal]!.eventId, f.rows[ordinal]!.event_id);
+  }
+});
+
+test('missing extra duplicate reordered and unknown ninth attachment fail the entire composite', async () => {
+  for (const mutation of [
+    'missing',
+    'extra',
+    'duplicate-binding',
+    'duplicate-asset',
+    'order',
+    'head',
+    'manifest',
+    'slot',
+  ] as const) {
+    const f = galleryFixture();
+    if (mutation === 'missing') f.rows.pop();
+    if (mutation === 'extra')
+      f.rows.push({ ...f.rows[8]!, ordinal: 9, binding_id: randomUUID() });
+    if (mutation === 'duplicate-binding')
+      f.rows[8]!.binding_id = f.rows[0]!.binding_id;
+    if (mutation === 'duplicate-asset')
+      f.reference.expected[8]!.assetId = f.reference.expected[0]!.assetId;
+    if (mutation === 'order') f.rows.reverse();
+    if (mutation === 'head') f.rows[8]!.head_revision = '0';
+    if (mutation === 'manifest') f.rows[8]!.manifest_digest = 'f'.repeat(64);
+    if (mutation === 'slot') f.rows[8]!.slot = 'other';
+    const fact = (
+      await new MediaContentSnapshotFacade().readBatch(
+        [f.reference],
+        noRead,
+        budget(f.rows),
+      )
+    ).get(mediaContentKey(f.reference.parent))!;
+    assert.equal(fact.decision, 'unknown', mutation);
+    assert.equal(fact.attachments.length, 0, mutation);
+  }
+});
+
+test('256 parents by nine images bounds metadata at 2304 identities without expanding the owner fact count', async () => {
+  const fixtures = Array.from({ length: 256 }, () => galleryFixture());
+  const reader: MediaSnapshotReadBudget = {
+    rows: async <T>(
+      _tx: PoolClient,
+      _sql: string,
+      _values: unknown[],
+      cap: number,
+    ) => {
+      assert.equal(cap, 2304);
+      return fixtures.flatMap((f) => f.rows) as T[];
+    },
+  };
+  const facts = await new MediaContentSnapshotFacade().readBatch(
+    fixtures.map((f) => f.reference),
+    noRead,
+    reader,
+  );
+  assert.equal(facts.size, 256);
+  assert.equal(
+    [...facts.values()].reduce((sum, fact) => sum + fact.attachments.length, 0),
+    2304,
+  );
+});
+
+test('nine-image cap still uses the existing shared four MiB sentinel and rejects a tenth identity', async () => {
+  const f = galleryFixture();
+  let sql = '';
+  const tx = {
+    query: async (input: string) => {
+      sql = input;
+      return { rows: [{ data: null, bytes: String(4 * 1024 * 1024 + 1) }] };
+    },
+  } as unknown as PoolClient;
+  await assert.rejects(
+    new MediaContentSnapshotFacade().readBatch(
+      [f.reference],
+      tx,
+      new SnapshotReadBudget(),
+    ),
+  );
+  assert.match(sql, /LIMIT 10/);
+  assert.match(sql, /bytes<=4194304/);
+  const ten = galleryFixture(10);
+  let called = false;
+  const facts = await new MediaContentSnapshotFacade().readBatch(
+    [ten.reference],
+    noRead,
+    {
+      rows: async () => {
+        called = true;
+        return [];
+      },
+    },
+  );
+  assert.equal(called, false);
+  assert.equal(
+    facts.get(mediaContentKey(ten.reference.parent))!.decision,
+    'unknown',
+  );
+});

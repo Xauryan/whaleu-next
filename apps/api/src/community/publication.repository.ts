@@ -1,3 +1,7 @@
+import {
+  lockPublicationCommand,
+  requirePublicationNotCancelled,
+} from './publication-cancel-fence.js';
 import { lockSafetyPolicy } from '../safety/locks.js';
 import { enrollPublishedHotProcessing } from './hot-score/storage.js';
 import { CommunityCommentEnrollment } from './comment-component/enrollment.js';
@@ -84,6 +88,14 @@ export class PublicationRepository {
       // Authentication/active account lock precedes even successful replay.
       const actor = await this.access.actor(token, tx);
       const hash = publicationHash(operation, intent);
+      await lockPublicationCommand(actor, requestId, tx);
+      await requirePublicationNotCancelled(
+        actor,
+        requestId,
+        operation,
+        hash,
+        tx,
+      );
       await tx.query(
         'INSERT INTO whaleu_community.publication_requests(account_id,client_request_id,payload_hash,operation) VALUES ($1,$2,$3,$4) ON CONFLICT(account_id,client_request_id) DO NOTHING',
         [actor, requestId, hash, operation],

@@ -21,6 +21,8 @@ import { bearerToken } from '../identity/tokens.js';
 import { MEDIA_MAX_INPUT_BYTES } from './contracts.js';
 import { MEDIA_UPLOAD_APPLICATION_V2 } from './application-v2.js';
 import type { MediaUploadApplicationV2 } from './application-v2.js';
+import { MEDIA_BATCH_APPLICATION } from './application-v3.js';
+import type { MediaBatchApplication } from './application-v3.js';
 import { MEDIA_INGRESS_STORAGE } from './ingress-storage.js';
 import type { MediaIngressStorage } from './ingress-storage.js';
 import type { StoredObjectMeasurement } from './storage-port.js';
@@ -28,6 +30,7 @@ import { mediaV2IdSchema } from './contracts-v2.js';
 import type { MediaUploadObserved } from './contracts-v2.js';
 
 const WIRE_LIMIT = MEDIA_MAX_INPUT_BYTES + 64 * 1024;
+const admissions = new WeakMap<MediaIngressStorage, { active: number }>();
 const results = new WeakMap<Request, MediaUploadObserved>();
 export function observedMultipart(request: Request): MediaUploadObserved {
   const result = results.get(request);
@@ -43,13 +46,20 @@ interface MulterFile {
  * observation: the entire parser and whole wire budget must finish first. */
 @Injectable()
 export class MediaMultipartInterceptor implements NestInterceptor {
-  private active = 0;
+  private readonly admission: { active: number };
   constructor(
     @Inject(MEDIA_UPLOAD_APPLICATION_V2)
-    private readonly media: MediaUploadApplicationV2,
+    private readonly media: Pick<
+      MediaUploadApplicationV2,
+      'admit' | 'observe' | 'retire'
+    >,
     @Inject(MEDIA_INGRESS_STORAGE)
     private readonly storage: MediaIngressStorage | null,
-  ) {}
+  ) {
+    const shared = storage ? admissions.get(storage) : undefined;
+    this.admission = shared ?? { active: 0 };
+    if (storage && !shared) admissions.set(storage, this.admission);
+  }
   intercept(context: ExecutionContext, next: CallHandler) {
     return defer(() => this.execute(context, next));
   }
@@ -90,9 +100,9 @@ export class MediaMultipartInterceptor implements NestInterceptor {
     };
     const onAborted = () => abort.abort();
     try {
-      if (!this.storage || this.active >= 2)
+      if (!this.storage || this.admission.active >= 2)
         throw new ApplicationError('MEDIA_UNAVAILABLE');
-      this.active++;
+      this.admission.active++;
       counted = true;
       if (Object.keys(request.query).length || request.url.includes('?'))
         throw new BadRequestException();
@@ -261,8 +271,19 @@ export class MediaMultipartInterceptor implements NestInterceptor {
         .retire(claim, proof, Math.min(wireBytes, WIRE_LIMIT + 64 * 1024))
         .catch(() => undefined);
       // Unknown writers or failed scratch deletion keep their bounded slot.
-      if (counted && proof && scratchAbsent) this.active--;
+      if (counted && proof && scratchAbsent) this.admission.active--;
       results.delete(request);
     }
+  }
+}
+
+/** Same Multer engine; only the DI application is version-controlled. */
+@Injectable()
+export class MediaMultipartInterceptorV3 extends MediaMultipartInterceptor {
+  constructor(
+    @Inject(MEDIA_BATCH_APPLICATION) media: MediaBatchApplication,
+    @Inject(MEDIA_INGRESS_STORAGE) storage: MediaIngressStorage | null,
+  ) {
+    super(media, storage);
   }
 }

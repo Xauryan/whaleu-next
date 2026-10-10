@@ -143,6 +143,32 @@ export class PendingAttemptStore {
       throw storageError();
     }
   }
+  /** Additive v3 cancellation settlement. A not-found response and dispatch hint
+   * never reach this method; only the exact durable owner fence is accepted. */
+  settleCancelled(
+    attempt: PendingAttempt,
+    raw: unknown,
+    expectedIntentHash: string,
+  ): void {
+    exact(raw, ['requestId', 'operation', 'outcome', 'intentHash']);
+    if (
+      attempt.operation !== 'publish_post' ||
+      raw.requestId !== attempt.payload.clientRequestId ||
+      raw.operation !== 'publish_post' ||
+      raw.outcome !== 'cancelled' ||
+      typeof expectedIntentHash !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(expectedIntentHash) ||
+      raw.intentHash !== expectedIntentHash
+    )
+      invalid();
+    try {
+      if (!equal(this.load(attempt.accountId), attempt)) throw storageError();
+      this.storage.remove(this.key(attempt.accountId));
+      if (this.load(attempt.accountId)) throw storageError();
+    } catch {
+      throw storageError();
+    }
+  }
   settle(attempt: PendingAttempt, rawReceipt: Receipt): Receipt {
     const receipt = decodeReceipt(rawReceipt);
     if (

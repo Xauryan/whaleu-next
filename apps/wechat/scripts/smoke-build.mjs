@@ -1,3 +1,4 @@
+import { smokeMediaBatch } from './smoke-media-batch.mjs';
 import { smokeMediaUpload } from './smoke-media-upload.mjs';
 import { smokeMediaRead } from './smoke-media-read.mjs';
 import {
@@ -1998,6 +1999,12 @@ await smokeMediaRead({
   postWire: pollPostWire,
 });
 await smokeMediaUpload({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  postWire: pollPostWire,
+});
+await smokeMediaBatch({
   app,
   dist,
   mountPage: mountTradingPage,

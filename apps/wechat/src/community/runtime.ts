@@ -1,3 +1,4 @@
+import type { MediaBatchRuntime } from '../media/batch-runtime';
 import type { MediaUploadRuntime } from '../media/upload-runtime';
 import {
   HttpRatingCategoryScopedGateway,
@@ -133,6 +134,8 @@ import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
   /** Explicit dependency injection only; normal app construction never enables upload. */
   readonly mediaUpload?: MediaUploadRuntime;
+  /** Additive metadata-only v3 path; explicit test DI only. */
+  readonly mediaBatch?: MediaBatchRuntime;
   readonly ratingCategoryScoped?: RatingCategoryScopedGateway;
   readonly ratingScoped?: RatingScopedGateway;
   readonly messaging?: MessagingRuntime;

@@ -5,6 +5,8 @@ import { mediaIdSchema, prepareMediaSchema } from './contracts.js';
 import type { z } from 'zod';
 import { prepareMediaV2Schema } from './contracts-v2.js';
 import type { PrepareMediaV2Input } from './contracts-v2.js';
+import { prepareMediaV3Schema } from './contracts-v3.js';
+import type { PrepareMediaV3Input } from './contracts-v3.js';
 
 export type PrepareMediaInput = z.infer<typeof prepareMediaSchema>;
 export interface AuthorizedMediaDraft {
@@ -19,14 +21,14 @@ export interface AuthorizedMediaDraft {
   readonly audience: 'content-gated';
   readonly purpose: 'community-post-image';
   readonly slot: 'images';
-  readonly ordinal: 0;
+  readonly ordinal: number;
 }
 export interface MediaDraftOwnerPort {
   /** Resolve a durable owner scope under current Identity/Safety/publication
    * authority. Enroll that owner's mandatory proof. No remote effects here. */
   authorizePrepare(
     actorAccountId: string,
-    input: PrepareMediaInput,
+    input: PrepareMediaInput | PrepareMediaV2Input | PrepareMediaV3Input,
     tx: PoolClient,
   ): Promise<AuthorizedMediaDraft>;
 }
@@ -42,7 +44,7 @@ export class MediaPrepareScopes {
     {
       tx: PoolClient;
       epoch: object;
-      input: PrepareMediaInput | PrepareMediaV2Input;
+      input: PrepareMediaInput | PrepareMediaV2Input | PrepareMediaV3Input;
       scope: AuthorizedMediaDraft;
     }
   >();
@@ -61,9 +63,16 @@ export class MediaPrepareScopes {
   ): Promise<MediaPrepareScope> {
     return this.issue(actorAccountId, prepareMediaV2Schema.parse(raw), tx);
   }
+  async authorizeV3(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    return this.issue(actorAccountId, prepareMediaV3Schema.parse(raw), tx);
+  }
   private async issue(
     actorAccountId: string,
-    input: PrepareMediaInput | PrepareMediaV2Input,
+    input: PrepareMediaInput | PrepareMediaV2Input | PrepareMediaV3Input,
     tx: PoolClient,
   ): Promise<MediaPrepareScope> {
     const actor = mediaIdSchema.parse(actorAccountId);
@@ -88,6 +97,7 @@ export class MediaPrepareScopes {
     const capability: MediaPrepareScope = Object.freeze({
       [brand]: true as const,
     });
+    if ('protocolVersion' in input) Object.freeze(input.batchIdentity);
     Object.freeze(input.declaration);
     Object.freeze(input);
     this.issued.set(capability, {
@@ -102,7 +112,7 @@ export class MediaPrepareScopes {
     capability: MediaPrepareScope,
     tx: PoolClient,
   ): {
-    input: PrepareMediaInput | PrepareMediaV2Input;
+    input: PrepareMediaInput | PrepareMediaV2Input | PrepareMediaV3Input;
     scope: AuthorizedMediaDraft;
   } {
     const issued = this.issued.get(capability);

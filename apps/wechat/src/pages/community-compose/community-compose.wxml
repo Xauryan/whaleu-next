@@ -48,7 +48,21 @@
         <view class="row"><text>我已了解并同意以上联系方式向符合权限的组内成员提供</text><switch checked="{{formationDraft.contactConsent}}" bindchange="onFormationConsent" disabled="{{frozen || busy || !loaded}}" /></view>
       </view>
     </view>
-    <view class="notice">{{mediaNotice}}</view><view wx:if="{{canSelectImage}}"><button bindtap="onSelectImage" disabled="{{frozen || busy || mediaBusy || (mediaStatus !== 'idle' &amp;&amp; mediaStatus !== 'terminal' &amp;&amp; mediaStatus !== 'bound_history')}}">选择一张原图并上传</button><button bindtap="onRecoverImage">查询原图片操作</button><button bindtap="onCancelImage">取消原图片操作（需服务器确认）</button></view><view wx:if="{{blocker}}" class="notice">{{blocker}}</view>
+    <view class="notice">{{mediaNotice}}</view>
+    <view wx:if="{{batchMode}}" class="media-batch">
+      <view wx:for="{{mediaMembers}}" wx:key="memberId" class="media-batch-member">
+        <text>第 {{index + 1}} 张 · {{item.status}}</text>
+        <button size="mini" data-id="{{item.memberId}}" data-direction="-1" bindtap="onMoveImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit || index === 0}}">前移</button>
+        <button size="mini" data-id="{{item.memberId}}" data-direction="1" bindtap="onMoveImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit || index + 1 === mediaSelected}}">后移</button>
+        <button size="mini" data-id="{{item.memberId}}" bindtap="onReplaceImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit}}">替换</button>
+        <button size="mini" data-id="{{item.memberId}}" bindtap="onRemoveImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit}}">移除</button>
+      </view>
+      <button bindtap="onSelectImage" disabled="{{frozen || busy || mediaBusy || !canSelectImage}}">添加一张原图（{{mediaSelected}}/9）</button>
+      <button bindtap="onRecoverImage" disabled="{{busy || mediaBusy}}">确认整批图片状态</button>
+      <button bindtap="onCancelImage" disabled="{{busy || mediaBusy}}">取消整批图片（需服务器确认）</button>
+    </view>
+    <view wx:elif="{{canSelectImage}}"><button bindtap="onSelectImage" disabled="{{frozen || busy || mediaBusy || (mediaStatus !== 'idle' &amp;&amp; mediaStatus !== 'terminal' &amp;&amp; mediaStatus !== 'bound_history')}}">选择一张原图并上传</button><button bindtap="onRecoverImage">查询原图片操作</button><button bindtap="onCancelImage">取消原图片操作（需服务器确认）</button></view>
+    <view wx:if="{{blocker}}" class="notice">{{blocker}}</view>
     <button wx:if="{{!frozen}}" class="primary" bindtap="onSubmit" disabled="{{!canSubmit || busy}}" loading="{{busy}}">确认以上身份并发布</button><button wx:if="{{frozen}}" class="primary" bindtap="onReceipt" disabled="{{busy}}" loading="{{busy}}">查询原请求回执</button><button wx:if="{{frozen}}" class="secondary" bindtap="onRetry" disabled="{{busy}}">重试完全相同的原请求</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待（不撤销发布）</button>
     <view wx:if="{{receiptStatus}}" class="status">{{receiptStatus}}</view><navigator wx:if="{{resourcePostId &amp;&amp; !resourceRootCommentId}}" class="link" url="/pages/community-detail/community-detail?postId={{resourcePostId}}">查看已确认的帖子 →</navigator><navigator wx:if="{{resourceRootCommentId &amp;&amp; resourceReplyId}}" class="link" url="/pages/community-thread/community-thread?postId={{resourcePostId}}&amp;rootCommentId={{resourceRootCommentId}}&amp;replyId={{resourceReplyId}}">查看已确认的回复 →</navigator><navigator wx:if="{{resourceRootCommentId &amp;&amp; !resourceReplyId}}" class="link" url="/pages/community-detail/community-detail?postId={{resourcePostId}}&amp;rootCommentId={{resourceRootCommentId}}">查看已确认的评论 →</navigator>
   </view>

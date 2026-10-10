@@ -1,3 +1,7 @@
+import { MEDIA_BATCH_APPLICATION } from '../../../src/media/application-v3.js';
+import { MediaBatchRepository } from '../../../src/media/batch-repository.js';
+import { CommunityMediaBatchApplication } from '../../../src/community/media/application-v3.js';
+import { CommunityMediaBatchPublicationProof } from '../../../src/community/media/batch-publication-proof.js';
 import { MediaContentSnapshotFacade } from '../../../src/media/content-snapshot.facade.js';
 import { MEDIA_UPLOAD_APPLICATION_V2 } from '../../../src/media/application-v2.js';
 import { MEDIA_INGRESS_STORAGE } from '../../../src/media/ingress-storage.js';
@@ -52,6 +56,7 @@ export async function syntheticMediaRuntimeFixture(
   let owner!: CommunityMediaOwner;
   let owners!: MediaOwnerProofRegistry;
   let assets!: MediaAssetRepository;
+  let batches!: MediaBatchRepository;
   const lifecycle = new MediaLifecycleRepository();
   let closeBase: (() => Promise<void>) | undefined;
   try {
@@ -74,7 +79,18 @@ export async function syntheticMediaRuntimeFixture(
             ) => {
               owner = new CommunityMediaOwner(access, community);
               owners = new MediaOwnerProofRegistry([owner]);
-              assets = new MediaAssetRepository(owners);
+              const scopes = new MediaPrepareScopes(owner);
+              batches = new MediaBatchRepository(
+                scopes,
+                new MediaIntentRepository(scopes),
+                lifecycle,
+                {
+                  readyOwned: (actor, intentId, tx) =>
+                    assets.readyOwned(actor, intentId, tx),
+                },
+                new CommunityMediaBatchPublicationProof(),
+              );
+              assets = new MediaAssetRepository(owners, batches);
               return new CommunityMediaAttachmentAdapter(assets, owner, owners);
             },
           })
@@ -99,6 +115,23 @@ export async function syntheticMediaRuntimeFixture(
                 new MediaIngressRepository(ingressStorage),
               );
             },
+          })
+          .overrideProvider(MEDIA_BATCH_APPLICATION)
+          .useFactory({
+            inject: [DatabaseService, CommunityAccessService, MEDIA_ATTACHMENT],
+            factory: (
+              database: DatabaseService,
+              access: CommunityAccessService,
+              _attachment: CommunityMediaAttachmentAdapter,
+            ) =>
+              new CommunityMediaBatchApplication(
+                database,
+                access,
+                new MediaPrepareScopes(owner),
+                lifecycle,
+                batches,
+                new MediaIngressRepository(ingressStorage, 3),
+              ),
           })
           .overrideProvider(MEDIA_APPLICATION)
           .useFactory({

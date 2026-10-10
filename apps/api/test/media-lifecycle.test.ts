@@ -10,16 +10,66 @@ import {
 
 // Query-shape unit specifications only. They do not substitute for PostgreSQL
 // trigger, real crash recovery, concurrent cancellation or storage-effect tests.
-function fakeTx(replies: unknown[][]) {
+function fakeTx(
+  replies: unknown[][],
+  coordination: {
+    batchId?: string;
+    batchLockReplies?: unknown[][];
+  } = {},
+) {
   const calls: { sql: string; values: unknown[] }[] = [];
   const tx = {
     async query(sql: string, values: unknown[] = []) {
-      calls.push({ sql, values });
-      const rows = replies.shift() ?? [];
+      // Retain every query, including the coordinator's lock/savepoint calls.
+      // These legacy fixtures have no batch unless explicitly declared below;
+      // coordination reads must not consume the lifecycle result queue.
+      calls.push({ sql, values: structuredClone(values) });
+      let rows: unknown[];
+      if (sql.includes('SELECT b.id FROM whaleu_media.publication_batches')) {
+        rows = coordination.batchId ? [{ id: coordination.batchId }] : [];
+      } else if (
+        sql ===
+        'SELECT batch_id FROM whaleu_media.publication_batch_members WHERE intent_id=$1'
+      ) {
+        rows = coordination.batchId ? [{ batch_id: coordination.batchId }] : [];
+      } else if (
+        sql ===
+        'SELECT id FROM whaleu_media.publication_batches WHERE id=$1 FOR UPDATE SKIP LOCKED'
+      ) {
+        assert.ok(
+          coordination.batchId,
+          'A batch lock requires a recorded mapping',
+        );
+        rows = coordination.batchLockReplies?.shift() ?? [
+          { id: coordination.batchId },
+        ];
+      } else if (
+        /^(SAVEPOINT|ROLLBACK TO SAVEPOINT|RELEASE SAVEPOINT) media_batch_candidate$/.test(
+          sql,
+        )
+      ) {
+        rows = [];
+      } else {
+        rows = replies.shift() ?? [];
+      }
       return { rows, rowCount: rows.length };
     },
   } as unknown as PoolClient;
   return { tx, calls };
+}
+function assertBatchBeforeIntent(
+  calls: { sql: string; values: unknown[] }[],
+  batchIndex: number,
+) {
+  assert.match(calls[batchIndex]!.sql, /FROM whaleu_media.publication_batches/);
+  assert.match(calls[batchIndex]!.sql, /m.intent_id=ANY\(\$1::uuid\[\]\)/);
+  assert.match(calls[batchIndex]!.sql, /ORDER BY b.id FOR UPDATE OF b/);
+  assert.deepEqual(calls[batchIndex]!.values, [['intent']]);
+  assert.match(
+    calls[batchIndex + 1]!.sql,
+    /FROM whaleu_media.upload_intents WHERE id=\$1/,
+  );
+  assert.match(calls[batchIndex + 1]!.sql, /FOR UPDATE/);
 }
 const repository = new MediaLifecycleRepository();
 const intent = {
@@ -61,9 +111,10 @@ test('status and terminal finalize remain actor-scoped and never advertise readi
     try {
       const receipt = await repository.finalize('actor', 'intent', tx);
       assert.notEqual(receipt.status, 'ready');
-      assert.equal(calls.length, 1);
-      assert.match(calls[0]!.sql, /id=\$1 AND actor_id=\$2/);
-      assert.deepEqual(calls[0]!.values, ['intent', 'actor']);
+      assert.equal(calls.length, 2);
+      assertBatchBeforeIntent(calls, 0);
+      assert.match(calls[1]!.sql, /id=\$1 AND actor_id=\$2/);
+      assert.deepEqual(calls[1]!.values, ['intent', 'actor']);
     } finally {
       clearTransactionDeadlines(tx);
     }
@@ -76,10 +127,11 @@ test('finalize requires an already observed exact source and planned exact desti
   try {
     await assert.rejects(repository.finalize('actor', 'intent', tx));
     assert.match(
-      calls[1]!.sql,
+      calls[2]!.sql,
       /source_version IS NOT NULL AND sealed_version IS NOT NULL/,
     );
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
+    assertBatchBeforeIntent(calls, 0);
   } finally {
     clearTransactionDeadlines(tx);
   }
@@ -94,9 +146,10 @@ test('cancel rejects any bound asset before staging cleanup or revoking jobs', a
   startTransactionDeadlines(tx);
   try {
     await assert.rejects(repository.cancel('actor', 'intent', tx));
-    assert.equal(calls.length, 3);
-    assert.match(calls[1]!.sql, /ORDER BY id FOR UPDATE/);
-    assert.match(calls[2]!.sql, /FOR SHARE OF b/);
+    assert.equal(calls.length, 4);
+    assertBatchBeforeIntent(calls, 0);
+    assert.match(calls[2]!.sql, /ORDER BY id FOR UPDATE/);
+    assert.match(calls[3]!.sql, /FOR SHARE OF b/);
   } finally {
     clearTransactionDeadlines(tx);
   }
@@ -118,6 +171,7 @@ test('cancel stages exact obligations before generation revocation and clears al
       (await repository.cancel('actor', 'intent', tx)).status,
       'cancelled',
     );
+    assertBatchBeforeIntent(calls, 0);
     const inserts = calls.filter((c) =>
       c.sql.includes('INSERT INTO whaleu_media.cleanup_obligations'),
     );
@@ -141,7 +195,8 @@ test('stale generation settlement cannot mutate any job', async () => {
   startTransactionDeadlines(tx);
   try {
     assert.equal(await repository.settleJob(lease, 'succeeded', tx), false);
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, 2);
+    assertBatchBeforeIntent(calls, 0);
   } finally {
     clearTransactionDeadlines(tx);
   }
@@ -152,9 +207,10 @@ test('settlement includes generation, token, nonexpired lease CAS and bounded re
   startTransactionDeadlines(tx);
   try {
     assert.equal(await repository.settleJob(lease, 'retryable', tx), false);
-    assert.match(calls[1]!.sql, /expected_generation=\$3 AND lease_token=\$4/);
-    assert.match(calls[1]!.sql, /lease_until>clock_timestamp\(\)/);
-    assert.equal(calls[1]!.values[5], 5);
+    assertBatchBeforeIntent(calls, 0);
+    assert.match(calls[2]!.sql, /expected_generation=\$3 AND lease_token=\$4/);
+    assert.match(calls[2]!.sql, /lease_until>clock_timestamp\(\)/);
+    assert.equal(calls[2]!.values[5], 5);
   } finally {
     clearTransactionDeadlines(tx);
   }
@@ -187,12 +243,13 @@ test('cleanup success requires explicit confirmed absence and expired fifth leas
       'retryable',
       tx,
     );
-    assert.match(calls[3]!.sql, /attempt>=\$4 THEN 'retained'/);
-    assert.match(calls[3]!.sql, /lease_until>clock_timestamp\(\)/);
+    assertBatchBeforeIntent(calls, 1);
+    assert.match(calls[4]!.sql, /attempt>=\$4 THEN 'retained'/);
+    assert.match(calls[4]!.sql, /lease_until>clock_timestamp\(\)/);
     await repository.exhaustExpiredLeases(tx);
     assert.ok(
       calls
-        .slice(4)
+        .slice(5)
         .every((c) => c.values[0] === 5 && c.sql.includes('LIMIT 100')),
     );
   } finally {
@@ -225,8 +282,9 @@ test('confirmed absence without quiescence proof is retained, never marked delet
       'confirmed-absent',
       tx,
     );
-    assert.equal(calls[3]!.values[2], 'unresolved');
-    assert.match(calls[3]!.sql, /\$3='unresolved'/);
+    assertBatchBeforeIntent(calls, 1);
+    assert.equal(calls[4]!.values[2], 'unresolved');
+    assert.match(calls[4]!.sql, /\$3='unresolved'/);
   } finally {
     clearTransactionDeadlines(tx);
   }
@@ -296,7 +354,8 @@ test('cancelled intent retries do not increment generation or reallocate effects
       (await repository.cancel('actor', 'intent', tx)).status,
       'cancelled',
     );
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
+    assertBatchBeforeIntent(calls, 0);
     assert.ok(calls.every((c) => !/UPDATE whaleu|INSERT INTO/.test(c.sql)));
   } finally {
     clearTransactionDeadlines(tx);
@@ -305,7 +364,10 @@ test('cancelled intent retries do not increment generation or reallocate effects
 
 test('expiry collects only never-bound ready assets after 24 hours and preserves cleanup causality', async () => {
   for (const state of ['ready', 'processing']) {
-    const { tx, calls } = fakeTx([[{ id: 'intent', state }]]);
+    const { tx, calls } = fakeTx([
+      [{ id: 'intent', state }], // Unlocked routing hint.
+      [{ id: 'intent', state }], // Exact predicate rechecked under the batch lock.
+    ]);
     startTransactionDeadlines(tx);
     try {
       assert.equal(await repository.expireOne(tx), true);
@@ -314,7 +376,22 @@ test('expiry collects only never-bound ready assets after 24 hours and preserves
         calls[0]!.sql,
         /NOT EXISTS \(SELECT 1 FROM whaleu_media.bindings/,
       );
-      assert.match(calls[0]!.sql, /FOR UPDATE OF i SKIP LOCKED LIMIT 1/);
+      assert.doesNotMatch(calls[0]!.sql, /FOR UPDATE/);
+      assert.equal(calls[1]!.sql, 'SAVEPOINT media_batch_candidate');
+      assert.match(
+        calls[2]!.sql,
+        /publication_batch_members WHERE intent_id=\$1/,
+      );
+      assert.deepEqual(calls[2]!.values, ['intent']);
+      assert.match(calls[3]!.sql, /FOR UPDATE OF i SKIP LOCKED LIMIT 1/);
+      assert.match(calls[3]!.sql, /AND i.id=\$1/);
+      assert.deepEqual(calls[3]!.values, ['intent']);
+      assert.match(calls[3]!.sql, /interval '24 hours'/);
+      assert.match(
+        calls[3]!.sql,
+        /NOT EXISTS \(SELECT 1 FROM whaleu_media.bindings/,
+      );
+      assert.equal(calls[4]!.sql, 'RELEASE SAVEPOINT media_batch_candidate');
       const revoke = calls.findIndex((c) =>
         c.sql.includes('generation=generation+1'),
       );
@@ -369,10 +446,125 @@ test('provider absence never overrides a durable unknown ingress writer', async 
       tx,
       {},
     );
-    assert.equal(calls[3]!.values[2], 'unresolved');
+    assertBatchBeforeIntent(calls, 1);
+    assert.equal(calls[4]!.values[2], 'unresolved');
     assert.equal(verified, false);
-    assert.match(calls[1]!.sql, /FOR UPDATE/);
-    assert.match(calls[2]!.sql, /w.state<>'retired'/);
+    assert.match(calls[2]!.sql, /FOR UPDATE/);
+    assert.match(calls[3]!.sql, /w.state<>'retired'/);
+  } finally {
+    clearTransactionDeadlines(tx);
+  }
+});
+
+test('queue admission skips a busy batch before any intent lock and releases its savepoint', async () => {
+  const { tx, calls } = fakeTx(
+    [
+      [{ id: 'busy', state: 'ready' }],
+      [{ id: 'intent', state: 'ready' }],
+      [{ id: 'intent', state: 'ready' }],
+    ],
+    { batchId: 'batch', batchLockReplies: [[], [{ id: 'batch' }]] },
+  );
+  startTransactionDeadlines(tx);
+  try {
+    assert.equal(await repository.expireOne(tx), true);
+    const hints = calls.filter((call) =>
+      call.sql.includes('AND NOT(i.id=ANY('),
+    );
+    assert.deepEqual(
+      hints.map((call) => call.values),
+      [[[]], [['busy']]],
+    );
+    assert.equal(calls[1]!.sql, 'SAVEPOINT media_batch_candidate');
+    assert.match(
+      calls[3]!.sql,
+      /publication_batches WHERE id=\$1 FOR UPDATE SKIP LOCKED/,
+    );
+    assert.equal(calls[4]!.sql, 'ROLLBACK TO SAVEPOINT media_batch_candidate');
+    assert.equal(calls[5]!.sql, 'RELEASE SAVEPOINT media_batch_candidate');
+    const locks = calls.filter((call) =>
+      /FOR UPDATE OF i SKIP LOCKED/.test(call.sql),
+    );
+    assert.equal(locks.length, 1);
+    assert.deepEqual(locks[0]!.values, ['intent']);
+    assert.ok(calls.indexOf(locks[0]!) > calls.indexOf(hints[1]!));
+    assert.equal(
+      calls.filter((call) =>
+        /INSERT INTO whaleu_media.cleanup_obligations/.test(call.sql),
+      ).length,
+      3,
+    );
+  } finally {
+    clearTransactionDeadlines(tx);
+  }
+});
+
+test('queue candidate recheck retains job parameters and refuses a changed hint without effects', async () => {
+  const { tx, calls } = fakeTx(
+    [[{ id: 'intent', expires_at: intent.expires_at }], [], []],
+    { batchId: 'batch' },
+  );
+  startTransactionDeadlines(tx);
+  try {
+    assert.equal(await repository.claimJob('review', tx), null);
+    const hint = calls[0]!;
+    assert.deepEqual(hint.values, ['review', 5, []]);
+    assert.doesNotMatch(hint.sql, /FOR UPDATE/);
+    assert.match(
+      calls[3]!.sql,
+      /publication_batches WHERE id=\$1 FOR UPDATE SKIP LOCKED/,
+    );
+    const recheck = calls[4]!;
+    assert.match(recheck.sql, /j.kind=\$1/);
+    assert.match(recheck.sql, /j.attempt<\$2/);
+    assert.match(recheck.sql, /AND i.id=\$3/);
+    assert.match(recheck.sql, /FOR UPDATE OF i SKIP LOCKED LIMIT 1/);
+    assert.deepEqual(recheck.values, ['review', 5, 'intent']);
+    assert.equal(calls[5]!.sql, 'ROLLBACK TO SAVEPOINT media_batch_candidate');
+    assert.equal(calls[6]!.sql, 'RELEASE SAVEPOINT media_batch_candidate');
+    assert.deepEqual(calls[7]!.values, ['review', 5, ['intent']]);
+    assert.ok(calls.every((call) => !/^\s*(UPDATE|INSERT)/.test(call.sql)));
+  } finally {
+    clearTransactionDeadlines(tx);
+  }
+});
+
+test('cleanup candidate scan is capped at 128 busy batch hints and never claims an effect', async () => {
+  const { tx, calls } = fakeTx(
+    Array.from({ length: 128 }, (_, index) => [{ id: `intent-${index}` }]),
+    {
+      batchId: 'batch',
+      batchLockReplies: Array.from({ length: 128 }, () => []),
+    },
+  );
+  startTransactionDeadlines(tx);
+  try {
+    assert.equal(await repository.claimCleanup(tx), null);
+    const hints = calls.filter((call) =>
+      call.sql.includes('AND NOT(i.id=ANY('),
+    );
+    assert.equal(hints.length, 128);
+    assert.deepEqual(hints[0]!.values, [5, []]);
+    assert.deepEqual(
+      hints.map((call) => (call.values[1] as string[]).length),
+      Array.from({ length: 128 }, (_, index) => index),
+    );
+    assert.match(hints[127]!.sql, /c.attempt<\$1/);
+    assert.match(hints[127]!.sql, /AND NOT\(i.id=ANY\(\$2::uuid\[\]\)\)/);
+    assert.equal(
+      calls.filter(
+        (call) => call.sql === 'ROLLBACK TO SAVEPOINT media_batch_candidate',
+      ).length,
+      128,
+    );
+    assert.equal(
+      calls.filter(
+        (call) => call.sql === 'RELEASE SAVEPOINT media_batch_candidate',
+      ).length,
+      128,
+    );
+    assert.ok(calls.every((call) => !/FOR UPDATE OF i/.test(call.sql)));
+    assert.ok(calls.every((call) => !/^\s*(UPDATE|INSERT)/.test(call.sql)));
   } finally {
     clearTransactionDeadlines(tx);
   }

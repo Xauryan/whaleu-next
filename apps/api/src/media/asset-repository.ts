@@ -1,5 +1,11 @@
 import { validateCurrentMedia } from './current-facts.js';
-import { randomUUID } from 'node:crypto';
+import { lockMediaBatchesForIntents } from './batch-locks.js';
+import type {
+  MediaBatchRepository,
+  MediaSealedBatchEvidence,
+  PublicationMediaContext,
+} from './batch-repository.js';
+import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import {
@@ -69,20 +75,24 @@ interface AcceptedFacts {
   readonly epoch: object;
   readonly scope: ExpectedMediaAttachScope;
   readonly rows: readonly AssetRow[];
+  readonly batch: MediaSealedBatchEvidence | null;
 }
 /** Internal shared owner. No business tables, provider effects, URLs or authorization
  * inference. Business first authorizes/locks its scope, then locks assets in UUID order. */
 export class MediaAssetRepository {
   private readonly accepted = new WeakMap<AcceptedMediaAssets, AcceptedFacts>();
   private readonly proof = new MediaRequiredProof();
-  constructor(private readonly owners: MediaOwnerProofRegistry) {}
+  constructor(
+    private readonly owners: MediaOwnerProofRegistry,
+    private readonly batches?: MediaBatchRepository,
+  ) {}
   async peekOwnedScope(
     actor: string,
     ids: readonly string[],
     tx: PoolClient,
   ): Promise<MediaAssetScopeReference> {
     this.managed(tx);
-    if (ids.length !== 1 || new Set(ids).size !== ids.length)
+    if (!ids.length || ids.length > 9 || new Set(ids).size !== ids.length)
       throw new ApplicationError('MEDIA_NOT_READY');
     const rows = (
       await tx.query<AssetRow>(
@@ -111,9 +121,33 @@ export class MediaAssetRepository {
     scope: ExpectedMediaAttachScope,
     ids: readonly string[],
     tx: PoolClient,
+    publication?: PublicationMediaContext,
   ): Promise<AcceptedMediaAssets> {
     const epoch = this.managed(tx);
-    if (ids.length !== 1 || new Set(ids).size !== ids.length)
+    if (!ids.length || ids.length > 9 || new Set(ids).size !== ids.length)
+      throw new ApplicationError('MEDIA_NOT_READY');
+    const batch = this.batches
+      ? await this.batches.peekSealed(scope.actor, ids, publication, tx)
+      : null;
+    const protocols = (
+      await tx.query<{ protocol_version: number }>(
+        'SELECT i.protocol_version FROM whaleu_media.assets a JOIN whaleu_media.upload_intents i ON i.id=a.intent_id WHERE a.id=ANY($1::uuid[])',
+        [ids],
+      )
+    ).rows;
+    if (
+      protocols.length !== ids.length ||
+      (batch
+        ? protocols.some((row) => row.protocol_version !== 3)
+        : ids.length !== 1 ||
+          protocols.some((row) => row.protocol_version === 3))
+    )
+      throw new ApplicationError('MEDIA_NOT_READY');
+    if (
+      batch &&
+      (batch.serverScopeId !== scope.scopeId ||
+        batch.scopeRevision !== scope.scopeRevision)
+    )
       throw new ApplicationError('MEDIA_NOT_READY');
     const sorted = [...ids].sort();
     await this.lockIntents(sorted, tx, 'write');
@@ -141,7 +175,11 @@ export class MediaAssetRepository {
         row.scope_revision !== scope.scopeRevision ||
         Number(row.content_version) !== scope.contentVersion ||
         row.slot !== 'images' ||
-        row.ordinal !== ordinal
+        row.ordinal !== (batch?.mappings[ordinal]?.sourceSlot ?? ordinal) ||
+        (batch !== null &&
+          (batch.mappings[ordinal]?.assetId !== row.id ||
+            batch.mappings[ordinal]?.manifestDigest !== row.manifest_digest ||
+            batch.mappings[ordinal]?.ordinal !== ordinal))
       )
         throw new ApplicationError('MEDIA_NOT_READY');
       await this.requireRetention(row, tx);
@@ -171,6 +209,7 @@ export class MediaAssetRepository {
       epoch,
       scope: Object.freeze({ ...scope }),
       rows: ordered,
+      batch,
     });
     return token;
   }
@@ -200,19 +239,38 @@ export class MediaAssetRepository {
         facts.scope.scopeRevision,
         parent.resourceId,
         parent.contentVersion,
-        JSON.stringify({ version: 1, assets: accepted.images }),
+        JSON.stringify(
+          facts.batch
+            ? {
+                version: 2,
+                batchId: facts.batch.batchId,
+                batchRevision: facts.batch.batchRevision,
+                attachmentPlanDigest: facts.batch.attachmentPlanDigest,
+                publication: facts.batch.publication,
+                assets: accepted.images,
+                mappings: facts.batch.mappings,
+              }
+            : { version: 1, assets: accepted.images },
+        ),
       ],
     );
+    const bindings: {
+      bindingId: string;
+      assetId: string;
+      manifestDigest: string;
+      ordinal: number;
+    }[] = [];
     for (let ordinal = 0; ordinal < facts.rows.length; ordinal++) {
       const row = facts.rows[ordinal]!;
       // Recheck locked state and deadline after content Review consumption work.
       await this.requireRetention(row, tx);
       await this.current(row, tx);
+      const bindingId = randomUUID();
       await tx.query(
         `INSERT INTO whaleu_media.bindings(id,asset_id,manifest_digest,owner_kind,resource_kind,resource_id,content_version,slot,ordinal,attach_evidence)
         VALUES($1,$2,$3,$4,$5,$6,$7,'images',$8,$9)`,
         [
-          randomUUID(),
+          bindingId,
           row.id,
           row.manifest_digest,
           parent.ownerKind,
@@ -220,13 +278,36 @@ export class MediaAssetRepository {
           parent.resourceId,
           parent.contentVersion,
           ordinal,
-          JSON.stringify({
-            version: 1,
-            scopeId: facts.scope.scopeId,
-            scopeRevision: facts.scope.scopeRevision,
-          }),
+          JSON.stringify(
+            facts.batch
+              ? {
+                  version: 2,
+                  scopeId: facts.scope.scopeId,
+                  scopeRevision: facts.scope.scopeRevision,
+                  batchId: facts.batch.batchId,
+                  batchRevision: facts.batch.batchRevision,
+                  attachmentPlanDigest: facts.batch.attachmentPlanDigest,
+                  memberId: facts.batch.mappings[ordinal]!.memberId,
+                  sourceSlot: facts.batch.mappings[ordinal]!.sourceSlot,
+                }
+              : {
+                  version: 1,
+                  scopeId: facts.scope.scopeId,
+                  scopeRevision: facts.scope.scopeRevision,
+                },
+          ),
         ],
       );
+      bindings.push({
+        bindingId,
+        assetId: row.id,
+        manifestDigest: row.manifest_digest,
+        ordinal,
+      });
+    }
+    if (facts.batch) {
+      if (!this.batches) throw new ApplicationError('MEDIA_NOT_READY');
+      await this.batches.consumeSealed(facts.batch, parent, bindings, tx);
     }
     // All expected Media writes precede this snapshot. Later Media writes fail
     // the mandatory final proof, so callers cannot silently omit revalidation.
@@ -239,6 +320,16 @@ export class MediaAssetRepository {
     tx: PoolClient,
   ): Promise<MediaAttachmentDescriptor[]> {
     this.owners.require(proof, tx, request);
+    const ownerImages = this.owners.contentMedia(proof, tx, request);
+    if (
+      ownerImages.length !== expected.length ||
+      ownerImages.some(
+        (image, ordinal) =>
+          image.assetId !== expected[ordinal]?.assetId ||
+          image.digest !== expected[ordinal]?.digest,
+      )
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
     return this.exactDescriptors(
       request.parent,
       request.audience,
@@ -263,7 +354,11 @@ export class MediaAssetRepository {
     expected: readonly { assetId: string; digest: string }[],
     tx: PoolClient,
   ): Promise<MediaAttachmentDescriptor[]> {
-    if (!expected.length || expected.length > 9)
+    if (
+      !expected.length ||
+      expected.length > 9 ||
+      new Set(expected.map((image) => image.assetId)).size !== expected.length
+    )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     await this.proof.capture(tx);
     const bindings = (
@@ -274,7 +369,7 @@ export class MediaAssetRepository {
         ordinal: number;
       }>(
         `SELECT id,asset_id,manifest_digest,ordinal FROM whaleu_media.bindings
-      WHERE owner_kind=$1 AND resource_kind=$2 AND resource_id=$3 AND content_version=$4 AND slot='images' AND detached_at IS NULL ORDER BY ordinal`,
+      WHERE owner_kind=$1 AND resource_kind=$2 AND resource_id=$3 AND content_version=$4 AND slot='images' AND detached_at IS NULL ORDER BY ordinal LIMIT 10`,
         [
           parent.ownerKind,
           parent.resourceKind,
@@ -319,7 +414,12 @@ export class MediaAssetRepository {
         binding.ordinal !== index ||
         binding.asset_id !== approved.assetId ||
         binding.manifest_digest !== approved.digest ||
-        asset.audience !== audience
+        asset.audience !== audience ||
+        asset.manifest_digest !== approved.digest ||
+        asset.owner_kind !== parent.ownerKind ||
+        asset.resource_kind !== parent.resourceKind ||
+        Number(asset.content_version) !== parent.contentVersion ||
+        asset.slot !== 'images'
       )
         throw new ApplicationError('MEDIA_UNAVAILABLE');
       const manifest = await this.current(asset, tx);
@@ -404,7 +504,6 @@ export class MediaAssetRepository {
     tx: PoolClient,
   ): Promise<{
     parent: MediaParent;
-    images: { assetId: string; digest: string }[];
   }> {
     this.managed(tx);
     const row = (
@@ -434,7 +533,6 @@ export class MediaAssetRepository {
         resourceId: row.resource_id,
         contentVersion: 1,
       },
-      images: [{ assetId: row.asset_id, digest: row.manifest_digest }],
     };
   }
   async deliveryPlan(
@@ -447,7 +545,10 @@ export class MediaAssetRepository {
   ): Promise<InternalMediaDeliveryPlan> {
     const descriptors = await this.descriptors(proof, request, expected, tx);
     const descriptor = descriptors.find((item) => item.bindingId === bindingId);
-    if (!descriptor || descriptors.length !== 1)
+    if (
+      !descriptor ||
+      descriptors.filter((item) => item.bindingId === bindingId).length !== 1
+    )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const row = (
       await tx.query<AssetRow>(
@@ -474,9 +575,53 @@ export class MediaAssetRepository {
       sha256: object.sha256,
       manifestDigest: row.manifest_digest,
       safetyRevision: head.revision,
+      attachmentSetRevision: await this.attachmentSetRevision(
+        descriptors,
+        expected,
+        tx,
+      ),
       bytes: object.bytes,
       mime: object.mime,
     });
+  }
+  private async attachmentSetRevision(
+    descriptors: readonly MediaAttachmentDescriptor[],
+    expected: readonly { assetId: string; digest: string }[],
+    tx: PoolClient,
+  ): Promise<string> {
+    const rows = (
+      await tx.query<{
+        id: string;
+        intent_id: string;
+        policy_revision: string;
+        manifest_digest: string;
+        state: string;
+        revision: string;
+        event_id: string;
+      }>(
+        `SELECT a.id,a.intent_id,a.policy_revision,a.manifest_digest,i.state,h.revision::text,h.event_id
+       FROM whaleu_media.assets a JOIN whaleu_media.upload_intents i ON i.id=a.intent_id
+       JOIN whaleu_media.asset_safety_heads h ON h.asset_id=a.id
+       WHERE a.id=ANY($1::uuid[]) ORDER BY a.id`,
+        [descriptors.map((descriptor) => descriptor.assetId)],
+      )
+    ).rows;
+    if (rows.length !== descriptors.length)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return createHash('sha256')
+      .update('whaleu-media-attachment-set:v1\n')
+      .update(
+        JSON.stringify(
+          descriptors.map((descriptor, ordinal) => ({
+            ordinal,
+            bindingId: descriptor.bindingId,
+            expected: expected[ordinal],
+            current: byId.get(descriptor.assetId),
+          })),
+        ),
+      )
+      .digest('hex');
   }
   private async requireRetention(
     asset: AssetRow,
@@ -546,8 +691,19 @@ export class MediaAssetRepository {
     tx: PoolClient,
     mode: 'read' | 'write',
   ): Promise<void> {
-    // Readers must coexist; every mutator explicitly retains the intent-first
-    // exclusive fence. An upgrade still uses NOWAIT, never waits in a cycle.
+    // Batch routing is immutable; take its shared/write serial point before
+    // all intent and asset locks. Legacy assets have no batch row to acquire.
+    const intents = (
+      await tx.query<{ intent_id: string }>(
+        'SELECT intent_id FROM whaleu_media.assets WHERE id=ANY($1::uuid[]) ORDER BY intent_id',
+        [ids],
+      )
+    ).rows;
+    await lockMediaBatchesForIntents(
+      intents.map((intent) => intent.intent_id),
+      tx,
+      mode === 'write',
+    );
     await tx.query(
       `SELECT id FROM whaleu_media.upload_intents WHERE id IN (SELECT intent_id FROM whaleu_media.assets WHERE id=ANY($1::uuid[])) ORDER BY id FOR ${mode === 'read' ? 'SHARE' : 'UPDATE'} NOWAIT`,
       [ids],

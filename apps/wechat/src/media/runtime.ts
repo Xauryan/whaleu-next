@@ -1,3 +1,4 @@
+import { MediaGalleryController, type GalleryView } from './gallery-controller';
 import type { IdentityRuntime } from '../auth/runtime';
 import type { PrivateViewLifecycle } from '../identity-privacy/overlay';
 import type { Clock } from '../platform/contracts';
@@ -11,6 +12,7 @@ import { MediaReadController, type MediaReadView } from './read-controller';
 
 export interface MediaReadRuntime {
   create(render: (view: MediaReadView) => void): MediaReadController;
+  createGallery?(render: (view: GalleryView) => void): MediaGalleryController;
 }
 /** The gate requires real target-device headers/redirect/legitimate-domain acceptance.
  * Synthetic native bridges can test the implementation without enabling production. */
@@ -47,6 +49,13 @@ export function createMediaReadRuntime(
     }
   }
   return {
+    createGallery: (render) =>
+      new MediaGalleryController(
+        identity.sessions,
+        transfer,
+        render,
+        privateViews,
+      ),
     create: (render) =>
       new MediaReadController(
         identity.sessions,

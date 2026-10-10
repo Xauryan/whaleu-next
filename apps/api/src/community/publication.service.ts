@@ -63,6 +63,7 @@ export class PublicationService {
       ContentPublicationGate['check']
     >[0]['structuredContent'],
     envelope?: EffectiveContentEnvelopeDraft,
+    publication?: import('../media/batch-repository.js').PublicationMediaContext,
   ): Promise<{
     images: ApprovedAsset[];
     approval: AcceptedApproval | undefined;
@@ -71,7 +72,14 @@ export class PublicationService {
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const images = ids.length
       ? requireDecision(
-          await this.media.resolveOwned(actor, purpose, ids, tx, envelope!),
+          await this.media.resolveOwned(
+            actor,
+            purpose,
+            ids,
+            tx,
+            envelope!,
+            publication,
+          ),
           'MEDIA_UNAVAILABLE',
         )
       : [];
@@ -213,6 +221,11 @@ export class PublicationService {
             component: body.component ?? { kind: 'none' },
             trading: body.trading ?? null,
             scope: this.scope(authority, space.id, space.operatingRegionId),
+          },
+          {
+            clientRequestId,
+            operation: 'publish_post',
+            intentHash: publicationHash('publish_post', intent),
           },
         );
         if (

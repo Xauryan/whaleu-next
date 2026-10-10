@@ -18,7 +18,7 @@ import type {
   MediaVariant,
 } from './contracts';
 import { decodeMediaAttachment } from './decoders';
-import { MediaLocalFiles } from './local-files';
+import { MediaLocalFiles, type MediaReservation } from './local-files';
 
 export interface MediaReadTransfer {
   download(
@@ -119,93 +119,112 @@ export class AuthenticatedMediaDownload implements MediaReadTransfer {
     for (let attempt = 0; attempt < 2; attempt++) {
       await cancellable(this.registry.retryCleanup(), cancel);
       const sent = current();
-      const downloaded = await this.start(
-        url,
-        sent.credentials!.accessToken,
-        current,
-        cancel,
-      );
-      let retained = false;
-      let cleaned = false;
+      // Incomplete native callbacks retain their task credits even after abort.
+      // Report that admission boundary before considering a new byte reservation.
+      this.registry.assertTransferCapacity();
+      const reservation = this.registry.reserve();
       try {
-        current();
-        const { path, headers, status } = downloaded;
-        const size = await cancellable(this.files.stat(path), cancel);
-        current();
-        if (!Number.isSafeInteger(size) || size < 1 || size > MAX_BYTES)
-          throw new ClientError('protocol', 'Invalid image size');
-        if (status !== 200) {
-          let body: unknown;
-          if (
-            headers['content-type']?.split(';')[0]?.trim().toLowerCase() ===
-              'application/json' &&
-            size <= 8192
-          ) {
-            body = await cancellable(this.files.readError(path, size), cancel);
-            current();
-          }
-          const failure = responseError({ status, headers, body });
-          // Delete the error response before refresh; a bare 401 never causes auth replay.
-          await this.registry.discard(path);
-          cleaned = true;
+        const downloaded = await this.start(
+          url,
+          sent.credentials!.accessToken,
+          current,
+          cancel,
+          reservation,
+        );
+        let retained = false;
+        let cleaned = false;
+        try {
           current();
-          if (
-            attempt === 0 &&
-            status === 401 &&
-            failure?.kind === 'auth-expired'
-          ) {
-            await cancellable(this.auth.refresh(sent), cancel);
+          const { path, headers, status } = downloaded;
+          const size = await cancellable(this.files.stat(path), cancel);
+          current();
+          if (!Number.isSafeInteger(size) || size < 1 || size > MAX_BYTES)
+            throw new ClientError('protocol', 'Invalid image size');
+          if (status !== 200) {
+            let body: unknown;
+            if (
+              headers['content-type']?.split(';')[0]?.trim().toLowerCase() ===
+                'application/json' &&
+              size <= 8192
+            ) {
+              body = await cancellable(
+                this.files.readError(path, size),
+                cancel,
+              );
+              current();
+            }
+            const failure = responseError({ status, headers, body });
+            // Delete the error response before refresh; a bare 401 never causes auth replay.
+            await this.registry.discard(path, reservation);
+            cleaned = true;
             current();
-            continue;
+            if (
+              attempt === 0 &&
+              status === 401 &&
+              failure?.kind === 'auth-expired'
+            ) {
+              await cancellable(this.auth.refresh(sent), cancel);
+              current();
+              continue;
+            }
+            throw (
+              failure ??
+              new ClientError('protocol', 'Expected a complete image response')
+            );
           }
-          throw (
-            failure ??
-            new ClientError('protocol', 'Expected a complete image response')
+          const mime = headers['content-type'];
+          if (
+            (mime !== 'image/jpeg' && mime !== 'image/png') ||
+            !/^[1-9][0-9]*$/.test(headers['content-length'] ?? '') ||
+            Number(headers['content-length']) !== size ||
+            headers['content-range'] !== undefined ||
+            headers.location !== undefined ||
+            !headers['cache-control']
+              ?.toLowerCase()
+              .split(',')
+              .map((value) => value.trim())
+              .includes('no-store')
+          )
+            throw new ClientError(
+              'protocol',
+              'Invalid authenticated image response',
+            );
+          const info = await cancellable(this.files.image(path), cancel);
+          current();
+          const limit = variant === 'thumb-v1' ? 400 : 2048;
+          if (
+            !Number.isSafeInteger(info.width) ||
+            !Number.isSafeInteger(info.height) ||
+            info.width < 1 ||
+            info.height < 1 ||
+            info.width > limit ||
+            info.height > limit ||
+            info.type.toLowerCase() !==
+              (mime === 'image/jpeg' ? 'jpeg' : 'png') ||
+            (variant === 'display-v1' &&
+              (info.width !== descriptor.width ||
+                info.height !== descriptor.height))
+          )
+            throw new ClientError('protocol', 'Invalid local image');
+          // getImageInfo is presentation validation, NOT a frame-count/security approval.
+          if ((await cancellable(this.files.stat(path), cancel)) !== size)
+            throw new ClientError('storage', 'Temporary image changed');
+          current();
+          const file = this.registry.adopt(
+            path,
+            size,
+            owner,
+            current(),
+            reservation,
           );
+          retained = true;
+          return file;
+        } finally {
+          if (!retained && !cleaned)
+            await this.registry.discard(downloaded.path, reservation);
         }
-        const mime = headers['content-type'];
-        if (
-          (mime !== 'image/jpeg' && mime !== 'image/png') ||
-          !/^[1-9][0-9]*$/.test(headers['content-length'] ?? '') ||
-          Number(headers['content-length']) !== size ||
-          headers['content-range'] !== undefined ||
-          headers.location !== undefined ||
-          !headers['cache-control']
-            ?.toLowerCase()
-            .split(',')
-            .map((value) => value.trim())
-            .includes('no-store')
-        )
-          throw new ClientError(
-            'protocol',
-            'Invalid authenticated image response',
-          );
-        const info = await cancellable(this.files.image(path), cancel);
-        current();
-        const limit = variant === 'thumb-v1' ? 400 : 2048;
-        if (
-          !Number.isSafeInteger(info.width) ||
-          !Number.isSafeInteger(info.height) ||
-          info.width < 1 ||
-          info.height < 1 ||
-          info.width > limit ||
-          info.height > limit ||
-          info.type.toLowerCase() !==
-            (mime === 'image/jpeg' ? 'jpeg' : 'png') ||
-          (variant === 'display-v1' &&
-            (info.width !== descriptor.width ||
-              info.height !== descriptor.height))
-        )
-          throw new ClientError('protocol', 'Invalid local image');
-        // getImageInfo is presentation validation, NOT a frame-count/security approval.
-        if ((await cancellable(this.files.stat(path), cancel)) !== size)
-          throw new ClientError('storage', 'Temporary image changed');
-        current();
-        const file = this.registry.adopt(path, size, owner, current());
-        retained = true;
-        return file;
       } finally {
-        if (!retained && !cleaned) await this.registry.discard(downloaded.path);
+        this.registry.releaseReservation(reservation);
       }
     }
     throw new ClientError('auth-required', 'Sign in to view image');
@@ -215,19 +234,18 @@ export class AuthenticatedMediaDownload implements MediaReadTransfer {
     token: string,
     current: () => SessionTicket,
     cancel: Cancellation,
+    reservation: MediaReservation,
   ): Promise<Downloaded> {
     current();
-    if (
-      !this.wx.downloadFile ||
-      this.active >= 2 ||
-      !this.registry.capacityAvailable
-    )
+    if (!this.wx.downloadFile || this.active >= 2)
       return Promise.reject(
         new ClientError(
           'configuration',
           'Authenticated image download unavailable',
         ),
       );
+    const releaseTransfer = this.registry.acquireTransfer();
+    const releaseReservation = this.registry.holdReservation(reservation);
     this.active++;
     return new Promise<Downloaded>((resolve, reject) => {
       let settled = false;
@@ -242,6 +260,8 @@ export class AuthenticatedMediaDownload implements MediaReadTransfer {
         if (!completed) {
           completed = true;
           this.active--;
+          releaseTransfer();
+          releaseReservation();
         }
       };
       const detach = () => {
@@ -338,7 +358,7 @@ export class AuthenticatedMediaDownload implements MediaReadTransfer {
             if (received.has(path)) return;
             received.add(path);
             if (settled) {
-              void this.registry.discard(path);
+              void this.registry.discard(path, reservation);
               return;
             }
             try {
@@ -350,7 +370,7 @@ export class AuthenticatedMediaDownload implements MediaReadTransfer {
                 );
               finish({ path, status: value.statusCode, headers });
             } catch {
-              void this.registry.discard(path);
+              void this.registry.discard(path, reservation);
               finish(
                 new ClientError(
                   'protocol',
