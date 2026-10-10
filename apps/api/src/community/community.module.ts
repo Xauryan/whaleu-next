@@ -1,3 +1,8 @@
+import { MediaUploadControllerV2 } from '../media/controller-v2.js';
+import { MEDIA_UPLOAD_APPLICATION_V2 } from '../media/application-v2.js';
+import { MEDIA_INGRESS_STORAGE } from '../media/ingress-storage.js';
+import { MediaMultipartInterceptor } from '../media/multipart-ingress.js';
+import { UnavailableCommunityMediaUploadApplicationV2 } from './media/application-v2.js';
 import { UnavailableCommunityMediaAttachment } from './media/unavailable-attachment.js';
 import { MediaController } from '../media/controller.js';
 import { MEDIA_APPLICATION } from '../media/application.js';
@@ -279,6 +284,7 @@ export class CommunityRecoveryController {
   ],
   controllers: [
     MediaController,
+    MediaUploadControllerV2,
     HotController,
     ViewReportingController,
     SearchController,
@@ -311,6 +317,14 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    MediaMultipartInterceptor,
+    { provide: MEDIA_INGRESS_STORAGE, useValue: null },
+    {
+      provide: MEDIA_UPLOAD_APPLICATION_V2,
+      useFactory: (database: DatabaseService, access: CommunityAccessService) =>
+        new UnavailableCommunityMediaUploadApplicationV2(database, access),
+      inject: [DatabaseService, CommunityAccessService],
+    },
     {
       provide: MEDIA_APPLICATION,
       useFactory: (database: DatabaseService, access: CommunityAccessService) =>

@@ -372,6 +372,20 @@ const conditions = {
     status: 503,
     message: 'Content review is unavailable',
   },
+  MEDIA_REQUEST_CONFLICT: { status: 409, message: 'Media request conflicts' },
+  MEDIA_REQUEST_CANCELLED: {
+    status: 409,
+    message: 'Media request has been cancelled',
+  },
+  MEDIA_RATE_LIMITED: {
+    status: 429,
+    message: 'Media operation budget exceeded',
+  },
+  MEDIA_UPLOAD_IN_FLIGHT: { status: 409, message: 'Media upload is in flight' },
+  MEDIA_RECONCILE_NEEDED: {
+    status: 409,
+    message: 'Media upload requires reconciliation',
+  },
   MEDIA_NOT_READY: { status: 409, message: 'Media is not ready' },
   MEDIA_UNAVAILABLE: { status: 503, message: 'Media is unavailable' },
   FORMATION_NOT_FOUND: { status: 404, message: 'Formation not found' },

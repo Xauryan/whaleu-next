@@ -45,6 +45,10 @@ export function MediaErrorResponses() {
       [409, 'MEDIA_NOT_READY or command conflict; refresh intent status.'],
       [413, 'Request exceeds body size limit.'],
       [415, 'Unsupported request format.'],
+      [
+        429,
+        'MEDIA_RATE_LIMITED: bounded new request-key or actual-transfer budget exhausted; preserve the original journal and retry later.',
+      ],
       [500, 'Unexpected failure is sanitized.'],
       [
         503,

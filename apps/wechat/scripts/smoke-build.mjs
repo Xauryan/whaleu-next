@@ -1,3 +1,4 @@
+import { smokeMediaUpload } from './smoke-media-upload.mjs';
 import { smokeMediaRead } from './smoke-media-read.mjs';
 import {
   assertCategoryScopedShaPackaging,
@@ -1994,6 +1995,12 @@ await smokeMediaRead({
   dist,
   mountPage: mountTradingPage,
   flush: flushTrading,
+  postWire: pollPostWire,
+});
+await smokeMediaUpload({
+  app,
+  dist,
+  mountPage: mountTradingPage,
   postWire: pollPostWire,
 });
 await smokeViewReporting({

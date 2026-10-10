@@ -52,7 +52,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 - [ ] NOT IMPLEMENTED — Campus utilities: map/location permissions and fallback, marker exploration, shuttle timetable images, research-tool information/link sharing, external learning-tool handoff and in-app web views
 - [ ] NOT IMPLEMENTED — Lost-card flows: card/image submission, pickup/contact details and notification preferences; existing completion/availability requires product verification
 - [ ] NOT IMPLEMENTED — Legacy placeholder/link audit: resource upload/download, subject-information entry, book-information integration and old navigation aliases; establish intended behavior without inventing a completed legacy feature
-- [ ] PARTIAL — Media: shared immutable image manifests, real synthetic JPEG/PNG processing, single-image Community publication/binding/current authorization/cleanup and N1 authenticated detail presentation passed integrated local acceptance (5,798 tests). Normal runtime activation remains unavailable; real upload ingress/recovery, nine images, other owners, provider/device/hostile-input isolation and migration remain open. See [foundation and acceptance](MEDIA_FOUNDATION.md) and [native read scope](MEDIA_NATIVE_READ.md).
+- [ ] PARTIAL — Media: shared immutable image manifests, real synthetic JPEG/PNG processing, single-image Community publication/binding/current authorization/cleanup and N1 authenticated detail presentation passed integrated local and hosted acceptance (5,798 tests, `9471d5a`). First-party multipart v2 and durable original-actor upload recovery subsequently passed 5,891 local tests; hosted checks remain pending for that increment. Normal runtime activation remains unavailable; nine images, other owners, provider/device/hostile-input isolation and migration remain open. See [foundation and acceptance](MEDIA_FOUNDATION.md) and [native read scope](MEDIA_NATIVE_READ.md).
 - [ ] NOT IMPLEMENTED — Official-account operations: callbacks/follow state, account mappings, materials, article/draft generation, previews, publication and per-school scheduled pushes
 - [ ] PARTIAL — Background operations: notifications, view/exposure persistence, hot-score recalculation, scheduled work, cache refresh/invalidation, report generation and authorized operational diagnostics
 - [ ] NOT IMPLEMENTED — Assisted content capabilities: description generation, moderation assistance, reading-format generation and related queued work; provider implementation and cost policy must be explicitly approved before enabling external model calls
@@ -552,3 +552,17 @@ retested before this result. Hosted publication verification remains pending.
 This is a synthetic local single-image closed loop and ordinary-detail native
 read integration, not a claim of live COS/review service, production upload,
 all-owner image support, historical migration or physical-device acceptance.
+
+### First-party multipart upload and durable recovery local acceptance
+
+The v2 single-image path uses the existing Nest/Multer parser and exact streaming
+byte/declaration checks, session/generation-bound grants, original-request cancel
+fences, independent operation/ready/draft deadlines and the original publication
+receipt/binding owner. Native recovery includes actual process death followed by
+a fresh same-actor process/session recovering the original journal and request.
+Its integrated local gate passed 5,891 tests with no failures, skips, cancellations
+or TODOs. Main PostgreSQL passed 2,233 and semantic passed 27 tests. Hosted checks
+for this increment remain pending. Ordinary runtime stays unavailable until the
+provider, device, resource and deployment gates are separately established;
+server/provider foreign-writer reclamation is not proven by native process tests.
+See [upload contract and precise remaining limits](MEDIA_UPLOAD_RECOVERY.md).

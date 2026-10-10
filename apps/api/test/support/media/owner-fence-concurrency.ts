@@ -19,6 +19,9 @@ const sources = [
   'jobs',
   'cleanup_obligations',
   'derived_object_attempts',
+  'upload_request_fences',
+  'upload_ingress',
+  'upload_ingress_writers',
 ];
 export async function verifyMediaOwnerFenceConcurrency(
   t: TestContext,

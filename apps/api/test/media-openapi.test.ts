@@ -13,6 +13,16 @@ import {
   mediaVariantSchema,
   prepareMediaSchema,
 } from '../src/media/contracts.js';
+import {
+  mediaCancelRequestSchema,
+  mediaCancelV2Schema,
+  mediaGrantSchema,
+  mediaRequestRecoverySchema,
+  mediaStatusV2Schema,
+  mediaUploadObservedSchema,
+  mediaV2IdSchema,
+  prepareMediaV2Schema,
+} from '../src/media/contracts-v2.js';
 import { safeErrorResponseSchema } from '../src/http/error-contracts.js';
 import {
   mediaBinaryResponseHeaders,
@@ -64,6 +74,52 @@ const cases = [
   ['/v1/media/bindings/{id}/{variant}', 'get', '200'],
 ] as const;
 
+const v2cases = [
+  [
+    '/v2/media/upload-intents',
+    'post',
+    prepareMediaV2Schema,
+    mediaStatusV2Schema,
+  ],
+  [
+    '/v2/media/upload-requests/{id}',
+    'get',
+    undefined,
+    mediaRequestRecoverySchema,
+  ],
+  [
+    '/v2/media/upload-requests/{id}/cancel',
+    'post',
+    mediaCancelRequestSchema,
+    mediaRequestRecoverySchema,
+  ],
+  ['/v2/media/upload-intents/{id}', 'get', undefined, mediaStatusV2Schema],
+  [
+    '/v2/media/upload-intents/{id}/grant',
+    'post',
+    z.strictObject({}),
+    mediaGrantSchema,
+  ],
+  [
+    '/v2/media/upload-intents/{id}/uploads/{grantId}',
+    'post',
+    undefined,
+    mediaUploadObservedSchema,
+  ],
+  [
+    '/v2/media/upload-intents/{id}/finalize',
+    'post',
+    z.strictObject({}),
+    mediaStatusV2Schema,
+  ],
+  [
+    '/v2/media/upload-intents/{id}/cancel',
+    'post',
+    z.strictObject({}),
+    mediaCancelV2Schema,
+  ],
+] as const;
+
 test('Media official Swagger export is offline, deterministic and artifact-current', async () => {
   assert.equal(
     await render(),
@@ -77,7 +133,10 @@ test('Media official Swagger export is offline, deterministic and artifact-curre
 test('Media operations require bearer auth and private sanitized responses', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   assert.equal(doc.openapi, '3.0.3');
-  assert.deepEqual(Object.keys(doc.paths).sort(), cases.map(([p]) => p).sort());
+  assert.deepEqual(
+    Object.keys(doc.paths).sort(),
+    [...cases, ...v2cases].map(([p]) => p).sort(),
+  );
   for (const [path, method, success] of cases) {
     assert.deepEqual(Object.keys(doc.paths[path]!), [method]);
     const operation = doc.paths[path]![method]!;
@@ -196,4 +255,61 @@ test('Media binary delivery and v1 descriptor expose no storage address or origi
     JSON.stringify(descriptor),
     /url|provider|bucket|objectKey|original/i,
   );
+});
+
+test('Media v2 exports distinct strict recovery/grant/status and actual multipart contracts', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  for (const [path, method, input, output] of v2cases) {
+    const operation = doc.paths[path]![method]!;
+    assert.deepEqual(operation.security, [{ accessToken: [] }]);
+    assert.ok(operation.operationId);
+    const response = operation.responses['200']!;
+    assert.ok(!('$ref' in response));
+    assert.deepEqual(response.headers, mediaResponseHeaders);
+    assert.deepEqual(
+      response.content!['application/json']!.schema,
+      z.toJSONSchema(output, { target: 'openapi-3.0', io: 'output' }),
+    );
+    const parameters = operation.parameters ?? [];
+    assert.equal(
+      parameters.some((p) => !('$ref' in p) && p.in === 'query'),
+      false,
+    );
+    for (const name of ['id', 'grantId'])
+      if (path.includes(`{${name}}`)) {
+        const parameter = parameters.find(
+          (p) => !('$ref' in p) && p.in === 'path' && p.name === name,
+        );
+        assert.ok(parameter && !('$ref' in parameter));
+        assert.equal(parameter.required, true);
+        assert.deepEqual(
+          parameter.schema,
+          z.toJSONSchema(mediaV2IdSchema, {
+            target: 'openapi-3.0',
+            io: 'input',
+          }),
+        );
+      }
+    if (method === 'get') assert.equal(operation.requestBody, undefined);
+    else {
+      const body = operation.requestBody;
+      assert.ok(body && !('$ref' in body));
+      assert.equal(body.required, true);
+      if (path.includes('/uploads/')) {
+        assert.deepEqual(body.content['multipart/form-data']!.schema, {
+          type: 'object',
+          additionalProperties: false,
+          required: ['file'],
+          properties: { file: { type: 'string', format: 'binary' } },
+        });
+        assert.equal(body.content['application/json'], undefined);
+      } else {
+        assert.ok(input);
+        assert.deepEqual(
+          body.content['application/json']!.schema,
+          z.toJSONSchema(input, { target: 'openapi-3.0', io: 'input' }),
+        );
+      }
+    }
+  }
 });

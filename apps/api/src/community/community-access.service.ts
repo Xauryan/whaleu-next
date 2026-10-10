@@ -7,6 +7,8 @@ import { lockSafetyPolicy } from '../safety/locks.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
+import { authenticateMediaSession } from '../identity/current-media-session.js';
+import type { CurrentMediaSession } from '../identity/current-media-session.js';
 import { IdentityService } from '../identity/identity.service.js';
 import {
   COMMUNITY_AUTHORIZATION,
@@ -36,6 +38,15 @@ export class CommunityAccessService {
     @Inject(CommunityRepository)
     private readonly repository: CommunityRepository,
   ) {}
+  /** Internal trustworthy session context. Never accepts session/epoch from HTTP.
+   * Identity holds account/session/token SHARE locks and enrolls its deadline. */
+  async mediaSession(
+    token: string,
+    tx: PoolClient,
+  ): Promise<CurrentMediaSession> {
+    await lockSafetyPolicy(tx);
+    return authenticateMediaSession(this.identity, token, tx);
+  }
   async actor(token: string, tx: PoolClient): Promise<string> {
     await lockSafetyPolicy(tx);
     return (await this.identity.session(token, tx)).accountId;

@@ -1,3 +1,4 @@
+import type { MediaUploadRuntime } from '../media/upload-runtime';
 import {
   HttpRatingCategoryScopedGateway,
   type RatingCategoryScopedGateway,
@@ -130,6 +131,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  /** Explicit dependency injection only; normal app construction never enables upload. */
+  readonly mediaUpload?: MediaUploadRuntime;
   readonly ratingCategoryScoped?: RatingCategoryScopedGateway;
   readonly ratingScoped?: RatingScopedGateway;
   readonly messaging?: MessagingRuntime;

@@ -15,7 +15,8 @@ function fakeTx(replies: unknown[][]) {
   const tx = {
     async query(sql: string, values: unknown[] = []) {
       calls.push({ sql, values });
-      return { rows: replies.shift() ?? [] };
+      const rows = replies.shift() ?? [];
+      return { rows, rowCount: rows.length };
     },
   } as unknown as PoolClient;
   return { tx, calls };
@@ -160,7 +161,14 @@ test('settlement includes generation, token, nonexpired lease CAS and bounded re
 });
 
 test('cleanup success requires explicit confirmed absence and expired fifth leases become unresolved', async () => {
-  const { tx, calls } = fakeTx([[], [], []]);
+  const { tx, calls } = fakeTx([
+    [{ intent_id: 'intent' }],
+    [{ state: 'cancelled' }],
+    [],
+    [],
+    [],
+    [],
+  ]);
   startTransactionDeadlines(tx);
   try {
     await repository.settleCleanup(
@@ -179,12 +187,12 @@ test('cleanup success requires explicit confirmed absence and expired fifth leas
       'retryable',
       tx,
     );
-    assert.match(calls[0]!.sql, /attempt>=\$4 THEN 'retained'/);
-    assert.match(calls[0]!.sql, /lease_until>clock_timestamp\(\)/);
+    assert.match(calls[3]!.sql, /attempt>=\$4 THEN 'retained'/);
+    assert.match(calls[3]!.sql, /lease_until>clock_timestamp\(\)/);
     await repository.exhaustExpiredLeases(tx);
     assert.ok(
       calls
-        .slice(1)
+        .slice(4)
         .every((c) => c.values[0] === 5 && c.sql.includes('LIMIT 100')),
     );
   } finally {
@@ -193,7 +201,12 @@ test('cleanup success requires explicit confirmed absence and expired fifth leas
 });
 
 test('confirmed absence without quiescence proof is retained, never marked deleted', async () => {
-  const { tx, calls } = fakeTx([[]]);
+  const { tx, calls } = fakeTx([
+    [{ intent_id: 'intent' }],
+    [{ state: 'cancelled' }],
+    [],
+    [],
+  ]);
   startTransactionDeadlines(tx);
   try {
     await repository.settleCleanup(
@@ -212,8 +225,8 @@ test('confirmed absence without quiescence proof is retained, never marked delet
       'confirmed-absent',
       tx,
     );
-    assert.equal(calls[0]!.values[2], 'unresolved');
-    assert.match(calls[0]!.sql, /\$3='unresolved'/);
+    assert.equal(calls[3]!.values[2], 'unresolved');
+    assert.match(calls[3]!.sql, /\$3='unresolved'/);
   } finally {
     clearTransactionDeadlines(tx);
   }
@@ -228,6 +241,9 @@ test('cleanup quiescence verifies the durable object rather than a forged lease 
     version: 'v1',
   };
   const { tx } = fakeTx([
+    [{ intent_id: 'intent' }],
+    [{ state: 'cancelled' }],
+    [],
     [
       {
         provider: exact.provider,
@@ -318,5 +334,46 @@ test('expiry collects only never-bound ready assets after 24 hours and preserves
     } finally {
       clearTransactionDeadlines(tx);
     }
+  }
+});
+
+test('provider absence never overrides a durable unknown ingress writer', async () => {
+  const { tx, calls } = fakeTx([
+    [{ intent_id: 'intent' }],
+    [{ state: 'cancelled' }],
+    [{ writer_token: 'unknown' }],
+    [],
+  ]);
+  let verified = false;
+  const guarded = new MediaLifecycleRepository({
+    require() {
+      verified = true;
+    },
+  });
+  startTransactionDeadlines(tx);
+  try {
+    await guarded.settleCleanup(
+      {
+        id: 'cleanup',
+        token: 'token',
+        attempt: 1,
+        object: {
+          provider: 'local',
+          environment: 'test',
+          bucket: 'media',
+          key: 'key',
+          version: 'v1',
+        },
+      },
+      'confirmed-absent',
+      tx,
+      {},
+    );
+    assert.equal(calls[3]!.values[2], 'unresolved');
+    assert.equal(verified, false);
+    assert.match(calls[1]!.sql, /FOR UPDATE/);
+    assert.match(calls[2]!.sql, /w.state<>'retired'/);
+  } finally {
+    clearTransactionDeadlines(tx);
   }
 });

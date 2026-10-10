@@ -28,6 +28,7 @@ export class MediaCurrentDenied extends ApplicationError {
 }
 
 interface AssetRow {
+  created_at: Date;
   id: string;
   intent_id: string;
   actor_id: string;
@@ -144,6 +145,7 @@ export class MediaAssetRepository {
         row.ordinal !== ordinal
       )
         throw new ApplicationError('MEDIA_NOT_READY');
+      await this.requireRetention(row, tx);
       await this.current(row, tx);
       if (
         (
@@ -205,6 +207,7 @@ export class MediaAssetRepository {
     for (let ordinal = 0; ordinal < facts.rows.length; ordinal++) {
       const row = facts.rows[ordinal]!;
       // Recheck locked state and deadline after content Review consumption work.
+      await this.requireRetention(row, tx);
       await this.current(row, tx);
       await tx.query(
         `INSERT INTO whaleu_media.bindings(id,asset_id,manifest_digest,owner_kind,resource_kind,resource_id,content_version,slot,ordinal,attach_evidence)
@@ -475,6 +478,20 @@ export class MediaAssetRepository {
       bytes: object.bytes,
       mime: object.mime,
     });
+  }
+  private async requireRetention(
+    asset: AssetRow,
+    tx: PoolClient,
+  ): Promise<void> {
+    const now = (
+      await tx.query<{ now: Date }>('SELECT clock_timestamp() now')
+    ).rows[0]?.now.getTime();
+    const deadline = asset.created_at.getTime() + 24 * 60 * 60 * 1000;
+    if (now === undefined || deadline <= now)
+      throw new ApplicationError('MEDIA_NOT_READY');
+    registerTransactionDeadline(tx, deadline, 'MEDIA_NOT_READY');
+    // Community's requireDraft separately enrolls the immutable draft deadline
+    // and its final owner proof before intent/assets are locked.
   }
   private async current(
     asset: AssetRow,

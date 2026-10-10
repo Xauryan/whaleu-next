@@ -129,6 +129,7 @@ export class MediaLifecycleRepository {
     if (!ACTIVE.includes(intent.state) && intent.state !== 'ready')
       return this.receipt(intent);
     await this.stageKnownCleanup(intent.id, tx);
+    await this.revokeIngress(intent.id, tx);
     // Requires the S1 migration to allow terminal invalidation from every active
     // state (0070 allowed generation changes only before sealing).
     const next = intent.state === 'ready' ? 'cleanup_pending' : 'cancelled';
@@ -163,6 +164,7 @@ export class MediaLifecycleRepository {
     if (!intent) throw new ApplicationError('MEDIA_UNAVAILABLE');
     await this.lockUnboundAssets(intent.id, true, tx);
     await this.stageKnownCleanup(intent.id, tx);
+    await this.revokeIngress(intent.id, tx);
     if (intent.state === 'ready')
       await tx.query(
         "UPDATE whaleu_media.upload_intents SET state='cleanup_pending',generation=generation+1,updated_at=clock_timestamp() WHERE id=$1",
@@ -306,8 +308,10 @@ export class MediaLifecycleRepository {
       }>(`SELECT i.id,i.state FROM whaleu_media.upload_intents i
       WHERE (i.state IN ('prepared','upload_observed','sealing','processing','awaiting_review')
         AND i.expires_at<=clock_timestamp())
-      OR (i.state='ready' AND EXISTS (SELECT 1 FROM whaleu_media.assets a
+      OR (i.state='ready' AND (EXISTS (SELECT 1 FROM whaleu_media.assets a
         WHERE a.intent_id=i.id AND a.created_at<=clock_timestamp()-interval '24 hours')
+        OR EXISTS (SELECT 1 FROM whaleu_media.assets a JOIN whaleu_community.media_drafts d
+          ON d.id=a.resource_id AND d.actor_id=a.actor_id WHERE a.intent_id=i.id AND d.expires_at<=clock_timestamp()))
         AND NOT EXISTS (SELECT 1 FROM whaleu_media.bindings b
           JOIN whaleu_media.assets a ON a.id=b.asset_id WHERE a.intent_id=i.id))
       ORDER BY i.expires_at,i.id
@@ -316,6 +320,7 @@ export class MediaLifecycleRepository {
     if (!row) return false;
     await this.lockUnboundAssets(row.id, false, tx);
     await this.stageKnownCleanup(row.id, tx);
+    await this.revokeIngress(row.id, tx);
     await tx.query(
       `UPDATE whaleu_media.upload_intents SET state=$2,generation=generation+1,
       updated_at=clock_timestamp() WHERE id=$1`,
@@ -351,6 +356,14 @@ export class MediaLifecycleRepository {
         AND lease_until<=clock_timestamp() AND attempt>=$1 ORDER BY id
         FOR UPDATE SKIP LOCKED LIMIT 100)`,
       [MAX_ATTEMPTS],
+    );
+  }
+
+  private async revokeIngress(intentId: string, tx: PoolClient): Promise<void> {
+    await tx.query(
+      `UPDATE whaleu_media.upload_ingress SET writer_state='retiring'
+      WHERE intent_id=$1 AND writer_state='writing'`,
+      [intentId],
     );
   }
 
@@ -407,7 +420,9 @@ export class MediaLifecycleRepository {
         LEFT JOIN whaleu_media.object_attempts o ON o.id=c.object_attempt_id
         LEFT JOIN whaleu_media.assets a ON a.id=c.asset_id
         LEFT JOIN whaleu_media.derived_object_attempts d ON d.id=c.derived_attempt_id
-        WHERE coalesce(o.intent_id,a.intent_id,d.intent_id)=i.id AND c.attempt<$1 AND
+        LEFT JOIN whaleu_media.upload_ingress_writers w ON w.writer_token=c.ingress_writer_id
+        LEFT JOIN whaleu_media.object_attempts wa ON wa.id=w.object_attempt_id
+        WHERE coalesce(o.intent_id,a.intent_id,d.intent_id,wa.intent_id)=i.id AND c.attempt<$1 AND
           ((c.state IN ('pending','retryable') AND c.not_before<=clock_timestamp()) OR
            (c.state='deleting' AND c.lease_until<=clock_timestamp())))
       ORDER BY i.id FOR UPDATE OF i SKIP LOCKED LIMIT 1`,
@@ -434,7 +449,9 @@ export class MediaLifecycleRepository {
         LEFT JOIN whaleu_media.object_attempts o ON o.id=c.object_attempt_id
         LEFT JOIN whaleu_media.assets a ON a.id=c.asset_id
         LEFT JOIN whaleu_media.derived_object_attempts d ON d.id=c.derived_attempt_id
-        WHERE coalesce(o.intent_id,a.intent_id,d.intent_id)=$3 AND c.attempt<$2 AND
+        LEFT JOIN whaleu_media.upload_ingress_writers w ON w.writer_token=c.ingress_writer_id
+        LEFT JOIN whaleu_media.object_attempts wa ON wa.id=w.object_attempt_id
+        WHERE coalesce(o.intent_id,a.intent_id,d.intent_id,wa.intent_id)=$3 AND c.attempt<$2 AND
         ((c.state IN ('pending','retryable') AND not_before<=clock_timestamp()) OR
          (c.state='deleting' AND c.lease_until<=clock_timestamp()))
         ORDER BY c.not_before,c.id FOR UPDATE OF c SKIP LOCKED LIMIT 1) RETURNING c.*`,
@@ -479,6 +496,48 @@ export class MediaLifecycleRepository {
         outcome = 'unresolved';
       // Verify below against the locked durable locator, never caller fields.
     }
+    // A provider-local absence proof cannot account for an ingress writer in
+    // another process. Lock the durable intent first and independently require
+    // every recorded ingress writer to have real stopped evidence. Deadlines
+    // and process heartbeats never satisfy this requirement.
+    const cleanupIntent = (
+      await tx.query<{ intent_id: string }>(
+        `SELECT coalesce(o.intent_id,a.intent_id,d.intent_id,wa.intent_id) intent_id
+       FROM whaleu_media.cleanup_obligations c
+       LEFT JOIN whaleu_media.object_attempts o ON o.id=c.object_attempt_id
+       LEFT JOIN whaleu_media.assets a ON a.id=c.asset_id
+       LEFT JOIN whaleu_media.derived_object_attempts d ON d.id=c.derived_attempt_id
+       LEFT JOIN whaleu_media.upload_ingress_writers w ON w.writer_token=c.ingress_writer_id
+       LEFT JOIN whaleu_media.object_attempts wa ON wa.id=w.object_attempt_id WHERE c.id=$1`,
+        [lease.id],
+      )
+    ).rows[0];
+    if (!cleanupIntent) return 'stale';
+    const terminalIntent = (
+      await tx.query<{ state: string }>(
+        'SELECT state FROM whaleu_media.upload_intents WHERE id=$1 FOR UPDATE',
+        [cleanupIntent.intent_id],
+      )
+    ).rows[0];
+    const openWriters = await tx.query(
+      `SELECT 1 FROM whaleu_media.upload_ingress_writers w
+      JOIN whaleu_media.object_attempts a ON a.id=w.object_attempt_id
+      WHERE a.intent_id=$1 AND w.state<>'retired' LIMIT 1`,
+      [cleanupIntent.intent_id],
+    );
+    if (
+      !terminalIntent ||
+      ![
+        'cancelled',
+        'expired',
+        'rejected',
+        'cleanup_pending',
+        'deleting',
+        'deleted',
+      ].includes(terminalIntent.state) ||
+      openWriters.rowCount
+    )
+      outcome = 'unresolved';
     const settled = await tx.query<{
       lease_until: Date;
       provider: string;

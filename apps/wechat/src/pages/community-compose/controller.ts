@@ -1,3 +1,7 @@
+import type {
+  MediaUploadController,
+  UploadView,
+} from '../../media/upload-controller';
 import {
   emptyTradingDraft,
   intentTradingDraft,
@@ -73,6 +77,10 @@ export interface ComposeView extends CommunityView {
   readonly canOpenIdentityCampus: boolean;
   readonly blocker: string;
   readonly mediaNotice: string;
+  readonly canSelectImage: boolean;
+  readonly mediaStatus: UploadView['status'];
+  readonly mediaProgress: number;
+  readonly mediaBusy: boolean;
   readonly maxText: number;
   readonly receiptStatus: string;
   readonly resourceId: string;
@@ -104,6 +112,10 @@ export const initialComposeView = (): ComposeView => ({
   canOpenIdentityCampus: false,
   blocker: '',
   mediaNotice: '图片上传、预览与审核尚未接入，暂不能添加图片',
+  canSelectImage: false,
+  mediaStatus: 'idle',
+  mediaProgress: 0,
+  mediaBusy: false,
   maxText: 2500,
   receiptStatus: '',
   resourceId: '',
@@ -171,6 +183,10 @@ const attemptTarget = (attempt: PendingAttempt): ComposeTarget =>
           targetReplyId: attempt.payload.targetReplyId,
         };
 export class ComposeController extends CommunityController<ComposeView> {
+  private readonly uploader: MediaUploadController | undefined;
+  private mediaGeneration = 0;
+  private mediaDisposed = false;
+  private mediaAction: { kind: string; task: Promise<void> } | null = null;
   private capabilities: Capabilities | null = null;
   private commentCapabilities: CommentCapabilities | null = null;
   private parentPost: Post | null = null;
@@ -188,8 +204,24 @@ export class ComposeController extends CommunityController<ComposeView> {
     } | null = null,
   ) {
     super(runtime, initialComposeView, render);
+    this.uploader =
+      this.target?.operation === 'publish_post'
+        ? runtime.mediaUpload?.create((view) => {
+            if (this.mediaDisposed) return;
+            this.update({
+              mediaStatus: view.status,
+              mediaProgress: view.progress,
+              canSelectImage: this.uploader?.available === true,
+              mediaNotice: mediaUploadNotice(view),
+            });
+            this.recompute();
+          })
+        : undefined;
   }
   protected override resetPrivate(): void {
+    this.mediaGeneration++;
+    this.mediaAction = null;
+    this.uploader?.hide();
     this.capabilities = null;
     this.commentCapabilities = null;
     this.parentPost = null;
@@ -210,6 +242,10 @@ export class ComposeController extends CommunityController<ComposeView> {
       hasSession: !!this.accountId(),
     });
     const accountId = this.accountId()!;
+    if (this.uploader?.available) {
+      this.update({ canSelectImage: true });
+      void this.recoverImage();
+    }
     try {
       const pending = this.runtime.pending.load(accountId);
       if (pending) {
@@ -782,6 +818,14 @@ export class ComposeController extends CommunityController<ComposeView> {
       if (!blocker && !this.view.tradingDraft.contactConsent)
         blocker = '请确认愿意将所填联系方式公开给可查看此帖的用户';
     }
+    if (!blocker && this.view.mediaBusy) blocker = '请先等待当前图片操作完成';
+    if (
+      !blocker &&
+      !['idle', 'ready', 'terminal', 'bound_history'].includes(
+        this.view.mediaStatus,
+      )
+    )
+      blocker = '请先确认原图片的上传、审核或取消结果';
     this.update({
       blocker,
       canSubmit: !blocker && !this.view.frozen && this.view.loaded,
@@ -820,6 +864,10 @@ export class ComposeController extends CommunityController<ComposeView> {
     };
     await this.run(
       async (cancel) => {
+        const imageAssetIds =
+          target.operation === 'publish_post' && this.uploader
+            ? await this.uploader.publicationAssets(target.spaceId, cancel)
+            : [];
         const requestId = await this.runtime.newRequestId();
         this.runtime.sessions.assertCurrent(owner);
         if (cancel.isCancelled)
@@ -839,7 +887,7 @@ export class ComposeController extends CommunityController<ComposeView> {
                   text: draft.text,
                   authorMode: draft.authorMode,
                   commentsPolicy: draft.commentsPolicy,
-                  imageAssetIds: [],
+                  imageAssetIds,
                   ...(draft.authorMode === 'named'
                     ? { allowAnonymousDm: draft.allowAnonymousDm }
                     : {}),
@@ -897,6 +945,7 @@ export class ComposeController extends CommunityController<ComposeView> {
     const stored = this.runtime.pending.load(attempt.accountId);
     if (JSON.stringify(stored) !== JSON.stringify(attempt))
       throw new ClientError('storage', 'Pending request changed');
+    this.runtime.mediaUpload?.beforePublication(attempt);
     return attempt.operation === 'publish_post'
       ? this.runtime.gateway!.publishPost(attempt.payload, cancel)
       : attempt.operation === 'publish_reply'
@@ -1019,9 +1068,123 @@ export class ComposeController extends CommunityController<ComposeView> {
     });
     if (receipt.outcome === 'created') this.onCreated(receipt);
   }
+  selectImage(): Promise<void> {
+    if (
+      !this.uploader?.available ||
+      this.target?.operation !== 'publish_post' ||
+      this.view.frozen ||
+      this.view.busy
+    )
+      return Promise.resolve();
+    const spaceId = this.target.spaceId;
+    return this.runMediaAction('select', async (current) => {
+      const draftId = await this.runtime.newRequestId();
+      current();
+      await this.uploader!.select({ draftId, spaceId });
+      current();
+      await this.uploader!.start();
+    });
+  }
+  recoverImage(): Promise<void> {
+    return this.runMediaAction('recover', async (current) => {
+      current();
+      await this.uploader!.recover();
+    });
+  }
+  cancelImage(): Promise<void> {
+    return this.runMediaAction('cancel', async (current) => {
+      current();
+      await this.uploader!.cancelOriginal();
+    });
+  }
+  private runMediaAction(
+    kind: 'select' | 'recover' | 'cancel',
+    action: (current: () => void) => Promise<void>,
+  ): Promise<void> {
+    if (!this.uploader || this.mediaDisposed || !this.accountId())
+      return Promise.resolve();
+    if (
+      this.mediaAction &&
+      (this.mediaAction.kind === kind || kind !== 'cancel')
+    )
+      return this.mediaAction.task;
+    const generation = ++this.mediaGeneration;
+    const owner = this.runtime.sessions.snapshot();
+    const current = () => {
+      this.runtime.sessions.assertCurrent(owner);
+      if (this.mediaDisposed || generation !== this.mediaGeneration)
+        throw new ClientError('cancelled', 'Media page action replaced');
+    };
+    this.update({ mediaBusy: true });
+    this.recompute();
+    const task = Promise.resolve()
+      .then(async () => {
+        current();
+        await action(current);
+        current();
+      })
+      .catch((error) => {
+        try {
+          current();
+        } catch {
+          return;
+        }
+        this.update({ error: communityError(error) });
+      })
+      .finally(() => {
+        try {
+          current();
+        } catch {
+          return;
+        }
+        this.mediaAction = null;
+        this.update({ mediaBusy: false });
+        this.recompute();
+      });
+    this.mediaAction = { kind, task };
+    return task;
+  }
+  override dispose(): void {
+    this.mediaDisposed = true;
+    this.mediaGeneration++;
+    this.mediaAction = null;
+    this.uploader?.dispose();
+    super.dispose();
+  }
   override cancel(): void {
     super.cancel();
     if (this.pending)
       this.update({ frozen: true, canSubmit: false, status: '发布结果待确认' });
+  }
+}
+
+function mediaUploadNotice(view: UploadView): string {
+  switch (view.status) {
+    case 'ready':
+      return '单张图片已由服务器确认可用于当前草稿；发布时会再次核验';
+    case 'uploading':
+      return `图片传输 ${Math.floor(view.progress)}%，尚未确认审核结果`;
+    case 'processing':
+      return '正在确认图片上传与审核';
+    case 'needs_reselection':
+      return '本次原图已不在内存；先确认取消原上传，再重新选择';
+    case 'cancel_pending':
+      return '取消结果待确认，不能据此认定服务器已删除图片';
+    case 'publication_pending':
+      return '先确认原发布回执，再处理图片';
+    case 'bound_history':
+      return '原图片已有绑定历史；查看或删除内容需使用帖子入口';
+    case 'terminal':
+      return view.cleanup === 'confirmed'
+        ? '服务器已确认原操作终止及清理'
+        : '服务器已确认原操作终止；物理清理仍待确认';
+    case 'unavailable':
+      return '图片状态暂不能确认，请查询原操作';
+    case 'selecting':
+      return '正在选择并核验原图';
+    case 'selected':
+      return '原图意图已保存，等待上传';
+    default:
+      return '此入口只支持当前草稿的一张 JPEG 或 PNG';
   }
 }

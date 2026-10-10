@@ -1,3 +1,8 @@
+import { MEDIA_UPLOAD_APPLICATION_V2 } from '../../../src/media/application-v2.js';
+import { MEDIA_INGRESS_STORAGE } from '../../../src/media/ingress-storage.js';
+import { MediaIngressRepository } from '../../../src/media/ingress-repository.js';
+import { CommunityMediaUploadApplicationV2 } from '../../../src/community/media/application-v2.js';
+import { SyntheticMediaIngressStorage } from './synthetic-ingress-storage.js';
 import { APP_CONFIG } from '../../../src/config/config.js';
 import { IdentityRateLimiter } from '../../../src/identity/rate-limit.js';
 import {
@@ -40,6 +45,7 @@ export async function syntheticMediaRuntimeFixture(
   options: { readonly authRateLimit?: true } = {},
 ) {
   const storage = await SyntheticMediaStorage.create();
+  const ingressStorage = new SyntheticMediaIngressStorage(storage);
   let config!: RuntimeConfig;
   const ordinaryApps: INestApplication[] = [];
   let owner!: CommunityMediaOwner;
@@ -67,6 +73,28 @@ export async function syntheticMediaRuntimeFixture(
               owners = new MediaOwnerProofRegistry([owner]);
               assets = new MediaAssetRepository(owners);
               return new CommunityMediaAttachmentAdapter(assets, owner, owners);
+            },
+          })
+          .overrideProvider(MEDIA_INGRESS_STORAGE)
+          .useValue(ingressStorage)
+          .overrideProvider(MEDIA_UPLOAD_APPLICATION_V2)
+          .useFactory({
+            inject: [DatabaseService, CommunityAccessService, MEDIA_ATTACHMENT],
+            factory: (
+              database: DatabaseService,
+              access: CommunityAccessService,
+              _attachment: CommunityMediaAttachmentAdapter,
+            ) => {
+              const scopes = new MediaPrepareScopes(owner);
+              return new CommunityMediaUploadApplicationV2(
+                database,
+                access,
+                scopes,
+                new MediaIntentRepository(scopes),
+                lifecycle,
+                assets,
+                new MediaIngressRepository(ingressStorage),
+              );
             },
           })
           .overrideProvider(MEDIA_APPLICATION)
@@ -115,6 +143,7 @@ export async function syntheticMediaRuntimeFixture(
     return {
       ...base,
       storage,
+      ingressStorage,
       startOrdinaryRuntime: async () => {
         // Same disposable database, genuinely ordinary AppModule, no override.
         const app = await NestFactory.create(AppModule.register(config), {

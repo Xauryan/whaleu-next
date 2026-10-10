@@ -27,7 +27,8 @@ export class MediaRequiredProof {
           whaleu_media.upload_intents,whaleu_media.quota_reservations,whaleu_media.object_attempts,
           whaleu_media.assets,whaleu_media.variants,whaleu_media.asset_safety_events,whaleu_media.asset_safety_heads,
           whaleu_media.scope_consumptions,whaleu_media.bindings,whaleu_media.jobs,whaleu_media.cleanup_obligations,
-          whaleu_media.derived_object_attempts IN SHARE MODE NOWAIT`,
+          whaleu_media.derived_object_attempts,whaleu_media.upload_request_fences,
+          whaleu_media.upload_ingress,whaleu_media.upload_ingress_writers IN SHARE MODE NOWAIT`,
       );
       return true;
     },

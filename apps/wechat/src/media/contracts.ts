@@ -10,7 +10,7 @@ export interface MediaDeclaration {
   readonly mime: 'image/jpeg' | 'image/png';
   readonly width: number;
   readonly height: number;
-  readonly frames: 1;
+  readonly frames: number | 'unknown';
 }
 export interface MediaTarget {
   readonly draftId: string;

@@ -3,6 +3,8 @@ import { ApplicationError } from '../http/application-error.js';
 import { transactionReadEpoch } from '../database/transaction-deadlines.js';
 import { mediaIdSchema, prepareMediaSchema } from './contracts.js';
 import type { z } from 'zod';
+import { prepareMediaV2Schema } from './contracts-v2.js';
+import type { PrepareMediaV2Input } from './contracts-v2.js';
 
 export type PrepareMediaInput = z.infer<typeof prepareMediaSchema>;
 export interface AuthorizedMediaDraft {
@@ -40,7 +42,7 @@ export class MediaPrepareScopes {
     {
       tx: PoolClient;
       epoch: object;
-      input: PrepareMediaInput;
+      input: PrepareMediaInput | PrepareMediaV2Input;
       scope: AuthorizedMediaDraft;
     }
   >();
@@ -50,8 +52,21 @@ export class MediaPrepareScopes {
     raw: unknown,
     tx: PoolClient,
   ): Promise<MediaPrepareScope> {
+    return this.issue(actorAccountId, prepareMediaSchema.parse(raw), tx);
+  }
+  async authorizeV2(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    return this.issue(actorAccountId, prepareMediaV2Schema.parse(raw), tx);
+  }
+  private async issue(
+    actorAccountId: string,
+    input: PrepareMediaInput | PrepareMediaV2Input,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
     const actor = mediaIdSchema.parse(actorAccountId);
-    const input = prepareMediaSchema.parse(raw);
     const epoch = transactionReadEpoch(tx);
     if (!epoch) throw new ApplicationError('MEDIA_UNAVAILABLE');
     const scope = await this.owner.authorizePrepare(actor, input, tx);
@@ -86,7 +101,10 @@ export class MediaPrepareScopes {
   require(
     capability: MediaPrepareScope,
     tx: PoolClient,
-  ): { input: PrepareMediaInput; scope: AuthorizedMediaDraft } {
+  ): {
+    input: PrepareMediaInput | PrepareMediaV2Input;
+    scope: AuthorizedMediaDraft;
+  } {
     const issued = this.issued.get(capability);
     if (
       !issued ||

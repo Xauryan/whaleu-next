@@ -3,7 +3,9 @@
 Baseline: `8de097faf2dc997498f0a235f6a99ec83d5a46dd` (includes C migrations
 0066–0069 unchanged). Real synthetic decoding and focused PostgreSQL acceptance
 have executed. Combined integrated local acceptance now passed 5,798 tests,
-including the N1 authenticated native read bridge. Hosted CI remains pending.
+including the N1 authenticated native read bridge. Hosted CI passed on `9471d5a`.
+The subsequent [multipart/recovery increment](MEDIA_UPLOAD_RECOVERY.md) passed
+5,891 local tests; its hosted publication checks remain pending.
 This is a local synthetic Community single-image slice, not
 production availability, complete all-owner media, or WeChat device parity.
 
@@ -121,9 +123,9 @@ images, production, commits or pushes were used by this implementation task.
 
 ## Remaining mandatory acceptance and implementation
 
-1. Hosted CI for the combined publication remains pending. Integrated local
-   checks passed after both lock-ordering repairs and N1 integration; further
-   implementation changes require a new exact-tree gate.
+1. Hosted CI passed for the combined S1/N1 publication `9471d5a`. The subsequent
+   multipart/recovery increment has its own local acceptance and pending hosted
+   gate. Further implementation changes require a new exact-tree gate.
 2. Retain default mandatory decoder/pipeline/publication coverage under pinned
    sharp and disposable loopback whaleu_test. No opt-in skip mode is used.
 3. Full atomicity/race matrix: every Review/content/binding/receipt/outbox failure,

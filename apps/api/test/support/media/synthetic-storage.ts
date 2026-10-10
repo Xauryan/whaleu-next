@@ -59,6 +59,17 @@ export class SyntheticMediaStorage implements ImmutableMediaStorage {
   ): Promise<StoredObjectMeasurement> {
     return this.write(object, Readable.from([bytes]));
   }
+  /** Test ingress only: both immutable destination and request-owned scratch
+   * are persisted before this method runs. Never materializes the whole file. */
+  async writePlannedStream(
+    object: ExactObject,
+    scratch: ExactObject,
+    source: Readable,
+  ): Promise<StoredObjectMeasurement> {
+    if (this.path(object) === this.path(scratch))
+      throw new Error('SYNTHETIC_STORAGE_SCRATCH_CONFLICT');
+    return this.write(object, source, scratch);
+  }
   private path(object: ExactObject): string {
     if (this.closed) throw new Error('SYNTHETIC_STORAGE_CLOSED');
     const parsed = exactObjectSchema.parse(object);
@@ -97,33 +108,44 @@ export class SyntheticMediaStorage implements ImmutableMediaStorage {
   private async write(
     object: ExactObject,
     source: AsyncIterable<Uint8Array>,
+    scratch?: ExactObject,
   ): Promise<StoredObjectMeasurement> {
-    const key = this.path(object);
-    if (this.retired.has(key)) throw new Error('SYNTHETIC_STORAGE_RETIRED');
+    const keys = [this.path(object), ...(scratch ? [this.path(scratch)] : [])];
+    if (keys.some((key) => this.retired.has(key)))
+      throw new Error('SYNTHETIC_STORAGE_RETIRED');
     let finish!: () => void;
     const done = new Promise<void>((resolve) => {
       finish = resolve;
     });
-    let pending = this.activeWrites.get(key);
-    if (!pending) {
-      pending = new Set();
-      this.activeWrites.set(key, pending);
-    }
-    pending.add(done);
+    const entries = keys.map((key) => {
+      let pending = this.activeWrites.get(key);
+      if (!pending) {
+        pending = new Set();
+        this.activeWrites.set(key, pending);
+      }
+      pending.add(done);
+      return { key, pending };
+    });
     try {
-      return await this.writeEffect(object, source);
+      return await this.writeEffect(object, source, scratch);
     } finally {
-      pending.delete(done);
-      if (!pending.size) this.activeWrites.delete(key);
+      for (const { key, pending } of entries) {
+        pending.delete(done);
+        if (!pending.size) this.activeWrites.delete(key);
+      }
       finish();
     }
   }
+
   private async writeEffect(
     object: ExactObject,
     source: AsyncIterable<Uint8Array>,
+    scratch?: ExactObject,
   ): Promise<StoredObjectMeasurement> {
     const destination = this.path(object);
-    const temporary = join(this.root, `.pending-${randomUUID()}`);
+    const temporary = scratch
+      ? this.path(scratch)
+      : join(this.root, `.pending-${randomUUID()}`);
     const file = await open(
       temporary,
       constants.O_WRONLY |

@@ -33,6 +33,9 @@ await copyAssets(path.join(root, 'src'), out);
 for (const relative of [
   'community/view-contract.js',
   'messaging/pending.js',
+  'media/upload-contracts.js',
+  'media/upload-runtime.js',
+  'platform/wechat-upload.js',
   'ratings/scoped-contract.js',
   'ratings/category-scoped-contract.js',
 ]) {

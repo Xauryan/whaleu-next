@@ -745,6 +745,14 @@ export async function renderMessagingOpenApiDocument() {
 export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
   const { MediaController } = await import('../src/media/controller.js');
   const { MEDIA_APPLICATION } = await import('../src/media/application.js');
+  const { MediaUploadControllerV2 } =
+    await import('../src/media/controller-v2.js');
+  const { MEDIA_UPLOAD_APPLICATION_V2 } =
+    await import('../src/media/application-v2.js');
+  const { MEDIA_INGRESS_STORAGE } =
+    await import('../src/media/ingress-storage.js');
+  const { MediaMultipartInterceptor } =
+    await import('../src/media/multipart-ingress.js');
   const { mediaAttachmentDescriptorSchema } =
     await import('../src/media/contracts.js');
   const { z } = await import('zod');
@@ -763,8 +771,25 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
     throw new Error('OpenAPI must not execute application work');
   };
   const testing = await Test.createTestingModule({
-    controllers: [MediaController],
+    controllers: [MediaController, MediaUploadControllerV2],
     providers: [
+      MediaMultipartInterceptor,
+      { provide: MEDIA_INGRESS_STORAGE, useValue: null },
+      {
+        provide: MEDIA_UPLOAD_APPLICATION_V2,
+        useValue: {
+          prepareV2: fail,
+          recoverRequest: fail,
+          cancelRequest: fail,
+          statusV2: fail,
+          finalizeV2: fail,
+          cancelV2: fail,
+          grant: fail,
+          admit: fail,
+          observe: fail,
+          retire: fail,
+        },
+      },
       {
         provide: MEDIA_APPLICATION,
         useValue: {

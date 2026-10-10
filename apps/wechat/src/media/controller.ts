@@ -139,7 +139,7 @@ export class MediaController {
         mime: declaration.mime,
         width: declaration.width,
         height: declaration.height,
-        frames: 1,
+        frames: declaration.frames,
       });
       work.prepare = Object.freeze({
         clientRequestId,
@@ -545,7 +545,7 @@ export class MediaController {
   private checkDeclaration(value: MediaDeclaration): void {
     if (
       !['image/jpeg', 'image/png'].includes(value.mime) ||
-      value.frames !== 1 ||
+      (value.frames !== 1 && value.frames !== 'unknown') ||
       !Number.isSafeInteger(value.bytes) ||
       value.bytes <= 0 ||
       value.bytes > 5 * 1024 * 1024 ||

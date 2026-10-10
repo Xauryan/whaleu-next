@@ -80,6 +80,15 @@ Page({
     );
     void this.controller.load();
   },
+  onSelectImage() {
+    void this.controller?.selectImage();
+  },
+  onRecoverImage() {
+    void this.controller?.recoverImage();
+  },
+  onCancelImage() {
+    void this.controller?.cancelImage();
+  },
   onTradingField(event: {
     detail: { value: string };
     currentTarget: { dataset: { field: string } };
