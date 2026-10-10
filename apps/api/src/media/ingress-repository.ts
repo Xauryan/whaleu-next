@@ -1,4 +1,9 @@
 import {
+  ratingsDiscussionMemberPrepareSchema,
+  ratingsDiscussionMemberHash,
+} from './contracts-ratings-discussion.js';
+import type { RatingsDiscussionMemberPrepare } from './contracts-ratings-discussion.js';
+import {
   prepareRatingsMediaSchema,
   ratingsMediaRequestHash,
 } from './contracts-ratings.js';
@@ -109,7 +114,7 @@ export class MediaIngressRepository {
   private readonly proof = new MediaRequiredProof();
   constructor(
     readonly planning: MediaIngressPlanningPort,
-    private readonly protocolVersion: 2 | 3 | 4 | 5 | 6 = 2,
+    private readonly protocolVersion: 2 | 3 | 4 | 5 | 6 | 7 = 2,
   ) {
     mediaIdSchema.parse(planning.writerInstanceId);
   }
@@ -121,7 +126,11 @@ export class MediaIngressRepository {
     tx: PoolClient,
   ): Promise<PrepareMediaV2Input | PrepareMediaV3Input | PrepareMediaV4Input> {
     this.managed(tx);
-    if (this.protocolVersion === 5 || this.protocolVersion === 6)
+    if (
+      this.protocolVersion === 5 ||
+      this.protocolVersion === 6 ||
+      this.protocolVersion === 7
+    )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const row = (
       await tx.query<Intent & { client_draft_id: string; space_id: string }>(
@@ -178,6 +187,23 @@ export class MediaIngressRepository {
         sha256: row.declared_sha256,
       },
     });
+  }
+  async originalRatingsDiscussionInput(
+    actor: string,
+    id: string,
+    tx: PoolClient,
+  ): Promise<RatingsDiscussionMemberPrepare> {
+    this.managed(tx);
+    if (this.protocolVersion !== 7)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const row = (
+      await tx.query<{ input: unknown }>(
+        `SELECT m.input FROM whaleu_media.ratings_discussion_members m JOIN whaleu_media.upload_intents i ON i.id=m.intent_id WHERE i.id=$1 AND i.actor_id=$2 AND i.protocol_version=7`,
+        [mediaIdSchema.parse(id), actor],
+      )
+    ).rows[0];
+    if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return ratingsDiscussionMemberPrepareSchema.parse(row.input);
   }
   async originalRatingsInput(
     actor: string,
@@ -688,6 +714,16 @@ export class MediaIngressRepository {
       ).rowCount;
       if (member !== 1) throw new ApplicationError('MEDIA_UNAVAILABLE');
     }
+    if (
+      this.protocolVersion === 7 &&
+      (
+        await tx.query(
+          `SELECT 1 FROM whaleu_media.ratings_discussion_members m JOIN whaleu_media.ratings_discussion_batches b ON b.id=m.batch_id WHERE m.intent_id=$1 AND m.actor_id=$2 AND m.state='live' AND b.state='editing'`,
+          [id, session.accountId],
+        )
+      ).rowCount !== 1
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
     await lockMediaActor(session.accountId, tx);
     const row = (
       await tx.query<Intent>(
@@ -696,15 +732,17 @@ export class MediaIngressRepository {
       )
     ).rows[0];
     const input =
-      this.protocolVersion === 6
-        ? prepareRatingsMediaSchema.parse(issued.input)
-        : this.protocolVersion === 5
-          ? prepareProfileMediaSchema.parse(issued.input)
-          : this.protocolVersion === 4
-            ? prepareMediaV4Schema.parse(issued.input)
-            : this.protocolVersion === 3
-              ? prepareMediaV3Schema.parse(issued.input)
-              : prepareMediaV2Schema.parse(issued.input);
+      this.protocolVersion === 7
+        ? ratingsDiscussionMemberPrepareSchema.parse(issued.input)
+        : this.protocolVersion === 6
+          ? prepareRatingsMediaSchema.parse(issued.input)
+          : this.protocolVersion === 5
+            ? prepareProfileMediaSchema.parse(issued.input)
+            : this.protocolVersion === 4
+              ? prepareMediaV4Schema.parse(issued.input)
+              : this.protocolVersion === 3
+                ? prepareMediaV3Schema.parse(issued.input)
+                : prepareMediaV2Schema.parse(issued.input);
     if (
       !row ||
       row.state !== 'prepared' ||
@@ -726,6 +764,12 @@ export class MediaIngressRepository {
                 declaration: input.declaration,
               },
             ))) ||
+      ('protocol' in input &&
+        input.protocol === 'ratings-discussion-media-v1' &&
+        (issued.scope.ownerKind !== 'ratings' ||
+          row.ordinal !== input.sourceSlot ||
+          row.request_hash !==
+            ratingsDiscussionMemberHash(session.accountId, input))) ||
       ('protocol' in input &&
         input.protocol === 'ratings-target-media-v1' &&
         (issued.scope.ownerKind !== 'ratings' ||

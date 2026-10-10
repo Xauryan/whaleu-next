@@ -1,3 +1,4 @@
+import { retainRatingDiscussionScope } from '../discussion-media-current.js';
 import { requireCurrentTargetCoverScope } from './target-cover-capability.js';
 import { retainRatingReadBytes } from '../target-cover-current.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -533,6 +534,7 @@ export class RatingScopedRepository {
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     if (decision.kind === 'deny')
       throw new ApplicationError('RATING_NOT_FOUND');
+    retainRatingDiscussionScope(scope, row.id, tx);
     return { row, category };
   }
   /** List candidates are qualified as one complete Media/Review vector before

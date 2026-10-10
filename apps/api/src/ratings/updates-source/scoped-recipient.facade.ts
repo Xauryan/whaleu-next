@@ -2,11 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
 import { canonicalEqual } from '../../community/content-review/contracts.js';
-import { ratingScopedIntentSchema } from '../scoped/contracts.js';
 import {
-  ratingScopedCommandHash,
-  ratingScopedOperations,
-} from '../scoped/protocol-registry.js';
+  ratingCurrentScopedIntentSchema as ratingScopedIntentSchema,
+  ratingCurrentScopedCommandHash as ratingScopedCommandHash,
+} from '../scoped/current-command-contracts.js';
+import { ratingScopedOperations } from '../scoped/protocol-registry.js';
 import { RatingScopedContextService } from '../scoped/context.service.js';
 import { RatingScopedRepository } from '../scoped/repository.js';
 import { RatingScopedProjection } from '../scoped/projection.js';

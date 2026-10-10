@@ -1,3 +1,4 @@
+import { assertRatingDiscussionJournalsClear } from './discussion-media-journal-guard';
 import {
   decodeRatingCoverRecovery,
   ratingCoverPrepareHash,
@@ -451,6 +452,11 @@ export class PendingRatingStore {
       // Includes corrupt later slots; no new upload can bypass an existing owner command.
       for (const version of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const)
         if (this.read(value.accountId, version)) throw unavailable();
+      assertRatingDiscussionJournalsClear(
+        this.storage,
+        this.origin,
+        value.accountId,
+      );
       this.storage.set(this.key(value.accountId, 11), value);
       if (!equal(this.loadCoverUpload(value.accountId), value))
         throw unavailable();
@@ -673,8 +679,14 @@ export class PendingRatingStore {
         !old9 &&
         !old10 &&
         !old11
-      )
+      ) {
+        assertRatingDiscussionJournalsClear(
+          this.storage,
+          this.origin,
+          attempt.accountId,
+        );
         this.storage.set(this.key(attempt.accountId, attempt.version), attempt);
+      }
       this.assertOriginal(attempt);
       return attempt;
     } catch {

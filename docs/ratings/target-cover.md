@@ -1,6 +1,6 @@
 # Generic Ratings target cover, candidate protocol
 
-Status: implementation candidate under serial local validation. Focused owner PostgreSQL atomicity/cleanup, capability/full-pool, legacy auxiliary interactions, native journal and real HTTP commit-loss recovery have passed; aggregate acceptance on a frozen tree is still pending. Production providers, Review issuers, COS resources and native device transfers remain unavailable unless explicitly supplied through local synthetic test DI.
+Status: the accepted target-cover slice passed all 6,320 tests on one frozen local tree, including 2,392 real PostgreSQL cases and 42 semantic cases. The signed commit is `2b25fc28ae4ab37d5d9cacb9e03097932d8f0d9d`; its hosted Verify and Statistics checks passed. Production providers, Review issuers, COS resources and native device transfers remain unavailable unless explicitly supplied through local synthetic test DI.
 
 ## Business scope
 
@@ -60,7 +60,7 @@ Account change revokes temporary paths, sources and grants while preserving the 
 
 ## Validation boundaries and remaining gates
 
-The final frozen tree `b0197f1abf582fd005c5cb1b6a1b7c237d9389a3` passed the complete serial local gate: 6,320 tests (5 statistics, 20 search evaluation, 1,497 API, 2,364 native, 2,392 real PostgreSQL and 42 optional semantic), with zero failures, cancellations, skips or todo cases. Lint, typechecks, offline OpenAPI, build, emitted Page smoke and formatting also passed. All 2,177 source hashes stayed unchanged through validation. Main PostgreSQL took 66m23s; semantic took 48.469s. This is a complete final-tree rerun, not composed acceptance. Hosted verification of this slice remains pending.
+The final frozen tree `b0197f1abf582fd005c5cb1b6a1b7c237d9389a3` passed the complete serial local gate: 6,320 tests (5 statistics, 20 search evaluation, 1,497 API, 2,364 native, 2,392 real PostgreSQL and 42 optional semantic), with zero failures, cancellations, skips or todo cases. Lint, typechecks, offline OpenAPI, build, emitted Page smoke and formatting also passed. All 2,177 source hashes stayed unchanged through validation. Main PostgreSQL took 66m23s; semantic took 48.469s. This is a complete final-tree rerun, not composed acceptance. Hosted Verify on signed commit `2b25fc28` also passed all 6,320 tests with zero failures, skips, cancellations or todo cases; Statistics and cloc passed. Hosted PostgreSQL took 71m24s. This result does not establish that the historical intermittent Safety lock-timeout cause is resolved.
 
 The first frozen full PostgreSQL run failed five assertions: a public Review fence incorrectly depended on the new cover table while running the real 0065 schema, and empty cleanup work changed pure-text target history. Product dispatch now adds the new table queries/fence only for actual Review6 content; cleanup enqueue/backfill requires an immutable historical cover appearance, including replaced or cleared appearances. Original upgrade/history assertions and all 80 historical main plus two optional SQL migrations remain unchanged. Added real old-schema read/prepare/commit/receipt and historical-cleanup regressions passed in the complete rerun. The failed run remains part of the validation record.
 

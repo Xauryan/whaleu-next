@@ -1,3 +1,6 @@
+import * as discussionMedia from '../src/ratings/scoped/discussion-media-contracts.js';
+import * as discussionProjection from '../src/ratings/discussion-media-projection-contracts.js';
+import { ratingDiscussionNoticeSchema } from '../src/notifications/ratings/discussion-media-contracts.js';
 import * as cover from '../src/ratings/scoped/target-cover-contracts.js';
 import * as coverController from '../src/ratings/scoped/target-cover-controller.js';
 import { ratingsMediaDescriptorSchema } from '../src/media/contracts-ratings.js';
@@ -694,11 +697,92 @@ test('all 66 legacy, 39 scoped and eight category management operations have exa
       ratingsMediaDescriptorSchema,
     ],
   ] as const;
+  const discussionMediaCases = [
+    [
+      '/v4/ratings/discussion/contexts',
+      'post',
+      discussionMedia.ratingDiscussionContextSchema,
+    ],
+    [
+      '/v4/ratings/discussion/prepare',
+      'post',
+      z.union([
+        discussionMedia.ratingDiscussionMediaPreparationSchema,
+        discussionMedia.ratingDiscussionMediaReceiptSchema,
+      ]),
+    ],
+    [
+      '/v4/ratings/discussion/commit',
+      'post',
+      discussionMedia.ratingDiscussionMediaReceiptSchema,
+    ],
+    [
+      '/v4/ratings/discussion/cancel',
+      'post',
+      discussionMedia.ratingDiscussionMediaReceiptSchema,
+    ],
+    [
+      '/v4/ratings/discussion/requests/{id}/cancel',
+      'post',
+      discussionMedia.ratingDiscussionMediaReceiptSchema,
+    ],
+    [
+      '/v4/ratings/discussion/receipts/{id}',
+      'get',
+      discussionMedia.ratingDiscussionMediaReceiptSchema,
+    ],
+    [
+      '/v4/ratings/discussion/targets/{id}/comments',
+      'get',
+      scopedRead.ratingDiscussionMediaCommentPageSchema,
+    ],
+    [
+      '/v4/ratings/discussion/comments/{id}',
+      'get',
+      discussionProjection.ratingDiscussionMediaRootSchema,
+    ],
+    [
+      '/v4/ratings/discussion/comments/{id}/thread',
+      'get',
+      scopedRead.ratingDiscussionMediaThreadSchema,
+    ],
+    [
+      '/v4/ratings/discussion/comments/{id}/replies',
+      'get',
+      scopedRead.ratingDiscussionMediaReplyPageSchema,
+    ],
+    [
+      '/v4/ratings/discussion/replies/{id}',
+      'get',
+      discussionProjection.ratingDiscussionMediaReplySchema,
+    ],
+    [
+      '/v4/ratings/discussion/replies/{id}/position',
+      'get',
+      scopedRead.ratingDiscussionMediaReplyPositionSchema,
+    ],
+    [
+      '/v4/ratings/discussion/notices/{kind}/{id}',
+      'get',
+      ratingDiscussionNoticeSchema,
+    ],
+    [
+      '/v4/ratings/discussion/targets/{id}/composer-context',
+      'get',
+      scopedRead.ratingDiscussionComposerContextSchema,
+    ],
+    [
+      '/v4/ratings/discussion/likes/{kind}/{id}',
+      'get',
+      likes.ratingLikeStateSchema,
+    ],
+  ] as const;
   const allCases = [
     ...cases,
     ...scopedCases,
     ...categoryCases,
     ...coverCases,
+    ...discussionMediaCases,
   ] as const;
   assert.equal(
     Object.values(doc.paths).reduce((n, p) => n + Object.keys(p!).length, 0),
@@ -752,5 +836,62 @@ test('target cover input contracts keep independent version and exact upload ide
       body.content['application/json']!.schema,
       z.toJSONSchema(schema, { target: 'openapi-3.0', io: 'input' }),
     );
+  }
+});
+
+test('discussion4 publishes exact new command and opaque recovery schemas without widening old codecs', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  for (const [path, schema] of [
+    [
+      'contexts',
+      scoped.ratingScopedContextRequestSchema.refine(
+        (value) => value.purpose === 'read' || value.purpose === 'interact',
+      ),
+    ],
+    ['prepare', discussionMedia.ratingDiscussionMediaIntentSchema],
+    ['commit', discussionMedia.ratingDiscussionMediaCommitSchema],
+    ['cancel', discussionMedia.ratingDiscussionMediaIntentSchema],
+    [
+      'requests/{id}/cancel',
+      discussionMedia.ratingDiscussionMediaHashCancelSchema,
+    ],
+  ] as const) {
+    const body =
+      doc.paths[`/v4/ratings/discussion/${path}`]!.post!.requestBody!;
+    assert.ok(!('$ref' in body));
+    assert.deepEqual(
+      body.content['application/json']!.schema,
+      z.toJSONSchema(schema, { target: 'openapi-3.0', io: 'input' }),
+    );
+  }
+});
+
+test('discussion4 exposes strict UUID and closed kind path parameters', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  for (const [path, item] of Object.entries(doc.paths)) {
+    if (!path.startsWith('/v4/ratings/discussion/')) continue;
+    for (const method of ['get', 'post'] as const) {
+      const operation = item?.[method];
+      if (!operation) continue;
+      const parameters = operation.parameters ?? [];
+      for (const name of ['id', 'kind'])
+        if (path.includes(`{${name}}`)) {
+          const parameter = parameters.find(
+            (p) => !('$ref' in p) && p.in === 'path' && p.name === name,
+          );
+          assert.ok(parameter && !('$ref' in parameter));
+          assert.equal(parameter.required, true);
+          const schema =
+            name === 'id'
+              ? scoped.scopedId
+              : path.includes('/notices/')
+                ? z.enum(['updates', 'like-updates', 'subscription-updates'])
+                : z.enum(['comment', 'reply']);
+          assert.deepEqual(
+            parameter.schema,
+            z.toJSONSchema(schema, { target: 'openapi-3.0', io: 'input' }),
+          );
+        }
+    }
   }
 });

@@ -10,6 +10,17 @@ export async function lockMediaBatchesForIntents(
   if (!transactionReadEpoch(tx))
     throw new ApplicationError('MEDIA_UNAVAILABLE');
   if (!ids.length) return;
+  const ratings = await tx.query(
+    `SELECT id FROM whaleu_media.upload_intents WHERE id=ANY($1::uuid[]) AND protocol_version=7`,
+    [ids],
+  );
+  if (ratings.rowCount)
+    await tx.query(
+      `SELECT b.id FROM whaleu_media.ratings_discussion_batches b WHERE b.id IN
+    (SELECT m.batch_id FROM whaleu_media.ratings_discussion_members m WHERE m.intent_id=ANY($1::uuid[]))
+    ORDER BY b.id FOR ${write ? 'UPDATE' : 'SHARE'} OF b NOWAIT`,
+      [ids],
+    );
   await tx.query(
     `SELECT b.id FROM whaleu_media.publication_batches b WHERE b.id IN
     (SELECT m.batch_id FROM whaleu_media.publication_batch_members m WHERE m.intent_id=ANY($1::uuid[]))
@@ -30,6 +41,32 @@ export async function tryLockMediaBatchForIntent(
       [id],
     )
   ).rows[0];
+  const media7 =
+    (
+      await tx.query(
+        'SELECT id FROM whaleu_media.upload_intents WHERE id=$1 AND protocol_version=7',
+        [id],
+      )
+    ).rowCount === 1;
+  const ratings = media7
+    ? (
+        await tx.query<{ batch_id: string }>(
+          'SELECT batch_id FROM whaleu_media.ratings_discussion_members WHERE intent_id=$1',
+          [id],
+        )
+      ).rows[0]
+    : undefined;
+  if (media7 && !ratings) throw new ApplicationError('MEDIA_UNAVAILABLE');
+  if (mapping && ratings) throw new ApplicationError('MEDIA_UNAVAILABLE');
+  if (ratings)
+    return (
+      (
+        await tx.query(
+          'SELECT id FROM whaleu_media.ratings_discussion_batches WHERE id=$1 FOR UPDATE SKIP LOCKED',
+          [ratings.batch_id],
+        )
+      ).rowCount === 1
+    );
   if (!mapping) return true;
   return (
     (

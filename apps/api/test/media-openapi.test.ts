@@ -1,3 +1,4 @@
+import * as ratingsDiscussion from '../src/media/contracts-ratings-discussion.js';
 import * as ratingsMedia from '../src/media/contracts-ratings.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
@@ -377,6 +378,99 @@ const ratingsCases = [
     ratingsMedia.ratingsMediaUploadObservedSchema,
   ],
 ] as const;
+const ratingsDiscussionCases = [
+  [
+    '/v3/media/ratings-discussion/batches',
+    'post',
+    ratingsDiscussion.ratingsDiscussionBatchIdentitySchema,
+    ratingsDiscussion.ratingsDiscussionBatchStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/batch-requests/{id}',
+    'get',
+    undefined,
+    ratingsDiscussion.ratingsDiscussionBatchRecoverySchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/batch-requests/{id}/cancel',
+    'post',
+    ratingsDiscussion.ratingsDiscussionBatchCancelRequestSchema,
+    ratingsDiscussion.ratingsDiscussionBatchRecoverySchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/batches/{id}',
+    'get',
+    undefined,
+    ratingsDiscussion.ratingsDiscussionBatchStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/batches/{id}/seal',
+    'post',
+    ratingsDiscussion.ratingsDiscussionSealSchema,
+    ratingsDiscussion.ratingsDiscussionBatchStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/batches/{id}/remove',
+    'post',
+    ratingsDiscussion.ratingsDiscussionRemoveMemberSchema,
+    ratingsDiscussion.ratingsDiscussionBatchStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/batches/{id}/cancel',
+    'post',
+    ratingsDiscussion.ratingsDiscussionBatchMutationSchema,
+    ratingsDiscussion.ratingsDiscussionBatchStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/members',
+    'post',
+    ratingsDiscussion.ratingsDiscussionMemberPrepareSchema,
+    ratingsDiscussion.ratingsDiscussionMemberStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/upload-requests/{id}',
+    'get',
+    undefined,
+    ratingsDiscussion.ratingsDiscussionMemberRecoverySchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/upload-requests/{id}/cancel',
+    'post',
+    ratingsDiscussion.ratingsDiscussionCancelRequestSchema,
+    ratingsDiscussion.ratingsDiscussionMemberRecoverySchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/members/{id}',
+    'get',
+    undefined,
+    ratingsDiscussion.ratingsDiscussionMemberStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/members/{id}/grant',
+    'post',
+    z.strictObject({}),
+    ratingsDiscussion.ratingsDiscussionMediaGrantSchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/members/{id}/uploads/{grantId}',
+    'post',
+    undefined,
+    ratingsDiscussion.ratingsDiscussionMediaUploadObservedSchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/members/{id}/finalize',
+    'post',
+    z.strictObject({}),
+    ratingsDiscussion.ratingsDiscussionMemberStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-discussion/members/{id}/cancel',
+    'post',
+    z.strictObject({}),
+    ratingsDiscussion.ratingsDiscussionMemberStatusSchema,
+  ],
+] as const;
+const ratingsDiscussionDeliveryPath = '/v3/media/ratings-discussion/images';
 const ratingsDeliveryPath =
   '/v3/media/ratings-target/targets/{targetId}/appearances/{appearanceId}/{variant}';
 
@@ -401,7 +495,9 @@ test('Media operations require bearer auth and private sanitized responses', asy
       ...v3cases,
       ...v4cases,
       ...ratingsCases,
+      ...ratingsDiscussionCases,
       [ratingsDeliveryPath],
+      [ratingsDiscussionDeliveryPath],
     ]
       .map(([p]) => p)
       .sort(),
@@ -533,6 +629,7 @@ test('Media v2, v3 and v4 export exact strict recovery, batch, member and shared
     ...v3cases,
     ...v4cases,
     ...ratingsCases,
+    ...ratingsDiscussionCases,
   ]) {
     assert.deepEqual(Object.keys(doc.paths[path]!), [method]);
     const operation = doc.paths[path]![method]!;
@@ -692,4 +789,42 @@ test('Ratings derived bytes require bearer and never expose range or redirect', 
   const response = op.responses['200']!;
   assert.ok(!('$ref' in response));
   assert.ok(response.content?.['image/jpeg']);
+});
+
+test('Ratings discussion binary route carries exact current descriptor fields without URL authority', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject,
+    operation = doc.paths[ratingsDiscussionDeliveryPath]!.get!;
+  assert.deepEqual(operation.security, [{ accessToken: [] }]);
+  assert.equal(operation.responses['206'], undefined);
+  assert.equal(operation.responses['302'], undefined);
+  const response = operation.responses['200']!;
+  assert.ok(!('$ref' in response));
+  assert.deepEqual(response.headers, mediaBinaryResponseHeaders);
+  assert.deepEqual(response.content, {
+    'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+    'image/png': { schema: { type: 'string', format: 'binary' } },
+  });
+  const parameters = (operation.parameters ?? []).filter(
+    (p) => !('$ref' in p) && p.in === 'query',
+  );
+  assert.deepEqual(
+    parameters.map((p) => (!('$ref' in p) ? p.name : '')).sort(),
+    [
+      'protocol',
+      'targetId',
+      'rootId',
+      'replyId',
+      'subjectRevision',
+      'contextId',
+      'contextToken',
+      'bindingId',
+      'ordinal',
+      'attachmentSetDigest',
+      'variant',
+    ].sort(),
+  );
+  assert.equal(
+    parameters.every((p) => !('$ref' in p) && p.required),
+    true,
+  );
 });

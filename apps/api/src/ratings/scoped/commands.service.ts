@@ -1,3 +1,8 @@
+import {
+  beginRatingsMediaMutation,
+  finishRatingsMediaMutation,
+  abortRatingsMediaMutation,
+} from '../../media/ratings-discussion-mutation-proof.js';
 import { requireTargetCoverRead } from './target-cover-capability.js';
 import {
   RatingTargetCoverMediaService,
@@ -13,12 +18,28 @@ import {
   ratingCurrentScopedIntentSchema as ratingScopedIntentSchema,
   ratingCurrentScopedReceiptSchema as ratingScopedReceiptSchema,
   ratingCurrentScopedCommandHash as ratingScopedCommandHash,
-  ratingTargetCoverPreparationSchema,
-  ratingTargetCoverUploadScopeSchema,
   type RatingCurrentScopedIntent as RatingScopedIntent,
   type RatingCurrentScopedReceipt as RatingScopedReceipt,
+} from './current-command-contracts.js';
+import {
+  ratingTargetCoverPreparationSchema,
+  ratingTargetCoverUploadScopeSchema,
   type RatingTargetCoverReference,
 } from './target-cover-contracts.js';
+import {
+  ratingDiscussionMediaHashCancelSchema,
+  ratingDiscussionMediaPreparationSchema,
+  ratingDiscussionMediaReceiptSchema,
+} from './discussion-media-contracts.js';
+import {
+  canonicalRatingDiscussionMediaEnvelope,
+  ratingDiscussionAttachmentSetDigest,
+  type RatingDiscussionMediaEnvelope,
+} from '../../community/content-review/rating-discussion-media-contracts.js';
+import { RatingDiscussionMediaReviewFacade } from '../../community/content-review/rating-discussion-media-review.facade.js';
+import { RatingDiscussionMediaService } from '../discussion-media.service.js';
+import { discussionMediaParent } from '../discussion-media-current.js';
+import type { RatingsDiscussionWholeSet } from '../../media/ratings-discussion-asset-repository.js';
 import { ratingScopedRequestReceiptSchema } from './request-receipt.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
@@ -73,7 +94,11 @@ interface Preparation {
   definition_revision: string;
   content_version: number;
   before_state: Record<string, unknown>;
-  envelope: RatingScopedEnvelope | RatingTargetCoverEnvelope | null;
+  envelope:
+    | RatingScopedEnvelope
+    | RatingTargetCoverEnvelope
+    | RatingDiscussionMediaEnvelope
+    | null;
   policy_source_id: string | null;
   policy_source_revision: string | null;
   valid_until: Date;
@@ -120,7 +145,14 @@ export class RatingScopedCommands {
     private readonly releases: RatingScopedReleaseRepository,
     @Inject(RatingTargetCoverMediaService)
     private readonly coverMedia: RatingTargetCoverMediaService,
+    @Inject(RatingDiscussionMediaService)
+    private readonly discussionMedia: RatingDiscussionMediaService,
   ) {}
+  private readonly discussionReview = new RatingDiscussionMediaReviewFacade();
+  private readonly discussionSets = new WeakMap<
+    PoolClient,
+    RatingsDiscussionWholeSet
+  >();
   private async enter(token: string, tx: PoolClient) {
     await lockSafetyPolicy(tx, true);
     await tx.query("SET LOCAL statement_timeout='5s'");
@@ -193,12 +225,20 @@ export class RatingScopedCommands {
         catalogRevision: s.catalogRevision,
         headRevision: s.headRevision,
         sourceDigest: s.sourceDigest,
+        ...(i.protocolVersion === 4 && s.context.protocolVersion === 4
+          ? { discussionMedia: s.context.discussionMedia }
+          : {}),
       })
     )
       throw new ApplicationError('RATING_SCOPED_CONTEXT_CHANGED');
     if (
       i.protocolVersion === 3 &&
       !s.context.capabilities.includes('target_cover')
+    )
+      throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
+    if (
+      i.protocolVersion === 4 &&
+      !s.context.capabilities.includes('discussion_images')
     )
       throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
     return s;
@@ -245,6 +285,66 @@ export class RatingScopedCommands {
         )
           throw new ApplicationError('RATING_REVISION_CONFLICT');
       }
+      if (i.protocolVersion === 4) {
+        const current = await this.scoped.target(
+          scope,
+          i.payload.targetId,
+          tx,
+          true,
+        );
+        if (current.category.kind !== 'general')
+          throw new ApplicationError('RATING_NOT_FOUND');
+        if (
+          current.row.revision !== i.payload.expectedTargetRevision ||
+          current.row.definition.definitionRevision !==
+            i.payload.expectedDefinitionRevision ||
+          current.row.definition.contentVersion !==
+            i.payload.expectedContentVersion ||
+          current.category.id !== i.payload.categoryId ||
+          current.category.revision !== i.payload.expectedCategoryRevision
+        )
+          throw new ApplicationError('RATING_REVISION_CONFLICT');
+        if (i.operation === 'create_reply_scoped') {
+          const root = await this.records.comment(
+            i.payload.rootId,
+            i.payload.targetId,
+            tx,
+            true,
+          );
+          if (
+            root.revision !== i.payload.expectedRootRevision ||
+            !(await this.discussion.content(
+              root,
+              'comment',
+              actor,
+              'rating_direct',
+              tx,
+            )) ||
+            !(await this.discussion.canReply(root, actor, tx))
+          )
+            throw new ApplicationError('RATING_NOT_FOUND');
+          if (i.payload.replyTo) {
+            const quote = await this.replies.reply(
+              i.payload.replyTo.replyId,
+              root.id,
+              i.payload.targetId,
+              tx,
+              true,
+            );
+            if (
+              quote.revision !== i.payload.replyTo.expectedRevision ||
+              !(await this.discussion.content(
+                quote,
+                'reply',
+                actor,
+                'rating_direct',
+                tx,
+              ))
+            )
+              throw new ApplicationError('RATING_NOT_FOUND');
+          }
+        }
+      }
       return { p: old, scope };
     }
     const cat = await this.scoped.category(
@@ -253,6 +353,8 @@ export class RatingScopedCommands {
       tx,
       true,
     );
+    if (i.protocolVersion === 4 && cat.kind !== 'general')
+      throw new ApplicationError('RATING_NOT_FOUND');
     if (cat.revision !== i.payload.expectedCategoryRevision)
       throw new ApplicationError('RATING_REVISION_CONFLICT');
     const target =
@@ -290,6 +392,14 @@ export class RatingScopedCommands {
       target!.row.envelope.version === 6
     )
       throw new ApplicationError('RATING_SCOPED_CONTEXT_CHANGED');
+    if (
+      i.protocolVersion === 4 &&
+      (target!.row.definition.definitionRevision !==
+        i.payload.expectedDefinitionRevision ||
+        target!.row.definition.contentVersion !==
+          i.payload.expectedContentVersion)
+    )
+      throw new ApplicationError('RATING_REVISION_CONFLICT');
     const policy =
       i.operation === 'create_target_scoped'
         ? await this.sources.requireCreationPolicy(scope.catalog.scopeKey, tx)
@@ -422,8 +532,11 @@ export class RatingScopedCommands {
       targetOrigin: origin,
       assetIds: [],
     };
-    let envelope: RatingScopedEnvelope | RatingTargetCoverEnvelope | null =
-      null;
+    let envelope:
+      | RatingScopedEnvelope
+      | RatingTargetCoverEnvelope
+      | RatingDiscussionMediaEnvelope
+      | null = null;
     let resolvedCover: RatingTargetCoverReference | null = null;
     if (i.protocolVersion === 3) {
       if (i.payload.cover.action === 'keep')
@@ -503,8 +616,9 @@ export class RatingScopedCommands {
       });
     }
     if (
-      i.operation === 'create_comment_scoped' ||
-      i.operation === 'create_reply_scoped'
+      i.protocolVersion === 2 &&
+      (i.operation === 'create_comment_scoped' ||
+        i.operation === 'create_reply_scoped')
     )
       envelope = canonicalRatingScopedEnvelope({
         ...base,
@@ -528,6 +642,53 @@ export class RatingScopedCommands {
             }
           : {}),
       });
+    if (i.protocolVersion === 4) {
+      const { assetIds, ...discussionBase } = base;
+      if (assetIds.length)
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      const ready = i.payload.images.length
+        ? await this.discussionMedia.assets.describeReadySet(
+            await this.discussionMedia.selection(scope, i, tx),
+            tx,
+          )
+        : [];
+      const images = i.payload.images.map((image, index) => {
+        const media = ready[index];
+        if (!media || media.assetId !== image.assetId)
+          throw new ApplicationError('MEDIA_NOT_READY');
+        return { ...image, manifestDigest: media.digest };
+      });
+      envelope = canonicalRatingDiscussionMediaEnvelope({
+        ...discussionBase,
+        version: 7,
+        purpose:
+          i.operation === 'create_comment_scoped'
+            ? 'publish_rating_comment_media_scoped'
+            : 'publish_rating_reply_media_scoped',
+        subjectId,
+        subjectRevision,
+        targetDefinitionRevision: definitionRevision,
+        targetContentVersion: contentVersion,
+        body: i.payload.body,
+        authorMode: i.payload.authorMode,
+        discussionMedia: i.context.discussionMedia,
+        draftRevision: i.payload.draftRevision,
+        batchRequestId: i.payload.batchRequestId,
+        batchId: i.payload.batchId,
+        sealedPlanDigest: i.payload.sealedPlanDigest,
+        images,
+        attachmentSetDigest: ratingDiscussionAttachmentSetDigest(images),
+        ...(i.operation === 'create_reply_scoped'
+          ? {
+              rootId: root!.id,
+              rootRevision: root!.revision,
+              replyTo: parent
+                ? { replyId: parent.id, revision: parent.revision }
+                : null,
+            }
+          : {}),
+      });
+    }
     const beforeState = {
       target: target
         ? {
@@ -542,6 +703,9 @@ export class RatingScopedCommands {
         : null,
       definition: target?.row.definition ?? null,
       ...(i.protocolVersion === 3 ? { resolvedCover } : {}),
+      ...(envelope?.version === 7
+        ? { resolvedDiscussionImages: envelope.images }
+        : {}),
       name: target?.row.name ?? null,
       description: target?.row.description ?? null,
       root: root ? { id: root.id, revision: root.revision } : null,
@@ -903,9 +1067,11 @@ export class RatingScopedCommands {
         if (i.protocolVersion === 3)
           await retainRatingTargetCoverMediaAfter(tx);
         return (
-          i.protocolVersion === 3
-            ? ratingTargetCoverPreparationSchema
-            : ratingScopedPreparationSchema
+          i.protocolVersion === 4
+            ? ratingDiscussionMediaPreparationSchema
+            : i.protocolVersion === 3
+              ? ratingTargetCoverPreparationSchema
+              : ratingScopedPreparationSchema
         ).parse({
           intent: p.intent,
           contextRevision: p.context_revision,
@@ -914,6 +1080,13 @@ export class RatingScopedCommands {
           definitionRevision: p.definition_revision,
           contentVersion: p.content_version,
           validUntil: p.valid_until.toISOString(),
+          ...(p.envelope?.version === 7
+            ? {
+                subjectId: p.subject_id,
+                subjectRevision: p.subject_revision,
+                attachmentSetDigest: p.envelope.attachmentSetDigest,
+              }
+            : {}),
         });
       },
       { isolationLevel: 'read committed' },
@@ -954,7 +1127,7 @@ export class RatingScopedCommands {
     );
     return receipt;
   }
-  status(token: string, requestId: string) {
+  status(token: string, requestId: string, protocolVersion?: 4) {
     return this.db.transaction(
       async (tx) => {
         const session = await this.access.authenticate(token, tx),
@@ -965,9 +1138,73 @@ export class RatingScopedCommands {
             )
           ).rows[0];
         if (!r?.receipt) throw new ApplicationError('REQUEST_NOT_FOUND');
-        const result = ratingScopedRequestReceiptSchema.parse(r.receipt);
+        const result =
+          protocolVersion === 4
+            ? ratingDiscussionMediaReceiptSchema.parse(r.receipt)
+            : ratingScopedRequestReceiptSchema.parse(r.receipt);
         await this.access.recheck(token, tx);
         return result;
+      },
+      { isolationLevel: 'read committed' },
+    );
+  }
+  cancelDiscussionByHash(token: string, requestId: string, raw: unknown) {
+    const input = ratingDiscussionMediaHashCancelSchema.parse(raw);
+    return this.db.transaction(
+      async (tx) => {
+        const session = await this.enter(token, tx);
+        await assertRatingCommandClaim(
+          session.accountId,
+          requestId,
+          input.operation,
+          input.intentHash,
+          tx,
+        );
+        await tx.query(
+          'INSERT INTO whaleu_ratings.requests(account_id,request_id,operation,intent_hash) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',
+          [session.accountId, requestId, input.operation, input.intentHash],
+        );
+        const request = (
+          await tx.query<{
+            operation: string;
+            intent_hash: string;
+            receipt: unknown;
+          }>(
+            'SELECT operation,intent_hash,receipt FROM whaleu_ratings.requests WHERE account_id=$1 AND request_id=$2 FOR UPDATE',
+            [session.accountId, requestId],
+          )
+        ).rows[0]!;
+        if (
+          request.operation !== input.operation ||
+          request.intent_hash !== input.intentHash
+        )
+          throw new ApplicationError('REQUEST_CONFLICT');
+        if (request.receipt !== null) {
+          await this.access.recheck(token, tx);
+          return ratingDiscussionMediaReceiptSchema.parse(request.receipt);
+        }
+        const receipt = ratingDiscussionMediaReceiptSchema.parse({
+          ...input,
+          requestId,
+          outcome: 'closed',
+          code: 'RATING_CREATION_CANCELLED',
+        });
+        await tx.query(
+          'INSERT INTO whaleu_ratings.discussion_command_recovery_fences(account_id,request_id,operation,intent_hash,session_id) VALUES($1,$2,$3,$4,$5)',
+          [
+            session.accountId,
+            requestId,
+            input.operation,
+            input.intentHash,
+            session.sessionId,
+          ],
+        );
+        await tx.query(
+          'UPDATE whaleu_ratings.requests SET receipt=$3::jsonb WHERE account_id=$1 AND request_id=$2',
+          [session.accountId, requestId, canonicalJson(receipt)],
+        );
+        await this.access.recheck(token, tx);
+        return receipt;
       },
       { isolationLevel: 'read committed' },
     );
@@ -975,6 +1212,7 @@ export class RatingScopedCommands {
   cancel(token: string, raw: RatingScopedIntent) {
     const i = ratingScopedIntentSchema.parse(raw);
     if (
+      i.protocolVersion !== 4 &&
       i.operation !== 'create_target_scoped' &&
       i.operation !== 'edit_target_scoped'
     )
@@ -991,6 +1229,7 @@ export class RatingScopedCommands {
             {
               outcome: 'closed',
               code:
+                i.protocolVersion === 4 ||
                 i.operation === 'create_target_scoped'
                   ? 'RATING_CREATION_CANCELLED'
                   : 'RATING_EDIT_CANCELLED',
@@ -1020,9 +1259,11 @@ export class RatingScopedCommands {
         const checkpoint = checkpointTransactionDeadlines(tx);
         await tx.query('SAVEPOINT scoped_command');
         let result: RatingScopedReceipt;
+        const mediaMutation =
+          i.protocolVersion === 4 ? beginRatingsMediaMutation(tx) : null;
         try {
           if (
-            i.protocolVersion === 3 &&
+            (i.protocolVersion === 3 || i.protocolVersion === 4) &&
             !(await this.preparation(
               session.accountId,
               i.payload.clientRequestId,
@@ -1032,7 +1273,8 @@ export class RatingScopedCommands {
             throw new ApplicationError('RATING_SCOPED_CONTEXT_CHANGED');
           const { p, scope } = await this.makePreparation(token, i, tx);
           if (
-            (i.operation === 'create_target_scoped' ||
+            (i.protocolVersion === 4 ||
+              i.operation === 'create_target_scoped' ||
               i.operation === 'edit_target_scoped') &&
             p.context_revision !== preparationContextRevision
           )
@@ -1062,7 +1304,16 @@ export class RatingScopedCommands {
           const applied = await this.apply(scope, p, tx);
           result = await this.outcome(scope.actor, i, applied, tx);
           await this.scoped.retainAfter(scope, tx);
+          const discussionSet = this.discussionSets.get(tx);
+          if (discussionSet) {
+            await this.discussionMedia.assets.finish(discussionSet, tx);
+            this.discussionSets.delete(tx);
+          }
+          if (mediaMutation)
+            await finishRatingsMediaMutation(mediaMutation, tx);
         } catch (error) {
+          if (mediaMutation) abortRatingsMediaMutation(mediaMutation, tx);
+          this.discussionSets.delete(tx);
           if (
             !(error instanceof ApplicationError) ||
             !ratingScopedClosureSchema.safeParse(error.code).success
@@ -1105,6 +1356,70 @@ export class RatingScopedCommands {
       case 'create_comment_scoped':
       case 'create_reply_scoped': {
         const e = p.envelope;
+        if (i.protocolVersion === 4) {
+          if (!e || e.version !== 7)
+            throw new ApplicationError('RATING_UNAVAILABLE');
+          if (i.payload.authorMode === 'anonymous')
+            await this.access.requireAnonymous(a, tx);
+          const accepted = await this.discussionReview.accepted(e, tx);
+          const set = e.images.length
+            ? await this.discussionMedia.assets.prepareWholeSet(
+                await this.discussionMedia.selection(scope, i, tx),
+                tx,
+              )
+            : null;
+          if (set) {
+            const ready = await this.discussionMedia.assets.accept(set, tx);
+            if (
+              ready.length !== e.images.length ||
+              ready.some(
+                (image, index) =>
+                  image.assetId !== e.images[index]?.assetId ||
+                  image.digest !== e.images[index]?.manifestDigest,
+              )
+            )
+              throw new ApplicationError('MEDIA_NOT_READY');
+          }
+          let personaId: string | null = null;
+          if (i.payload.authorMode === 'anonymous')
+            personaId = (await this.records.persona(p.target_id, a, tx))
+              .public_id;
+          else await this.authors.prepare(a, tx);
+          const input = {
+            id: p.subject_id,
+            targetId: p.target_id,
+            actor: a,
+            authorMode: i.payload.authorMode,
+            personaId,
+            body: i.payload.body,
+            revision: p.subject_revision,
+            requestId: req,
+            envelope: e,
+          };
+          const { outcome, ...result } =
+            i.operation === 'create_comment_scoped'
+              ? await this.records.insertComment(input, tx)
+              : await this.replies.insert(
+                  {
+                    ...input,
+                    rootId: i.payload.rootId,
+                    replyToId: i.payload.replyTo?.replyId ?? null,
+                  },
+                  tx,
+                );
+          if (outcome !== 'applied')
+            throw new ApplicationError('RATING_UNAVAILABLE');
+          if (set)
+            await this.discussionMedia.assets.bindDiscussion(
+              set,
+              discussionMediaParent(e),
+              tx,
+            );
+          await this.discussionReview.bind(accepted, e, tx);
+          await this.effects.captureCreated(a, req, tx);
+          if (set) this.discussionSets.set(tx, set);
+          return { outcome, result };
+        }
         if (
           !e ||
           (e.purpose !== 'publish_rating_comment_scoped' &&

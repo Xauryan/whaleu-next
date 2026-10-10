@@ -1,3 +1,17 @@
+import {
+  ratingsDiscussionMemberPrepareSchema,
+  ratingsDiscussionBatchIdentitySchema,
+  ratingsDiscussionBatchHash,
+} from './contracts-ratings-discussion.js';
+import type {
+  RatingsDiscussionMemberPrepare,
+  RatingsDiscussionBatchIdentity,
+} from './contracts-ratings-discussion.js';
+import type {
+  AuthorizedRatingsDiscussionDraft,
+  AuthorizedRatingsDiscussionBatch,
+  RatingsDiscussionMediaDraftOwnerPort,
+} from './ratings-discussion-prepare-scope.js';
 import { prepareRatingsMediaSchema } from './contracts-ratings.js';
 import type { PrepareRatingsMediaInput } from './contracts-ratings.js';
 import type {
@@ -83,18 +97,102 @@ export class MediaPrepareScopes {
         | PrepareMediaV3Input
         | PrepareMediaV4Input
         | PrepareProfileMediaInput
-        | PrepareRatingsMediaInput;
+        | PrepareRatingsMediaInput
+        | RatingsDiscussionMemberPrepare;
       scope:
         | AuthorizedMediaDraft
         | AuthorizedProfileMediaEdit
-        | AuthorizedRatingsMediaEdit;
+        | AuthorizedRatingsMediaEdit
+        | AuthorizedRatingsDiscussionDraft;
     }
   >();
   constructor(
     private readonly owner: MediaDraftOwnerPort,
     private readonly profileOwner?: ProfileMediaDraftOwnerPort,
     private readonly ratingsOwner?: RatingsMediaDraftOwnerPort,
+    private readonly ratingsDiscussionOwner?: RatingsDiscussionMediaDraftOwnerPort,
   ) {}
+  async authorizeRatingsDiscussionBatch(
+    actor: string,
+    raw: RatingsDiscussionBatchIdentity,
+    tx: PoolClient,
+  ): Promise<AuthorizedRatingsDiscussionBatch> {
+    const identity = ratingsDiscussionBatchIdentitySchema.parse(raw),
+      epoch = transactionReadEpoch(tx);
+    if (!epoch || !this.ratingsDiscussionOwner)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const scope = await this.ratingsDiscussionOwner.authorizeBatch(
+      mediaIdSchema.parse(actor),
+      identity,
+      tx,
+    );
+    this.checkRatingsDiscussionScope(actor, identity, scope, tx, epoch);
+    return Object.freeze({ ...scope, batchIdentity: identity });
+  }
+  async authorizeRatingsDiscussion(
+    actor: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    const input = ratingsDiscussionMemberPrepareSchema.parse(raw),
+      epoch = transactionReadEpoch(tx);
+    if (!epoch || !this.ratingsDiscussionOwner)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const scope = await this.ratingsDiscussionOwner.authorizePrepare(
+      mediaIdSchema.parse(actor),
+      input,
+      tx,
+    );
+    const identity = ratingsDiscussionBatchIdentitySchema.parse(
+      scope.batchIdentity,
+    );
+    this.checkRatingsDiscussionScope(actor, identity, scope, tx, epoch);
+    if (
+      scope.ordinal !== input.sourceSlot ||
+      ratingsDiscussionBatchHash(actor, identity) !== input.batchIdentityHash
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    Object.freeze(input.declaration);
+    Object.freeze(input);
+    const capability: MediaPrepareScope = Object.freeze({
+      [brand]: true as const,
+    });
+    this.issued.set(capability, {
+      tx,
+      epoch,
+      input,
+      scope: Object.freeze({ ...scope, batchIdentity: identity }),
+    });
+    return capability;
+  }
+  private checkRatingsDiscussionScope(
+    actor: string,
+    identity: RatingsDiscussionBatchIdentity,
+    scope: AuthorizedRatingsDiscussionBatch,
+    tx: PoolClient,
+    epoch: object,
+  ): void {
+    const reply = identity.target.kind === 'reply';
+    if (
+      scope.actorAccountId !== actor ||
+      scope.ownerKind !== 'ratings' ||
+      scope.resourceKind !== (reply ? 'rating_reply' : 'rating_comment') ||
+      scope.purpose !==
+        (reply ? 'ratings-reply-image' : 'ratings-comment-image') ||
+      scope.targetKind !== 'draft' ||
+      scope.contentVersion !== 1 ||
+      scope.audience !== 'content-gated' ||
+      scope.slot !== 'images' ||
+      !mediaIdSchema.safeParse(scope.serverScopeId).success ||
+      !/^[A-Za-z0-9._:-]{1,200}$/.test(scope.scopeRevision) ||
+      !Number.isSafeInteger(scope.expiresAt) ||
+      ratingsDiscussionBatchHash(actor, scope.batchIdentity) !==
+        ratingsDiscussionBatchHash(actor, identity) ||
+      transactionReadEpoch(tx) !== epoch
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+  }
   async authorizeRatings(
     actorAccountId: string,
     raw: unknown,
@@ -292,11 +390,13 @@ export class MediaPrepareScopes {
       | PrepareMediaV3Input
       | PrepareMediaV4Input
       | PrepareProfileMediaInput
-      | PrepareRatingsMediaInput;
+      | PrepareRatingsMediaInput
+      | RatingsDiscussionMemberPrepare;
     scope:
       | AuthorizedMediaDraft
       | AuthorizedProfileMediaEdit
-      | AuthorizedRatingsMediaEdit;
+      | AuthorizedRatingsMediaEdit
+      | AuthorizedRatingsDiscussionDraft;
   } {
     const issued = this.issued.get(capability);
     if (

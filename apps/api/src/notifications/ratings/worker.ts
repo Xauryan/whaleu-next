@@ -1,3 +1,5 @@
+import { ratingAuthorSchema } from '../../ratings/contracts.js';
+import { ratingDiscussionMaterializationPreviewSchema } from './discussion-media-contracts.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
@@ -217,14 +219,29 @@ export class RatingUpdatesWorker {
                       event.id,
                     );
               if (decision.outcome === 'eligible' && event.kind === 'like') {
-                ratingLikeNoticePreviewSchema.parse(decision.preview);
+                if (decision.mediaPreview)
+                  ratingDiscussionMaterializationPreviewSchema.parse(
+                    decision.mediaPreview,
+                  );
+                else ratingLikeNoticePreviewSchema.parse(decision.preview);
                 if (!('actor' in decision))
                   throw new Error('Missing rating like actor');
                 ratingLikeNoticeActorSchema.parse(decision.actor);
               } else if (decision.outcome === 'eligible') {
-                const preview = ratingNoticePreviewSchema.parse(
-                  decision.preview,
-                );
+                if (!('author' in decision.preview))
+                  throw new Error('Missing rating discussion author');
+                ratingAuthorSchema.parse(decision.preview.author);
+                if (
+                  decision.mediaPreview &&
+                  decision.mediaPreview.imageCount > 3
+                )
+                  throw new Error('Reply image limit');
+                const preview = decision.mediaPreview
+                  ? (ratingDiscussionMaterializationPreviewSchema.parse(
+                      decision.mediaPreview,
+                    ),
+                    decision.preview)
+                  : ratingNoticePreviewSchema.parse(decision.preview);
                 if (
                   preview.author.mode === 'anonymous' &&
                   preview.author.targetId !== event.target.targetId

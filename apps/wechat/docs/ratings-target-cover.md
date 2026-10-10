@@ -1,4 +1,4 @@
-# Ratings target single cover: static implementation
+# Ratings target single cover
 
 This change adds command protocol 3 (original create/edit operation names), independent hash domain, shared Ratings journal 11, and `ratings-target-media-v1`. Versions 1–10 keep their original decoders, hashes, keys and recovery precedence. No new account system or durable queue is introduced.
 
@@ -22,7 +22,7 @@ Ratings download requires an authenticated `SessionStore` ticket and exact Ratin
 
 The ordinary runtime constructs metadata gateways, but does not enable native upload/download transports. These still require the existing real-device domain/header/redirect/provider acceptance gate. Test DI does not imply production acceptance.
 
-The complete frozen local gate passed 6,320 cases, including 2,364 native tests, emitted Page/WXML smoke, strict API/native contracts and real HTTP-to-PostgreSQL native interaction and receipt-first SIGKILL recovery. Build, typechecks, lint and formatting passed. Hosted verification remains pending. Synthetic local validation does not enable real transport providers or replace physical-device acceptance.
+The complete frozen local gate passed 6,320 cases, including 2,364 native tests, emitted Page/WXML smoke, strict API/native contracts and real HTTP-to-PostgreSQL native interaction and receipt-first SIGKILL recovery. Build, typechecks, lint and formatting passed. Hosted Verify and Statistics passed on signed commit `2b25fc28`, including all 6,320 tests. Synthetic local validation does not enable real transport providers or replace physical-device acceptance.
 
 The explicit v3 contexts, subscriptions and random projection are independent of
 v2. The page co-observes a v2 auxiliary/interact lease and a v3 cover/content lease;

@@ -1,3 +1,11 @@
+import {
+  ratingDiscussionMediaRootSchema,
+  ratingDiscussionMediaReplySchema,
+  type RatingDiscussionMediaRoot,
+  type RatingDiscussionMediaReply,
+} from '../discussion-media-projection-contracts.js';
+import { currentRatingDiscussionMediaBatch } from '../discussion-media-current.js';
+import { canonicalRatingDiscussionMediaEnvelope } from '../../community/content-review/rating-discussion-media-contracts.js';
 import { requireTargetCoverRead } from './target-cover-capability.js';
 import { currentRatingTargetCoverDescriptor } from '../target-cover-current.js';
 import { ratingsMediaDescriptorSchema } from '../../media/contracts-ratings.js';
@@ -155,6 +163,47 @@ export const ratingScopedReplyPositionSchema = z
       JSON.stringify(p.context) === JSON.stringify(p.page.context) &&
       p.page.items[0]?.id === p.anchorReplyId,
   );
+export const ratingDiscussionComposerContextSchema = z.strictObject({
+  protocolVersion: z.literal(4),
+  contextId: ratingPublicIdSchema,
+  targetId: ratingPublicIdSchema,
+  targetRevision: ratingPublicIdSchema,
+  categoryId: ratingPublicIdSchema,
+  categoryRevision: ratingPublicIdSchema,
+  definitionRevision: ratingPublicIdSchema,
+  contentVersion: z.number().int().positive(),
+  root: z
+    .strictObject({ id: ratingPublicIdSchema, revision: ratingPublicIdSchema })
+    .nullable(),
+  allowedActions: z.strictObject({
+    createComment: z.boolean(),
+    createReply: z.boolean(),
+  }),
+  authorModes: z
+    .array(z.enum(['named', 'anonymous']))
+    .min(1)
+    .max(2),
+});
+export const ratingDiscussionComposerQuerySchema =
+  ratingScopedReadQuerySchema.extend({
+    rootId: ratingPublicIdSchema.optional(),
+  });
+export const ratingDiscussionMediaCommentPageSchema =
+  ratingScopedCommentPageSchema.safeExtend({
+    items: z.array(ratingDiscussionMediaRootSchema).max(50),
+  });
+export const ratingDiscussionMediaThreadSchema =
+  ratingScopedDiscussionSchema.safeExtend({
+    root: ratingDiscussionMediaRootSchema,
+  });
+export const ratingDiscussionMediaReplyPageSchema =
+  ratingScopedReplyPageSchema.safeExtend({
+    items: z.array(ratingDiscussionMediaReplySchema).max(50),
+  });
+export const ratingDiscussionMediaReplyPositionSchema =
+  ratingScopedReplyPositionSchema.safeExtend({
+    page: ratingDiscussionMediaReplyPageSchema,
+  });
 export const ratingScopedSubscriptionPageSchema = z
   .strictObject({
     context: ratingScopedPageContextSchema,
@@ -212,7 +261,7 @@ export class RatingScopedReadService {
     token: string,
     query: ReadQuery,
     operation: (scope: ResolvedRatingScope, tx: PoolClient) => Promise<T>,
-    protocolVersion: 2 | 3 = 2,
+    protocolVersion: 2 | 3 | 4 = 2,
   ): Promise<T> {
     try {
       return await this.database.transaction(
@@ -455,77 +504,157 @@ export class RatingScopedReadService {
       return ratingSummarySchema.parse(await this.records.summary(id, tx));
     });
   }
-  comments(token: string, id: string, query: CommentQuery) {
-    return this.run(token, query, async (scope, tx) => {
-      const target = await this.targetRow(scope, id, tx),
-        sort = query.sort ?? 'time',
-        order = query.order ?? 'desc';
-      const orderHead = await this.rootOrder.head(id, sort, tx);
-      const cursorScope = await this.cursorScope(
-        scope,
-        'comments',
-        {
-          targetId: id,
+  composerContext(
+    token: string,
+    targetId: string,
+    query: z.infer<typeof ratingDiscussionComposerQuerySchema>,
+  ) {
+    return this.database.transaction(
+      async (tx) => {
+        this.records.enable(tx);
+        this.scoped.enable(tx);
+        const scope = await this.contexts.resolve(token, query, tx, {
+          purpose: 'interact',
+          protocolVersion: 4,
+          write: true,
+        });
+        if (scope.context.mode !== 'public')
+          throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
+        const target = await this.scoped.target(scope, targetId, tx);
+        if (target.category.kind !== 'general')
+          throw new ApplicationError('RATING_NOT_FOUND');
+        let root: { id: string; revision: string } | null = null,
+          canReply = false;
+        if (query.rootId) {
+          const chain = await this.chain(scope, query.rootId, tx, targetId);
+          root = { id: chain.root.id, revision: chain.root.revision };
+          canReply = chain.rootCanReply;
+        }
+        const result = ratingDiscussionComposerContextSchema.parse({
+          protocolVersion: 4,
+          contextId: scope.contextId,
+          targetId,
           targetRevision: target.row.revision,
-          sort,
-          order,
-          limit: query.limit,
-        },
-        tx,
-        orderHead,
-      );
-      const after = query.cursor
-        ? await this.orderCursors.get(
-            query.cursor,
-            cursorScope,
+          categoryId: target.category.id,
+          categoryRevision: target.category.revision,
+          definitionRevision: target.row.definition.definitionRevision,
+          contentVersion: target.row.definition.contentVersion,
+          root,
+          allowedActions: {
+            createComment: root === null,
+            createReply: root !== null && canReply,
+          },
+          authorModes: await this.access.authorModes(scope.actor, tx),
+        });
+        await this.access.recheck(token, tx);
+        await this.scoped.retainAfter(scope, tx);
+        return result;
+      },
+      { isolationLevel: 'read committed' },
+    );
+  }
+  private async prefetchDiscussion(
+    rows: readonly { envelope: unknown }[],
+    actor: string,
+    tx: PoolClient,
+  ): Promise<void> {
+    const envelopes = rows
+      .filter(
+        (row) =>
+          typeof row.envelope === 'object' &&
+          row.envelope !== null &&
+          'version' in row.envelope &&
+          row.envelope.version === 7,
+      )
+      .map((row) => canonicalRatingDiscussionMediaEnvelope(row.envelope));
+    if (envelopes.length)
+      await currentRatingDiscussionMediaBatch(envelopes, actor, tx);
+  }
+  comments(
+    token: string,
+    id: string,
+    query: CommentQuery,
+    discussionMedia = false,
+  ) {
+    return this.run(
+      token,
+      query,
+      async (scope, tx) => {
+        const target = await this.targetRow(scope, id, tx),
+          sort = query.sort ?? 'time',
+          order = query.order ?? 'desc';
+        const orderHead = await this.rootOrder.head(id, sort, tx);
+        const cursorScope = await this.cursorScope(
+          scope,
+          'comments',
+          {
+            targetId: id,
+            targetRevision: target.row.revision,
             sort,
             order,
-            tx,
-          )
-        : null;
-      const rows = await this.rootOrder.page(
-          id,
-          sort,
-          order,
-          after,
-          query.limit,
+            limit: query.limit,
+          },
           tx,
-        ),
-        more = rows.length > query.limit,
-        chosen = rows.slice(0, query.limit),
-        items: RatingComment[] = [];
-      for (const candidate of chosen) {
-        const row = await this.records.comment(candidate.id, id, tx);
-        const item = await this.projection.root(
-          row,
-          this.actor(scope),
-          'rating_list',
-          tx,
+          orderHead,
         );
-        if (item) items.push(item);
-      }
-      const last = chosen.at(-1);
-      const nextCursor = more
-        ? await this.orderCursors.create(
-            scope.actor,
-            cursorScope,
+        const after = query.cursor
+          ? await this.orderCursors.get(
+              query.cursor,
+              cursorScope,
+              sort,
+              order,
+              tx,
+            )
+          : null;
+        const rows = await this.rootOrder.page(
+            id,
             sort,
             order,
-            {
-              createdMicros: last!.createdMicros,
-              ordinal: last!.ordinal,
-              count: last!.count,
-            },
+            after,
+            query.limit,
             tx,
-          )
-        : null;
-      return ratingScopedCommentPageSchema.parse({
-        context: { ...this.pageContext(scope), targetId: id },
-        items,
-        nextCursor,
-        continuation: more ? (items.length ? 'more' : 'scan') : 'end',
-      });
-    });
+          ),
+          more = rows.length > query.limit,
+          chosen = rows.slice(0, query.limit),
+          items: (RatingComment | RatingDiscussionMediaRoot)[] = [];
+        const currentRows = [];
+        for (const candidate of chosen)
+          currentRows.push(await this.records.comment(candidate.id, id, tx));
+        await this.prefetchDiscussion(currentRows, scope.actor, tx);
+        for (const row of currentRows) {
+          const item = await this.projection[
+            scope.context.protocolVersion === 4 ? 'rootMedia' : 'root'
+          ](row, this.actor(scope), 'rating_list', tx);
+          if (item) items.push(item);
+        }
+        const last = chosen.at(-1);
+        const nextCursor = more
+          ? await this.orderCursors.create(
+              scope.actor,
+              cursorScope,
+              sort,
+              order,
+              {
+                createdMicros: last!.createdMicros,
+                ordinal: last!.ordinal,
+                count: last!.count,
+              },
+              tx,
+            )
+          : null;
+        return (
+          scope.context.protocolVersion === 4
+            ? ratingDiscussionMediaCommentPageSchema
+            : ratingScopedCommentPageSchema
+        ).parse({
+          context: { ...this.pageContext(scope), targetId: id },
+          items,
+          nextCursor,
+          continuation: more ? (items.length ? 'more' : 'scan') : 'end',
+        });
+      },
+      discussionMedia ? 4 : 2,
+    );
   }
   private async chain(
     scope: ResolvedRatingScope,
@@ -536,12 +665,9 @@ export class RatingScopedReadService {
     const id = targetId ?? (await this.records.commentTarget(rootId, tx)),
       target = await this.targetRow(scope, id, tx);
     const root = await this.records.comment(rootId, id, tx),
-      rootView = await this.projection.root(
-        root,
-        this.actor(scope),
-        'rating_list',
-        tx,
-      );
+      rootView = await this.projection[
+        scope.context.protocolVersion === 4 ? 'rootMedia' : 'root'
+      ](root, this.actor(scope), 'rating_list', tx);
     if (!rootView) throw new ApplicationError('RATING_NOT_FOUND');
     const rootCanReply = await this.projection.canReply(
       root,
@@ -550,37 +676,58 @@ export class RatingScopedReadService {
     );
     return { target, root, rootView, rootCanReply };
   }
-  comment(token: string, id: string, query: ReadQuery) {
-    return this.run(token, query, async (scope, tx) => {
-      const targetId = await this.records.commentTarget(id, tx);
-      await this.targetRow(scope, targetId, tx);
-      const row = await this.records.comment(id, targetId, tx),
-        result = await this.projection.root(
-          row,
-          this.actor(scope),
-          'rating_direct',
-          tx,
-        );
-      if (!result) throw new ApplicationError('RATING_NOT_FOUND');
-      return result;
-    });
+  comment(
+    token: string,
+    id: string,
+    query: ReadQuery,
+    discussionMedia = false,
+  ) {
+    return this.run(
+      token,
+      query,
+      async (scope, tx) => {
+        const targetId = await this.records.commentTarget(id, tx);
+        await this.targetRow(scope, targetId, tx);
+        const row = await this.records.comment(id, targetId, tx),
+          result = await this.projection[
+            scope.context.protocolVersion === 4 ? 'rootMedia' : 'root'
+          ](row, this.actor(scope), 'rating_direct', tx);
+        if (!result) throw new ApplicationError('RATING_NOT_FOUND');
+        return result;
+      },
+      discussionMedia ? 4 : 2,
+    );
   }
-  thread(token: string, rootId: string, query: ReadQuery) {
-    return this.run(token, query, async (scope, tx) => {
-      const chain = await this.chain(scope, rootId, tx);
-      return ratingScopedDiscussionSchema.parse({
-        context: {
-          ...this.pageContext(scope),
-          targetId: chain.target.row.id,
-          rootId,
-        },
-        root: chain.rootView,
-        allowedActions: {
-          createReply: chain.rootCanReply && scope.context.mode === 'public',
-          authorModes: await this.access.authorModes(scope.actor, tx),
-        },
-      });
-    });
+  thread(
+    token: string,
+    rootId: string,
+    query: ReadQuery,
+    discussionMedia = false,
+  ) {
+    return this.run(
+      token,
+      query,
+      async (scope, tx) => {
+        const chain = await this.chain(scope, rootId, tx);
+        return (
+          scope.context.protocolVersion === 4
+            ? ratingDiscussionMediaThreadSchema
+            : ratingScopedDiscussionSchema
+        ).parse({
+          context: {
+            ...this.pageContext(scope),
+            targetId: chain.target.row.id,
+            rootId,
+          },
+          root: chain.rootView,
+          allowedActions: {
+            createReply: chain.rootCanReply && scope.context.mode === 'public',
+            authorModes: await this.access.authorModes(scope.actor, tx),
+          },
+        });
+      },
+      discussionMedia ? 4 : 2,
+    );
   }
   private async replyPage(
     scope: ResolvedRatingScope,
@@ -612,13 +759,9 @@ export class RatingScopedReadService {
       if (!chain.rootCanReply) throw new ApplicationError('RATING_NOT_FOUND');
       const anchor = await this.replies.reply(anchorId, rootId, targetId, tx);
       if (
-        !(await this.projection.reply(
-          anchor,
-          this.actor(scope),
-          chain.rootCanReply,
-          'rating_direct',
-          tx,
-        ))
+        !(await this.projection[
+          scope.context.protocolVersion === 4 ? 'replyMedia' : 'reply'
+        ](anchor, this.actor(scope), chain.rootCanReply, 'rating_direct', tx))
       )
         throw new ApplicationError('RATING_NOT_FOUND');
       after = anchor.ordinal;
@@ -633,16 +776,17 @@ export class RatingScopedReadService {
       ),
       more = rows.length > query.limit,
       chosen = rows.slice(0, query.limit),
-      items: RatingReply[] = [];
-    for (const candidate of chosen) {
-      const row = await this.replies.reply(candidate.id, rootId, targetId, tx),
-        item = await this.projection.reply(
-          row,
-          this.actor(scope),
-          chain.rootCanReply,
-          'rating_list',
-          tx,
-        );
+      items: (RatingReply | RatingDiscussionMediaReply)[] = [];
+    const currentRows = [];
+    for (const candidate of chosen)
+      currentRows.push(
+        await this.replies.reply(candidate.id, rootId, targetId, tx),
+      );
+    await this.prefetchDiscussion(currentRows, scope.actor, tx);
+    for (const row of currentRows) {
+      const item = await this.projection[
+        scope.context.protocolVersion === 4 ? 'replyMedia' : 'reply'
+      ](row, this.actor(scope), chain.rootCanReply, 'rating_list', tx);
       if (item) items.push(item);
     }
     const nextCursor = more
@@ -653,7 +797,11 @@ export class RatingScopedReadService {
           tx,
         )
       : null;
-    return ratingScopedReplyPageSchema.parse({
+    return (
+      scope.context.protocolVersion === 4
+        ? ratingDiscussionMediaReplyPageSchema
+        : ratingScopedReplyPageSchema
+    ).parse({
       context: {
         ...this.pageContext(scope),
         targetId,
@@ -665,107 +813,141 @@ export class RatingScopedReadService {
       continuation: more ? (items.length ? 'more' : 'scan') : 'end',
     });
   }
-  listReplies(token: string, rootId: string, query: PageQuery) {
-    return this.run(token, query, (scope, tx) =>
-      this.replyPage(scope, rootId, query, tx),
+  listReplies(
+    token: string,
+    rootId: string,
+    query: PageQuery,
+    discussionMedia = false,
+  ) {
+    return this.run(
+      token,
+      query,
+      (scope, tx) => this.replyPage(scope, rootId, query, tx),
+      discussionMedia ? 4 : 2,
     );
   }
-  reply(token: string, id: string, query: ReadQuery) {
-    return this.run(token, query, async (scope, tx) => {
-      const hint = await this.replies.ancestry(id, tx),
-        chain = await this.chain(scope, hint.root_id, tx, hint.target_id);
-      if (!chain.rootCanReply) throw new ApplicationError('RATING_NOT_FOUND');
-      const row = await this.replies.reply(
-          id,
-          hint.root_id,
-          hint.target_id,
-          tx,
-        ),
-        result = await this.projection.reply(
-          row,
-          this.actor(scope),
-          chain.rootCanReply,
-          'rating_direct',
-          tx,
-        );
-      if (!result) throw new ApplicationError('RATING_NOT_FOUND');
-      return result;
-    });
+  reply(token: string, id: string, query: ReadQuery, discussionMedia = false) {
+    return this.run(
+      token,
+      query,
+      async (scope, tx) => {
+        const hint = await this.replies.ancestry(id, tx),
+          chain = await this.chain(scope, hint.root_id, tx, hint.target_id);
+        if (!chain.rootCanReply) throw new ApplicationError('RATING_NOT_FOUND');
+        const row = await this.replies.reply(
+            id,
+            hint.root_id,
+            hint.target_id,
+            tx,
+          ),
+          result = await this.projection[
+            scope.context.protocolVersion === 4 ? 'replyMedia' : 'reply'
+          ](row, this.actor(scope), chain.rootCanReply, 'rating_direct', tx);
+        if (!result) throw new ApplicationError('RATING_NOT_FOUND');
+        return result;
+      },
+      discussionMedia ? 4 : 2,
+    );
   }
-  locateReply(token: string, id: string, query: Omit<PageQuery, 'cursor'>) {
-    return this.run(token, query, async (scope, tx) => {
-      const hint = await this.replies.ancestry(id, tx),
-        page = await this.replyPage(scope, hint.root_id, query, tx, id);
-      return ratingScopedReplyPositionSchema.parse({
-        context: page.context,
-        anchorReplyId: id,
-        page,
-      });
-    });
+  locateReply(
+    token: string,
+    id: string,
+    query: Omit<PageQuery, 'cursor'>,
+    discussionMedia = false,
+  ) {
+    return this.run(
+      token,
+      query,
+      async (scope, tx) => {
+        const hint = await this.replies.ancestry(id, tx),
+          page = await this.replyPage(scope, hint.root_id, query, tx, id);
+        return (
+          scope.context.protocolVersion === 4
+            ? ratingDiscussionMediaReplyPositionSchema
+            : ratingScopedReplyPositionSchema
+        ).parse({
+          context: page.context,
+          anchorReplyId: id,
+          page,
+        });
+      },
+      discussionMedia ? 4 : 2,
+    );
   }
   likeState(
     token: string,
     kind: 'comment' | 'reply',
     id: string,
     query: ReadQuery,
+    discussionMedia = false,
   ) {
-    return this.run(token, query, async (scope, tx) => {
-      const hint =
-        kind === 'reply'
-          ? await this.replies.ancestry(id, tx)
-          : {
-              root_id: id,
-              target_id: await this.records.commentTarget(id, tx),
-            };
-      const chain = await this.chain(scope, hint.root_id, tx, hint.target_id);
-      if (
-        !(await this.projection.content(
-          chain.root,
-          'comment',
-          this.actor(scope),
-          'rating_direct',
-          tx,
-        ))
-      )
-        throw new ApplicationError('RATING_NOT_FOUND');
-      if (kind === 'reply') {
-        const row = await this.replies.reply(
-          id,
+    return this.run(
+      token,
+      query,
+      async (scope, tx) => {
+        const hint =
+          kind === 'reply'
+            ? await this.replies.ancestry(id, tx)
+            : {
+                root_id: id,
+                target_id: await this.records.commentTarget(id, tx),
+              };
+        await this.targetRow(scope, hint.target_id, tx);
+        const root = await this.records.comment(
           hint.root_id,
           hint.target_id,
           tx,
         );
-        // A quoted reply-to is not an ancestor of the liked subject.
         if (
           !(await this.projection.content(
-            row,
-            'reply',
+            root,
+            'comment',
             this.actor(scope),
             'rating_direct',
             tx,
           ))
         )
           throw new ApplicationError('RATING_NOT_FOUND');
-      }
-      if (scope.context.mode === 'admin_preview')
-        return ratingLikeStateSchema.parse({ status: 'unavailable' });
-      const state = await this.likes.state(id, scope.actor, tx);
-      if (state) this.likes.retain(state, scope.actor, tx);
-      return ratingLikeStateSchema.parse(
-        state
-          ? {
-              status: 'known',
-              targetId: hint.target_id,
-              rootId: hint.root_id,
-              replyId: kind === 'reply' ? id : null,
-              count: state.count,
-              liked: state.liked,
-              revision: state.revision,
-              allowedActions: { setLike: true },
-            }
-          : { status: 'unavailable' },
-      );
-    });
+        if (kind === 'reply') {
+          const row = await this.replies.reply(
+            id,
+            hint.root_id,
+            hint.target_id,
+            tx,
+          );
+          // A quoted reply-to is not an ancestor of the liked subject.
+          if (
+            !(await this.projection.content(
+              row,
+              'reply',
+              this.actor(scope),
+              'rating_direct',
+              tx,
+            ))
+          )
+            throw new ApplicationError('RATING_NOT_FOUND');
+        }
+        if (scope.context.mode === 'admin_preview')
+          return ratingLikeStateSchema.parse({ status: 'unavailable' });
+        const state = await this.likes.state(id, scope.actor, tx);
+        if (state) this.likes.retain(state, scope.actor, tx);
+        return ratingLikeStateSchema.parse(
+          state
+            ? {
+                status: 'known',
+                targetId: hint.target_id,
+                rootId: hint.root_id,
+                replyId: kind === 'reply' ? id : null,
+                count: state.count,
+                liked: state.liked,
+                revision: state.revision,
+                allowedActions: { setLike: true },
+              }
+            : { status: 'unavailable' },
+        );
+      },
+      discussionMedia ? 4 : 2,
+    );
   }
   private async subscriptionView(
     scope: ResolvedRatingScope,

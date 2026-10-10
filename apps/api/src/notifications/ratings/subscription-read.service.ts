@@ -71,7 +71,7 @@ export class RatingSubscriptionUpdatesReadService {
       tx,
     );
     return ratingSubscriptionNoticeSchema.parse(
-      decision.outcome === 'eligible'
+      decision.outcome === 'eligible' && !decision.mediaPreview
         ? {
             ...base,
             status: 'available',

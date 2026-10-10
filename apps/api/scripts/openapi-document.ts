@@ -497,6 +497,8 @@ export async function renderErrandsOpenApiDocument(): Promise<string> {
 
 /** Tooling-only rating routes. No live database, issuer or provider. */
 export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { RatingDiscussionMediaController } =
+    await import('../src/ratings/scoped/discussion-media-controller.js');
   const { RatingTargetCoverController } =
     await import('../src/ratings/scoped/target-cover-controller.js');
   const { RatingTargetCoverMediaService } =
@@ -571,6 +573,33 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
     await import('../src/request-throttling/rating-request.guard.js');
   for (const method of [
     'context',
+    'prepare',
+    'commit',
+    'cancel',
+    'comments',
+    'comment',
+    'thread',
+    'replies',
+    'reply',
+    'position',
+    'notice',
+    'cancelByHash',
+    'receipt',
+    'composer',
+    'like',
+  ])
+    if (
+      !Reflect.hasMetadata(
+        PARAMTYPES_METADATA,
+        RatingDiscussionMediaController.prototype,
+        method,
+      )
+    )
+      throw new Error(
+        'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+      );
+  for (const method of [
+    'context',
     'categories',
     'targets',
     'target',
@@ -618,6 +647,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
   };
   const testing = await Test.createTestingModule({
     controllers: [
+      RatingDiscussionMediaController,
       RatingTargetCoverController,
       RatingScopedController,
       RatingScopedNoticesController,
@@ -749,6 +779,12 @@ export async function renderMessagingOpenApiDocument() {
 
 /** Offline-only Media contract: no runtime module, database or provider graph. */
 export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
+  const {
+    RatingsDiscussionMediaController,
+    RatingsDiscussionMultipartInterceptor,
+  } = await import('../src/media/controller-ratings-discussion.js');
+  const { RatingsDiscussionUploadApplication, RATINGS_DISCUSSION_MEDIA_OWNER } =
+    await import('../src/media/application-ratings-discussion.js');
   const { RatingsTargetMediaController, RatingsTargetMultipartInterceptor } =
     await import('../src/media/controller-ratings.js');
   const { RatingsTargetUploadApplication, RATINGS_TARGET_MEDIA_OWNER } =
@@ -778,6 +814,27 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
     await import('../src/media/contracts.js');
   const { z } = await import('zod');
   for (const [controller, methods] of [
+    [
+      RatingsDiscussionMediaController,
+      [
+        'prepareBatch',
+        'recoverBatch',
+        'cancelBatchRequest',
+        'batchStatus',
+        'seal',
+        'remove',
+        'cancelBatch',
+        'prepare',
+        'recover',
+        'cancelRequest',
+        'status',
+        'grant',
+        'upload',
+        'finalize',
+        'cancel',
+        'open',
+      ],
+    ],
     [MediaController, ['prepare', 'status', 'finalize', 'cancel', 'download']],
     [
       MediaUploadControllerV2,
@@ -844,6 +901,7 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
   };
   const testing = await Test.createTestingModule({
     controllers: [
+      RatingsDiscussionMediaController,
       RatingsTargetMediaController,
       MediaController,
       MediaUploadControllerV2,
@@ -851,6 +909,9 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
       MediaDiscussionBatchController,
     ],
     providers: [
+      RatingsDiscussionMultipartInterceptor,
+      { provide: RatingsDiscussionUploadApplication, useValue: {} },
+      { provide: RATINGS_DISCUSSION_MEDIA_OWNER, useValue: { runtime: null } },
       RatingsTargetMultipartInterceptor,
       { provide: RatingsTargetUploadApplication, useValue: {} },
       { provide: RATINGS_TARGET_MEDIA_OWNER, useValue: { runtime: null } },

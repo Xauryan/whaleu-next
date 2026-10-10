@@ -37,6 +37,7 @@
     "pages/errand-restrictions/errand-restrictions",
     "pages/rating-catalog/rating-catalog",
     "pages/rating-scoped/rating-scoped",
+    "pages/rating-discussion-media/rating-discussion-media",
     "pages/rating-random/rating-random",
     "pages/rating-detail/rating-detail",
     "pages/rating-thread/rating-thread",

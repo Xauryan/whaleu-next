@@ -1,3 +1,8 @@
+import { canonicalRatingDiscussionMediaEnvelope } from '../../community/content-review/rating-discussion-media-contracts.js';
+import {
+  ratingDiscussionMaterializationPreviewSchema,
+  type RatingDiscussionMaterializationPreview,
+} from '../../notifications/ratings/discussion-media-contracts.js';
 import { RatingScopedNoticeRecipientFacade } from './scoped-recipient.facade.js';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -18,16 +23,38 @@ import { AuthorDisplayService } from '../../profile/author-display.service.js';
 export type RatingUpdateEligibility =
   | {
       outcome: 'eligible';
+      mediaPreview?: RatingDiscussionMaterializationPreview;
       preview: { text: string; author: RatingComment['author'] };
     }
   | { outcome: 'suppressed' | 'unavailable'; code: string };
 export type RatingLikeUpdateEligibility =
   | {
       outcome: 'eligible';
+      mediaPreview?: RatingDiscussionMaterializationPreview;
       preview: { text: string };
       actor: Extract<RatingComment['author'], { mode: 'named' }>;
     }
   | { outcome: 'suppressed' | 'unavailable'; code: string };
+export function ratingMaterializationMediaPreview(raw: unknown): {
+  mediaPreview?: RatingDiscussionMaterializationPreview;
+} {
+  if (
+    typeof raw !== 'object' ||
+    raw === null ||
+    !('version' in raw) ||
+    raw.version !== 7
+  )
+    return {};
+  const envelope = canonicalRatingDiscussionMediaEnvelope(raw);
+  return {
+    mediaPreview: ratingDiscussionMaterializationPreviewSchema.parse({
+      protocolVersion: 4,
+      body: envelope.body,
+      imageCount: envelope.images.length,
+      attachmentSetDigest: envelope.attachmentSetDigest,
+    }),
+  };
+}
 @Injectable()
 export class RatingUpdatesProjectionFacade {
   constructor(
@@ -102,7 +129,11 @@ export class RatingUpdatesProjectionFacade {
       );
       if (!author)
         return { outcome: 'suppressed', code: 'target_inaccessible' };
-      return { outcome: 'eligible', preview: { text: row.body, author } };
+      return {
+        outcome: 'eligible',
+        preview: { text: row.body, author },
+        ...ratingMaterializationMediaPreview(row.envelope),
+      };
     } catch (e) {
       if (e instanceof ApplicationError) {
         if (
@@ -205,6 +236,7 @@ export class RatingUpdatesProjectionFacade {
         outcome: 'eligible',
         actor: { mode: 'named', ...profile },
         preview: { text: subject.body },
+        ...ratingMaterializationMediaPreview(subject.envelope),
       };
     } catch (e) {
       if (e instanceof ApplicationError) {

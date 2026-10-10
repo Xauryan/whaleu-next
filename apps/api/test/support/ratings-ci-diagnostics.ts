@@ -22,7 +22,10 @@ export type RatingsCiStage =
   | 'commit'
   | 'rollback';
 type AttemptKind = 'random-context' | 'score-context' | 'score-write';
-type Fixture = 'ratings-updates' | 'ratings-scoped-random-scale';
+type Fixture =
+  | 'ratings-updates'
+  | 'ratings-scoped-random-scale'
+  | 'ratings-discussion-shared-delivery';
 type QueryEvent = {
   // SQL is available transiently for existing test barriers, never in diagnostics.
   sql: string;

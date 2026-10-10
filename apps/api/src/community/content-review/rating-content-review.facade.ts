@@ -1,3 +1,8 @@
+import { RatingDiscussionMediaReviewFacade } from './rating-discussion-media-review.facade.js';
+import type {
+  RatingDiscussionMediaEnvelope,
+  AcceptedRatingDiscussionMediaApproval,
+} from './rating-discussion-media-contracts.js';
 import { currentRatingTargetCovers } from '../../ratings/target-cover-current.js';
 import type { AcceptedRatingTargetCoverApproval } from './rating-target-cover-contracts.js';
 import { Injectable } from '@nestjs/common';
@@ -272,6 +277,7 @@ const proof: RequiredTransactionProof<Fact> = {
 @Injectable()
 export class RatingContentReviewFacade {
   private readonly scoped = new RatingScopedContentReviewFacade();
+  private readonly discussionMedia = new RatingDiscussionMediaReviewFacade();
 
   /** Explicit mixed-protocol batch; no legacy parser or binding is relabelled. */
   async currentDefinitionBatch(
@@ -912,13 +918,15 @@ export class RatingContentReviewFacade {
     envelope:
       | RatingContentEnvelope
       | RatingScopedTargetEnvelope
-      | RatingScopedContentEnvelope,
+      | RatingScopedContentEnvelope
+      | RatingDiscussionMediaEnvelope,
     tx: PoolClient,
   ): Promise<
     Decision<
       | AcceptedRatingApproval
       | AcceptedRatingScopedApproval
       | AcceptedRatingTargetCoverApproval
+      | AcceptedRatingDiscussionMediaApproval
     >
   >;
   async current(
@@ -927,15 +935,21 @@ export class RatingContentReviewFacade {
     envelope:
       | RatingContentEnvelope
       | RatingScopedTargetEnvelope
-      | RatingScopedContentEnvelope,
+      | RatingScopedContentEnvelope
+      | RatingDiscussionMediaEnvelope,
     tx: PoolClient,
   ): Promise<
     Decision<
       | AcceptedRatingApproval
       | AcceptedRatingScopedApproval
       | AcceptedRatingTargetCoverApproval
+      | AcceptedRatingDiscussionMediaApproval
     >
   > {
+    if (envelope?.version === 7) {
+      if (kind === 'target') return { kind: 'unavailable' };
+      return this.discussionMedia.current(kind, id, envelope, tx);
+    }
     if (envelope?.version === 5) {
       if (
         envelope.purpose === 'publish_rating_target_scoped' ||

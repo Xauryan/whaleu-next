@@ -1,0 +1,5 @@
+@import '../../ratings/ratings.wxss';
+.discussion-image {
+  width: 100%;
+  height: 60vh;
+}

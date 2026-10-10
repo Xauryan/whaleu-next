@@ -192,6 +192,19 @@ export function registerRatingScopedPage(): void {
     onConfirmScore() {
       void this.controller?.confirmScore();
     },
+    onDiscussionImages(event: Tap) {
+      this.navigator?.open(
+        this.controller?.discussionImagesPath(event.currentTarget.dataset.id) ??
+          null,
+      );
+    },
+    onDiscussionImageNotice(event: Tap) {
+      this.navigator?.open(
+        this.controller?.discussionImageNoticePath(
+          event.currentTarget.dataset.id ?? '',
+        ) ?? null,
+      );
+    },
     onCompose(event: Tap) {
       this.controller?.openComposer(event.currentTarget.dataset.id);
     },

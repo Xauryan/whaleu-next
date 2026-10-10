@@ -1,3 +1,7 @@
+import {
+  ratingDiscussionNoticeSchema,
+  type RatingDiscussionNotice,
+} from '../../notifications/ratings/discussion-media-contracts.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { canonicalEqual } from '../../community/content-review/contracts.js';
@@ -381,6 +385,139 @@ export class RatingScopedNoticeService {
           ? { noticeId, status: 'available', target }
           : { noticeId, status: 'unavailable' },
       );
+    });
+  }
+  /** New optional content-detail contract; old metadata pages remain exact. */
+  mediaDetail(
+    token: string,
+    kind: RatingScopedNoticeKind,
+    noticeId: string,
+    query: ReadQuery,
+  ): Promise<RatingDiscussionNotice> {
+    assertKind(kind);
+    return this.run(async (tx) => {
+      this.records.enable(tx);
+      this.scoped.enable(tx);
+      const scope = await this.contexts.resolve(token, query, tx, {
+        purpose: 'read',
+        protocolVersion: 4,
+      });
+      if (scope.context.mode !== 'public')
+        throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
+      const row: StoredNotice =
+        kind === 'subscription-updates'
+          ? await this.subscriptionNotices.own(scope.actor, noticeId, tx)
+          : await this.notices.own(
+              scope.actor,
+              noticeId,
+              tx,
+              kind === 'like-updates' ? 'like' : 'reply',
+            );
+      if (row.recipient_account_id !== scope.actor || row.id !== noticeId)
+        throw new ApplicationError('RATING_UNAVAILABLE');
+      const base = {
+        protocolVersion: 4 as const,
+        noticeId,
+        createdAt: row.created_at,
+        readAt: row.read_at,
+      };
+      const target = ratingScopedLocatorSchema.parse({
+        selector: scope.selector,
+        targetId: row.target_id,
+        rootId: row.root_id,
+        replyId: row.reply_id,
+        protocolGeneration: scope.protocolGeneration,
+      });
+      let result: RatingDiscussionNotice = ratingDiscussionNoticeSchema.parse({
+        ...base,
+        status: 'unavailable',
+      });
+      try {
+        const current = await this.qualify(scope, target, tx, row.region_id);
+        if (!current.subject) throw new ApplicationError('RATING_NOT_FOUND');
+        const actor = { accountId: scope.actor, mode: scope.context.mode };
+        let likeActor: Record<string, unknown> | null = null;
+        if (row.kind === 'like') {
+          if (current.subject.account_id !== scope.actor)
+            throw new ApplicationError('RATING_UNAVAILABLE');
+          const safety = await this.safety.named(
+            scope.actor,
+            row.like_actor_account_id,
+            'rating_direct',
+            tx,
+          );
+          const profile = await this.authors.findRatingPublic(
+            row.like_actor_account_id,
+            tx,
+          );
+          if (safety.kind !== 'allow' || !profile)
+            throw new ApplicationError('RATING_UNAVAILABLE');
+          likeActor = { mode: 'named', ...profile };
+        }
+        const view =
+          row.reply_id === null
+            ? await this.projection.rootMedia(
+                current.subject,
+                actor,
+                'rating_direct',
+                tx,
+              )
+            : await this.projection.replyMedia(
+                await this.replies.reply(
+                  row.reply_id,
+                  row.root_id,
+                  row.target_id,
+                  tx,
+                ),
+                actor,
+                true,
+                'rating_direct',
+                tx,
+              );
+        if (!view) throw new ApplicationError('RATING_NOT_FOUND');
+        result = ratingDiscussionNoticeSchema.parse({
+          ...base,
+          status: 'available',
+          domain: 'ratings',
+          kind: row.kind,
+          reason: row.reason,
+          target,
+          ...(row.kind === 'like'
+            ? { actor: likeActor }
+            : row.kind === 'subscription'
+              ? { activity: row.activity }
+              : {}),
+          preview: {
+            body: view.body,
+            author: view.author,
+            imageCount: view.images.length,
+            thumbnail: view.images[0] ?? null,
+          },
+        });
+      } catch (error) {
+        if (!(error instanceof ApplicationError)) throw error;
+        // This explicit optional preview cannot leak a first image or a body
+        // when any required whole-set/ancestor/Review evidence is unavailable.
+        if (
+          ![
+            'RATING_NOT_FOUND',
+            'RATING_UNAVAILABLE',
+            'MEDIA_UNAVAILABLE',
+            'CONTENT_REVIEW_UNAVAILABLE',
+            'SAFETY_UNAVAILABLE',
+            'RATING_SCOPE_UNAVAILABLE',
+          ].includes(error.code)
+        )
+          throw error;
+      }
+      await this.access.recheck(token, tx);
+      await this.scoped.retainAfter(scope, tx);
+      await this.owner(scope.actor, kind, tx);
+      const states = await this.states(scope.actor, [row.id], kind, tx);
+      return ratingDiscussionNoticeSchema.parse({
+        ...result,
+        readAt: states.get(row.id) ?? null,
+      });
     });
   }
   resolveLocator(

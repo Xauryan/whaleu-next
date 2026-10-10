@@ -1,3 +1,6 @@
+import { MediaLocalFiles } from './media/local-files';
+import { WechatNativeMediaFiles } from './media/native-files';
+import { connectRatingDiscussionNative } from './ratings/discussion-media-runtime';
 import {
   createProfileAvatarRuntime,
   type ProfileAvatarRuntime,
@@ -25,6 +28,7 @@ import {
 } from './verification/runtime';
 
 export interface WhaleuApp {
+  mediaLocalFiles?: MediaLocalFiles;
   mediaRead?: MediaReadRuntime;
   profileAvatar?: ProfileAvatarRuntime;
   identity: IdentityRuntime | undefined;
@@ -64,12 +68,28 @@ App<WhaleuApp>({
       wx,
       clientConfiguration.apiOrigin,
     );
+    // One process-wide ledger for Ratings uploads/gallery and every other
+    // admitted media owner. Never allocate a new budget for each page/account.
+    const nativeFiles = new WechatNativeMediaFiles(wx, systemClock);
+    const registry = new MediaLocalFiles(nativeFiles);
+    this.mediaLocalFiles = registry;
+    this.community = connectRatingDiscussionNative(
+      this.community,
+      this.identity,
+      wx,
+      clientConfiguration.apiOrigin,
+      nativeFiles,
+      registry,
+      systemClock,
+    );
     this.mediaRead = createMediaReadRuntime(
       this.identity,
       wx,
       clientConfiguration.apiOrigin,
       systemClock,
       this.community.privateViews,
+      false,
+      { files: nativeFiles, registry },
     );
     if (this.identity.api)
       this.profileAvatar = createProfileAvatarRuntime({

@@ -52,6 +52,7 @@ export async function syntheticMediaRuntimeFixture(
   }[],
   options: {
     readonly authRateLimit?: true;
+    readonly maximumMigration?: number;
     readonly configureTestModule?: (
       builder: TestingModuleBuilder,
       ports: {
@@ -73,7 +74,7 @@ export async function syntheticMediaRuntimeFixture(
   const lifecycle = new MediaLifecycleRepository();
   let closeBase: (() => Promise<void>) | undefined;
   try {
-    const base = await directoryRuntimeFixture(undefined, {
+    const base = await directoryRuntimeFixture(options.maximumMigration, {
       createApp: async (runtimeConfig) => {
         config = runtimeConfig;
         const builder = Test.createTestingModule({

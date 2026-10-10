@@ -1,3 +1,4 @@
+import { discussionMediaPath } from './discussion-media-page-controller';
 import {
   RatingTargetCoverContextLease,
   matchRatingCoverScopePair,
@@ -1282,6 +1283,39 @@ export class RatingScopedController extends CommunityController<RatingScopedView
         score,
       },
     }));
+  }
+  discussionImagesPath(targetId?: string): string | null {
+    const id = targetId ?? this.route.targetId;
+    if (!id || !ratingId(id) || this.view.frozen) return null;
+    if (targetId && !this.view.targets.some((target) => target.id === targetId))
+      return null;
+    return discussionMediaPath(
+      this.route.selector,
+      id,
+      !targetId && this.route.mode === 'thread' ? this.route.rootId : undefined,
+      !targetId && this.route.mode === 'thread'
+        ? this.route.replyId
+        : undefined,
+    );
+  }
+  discussionImageNoticePath(noticeId: string): string | null {
+    if (
+      !this.view.notices.some((notice) => notice.noticeId === noticeId) ||
+      this.view.frozen
+    )
+      return null;
+    const selector = this.route.selector;
+    return (
+      '/pages/rating-discussion-media/rating-discussion-media?' +
+      Object.entries({
+        scope: selector.kind,
+        ...(selector.kind === 'campus' ? { campusId: selector.campusId } : {}),
+        noticeId,
+        noticeKind: this.view.noticeKind,
+      })
+        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+        .join('&')
+    );
   }
   openComposer(replyId?: string): void {
     if (!this.canDraft() || !this.view.detail) return;

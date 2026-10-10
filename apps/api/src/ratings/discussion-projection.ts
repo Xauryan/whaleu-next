@@ -1,3 +1,17 @@
+import {
+  canonicalRatingDiscussionMediaEnvelope,
+  ratingDiscussionAttachmentSetDigest,
+} from '../community/content-review/rating-discussion-media-contracts.js';
+import {
+  currentRatingDiscussionMedia,
+  currentRatingDiscussionDescriptors,
+} from './discussion-media-current.js';
+import {
+  ratingDiscussionMediaRootSchema,
+  ratingDiscussionMediaReplySchema,
+  type RatingDiscussionMediaRoot,
+  type RatingDiscussionMediaReply,
+} from './discussion-media-projection-contracts.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -86,9 +100,11 @@ export class RatingDiscussionProjection {
   ) {
     if (row.deleted_at !== null) return null;
     const contentEnvelope =
-      (row.envelope as { version?: number })?.version === 5
-        ? canonicalRatingScopedEnvelope(row.envelope)
-        : canonicalRatingEnvelope(row.envelope);
+      (row.envelope as { version?: number })?.version === 7
+        ? canonicalRatingDiscussionMediaEnvelope(row.envelope)
+        : (row.envelope as { version?: number })?.version === 5
+          ? canonicalRatingScopedEnvelope(row.envelope)
+          : canonicalRatingEnvelope(row.envelope);
     if (
       contentEnvelope.version === 5 &&
       contentEnvelope.purpose !== 'publish_rating_comment_scoped' &&
@@ -99,6 +115,15 @@ export class RatingDiscussionProjection {
     if (d.kind === 'deny') return null;
     if (d.kind !== 'allow')
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    if (contentEnvelope.version === 7) {
+      const media = await currentRatingDiscussionMedia(
+        contentEnvelope,
+        actor,
+        tx,
+      );
+      if (media === 'deny') return null;
+      if (media !== 'allow') throw new ApplicationError('MEDIA_UNAVAILABLE');
+    }
     return this.author(row, actor, purpose, tx);
   }
   async root(
@@ -107,6 +132,8 @@ export class RatingDiscussionProjection {
     purpose: 'rating_list' | 'rating_direct',
     tx: PoolClient,
   ): Promise<RatingComment | null> {
+    if ((row.envelope as { version?: number })?.version === 7)
+      throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
     const author = await this.content(row, 'comment', actor, purpose, tx);
     if (!author) return null;
     const isMine = row.account_id === actor;
@@ -128,6 +155,8 @@ export class RatingDiscussionProjection {
     purpose: 'rating_list' | 'rating_direct',
     tx: PoolClient,
   ): Promise<RatingReply | null> {
+    if ((row.envelope as { version?: number })?.version === 7)
+      throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
     const author = await this.content(row, 'reply', actor, purpose, tx);
     if (!author) return null;
     let replyTo: RatingReply['replyTo'] = { kind: 'root' };
@@ -172,6 +201,125 @@ export class RatingDiscussionProjection {
         delete: isMine,
       },
       replyTo,
+    });
+  }
+  async rootMedia(
+    row: CommentRow,
+    actor: string,
+    purpose: 'rating_list' | 'rating_direct',
+    tx: PoolClient,
+  ): Promise<RatingDiscussionMediaRoot | null> {
+    if ((row.envelope as { version?: number })?.version !== 7) {
+      const legacy = await this.root(row, actor, purpose, tx);
+      return legacy
+        ? ratingDiscussionMediaRootSchema.parse({
+            ...legacy,
+            protocolVersion: 4,
+            images: [],
+            attachmentSetDigest: ratingDiscussionAttachmentSetDigest([]),
+          })
+        : null;
+    }
+    const author = await this.content(row, 'comment', actor, purpose, tx);
+    if (!author) return null;
+    const envelope = canonicalRatingDiscussionMediaEnvelope(row.envelope);
+    if (envelope.purpose !== 'publish_rating_comment_media_scoped')
+      throw new ApplicationError('RATING_UNAVAILABLE');
+    const isMine = row.account_id === actor;
+    return ratingDiscussionMediaRootSchema.parse({
+      protocolVersion: 4,
+      id: row.id,
+      targetId: row.target_id,
+      body: row.body,
+      revision: row.revision,
+      createdAt: row.created_at,
+      author,
+      isMine,
+      allowedActions: { delete: isMine },
+      attachmentSetDigest: envelope.attachmentSetDigest,
+      images: currentRatingDiscussionDescriptors(envelope, actor, tx),
+    });
+  }
+  async replyMedia(
+    row: ReplyRow,
+    actor: string,
+    rootCanReply: boolean,
+    purpose: 'rating_list' | 'rating_direct',
+    tx: PoolClient,
+  ): Promise<RatingDiscussionMediaReply | null> {
+    const author = await this.content(row, 'reply', actor, purpose, tx);
+    if (!author) return null;
+    const envelope =
+      (row.envelope as { version?: number })?.version === 7
+        ? canonicalRatingDiscussionMediaEnvelope(row.envelope)
+        : null;
+    if (envelope && envelope.purpose !== 'publish_rating_reply_media_scoped')
+      throw new ApplicationError('RATING_UNAVAILABLE');
+    let replyTo: RatingReply['replyTo'] = { kind: 'root' };
+    if (row.reply_to_id) {
+      replyTo = { kind: 'reply', status: 'unavailable' };
+      try {
+        const quoted = await this.replies.reply(
+          row.reply_to_id,
+          row.root_id,
+          row.target_id,
+          tx,
+          false,
+          true,
+        );
+        const quoteAuthor = await this.content(
+          quoted,
+          'reply',
+          actor,
+          purpose,
+          tx,
+        );
+        if (quoteAuthor)
+          replyTo = {
+            kind: 'reply',
+            status: 'available',
+            replyId: quoted.id,
+            revision: quoted.revision,
+            author: quoteAuthor,
+          };
+      } catch (error) {
+        if (
+          !(error instanceof ApplicationError) ||
+          ![
+            'RATING_NOT_FOUND',
+            'RATING_UNAVAILABLE',
+            'RATING_SCOPE_UNAVAILABLE',
+            'MEDIA_UNAVAILABLE',
+            'CONTENT_REVIEW_UNAVAILABLE',
+            'SAFETY_UNAVAILABLE',
+          ].includes(error.code)
+        )
+          throw error;
+        // The quoted subject is an optional reference, never a true ancestor.
+      }
+    }
+    const isMine = row.account_id === actor;
+    return ratingDiscussionMediaReplySchema.parse({
+      protocolVersion: 4,
+      id: row.id,
+      targetId: row.target_id,
+      rootId: row.root_id,
+      body: row.body,
+      revision: row.revision,
+      createdAt: row.created_at,
+      author,
+      isMine,
+      allowedActions: {
+        reply: rootCanReply && (await this.canReply(row, actor, tx)),
+        delete: isMine,
+      },
+      replyTo,
+      attachmentSetDigest:
+        envelope?.attachmentSetDigest ??
+        ratingDiscussionAttachmentSetDigest([]),
+      images: envelope
+        ? currentRatingDiscussionDescriptors(envelope, actor, tx)
+        : [],
     });
   }
 }

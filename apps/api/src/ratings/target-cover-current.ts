@@ -1,3 +1,7 @@
+import {
+  ratingsMediaMutationActive,
+  collectRatingsMediaMutationRead,
+} from '../media/ratings-discussion-mutation-proof.js';
 import type { PoolClient } from 'pg';
 import type { AnyRatingTargetDefinitionDescriptor } from '../community/content-review/rating-target-definition-contracts.js';
 import {
@@ -106,10 +110,13 @@ export async function currentRatingTargetCovers(
   const missing = retain
     ? references.filter((r) => !cache.has(ratingsMediaContentKey(r.parent)))
     : references;
-  if (retain && missing.length) await mediaProof.capture(tx);
+  if (retain && missing.length && !ratingsMediaMutationActive(tx))
+    await mediaProof.capture(tx);
   const fresh = missing.length
     ? await snapshots.readBatch(missing, tx, budget)
     : new Map<string, RatingsMediaContentFact>();
+  if (retain && missing.length)
+    collectRatingsMediaMutationRead(tx, missing, fresh, budget);
   if (retain)
     for (const r of missing) {
       const key = ratingsMediaContentKey(r.parent),

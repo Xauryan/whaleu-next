@@ -1,3 +1,20 @@
+import { RatingDiscussionMediaController } from './scoped/discussion-media-controller.js';
+import {
+  RatingDiscussionMediaService,
+  RATINGS_DISCUSSION_MEDIA_RUNTIME,
+} from './discussion-media.service.js';
+import {
+  RATINGS_DISCUSSION_MEDIA_OWNER,
+  RatingsDiscussionUploadApplication,
+  type RatingsDiscussionMediaRuntime,
+} from '../media/application-ratings-discussion.js';
+import {
+  RatingsDiscussionMediaController,
+  RatingsDiscussionMultipartInterceptor,
+} from '../media/controller-ratings-discussion.js';
+import { RatingsRepository } from './repository.js';
+import { RatingDiscussionRepository } from './discussion-repository.js';
+import { RatingDiscussionProjection } from './discussion-projection.js';
 import { RatingTargetCoverController } from './scoped/target-cover-controller.js';
 import {
   RatingTargetCoverMediaService,
@@ -107,6 +124,8 @@ import { RatingsCursors } from './cursor.js';
     RatingRequestThrottlingModule,
   ],
   controllers: [
+    RatingDiscussionMediaController,
+    RatingsDiscussionMediaController,
     RatingTargetCoverController,
     RatingsTargetMediaController,
     RatingScopedController,
@@ -124,6 +143,58 @@ import { RatingsCursors } from './cursor.js';
     RatingLikesController,
   ],
   providers: [
+    { provide: RATINGS_DISCUSSION_MEDIA_RUNTIME, useValue: null },
+    {
+      provide: RatingDiscussionMediaService,
+      inject: [
+        DatabaseService,
+        IdentityService,
+        RatingsAccessService,
+        RatingScopedContextService,
+        RatingScopedRepository,
+        RatingsRepository,
+        RatingDiscussionRepository,
+        RatingDiscussionProjection,
+        RATINGS_DISCUSSION_MEDIA_RUNTIME,
+        MediaDeliveryBudgetPool,
+      ],
+      useFactory: (
+        database: DatabaseService,
+        identity: IdentityService,
+        access: RatingsAccessService,
+        contexts: RatingScopedContextService,
+        scoped: RatingScopedRepository,
+        records: RatingsRepository,
+        replies: RatingDiscussionRepository,
+        discussion: RatingDiscussionProjection,
+        runtime: RatingsDiscussionMediaRuntime | null,
+        budget: MediaDeliveryBudgetPool,
+      ) =>
+        new RatingDiscussionMediaService(
+          database,
+          identity,
+          access,
+          contexts,
+          scoped,
+          records,
+          replies,
+          discussion,
+          runtime,
+          budget,
+        ),
+    },
+    {
+      provide: RATINGS_DISCUSSION_MEDIA_OWNER,
+      useExisting: RatingDiscussionMediaService,
+    },
+    {
+      provide: RatingsDiscussionUploadApplication,
+      inject: [RatingDiscussionMediaService],
+      useFactory: (owner: RatingDiscussionMediaService) =>
+        new RatingsDiscussionUploadApplication(owner),
+    },
+    RatingsDiscussionMultipartInterceptor,
+
     { provide: RATINGS_TARGET_COVER_RUNTIME, useValue: null },
     {
       provide: RatingTargetCoverMediaService,

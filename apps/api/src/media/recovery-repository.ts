@@ -1,3 +1,4 @@
+import { rejectRatingsDiscussionRequestMarker } from './ratings-discussion-request-marker.js';
 import { rejectRatingsRequestMarker } from './ratings-request-marker.js';
 import { rejectProfileRequestMarker } from './profile-request-marker.js';
 import type { PoolClient } from 'pg';
@@ -65,6 +66,7 @@ export class MediaRecoveryRepository {
     this.managed(tx);
     mediaIdSchema.parse(requestId);
     await rejectProfileRequestMarker(actor, requestId, tx);
+    await rejectRatingsDiscussionRequestMarker(actor, requestId, tx);
     await rejectRatingsRequestMarker(actor, requestId, tx);
     const fence = (
       await tx.query<Fence>(
@@ -319,6 +321,7 @@ export class MediaRecoveryRepository {
     mediaIdSchema.parse(requestId);
     await lockMediaActor(actor, tx);
     await rejectProfileRequestMarker(actor, requestId, tx);
+    await rejectRatingsDiscussionRequestMarker(actor, requestId, tx);
     await rejectRatingsRequestMarker(actor, requestId, tx);
     const fence = (
       await tx.query<Fence>(

@@ -1,3 +1,4 @@
+import { ratingMaterializationMediaPreview } from './projection.js';
 import { RatingScopedNoticeRecipientFacade } from './scoped-recipient.facade.js';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -73,6 +74,7 @@ export class RatingSubscriptionUpdatesProjectionFacade {
         return {
           outcome: 'eligible',
           preview: { text: root.body, author: rootAuthor },
+          ...ratingMaterializationMediaPreview(root.envelope),
         };
       const reply = await this.replies.reply(
         target.replyId,
@@ -88,7 +90,11 @@ export class RatingSubscriptionUpdatesProjectionFacade {
         tx,
       );
       return author
-        ? { outcome: 'eligible', preview: { text: reply.body, author } }
+        ? {
+            outcome: 'eligible',
+            preview: { text: reply.body, author },
+            ...ratingMaterializationMediaPreview(reply.envelope),
+          }
         : { outcome: 'suppressed', code: 'target_inaccessible' };
     } catch (error) {
       if (error instanceof ApplicationError) {

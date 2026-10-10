@@ -121,4 +121,27 @@ export class RatingScopedProjection {
       tx,
     );
   }
+  rootMedia(
+    row: CommentRow,
+    actor: RatingScopedProjectionActor,
+    purpose: 'rating_list' | 'rating_direct',
+    tx: PoolClient,
+  ) {
+    return this.discussion.rootMedia(row, actor.accountId, purpose, tx);
+  }
+  replyMedia(
+    row: ReplyRow,
+    actor: RatingScopedProjectionActor,
+    rootCanReply: boolean,
+    purpose: 'rating_list' | 'rating_direct',
+    tx: PoolClient,
+  ) {
+    return this.discussion.replyMedia(
+      row,
+      actor.accountId,
+      rootCanReply && actor.mode === 'public',
+      purpose,
+      tx,
+    );
+  }
 }

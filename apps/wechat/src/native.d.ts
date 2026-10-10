@@ -1,7 +1,8 @@
 import type { WxApi } from './platform/wechat';
+import type { WxUploadApi } from './platform/wechat-upload';
 
 declare global {
-  const wx: WxApi;
+  const wx: WxApi & WxUploadApi;
   function App<T extends object>(
     options: T & {
       onLaunch(): void;

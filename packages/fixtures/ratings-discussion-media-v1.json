@@ -1,0 +1,645 @@
+{
+  "synthetic": true,
+  "cases": [
+    {
+      "name": "root9-pure",
+      "intent": {
+        "protocolVersion": 4,
+        "operation": "create_comment_scoped",
+        "context": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "tokenDigest": "66d34fba71f8f450f7e45598853e53bfc23bbd129027cbb131a2f4ffd7878cd0",
+          "selector": {
+            "kind": "global"
+          },
+          "scopeRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "protocolGeneration": "00000000-0000-4000-8000-000000000002",
+          "catalogRevision": "00000000-0000-4000-8000-000000000003",
+          "headRevision": "00000000-0000-4000-8000-000000000004",
+          "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "discussionMedia": {
+            "id": "00000000-0000-4000-8000-000000000040",
+            "generation": "00000000-0000-4000-8000-000000000041",
+            "sourceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "validUntil": "2026-10-10T18:00:00.000Z"
+          }
+        },
+        "payload": {
+          "clientRequestId": "00000000-0000-4000-8000-000000000005",
+          "categoryId": "00000000-0000-4000-8000-000000000006",
+          "expectedCategoryRevision": "00000000-0000-4000-8000-000000000007",
+          "targetId": "00000000-0000-4000-8000-000000000008",
+          "expectedTargetRevision": "00000000-0000-4000-8000-000000000009",
+          "expectedDefinitionRevision": "00000000-0000-4000-8000-000000000010",
+          "expectedContentVersion": 2,
+          "draftRevision": "00000000-0000-4000-8000-000000000011",
+          "batchRequestId": "00000000-0000-4000-8000-000000000012",
+          "batchId": "00000000-0000-4000-8000-000000000013",
+          "sealedPlanDigest": "afbdbbf4f0610dd9e45defa396da7a07c3c0d4cbdd896671f4b6affd257d968b",
+          "authorMode": "anonymous",
+          "body": "",
+          "images": [
+            {
+              "ordinal": 0,
+              "memberId": "00000000-0000-4000-8000-000000000100",
+              "assetId": "00000000-0000-4000-8000-000000000200"
+            },
+            {
+              "ordinal": 1,
+              "memberId": "00000000-0000-4000-8000-000000000101",
+              "assetId": "00000000-0000-4000-8000-000000000201"
+            },
+            {
+              "ordinal": 2,
+              "memberId": "00000000-0000-4000-8000-000000000102",
+              "assetId": "00000000-0000-4000-8000-000000000202"
+            },
+            {
+              "ordinal": 3,
+              "memberId": "00000000-0000-4000-8000-000000000103",
+              "assetId": "00000000-0000-4000-8000-000000000203"
+            },
+            {
+              "ordinal": 4,
+              "memberId": "00000000-0000-4000-8000-000000000104",
+              "assetId": "00000000-0000-4000-8000-000000000204"
+            },
+            {
+              "ordinal": 5,
+              "memberId": "00000000-0000-4000-8000-000000000105",
+              "assetId": "00000000-0000-4000-8000-000000000205"
+            },
+            {
+              "ordinal": 6,
+              "memberId": "00000000-0000-4000-8000-000000000106",
+              "assetId": "00000000-0000-4000-8000-000000000206"
+            },
+            {
+              "ordinal": 7,
+              "memberId": "00000000-0000-4000-8000-000000000107",
+              "assetId": "00000000-0000-4000-8000-000000000207"
+            },
+            {
+              "ordinal": 8,
+              "memberId": "00000000-0000-4000-8000-000000000108",
+              "assetId": "00000000-0000-4000-8000-000000000208"
+            }
+          ]
+        }
+      },
+      "intentHash": "71c9d342efadc86389d6fcc5bbe0bc47c5308bc7a1dbbdc081029625fdc1bf58",
+      "review": {
+        "version": 7,
+        "purpose": "publish_rating_comment_media_scoped",
+        "accountId": "00000000-0000-4000-8000-000000000050",
+        "clientRequestId": "00000000-0000-4000-8000-000000000005",
+        "targetId": "00000000-0000-4000-8000-000000000008",
+        "targetRevision": "00000000-0000-4000-8000-000000000009",
+        "categoryId": "00000000-0000-4000-8000-000000000006",
+        "categoryRevision": "00000000-0000-4000-8000-000000000007",
+        "scope": {
+          "selector": {
+            "kind": "global"
+          },
+          "scopeKey": "global",
+          "catalogRevision": "00000000-0000-4000-8000-000000000003",
+          "headRevision": "00000000-0000-4000-8000-000000000004",
+          "scopeRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "contextId": "00000000-0000-4000-8000-000000000001",
+          "contextDigest": "66d34fba71f8f450f7e45598853e53bfc23bbd129027cbb131a2f4ffd7878cd0",
+          "protocolGeneration": "00000000-0000-4000-8000-000000000002",
+          "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "topologySnapshotId": null
+        },
+        "discussionMedia": {
+          "id": "00000000-0000-4000-8000-000000000040",
+          "generation": "00000000-0000-4000-8000-000000000041",
+          "sourceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "validUntil": "2026-10-10T18:00:00.000Z"
+        },
+        "targetOrigin": {
+          "regionId": null,
+          "originCampusId": null
+        },
+        "targetDefinitionRevision": "00000000-0000-4000-8000-000000000010",
+        "targetContentVersion": 2,
+        "subjectId": "00000000-0000-4000-8000-000000000051",
+        "subjectRevision": "00000000-0000-4000-8000-000000000052",
+        "draftRevision": "00000000-0000-4000-8000-000000000011",
+        "batchRequestId": "00000000-0000-4000-8000-000000000012",
+        "batchId": "00000000-0000-4000-8000-000000000013",
+        "sealedPlanDigest": "afbdbbf4f0610dd9e45defa396da7a07c3c0d4cbdd896671f4b6affd257d968b",
+        "authorMode": "anonymous",
+        "body": "",
+        "images": [
+          {
+            "ordinal": 0,
+            "memberId": "00000000-0000-4000-8000-000000000100",
+            "assetId": "00000000-0000-4000-8000-000000000200",
+            "manifestDigest": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+          },
+          {
+            "ordinal": 1,
+            "memberId": "00000000-0000-4000-8000-000000000101",
+            "assetId": "00000000-0000-4000-8000-000000000201",
+            "manifestDigest": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+          },
+          {
+            "ordinal": 2,
+            "memberId": "00000000-0000-4000-8000-000000000102",
+            "assetId": "00000000-0000-4000-8000-000000000202",
+            "manifestDigest": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+          },
+          {
+            "ordinal": 3,
+            "memberId": "00000000-0000-4000-8000-000000000103",
+            "assetId": "00000000-0000-4000-8000-000000000203",
+            "manifestDigest": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+          },
+          {
+            "ordinal": 4,
+            "memberId": "00000000-0000-4000-8000-000000000104",
+            "assetId": "00000000-0000-4000-8000-000000000204",
+            "manifestDigest": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a"
+          },
+          {
+            "ordinal": 5,
+            "memberId": "00000000-0000-4000-8000-000000000105",
+            "assetId": "00000000-0000-4000-8000-000000000205",
+            "manifestDigest": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d"
+          },
+          {
+            "ordinal": 6,
+            "memberId": "00000000-0000-4000-8000-000000000106",
+            "assetId": "00000000-0000-4000-8000-000000000206",
+            "manifestDigest": "e7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683"
+          },
+          {
+            "ordinal": 7,
+            "memberId": "00000000-0000-4000-8000-000000000107",
+            "assetId": "00000000-0000-4000-8000-000000000207",
+            "manifestDigest": "7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451"
+          },
+          {
+            "ordinal": 8,
+            "memberId": "00000000-0000-4000-8000-000000000108",
+            "assetId": "00000000-0000-4000-8000-000000000208",
+            "manifestDigest": "2c624232cdd221771294dfbb310aca000a0df6ac8b66b696d90ef06fdefb64a3"
+          }
+        ],
+        "attachmentSetDigest": "12e0b2d4fa40c074c163e4a3741d2cce4677b85363dc795b326fc42cf4be954b"
+      },
+      "reviewDigest": "0c857bcfb2f69cb7cde6c6d8667a649c6236147bf2ecc01ed65931947a89138c",
+      "batchIdentity": {
+        "protocol": "ratings-discussion-media-v1",
+        "batchRequestId": "00000000-0000-4000-8000-000000000012",
+        "commandRequestId": "00000000-0000-4000-8000-000000000005",
+        "draftRevision": "00000000-0000-4000-8000-000000000011",
+        "categoryId": "00000000-0000-4000-8000-000000000006",
+        "expectedCategoryRevision": "00000000-0000-4000-8000-000000000007",
+        "context": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "tokenDigest": "66d34fba71f8f450f7e45598853e53bfc23bbd129027cbb131a2f4ffd7878cd0",
+          "selector": {
+            "kind": "global"
+          },
+          "scopeRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "protocolGeneration": "00000000-0000-4000-8000-000000000002",
+          "catalogRevision": "00000000-0000-4000-8000-000000000003",
+          "headRevision": "00000000-0000-4000-8000-000000000004",
+          "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "discussionMedia": {
+            "id": "00000000-0000-4000-8000-000000000040",
+            "generation": "00000000-0000-4000-8000-000000000041",
+            "sourceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "validUntil": "2026-10-10T18:00:00.000Z"
+          }
+        },
+        "target": {
+          "kind": "root",
+          "targetId": "00000000-0000-4000-8000-000000000008",
+          "expectedTargetRevision": "00000000-0000-4000-8000-000000000009",
+          "expectedDefinitionRevision": "00000000-0000-4000-8000-000000000010",
+          "expectedContentVersion": 2
+        }
+      },
+      "batchIdentityHash": "180056398e71452cbb9d04102259cece2176dc1ac3fa0a5f982a9c1547709fb6",
+      "sealedPlan": {
+        "batchId": "00000000-0000-4000-8000-000000000013",
+        "batchIdentityHash": "180056398e71452cbb9d04102259cece2176dc1ac3fa0a5f982a9c1547709fb6",
+        "orderedMembers": [
+          {
+            "ordinal": 0,
+            "memberId": "00000000-0000-4000-8000-000000000100",
+            "assetId": "00000000-0000-4000-8000-000000000200",
+            "manifestDigest": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+          },
+          {
+            "ordinal": 1,
+            "memberId": "00000000-0000-4000-8000-000000000101",
+            "assetId": "00000000-0000-4000-8000-000000000201",
+            "manifestDigest": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+          },
+          {
+            "ordinal": 2,
+            "memberId": "00000000-0000-4000-8000-000000000102",
+            "assetId": "00000000-0000-4000-8000-000000000202",
+            "manifestDigest": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+          },
+          {
+            "ordinal": 3,
+            "memberId": "00000000-0000-4000-8000-000000000103",
+            "assetId": "00000000-0000-4000-8000-000000000203",
+            "manifestDigest": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+          },
+          {
+            "ordinal": 4,
+            "memberId": "00000000-0000-4000-8000-000000000104",
+            "assetId": "00000000-0000-4000-8000-000000000204",
+            "manifestDigest": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a"
+          },
+          {
+            "ordinal": 5,
+            "memberId": "00000000-0000-4000-8000-000000000105",
+            "assetId": "00000000-0000-4000-8000-000000000205",
+            "manifestDigest": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d"
+          },
+          {
+            "ordinal": 6,
+            "memberId": "00000000-0000-4000-8000-000000000106",
+            "assetId": "00000000-0000-4000-8000-000000000206",
+            "manifestDigest": "e7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683"
+          },
+          {
+            "ordinal": 7,
+            "memberId": "00000000-0000-4000-8000-000000000107",
+            "assetId": "00000000-0000-4000-8000-000000000207",
+            "manifestDigest": "7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451"
+          },
+          {
+            "ordinal": 8,
+            "memberId": "00000000-0000-4000-8000-000000000108",
+            "assetId": "00000000-0000-4000-8000-000000000208",
+            "manifestDigest": "2c624232cdd221771294dfbb310aca000a0df6ac8b66b696d90ef06fdefb64a3"
+          }
+        ]
+      }
+    },
+    {
+      "name": "reply3-pure",
+      "intent": {
+        "protocolVersion": 4,
+        "operation": "create_reply_scoped",
+        "context": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "tokenDigest": "66d34fba71f8f450f7e45598853e53bfc23bbd129027cbb131a2f4ffd7878cd0",
+          "selector": {
+            "kind": "global"
+          },
+          "scopeRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "protocolGeneration": "00000000-0000-4000-8000-000000000002",
+          "catalogRevision": "00000000-0000-4000-8000-000000000003",
+          "headRevision": "00000000-0000-4000-8000-000000000004",
+          "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "discussionMedia": {
+            "id": "00000000-0000-4000-8000-000000000040",
+            "generation": "00000000-0000-4000-8000-000000000041",
+            "sourceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "validUntil": "2026-10-10T18:00:00.000Z"
+          }
+        },
+        "payload": {
+          "clientRequestId": "00000000-0000-4000-8000-000000000005",
+          "categoryId": "00000000-0000-4000-8000-000000000006",
+          "expectedCategoryRevision": "00000000-0000-4000-8000-000000000007",
+          "targetId": "00000000-0000-4000-8000-000000000008",
+          "expectedTargetRevision": "00000000-0000-4000-8000-000000000009",
+          "expectedDefinitionRevision": "00000000-0000-4000-8000-000000000010",
+          "expectedContentVersion": 2,
+          "draftRevision": "00000000-0000-4000-8000-000000000011",
+          "batchRequestId": "00000000-0000-4000-8000-000000000012",
+          "batchId": "00000000-0000-4000-8000-000000000013",
+          "sealedPlanDigest": "f8078d0aadacedf8e7ee56957344af7b899b649a9e4af5d5d095ca716dadb1cd",
+          "authorMode": "anonymous",
+          "body": "",
+          "images": [
+            {
+              "ordinal": 0,
+              "memberId": "00000000-0000-4000-8000-000000000100",
+              "assetId": "00000000-0000-4000-8000-000000000200"
+            },
+            {
+              "ordinal": 1,
+              "memberId": "00000000-0000-4000-8000-000000000101",
+              "assetId": "00000000-0000-4000-8000-000000000201"
+            },
+            {
+              "ordinal": 2,
+              "memberId": "00000000-0000-4000-8000-000000000102",
+              "assetId": "00000000-0000-4000-8000-000000000202"
+            }
+          ],
+          "rootId": "00000000-0000-4000-8000-000000000014",
+          "expectedRootRevision": "00000000-0000-4000-8000-000000000015",
+          "replyTo": {
+            "replyId": "00000000-0000-4000-8000-000000000016",
+            "expectedRevision": "00000000-0000-4000-8000-000000000017"
+          }
+        }
+      },
+      "intentHash": "0aa4c38123f8f0179d5230bfaef60ea08a965b25370a88c4a81d849acc8a457a",
+      "review": {
+        "version": 7,
+        "purpose": "publish_rating_reply_media_scoped",
+        "accountId": "00000000-0000-4000-8000-000000000050",
+        "clientRequestId": "00000000-0000-4000-8000-000000000005",
+        "targetId": "00000000-0000-4000-8000-000000000008",
+        "targetRevision": "00000000-0000-4000-8000-000000000009",
+        "categoryId": "00000000-0000-4000-8000-000000000006",
+        "categoryRevision": "00000000-0000-4000-8000-000000000007",
+        "scope": {
+          "selector": {
+            "kind": "global"
+          },
+          "scopeKey": "global",
+          "catalogRevision": "00000000-0000-4000-8000-000000000003",
+          "headRevision": "00000000-0000-4000-8000-000000000004",
+          "scopeRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "contextId": "00000000-0000-4000-8000-000000000001",
+          "contextDigest": "66d34fba71f8f450f7e45598853e53bfc23bbd129027cbb131a2f4ffd7878cd0",
+          "protocolGeneration": "00000000-0000-4000-8000-000000000002",
+          "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "topologySnapshotId": null
+        },
+        "discussionMedia": {
+          "id": "00000000-0000-4000-8000-000000000040",
+          "generation": "00000000-0000-4000-8000-000000000041",
+          "sourceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "validUntil": "2026-10-10T18:00:00.000Z"
+        },
+        "targetOrigin": {
+          "regionId": null,
+          "originCampusId": null
+        },
+        "targetDefinitionRevision": "00000000-0000-4000-8000-000000000010",
+        "targetContentVersion": 2,
+        "subjectId": "00000000-0000-4000-8000-000000000051",
+        "subjectRevision": "00000000-0000-4000-8000-000000000052",
+        "draftRevision": "00000000-0000-4000-8000-000000000011",
+        "batchRequestId": "00000000-0000-4000-8000-000000000012",
+        "batchId": "00000000-0000-4000-8000-000000000013",
+        "sealedPlanDigest": "f8078d0aadacedf8e7ee56957344af7b899b649a9e4af5d5d095ca716dadb1cd",
+        "authorMode": "anonymous",
+        "body": "",
+        "images": [
+          {
+            "ordinal": 0,
+            "memberId": "00000000-0000-4000-8000-000000000100",
+            "assetId": "00000000-0000-4000-8000-000000000200",
+            "manifestDigest": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+          },
+          {
+            "ordinal": 1,
+            "memberId": "00000000-0000-4000-8000-000000000101",
+            "assetId": "00000000-0000-4000-8000-000000000201",
+            "manifestDigest": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+          },
+          {
+            "ordinal": 2,
+            "memberId": "00000000-0000-4000-8000-000000000102",
+            "assetId": "00000000-0000-4000-8000-000000000202",
+            "manifestDigest": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+          }
+        ],
+        "attachmentSetDigest": "bad67cf3d286336800ac1570fd8a51932c1ade7c307409461931426236ae954b",
+        "rootId": "00000000-0000-4000-8000-000000000014",
+        "rootRevision": "00000000-0000-4000-8000-000000000015",
+        "replyTo": {
+          "replyId": "00000000-0000-4000-8000-000000000016",
+          "revision": "00000000-0000-4000-8000-000000000017"
+        }
+      },
+      "reviewDigest": "fe0b7eb5ea6007c55f698143cda272df597b9456475f66b928abf6faec28c1ed",
+      "batchIdentity": {
+        "protocol": "ratings-discussion-media-v1",
+        "batchRequestId": "00000000-0000-4000-8000-000000000012",
+        "commandRequestId": "00000000-0000-4000-8000-000000000005",
+        "draftRevision": "00000000-0000-4000-8000-000000000011",
+        "categoryId": "00000000-0000-4000-8000-000000000006",
+        "expectedCategoryRevision": "00000000-0000-4000-8000-000000000007",
+        "context": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "tokenDigest": "66d34fba71f8f450f7e45598853e53bfc23bbd129027cbb131a2f4ffd7878cd0",
+          "selector": {
+            "kind": "global"
+          },
+          "scopeRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "protocolGeneration": "00000000-0000-4000-8000-000000000002",
+          "catalogRevision": "00000000-0000-4000-8000-000000000003",
+          "headRevision": "00000000-0000-4000-8000-000000000004",
+          "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "discussionMedia": {
+            "id": "00000000-0000-4000-8000-000000000040",
+            "generation": "00000000-0000-4000-8000-000000000041",
+            "sourceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "validUntil": "2026-10-10T18:00:00.000Z"
+          }
+        },
+        "target": {
+          "kind": "reply",
+          "targetId": "00000000-0000-4000-8000-000000000008",
+          "expectedTargetRevision": "00000000-0000-4000-8000-000000000009",
+          "expectedDefinitionRevision": "00000000-0000-4000-8000-000000000010",
+          "expectedContentVersion": 2,
+          "rootId": "00000000-0000-4000-8000-000000000014",
+          "expectedRootRevision": "00000000-0000-4000-8000-000000000015",
+          "replyTo": {
+            "replyId": "00000000-0000-4000-8000-000000000016",
+            "expectedRevision": "00000000-0000-4000-8000-000000000017"
+          }
+        }
+      },
+      "batchIdentityHash": "35b58082fdc3c5ca238e57d0f14c2da02643b5951503713df649ab515abe535b",
+      "sealedPlan": {
+        "batchId": "00000000-0000-4000-8000-000000000013",
+        "batchIdentityHash": "35b58082fdc3c5ca238e57d0f14c2da02643b5951503713df649ab515abe535b",
+        "orderedMembers": [
+          {
+            "ordinal": 0,
+            "memberId": "00000000-0000-4000-8000-000000000100",
+            "assetId": "00000000-0000-4000-8000-000000000200",
+            "manifestDigest": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+          },
+          {
+            "ordinal": 1,
+            "memberId": "00000000-0000-4000-8000-000000000101",
+            "assetId": "00000000-0000-4000-8000-000000000201",
+            "manifestDigest": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+          },
+          {
+            "ordinal": 2,
+            "memberId": "00000000-0000-4000-8000-000000000102",
+            "assetId": "00000000-0000-4000-8000-000000000202",
+            "manifestDigest": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+          }
+        ]
+      }
+    },
+    {
+      "name": "root0-text",
+      "intent": {
+        "protocolVersion": 4,
+        "operation": "create_comment_scoped",
+        "context": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "tokenDigest": "66d34fba71f8f450f7e45598853e53bfc23bbd129027cbb131a2f4ffd7878cd0",
+          "selector": {
+            "kind": "global"
+          },
+          "scopeRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "protocolGeneration": "00000000-0000-4000-8000-000000000002",
+          "catalogRevision": "00000000-0000-4000-8000-000000000003",
+          "headRevision": "00000000-0000-4000-8000-000000000004",
+          "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "discussionMedia": {
+            "id": "00000000-0000-4000-8000-000000000040",
+            "generation": "00000000-0000-4000-8000-000000000041",
+            "sourceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "validUntil": "2026-10-10T18:00:00.000Z"
+          }
+        },
+        "payload": {
+          "clientRequestId": "00000000-0000-4000-8000-000000000005",
+          "categoryId": "00000000-0000-4000-8000-000000000006",
+          "expectedCategoryRevision": "00000000-0000-4000-8000-000000000007",
+          "targetId": "00000000-0000-4000-8000-000000000008",
+          "expectedTargetRevision": "00000000-0000-4000-8000-000000000009",
+          "expectedDefinitionRevision": "00000000-0000-4000-8000-000000000010",
+          "expectedContentVersion": 2,
+          "draftRevision": "00000000-0000-4000-8000-000000000011",
+          "batchRequestId": null,
+          "batchId": null,
+          "sealedPlanDigest": null,
+          "authorMode": "anonymous",
+          "body": "Hello 世界",
+          "images": []
+        }
+      },
+      "intentHash": "9c0344d5bae3e12cd70dfeefe21a0a017f91390768a1728b3c11d9f5ce0a8528",
+      "review": {
+        "version": 7,
+        "purpose": "publish_rating_comment_media_scoped",
+        "accountId": "00000000-0000-4000-8000-000000000050",
+        "clientRequestId": "00000000-0000-4000-8000-000000000005",
+        "targetId": "00000000-0000-4000-8000-000000000008",
+        "targetRevision": "00000000-0000-4000-8000-000000000009",
+        "categoryId": "00000000-0000-4000-8000-000000000006",
+        "categoryRevision": "00000000-0000-4000-8000-000000000007",
+        "scope": {
+          "selector": {
+            "kind": "global"
+          },
+          "scopeKey": "global",
+          "catalogRevision": "00000000-0000-4000-8000-000000000003",
+          "headRevision": "00000000-0000-4000-8000-000000000004",
+          "scopeRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "contextId": "00000000-0000-4000-8000-000000000001",
+          "contextDigest": "66d34fba71f8f450f7e45598853e53bfc23bbd129027cbb131a2f4ffd7878cd0",
+          "protocolGeneration": "00000000-0000-4000-8000-000000000002",
+          "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "topologySnapshotId": null
+        },
+        "discussionMedia": {
+          "id": "00000000-0000-4000-8000-000000000040",
+          "generation": "00000000-0000-4000-8000-000000000041",
+          "sourceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "validUntil": "2026-10-10T18:00:00.000Z"
+        },
+        "targetOrigin": {
+          "regionId": null,
+          "originCampusId": null
+        },
+        "targetDefinitionRevision": "00000000-0000-4000-8000-000000000010",
+        "targetContentVersion": 2,
+        "subjectId": "00000000-0000-4000-8000-000000000051",
+        "subjectRevision": "00000000-0000-4000-8000-000000000052",
+        "draftRevision": "00000000-0000-4000-8000-000000000011",
+        "batchRequestId": null,
+        "batchId": null,
+        "sealedPlanDigest": null,
+        "authorMode": "anonymous",
+        "body": "Hello 世界",
+        "images": [],
+        "attachmentSetDigest": "ca1fad8636626df726de3c27a5d61da7b747267967f1fe10a139cee71b82e076"
+      },
+      "reviewDigest": "75bc744480a3bf3c807bc5d5e3a1c590016dfb68ec23a451951f41646c4c23fe"
+    }
+  ],
+  "contexts": {
+    "discussion4": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "tokenDigest": "66d34fba71f8f450f7e45598853e53bfc23bbd129027cbb131a2f4ffd7878cd0",
+      "selector": {
+        "kind": "global"
+      },
+      "scopeRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "protocolGeneration": "00000000-0000-4000-8000-000000000002",
+      "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "discussionMedia": {
+        "id": "00000000-0000-4000-8000-000000000040",
+        "generation": "00000000-0000-4000-8000-000000000041",
+        "sourceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "validUntil": "2026-10-10T18:00:00.000Z"
+      },
+      "protocolVersion": 4,
+      "actorId": "00000000-0000-4000-8000-000000000050",
+      "sessionGeneration": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "purpose": "interact",
+      "mode": "public",
+      "heads": [
+        {
+          "scopeKey": "global",
+          "catalogRevision": "00000000-0000-4000-8000-000000000003",
+          "headRevision": "00000000-0000-4000-8000-000000000004"
+        }
+      ],
+      "identityCampusId": null,
+      "issuedAt": "2026-10-10T17:55:00.000Z",
+      "expiresAt": "2026-10-10T18:00:00.000Z",
+      "capabilities": ["discussion_images", "target_cover"]
+    },
+    "targetCover3": {
+      "id": "00000000-0000-4000-8000-000000000043",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "tokenDigest": "f01b57226261ae3756b93936e1c4e6b849f9a5b0933fa3b91843bf4195b9d964",
+      "selector": {
+        "kind": "global"
+      },
+      "scopeRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "protocolGeneration": "00000000-0000-4000-8000-000000000002",
+      "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "protocolVersion": 3,
+      "actorId": "00000000-0000-4000-8000-000000000050",
+      "sessionGeneration": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "purpose": "interact",
+      "mode": "public",
+      "heads": [
+        {
+          "scopeKey": "global",
+          "catalogRevision": "00000000-0000-4000-8000-000000000003",
+          "headRevision": "00000000-0000-4000-8000-000000000004"
+        }
+      ],
+      "identityCampusId": null,
+      "issuedAt": "2026-10-10T17:55:00.000Z",
+      "expiresAt": "2026-10-10T18:00:00.000Z",
+      "capabilities": ["target_cover"]
+    }
+  }
+}

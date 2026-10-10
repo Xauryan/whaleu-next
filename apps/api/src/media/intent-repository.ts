@@ -1,4 +1,9 @@
 import {
+  reserveRatingsDiscussionRequestMarker,
+  rejectRatingsDiscussionRequestMarker,
+} from './ratings-discussion-request-marker.js';
+import { ratingsDiscussionMemberHash } from './contracts-ratings-discussion.js';
+import {
   reserveRatingsRequestMarker,
   rejectRatingsRequestMarker,
 } from './ratings-request-marker.js';
@@ -54,38 +59,57 @@ export class MediaIntentRepository {
     const v2 = declaredSha256 !== null;
     const profile =
       'protocol' in input && input.protocol === 'profile-media-v1';
+    const ratingsDiscussion =
+      'protocol' in input && input.protocol === 'ratings-discussion-media-v1';
     const ratings =
       'protocol' in input && input.protocol === 'ratings-target-media-v1';
     const v3 = 'protocolVersion' in input;
-    const protocol = ratings
-      ? 6
-      : profile
-        ? 5
-        : v3
-          ? input.protocolVersion
-          : v2
-            ? 2
-            : 1;
-    const requestHash = ratings
-      ? ratingsMediaRequestHash(scope.actorAccountId, input)
-      : profile
-        ? profileMediaRequestHash(scope.actorAccountId, input)
-        : v3
-          ? (input.protocolVersion === 4
-              ? discussionMemberHash
-              : mediaMemberRequestHash)(
-              scope.actorAccountId,
-              input.batchIdentity,
-              {
-                clientRequestId: input.clientRequestId,
-                memberId: input.memberId,
-                sourceSlot: input.ordinal,
-                declaration: input.declaration,
-              },
-            )
-          : v2
-            ? mediaRequestHash(scope.actorAccountId, input)
-            : null;
+    const protocol = ratingsDiscussion
+      ? 7
+      : ratings
+        ? 6
+        : profile
+          ? 5
+          : v3
+            ? input.protocolVersion
+            : v2
+              ? 2
+              : 1;
+    const requestHash = ratingsDiscussion
+      ? ratingsDiscussionMemberHash(scope.actorAccountId, input)
+      : ratings
+        ? ratingsMediaRequestHash(scope.actorAccountId, input)
+        : profile
+          ? profileMediaRequestHash(scope.actorAccountId, input)
+          : v3
+            ? (input.protocolVersion === 4
+                ? discussionMemberHash
+                : mediaMemberRequestHash)(
+                scope.actorAccountId,
+                input.batchIdentity,
+                {
+                  clientRequestId: input.clientRequestId,
+                  memberId: input.memberId,
+                  sourceSlot: input.ordinal,
+                  declaration: input.declaration,
+                },
+              )
+            : v2
+              ? mediaRequestHash(scope.actorAccountId, input)
+              : null;
+    if (ratingsDiscussion) {
+      const batch = await tx.query(
+        `SELECT id FROM whaleu_media.ratings_discussion_batches WHERE id=$1 AND actor_id=$2 AND state='editing' AND server_scope_id=$3 AND scope_revision=$4 AND identity_hash=$5 FOR UPDATE NOWAIT`,
+        [
+          input.batchId,
+          scope.actorAccountId,
+          scope.serverScopeId,
+          scope.scopeRevision,
+          input.batchIdentityHash,
+        ],
+      );
+      if (batch.rowCount !== 1) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    }
     if (v3) {
       const batch = await tx.query(
         `SELECT id FROM whaleu_media.publication_batches WHERE id=$1 AND actor_id=$2 AND state='editing' AND server_scope_id=$3 AND scope_revision=$4 AND identity=$5::jsonb FOR UPDATE`,
@@ -102,6 +126,20 @@ export class MediaIntentRepository {
     // Serialize all reservation changes for this account; same-key retry neither
     // allocates another object obligation nor consumes quota a second time.
     await this.actorLock(scope.actorAccountId, tx);
+    if (ratingsDiscussion) {
+      if (!requestHash) throw new ApplicationError('MEDIA_UNAVAILABLE');
+      await reserveRatingsDiscussionRequestMarker(
+        scope.actorAccountId,
+        input.clientRequestId,
+        requestHash,
+        tx,
+      );
+    } else
+      await rejectRatingsDiscussionRequestMarker(
+        scope.actorAccountId,
+        input.clientRequestId,
+        tx,
+      );
     if (ratings) {
       if (!requestHash) throw new ApplicationError('MEDIA_UNAVAILABLE');
       await reserveRatingsRequestMarker(
@@ -132,7 +170,7 @@ export class MediaIntentRepository {
       );
     const hash = createHash('sha256')
       .update(
-        profile || ratings || v3
+        profile || ratings || ratingsDiscussion || v3
           ? `whaleu-media-intent:v${protocol}\n`
           : v2
             ? 'whaleu-media-intent:v2\n'
@@ -143,14 +181,21 @@ export class MediaIntentRepository {
           actor: scope.actorAccountId,
           requestId: input.clientRequestId,
           purpose: scope.purpose,
-          ...('editScopeId' in input
+          ...('batchIdentityHash' in input
             ? {
-                editScopeId: input.editScopeId,
-                scopeRevision: input.scopeRevision,
+                batchId: input.batchId,
+                batchIdentityHash: input.batchIdentityHash,
+                memberId: input.memberId,
+                sourceSlot: input.sourceSlot,
               }
-            : 'expectedRevision' in input
-              ? { expectedRevision: input.expectedRevision }
-              : { draftId: input.draftId, spaceId: input.spaceId }),
+            : 'editScopeId' in input
+              ? {
+                  editScopeId: input.editScopeId,
+                  scopeRevision: input.scopeRevision,
+                }
+              : 'expectedRevision' in input
+                ? { expectedRevision: input.expectedRevision }
+                : { draftId: input.draftId, spaceId: input.spaceId }),
           serverScopeId: scope.serverScopeId,
           scopeRevision: scope.scopeRevision,
           audience: scope.audience,
@@ -219,7 +264,7 @@ export class MediaIntentRepository {
       await tx.query<IntentRow>(
         `INSERT INTO whaleu_media.upload_intents
       (id,actor_id,client_request_id,canonical_intent_hash,purpose,audience,owner_kind,resource_kind,target_kind,resource_id,content_version,scope_revision,slot,ordinal,policy_revision,declared_bytes,declared_mime,expires_at,protocol_version,request_hash,declared_sha256)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,${scope.ownerKind === 'ratings' ? '(SELECT expires_at FROM whaleu_ratings.target_cover_upload_scopes WHERE id=$10 AND actor_id=$2)' : scope.ownerKind === 'profile' ? '(SELECT expires_at FROM whaleu_profile.avatar_edits WHERE id=$10 AND actor_id=$2)' : "clock_timestamp()+interval '30 minutes'"},$18,$19,$20) RETURNING *`,
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,${ratingsDiscussion ? '(SELECT expires_at FROM whaleu_media.ratings_discussion_batches WHERE server_scope_id=$10 AND actor_id=$2)' : scope.ownerKind === 'ratings' ? '(SELECT expires_at FROM whaleu_ratings.target_cover_upload_scopes WHERE id=$10 AND actor_id=$2)' : scope.ownerKind === 'profile' ? '(SELECT expires_at FROM whaleu_profile.avatar_edits WHERE id=$10 AND actor_id=$2)' : "clock_timestamp()+interval '30 minutes'"},$18,$19,$20) RETURNING *`,
         [
           id,
           scope.actorAccountId,
@@ -327,11 +372,20 @@ export async function reserveMediaRequestKey(
   actor: string,
   tx: PoolClient,
 ): Promise<void> {
+  const installed =
+    (
+      await tx.query<{ present: boolean }>(
+        "SELECT to_regclass('whaleu_media.ratings_discussion_batch_request_fences') IS NOT NULL AS present",
+      )
+    ).rows[0]?.present === true;
+  const requests = installed
+    ? '(SELECT actor_id,created_at FROM whaleu_media.upload_request_fences UNION ALL SELECT actor_id,created_at FROM whaleu_media.ratings_discussion_batch_request_fences) requests'
+    : 'whaleu_media.upload_request_fences';
   const row = (
     await tx.query<{ daily: number; recent: number }>(
       `SELECT count(*)::integer daily,
        count(*) FILTER (WHERE created_at>clock_timestamp()-interval '1 minute')::integer recent
-     FROM whaleu_media.upload_request_fences WHERE actor_id=$1
+     FROM ${requests} WHERE actor_id=$1
        AND created_at >= date_trunc('day',clock_timestamp() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
       [actor],
     )

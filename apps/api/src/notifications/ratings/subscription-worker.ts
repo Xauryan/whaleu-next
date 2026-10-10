@@ -1,3 +1,5 @@
+import { ratingAuthorSchema } from '../../ratings/contracts.js';
+import { ratingDiscussionMaterializationPreviewSchema } from './discussion-media-contracts.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
@@ -213,7 +215,25 @@ export class RatingSubscriptionUpdatesWorker {
                 ),
               );
               if (decision.outcome === 'eligible') {
-                verifyPreview(start.event, decision.preview);
+                if (decision.mediaPreview) {
+                  const media =
+                    ratingDiscussionMaterializationPreviewSchema.parse(
+                      decision.mediaPreview,
+                    );
+                  const author = ratingAuthorSchema.parse(
+                    decision.preview.author,
+                  );
+                  if (
+                    author.mode === 'anonymous' &&
+                    author.targetId !== start.event.target.targetId
+                  )
+                    throw new Error('Mismatched discussion persona');
+                  if (
+                    start.event.target.replyId !== null &&
+                    media.imageCount > 3
+                  )
+                    throw new Error('Reply image limit');
+                } else verifyPreview(start.event, decision.preview);
                 result.wouldMaterialize++;
               } else if (decision.outcome === 'suppressed')
                 result.wouldSuppress++;
@@ -276,7 +296,25 @@ export class RatingSubscriptionUpdatesWorker {
                 }
                 if (decision.outcome !== 'eligible')
                   throw new Error('Invalid subscription decision');
-                verifyPreview(start.event, decision.preview);
+                if (decision.mediaPreview) {
+                  const media =
+                    ratingDiscussionMaterializationPreviewSchema.parse(
+                      decision.mediaPreview,
+                    );
+                  const author = ratingAuthorSchema.parse(
+                    decision.preview.author,
+                  );
+                  if (
+                    author.mode === 'anonymous' &&
+                    author.targetId !== start.event.target.targetId
+                  )
+                    throw new Error('Mismatched discussion persona');
+                  if (
+                    start.event.target.replyId !== null &&
+                    media.imageCount > 3
+                  )
+                    throw new Error('Reply image limit');
+                } else verifyPreview(start.event, decision.preview);
                 await this.records.owner(
                   selected.recipient_account_id,
                   tx,

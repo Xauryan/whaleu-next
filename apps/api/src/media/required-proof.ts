@@ -30,6 +30,17 @@ export const mediaCountProofOwner: CountProofOwner = {
           whaleu_media.upload_ingress,whaleu_media.upload_ingress_writers,
           whaleu_media.publication_batches,whaleu_media.publication_batch_members,whaleu_media.publication_batch_commands IN SHARE MODE NOWAIT`,
     );
+    // Historical fixture schemas remain supported. When Media7 is installed,
+    // its raw/zero-row/TRUNCATE writers participate in this exact final fence.
+    const installed = (
+      await tx.query<{ present: boolean }>(
+        "SELECT to_regclass('whaleu_media.ratings_discussion_batches') IS NOT NULL AS present",
+      )
+    ).rows[0];
+    if (installed?.present === true)
+      await tx.query(
+        `LOCK TABLE whaleu_media.ratings_discussion_batches,whaleu_media.ratings_discussion_members,whaleu_media.ratings_discussion_request_markers,whaleu_media.ratings_discussion_batch_request_fences IN SHARE MODE NOWAIT`,
+      );
     return true;
   },
 };

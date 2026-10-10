@@ -67,7 +67,8 @@ export function requireTargetCoverRead(
     return;
   if (
     !('context' in scope) ||
-    scope.context.protocolVersion !== 3 ||
+    (scope.context.protocolVersion !== 3 &&
+      scope.context.protocolVersion !== 4) ||
     !scope.targetCoverCapable
   )
     throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
@@ -135,7 +136,10 @@ export async function requireCurrentTargetCoverScope(
   }
   const key = `${scope.catalog.regionId ?? 'global'}:${scope.protocolGeneration}`;
   if (state.scopes.has(key)) return;
-  if ('context' in scope && scope.context.protocolVersion === 3) {
+  if (
+    'context' in scope &&
+    (scope.context.protocolVersion === 3 || scope.context.protocolVersion === 4)
+  ) {
     if (!scope.targetCoverCapable)
       throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
   } else {

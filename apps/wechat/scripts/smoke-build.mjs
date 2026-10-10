@@ -202,6 +202,17 @@ function assertColdTargetOwnerEditing(current) {
     assert.equal(current.data[key], '', `target-owner-edit: ${key}`);
   assert.equal(current.locator, null);
 }
+function assertColdRatingDiscussionMedia(current) {
+  assert.deepEqual(current.data.rows, []);
+  assert.equal(current.data.text, '');
+  assert.equal(current.data.authorMode, null);
+  assert.equal(current.data.composerOpen, false);
+  assert.equal(current.data.canCompose, false);
+  assert.equal(current.data.busy, false);
+  assert.deepEqual(current.data.editor.selected, []);
+  assert.equal(current.data.gallery.open, false);
+  assert.equal(current.data.gallery.localSrc, '');
+}
 for (const route of config.pages.filter(
   (route) => !['pages/login/login', 'pages/status/status'].includes(route),
 )) {
@@ -249,6 +260,8 @@ for (const route of config.pages.filter(
     assertColdTargetOwnerDeletion(current);
   else if (route === 'pages/target-owner-edit/target-owner-edit')
     assertColdTargetOwnerEditing(current);
+  else if (route === 'pages/rating-discussion-media/rating-discussion-media')
+    assertColdRatingDiscussionMedia(current);
   else assert.equal(current.data.loaded, false);
   assert.ok(current.data.error);
   const template = readFileSync(path.join(dist, `${route}.wxml`), 'utf8');
@@ -272,6 +285,8 @@ for (const route of config.pages.filter(
     assertColdTargetOwnerDeletion(current);
   else if (route === 'pages/target-owner-edit/target-owner-edit')
     assertColdTargetOwnerEditing(current);
+  else if (route === 'pages/rating-discussion-media/rating-discussion-media')
+    assertColdRatingDiscussionMedia(current);
   else assert.equal(current.data.loaded, false);
   current.onShow();
   assert.ok(current.controller);

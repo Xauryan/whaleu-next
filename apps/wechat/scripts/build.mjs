@@ -45,6 +45,9 @@ for (const relative of [
   'ratings/target-cover-contract.js',
   'ratings/target-cover-media-contract.js',
   'ratings/target-cover-upload-scope.js',
+  'ratings/discussion-media-contract.js',
+  'ratings/discussion-media-batch-contract.js',
+  'ratings/discussion-media-wire.js',
 ]) {
   const cryptoModule = path.join(out, relative);
   const compiled = await readFile(cryptoModule, 'utf8');
@@ -79,5 +82,11 @@ execFileSync(
     'tsx',
     path.join(root, 'test/rating-target-cover-page-smoke.mjs'),
   ],
+  { stdio: 'inherit', cwd: root },
+);
+
+execFileSync(
+  process.execPath,
+  [path.join(root, 'test/rating-discussion-media-page-smoke.mjs')],
   { stdio: 'inherit', cwd: root },
 );

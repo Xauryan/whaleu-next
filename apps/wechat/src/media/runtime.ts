@@ -23,6 +23,10 @@ export function createMediaReadRuntime(
   clock: Clock,
   privateViews: PrivateViewLifecycle | undefined,
   verifiedNativeDownload = false,
+  shared?: {
+    readonly files: import('../platform/wechat-media').MediaFiles;
+    readonly registry: MediaLocalFiles;
+  },
 ): MediaReadRuntime {
   let transfer: MediaReadTransfer | undefined;
   if (
@@ -33,8 +37,8 @@ export function createMediaReadRuntime(
     wx.getImageInfo
   ) {
     try {
-      const files = new WechatMediaFiles(wx, clock);
-      const registry = new MediaLocalFiles(files);
+      const files = shared?.files ?? new WechatMediaFiles(wx, clock);
+      const registry = shared?.registry ?? new MediaLocalFiles(files);
       transfer = new AuthenticatedMediaDownload(
         origin,
         wx,

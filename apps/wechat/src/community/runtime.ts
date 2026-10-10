@@ -1,3 +1,10 @@
+import {
+  HttpRatingDiscussionMediaGateway,
+  type RatingDiscussionMediaGateway,
+} from '../ratings/discussion-media-gateway';
+import { PendingRatingDiscussionMediaStore } from '../ratings/discussion-media-pending';
+import type { DiscussionUploadTransfer } from '../ratings/discussion-media-upload';
+import type { DiscussionReadTransfer } from '../ratings/discussion-media-download';
 import type { RatingCoverReadTransfer } from '../ratings/target-cover-download';
 import {
   HttpRatingTargetCoverGateway,
@@ -142,6 +149,11 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly ratingDiscussionMedia?: RatingDiscussionMediaGateway;
+  readonly pendingRatingDiscussionMedia?: PendingRatingDiscussionMediaStore;
+  /** Real native adapters are assembled by App using its single shared registry. */
+  readonly ratingDiscussionUpload?: DiscussionUploadTransfer;
+  readonly ratingDiscussionDownload?: DiscussionReadTransfer;
   readonly ratingTargetCover?: RatingTargetCoverGateway;
   readonly ratingCoverMedia?: RatingCoverMediaGateway;
   readonly ratingCoverUpload?: RatingCoverUploadTransfer;
@@ -215,6 +227,12 @@ export function createCommunityRuntime(
   clock: Clock = systemClock,
 ): CommunityRuntime {
   const storage = new WechatStorage(wx);
+  const pendingRatingDiscussionMedia = new PendingRatingDiscussionMediaStore(
+    storage,
+    origin,
+  );
+  // Lifetime journal owner: account changes still scrub when no discussion page is mounted.
+  pendingRatingDiscussionMedia.watchSession(identity.sessions);
   const privateViews = new PrivateViewLifecycle();
   const browsingScopeChanges = new PrivateViewLifecycle();
   const runtime: CommunityRuntime = {
@@ -268,6 +286,15 @@ export function createCommunityRuntime(
         }
       : {}),
     pendingRatings: new PendingRatingStore(storage, origin),
+    pendingRatingDiscussionMedia,
+    ...(identity.api
+      ? {
+          ratingDiscussionMedia: new HttpRatingDiscussionMediaGateway(
+            identity.api,
+            identity.sessions,
+          ),
+        }
+      : {}),
     ...(identity.api
       ? {
           errandAdminCommands: new HttpErrandAdminCommandsGateway(identity.api),

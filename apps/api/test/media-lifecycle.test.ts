@@ -18,12 +18,31 @@ function fakeTx(
   } = {},
 ) {
   const calls: { sql: string; values: unknown[] }[] = [];
+  const allCalls: { sql: string; values: unknown[] }[] = [];
+  const discussionProbes: { sql: string; values: unknown[] }[] = [];
   const tx = {
     async query(sql: string, values: unknown[] = []) {
-      // Retain every query, including the coordinator's lock/savepoint calls.
-      // These legacy fixtures have no batch unless explicitly declared below;
-      // coordination reads must not consume the lifecycle result queue.
-      calls.push({ sql, values: structuredClone(values) });
+      // Keep the original lifecycle trace and its assertions intact. The new
+      // version-routing probes have a separate exact trace, while allCalls
+      // retains every query including both generations' coordination reads.
+      const call = { sql, values: structuredClone(values) };
+      allCalls.push(call);
+      assert.ok(
+        !sql.includes('whaleu_media.ratings_discussion_'),
+        'legacy lifecycle must not consult new Media7 relations',
+      );
+      if (
+        sql ===
+          'SELECT id FROM whaleu_media.upload_intents WHERE id=ANY($1::uuid[]) AND protocol_version=7' ||
+        sql ===
+          'SELECT id FROM whaleu_media.upload_intents WHERE id=$1 AND protocol_version=7'
+      ) {
+        discussionProbes.push(call);
+        return { rows: [], rowCount: 0 };
+      }
+      // Legacy fixtures explicitly contain no protocol7 intent; probes must
+      // never consume the queue of existing owner/lifecycle results.
+      calls.push(call);
       let rows: unknown[];
       if (sql.includes('SELECT b.id FROM whaleu_media.publication_batches')) {
         rows = coordination.batchId ? [{ id: coordination.batchId }] : [];
@@ -55,7 +74,7 @@ function fakeTx(
       return { rows, rowCount: rows.length };
     },
   } as unknown as PoolClient;
-  return { tx, calls };
+  return { tx, calls, allCalls, discussionProbes };
 }
 function assertBatchBeforeIntent(
   calls: { sql: string; values: unknown[] }[],
@@ -567,5 +586,29 @@ test('cleanup candidate scan is capped at 128 busy batch hints and never claims 
     assert.ok(calls.every((call) => !/^\s*(UPDATE|INSERT)/.test(call.sql)));
   } finally {
     clearTransactionDeadlines(tx);
+  }
+});
+
+test('legacy lifecycle records exact Media7 probes before old locks without touching discussion tables', async () => {
+  const f = fakeTx([[{ ...intent, state: 'cancelled' }]]);
+  startTransactionDeadlines(f.tx);
+  try {
+    await repository.status('actor', 'intent', f.tx);
+    assert.deepEqual(f.discussionProbes, [
+      {
+        sql: 'SELECT id FROM whaleu_media.upload_intents WHERE id=ANY($1::uuid[]) AND protocol_version=7',
+        values: [['intent']],
+      },
+    ]);
+    assert.equal(f.allCalls.length, f.calls.length + f.discussionProbes.length);
+    assert.equal(f.allCalls[0], f.discussionProbes[0]);
+    assertBatchBeforeIntent(f.calls, 0);
+    assert.ok(
+      f.allCalls.every(
+        (call) => !call.sql.includes('whaleu_media.ratings_discussion_'),
+      ),
+    );
+  } finally {
+    clearTransactionDeadlines(f.tx);
   }
 });
