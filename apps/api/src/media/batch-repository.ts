@@ -7,24 +7,12 @@ import {
   restoreTransactionDeadlines,
 } from '../database/transaction-deadlines.js';
 import type { MediaParent } from './contracts.js';
-import { mediaV2IdSchema, publicationReferenceSchema } from './contracts-v2.js';
+import { mediaV2IdSchema } from './contracts-v2.js';
 import type { MediaStatusV2 } from './contracts-v2.js';
-import {
-  MEDIA_BATCH_LIMITS,
-  mediaBatchIdentitySchema,
-  mediaBatchRequestHash,
-  mediaMemberPrepareSchema,
-  mediaMemberRequestHash,
-  mediaBatchLayoutSchema,
-  mediaBatchSealSchema,
-  mediaBatchReopenSchema,
-  mediaBatchCommandHash,
-  mediaBatchCancelSchema,
-  mediaBatchRecoverPublicationSchema,
-  mediaBatchStatusSchema,
-  mediaMemberStatusSchema,
-  mediaAttachmentPlanDigest,
-} from './contracts-v3.js';
+import type { MediaStatusV4 } from './contracts-v4.js';
+import { prepareMediaV4Schema } from './contracts-v4.js';
+import { prepareMediaV3Schema } from './contracts-v3.js';
+import { batchProtocol, publicationReferenceSchema } from './batch-protocol.js';
 import type {
   MediaBatchIdentity,
   MediaBatchStatus,
@@ -34,10 +22,10 @@ import type {
   PublicationMediaContext,
   MediaBatchOrderedAsset,
   MediaBatchCommandKind,
-  PrepareMediaV3Input,
+  PrepareMediaBatchInput,
   MediaBatchPublicationCancellation,
   MediaBatchFencePublicationResult,
-} from './contracts-v3.js';
+} from './batch-protocol.js';
 import type { MediaPrepareScopes } from './prepare-scope.js';
 import { lockMediaActor } from './intent-repository.js';
 import type { MediaIntentRepository } from './intent-repository.js';
@@ -48,7 +36,7 @@ import { MediaRequiredProof } from './required-proof.js';
 export type {
   PublicationMediaContext,
   MediaBatchPublicationCancellation,
-} from './contracts-v3.js';
+} from './batch-protocol.js';
 export interface MediaBatchPublicationProofPort {
   /** Must lock the exact Community command BEFORE the batch. Absence is unknown. */
   requireNonCreatedTerminal(
@@ -70,7 +58,7 @@ export interface MediaBatchReadinessPort {
   ): Promise<string | null>;
 }
 export interface MediaSealedBatchEvidence {
-  readonly version: 2;
+  readonly version: 2 | 3;
   readonly batchId: string;
   readonly batchRevision: string;
   readonly attachmentPlanDigest: string;
@@ -84,6 +72,7 @@ export interface MediaSealedBatchEvidence {
 }
 interface Batch {
   id: string;
+  protocol_version: 3 | 4;
   actor_id: string;
   client_batch_id: string;
   request_hash: string;
@@ -156,17 +145,67 @@ export class MediaBatchRepository {
     private readonly lifecycle: MediaLifecycleRepository,
     readiness: MediaBatchReadinessPort,
     private readonly publicationProof: MediaBatchPublicationProofPort,
+    readonly protocolVersion: 3 | 4 = 3,
   ) {
-    this.recovery = new MediaRecoveryRepository(lifecycle, readiness, 3);
+    this.recovery = new MediaRecoveryRepository(
+      lifecycle,
+      readiness,
+      protocolVersion,
+    );
   }
 
+  private get codec() {
+    return batchProtocol(this.protocolVersion);
+  }
+  private get limit() {
+    return this.protocolVersion === 4 ? 3 : 9;
+  }
+  private assertProtocol(batch: Batch): Batch {
+    if (batch.protocol_version !== this.protocolVersion) conflict();
+    if (batch.identity)
+      this.codec.mediaBatchIdentitySchema.parse(batch.identity);
+    return batch;
+  }
+  private matchesPublication(
+    batch: Batch,
+    reference: PublicationMediaContext,
+  ): boolean {
+    return (
+      reference.operation ===
+      (batch.identity?.version === 2
+        ? `publish_${batch.identity.target.kind}`
+        : 'publish_post')
+    );
+  }
+  private async authorizeIdentity(
+    actor: string,
+    batch: Batch,
+    tx: PoolClient,
+  ): Promise<void> {
+    if (!batch.identity) unavailable();
+    const input = this.internalInput(batch, {
+      clientRequestId: batch.client_batch_id,
+      memberId: batch.client_batch_id,
+      sourceSlot: 0,
+      declaration: { mime: 'image/png', bytes: 1, sha256: '0'.repeat(64) },
+    });
+    const scope = this.scopes.require(
+      await this.scopes.authorizeBatch(actor, input, tx),
+      tx,
+    ).scope;
+    if (
+      scope.serverScopeId !== batch.server_scope_id ||
+      scope.scopeRevision !== batch.scope_revision
+    )
+      unavailable();
+  }
   async prepare(
     actor: string,
     raw: unknown,
     tx: PoolClient,
   ): Promise<MediaBatchStatus> {
-    const identity = mediaBatchIdentitySchema.parse(raw),
-      hash = mediaBatchRequestHash(actor, identity);
+    const identity = this.codec.mediaBatchIdentitySchema.parse(raw),
+      hash = this.codec.mediaBatchRequestHash(actor, identity);
     this.managed(tx);
     // Key lock serializes absent-row prepare and cancel-before-prepare.
     await this.keyLock(actor, identity.batchRequestId, tx);
@@ -180,18 +219,31 @@ export class MediaBatchRepository {
       if (existing.request_hash !== hash) conflict();
       return this.encode(existing, tx);
     }
+    const batchId = randomUUID();
+    const initial = {
+      protocolVersion: this.protocolVersion,
+      clientRequestId: identity.batchRequestId,
+      purpose:
+        identity.version === 2
+          ? identity.target.kind === 'comment'
+            ? 'community-comment-image'
+            : 'community-reply-image'
+          : 'community-post-image',
+      draftId: identity.draftId,
+      spaceId: identity.spaceId,
+      slot: 'images',
+      ordinal: 0,
+      declaration: { mime: 'image/png', bytes: 1, sha256: '0'.repeat(64) },
+      batchId,
+      batchIdentity: identity,
+      memberId: identity.batchRequestId,
+    };
     const scope = this.scopes.require(
-      await this.scopes.authorizeV2(
+      await this.scopes.authorizeBatch(
         actor,
-        {
-          clientRequestId: identity.batchRequestId,
-          purpose: 'community-post-image',
-          draftId: identity.draftId,
-          spaceId: identity.spaceId,
-          slot: 'images',
-          ordinal: 0,
-          declaration: { mime: 'image/png', bytes: 1, sha256: '0'.repeat(64) },
-        },
+        this.protocolVersion === 4
+          ? prepareMediaV4Schema.parse(initial)
+          : prepareMediaV3Schema.parse(initial),
         tx,
       ),
       tx,
@@ -201,16 +253,17 @@ export class MediaBatchRepository {
       (
         await tx.query<Batch>(
           `INSERT INTO whaleu_media.publication_batches
-      (id,actor_id,client_batch_id,request_hash,identity,server_scope_id,scope_revision,state)
-      VALUES($1,$2,$3,$4,$5::jsonb,$6,$7,'editing') RETURNING *`,
+      (id,actor_id,client_batch_id,request_hash,identity,server_scope_id,scope_revision,state,protocol_version)
+      VALUES($1,$2,$3,$4,$5::jsonb,$6,$7,'editing',$8) RETURNING *`,
           [
-            randomUUID(),
+            batchId,
             actor,
             identity.batchRequestId,
             hash,
             JSON.stringify(identity),
             scope.serverScopeId,
             scope.scopeRevision,
+            this.protocolVersion,
           ],
         )
       ).rows[0] ?? unavailable();
@@ -227,9 +280,13 @@ export class MediaBatchRepository {
       tx,
     );
     return batch
-      ? { version: 3, state: 'recorded', status: await this.encode(batch, tx) }
+      ? {
+          version: this.protocolVersion,
+          state: 'recorded',
+          status: await this.encode(batch, tx),
+        }
       : {
-          version: 3,
+          version: this.protocolVersion,
           state: 'not_recorded',
           batchRequestId: requestId,
           serverNow: await this.now(tx),
@@ -247,13 +304,13 @@ export class MediaBatchRepository {
     raw: unknown,
     tx: PoolClient,
   ): Promise<MediaBatchPublicationRecovery> {
-    const input = mediaBatchRecoverPublicationSchema.parse(raw);
+    const input = this.codec.mediaBatchRecoverPublicationSchema.parse(raw);
     // Exact asset membership is also sufficient to rediscover the original
     // editing batch in the crash gap after Community.freeze and before seal.
     // Still no inferred publication success or permission to create a new key.
     const rows = (
       await tx.query<Batch>(
-        `SELECT b.* FROM whaleu_media.publication_batches b WHERE b.actor_id=$1
+        `SELECT b.* FROM whaleu_media.publication_batches b WHERE b.actor_id=$1 AND b.protocol_version=$4
       AND ((b.state IN ('sealed','consumed') AND b.publication=$2::jsonb) OR (b.state='editing' AND b.publication IS NULL))
       AND jsonb_array_length(b.ordered_member_ids)=cardinality($3::uuid[])
       AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements_text(b.ordered_member_ids) WITH ORDINALITY o(member,ordinal)
@@ -261,11 +318,31 @@ export class MediaBatchRepository {
         LEFT JOIN whaleu_media.assets a ON a.intent_id=m.intent_id
         WHERE a.id IS DISTINCT FROM ($3::uuid[])[o.ordinal::integer])
       ORDER BY b.id LIMIT 2 FOR SHARE OF b`,
-        [actor, JSON.stringify(input.publication), input.assetIds],
+        [
+          actor,
+          JSON.stringify(input.publication),
+          input.assetIds,
+          this.protocolVersion,
+        ],
       )
     ).rows;
     if (rows.length !== 1)
-      return { version: 3, state: 'unknown', serverNow: await this.now(tx) };
+      return {
+        version: this.protocolVersion,
+        state: 'unknown',
+        serverNow: await this.now(tx),
+      };
+    if (
+      !this.matchesPublication(rows[0]!, input.publication) ||
+      ('target' in input &&
+        !same(
+          rows[0]?.identity && 'target' in rows[0].identity
+            ? rows[0].identity.target
+            : null,
+          input.target,
+        ))
+    )
+      return { version: 4, state: 'unknown', serverNow: await this.now(tx) };
     const status = await this.encode(rows[0]!, tx);
     if (
       !same(
@@ -273,8 +350,12 @@ export class MediaBatchRepository {
         input.assetIds,
       )
     )
-      return { version: 3, state: 'unknown', serverNow: await this.now(tx) };
-    return { version: 3, state: 'recorded', status };
+      return {
+        version: this.protocolVersion,
+        state: 'unknown',
+        serverNow: await this.now(tx),
+      };
+    return { version: this.protocolVersion, state: 'recorded', status };
   }
   async fencePublication(
     actor: string,
@@ -282,7 +363,7 @@ export class MediaBatchRepository {
     raw: unknown,
     tx: PoolClient,
   ): Promise<MediaBatchFencePublicationResult> {
-    const input = mediaBatchRecoverPublicationSchema.parse(raw);
+    const input = this.codec.mediaBatchRecoverPublicationSchema.parse(raw);
     // The owner command is the first serialized object. A new fence is rolled
     // back if any following full-set check fails; metadata never cancels another
     // actor's command or an unrelated exact asset set.
@@ -293,6 +374,14 @@ export class MediaBatchRepository {
     );
     const batch = await this.byId(actor, id, tx, true);
     if (
+      !this.matchesPublication(batch, input.publication) ||
+      ('target' in input &&
+        !same(
+          batch.identity && 'target' in batch.identity
+            ? batch.identity.target
+            : null,
+          input.target,
+        )) ||
       !['editing', 'sealed', 'consumed'].includes(batch.state) ||
       (batch.publication && !same(batch.publication, input.publication))
     )
@@ -313,7 +402,7 @@ export class MediaBatchRepository {
       unavailable();
     if (cancellation.outcome !== 'created' && status.status === 'bound_history')
       unavailable();
-    return { version: 3, status, cancellation };
+    return { version: this.protocolVersion, status, cancellation };
   }
   async prepareMember(
     actor: string,
@@ -321,7 +410,7 @@ export class MediaBatchRepository {
     raw: unknown,
     tx: PoolClient,
   ): Promise<MediaMemberStatus> {
-    const input = mediaMemberPrepareSchema.parse(raw);
+    const input = this.codec.mediaMemberPrepareSchema.parse(raw);
     // Current owner/draft authority is acquired before the batch row.
     const hint = (
       await tx.query<Batch>(
@@ -330,6 +419,7 @@ export class MediaBatchRepository {
       )
     ).rows[0];
     if (!hint?.identity) unavailable();
+    this.assertProtocol(hint);
     const original = (
       await tx.query<Member>(
         'SELECT * FROM whaleu_media.publication_batch_members WHERE batch_id=$1 AND member_id=$2',
@@ -339,16 +429,20 @@ export class MediaBatchRepository {
     if (original) {
       if (
         original.request_hash !==
-        mediaMemberRequestHash(actor, hint!.identity, input)
+        this.codec.mediaMemberRequestHash(actor, hint!.identity, input)
       )
         conflict();
       await this.byId(actor, batchId, tx);
       return this.encodeMember(original, tx);
     }
     const internal = this.internalInput(hint!, input);
-    const capability = await this.scopes.authorizeV3(actor, internal, tx);
+    const capability = await this.scopes.authorizeBatch(actor, internal, tx);
     const batch = await this.byId(actor, batchId, tx, true);
-    const hash = mediaMemberRequestHash(actor, batch.identity, input);
+    const hash = this.codec.mediaMemberRequestHash(
+      actor,
+      batch.identity,
+      input,
+    );
     const prior = (
       await tx.query<Member>(
         'SELECT * FROM whaleu_media.publication_batch_members WHERE batch_id=$1 AND member_id=$2',
@@ -370,8 +464,8 @@ export class MediaBatchRepository {
     if (requestOwner) conflict();
     const members = await this.members(batch.id, tx);
     if (
-      members.filter((m) => m.state === 'live').length >= 9 ||
-      members.filter((m) => m.state === 'retiring').length >= 9 ||
+      members.filter((m) => m.state === 'live').length >= this.limit ||
+      members.filter((m) => m.state === 'retiring').length >= this.limit ||
       members.length >= 128 ||
       members.some(
         (m) => m.state === 'live' && m.source_slot === input.sourceSlot,
@@ -431,7 +525,7 @@ export class MediaBatchRepository {
     raw: unknown,
     tx: PoolClient,
   ): Promise<MediaBatchStatus> {
-    const input = mediaBatchLayoutSchema.parse(raw),
+    const input = this.codec.mediaBatchLayoutSchema.parse(raw),
       batch = await this.byId(actor, id, tx, true);
     const replay = await this.commandReplay(batch, 'layout', input, tx);
     if (replay) return replay;
@@ -450,7 +544,7 @@ export class MediaBatchRepository {
     if (
       members.filter((m) => m.state === 'retiring').length +
         input.removeMemberIds.length >
-      9
+      this.limit
     )
       unavailable();
     const revision = this.nextRevision(batch);
@@ -478,8 +572,24 @@ export class MediaBatchRepository {
     raw: unknown,
     tx: PoolClient,
   ): Promise<MediaBatchStatus> {
-    const input = mediaBatchSealSchema.parse(raw),
-      batch = await this.byId(actor, id, tx, true);
+    const input = this.codec.mediaBatchSealSchema.parse(raw);
+    if (this.protocolVersion === 4) {
+      const hint = (
+        await tx.query<Batch>(
+          'SELECT * FROM whaleu_media.publication_batches WHERE id=$1 AND actor_id=$2',
+          [id, actor],
+        )
+      ).rows[0];
+      if (!hint) unavailable();
+      this.assertProtocol(hint);
+      await this.authorizeIdentity(actor, hint, tx);
+      if (
+        hint.identity?.version !== 2 ||
+        input.publication.operation !== `publish_${hint.identity.target.kind}`
+      )
+        conflict();
+    }
+    const batch = await this.byId(actor, id, tx, true);
     const replay = await this.commandReplay(batch, 'seal', input, tx);
     if (replay) return replay;
     if (
@@ -493,7 +603,11 @@ export class MediaBatchRepository {
     if (ready.status !== 'ready_unbound' || ready.retiring.length)
       throw new ApplicationError('MEDIA_NOT_READY');
     const revision = this.nextRevision(batch),
-      planDigest = mediaAttachmentPlanDigest(id, revision, ready.orderedAssets);
+      planDigest = this.codec.mediaAttachmentPlanDigest(
+        id,
+        revision,
+        ready.orderedAssets,
+      );
     await tx.query(
       "UPDATE whaleu_media.publication_batches SET state='sealed',revision=$2,publication=$3::jsonb,attachment_plan_digest=$4,updated_at=clock_timestamp() WHERE id=$1",
       [id, revision, JSON.stringify(input.publication), planDigest],
@@ -512,7 +626,7 @@ export class MediaBatchRepository {
     raw: unknown,
     tx: PoolClient,
   ): Promise<MediaBatchStatus> {
-    const input = mediaBatchReopenSchema.parse(raw);
+    const input = this.codec.mediaBatchReopenSchema.parse(raw);
     await this.publicationProof.requireNonCreatedTerminal(
       actor,
       input.publication,
@@ -543,7 +657,7 @@ export class MediaBatchRepository {
     raw: unknown,
     tx: PoolClient,
   ): Promise<MediaBatchRecovery> {
-    const input = mediaBatchCancelSchema.parse(raw);
+    const input = this.codec.mediaBatchCancelSchema.parse(raw);
     mediaV2IdSchema.parse(requestId);
     await this.keyLock(actor, requestId, tx);
     let batch = await this.byRequest(actor, requestId, tx, true);
@@ -552,8 +666,14 @@ export class MediaBatchRepository {
       batch =
         (
           await tx.query<Batch>(
-            `INSERT INTO whaleu_media.publication_batches(id,actor_id,client_batch_id,request_hash,state) VALUES($1,$2,$3,$4,'fenced') RETURNING *`,
-            [randomUUID(), actor, requestId, input.batchRequestHash],
+            `INSERT INTO whaleu_media.publication_batches(id,actor_id,client_batch_id,request_hash,state,protocol_version) VALUES($1,$2,$3,$4,'fenced',$5) RETURNING *`,
+            [
+              randomUUID(),
+              actor,
+              requestId,
+              input.batchRequestHash,
+              this.protocolVersion,
+            ],
           )
         ).rows[0] ?? unavailable();
     } else {
@@ -567,7 +687,7 @@ export class MediaBatchRepository {
       }
     }
     return {
-      version: 3,
+      version: this.protocolVersion,
       state: 'recorded',
       status: await this.encode(batch, tx),
     };
@@ -608,7 +728,7 @@ export class MediaBatchRepository {
     this.managed(tx);
     if (
       !orderedAssetIds.length ||
-      orderedAssetIds.length > 9 ||
+      orderedAssetIds.length > this.limit ||
       new Set(orderedAssetIds).size !== orderedAssetIds.length
     )
       unavailable();
@@ -624,10 +744,13 @@ export class MediaBatchRepository {
       )
     ).rows;
     if (hints.length !== orderedAssetIds.length) unavailable();
-    if (hints.every((h) => h.protocol_version !== 3)) return null;
+    if (hints.every((h) => h.protocol_version !== this.protocolVersion))
+      return null;
     if (
       !context ||
-      hints.some((h) => h.protocol_version !== 3 || !h.batch_id) ||
+      hints.some(
+        (h) => h.protocol_version !== this.protocolVersion || !h.batch_id,
+      ) ||
       new Set(hints.map((h) => h.batch_id)).size !== 1
     )
       unavailable();
@@ -670,7 +793,7 @@ export class MediaBatchRepository {
         ordinal,
       });
     });
-    const digest = mediaAttachmentPlanDigest(
+    const digest = this.codec.mediaAttachmentPlanDigest(
       batch.id,
       batch.revision,
       mappings.map(({ memberId, assetId, manifestDigest }) => ({
@@ -681,7 +804,7 @@ export class MediaBatchRepository {
     );
     if (digest !== batch.attachment_plan_digest) unavailable();
     const evidence: MediaSealedBatchEvidence = Object.freeze({
-      version: 2,
+      version: this.protocolVersion === 4 ? 3 : 2,
       batchId: batch.id,
       batchRevision: batch.revision,
       publication: Object.freeze(publication),
@@ -715,7 +838,12 @@ export class MediaBatchRepository {
       issued.tx !== tx ||
       issued.epoch !== transactionReadEpoch(tx) ||
       parent.ownerKind !== 'community' ||
-      parent.resourceKind !== 'post' ||
+      parent.resourceKind !==
+        (issued?.publication.operation === 'publish_post'
+          ? 'post'
+          : issued?.publication.operation === 'publish_comment'
+            ? 'comment'
+            : 'reply') ||
       parent.contentVersion !== 1
     )
       unavailable();
@@ -739,13 +867,14 @@ export class MediaBatchRepository {
       )
         unavailable();
       const matched = await tx.query(
-        `SELECT 1 FROM whaleu_media.bindings WHERE id=$1 AND asset_id=$2 AND manifest_digest=$3 AND ordinal=$4 AND owner_kind='community' AND resource_kind='post' AND resource_id=$5 AND content_version=1 AND detached_at IS NULL`,
+        `SELECT 1 FROM whaleu_media.bindings WHERE id=$1 AND asset_id=$2 AND manifest_digest=$3 AND ordinal=$4 AND owner_kind='community' AND resource_kind=$6 AND resource_id=$5 AND content_version=1 AND detached_at IS NULL`,
         [
           binding!.bindingId,
           mapping.assetId,
           mapping.manifestDigest,
           ordinal,
           parent.resourceId,
+          parent.resourceKind,
         ],
       );
       if (matched.rowCount !== 1) unavailable();
@@ -765,12 +894,13 @@ export class MediaBatchRepository {
     batch: Batch,
     tx: PoolClient,
   ): Promise<MediaBatchStatus> {
+    this.assertProtocol(batch);
     const all = await this.lockMembers(batch.id, tx, false);
     const active = all.filter((m) => m.state === 'live' || m.state === 'bound'),
       retiring = all.filter((m) => m.state === 'retiring');
     if (
-      active.length > 9 ||
-      retiring.length > 9 ||
+      active.length > this.limit ||
+      retiring.length > this.limit ||
       active.length !== batch.ordered_member_ids.length ||
       new Set(batch.ordered_member_ids).size !== active.length
     )
@@ -784,8 +914,26 @@ export class MediaBatchRepository {
     const retired: MediaMemberStatus[] = [];
     for (const member of retiring)
       retired.push(await this.encodeMember(member, tx));
+    const resolved =
+      this.protocolVersion === 4
+        ? {
+            resolvedPostId:
+              batch.identity?.version === 2 &&
+              batch.server_scope_id &&
+              batch.scope_revision
+                ? await this.scopes.resolvedDiscussionPostId(
+                    batch.actor_id,
+                    batch.server_scope_id,
+                    batch.scope_revision,
+                    batch.identity,
+                    tx,
+                  )
+                : null,
+          }
+        : {};
     const base = {
-      version: 3,
+      version: this.protocolVersion,
+      ...resolved,
       batchRequestId: batch.client_batch_id,
       batchRequestHash: batch.request_hash,
       batchIdentity: batch.identity,
@@ -810,7 +958,7 @@ export class MediaBatchRepository {
         else if (status.cleanup === 'pending' && cleanup !== 'retained')
           cleanup = 'pending';
       }
-      return mediaBatchStatusSchema.parse({
+      return this.codec.mediaBatchStatusSchema.parse({
         ...base,
         status: 'terminal',
         reason: 'cancelled',
@@ -824,8 +972,11 @@ export class MediaBatchRepository {
         manifestDigest: m.manifestDigest ?? unavailable(),
       }));
       if (
-        mediaAttachmentPlanDigest(batch.id, batch.revision, orderedAssets) !==
-        batch.attachment_plan_digest
+        this.codec.mediaAttachmentPlanDigest(
+          batch.id,
+          batch.revision,
+          orderedAssets,
+        ) !== batch.attachment_plan_digest
       )
         unavailable();
       const frozen = {
@@ -835,7 +986,7 @@ export class MediaBatchRepository {
         orderedAssets,
       };
       if (batch.state === 'sealed')
-        return mediaBatchStatusSchema.parse({
+        return this.codec.mediaBatchStatusSchema.parse({
           ...frozen,
           status: 'publication_pending',
         });
@@ -867,7 +1018,7 @@ export class MediaBatchRepository {
           binding.manifest_digest !== m.manifestDigest ||
           binding.ordinal !== ordinal ||
           binding.owner_kind !== 'community' ||
-          binding.resource_kind !== 'post' ||
+          binding.resource_kind !== batch.consumed_parent?.resourceKind ||
           binding.resource_id !== batch.consumed_parent?.resourceId ||
           Number(binding.content_version) !== 1
         )
@@ -881,7 +1032,7 @@ export class MediaBatchRepository {
           attachmentState: status.attachmentState,
         };
       });
-      return mediaBatchStatusSchema.parse({
+      return this.codec.mediaBatchStatusSchema.parse({
         ...frozen,
         status: 'bound_history',
         parent: batch.consumed_parent,
@@ -889,7 +1040,10 @@ export class MediaBatchRepository {
       });
     }
     if (batch.state === 'cancelling')
-      return mediaBatchStatusSchema.parse({ ...base, status: 'cancelling' });
+      return this.codec.mediaBatchStatusSchema.parse({
+        ...base,
+        status: 'cancelling',
+      });
     if (
       members.length &&
       !retired.length &&
@@ -903,10 +1057,14 @@ export class MediaBatchRepository {
       const ready = members
         .map((m) => m.observation)
         .filter(
-          (s): s is Extract<MediaStatusV2, { status: 'ready_unbound' }> =>
-            s.status === 'ready_unbound',
+          (
+            s,
+          ): s is Extract<
+            MediaStatusV2 | MediaStatusV4,
+            { status: 'ready_unbound' }
+          > => s.status === 'ready_unbound',
         );
-      return mediaBatchStatusSchema.parse({
+      return this.codec.mediaBatchStatusSchema.parse({
         ...base,
         status: 'ready_unbound',
         orderedAssets: members.map((m) => ({
@@ -919,13 +1077,13 @@ export class MediaBatchRepository {
       });
     }
     if (members.some((m) => m.observation.status === 'unavailable'))
-      return mediaBatchStatusSchema.parse({
+      return this.codec.mediaBatchStatusSchema.parse({
         ...base,
         status: 'unavailable',
         reason: 'MEDIA_UNAVAILABLE',
         retryable: true,
       });
-    return mediaBatchStatusSchema.parse({
+    return this.codec.mediaBatchStatusSchema.parse({
       ...base,
       status: members.some((m) =>
         ['prepared', 'uploaded', 'processing'].includes(m.observation.status),
@@ -938,7 +1096,7 @@ export class MediaBatchRepository {
     member: Member,
     tx: PoolClient,
   ): Promise<MediaMemberStatus> {
-    let observation: MediaStatusV2;
+    let observation: MediaStatusV2 | MediaStatusV4;
     try {
       observation = await this.recovery.status(
         member.actor_id,
@@ -952,7 +1110,7 @@ export class MediaBatchRepository {
       )
         throw error;
       observation = {
-        version: 2,
+        version: this.protocolVersion === 4 ? 4 : 2,
         intentId: member.intent_id,
         requestId: member.client_request_id,
         requestHash: member.request_hash,
@@ -974,8 +1132,8 @@ export class MediaBatchRepository {
         (member.asset_id && member.asset_id !== asset.id))
     )
       unavailable();
-    return mediaMemberStatusSchema.parse({
-      version: 3,
+    return this.codec.mediaMemberStatusSchema.parse({
+      version: this.protocolVersion,
       batchId: member.batch_id,
       memberId: member.member_id,
       sourceSlot: member.source_slot,
@@ -1001,29 +1159,38 @@ export class MediaBatchRepository {
       sourceSlot: number;
       declaration: Member['declaration'];
     },
-  ): PrepareMediaV3Input {
+  ): PrepareMediaBatchInput {
     const identity = batch.identity ?? unavailable();
-    return {
-      protocolVersion: 3,
+    const input = {
+      protocolVersion: this.protocolVersion,
       batchId: batch.id,
       batchIdentity: identity,
       memberId: member.memberId,
       clientRequestId: member.clientRequestId,
-      purpose: 'community-post-image',
+      purpose:
+        identity.version === 2
+          ? identity.target.kind === 'comment'
+            ? 'community-comment-image'
+            : 'community-reply-image'
+          : 'community-post-image',
       draftId: identity.draftId,
       spaceId: identity.spaceId,
       slot: 'images',
       ordinal: member.sourceSlot,
       declaration: member.declaration,
     };
+    return this.protocolVersion === 4
+      ? prepareMediaV4Schema.parse(input)
+      : prepareMediaV3Schema.parse(input);
   }
+
   private async commandReplay(
     batch: Batch,
     kind: MediaBatchCommandKind,
     input: { commandId: string },
     tx: PoolClient,
   ): Promise<MediaBatchStatus | null> {
-    const hash = mediaBatchCommandHash(kind, batch.id, input);
+    const hash = this.codec.mediaBatchCommandHash(kind, batch.id, input);
     const row = (
       await tx.query<{ request_hash: string; result: unknown }>(
         'SELECT request_hash,result FROM whaleu_media.publication_batch_commands WHERE batch_id=$1 AND command_id=$2',
@@ -1037,11 +1204,12 @@ export class MediaBatchRepository {
           [batch.id],
         )
       ).rows[0]?.n;
-      if (n === undefined || n >= MEDIA_BATCH_LIMITS.commands) unavailable();
+      if (n === undefined || n >= this.codec.MEDIA_BATCH_LIMITS.commands)
+        unavailable();
       return null;
     }
     if (row.request_hash !== hash) conflict();
-    return mediaBatchStatusSchema.parse(row.result);
+    return this.codec.mediaBatchStatusSchema.parse(row.result);
   }
   private async recordCommand(
     batch: Batch,
@@ -1056,7 +1224,7 @@ export class MediaBatchRepository {
       [
         batch.id,
         input.commandId,
-        mediaBatchCommandHash(kind, batch.id, input),
+        this.codec.mediaBatchCommandHash(kind, batch.id, input),
         kind,
         input.expectedRevision,
         result.revision,
@@ -1129,13 +1297,13 @@ export class MediaBatchRepository {
     write = false,
   ): Promise<Batch> {
     this.managed(tx);
-    return (
+    return this.assertProtocol(
       (
         await tx.query<Batch>(
           `SELECT * FROM whaleu_media.publication_batches WHERE id=$1 AND actor_id=$2 FOR ${write ? 'UPDATE' : 'SHARE'}`,
           [mediaV2IdSchema.parse(id), actor],
         )
-      ).rows[0] ?? unavailable()
+      ).rows[0] ?? unavailable(),
     );
   }
   private async byRequest(
@@ -1145,13 +1313,15 @@ export class MediaBatchRepository {
     write = false,
   ): Promise<Batch | undefined> {
     this.managed(tx);
-    return (
+    const row = (
       await tx.query<Batch>(
         `SELECT * FROM whaleu_media.publication_batches WHERE actor_id=$1 AND client_batch_id=$2 FOR ${write ? 'UPDATE' : 'SHARE'}`,
         [actor, id],
       )
     ).rows[0];
+    return row ? this.assertProtocol(row) : undefined;
   }
+
   private async reserveBatch(actor: string, tx: PoolClient): Promise<void> {
     await lockMediaActor(actor, tx);
     const count = (
@@ -1160,7 +1330,10 @@ export class MediaBatchRepository {
         [actor],
       )
     ).rows[0]?.n;
-    if (count === undefined || count >= MEDIA_BATCH_LIMITS.dailyBatches)
+    if (
+      count === undefined ||
+      count >= this.codec.MEDIA_BATCH_LIMITS.dailyBatches
+    )
       throw new ApplicationError('MEDIA_RATE_LIMITED');
   }
   private async keyLock(

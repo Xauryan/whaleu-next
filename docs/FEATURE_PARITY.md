@@ -52,7 +52,7 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 - [ ] NOT IMPLEMENTED — Campus utilities: map/location permissions and fallback, marker exploration, shuttle timetable images, research-tool information/link sharing, external learning-tool handoff and in-app web views
 - [ ] NOT IMPLEMENTED — Lost-card flows: card/image submission, pickup/contact details and notification preferences; existing completion/availability requires product verification
 - [ ] NOT IMPLEMENTED — Legacy placeholder/link audit: resource upload/download, subject-information entry, book-information integration and old navigation aliases; establish intended behavior without inventing a completed legacy feature
-- [ ] PARTIAL — Media: shared immutable image manifests, real synthetic JPEG/PNG processing, single-image Community publication/binding/current authorization/cleanup and N1 authenticated detail presentation passed integrated local and hosted acceptance (5,798 tests, `9471d5a`). First-party multipart v2 and durable original-actor upload recovery passed 5,891 local tests and hosted checks on `c1b3c24`. Nine-image ordinary-post publication and bounded detail gallery passed 6,046 local tests; hosted checks remain pending for that increment. Normal runtime activation remains unavailable; comment/reply and other owners, provider/device/hostile-input isolation and migration remain open. See [foundation and acceptance](MEDIA_FOUNDATION.md) and [native read scope](MEDIA_NATIVE_READ.md).
+- [ ] PARTIAL — Media: shared immutable image manifests, real synthetic JPEG/PNG processing, single-image Community publication/binding/current authorization/cleanup and N1 authenticated detail presentation passed integrated local and hosted acceptance (5,798 tests, `9471d5a`). First-party multipart v2 and durable original-actor upload recovery passed 5,891 local tests and hosted checks on `c1b3c24`. Nine-image ordinary-post publication and bounded detail gallery passed 6,046 local tests, but hosted Ratings regressions failed on `0e77fed`. The subsequent comment/reply attachment increment has composed local acceptance of 6,140 tests; new hosted verification is pending. Normal runtime activation remains unavailable; other owners, provider/device/hostile-input isolation and migration remain open. See [foundation and acceptance](MEDIA_FOUNDATION.md) and [native read scope](MEDIA_NATIVE_READ.md).
 - [ ] NOT IMPLEMENTED — Official-account operations: callbacks/follow state, account mappings, materials, article/draft generation, previews, publication and per-school scheduled pushes
 - [ ] PARTIAL — Background operations: notifications, view/exposure persistence, hot-score recalculation, scheduled work, cache refresh/invalidation, report generation and authorized operational diagnostics
 - [ ] NOT IMPLEMENTED — Assisted content capabilities: description generation, moderation assistance, reading-format generation and related queued work; provider implementation and cost policy must be explicitly approved before enabling external model calls
@@ -590,3 +590,16 @@ failures, skips, cancellations and TODOs. Hosted checks for this increment remai
 pending. Comment/reply attachments, image-only ordinary posts, other attachment
 owners and real provider/device activation are not delivered by this slice.
 See [batch contract and acceptance](MEDIA_PUBLICATION_BATCH.md).
+
+### Root-comment and reply images: composed local acceptance
+
+Root comments, direct replies and targeted replies support up to three images,
+including empty text plus images, through the original Community commands and
+additive v4 Media protocol. Shared bounded native galleries, exact current typed
+ancestor checks, atomic bindings/receipts, reply detach and persistent bounded
+ancestor cleanup, notifications and text-only discovery have local coverage.
+Composed acceptance includes 6,140 tests with zero failures, plus repeated final
+UI/HTTP checks after a two-file WXML/smoke correction. This does not claim a full
+PostgreSQL rerun on that final UI tree. The previous nine-image hosted checkpoint
+failed; the replacement full hosted gate is pending. Real providers/devices and
+other Media owners remain open. See [evidence and limitations](MEDIA_DISCUSSION_BATCH.md).

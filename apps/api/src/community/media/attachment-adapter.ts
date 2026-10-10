@@ -34,19 +34,40 @@ export class CommunityMediaAttachmentAdapter implements MediaAttachmentPort {
     publication?: import('../../media/batch-repository.js').PublicationMediaContext,
   ): Promise<Decision<ApprovedAsset[]>> {
     if (
-      purpose !== 'publish_post' ||
       envelope.purpose !== purpose ||
       envelope.accountId !== actor ||
       !ids.length ||
-      ids.length > 9 ||
+      ids.length > (purpose === 'publish_post' ? 9 : 3) ||
       new Set(ids).size !== ids.length
     )
       return { kind: 'unavailable' };
     const scope = await this.assets.peekOwnedScope(actor, ids, tx);
-    const revision = CommunityMediaOwner.scopeRevision(
-      envelope.spaceId,
-      envelope.scope,
-    );
+    const kind =
+      purpose === 'publish_post'
+        ? 'post'
+        : purpose === 'publish_comment'
+          ? 'comment'
+          : 'reply';
+    if (
+      (kind === 'comment' && !envelope.postId) ||
+      (kind === 'reply' && (!envelope.postId || !envelope.rootCommentId))
+    )
+      throw new ApplicationError('MEDIA_NOT_READY');
+    const revision =
+      kind === 'post'
+        ? CommunityMediaOwner.scopeRevision(envelope.spaceId, envelope.scope)
+        : CommunityMediaOwner.discussionScopeRevision(
+            envelope.spaceId,
+            envelope.scope,
+            envelope.postId!,
+            kind === 'comment'
+              ? { kind: 'comment', postId: envelope.postId! }
+              : {
+                  kind: 'reply',
+                  rootCommentId: envelope.rootCommentId!,
+                  targetReplyId: envelope.targetReplyId,
+                },
+          );
     if (revision !== scope.scopeRevision)
       throw new ApplicationError('MEDIA_NOT_READY');
     await this.owner.requireDraft(
@@ -61,10 +82,15 @@ export class CommunityMediaAttachmentAdapter implements MediaAttachmentPort {
         actor,
         scopeId: scope.scopeId,
         scopeRevision: revision,
-        purpose: 'community-post-image',
+        purpose:
+          kind === 'post'
+            ? 'community-post-image'
+            : kind === 'comment'
+              ? 'community-comment-image'
+              : 'community-reply-image',
         audience: 'content-gated',
         ownerKind: 'community',
-        resourceKind: 'post',
+        resourceKind: kind,
         contentVersion: 1,
       },
       ids,
@@ -90,16 +116,29 @@ export class CommunityMediaAttachmentAdapter implements MediaAttachmentPort {
   ): Promise<void> {
     if (!images.length) return;
     const accepted = this.accepted.get(tx)?.get(JSON.stringify(images));
-    if (!accepted || kind !== 'post')
-      throw new ApplicationError('MEDIA_NOT_READY');
+    if (!accepted) throw new ApplicationError('MEDIA_NOT_READY');
     await this.assets.bind(
       accepted,
       {
         ownerKind: 'community',
-        resourceKind: 'post',
+        resourceKind: kind,
         resourceId: id,
         contentVersion: 1,
       },
+      tx,
+    );
+  }
+  async detachMany(
+    targets: readonly { kind: 'post' | 'comment' | 'reply'; id: string }[],
+    tx: PoolClient,
+  ): Promise<void> {
+    await this.assets.detachMany(
+      targets.map(({ kind, id }) => ({
+        ownerKind: 'community' as const,
+        resourceKind: kind,
+        resourceId: id,
+        contentVersion: 1 as const,
+      })),
       tx,
     );
   }
@@ -108,7 +147,6 @@ export class CommunityMediaAttachmentAdapter implements MediaAttachmentPort {
     id: string,
     tx: PoolClient,
   ): Promise<void> {
-    if (kind !== 'post') throw new ApplicationError('MEDIA_UNAVAILABLE');
     await this.assets.detach(
       {
         ownerKind: 'community',

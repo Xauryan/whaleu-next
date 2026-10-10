@@ -1,3 +1,4 @@
+import { lockSafetyPolicy } from '../safety/locks.js';
 import { MEDIA_ATTACHMENT } from './community-policy.js';
 import type { MediaAttachmentPort } from './community-policy.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -6,6 +7,7 @@ import { CommunityRepository } from './community.repository.js';
 import type { StoredComment } from './community.repository.js';
 import { CommunityAccessService } from './community-access.service.js';
 import { requireAction } from './community-policy.js';
+import { deleteDiscussionImages } from './media/deletion-proof.js';
 @Injectable()
 export class DeletionService {
   constructor(
@@ -46,12 +48,25 @@ export class DeletionService {
   }
   comment(token: string, id: string): Promise<void> {
     return this.repository.database.transaction(async (tx) => {
+      await lockSafetyPolicy(tx, true);
       const actor = await this.access.actor(token, tx);
       const reference = await this.repository.comment(id, tx);
       if (reference.account_id !== actor)
         throw new ApplicationError('COMMENT_NOT_FOUND');
       // All child transitions lock parent first, including deletion; no inverse lock order.
       if (reference.deleted_at) return;
+      const images = await this.repository.images('comment', id, tx);
+      if (images.length)
+        return deleteDiscussionImages({
+          repository: this.repository,
+          access: this.access,
+          media: this.media,
+          tx,
+          actor,
+          id,
+          images,
+          target: { kind: 'comment', reference },
+        });
       const { post, space } = await this.access.accessiblePost(
         reference.post_id,
         actor,

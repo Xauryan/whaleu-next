@@ -1,4 +1,6 @@
 import type { PoolClient } from 'pg';
+import { mediaStatusV4Schema, mediaCancelV4Schema } from './contracts-v4.js';
+import type { MediaStatusV4, MediaCancelV4 } from './contracts-v4.js';
 import { ApplicationError } from '../http/application-error.js';
 import {
   transactionReadEpoch,
@@ -41,8 +43,18 @@ export class MediaRecoveryRepository {
   constructor(
     private readonly lifecycle: MediaLifecycleRepository,
     private readonly assets: Pick<MediaAssetRepository, 'readyOwned'>,
-    private readonly protocolVersion: 2 | 3 = 2,
+    private readonly protocolVersion: 2 | 3 | 4 = 2,
   ) {}
+  private get statusSchema() {
+    return this.protocolVersion === 4
+      ? mediaStatusV4Schema
+      : mediaStatusV2Schema;
+  }
+  private get cancelSchema() {
+    return this.protocolVersion === 4
+      ? mediaCancelV4Schema
+      : mediaCancelV2Schema;
+  }
   async recover(
     actor: string,
     requestId: string,
@@ -56,7 +68,11 @@ export class MediaRecoveryRepository {
         [actor, requestId],
       )
     ).rows[0];
-    const base = { version: 2, requestId, serverNow: await this.now(tx) };
+    const base = {
+      version: this.protocolVersion === 4 ? 4 : 2,
+      requestId,
+      serverNow: await this.now(tx),
+    };
     if (!fence)
       return mediaRequestRecoverySchema.parse({
         ...base,
@@ -98,7 +114,7 @@ export class MediaRecoveryRepository {
     id: string,
     tx: PoolClient,
     write = false,
-  ): Promise<MediaStatusV2> {
+  ): Promise<MediaStatusV2 | MediaStatusV4> {
     this.managed(tx);
     await lockMediaBatchesForIntents([id], tx, write);
     const intent = (
@@ -117,6 +133,7 @@ export class MediaRecoveryRepository {
         id: string;
         asset_id: string;
         resource_id: string;
+        resource_kind: string;
         detached_at: Date | null;
       }>(
         `SELECT b.* FROM whaleu_media.bindings b JOIN whaleu_media.assets a ON a.id=b.asset_id
@@ -126,7 +143,7 @@ export class MediaRecoveryRepository {
     ).rows[0];
     const serverNow = await this.now(tx);
     const base = {
-      version: 2,
+      version: this.protocolVersion === 4 ? 4 : 2,
       intentId: id,
       requestId: intent.client_request_id,
       requestHash: intent.request_hash,
@@ -138,13 +155,19 @@ export class MediaRecoveryRepository {
       const publication = (
         await tx.query<{ client_request_id: string; payload_hash: string }>(
           `SELECT client_request_id,payload_hash FROM whaleu_community.publication_requests
-         WHERE account_id=$1 AND operation='publish_post' AND receipt->>'outcome'='created'
+         WHERE account_id=$1 AND operation=$3 AND receipt->>'outcome'='created'
          AND receipt->>'resourceId'=$2 ORDER BY client_request_id LIMIT 2`,
-          [actor, binding.resource_id],
+          [
+            actor,
+            binding.resource_id,
+            this.protocolVersion === 4
+              ? `publish_${binding.resource_kind}`
+              : 'publish_post',
+          ],
         )
       ).rows;
       await this.proof.capture(tx);
-      return mediaStatusV2Schema.parse({
+      return this.statusSchema.parse({
         ...base,
         status: 'bound_history',
         assetId: binding.asset_id,
@@ -154,7 +177,10 @@ export class MediaRecoveryRepository {
           publication.length === 1
             ? {
                 clientRequestId: publication[0]!.client_request_id,
-                operation: 'publish_post',
+                operation:
+                  this.protocolVersion === 4
+                    ? `publish_${binding.resource_kind}`
+                    : 'publish_post',
                 intentHash: publication[0]!.payload_hash,
               }
             : null,
@@ -186,7 +212,7 @@ export class MediaRecoveryRepository {
             : intent.state === 'deleted'
               ? 'deleted'
               : 'expired');
-      return mediaStatusV2Schema.parse({
+      return this.statusSchema.parse({
         ...base,
         status: 'terminal',
         reason,
@@ -197,7 +223,7 @@ export class MediaRecoveryRepository {
       // Cancellation needs lifecycle identity, not a readiness/Review proof
       // whose pre-mutation epoch would invalidate the subsequent cancellation.
       if (write)
-        return mediaStatusV2Schema.parse({
+        return this.statusSchema.parse({
           ...base,
           status: 'unavailable',
           reason: 'MEDIA_UNAVAILABLE',
@@ -216,7 +242,7 @@ export class MediaRecoveryRepository {
           draft = deadlines.draft.getTime();
         const bindBefore = Math.min(retention, draft);
         if (bindBefore <= serverNow)
-          return mediaStatusV2Schema.parse({
+          return this.statusSchema.parse({
             ...base,
             status: 'terminal',
             reason: 'expired',
@@ -225,7 +251,7 @@ export class MediaRecoveryRepository {
         const ready = await this.assets.readyOwned(actor, id, tx);
         if (ready === deadlines.asset_id) {
           registerTransactionDeadline(tx, bindBefore, 'MEDIA_UNAVAILABLE');
-          return mediaStatusV2Schema.parse({
+          return this.statusSchema.parse({
             ...base,
             status: 'ready_unbound',
             assetId: ready,
@@ -236,7 +262,7 @@ export class MediaRecoveryRepository {
           });
         }
       }
-      return mediaStatusV2Schema.parse({
+      return this.statusSchema.parse({
         ...base,
         status: 'unavailable',
         reason: 'MEDIA_UNAVAILABLE',
@@ -252,7 +278,7 @@ export class MediaRecoveryRepository {
     ).rows[0];
     const operationDeadlineAt = intent.expires_at.getTime();
     if (intent.state === 'prepared')
-      return mediaStatusV2Schema.parse(
+      return this.statusSchema.parse(
         ingress?.writer_state === 'observed'
           ? { ...base, status: 'uploaded', operationDeadlineAt }
           : {
@@ -268,7 +294,7 @@ export class MediaRecoveryRepository {
                     : 'none',
             },
       );
-    return mediaStatusV2Schema.parse({
+    return this.statusSchema.parse({
       ...base,
       status: 'processing',
       operationDeadlineAt,
@@ -330,13 +356,13 @@ export class MediaRecoveryRepository {
     actor: string,
     id: string,
     tx: PoolClient,
-  ): Promise<MediaCancelV2> {
+  ): Promise<MediaCancelV2 | MediaCancelV4> {
     await lockMediaBatchesForIntents([id], tx, true);
     await lockMediaActor(actor, tx);
     const before = await this.status(actor, id, tx, true);
     if (before.status === 'bound_history')
-      return mediaCancelV2Schema.parse({
-        version: 2,
+      return this.cancelSchema.parse({
+        version: this.protocolVersion === 4 ? 4 : 2,
         result: 'bound_history',
         status: before,
       });
@@ -348,8 +374,8 @@ export class MediaRecoveryRepository {
       [actor, id, reason],
     );
     const status = await this.status(actor, id, tx);
-    return mediaCancelV2Schema.parse({
-      version: 2,
+    return this.cancelSchema.parse({
+      version: this.protocolVersion === 4 ? 4 : 2,
       result: before.status === 'terminal' ? 'already_terminal' : 'cancelled',
       status,
     });

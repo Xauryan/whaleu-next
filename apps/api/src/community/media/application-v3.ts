@@ -1,3 +1,4 @@
+import { withDiscussionMediaMutation } from '../../media/discussion-ancestor-proof.js';
 import type { PoolClient } from 'pg';
 import type { DatabaseService } from '../../database/database.js';
 import type { CurrentMediaSession } from '../../identity/current-media-session.js';
@@ -16,6 +17,7 @@ import type { MediaIngressRepository } from '../../media/ingress-repository.js';
 import type { MediaBatchRepository } from '../../media/batch-repository.js';
 import type { StoredObjectMeasurement } from '../../media/storage-port.js';
 import { prepareMediaV3Schema } from '../../media/contracts-v3.js';
+import { prepareMediaV4Schema } from '../../media/contracts-v4.js';
 import { lockMediaBatchesForIntents } from '../../media/batch-locks.js';
 import { lockMediaActor } from '../../media/intent-repository.js';
 
@@ -84,7 +86,7 @@ export class UnavailableCommunityMediaBatchApplication implements MediaBatchAppl
 }
 /** Constructor-only synthetic wiring. Uses the identical v2 parser/storage and
  * protocol-dispatched intent/recovery/ingress engines; no production flag. */
-export class CommunityMediaBatchApplication implements MediaBatchApplication {
+export class CommunityMediaBatchApplication {
   constructor(
     private readonly database: DatabaseService,
     private readonly access: CommunityAccessService,
@@ -124,7 +126,11 @@ export class CommunityMediaBatchApplication implements MediaBatchApplication {
     const status = await this.authorized(token, (s, tx) =>
       this.batches.finishCancellation(s.accountId, batchId, tx),
     );
-    return { version: 3 as const, state: 'recorded' as const, status };
+    return {
+      version: this.batches.protocolVersion,
+      state: 'recorded' as const,
+      status,
+    };
   }
   recoverPublication(token: string, input: unknown) {
     return this.authorized(
@@ -169,11 +175,12 @@ export class CommunityMediaBatchApplication implements MediaBatchApplication {
     )
       return status;
     return this.authorized(token, async (s, tx) => {
-      await this.scopes.authorizeV3(
+      await this.scopes.authorizeBatch(
         s.accountId,
-        prepareMediaV3Schema.parse(
-          await this.ingress.originalInput(s.accountId, id, tx),
-        ),
+        (this.batches.protocolVersion === 4
+          ? prepareMediaV4Schema
+          : prepareMediaV3Schema
+        ).parse(await this.ingress.originalInput(s.accountId, id, tx)),
         tx,
       );
       await this.requireEditing(s.accountId, id, tx);
@@ -203,11 +210,12 @@ export class CommunityMediaBatchApplication implements MediaBatchApplication {
       this.ingress.grant(
         s,
         id,
-        await this.scopes.authorizeV3(
+        await this.scopes.authorizeBatch(
           s.accountId,
-          prepareMediaV3Schema.parse(
-            await this.ingress.originalInput(s.accountId, id, tx),
-          ),
+          (this.batches.protocolVersion === 4
+            ? prepareMediaV4Schema
+            : prepareMediaV3Schema
+          ).parse(await this.ingress.originalInput(s.accountId, id, tx)),
           tx,
         ),
         this.scopes,
@@ -223,11 +231,12 @@ export class CommunityMediaBatchApplication implements MediaBatchApplication {
         s,
         id,
         grantId,
-        await this.scopes.authorizeV3(
+        await this.scopes.authorizeBatch(
           s.accountId,
-          prepareMediaV3Schema.parse(
-            await this.ingress.originalInput(s.accountId, id, tx),
-          ),
+          (this.batches.protocolVersion === 4
+            ? prepareMediaV4Schema
+            : prepareMediaV3Schema
+          ).parse(await this.ingress.originalInput(s.accountId, id, tx)),
           tx,
         ),
         this.scopes,
@@ -245,9 +254,12 @@ export class CommunityMediaBatchApplication implements MediaBatchApplication {
         s,
         claim,
         measurement,
-        await this.scopes.authorizeV3(
+        await this.scopes.authorizeBatch(
           s.accountId,
-          prepareMediaV3Schema.parse(
+          (this.batches.protocolVersion === 4
+            ? prepareMediaV4Schema
+            : prepareMediaV3Schema
+          ).parse(
             await this.ingress.originalInput(s.accountId, claim.intentId, tx),
           ),
           tx,
@@ -295,7 +307,14 @@ export class CommunityMediaBatchApplication implements MediaBatchApplication {
     return this.database.transaction(
       async (tx) => {
         await lockSafetyPolicy(tx, write);
-        return run(await this.access.mediaSession(token, tx), tx);
+        const session = await this.access.mediaSession(token, tx);
+        return this.batches.protocolVersion === 4 && write
+          ? withDiscussionMediaMutation(
+              tx,
+              { actor: session.accountId, protocolVersion: 4 },
+              () => run(session, tx),
+            )
+          : run(session, tx);
       },
       { isolationLevel: 'read committed' },
     );

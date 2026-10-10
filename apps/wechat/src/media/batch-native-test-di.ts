@@ -35,6 +35,16 @@ export function createBatchNativeTestAdapters(options: {
     auth,
     3,
   );
+  const discussionUpload = new AuthenticatedMediaUpload(
+    origin,
+    options.wxUpload,
+    files,
+    registry,
+    sessions,
+    clock,
+    auth,
+    4,
+  );
   const download = new AuthenticatedMediaDownload(
     origin,
     options.wxDownload,
@@ -50,5 +60,5 @@ export function createBatchNativeTestAdapters(options: {
     createGallery: (render) =>
       new MediaGalleryController(sessions, download, render, privateViews),
   };
-  return { registry, upload, download, read };
+  return { registry, upload, discussionUpload, download, read };
 }

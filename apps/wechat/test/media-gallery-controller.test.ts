@@ -132,8 +132,11 @@ test('malformed/duplicate full gallery is unavailable without partial download o
   await h.controller.load([h.descriptors[0]!, h.descriptors[0]!]);
   assert.equal(h.controller.snapshot().status, 'unavailable');
   assert.equal(h.calls.length, 0);
-  await h.controller.load(h.descriptors.slice(0, 1));
+  await h.controller.load([]);
   assert.equal(h.calls.length, 0);
+  await h.controller.load(h.descriptors.slice(0, 1));
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.controller.snapshot().slots[0]?.status, 'ready');
   h.controller.dispose();
 });
 

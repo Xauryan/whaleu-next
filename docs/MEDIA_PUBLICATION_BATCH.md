@@ -103,3 +103,14 @@ writer retirement: foreign/unknown writers remain retained. Native gallery
 coverage includes bounded file leases and emitted Page wiring, not physical
 WeChat device acceptance. Hosted CI is pending for this increment. Real provider,
 device and production activation remain separate gates.
+
+### Hosted checkpoint
+
+The signed v3 checkpoint `0e77fed` did not pass its
+[hosted verification](https://github.com/Xauryan/whaleu-next/actions/runs/38049899281):
+main PostgreSQL reported 2,274 passes and 5 failures (three leaf failures and two
+parent aggregations). Cheap tests and all 41 semantic tests passed; stats also
+passed. A missing score revision after the first failed context request caused
+one leaf failure. The following discussion increment adds deterministic notification
+observer coverage and safe diagnostics; the context 503 cause remains unproven.
+This checkpoint must not be described as CI-green.

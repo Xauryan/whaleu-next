@@ -49,7 +49,7 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
     private readonly sessions: SessionStore,
     private readonly clock: Clock,
     private readonly auth?: Pick<AuthService, 'refresh'>,
-    private readonly protocolVersion: 2 | 3 = 2,
+    private readonly protocolVersion: 2 | 3 | 4 = 2,
   ) {
     this.origin = normalizeOrigin(origin);
   }

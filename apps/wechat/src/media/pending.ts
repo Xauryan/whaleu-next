@@ -171,6 +171,13 @@ export class PendingMediaStore {
   }
   freeze(actor: string, raw: UploadPrepare, now: number): PendingMedia {
     try {
+      // A legacy controller cannot bypass the shared actor admission fence.
+      for (const version of [3, 4]) {
+        const batch = this.storage.get(
+          `whaleu.media.batch.pending.v${version}:${this.origin}:${actor}`,
+        );
+        if (batch !== undefined && batch !== null) throw storageError();
+      }
       const prepare = decodeUploadPrepare(raw);
       const value = decodePendingMedia(
         {

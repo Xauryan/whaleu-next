@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import * as discussion from '../src/media/contracts-v4.js';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { test } from 'node:test';
@@ -46,6 +50,8 @@ import {
 
 const execute = promisify(execFile);
 const probe = `import assert from 'node:assert/strict';
+import {writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import net from 'node:net';
 import pg from 'pg';
 import {NestApplication} from '@nestjs/core';
@@ -62,26 +68,40 @@ NestApplication.prototype.listen=fail;
 const {renderMediaOpenApiDocument}=await import('./.openapi-build/scripts/openapi-document.js');
 const first=await renderMediaOpenApiDocument();
 assert.equal(await renderMediaOpenApiDocument(),first);
-process.stdout.write(first);`;
+writeFileSync(process.env['MEDIA_OPENAPI_RESULT'],first,{flag:'wx'});
+process.stdout.write(createHash('sha256').update(first).digest('hex'));`;
 async function render() {
-  const result = await execute(
-    process.execPath,
-    ['--input-type=module', '-e', probe],
-    {
-      cwd: fileURLToPath(new URL('../', import.meta.url)),
-      timeout: 30000,
-      // Inline union schemas repeat per operation in the official exporter.
-      // This is a tooling stdout cap, not a runtime request or journal budget.
-      maxBuffer: 8 * 1024 * 1024,
-      env: {
-        ...process.env,
-        DATABASE_URL: 'invalid:offline-only',
-        NODE_ENV: 'production',
+  const directory = await mkdtemp(join(tmpdir(), 'whaleu-media-openapi-'));
+  const generated = join(directory, 'generated.json');
+  try {
+    const result = await execute(
+      process.execPath,
+      ['--input-type=module', '-e', probe],
+      {
+        cwd: fileURLToPath(new URL('../', import.meta.url)),
+        timeout: 30000,
+        // Complete documents are generated twice and compared in the offline child.
+        // Only its digest crosses stdout; the existing buffer budget is unchanged.
+        maxBuffer: 8 * 1024 * 1024,
+        env: {
+          ...process.env,
+          MEDIA_OPENAPI_RESULT: generated,
+          DATABASE_URL: 'invalid:offline-only',
+          NODE_ENV: 'production',
+        },
       },
-    },
-  );
-  assert.equal(result.stderr, '');
-  return result.stdout;
+    );
+    assert.equal(result.stderr, '');
+    assert.match(result.stdout, /^[a-f0-9]{64}$/);
+    const bytes = await readFile(generated, 'utf8');
+    assert.equal(
+      createHash('sha256').update(bytes).digest('hex'),
+      result.stdout,
+    );
+    return bytes;
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 }
 const cases = [
   ['/v1/media/upload-intents', 'post', '200'],
@@ -219,6 +239,93 @@ const v3cases = [
   ],
 ] as const;
 
+const v4cases = [
+  [
+    '/v4/media/batches/prepare',
+    'post',
+    discussion.mediaBatchIdentitySchema,
+    discussion.mediaBatchStatusSchema,
+  ],
+  [
+    '/v4/media/batches/requests/{id}',
+    'get',
+    undefined,
+    discussion.mediaBatchRecoverySchema,
+  ],
+  [
+    '/v4/media/batches/requests/{id}/cancel',
+    'post',
+    discussion.mediaBatchCancelSchema,
+    discussion.mediaBatchRecoverySchema,
+  ],
+  [
+    '/v4/media/batches/recover-publication',
+    'post',
+    discussion.mediaBatchRecoverPublicationSchema,
+    discussion.mediaBatchPublicationRecoverySchema,
+  ],
+  [
+    '/v4/media/batches/{id}/fence-publication',
+    'post',
+    discussion.mediaBatchFencePublicationSchema,
+    discussion.mediaBatchFencePublicationResultSchema,
+  ],
+  [
+    '/v4/media/batches/{id}/layout',
+    'post',
+    discussion.mediaBatchLayoutSchema,
+    discussion.mediaBatchStatusSchema,
+  ],
+  [
+    '/v4/media/batches/{id}/seal',
+    'post',
+    discussion.mediaBatchSealSchema,
+    discussion.mediaBatchStatusSchema,
+  ],
+  [
+    '/v4/media/batches/{id}/reopen',
+    'post',
+    discussion.mediaBatchReopenSchema,
+    discussion.mediaBatchStatusSchema,
+  ],
+  [
+    '/v4/media/batches/{id}/members/prepare',
+    'post',
+    discussion.mediaMemberPrepareSchema,
+    discussion.mediaMemberStatusSchema,
+  ],
+  [
+    '/v4/media/upload-intents/{id}',
+    'get',
+    undefined,
+    discussion.mediaMemberStatusSchema,
+  ],
+  [
+    '/v4/media/upload-intents/{id}/grant',
+    'post',
+    z.strictObject({}),
+    mediaGrantSchema,
+  ],
+  [
+    '/v4/media/upload-intents/{id}/finalize',
+    'post',
+    z.strictObject({}),
+    discussion.mediaMemberStatusSchema,
+  ],
+  [
+    '/v4/media/upload-intents/{id}/cancel',
+    'post',
+    z.strictObject({}),
+    discussion.mediaMemberStatusSchema,
+  ],
+  [
+    '/v4/media/upload-intents/{id}/uploads/{grantId}',
+    'post',
+    undefined,
+    mediaUploadObservedSchema,
+  ],
+] as const;
+
 test('Media official Swagger export is offline, deterministic and artifact-current', async () => {
   assert.equal(
     await render(),
@@ -234,7 +341,7 @@ test('Media operations require bearer auth and private sanitized responses', asy
   assert.equal(doc.openapi, '3.0.3');
   assert.deepEqual(
     Object.keys(doc.paths).sort(),
-    [...cases, ...v2cases, ...v3cases].map(([p]) => p).sort(),
+    [...cases, ...v2cases, ...v3cases, ...v4cases].map(([p]) => p).sort(),
   );
   for (const [path, method, success] of cases) {
     assert.deepEqual(Object.keys(doc.paths[path]!), [method]);
@@ -356,9 +463,13 @@ test('Media binary delivery and v1 descriptor expose no storage address or origi
   );
 });
 
-test('Media v2 and v3 export exact strict recovery, batch, member and shared multipart contracts', async () => {
+test('Media v2, v3 and v4 export exact strict recovery, batch, member and shared multipart contracts', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
-  for (const [path, method, input, output] of [...v2cases, ...v3cases]) {
+  for (const [path, method, input, output] of [
+    ...v2cases,
+    ...v3cases,
+    ...v4cases,
+  ]) {
     assert.deepEqual(Object.keys(doc.paths[path]!), [method]);
     const operation = doc.paths[path]![method]!;
     assert.deepEqual(operation.security, [{ accessToken: [] }]);

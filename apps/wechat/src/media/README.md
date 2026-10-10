@@ -54,3 +54,48 @@ Not delivered here: live HTTP routes, SDK upload plans, production
 transfer adapter, compression implementation, list/detail page integration,
 publication/receipt recovery, real bytes processing, full S1 end-to-end acceptance,
 real providers, or real-device/production verification.
+
+## Additive discussion batch source (v4)
+
+The historical foundation notes above describe the original S0/S1 scope. The
+explicit discussion adapters now use `/v4/media` with identity version 2,
+`community-comment-images` / `community-reply-images`, and immutable typed
+comment/post or reply/root/target identity. They permit at most three images;
+empty text is allowed only for comment/reply with a complete nonempty image set.
+The original v1/v2/v3 protocol decoders, hash domains and Community pending-body
+serialization remain separate. The shared batch engine dispatches validated v3
+and v4 records without changing old HTTP acceptance.
+
+`whaleu.media.batch.pending.v4` is a metadata-only WAL. The store checks legacy,
+v3 and v4 keys before admission; conflicting or unreadable keys are not absence.
+All operations share the actor writer, original Community pending-body owner,
+receipt-first recovery, exact full history validation and staged two-key clear.
+Changing a discussion target requires recovering or cancelling the original batch.
+
+Synthetic DI may supply `discussionGateway` and `discussionTransfer` alongside
+v3 adapters. `createBatchNativeTestAdapters` gives v3/v4 uploads and downloads
+one `MediaLocalFiles` registry, retaining two native transfers, one unresolved
+actor upload writer, four leases and 10 MiB. Default runtime/provider availability
+is unchanged. Detail retains automatic single-post reads through its original
+reader and automatic multi-post thumbnail windows. Comment/reply groups remain
+explicit selections, with one gallery per page and no independent row downloaders.
+The legacy reader and gallery share the same registry; source revocation precedes
+cleanup, and switching groups or returning to the post awaits retiring work while
+preserving the original account/epoch for the new read.
+
+`test/support/native-discussion-process.mjs` is a test-only crash harness
+for a parent API integration driver. It accepts credentials only over IPC,
+flushes disk journals, remaps fixed first-party routes to loopback and exposes
+reserve/body/link/seal/dispatch/receipt/settlement/Community-clear/Media-clear
+checkpoints for parent-controlled SIGKILL. A reserved Media-only restart does not
+invent a missing publication body. Coverage is established by actual execution under the separately granted
+validation resource lease and the final frozen-source gate, not by harness source.
+Neither client restart nor local abort proves server writer quiescence.
+
+V4 status and journal additionally retain `resolvedPostId` as immutable,
+metadata-only server ancestry. Before server prepare the v4 WAL uses null; a
+recorded batch requires a UUID, and a pre-prepare cancellation fence has null.
+Reply recovery compares this proof to the original Community PendingAttempt's
+postId even though the historical reply request hash intentionally excludes it.
+Missing or conflicting ancestry stays unresolved and is never repaired from the
+current page. No new field is inserted into legacy status/journal bytes.

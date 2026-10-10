@@ -143,7 +143,7 @@ export class PendingAttemptStore {
       throw storageError();
     }
   }
-  /** Additive v3 cancellation settlement. A not-found response and dispatch hint
+  /** Additive batch cancellation settlement. A not-found response and dispatch hint
    * never reach this method; only the exact durable owner fence is accepted. */
   settleCancelled(
     attempt: PendingAttempt,
@@ -152,9 +152,8 @@ export class PendingAttemptStore {
   ): void {
     exact(raw, ['requestId', 'operation', 'outcome', 'intentHash']);
     if (
-      attempt.operation !== 'publish_post' ||
       raw.requestId !== attempt.payload.clientRequestId ||
-      raw.operation !== 'publish_post' ||
+      raw.operation !== attempt.operation ||
       raw.outcome !== 'cancelled' ||
       typeof expectedIntentHash !== 'string' ||
       !/^[a-f0-9]{64}$/.test(expectedIntentHash) ||

@@ -1,3 +1,4 @@
+import { collectDiscussionAncestorMedia } from './discussion-ancestor-proof.js';
 import { validateCurrentMedia } from './current-facts.js';
 import { lockMediaBatchesForIntents } from './batch-locks.js';
 import type {
@@ -59,10 +60,13 @@ export interface ExpectedMediaAttachScope {
   readonly actor: string;
   readonly scopeId: string;
   readonly scopeRevision: string;
-  readonly purpose: 'community-post-image';
+  readonly purpose:
+    | 'community-post-image'
+    | 'community-comment-image'
+    | 'community-reply-image';
   readonly audience: 'content-gated';
   readonly ownerKind: 'community';
-  readonly resourceKind: 'post';
+  readonly resourceKind: 'post' | 'comment' | 'reply';
   readonly contentVersion: 1;
 }
 const acceptedBrand: unique symbol = Symbol('accepted-media-assets');
@@ -85,6 +89,7 @@ export class MediaAssetRepository {
   constructor(
     private readonly owners: MediaOwnerProofRegistry,
     private readonly batches?: MediaBatchRepository,
+    private readonly discussionBatches?: MediaBatchRepository,
   ) {}
   async peekOwnedScope(
     actor: string,
@@ -126,8 +131,12 @@ export class MediaAssetRepository {
     const epoch = this.managed(tx);
     if (!ids.length || ids.length > 9 || new Set(ids).size !== ids.length)
       throw new ApplicationError('MEDIA_NOT_READY');
-    const batch = this.batches
-      ? await this.batches.peekSealed(scope.actor, ids, publication, tx)
+    const repository =
+      scope.resourceKind === 'post' ? this.batches : this.discussionBatches;
+    if (ids.length > (scope.resourceKind === 'post' ? 9 : 3))
+      throw new ApplicationError('MEDIA_NOT_READY');
+    const batch = repository
+      ? await repository.peekSealed(scope.actor, ids, publication, tx)
       : null;
     const protocols = (
       await tx.query<{ protocol_version: number }>(
@@ -138,9 +147,13 @@ export class MediaAssetRepository {
     if (
       protocols.length !== ids.length ||
       (batch
-        ? protocols.some((row) => row.protocol_version !== 3)
+        ? protocols.some(
+            (row) =>
+              row.protocol_version !== (scope.resourceKind === 'post' ? 3 : 4),
+          )
         : ids.length !== 1 ||
-          protocols.some((row) => row.protocol_version === 3))
+          scope.resourceKind !== 'post' ||
+          protocols.some((row) => row.protocol_version >= 3))
     )
       throw new ApplicationError('MEDIA_NOT_READY');
     if (
@@ -242,7 +255,7 @@ export class MediaAssetRepository {
         JSON.stringify(
           facts.batch
             ? {
-                version: 2,
+                version: facts.batch.version,
                 batchId: facts.batch.batchId,
                 batchRevision: facts.batch.batchRevision,
                 attachmentPlanDigest: facts.batch.attachmentPlanDigest,
@@ -281,7 +294,7 @@ export class MediaAssetRepository {
           JSON.stringify(
             facts.batch
               ? {
-                  version: 2,
+                  version: facts.batch.version,
                   scopeId: facts.scope.scopeId,
                   scopeRevision: facts.scope.scopeRevision,
                   batchId: facts.batch.batchId,
@@ -306,8 +319,10 @@ export class MediaAssetRepository {
       });
     }
     if (facts.batch) {
-      if (!this.batches) throw new ApplicationError('MEDIA_NOT_READY');
-      await this.batches.consumeSealed(facts.batch, parent, bindings, tx);
+      const repository =
+        facts.batch.version === 3 ? this.discussionBatches : this.batches;
+      if (!repository) throw new ApplicationError('MEDIA_NOT_READY');
+      await repository.consumeSealed(facts.batch, parent, bindings, tx);
     }
     // All expected Media writes precede this snapshot. Later Media writes fail
     // the mandatory final proof, so callers cannot silently omit revalidation.
@@ -346,21 +361,52 @@ export class MediaAssetRepository {
     tx: PoolClient,
   ): Promise<void> {
     this.managed(tx);
-    await this.exactDescriptors(parent, 'content-gated', expected, tx);
+    await this.exactDescriptors(
+      parent,
+      'content-gated',
+      expected,
+      tx,
+      !collectDiscussionAncestorMedia(tx, parent, expected),
+    );
+  }
+  /** Delete-transition proof only: exact original set is now detached and its
+   * intent has durably entered cleanup. Never produces downloadable descriptors. */
+  async verifyDeletedContentBindings(
+    parent: MediaParent,
+    expected: readonly { assetId: string; digest: string }[],
+    tx: PoolClient,
+  ): Promise<void> {
+    this.managed(tx);
+    if (
+      parent.ownerKind !== 'community' ||
+      !['comment', 'reply'].includes(parent.resourceKind) ||
+      !collectDiscussionAncestorMedia(tx, parent, expected)
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    await this.exactDescriptors(
+      parent,
+      'content-gated',
+      expected,
+      tx,
+      false,
+      true,
+    );
   }
   private async exactDescriptors(
     parent: MediaParent,
     audience: string,
     expected: readonly { assetId: string; digest: string }[],
     tx: PoolClient,
+    capture = true,
+    detached = false,
   ): Promise<MediaAttachmentDescriptor[]> {
     if (
       !expected.length ||
-      expected.length > 9 ||
+      expected.length > (parent.resourceKind === 'post' ? 9 : 3) ||
       new Set(expected.map((image) => image.assetId)).size !== expected.length
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
-    await this.proof.capture(tx);
+    if (capture) await this.proof.capture(tx);
     const bindings = (
       await tx.query<{
         id: string;
@@ -369,12 +415,13 @@ export class MediaAssetRepository {
         ordinal: number;
       }>(
         `SELECT id,asset_id,manifest_digest,ordinal FROM whaleu_media.bindings
-      WHERE owner_kind=$1 AND resource_kind=$2 AND resource_id=$3 AND content_version=$4 AND slot='images' AND detached_at IS NULL ORDER BY ordinal LIMIT 10`,
+      WHERE owner_kind=$1 AND resource_kind=$2 AND resource_id=$3 AND content_version=$4 AND slot='images' AND ($5::boolean OR detached_at IS NULL) ORDER BY ordinal LIMIT 10`,
         [
           parent.ownerKind,
           parent.resourceKind,
           parent.resourceId,
           parent.contentVersion,
+          detached,
         ],
       )
     ).rows;
@@ -399,7 +446,9 @@ export class MediaAssetRepository {
     ).rows;
     if (
       lockedBindings.length !== bindings.length ||
-      lockedBindings.some((b) => b.detached_at !== null)
+      lockedBindings.some((b) =>
+        detached ? b.detached_at === null : b.detached_at !== null,
+      )
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const byId = new Map(rows.map((row) => [row.id, row]));
@@ -418,11 +467,29 @@ export class MediaAssetRepository {
         asset.manifest_digest !== approved.digest ||
         asset.owner_kind !== parent.ownerKind ||
         asset.resource_kind !== parent.resourceKind ||
+        asset.purpose !== `community-${parent.resourceKind}-image` ||
         Number(asset.content_version) !== parent.contentVersion ||
         asset.slot !== 'images'
       )
         throw new ApplicationError('MEDIA_UNAVAILABLE');
-      const manifest = await this.current(asset, tx);
+      const manifest = await this.current(asset, tx, detached);
+      if (detached) {
+        for (const measured of [manifest.original, ...manifest.variants]) {
+          const object = measured.object;
+          const obligation = await tx.query(
+            `SELECT 1 FROM whaleu_media.cleanup_obligations WHERE provider=$1 AND environment=$2 AND bucket=$3 AND object_key=$4 AND object_version=$5 AND state IN ('pending','retryable','retained')`,
+            [
+              object.provider,
+              object.environment,
+              object.bucket,
+              object.key,
+              object.version,
+            ],
+          );
+          if (obligation.rowCount !== 1)
+            throw new ApplicationError('MEDIA_UNAVAILABLE');
+        }
+      }
       const display = manifest.variants[1];
       result.push(
         mediaAttachmentDescriptorSchema.parse({
@@ -438,7 +505,28 @@ export class MediaAssetRepository {
     }
     return result;
   }
+  async detachMany(
+    parents: readonly MediaParent[],
+    tx: PoolClient,
+  ): Promise<void> {
+    this.managed(tx);
+    if (
+      parents.length > 16 ||
+      new Set(parents.map((parent) => JSON.stringify(parent))).size !==
+        parents.length
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    for (const parent of parents) await this.detachCurrent(parent, tx, false);
+    await this.proof.capture(tx);
+  }
   async detach(parent: MediaParent, tx: PoolClient): Promise<void> {
+    await this.detachCurrent(parent, tx, true);
+  }
+  private async detachCurrent(
+    parent: MediaParent,
+    tx: PoolClient,
+    capture: boolean,
+  ): Promise<void> {
     this.managed(tx);
     const rows = (
       await tx.query<{ asset_id: string; intent_id: string }>(
@@ -469,7 +557,7 @@ export class MediaAssetRepository {
     const lifecycle = new MediaLifecycleRepository();
     for (const intentId of [...new Set(rows.map((r) => r.intent_id))].sort())
       await lifecycle.detachedOwnerIntent(intentId, tx);
-    await this.proof.capture(tx);
+    if (capture) await this.proof.capture(tx);
   }
   async readyOwned(
     actor: string,
@@ -522,14 +610,14 @@ export class MediaAssetRepository {
     if (
       !row ||
       row.owner_kind !== 'community' ||
-      row.resource_kind !== 'post' ||
+      !['post', 'comment', 'reply'].includes(row.resource_kind) ||
       Number(row.content_version) !== 1
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     return {
       parent: {
         ownerKind: 'community',
-        resourceKind: 'post',
+        resourceKind: row.resource_kind as 'post' | 'comment' | 'reply',
         resourceId: row.resource_id,
         contentVersion: 1,
       },
@@ -640,6 +728,7 @@ export class MediaAssetRepository {
   private async current(
     asset: AssetRow,
     tx: PoolClient,
+    detached = false,
   ): Promise<MediaManifest> {
     const intent = (
       await tx.query<{ state: string }>(
@@ -653,7 +742,7 @@ export class MediaAssetRepository {
         [asset.id],
       )
     ).rows[0];
-    if (intent?.state !== 'ready' || !head)
+    if (intent?.state !== (detached ? 'cleanup_pending' : 'ready') || !head)
       throw new ApplicationError('MEDIA_NOT_READY');
     const event = (
       await tx.query<{
@@ -674,7 +763,7 @@ export class MediaAssetRepository {
     ).rows[0];
     const checked = validateCurrentMedia(
       asset,
-      intent.state,
+      detached ? 'ready' : intent.state,
       event,
       event?.read_at.getTime(),
       event?.exact_time_valid === true,

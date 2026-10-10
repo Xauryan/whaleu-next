@@ -57,7 +57,7 @@
         <button size="mini" data-id="{{item.memberId}}" bindtap="onReplaceImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit}}">替换</button>
         <button size="mini" data-id="{{item.memberId}}" bindtap="onRemoveImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit}}">移除</button>
       </view>
-      <button bindtap="onSelectImage" disabled="{{frozen || busy || mediaBusy || !canSelectImage}}">添加一张原图（{{mediaSelected}}/9）</button>
+      <button bindtap="onSelectImage" disabled="{{frozen || busy || mediaBusy || !canSelectImage}}">添加一张原图（{{mediaSelected}}/{{maxImages}}）</button>
       <button bindtap="onRecoverImage" disabled="{{busy || mediaBusy}}">确认整批图片状态</button>
       <button bindtap="onCancelImage" disabled="{{busy || mediaBusy}}">取消整批图片（需服务器确认）</button>
     </view>

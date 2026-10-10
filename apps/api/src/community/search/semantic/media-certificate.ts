@@ -46,7 +46,7 @@ export const semanticMediaChainSchema = z
     for (const [index, node] of nodes.entries()) {
       if (
         node.kind !== ['post', 'comment', 'reply'][index] ||
-        (node.kind !== 'post' && node.attachments?.length) ||
+        (node.kind !== 'post' && (node.attachments?.length ?? 0) > 3) ||
         (node.decision !== 'allow' && index !== nodes.length - 1)
       )
         ctx.addIssue({ code: 'custom', message: 'Invalid Media ancestry' });

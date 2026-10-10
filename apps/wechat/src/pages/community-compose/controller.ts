@@ -1,3 +1,4 @@
+import type { BatchTarget } from '../../media/batch-engine-contracts';
 import type {
   MediaBatchController,
   BatchMemberView,
@@ -88,6 +89,7 @@ export interface ComposeView extends CommunityView {
   readonly mediaMembers: readonly BatchMemberView[];
   readonly mediaReady: number;
   readonly mediaSelected: number;
+  readonly maxImages: number;
   readonly mediaCanEdit: boolean;
   readonly mediaBusy: boolean;
   readonly maxText: number;
@@ -128,6 +130,7 @@ export const initialComposeView = (): ComposeView => ({
   mediaMembers: [],
   mediaReady: 0,
   mediaSelected: 0,
+  maxImages: 9,
   mediaCanEdit: false,
   mediaBusy: false,
   maxText: 2500,
@@ -228,37 +231,33 @@ export class ComposeController extends CommunityController<ComposeView> {
     } catch {
       this.mediaMode = 'conflict';
     }
-    this.batcher =
-      this.target?.operation === 'publish_post'
-        ? runtime.mediaBatch?.create((view) => {
-            if (this.mediaDisposed || this.mediaMode === 'legacy') return;
-            this.update({
-              batchMode: true,
-              mediaStatus: view.status,
-              mediaProgress: view.progress,
-              mediaMembers: view.members,
-              mediaReady: view.ready,
-              mediaSelected: view.selected,
-              mediaCanEdit: view.canEdit,
-              canSelectImage: view.canAdd,
-              mediaNotice: `已就绪 ${view.ready} / 已选 ${view.selected}，最多 9 张。${view.retiring ? '有图片取消尚未确认。' : ''}任何图片状态未知时均不能发布。`,
-            });
-            this.recompute();
-          })
-        : undefined;
-    this.uploader =
-      this.target?.operation === 'publish_post'
-        ? runtime.mediaUpload?.create((view) => {
-            if (this.mediaDisposed || this.mediaMode !== 'legacy') return;
-            this.update({
-              mediaStatus: view.status,
-              mediaProgress: view.progress,
-              canSelectImage: this.uploader?.available === true,
-              mediaNotice: mediaUploadNotice(view),
-            });
-            this.recompute();
-          })
-        : undefined;
+    this.batcher = runtime.mediaBatch?.create((view) => {
+      if (this.mediaDisposed || this.mediaMode === 'legacy') return;
+      this.update({
+        batchMode: true,
+        mediaStatus: view.status,
+        mediaProgress: view.progress,
+        mediaMembers: view.members,
+        mediaReady: view.ready,
+        mediaSelected: view.selected,
+        mediaCanEdit: view.canEdit,
+        maxImages: view.maxMembers,
+        ...(view.status === 'publication_pending' ? { frozen: true } : {}),
+        canSelectImage: view.canAdd,
+        mediaNotice: `已就绪 ${view.ready} / 已选 ${view.selected}，最多 ${view.maxMembers} 张。${view.retiring ? '有图片取消尚未确认。' : ''}任何图片状态未知时均不能发布。`,
+      });
+      this.recompute();
+    }, this.target?.operation);
+    this.uploader = runtime.mediaUpload?.create((view) => {
+      if (this.mediaDisposed || this.mediaMode !== 'legacy') return;
+      this.update({
+        mediaStatus: view.status,
+        mediaProgress: view.progress,
+        canSelectImage: this.uploader?.available === true,
+        mediaNotice: mediaUploadNotice(view),
+      });
+      this.recompute();
+    });
   }
   private useBatch(): boolean {
     return this.mediaMode === 'batch' && !!this.batcher;
@@ -272,10 +271,6 @@ export class ComposeController extends CommunityController<ComposeView> {
         : this.uploader;
   }
   private refreshMediaMode(): boolean {
-    if (this.target && this.target.operation !== 'publish_post') {
-      this.mediaMode = 'legacy';
-      return true;
-    }
     try {
       this.mediaMode =
         this.runtime.mediaBatch && this.accountId()
@@ -453,6 +448,18 @@ export class ComposeController extends CommunityController<ComposeView> {
         this.capabilities = result.capability;
         this.commentCapabilities = result.commentCapability;
         this.parentPost = result.post;
+        if (this.useBatch()) {
+          try {
+            this.batcher!.assertTarget(this.mediaTarget(''));
+          } catch (error) {
+            this.update({
+              frozen: true,
+              canSubmit: false,
+              blocker: '请先恢复或取消原评论对象的整批图片',
+            });
+            throw error;
+          }
+        }
         const draft = this.runtime.drafts.load(accountId, targetKey(target));
         const forced =
           result.commentCapability?.forcedAuthorMode === 'anonymous' ||
@@ -548,6 +555,7 @@ export class ComposeController extends CommunityController<ComposeView> {
       frozen: true,
       canSubmit: false,
       text: pending.payload.text,
+      maxImages: pending.operation === 'publish_post' ? 9 : 3,
       isTrading:
         pending.operation === 'publish_post' &&
         pending.payload.category === 'trading',
@@ -847,7 +855,9 @@ export class ComposeController extends CommunityController<ComposeView> {
         ? this.commentCapabilities?.authorModes
         : cap?.authorModes;
     let blocker = '';
-    if (this.mediaMode === 'conflict')
+    if (isComment && this.mediaMode === 'legacy' && this.runtime.mediaBatch)
+      blocker = '请先恢复原帖子的图片操作';
+    else if (this.mediaMode === 'conflict')
       blocker = '先分别恢复旧图片与整批图片记录';
     else if (this.identityConflict)
       blocker = '历史评论身份偏好冲突，请明确选择匿名或公开身份';
@@ -866,12 +876,20 @@ export class ComposeController extends CommunityController<ComposeView> {
     else if (
       !boundedText(
         this.view.text.replace(/\r\n/g, '\n'),
-        1,
+        isComment ? 0 : 1,
         this.view.maxText,
       ) ||
-      !this.view.text.trim()
+      (!this.view.text.trim() &&
+        !(
+          isComment &&
+          this.view.batchMode &&
+          this.view.mediaSelected > 0 &&
+          this.view.mediaReady === this.view.mediaSelected
+        ))
     )
-      blocker = `请输入 1–${this.view.maxText} 个有效字符，保留你输入的空格与换行`;
+      blocker = isComment
+        ? `请填写不超过 ${this.view.maxText} 字的正文或添加 1–3 张图片`
+        : `请输入 1–${this.view.maxText} 个有效字符，保留你输入的空格与换行`;
     if (!blocker && this.view.pollDraft.enabled) {
       try {
         pollDraftComponent(this.view.pollDraft);
@@ -959,12 +977,15 @@ export class ComposeController extends CommunityController<ComposeView> {
     };
     await this.run(
       async (cancel) => {
-        const imageAssetIds =
-          target.operation === 'publish_post' && this.activeUploader()
-            ? await this.activeUploader()!.publicationAssets(
-                target.spaceId,
-                cancel,
-              )
+        const imageTarget = this.mediaTarget('');
+        const imageAssetIds = this.useBatch()
+          ? await this.batcher!.publicationAssets(
+              imageTarget.spaceId,
+              cancel,
+              imageTarget.target,
+            )
+          : target.operation === 'publish_post' && this.uploader
+            ? await this.uploader.publicationAssets(target.spaceId, cancel)
             : [];
         const requestId = await this.runtime.newRequestId();
         this.runtime.sessions.assertCurrent(owner);
@@ -1002,7 +1023,7 @@ export class ComposeController extends CommunityController<ComposeView> {
                     clientRequestId: requestId,
                     text: draft.text,
                     authorMode: draft.authorMode,
-                    imageAssetIds: [],
+                    imageAssetIds,
                     targetReplyId: target.targetReplyId,
                   }),
                 }
@@ -1015,7 +1036,7 @@ export class ComposeController extends CommunityController<ComposeView> {
                     clientRequestId: requestId,
                     text: draft.text,
                     authorMode: draft.authorMode,
-                    imageAssetIds: [],
+                    imageAssetIds,
                   }),
                 };
         // Reserve metadata first; Community remains the only owner of body bytes.
@@ -1211,20 +1232,44 @@ export class ComposeController extends CommunityController<ComposeView> {
     });
     if (receipt.outcome === 'created') this.onCreated(receipt);
   }
+  private mediaTarget(draftId: string): BatchTarget {
+    const target = this.target;
+    if (!target)
+      throw new ClientError('business', 'Original publication target required');
+    if (target.operation === 'publish_post')
+      return { draftId, spaceId: target.spaceId };
+    if (!this.parentPost || this.parentPost.id !== target.postId)
+      throw new ClientError(
+        'business',
+        'Original discussion parent must be loaded',
+      );
+    return {
+      draftId,
+      spaceId: this.parentPost.space.id,
+      target:
+        target.operation === 'publish_comment'
+          ? { kind: 'comment', postId: target.postId }
+          : {
+              kind: 'reply',
+              rootCommentId: target.rootCommentId,
+              targetReplyId: target.targetReplyId,
+            },
+    };
+  }
   selectImage(): Promise<void> {
     if (
       !this.refreshMediaMode() ||
       !this.activeUploader()?.available ||
-      this.target?.operation !== 'publish_post' ||
+      !this.target ||
+      (this.target.operation !== 'publish_post' && !this.useBatch()) ||
       this.view.frozen ||
       this.view.busy
     )
       return Promise.resolve();
-    const spaceId = this.target.spaceId;
     return this.runMediaAction('select', async (current) => {
       const draftId = await this.runtime.newRequestId();
       current();
-      await this.activeUploader()!.select({ draftId, spaceId });
+      await this.activeUploader()!.select(this.mediaTarget(draftId));
       current();
       if (!this.useBatch()) await this.uploader!.start();
     });
@@ -1238,14 +1283,14 @@ export class ComposeController extends CommunityController<ComposeView> {
         await this.batcher?.recover();
         current();
         this.refreshMediaMode();
-      } else await this.activeUploader()!.recover();
+      } else await this.activeUploader()?.recover();
     });
   }
   cancelImage(): Promise<void> {
     return this.runMediaAction('cancel', async (current) => {
       current();
       if (!this.refreshMediaMode()) return;
-      await this.activeUploader()!.cancelOriginal();
+      await this.activeUploader()?.cancelOriginal();
       current();
       if (
         this.useBatch() &&
@@ -1283,16 +1328,15 @@ export class ComposeController extends CommunityController<ComposeView> {
     if (
       !this.useBatch() ||
       !this.refreshMediaMode() ||
-      this.target?.operation !== 'publish_post' ||
+      !this.target ||
       this.view.frozen ||
       this.view.busy
     )
       return Promise.resolve();
-    const spaceId = this.target.spaceId;
     return this.runMediaAction('layout', async (current) => {
       const draftId = await this.runtime.newRequestId();
       current();
-      await this.batcher!.replace(memberId, { draftId, spaceId });
+      await this.batcher!.replace(memberId, this.mediaTarget(draftId));
     });
   }
   private runMediaAction(

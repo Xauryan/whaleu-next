@@ -1,3 +1,7 @@
+import {
+  mediaStatusV2Schema,
+  mediaCancelV2Schema,
+} from '../../media/contracts-v2.js';
 import type { PoolClient } from 'pg';
 import type { CurrentMediaSession } from '../../identity/current-media-session.js';
 import type { DatabaseService } from '../../database/database.js';
@@ -103,7 +107,9 @@ export class CommunityMediaUploadApplicationV2 implements MediaUploadApplication
         await this.scopes.authorizeV2(session.accountId, input, tx),
         tx,
       );
-      return this.recovery.status(session.accountId, receipt.intentId, tx);
+      return this.recovery
+        .status(session.accountId, receipt.intentId, tx)
+        .then((value) => mediaStatusV2Schema.parse(value));
     });
   }
   recoverRequest(token: string, id: string) {
@@ -121,13 +127,18 @@ export class CommunityMediaUploadApplicationV2 implements MediaUploadApplication
   statusV2(token: string, id: string) {
     return this.authorized(
       token,
-      (s, tx) => this.recovery.status(s.accountId, id, tx),
+      (s, tx) =>
+        this.recovery
+          .status(s.accountId, id, tx)
+          .then((value) => mediaStatusV2Schema.parse(value)),
       false,
     );
   }
   cancelV2(token: string, id: string) {
     return this.authorized(token, (s, tx) =>
-      this.recovery.cancel(s.accountId, id, tx),
+      this.recovery
+        .cancel(s.accountId, id, tx)
+        .then((value) => mediaCancelV2Schema.parse(value)),
     );
   }
   async finalizeV2(token: string, id: string): Promise<MediaStatusV2> {
@@ -144,7 +155,9 @@ export class CommunityMediaUploadApplicationV2 implements MediaUploadApplication
       const input = await this.ingress.originalInput(session.accountId, id, tx);
       await this.scopes.authorizeV2(session.accountId, input, tx);
       await this.lifecycle.finalize(session.accountId, id, tx);
-      return this.recovery.status(session.accountId, id, tx);
+      return this.recovery
+        .status(session.accountId, id, tx)
+        .then((value) => mediaStatusV2Schema.parse(value));
     });
   }
   async grant(token: string, id: string) {

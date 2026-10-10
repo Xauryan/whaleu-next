@@ -28,6 +28,7 @@ function fixture() {
   };
   const row = {
     parent_id: reference.parent.resourceId,
+    parent_kind: reference.parent.resourceKind,
     binding_id: randomUUID(),
     asset_id: reference.expected[0]!.assetId,
     binding_digest: sealed.digest,
@@ -144,7 +145,7 @@ test('Media duplicate references deduplicate exact expectations but conflicting 
       cap: number,
     ) => {
       calls++;
-      assert.deepEqual(values, [[f.reference.parent.resourceId]]);
+      assert.deepEqual(values, [[f.reference.parent.resourceId], ['post']]);
       assert.equal(cap, 1);
       return [f.row] as T[];
     },
@@ -176,7 +177,7 @@ test('Media duplicate references deduplicate exact expectations but conflicting 
   assert.equal(calls, 1);
 });
 
-test('Media explicit empty definition does not require installed Media and unsupported child/multi-image stays unknown', async () => {
+test('Media empty definition needs no provider and mismatched typed child or duplicate set stays unknown', async () => {
   const f = fixture();
   const empty = { ...f.reference, expected: [] };
   const facade = new MediaContentSnapshotFacade();
@@ -201,7 +202,7 @@ test('Media explicit empty definition does not require installed Media and unsup
     },
   };
   assert.equal(
-    (await facade.readBatch([child], noRead, forbidden)).get(
+    (await facade.readBatch([child], noRead, budget([f.row]))).get(
       mediaContentKey(child.parent),
     )!.decision,
     'unknown',
@@ -520,6 +521,63 @@ test('nine-image cap still uses the existing shared four MiB sentinel and reject
   assert.equal(called, false);
   assert.equal(
     facts.get(mediaContentKey(ten.reference.parent))!.decision,
+    'unknown',
+  );
+});
+
+test('Media typed same-UUID post/comment/reply sets remain separate and discussion limit is three', async () => {
+  const fixtures = ['post', 'comment', 'reply'].map((kind) => {
+    const f = fixture();
+    const parent = {
+      ownerKind: 'community' as const,
+      resourceId: f.reference.parent.resourceId,
+      contentVersion: 1 as const,
+      resourceKind: kind as 'post' | 'comment' | 'reply',
+    };
+    return {
+      reference: { ...f.reference, parent },
+      row: {
+        ...f.row,
+        parent_kind: kind,
+        resource_kind: kind,
+        purpose: `community-${kind}-image`,
+      },
+    };
+  });
+  const id = fixtures[0]!.reference.parent.resourceId;
+  for (const f of fixtures) {
+    f.reference.parent.resourceId = id;
+    f.row.parent_id = id;
+  }
+  const facade = new MediaContentSnapshotFacade();
+  const facts = await facade.readBatch(
+    fixtures.map((f) => f.reference),
+    noRead,
+    budget(fixtures.map((f) => f.row)),
+  );
+  assert.equal(facts.size, 3);
+  for (const f of fixtures)
+    assert.equal(
+      facts.get(mediaContentKey(f.reference.parent))!.decision,
+      'allow',
+    );
+  const comment = fixtures[1]!;
+  const four = {
+    ...comment.reference,
+    expected: Array.from({ length: 4 }, () => ({
+      assetId: randomUUID(),
+      digest: sealed.digest,
+    })),
+  };
+  const forbidden: MediaSnapshotReadBudget = {
+    rows: async () => {
+      throw new Error('Over-limit child must not read');
+    },
+  };
+  assert.equal(
+    (await facade.readBatch([four], noRead, forbidden)).get(
+      mediaContentKey(four.parent),
+    )!.decision,
     'unknown',
   );
 });

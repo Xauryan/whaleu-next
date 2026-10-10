@@ -1,3 +1,5 @@
+import { MEDIA_DISCUSSION_BATCH_APPLICATION } from './application-v4.js';
+import type { MediaDiscussionBatchApplication } from './application-v4.js';
 import {
   BadRequestException,
   Inject,
@@ -282,6 +284,18 @@ export class MediaMultipartInterceptor implements NestInterceptor {
 export class MediaMultipartInterceptorV3 extends MediaMultipartInterceptor {
   constructor(
     @Inject(MEDIA_BATCH_APPLICATION) media: MediaBatchApplication,
+    @Inject(MEDIA_INGRESS_STORAGE) storage: MediaIngressStorage | null,
+  ) {
+    super(media, storage);
+  }
+}
+
+/** V4 uses the same storage-keyed process admission and single-file parser. */
+@Injectable()
+export class MediaMultipartInterceptorV4 extends MediaMultipartInterceptor {
+  constructor(
+    @Inject(MEDIA_DISCUSSION_BATCH_APPLICATION)
+    media: MediaDiscussionBatchApplication,
     @Inject(MEDIA_INGRESS_STORAGE) storage: MediaIngressStorage | null,
   ) {
     super(media, storage);

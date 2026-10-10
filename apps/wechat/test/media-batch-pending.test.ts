@@ -120,7 +120,15 @@ test('same-origin legacy coexistence is explicit; corrupt pending.v1 blocks new 
       sha256: 'a'.repeat(64),
     },
   };
-  h.pending.legacy.freeze(ids.actor, legacyPrepare, 1000);
+  assert.throws(() => h.pending.legacy.freeze(ids.actor, legacyPrepare, 1000));
+  // Simulate pre-existing/corrupted coexistence without bypassing new admission.
+  const otherStorage = new MemoryStorage();
+  const legacy = new PendingBatchStore(otherStorage, origin).legacy.freeze(
+    ids.actor,
+    legacyPrepare,
+    1000,
+  );
+  h.storage.data.set(`whaleu.media.pending.v1:${origin}:${ids.actor}`, legacy);
   assert.equal(h.runtime.modeForActor(ids.actor), 'conflict');
   assert.throws(() => h.pending.assertBatchAdmission(ids.actor));
   const batchKey = [...h.storage.data.keys()].find((key) =>

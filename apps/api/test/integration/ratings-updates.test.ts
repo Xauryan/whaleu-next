@@ -24,7 +24,8 @@ import {
   setRatingReviewState,
 } from '../support/rating-runtime-fixture.js';
 import { withCommunityScopeWriter } from '../support/community-scope-fixtures.js';
-import { observeDirectoryQueries } from '../support/directory-query-observer.js';
+import { observeRatingsCiQueries } from '../support/ratings-ci-diagnostics.js';
+import type { RatingsCiStage } from '../support/ratings-ci-diagnostics.js';
 
 /** Synthetic facts, real AppModule HTTP, canonical review and actual local
  * materializer. The only selected configuration is explicit manual processing. */
@@ -563,38 +564,127 @@ test('rating direct updates: real obligations, atomic local materialization, own
           return super.owner(accountId, tx, write);
         }
       }
-      const observer = observeDirectoryQueries(f.app);
-      const traces = new Map<PoolClient, string[]>();
-      let observedOwnerRead = false;
-      observer.setHook(async ({ sql }, tx) => {
-        const trace = traces.get(tx) ?? [];
-        trace.push(sql);
-        traces.set(tx, trace);
-        if (
-          /SELECT account_id FROM whaleu_notifications.owners .*FOR SHARE/.test(
-            sql,
-          )
-        ) {
-          observedOwnerRead = true;
-          assert.ok(
-            trace.some(
-              (statement) =>
-                statement.includes('FROM whaleu_ratings.targets') &&
-                statement.includes('FOR SHARE'),
-            ),
-            'Owner read must follow target projection',
+      // Opt-in red run restores precisely the old unconditional reply assertion.
+      // The same deleted-first schedule must then fail with HTTP 500, rather
+      // than relying on PostgreSQL's choice of a waiting lock's admission order.
+      const reproduceLegacyObserver =
+        process.env['WHALEU_RATINGS_REPRODUCE_LEGACY_OBSERVER'] === '1';
+      const observer = observeRatingsCiQueries(f.app, {
+        syntheticFixture: 'ratings-updates',
+        enabled:
+          reproduceLegacyObserver ||
+          process.env['WHALEU_RATINGS_CI_DIAGNOSTICS'] === '1',
+      });
+      const traces = new Map<
+        number,
+        {
+          stage: RatingsCiStage;
+          rootDeleted: boolean | null;
+        }[]
+      >();
+      let liveTransaction: number | undefined,
+        deletedTransaction: number | undefined,
+        armed: 'alive' | 'deleted' | null = null;
+      const barrier = () => {
+        let resolve!: () => void;
+        const promise = new Promise<void>((done) => {
+          resolve = done;
+        });
+        return { promise, resolve };
+      };
+      const liveAtOwner = barrier(),
+        liveGate = barrier(),
+        deletedAtTarget = barrier(),
+        deletedGate = barrier();
+      const projectionOrder = (transaction: number, deleted: boolean) => {
+        const trace = traces.get(transaction)!;
+        assert.equal(trace.at(-1)?.stage, 'notification-owner');
+        const projections = trace.slice(0, -1);
+        const expected: RatingsCiStage[] = deleted
+          ? ['target-lock', 'root-read']
+          : ['target-lock', 'root-read', 'reply-read'];
+        assert.ok(projections.length > 0, 'List must project real notices');
+        assert.equal(projections.length % expected.length, 0);
+        for (let i = 0; i < projections.length; i += expected.length) {
+          const chain = projections.slice(i, i + expected.length);
+          assert.deepEqual(
+            chain.map((event) => event.stage),
+            expected,
+            'Every notification parent chain must finish before its owner read',
           );
-          assert.ok(
-            trace.some(
-              (statement) =>
-                statement.includes('FROM whaleu_ratings.replies') &&
-                statement.includes('FOR SHARE'),
-            ),
-            'Owner read must follow reply projection',
+          assert.equal(chain[1]!.rootDeleted, deleted);
+        }
+        if (deleted)
+          assert.equal(
+            projections.some((event) => event.stage === 'reply-read'),
+            false,
+            'A tombstoned root must not read reply content',
+          );
+      };
+      observer.setBeforeHook(async (event) => {
+        if (event.stage === 'target-lock' && event.lock === 'share' && armed) {
+          if (armed === 'alive') liveTransaction = event.transaction;
+          else deletedTransaction = event.transaction;
+          const schedule = armed;
+          armed = null;
+          if (schedule === 'deleted') {
+            deletedAtTarget.resolve();
+            await deletedGate.promise;
+          }
+        }
+        if (
+          event.stage === 'notification-owner' &&
+          event.lock === 'share' &&
+          event.transaction === liveTransaction
+        ) {
+          liveAtOwner.resolve();
+          await liveGate.promise;
+        }
+      });
+      observer.setHook(async (event) => {
+        if (
+          event.transaction !== liveTransaction &&
+          event.transaction !== deletedTransaction
+        )
+          return;
+        if (event.transaction === deletedTransaction)
+          assert.equal(
+            /\b(?:FROM|JOIN)\s+whaleu_ratings\.replies\b/.test(event.sql),
+            false,
+            'Deleted-first list must perform zero reply reads, including final proof',
+          );
+        if (
+          event.lock !== 'share' ||
+          ![
+            'target-lock',
+            'root-read',
+            'reply-read',
+            'notification-owner',
+          ].includes(event.stage)
+        )
+          return;
+        const trace = traces.get(event.transaction) ?? [];
+        trace.push({ stage: event.stage, rootDeleted: event.rootDeleted });
+        traces.set(event.transaction, trace);
+        if (event.stage === 'notification-owner') {
+          // This opt-in branch is the historical invalid assertion, preserved
+          // only as a deterministic red/green verification interface.
+          if (reproduceLegacyObserver) {
+            assert.ok(
+              trace.some((read) => read.stage === 'target-lock'),
+              'Owner read must follow target projection',
+            );
+            assert.ok(
+              trace.some((read) => read.stage === 'reply-read'),
+              'Owner read must follow reply projection',
+            );
+          }
+          projectionOrder(
+            event.transaction,
+            event.transaction === deletedTransaction,
           );
         }
       });
-      t.after(() => observer.restore());
       const blockedWorker = new RatingUpdatesWorker(
         f.app.get(DatabaseService),
         { ...config, RATINGS_UPDATES_PROCESSING: 'manual' },
@@ -607,7 +697,9 @@ test('rating direct updates: real obligations, atomic local materialization, own
         eventIds: [materializing.eventId],
       });
       let deleting: Promise<request.Response> | undefined,
-        listing: Promise<request.Response> | undefined;
+        liveListing: Promise<request.Response> | undefined,
+        deletedListing: Promise<request.Response> | undefined,
+        deletionCompleted = false;
       try {
         await Promise.race([
           atOwner,
@@ -618,7 +710,16 @@ test('rating direct updates: real obligations, atomic local materialization, own
             );
           }),
         ]);
-        // Worker already owns all parent/authority SHARE locks, but no notice owner.
+        // Alive-first: complete target/root/reply reads before DELETE even
+        // starts, but pause before owner acquisition. Both readers hold parents.
+        armed = 'alive';
+        liveListing = get(P).then((response) => response);
+        await Promise.race([
+          liveAtOwner.promise,
+          liveListing.then(() => {
+            throw new Error('Alive list missed owner barrier');
+          }),
+        ]);
         deleting = f
           .auth(request(f.http).delete(`/v1/ratings/comments/${root.id}`), R)
           .send({
@@ -628,12 +729,26 @@ test('rating direct updates: real obligations, atomic local materialization, own
             expectedTargetRevision: target.revision,
             expectedRevision: root.revision,
           })
-          .then((response) => response);
+          .then((response) => {
+            deletionCompleted = true;
+            return response;
+          });
         await f.waitForLock('FROM whaleu_ratings.targets');
-        listing = get(P).then((response) => response);
-        // PostgreSQL may admit this SHARE read before its pending UPDATE, or
-        // queue it. Both are legal. The trace below proves parent-before-owner
-        // in either case, while owner-only markRead must remain independent.
+        assert.equal(
+          deletionCompleted,
+          false,
+          'Deletion must wait for the alive parent-chain readers',
+        );
+        // Deleted-first: stop before the first parent read, so this transaction
+        // cannot observe an alive root or block DELETE on a parent SHARE lock.
+        armed = 'deleted';
+        deletedListing = get(P).then((response) => response);
+        await Promise.race([
+          deletedAtTarget.promise,
+          deletedListing.then(() => {
+            throw new Error('Deleted list missed target barrier');
+          }),
+        ]);
         const read = await Promise.race([
           f
             .auth(
@@ -652,26 +767,87 @@ test('rating direct updates: real obligations, atomic local materialization, own
         ]);
         assert.equal(read.status, 200, JSON.stringify(read.body));
         assert.equal(read.body.unreadCount, unread - 1);
+        liveGate.resolve();
+        const aliveList = await liveListing;
+        assert.equal(aliveList.status, 200, JSON.stringify(aliveList.body));
+        const alivePage = ratingUpdatesPageSchema.parse(aliveList.body);
+        assert.equal(alivePage.unreadCount, unread - 1);
+        assert.equal(
+          alivePage.items.every((item) => item.status === 'available'),
+          true,
+        );
+        assert.ok(liveTransaction !== undefined);
+        projectionOrder(liveTransaction, false);
+        assert.equal(
+          deletionCompleted,
+          false,
+          'The materializer still holds the alive parent chain',
+        );
+        release();
+        const [processed, response] = await Promise.all([processing, deleting]);
+        assert.equal(processed.failed, 0, JSON.stringify(processed));
+        assert.equal(processed.materialized, 1);
+        assert.equal(response.status, 200, JSON.stringify(response.body));
+        assert.equal(response.body.outcome, 'applied');
+        // Only a committed DELETE permits the second list's first parent read.
+        deletedGate.resolve();
+        const concurrentList = await deletedListing;
+        if (reproduceLegacyObserver) {
+          assert.equal(
+            concurrentList.status,
+            500,
+            'Legacy observer must produce HTTP 500 on this deleted-first schedule',
+          );
+          assert.ok(
+            observer
+              .snapshot()
+              .failures.some(
+                ({ error }) =>
+                  error.transaction === deletedTransaction &&
+                  error.stage === 'notification-owner' &&
+                  error.boundary === 'after-hook' &&
+                  error.exception === 'AssertionError',
+              ),
+            'The 500 must originate in the obsolete observer assertion',
+          );
+          assert.fail(
+            'Legacy observer regression reproduced: deleted-first owner follows tombstone without a reply read',
+          );
+        }
+        assert.equal(
+          concurrentList.status,
+          200,
+          JSON.stringify(concurrentList.body),
+        );
+        const deletedPage = ratingUpdatesPageSchema.parse(concurrentList.body);
+        assert.equal(deletedPage.unreadCount, unread - 1);
+        assert.equal(
+          deletedPage.items.every((item) => item.status === 'unavailable'),
+          true,
+        );
+        for (const item of deletedPage.items)
+          assert.deepEqual(Object.keys(item).sort(), [
+            'createdAt',
+            'noticeId',
+            'readAt',
+            'status',
+          ]);
+        assert.ok(deletedTransaction !== undefined);
+        projectionOrder(deletedTransaction, true);
       } finally {
         release();
+        liveGate.resolve();
+        deletedGate.resolve();
+        // Drain outstanding requests before restoring observation or the fixture.
+        await Promise.allSettled([
+          processing,
+          ...[deleting, liveListing, deletedListing].filter(
+            (value) => value !== undefined,
+          ),
+        ]);
+        observer.restore();
+        if (observer.enabled) t.diagnostic(JSON.stringify(observer.snapshot()));
       }
-      const [processed, response, concurrentList] = await Promise.all([
-        processing,
-        deleting!,
-        listing!,
-      ]);
-      assert.equal(processed.failed, 0, JSON.stringify(processed));
-      assert.equal(processed.materialized, 1);
-      assert.equal(response.status, 200, JSON.stringify(response.body));
-      assert.equal(response.body.outcome, 'applied');
-      assert.equal(
-        concurrentList.status,
-        200,
-        JSON.stringify(concurrentList.body),
-      );
-      ratingUpdatesPageSchema.parse(concurrentList.body);
-      assert.equal(observedOwnerRead, true);
-      observer.restore();
       const suppressed = await worker.run({
         mode: 'apply',
         eventIds: [pending.eventId],

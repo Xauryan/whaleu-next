@@ -4,20 +4,20 @@ import type {
   MediaBatchPublicationProofPort,
   PublicationMediaContext,
 } from '../../media/batch-repository.js';
-import type { MediaBatchPublicationCancellation } from '../../media/contracts-v3.js';
-import { publicationReferenceSchema } from '../../media/contracts-v2.js';
+import type { MediaBatchPublicationCancellation } from '../../media/batch-protocol.js';
+import { publicationReferenceSchema } from '../../media/batch-protocol.js';
 import { lockPublicationCommand } from '../publication-cancel-fence.js';
 import { z } from 'zod';
 const actualReceipt = z.discriminatedUnion('outcome', [
   z.strictObject({
     requestId: z.uuid(),
-    operation: z.literal('publish_post'),
+    operation: z.enum(['publish_post', 'publish_comment', 'publish_reply']),
     outcome: z.literal('rejected'),
     code: z.string().regex(/^[A-Z][A-Z0-9_]{0,79}$/),
   }),
   z.strictObject({
     requestId: z.uuid(),
-    operation: z.literal('publish_post'),
+    operation: z.enum(['publish_post', 'publish_comment', 'publish_reply']),
     outcome: z.literal('created'),
     resourceId: z.uuid(),
     createdAt: z.string().datetime(),
@@ -44,7 +44,8 @@ export class CommunityMediaBatchPublicationProof implements MediaBatchPublicatio
     if (
       !receipt.success ||
       receipt.data.outcome !== 'rejected' ||
-      receipt.data.requestId !== reference.clientRequestId
+      receipt.data.requestId !== reference.clientRequestId ||
+      receipt.data.operation !== reference.operation
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
   }
@@ -62,7 +63,8 @@ export class CommunityMediaBatchPublicationProof implements MediaBatchPublicatio
       const receipt = actualReceipt.safeParse(row.receipt);
       if (
         !receipt.success ||
-        receipt.data.requestId !== reference.clientRequestId
+        receipt.data.requestId !== reference.clientRequestId ||
+        receipt.data.operation !== reference.operation
       )
         throw new ApplicationError('MEDIA_UNAVAILABLE');
       return receipt.data;
@@ -93,7 +95,7 @@ export class CommunityMediaBatchPublicationProof implements MediaBatchPublicatio
     }
     return {
       requestId: reference.clientRequestId,
-      operation: 'publish_post',
+      operation: reference.operation,
       outcome: 'cancelled',
       intentHash: reference.intentHash,
     };

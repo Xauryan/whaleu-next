@@ -1,3 +1,6 @@
+import { lockSafetyPolicy } from '../../safety/locks.js';
+import { MEDIA_ATTACHMENT } from '../community-policy.js';
+import type { MediaAttachmentPort } from '../community-policy.js';
 import {
   checkpointTransactionDeadlines,
   restoreTransactionDeadlines,
@@ -10,6 +13,7 @@ import { CommunityRepository } from '../community.repository.js';
 import { CommunityAccessService } from '../community-access.service.js';
 import { requireAction } from '../community-policy.js';
 import type { DiscussionOperation, DiscussionReceipt } from './contracts.js';
+import { deleteDiscussionImages } from '../media/deletion-proof.js';
 const terminal = new Set<ApplicationErrorCode>([
   'POST_NOT_FOUND',
   'COMMENT_NOT_FOUND',
@@ -26,6 +30,7 @@ export class DiscussionMutationService {
     private readonly repository: CommunityRepository,
     @Inject(CommunityAccessService)
     private readonly access: CommunityAccessService,
+    @Inject(MEDIA_ATTACHMENT) private readonly media?: MediaAttachmentPort,
   ) {}
   set(
     token: string,
@@ -194,11 +199,24 @@ export class DiscussionMutationService {
   }
   deleteReply(token: string, id: string): Promise<void> {
     return this.repository.database.transaction(async (tx) => {
+      await lockSafetyPolicy(tx, true);
       const actor = await this.access.actor(token, tx);
       const reference = await this.repository.reply(id, tx);
       if (reference.account_id !== actor)
         throw new ApplicationError('REPLY_NOT_FOUND');
       if (reference.deleted_at) return;
+      const images = await this.repository.images('reply', id, tx);
+      if (images.length)
+        return deleteDiscussionImages({
+          repository: this.repository,
+          access: this.access,
+          media: this.media,
+          tx,
+          actor,
+          id,
+          images,
+          target: { kind: 'reply', reference },
+        });
       const { post, comment, authority } = await this.access.accessibleComment(
         reference.root_comment_id,
         actor,
@@ -214,6 +232,10 @@ export class DiscussionMutationService {
         "UPDATE whaleu_community.replies SET deleted_at=date_trunc('milliseconds',clock_timestamp()) WHERE id=$1",
         [id],
       );
+      if ((await this.repository.images('reply', id, tx)).length) {
+        if (!this.media) throw new ApplicationError('MEDIA_UNAVAILABLE');
+        await this.media.detach('reply', id, tx);
+      }
       await this.repository.event(
         `reply:${id}:deleted`,
         'reply_deleted',

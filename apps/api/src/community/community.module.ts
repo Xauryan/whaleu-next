@@ -1,6 +1,13 @@
+import { CommunityMediaCleanupFacade } from './media/cleanup-facade.js';
+import { CommunityMediaCleanupWorker } from './media/cleanup-worker.js';
+import { MediaDiscussionBatchController } from '../media/controller-v4.js';
+import { MEDIA_DISCUSSION_BATCH_APPLICATION } from '../media/application-v4.js';
 import { MediaBatchController } from '../media/controller-v3.js';
 import { MEDIA_BATCH_APPLICATION } from '../media/application-v3.js';
-import { MediaMultipartInterceptorV3 } from '../media/multipart-ingress.js';
+import {
+  MediaMultipartInterceptorV3,
+  MediaMultipartInterceptorV4,
+} from '../media/multipart-ingress.js';
 import { UnavailableCommunityMediaBatchApplication } from './media/application-v3.js';
 import { MediaUploadControllerV2 } from '../media/controller-v2.js';
 import { MEDIA_UPLOAD_APPLICATION_V2 } from '../media/application-v2.js';
@@ -290,6 +297,7 @@ export class CommunityRecoveryController {
     MediaController,
     MediaUploadControllerV2,
     MediaBatchController,
+    MediaDiscussionBatchController,
     HotController,
     ViewReportingController,
     SearchController,
@@ -322,10 +330,19 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    CommunityMediaCleanupFacade,
+    CommunityMediaCleanupWorker,
     MediaMultipartInterceptor,
     MediaMultipartInterceptorV3,
+    MediaMultipartInterceptorV4,
     {
       provide: MEDIA_BATCH_APPLICATION,
+      useFactory: (database: DatabaseService, access: CommunityAccessService) =>
+        new UnavailableCommunityMediaBatchApplication(database, access),
+      inject: [DatabaseService, CommunityAccessService],
+    },
+    {
+      provide: MEDIA_DISCUSSION_BATCH_APPLICATION,
       useFactory: (database: DatabaseService, access: CommunityAccessService) =>
         new UnavailableCommunityMediaBatchApplication(database, access),
       inject: [DatabaseService, CommunityAccessService],

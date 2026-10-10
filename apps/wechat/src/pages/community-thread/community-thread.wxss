@@ -5,3 +5,42 @@
   border-radius: 12rpx;
   padding: 20rpx;
 }
+
+.private-gallery-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 40, 48, 0.48);
+  z-index: 210;
+}
+.private-gallery-panel {
+  position: fixed;
+  top: 8vh;
+  left: 24rpx;
+  right: 24rpx;
+  max-height: 84vh;
+  padding: 24rpx;
+  background: white;
+  border-radius: 24rpx;
+  z-index: 220;
+}
+.private-gallery-content {
+  height: 48vh;
+}
+.private-gallery-thumb {
+  width: 180rpx;
+  max-height: 260rpx;
+}
+.private-image-expanded {
+  width: 100%;
+}
+.private-gallery-slot {
+  display: inline-block;
+  width: 180rpx;
+  margin: 8rpx;
+  vertical-align: top;
+}
+.private-gallery-slot-expanded {
+  display: block;
+  width: 100%;
+  margin: 8rpx 0;
+}

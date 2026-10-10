@@ -198,3 +198,13 @@ is not production activation. Acceptance must refer to the exact final frozen tr
 This v3 increment passed integrated local acceptance with 6,046 tests on exact
 tree `bd9cf779aa4173fb1c133a76b6d77e026290e6ff`. Hosted verification remains
 pending for the v3 increment; see its protocol document for evidence and limits.
+
+## Discussion attachments
+
+[Discussion batches](MEDIA_DISCUSSION_BATCH.md) add root comments, direct replies
+and targeted replies with up to three images, including pure-image content. They
+reuse the original publication owner and preserve exact ancestor authorization,
+notification/search behavior and durable bounded descendant cleanup. Composed local
+acceptance covers 6,140 tests, with explicit final UI-only revalidation. Hosted
+verification is pending; the previous nine-image checkpoint had hosted Ratings
+regression failures. Profile and other attachment owners remain separate work.

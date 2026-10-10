@@ -3,9 +3,10 @@ import type { SessionTicket } from '../auth/session';
 import { decodeReceipt } from '../community/contract';
 import { cancellable } from '../platform/cancellable';
 import { Cancellation } from '../platform/contracts';
-import type { LocalMediaFile, MediaSession, MediaTarget } from './contracts';
+import type { LocalMediaFile, MediaSession } from './contracts';
 import {
   batchCommandHash,
+  decodeBatchIdentity,
   batchEqual,
   decodeBatchFenceResult,
   decodeBatchCommand,
@@ -14,7 +15,7 @@ import {
   memberRequestHash,
   type BatchStatus,
   type MemberStatus,
-} from './batch-contracts';
+} from './batch-engine-contracts';
 import type { PendingBatch, PendingMember } from './batch-pending';
 import {
   batchSession,
@@ -24,7 +25,17 @@ import {
   type BatchPublicationCoordinator,
   type BatchRuntimeOptions,
 } from './batch-runtime';
-import { mediaPublicationReference } from './upload-runtime';
+import {
+  batchPublicationReference as mediaPublicationReference,
+  publicationKind,
+} from './batch-publication';
+import {
+  batchLimit,
+  type BatchTarget,
+  type ProtocolVersion,
+  type DiscussionTarget,
+} from './batch-engine-contracts';
+import type { PendingAttempt } from '../community/pending-attempt';
 export interface BatchMemberView {
   readonly memberId: string;
   readonly index: number;
@@ -43,6 +54,7 @@ export interface BatchView {
   readonly members: readonly BatchMemberView[];
   readonly ready: number;
   readonly selected: number;
+  readonly maxMembers: 3 | 9;
   readonly retiring: number;
   readonly progress: number;
   readonly canAdd: boolean;
@@ -53,6 +65,7 @@ export const initialBatchView = (): BatchView => ({
   members: [],
   ready: 0,
   selected: 0,
+  maxMembers: 9,
   retiring: 0,
   progress: 0,
   canAdd: false,
@@ -63,6 +76,7 @@ interface Work {
   readonly session: MediaSession;
   readonly cancel: Cancellation;
   record: PendingBatch | null;
+  protocol: ProtocolVersion;
   file: LocalMediaFile | null;
   fileMemberId: string | null;
 }
@@ -79,6 +93,7 @@ export class MediaBatchController {
     private readonly options: BatchRuntimeOptions,
     private readonly publication: BatchPublicationCoordinator,
     private readonly render: (view: BatchView) => void,
+    private readonly operation: PendingAttempt['operation'] = 'publish_post',
   ) {
     this.unsubscribe = options.sessions.subscribe(() => {
       if (!this.work) return;
@@ -95,7 +110,19 @@ export class MediaBatchController {
       }) ?? (() => undefined);
   }
   get available(): boolean {
-    return !!this.options.transfer && !!this.options.gateway;
+    const actor = this.options.sessions.snapshot().credentials?.accountId;
+    const version =
+      this.work?.record?.version ??
+      (actor ? this.options.pending.load(actor)?.version : undefined) ??
+      (this.operation === 'publish_post' ? 3 : 4);
+    return version === 4
+      ? !!this.options.discussionTransfer && !!this.options.discussionGateway
+      : !!this.options.transfer && !!this.options.gateway;
+  }
+  private transfer(work: Work) {
+    return work.protocol === 4
+      ? this.options.discussionTransfer
+      : this.options.transfer;
   }
   snapshot(): BatchView {
     return this.view;
@@ -112,6 +139,7 @@ export class MediaBatchController {
       this.work.record = this.options.pending.load(
         this.work.ticket.credentials!.accountId,
       );
+      if (this.work.record) this.work.protocol = this.work.record.version;
       return this.work;
     }
     const ticket = this.options.sessions.snapshot(),
@@ -123,6 +151,9 @@ export class MediaBatchController {
       cancel,
       session: batchSession(this.options.sessions, cancel),
       record: this.options.pending.load(ticket.credentials.accountId),
+      protocol:
+        this.options.pending.load(ticket.credentials.accountId)?.version ??
+        (this.operation === 'publish_post' ? 3 : 4),
       file: null,
       fileMemberId: null,
     };
@@ -194,15 +225,53 @@ export class MediaBatchController {
     );
     return task;
   }
-  select(target: MediaTarget): Promise<void> {
+  assertTarget(target: BatchTarget): void {
+    const actor = this.options.sessions.snapshot().credentials?.accountId;
+    const record = actor ? this.options.pending.load(actor) : null;
+    if (
+      record &&
+      (record.batchIdentity.spaceId !== target.spaceId ||
+        !batchEqual(
+          record.batchIdentity.version === 2
+            ? record.batchIdentity.target
+            : undefined,
+          target.target,
+        ))
+    )
+      throw new ClientError(
+        'business',
+        'Recover or cancel the original image target before composing elsewhere',
+      );
+  }
+  select(target: BatchTarget): Promise<void> {
     return this.run(async (work) => {
       this.options.pending.assertBatchAdmission(
         work.ticket.credentials!.accountId,
       );
-      if (!this.available)
+      if (
+        this.options.publicationPending.load(work.ticket.credentials!.accountId)
+      )
+        throw new ClientError(
+          'business',
+          'Recover the original publication before selecting images',
+        );
+      if (!work.record) work.protocol = target.target ? 4 : 3;
+      if (
+        !(work.protocol === 4
+          ? this.options.discussionGateway && this.options.discussionTransfer
+          : this.options.gateway && this.options.transfer)
+      )
         throw new ClientError('configuration', 'Batch upload unavailable');
       if (work.record) {
-        if (work.record.batchIdentity.spaceId !== target.spaceId)
+        if (
+          work.record.batchIdentity.spaceId !== target.spaceId ||
+          !batchEqual(
+            work.record.batchIdentity.version === 2
+              ? work.record.batchIdentity.target
+              : undefined,
+            target.target,
+          )
+        )
           throw new ClientError('business', 'Recover the original draft first');
         await this.reconcile(work);
       }
@@ -211,7 +280,7 @@ export class MediaBatchController {
         (work.record.publication ||
           work.record.pendingCommand ||
           work.record.phase === 'cancel_uncertain' ||
-          work.record.members.length >= 9 ||
+          work.record.members.length >= batchLimit(work.record.batchIdentity) ||
           work.record.retiring.some(
             (m) => m.observation?.observation.status !== 'terminal',
           ) ||
@@ -226,7 +295,7 @@ export class MediaBatchController {
       if (work.file)
         throw new ClientError('business', 'Original file is still in use');
       this.publish(work, 'selecting');
-      const transfer = this.options.transfer!;
+      const transfer = this.transfer(work)!;
       const received = transfer
         .pick(work.session, work.cancel)
         .then(async (file) => {
@@ -253,33 +322,50 @@ export class MediaBatchController {
           );
           work.record = this.options.pending.freeze(
             work.ticket.credentials!.accountId,
-            {
-              version: 1,
+            decodeBatchIdentity({
+              ...(target.target
+                ? {
+                    version: 2 as const,
+                    purpose:
+                      target.target.kind === 'comment'
+                        ? ('community-comment-images' as const)
+                        : ('community-reply-images' as const),
+                    target: target.target,
+                  }
+                : {
+                    version: 1 as const,
+                    purpose: 'community-post-images' as const,
+                  }),
               batchRequestId,
               draftId: target.draftId,
               spaceId: target.spaceId,
-              purpose: 'community-post-images',
-            },
+            }),
             this.options.clock.now(),
           );
         }
         const memberId = await this.request(work, this.options.newRequestId),
           clientRequestId = await this.request(work, this.options.newRequestId);
-        const sourceSlot = Array.from({ length: 9 }, (_, n) => n).find(
+        const sourceSlot = Array.from(
+          { length: batchLimit(work.record!.batchIdentity) },
+          (_, n) => n,
+        ).find(
           (slot) => !work.record!.members.some((m) => m.sourceSlot === slot),
         );
         if (sourceSlot === undefined)
-          throw new ClientError('business', 'Nine image limit reached');
-        const prepare = decodeMemberPrepare({
-          memberId,
-          clientRequestId,
-          sourceSlot,
-          declaration: {
-            mime: inspected.mime,
-            bytes: inspected.bytes,
-            sha256: inspected.sha256,
+          throw new ClientError('business', 'Image limit reached');
+        const prepare = decodeMemberPrepare(
+          {
+            memberId,
+            clientRequestId,
+            sourceSlot,
+            declaration: {
+              mime: inspected.mime,
+              bytes: inspected.bytes,
+              sha256: inspected.sha256,
+            },
           },
-        });
+          work.record.version,
+        );
         const member: PendingMember = {
           memberId,
           sourceSlot,
@@ -364,7 +450,11 @@ export class MediaBatchController {
       const result = await this.request(work, () =>
         this.publication.gateway.command(
           work.record!.batchId!,
-          decodeBatchCommand(command.kind, command.payload),
+          decodeBatchCommand(
+            command.kind,
+            command.payload,
+            work.record!.version,
+          ),
           work.session,
           work.cancel,
         ),
@@ -444,6 +534,7 @@ export class MediaBatchController {
         ),
       );
       if (
+        observation.version !== work.record!.version ||
         observation.memberId !== old.memberId ||
         observation.requestHash !== old.requestHash ||
         observation.batchId !== work.record!.batchId ||
@@ -489,6 +580,7 @@ export class MediaBatchController {
       member = work.record!.members.find((m) => m.memberId === id);
     if (
       !member ||
+      status.version !== work.record!.version ||
       status.batchId !== work.record!.batchId ||
       status.memberId !== id ||
       status.requestHash !== member.requestHash ||
@@ -529,10 +621,10 @@ export class MediaBatchController {
           status.upload !== 'none' ||
           !work.file ||
           work.fileMemberId !== memberId ||
-          !this.options.transfer
+          !this.transfer(work)
         )
           return;
-        const transfer = this.options.transfer,
+        const transfer = this.transfer(work)!,
           declaration = member.prepare.declaration;
         const actual = await this.request(work, () =>
           transfer.inspect(work.file!, work.session, work.cancel),
@@ -616,6 +708,7 @@ export class MediaBatchController {
   async publicationAssets(
     spaceId: string,
     cancel: Cancellation,
+    target?: DiscussionTarget,
   ): Promise<readonly string[]> {
     if (this.running)
       throw new ClientError(
@@ -633,6 +726,12 @@ export class MediaBatchController {
         if (!work.record) return;
         if (
           work.record.batchIdentity.spaceId !== spaceId ||
+          !batchEqual(
+            work.record.batchIdentity.version === 2
+              ? work.record.batchIdentity.target
+              : undefined,
+            target,
+          ) ||
           work.record.publication ||
           work.record.pendingCommand ||
           work.record.phase === 'cancel_uncertain'
@@ -693,7 +792,7 @@ export class MediaBatchController {
       return { orderedMemberIds: ids, removeMemberIds: [] };
     });
   }
-  async replace(memberId: string, target: MediaTarget): Promise<void> {
+  async replace(memberId: string, target: BatchTarget): Promise<void> {
     await this.remove(memberId);
     await this.select(target);
   }
@@ -729,7 +828,10 @@ export class MediaBatchController {
           'business',
           'Recover original member prepare before removal',
         );
-      if (record.retiring.length + change.removeMemberIds.length > 9)
+      if (
+        record.retiring.length + change.removeMemberIds.length >
+        batchLimit(record.batchIdentity)
+      )
         throw new ClientError(
           'business',
           'Confirm prior image cancellations first',
@@ -754,13 +856,21 @@ export class MediaBatchController {
         retiring: [...record.retiring, ...removed],
         pendingCommand: {
           ...command,
-          commandHash: batchCommandHash(record.batchId, command),
+          commandHash: batchCommandHash(
+            record.batchId,
+            command,
+            record.version,
+          ),
         },
       });
       const status = await this.request(work, () =>
         this.publication.gateway.command(
           record.batchId!,
-          decodeBatchCommand(command.kind, command.payload),
+          decodeBatchCommand(
+            command.kind,
+            command.payload,
+            work.record!.version,
+          ),
           work.session,
           work.cancel,
         ),
@@ -865,6 +975,9 @@ export class MediaBatchController {
             publication.orderedAssets.map((a) => a.assetId),
             work.session,
             work.cancel,
+            record.batchIdentity.version === 2
+              ? record.batchIdentity.target
+              : undefined,
           ),
         ),
       );
@@ -872,7 +985,7 @@ export class MediaBatchController {
       if (
         fenced.cancellation.requestId !==
           publication.reference.clientRequestId ||
-        fenced.cancellation.operation !== 'publish_post'
+        fenced.cancellation.operation !== publication.reference.operation
       )
         throw new ClientError('protocol', 'Publication fence key mismatch');
       if (fenced.cancellation.outcome === 'cancelled') {
@@ -899,7 +1012,7 @@ export class MediaBatchController {
 
     if (
       receipt.requestId !== publication.reference.clientRequestId ||
-      receipt.operation !== 'publish_post'
+      receipt.operation !== publication.reference.operation
     )
       throw new ClientError('protocol', 'Receipt mismatch');
     const attempt = this.options.publicationPending.load(record.actorAccountId);
@@ -952,7 +1065,11 @@ export class MediaBatchController {
             phase: 'layout_uncertain',
             pendingCommand: {
               ...command,
-              commandHash: batchCommandHash(work.record!.batchId!, command),
+              commandHash: batchCommandHash(
+                work.record!.batchId!,
+                command,
+                work.record!.version,
+              ),
             },
           });
         }
@@ -962,6 +1079,7 @@ export class MediaBatchController {
             decodeBatchCommand(
               work.record!.pendingCommand!.kind,
               work.record!.pendingCommand!.payload,
+              work.record!.version,
             ),
             work.session,
             work.cancel,
@@ -996,7 +1114,8 @@ export class MediaBatchController {
       !batchEqual(status.publication, publication.reference) ||
       !batchEqual(status.orderedAssets, publication.orderedAssets) ||
       status.attachmentPlanDigest !== publication.attachmentPlanDigest ||
-      status.parent.resourceId !== receipt.resourceId
+      status.parent.resourceId !== receipt.resourceId ||
+      status.parent.resourceKind !== publicationKind(publication.reference)
     )
       throw new ClientError(
         'business',
@@ -1109,7 +1228,11 @@ export class MediaBatchController {
           phase: 'layout_uncertain',
           pendingCommand: {
             ...command,
-            commandHash: batchCommandHash(record.batchId!, command),
+            commandHash: batchCommandHash(
+              record.batchId!,
+              command,
+              record.version,
+            ),
           },
         });
       }
@@ -1125,6 +1248,7 @@ export class MediaBatchController {
             decodeBatchCommand(
               work.record!.pendingCommand!.kind,
               work.record!.pendingCommand!.payload,
+              work.record!.version,
             ),
             work.session,
             work.cancel,
@@ -1167,7 +1291,7 @@ export class MediaBatchController {
     const file = work.file;
     work.file = null;
     work.fileMemberId = null;
-    if (file) await this.options.transfer?.remove(file);
+    if (file) await this.transfer(work)?.remove(file);
   }
   hide(): void {
     const work = this.work;
@@ -1177,7 +1301,7 @@ export class MediaBatchController {
     this.render(this.view);
     if (work) {
       work.cancel.cancel();
-      this.options.transfer?.clearSession(work.ticket);
+      this.transfer(work)?.clearSession(work.ticket);
       void this.releaseFile(work).catch(() => undefined);
     }
   }
@@ -1226,13 +1350,23 @@ export class MediaBatchController {
       members,
       ready,
       selected: members.length,
+      maxMembers: record
+        ? batchLimit(record.batchIdentity)
+        : this.operation === 'publish_post'
+          ? 9
+          : 3,
       retiring,
       progress,
       canAdd:
         this.available &&
         canEdit &&
         !retiring &&
-        members.length < 9 &&
+        members.length <
+          (record
+            ? batchLimit(record.batchIdentity)
+            : this.operation === 'publish_post'
+              ? 9
+              : 3) &&
         ready === members.length &&
         !work.file,
       canEdit,

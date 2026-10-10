@@ -36,6 +36,8 @@ for (const relative of [
   'media/upload-contracts.js',
   'media/upload-runtime.js',
   'media/batch-contracts.js',
+  'media/discussion-batch-contracts.js',
+  'media/batch-publication.js',
   'platform/wechat-upload.js',
   'ratings/scoped-contract.js',
   'ratings/category-scoped-contract.js',

@@ -1,8 +1,16 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
-import { mkdtemp, open, link, unlink, rm } from 'node:fs/promises';
+import {
+  mkdtemp,
+  open,
+  link,
+  unlink,
+  rm,
+  lstat,
+  realpath,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, basename, dirname } from 'node:path';
 import { Readable } from 'node:stream';
 import {
   exactObjectSchema,
@@ -15,7 +23,12 @@ import type {
   StoredObjectMeasurement,
 } from '../../../src/media/storage-port.js';
 
-/** TEST ONLY. No AppModule provider, environment flag, caller-supplied directory,
+export interface SyntheticProcessRoot {
+  readonly version: 1;
+  readonly root: string;
+  readonly marker: string;
+}
+/** TEST ONLY. No AppModule provider, environment flag, arbitrary directory,
  * URL, bucket, filename or path. Every test gets an OS-private temporary root.
  * Not a decoder, a scanner, or a substitute for provider acceptance. */
 export class SyntheticMediaStorage implements ImmutableMediaStorage {
@@ -25,11 +38,93 @@ export class SyntheticMediaStorage implements ImmutableMediaStorage {
   private readonly retired = new Set<string>();
   private readonly activeWrites = new Map<string, Set<Promise<void>>>();
   private readonly quiescence = new WeakMap<object, string>();
-  private constructor(private readonly root: string) {}
+  private processMarker: string | null = null;
+  private processShared = false;
+  private constructor(
+    private readonly root: string,
+    private readonly ownsRoot = true,
+  ) {
+    this.processShared = !ownsRoot;
+  }
   static async create(): Promise<SyntheticMediaStorage> {
     return new SyntheticMediaStorage(
       await mkdtemp(join(tmpdir(), 'whaleu-synthetic-media-')),
     );
+  }
+  /** Explicit disposable-process fixture capability only. No production caller,
+   * environment variable or URL accepts it. Never grants writer retirement. */
+  async processRoot(): Promise<SyntheticProcessRoot> {
+    if (this.closed || !this.ownsRoot)
+      throw new Error('SYNTHETIC_STORAGE_NOT_OWNER');
+    if (!this.processMarker) {
+      const marker = randomUUID();
+      const file = await open(
+        join(this.root, '.process-root'),
+        constants.O_WRONLY |
+          constants.O_CREAT |
+          constants.O_EXCL |
+          constants.O_NOFOLLOW,
+        0o600,
+      );
+      try {
+        await file.writeFile(marker, 'utf8');
+        await file.sync();
+      } finally {
+        await file.close();
+      }
+      this.processMarker = marker;
+    }
+    this.processShared = true;
+    return Object.freeze({
+      version: 1,
+      root: await realpath(this.root),
+      marker: this.processMarker,
+    });
+  }
+  static async reopenProcessRoot(
+    handle: SyntheticProcessRoot,
+  ): Promise<SyntheticMediaStorage> {
+    if (
+      handle.version !== 1 ||
+      Object.keys(handle).sort().join(',') !== 'marker,root,version'
+    )
+      throw new Error('SYNTHETIC_STORAGE_ROOT_HANDLE');
+    mediaIdSchema.parse(handle.marker);
+    const temporary = await realpath(tmpdir());
+    if (
+      dirname(handle.root) !== temporary ||
+      !/^whaleu-synthetic-media-[A-Za-z0-9]+$/.test(basename(handle.root))
+    )
+      throw new Error('SYNTHETIC_STORAGE_ROOT_PATH');
+    const root = await lstat(handle.root);
+    if (
+      !root.isDirectory() ||
+      root.isSymbolicLink() ||
+      (root.mode & 0o077) !== 0 ||
+      (process.getuid && root.uid !== process.getuid()) ||
+      (await realpath(handle.root)) !== handle.root
+    )
+      throw new Error('SYNTHETIC_STORAGE_ROOT_OWNER');
+    const file = await open(
+      join(handle.root, '.process-root'),
+      constants.O_RDONLY | constants.O_NOFOLLOW,
+    );
+    try {
+      const marker = await file.stat();
+      if (
+        !marker.isFile() ||
+        marker.size !== 36 ||
+        (marker.mode & 0o077) !== 0 ||
+        (process.getuid && marker.uid !== process.getuid()) ||
+        (await file.readFile('utf8')) !== handle.marker
+      )
+        throw new Error('SYNTHETIC_STORAGE_ROOT_MARKER');
+    } finally {
+      await file.close();
+    }
+    // A reopened process has empty retirement/quiescence registries. This root
+    // capability is not proof that any other process's writer has stopped.
+    return new SyntheticMediaStorage(handle.root, false);
   }
   newObject(): ExactObject {
     return Object.freeze({
@@ -87,6 +182,8 @@ export class SyntheticMediaStorage implements ImmutableMediaStorage {
   /** Test-only process-local irrevocable writer retirement. This adapter is the
    * sole writer of its private root; no other process/provider is covered. */
   async retire(object: ExactObject): Promise<object> {
+    if (this.processShared)
+      throw new Error('SYNTHETIC_STORAGE_SHARED_ROOT_QUIESCENCE_UNAVAILABLE');
     const key = this.path(object);
     this.retired.add(key);
     await Promise.all([...(this.activeWrites.get(key) ?? [])]);
@@ -95,6 +192,8 @@ export class SyntheticMediaStorage implements ImmutableMediaStorage {
     return proof;
   }
   requireRetired(proof: unknown, object: ExactObject): void {
+    if (this.processShared)
+      throw new Error('SYNTHETIC_STORAGE_SHARED_ROOT_QUIESCENCE_UNAVAILABLE');
     const key = this.path(object);
     if (
       typeof proof !== 'object' ||
@@ -276,7 +375,7 @@ export class SyntheticMediaStorage implements ImmutableMediaStorage {
   async dispose(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
-    await rm(this.root, { recursive: true, force: true });
+    if (this.ownsRoot) await rm(this.root, { recursive: true, force: true });
   }
 }
 function hasCode(error: unknown, code: string): boolean {

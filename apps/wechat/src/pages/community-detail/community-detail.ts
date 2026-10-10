@@ -1,11 +1,12 @@
 import {
-  initialGalleryView,
-  type MediaGalleryController,
-} from '../../media/gallery-controller';
-import {
   initialMediaReadView,
   type MediaReadController,
 } from '../../media/read-controller';
+import {
+  DiscussionGalleryController,
+  discussionImageGroups,
+  initialDiscussionGalleryView,
+} from '../../media/discussion-gallery';
 import {
   MessagingEntryNavigator,
   postEntry,
@@ -67,7 +68,7 @@ import {
 Page({
   data: {
     mediaRead: initialMediaReadView(),
-    mediaGallery: initialGalleryView(),
+    mediaGallery: initialDiscussionGalleryView(),
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     report: initialReportMutationView(),
     juryVote: initialReportMutationView('vote'),
@@ -87,7 +88,7 @@ Page({
     tradingContacts: initialTradingContactsView(),
   },
   mediaReadController: undefined as MediaReadController | undefined,
-  mediaGalleryController: undefined as MediaGalleryController | undefined,
+  mediaGalleryController: undefined as DiscussionGalleryController | undefined,
   reportMutations: undefined as ReportMutationController | undefined,
   juryVotes: undefined as ReportMutationController | undefined,
   reportProgressController: undefined as ReportProgressController | undefined,
@@ -131,14 +132,14 @@ Page({
   messagingEntry: undefined as MessagingEntryNavigator | undefined,
   onShow() {
     this.mediaGalleryController?.dispose();
-    this.mediaGalleryController = undefined;
     this.mediaReadController?.dispose();
-    this.mediaGalleryController =
-      getApp<WhaleuApp>().mediaRead?.createGallery?.((view) =>
-        this.setData({ mediaGallery: view }),
-      );
     this.mediaReadController = getApp<WhaleuApp>().mediaRead?.create((view) =>
       this.setData({ mediaRead: view }),
+    );
+    this.mediaGalleryController = new DiscussionGalleryController(
+      getApp<WhaleuApp>().mediaRead,
+      (view) => this.setData({ mediaGallery: view }),
+      this.mediaReadController,
     );
     this.messagingEntry?.dispose();
     this.messagingEntry = new MessagingEntryNavigator(
@@ -197,6 +198,7 @@ Page({
       (view) => {
         this.setData({ report: view });
         if (view.busy || view.frozen) {
+          this.mediaGalleryController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         }
@@ -219,6 +221,7 @@ Page({
     this.blockMutations = new BlockMutationController(runtime, (view) => {
       this.setData({ block: view });
       if (view.busy || view.frozen) {
+        this.mediaGalleryController?.clear();
         this.identityOverlay?.clear();
         this.overlayTargets = '';
         this.formationIdentityOverlay?.clear();
@@ -251,6 +254,7 @@ Page({
           // A fresh contact check may discover parent/permission revocation; clear all older private identity views first.
           this.formationIdentityOverlay?.clear();
           this.formationOverlayTargets = '';
+          this.mediaGalleryController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         }
@@ -318,6 +322,7 @@ Page({
       (view) => {
         this.setData({ interaction: view });
         if (view.busy || view.frozen) {
+          this.mediaGalleryController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         }
@@ -387,6 +392,14 @@ Page({
       runtime,
       this.postId,
       (view) => {
+        this.mediaGalleryController?.reconcile(
+          view.busy || !view.loaded || view.needsReload || !view.post
+            ? null
+            : discussionImageGroups(view.post, [
+                ...view.comments,
+                ...(view.locatedComment ? [view.locatedComment] : []),
+              ]),
+        );
         const presented = this.viewObserver?.render(
           view.loaded && view.post && !view.needsReload ? [view.post.id] : [],
           this.postId,
@@ -454,6 +467,7 @@ Page({
           this.data.interaction.busy ||
           this.data.interaction.frozen
         ) {
+          this.mediaGalleryController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         } else if (key !== this.overlayTargets) {
@@ -462,12 +476,13 @@ Page({
         }
       },
       (post, readGeneration) => {
-        void this.mediaGalleryController?.load(
-          post && post.images.length > 1 ? post.images : null,
-        );
-        void this.mediaReadController?.load(
-          post?.images.length === 1 ? post.images[0]! : null,
-        );
+        if (post)
+          void this.mediaGalleryController?.select({
+            kind: 'post',
+            id: post.id,
+            images: post.images,
+          });
+        else this.mediaGalleryController?.clear();
         void this.pollController?.load(post);
         void this.formationController?.load(post);
         this.formationContactsController?.load(null);
@@ -485,6 +500,39 @@ Page({
       this.located,
     );
     void this.controller.load();
+  },
+  onSelectGallery(event: {
+    currentTarget: { dataset: { kind: string; id: string } };
+  }) {
+    if (
+      !this.data.post ||
+      !this.data.loaded ||
+      this.data.busy ||
+      this.data.needsReload ||
+      this.data.block.busy ||
+      this.data.block.frozen ||
+      this.data.report.busy ||
+      this.data.report.frozen ||
+      this.data.interaction.busy ||
+      this.data.interaction.frozen
+    )
+      return;
+    const { kind, id } = event.currentTarget.dataset;
+    const group = discussionImageGroups(this.data.post, [
+      ...this.data.comments,
+      ...(this.data.locatedComment ? [this.data.locatedComment] : []),
+    ]).find((item) => item.kind === kind && item.id === id);
+    if (group) void this.mediaGalleryController?.select(group);
+  },
+  onGalleryDismiss() {
+    this.mediaGalleryController?.clear();
+  },
+  onGalleryTouchMove() {
+    // Keep overlay gestures from scrolling the content behind the selected group.
+  },
+  onPageScroll() {
+    if (this.data.mediaGallery.groupKind !== 'post')
+      this.mediaGalleryController?.clear();
   },
   onGalleryOpen(event: { currentTarget: { dataset: { index: number } } }) {
     void this.mediaGalleryController?.open(
@@ -882,10 +930,7 @@ Page({
     this.controller?.requestDelete('comment', event.currentTarget.dataset.id);
   },
   onConfirmDelete() {
-    if (this.data.deleteTarget?.kind === 'post')
-      this.mediaReadController?.clear();
-    if (this.data.deleteTarget?.kind === 'post')
-      this.mediaGalleryController?.clear();
+    this.mediaGalleryController?.clear();
     void this.controller?.confirmDelete();
   },
   onDismissDelete() {

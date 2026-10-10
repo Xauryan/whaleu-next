@@ -166,6 +166,10 @@ export interface MediaAttachmentPort {
     id: string,
     transaction: PoolClient,
   ): Promise<void>;
+  detachMany?(
+    targets: readonly { kind: 'post' | 'comment' | 'reply'; id: string }[],
+    transaction: PoolClient,
+  ): Promise<void>;
   display(
     assets: ApprovedAsset[],
     transaction: PoolClient,
@@ -199,6 +203,12 @@ export class UnavailableMedia implements MediaAttachmentPort {
   async detach(
     _kind: 'post' | 'comment' | 'reply',
     _id: string,
+    _tx: PoolClient,
+  ): Promise<void> {
+    throw new ApplicationError('MEDIA_UNAVAILABLE');
+  }
+  async detachMany(
+    _targets: readonly { kind: 'post' | 'comment' | 'reply'; id: string }[],
     _tx: PoolClient,
   ): Promise<void> {
     throw new ApplicationError('MEDIA_UNAVAILABLE');

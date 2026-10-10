@@ -52,6 +52,7 @@ export const mediaContentKey = (parent: MediaParent): string =>
 
 interface SnapshotRow {
   parent_id: string;
+  parent_kind: string;
   binding_id: string | null;
   asset_id: string | null;
   binding_digest: string | null;
@@ -135,8 +136,8 @@ export class MediaContentSnapshotFacade {
         continue;
       }
       if (
-        parent.resourceKind !== 'post' ||
-        expected.length > 9 ||
+        !['post', 'comment', 'reply'].includes(parent.resourceKind) ||
+        expected.length > (parent.resourceKind === 'post' ? 9 : 3) ||
         new Set(expected.map((image) => image.assetId)).size !==
           expected.length ||
         expected.some(
@@ -159,24 +160,27 @@ export class MediaContentSnapshotFacade {
     if (requested.size > 256) throw new ApplicationError('MEDIA_UNAVAILABLE');
     if (!requested.size) return result;
     const ids = [...requested.values()].map(({ parent }) => parent.resourceId);
+    const kinds = [...requested.values()].map(
+      ({ parent }) => parent.resourceKind,
+    );
     const rows = await budget.rows<SnapshotRow>(
       read,
-      `SELECT p.id AS parent_id,b.id AS binding_id,b.asset_id,b.manifest_digest AS binding_digest,b.ordinal,b.slot,
+      `SELECT p.id AS parent_id,p.kind AS parent_kind,b.id AS binding_id,b.asset_id,b.manifest_digest AS binding_digest,b.ordinal,b.slot,
        a.id,a.intent_id,a.audience,a.purpose,a.owner_kind,a.resource_kind,a.content_version::text,
        a.manifest_digest,a.manifest,a.policy_revision,i.state AS intent_state,
        h.revision::text AS head_revision,h.event_id,e.state,e.manifest_digest AS event_digest,
        e.policy_revision AS event_policy,e.effective_at,e.valid_until,t.read_at,
        COALESCE(e.effective_at<=t.read_at AND e.valid_until>t.read_at AND e.valid_until>e.effective_at,false) AS exact_time_valid
-       FROM unnest($1::uuid[]) p(id)
+       FROM unnest($1::uuid[],$2::text[]) p(id,kind)
        CROSS JOIN (SELECT clock_timestamp() AS read_at) t
-       LEFT JOIN whaleu_media.bindings b ON b.owner_kind='community' AND b.resource_kind='post'
+       LEFT JOIN whaleu_media.bindings b ON b.owner_kind='community' AND b.resource_kind=p.kind
          AND b.resource_id=p.id AND b.content_version=1 AND b.detached_at IS NULL
        LEFT JOIN whaleu_media.assets a ON a.id=b.asset_id
        LEFT JOIN whaleu_media.upload_intents i ON i.id=a.intent_id
        LEFT JOIN whaleu_media.asset_safety_heads h ON h.asset_id=a.id
        LEFT JOIN whaleu_media.asset_safety_events e ON e.asset_id=a.id AND e.revision=h.revision AND e.id=h.event_id
-       ORDER BY p.id,b.ordinal,b.id`,
-      [ids],
+       ORDER BY p.kind,p.id,b.ordinal,b.id`,
+      [ids, kinds],
       [...requested.values()].reduce(
         (sum, reference) => sum + reference.expected.length,
         0,
@@ -185,12 +189,18 @@ export class MediaContentSnapshotFacade {
     );
     const grouped = new Map<string, SnapshotRow[]>();
     for (const row of rows) {
-      const group = grouped.get(row.parent_id) ?? [];
+      const group =
+        grouped.get(JSON.stringify([row.parent_kind, row.parent_id])) ?? [];
       group.push(row);
-      grouped.set(row.parent_id, group);
+      grouped.set(JSON.stringify([row.parent_kind, row.parent_id]), group);
     }
     for (const [key, reference] of requested) {
-      const records = grouped.get(reference.parent.resourceId);
+      const records = grouped.get(
+        JSON.stringify([
+          reference.parent.resourceKind,
+          reference.parent.resourceId,
+        ]),
+      );
       if (
         !records ||
         records.length !== reference.expected.length ||
@@ -216,9 +226,9 @@ export class MediaContentSnapshotFacade {
           row.ordinal !== ordinal ||
           row.slot !== 'images' ||
           row.audience !== 'content-gated' ||
-          row.purpose !== 'community-post-image' ||
+          row.purpose !== `community-${reference.parent.resourceKind}-image` ||
           row.owner_kind !== 'community' ||
-          row.resource_kind !== 'post' ||
+          row.resource_kind !== reference.parent.resourceKind ||
           row.content_version !== '1' ||
           !row.policy_revision ||
           !row.effective_at ||

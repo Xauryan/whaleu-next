@@ -7,6 +7,11 @@ import { prepareMediaV2Schema } from './contracts-v2.js';
 import type { PrepareMediaV2Input } from './contracts-v2.js';
 import { prepareMediaV3Schema } from './contracts-v3.js';
 import type { PrepareMediaV3Input } from './contracts-v3.js';
+import { prepareMediaV4Schema } from './contracts-v4.js';
+import type {
+  PrepareMediaV4Input,
+  MediaBatchIdentity as DiscussionMediaBatchIdentity,
+} from './contracts-v4.js';
 
 export type PrepareMediaInput = z.infer<typeof prepareMediaSchema>;
 export interface AuthorizedMediaDraft {
@@ -15,20 +20,35 @@ export interface AuthorizedMediaDraft {
   readonly serverScopeId: string;
   readonly scopeRevision: string;
   readonly ownerKind: 'community';
-  readonly resourceKind: 'post';
+  readonly resourceKind: 'post' | 'comment' | 'reply';
   readonly targetKind: 'draft';
   readonly contentVersion: 1;
   readonly audience: 'content-gated';
-  readonly purpose: 'community-post-image';
+  readonly purpose:
+    | 'community-post-image'
+    | 'community-comment-image'
+    | 'community-reply-image';
   readonly slot: 'images';
   readonly ordinal: number;
 }
 export interface MediaDraftOwnerPort {
+  /** Metadata-only historical identity. No current content/read permission. */
+  resolvedDiscussionPostId?(
+    actor: string,
+    scopeId: string,
+    revision: string,
+    identity: DiscussionMediaBatchIdentity,
+    tx: PoolClient,
+  ): Promise<string>;
   /** Resolve a durable owner scope under current Identity/Safety/publication
    * authority. Enroll that owner's mandatory proof. No remote effects here. */
   authorizePrepare(
     actorAccountId: string,
-    input: PrepareMediaInput | PrepareMediaV2Input | PrepareMediaV3Input,
+    input:
+      | PrepareMediaInput
+      | PrepareMediaV2Input
+      | PrepareMediaV3Input
+      | PrepareMediaV4Input,
     tx: PoolClient,
   ): Promise<AuthorizedMediaDraft>;
 }
@@ -44,11 +64,34 @@ export class MediaPrepareScopes {
     {
       tx: PoolClient;
       epoch: object;
-      input: PrepareMediaInput | PrepareMediaV2Input | PrepareMediaV3Input;
+      input:
+        | PrepareMediaInput
+        | PrepareMediaV2Input
+        | PrepareMediaV3Input
+        | PrepareMediaV4Input;
       scope: AuthorizedMediaDraft;
     }
   >();
   constructor(private readonly owner: MediaDraftOwnerPort) {}
+  async resolvedDiscussionPostId(
+    actor: string,
+    scopeId: string,
+    revision: string,
+    identity: DiscussionMediaBatchIdentity,
+    tx: PoolClient,
+  ): Promise<string> {
+    if (!transactionReadEpoch(tx) || !this.owner.resolvedDiscussionPostId)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return mediaIdSchema.parse(
+      await this.owner.resolvedDiscussionPostId(
+        actor,
+        scopeId,
+        revision,
+        identity,
+        tx,
+      ),
+    );
+  }
   async authorize(
     actorAccountId: string,
     raw: unknown,
@@ -70,9 +113,29 @@ export class MediaPrepareScopes {
   ): Promise<MediaPrepareScope> {
     return this.issue(actorAccountId, prepareMediaV3Schema.parse(raw), tx);
   }
+  async authorizeV4(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    return this.issue(actorAccountId, prepareMediaV4Schema.parse(raw), tx);
+  }
+  async authorizeBatch(
+    actorAccountId: string,
+    input: PrepareMediaV3Input | PrepareMediaV4Input,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    return input.protocolVersion === 4
+      ? this.authorizeV4(actorAccountId, input, tx)
+      : this.authorizeV3(actorAccountId, input, tx);
+  }
   private async issue(
     actorAccountId: string,
-    input: PrepareMediaInput | PrepareMediaV2Input | PrepareMediaV3Input,
+    input:
+      | PrepareMediaInput
+      | PrepareMediaV2Input
+      | PrepareMediaV3Input
+      | PrepareMediaV4Input,
     tx: PoolClient,
   ): Promise<MediaPrepareScope> {
     const actor = mediaIdSchema.parse(actorAccountId);
@@ -82,7 +145,10 @@ export class MediaPrepareScopes {
     if (
       scope.actorAccountId !== actor ||
       scope.ownerKind !== 'community' ||
-      scope.resourceKind !== 'post' ||
+      scope.resourceKind !==
+        ('protocolVersion' in input && input.protocolVersion === 4
+          ? input.batchIdentity.target.kind
+          : 'post') ||
       scope.targetKind !== 'draft' ||
       scope.contentVersion !== 1 ||
       scope.audience !== 'content-gated' ||
@@ -97,7 +163,11 @@ export class MediaPrepareScopes {
     const capability: MediaPrepareScope = Object.freeze({
       [brand]: true as const,
     });
-    if ('protocolVersion' in input) Object.freeze(input.batchIdentity);
+    if ('protocolVersion' in input) {
+      if (input.protocolVersion === 4)
+        Object.freeze(input.batchIdentity.target);
+      Object.freeze(input.batchIdentity);
+    }
     Object.freeze(input.declaration);
     Object.freeze(input);
     this.issued.set(capability, {
@@ -112,7 +182,11 @@ export class MediaPrepareScopes {
     capability: MediaPrepareScope,
     tx: PoolClient,
   ): {
-    input: PrepareMediaInput | PrepareMediaV2Input | PrepareMediaV3Input;
+    input:
+      | PrepareMediaInput
+      | PrepareMediaV2Input
+      | PrepareMediaV3Input
+      | PrepareMediaV4Input;
     scope: AuthorizedMediaDraft;
   } {
     const issued = this.issued.get(capability);

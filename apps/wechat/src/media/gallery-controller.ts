@@ -47,6 +47,9 @@ export class MediaGalleryController {
   private generation: Generation | null = null;
   private view = initialGalleryView();
   private disposed = false;
+  private releasing: Promise<void> = Promise.resolve();
+  private settling: Promise<void> = Promise.resolve();
+  private beforeRead: Promise<void> | undefined;
   private viewSequence = 0;
   private operation: { key: string; promise: Promise<void> } | null = null;
   private readonly unsubscribe: () => void;
@@ -77,11 +80,15 @@ export class MediaGalleryController {
   snapshot(): GalleryView {
     return this.view;
   }
-  load(raw: readonly MediaAttachment[] | null): Promise<void> {
+  load(
+    raw: readonly MediaAttachment[] | null,
+    beforeRead?: Promise<void>,
+  ): Promise<void> {
     this.clear();
+    this.beforeRead = beforeRead;
     if (!raw || this.disposed) return Promise.resolve();
     try {
-      if (raw.length < 2 || raw.length > 9)
+      if (raw.length < 1 || raw.length > 9)
         throw new ClientError('protocol', 'Invalid gallery');
       const descriptors = raw.map(decodeMediaAttachment);
       if (
@@ -142,7 +149,11 @@ export class MediaGalleryController {
           : slot,
       ),
     });
-    if (file) void this.transfer?.release(file).catch(() => undefined);
+    if (file)
+      this.trackRelease(
+        this.transfer?.release(file).catch(() => undefined) ??
+          Promise.resolve(),
+      );
   }
   retry(index: number): Promise<void> {
     const generation = this.generation;
@@ -170,6 +181,7 @@ export class MediaGalleryController {
         this.publish({ ...initialGalleryView(), status: 'unavailable' });
       } else this.failSlot(index);
     });
+    this.trackOperation(promise);
     this.operation = { key, promise };
     void promise.then(() => {
       if (this.operation?.promise === promise) this.operation = null;
@@ -180,7 +192,13 @@ export class MediaGalleryController {
     this.operation = null;
     this.descriptors = [];
     this.descriptorTicket = null;
+    this.beforeRead = undefined;
     void this.invalidate();
+  }
+  /** Includes late outputs from the retiring generation as well as its leases. */
+  clearAndWait(): Promise<void> {
+    this.clear();
+    return Promise.all([this.releasing, this.settling]).then(() => undefined);
   }
   hide(): void {
     this.clear();
@@ -195,6 +213,7 @@ export class MediaGalleryController {
     const key = `${expanded ? 'display' : 'window'}:${index}`;
     if (this.operation?.key === key) return this.operation.promise;
     const promise = this.run(index, expanded);
+    this.trackOperation(promise);
     this.operation = { key, promise };
     void promise.then(
       () => {
@@ -209,6 +228,7 @@ export class MediaGalleryController {
   private async run(index: number, expanded: boolean): Promise<void> {
     const descriptors = this.descriptors;
     const descriptorTicket = this.descriptorTicket;
+    const beforeRead = this.beforeRead;
     // Revoke all UI sources synchronously and await releases before reserving display bytes.
     const released = this.invalidate();
     if (!descriptorTicket || this.disposed || !descriptors.length) return;
@@ -258,7 +278,7 @@ export class MediaGalleryController {
       })),
     });
     try {
-      await released;
+      await Promise.all([released, beforeRead]);
       generation.session.current();
       if (!ticket.credentials || !this.transfer)
         throw new ClientError('configuration', 'Gallery unavailable');
@@ -308,7 +328,11 @@ export class MediaGalleryController {
           : slot,
       ),
     });
-    if (file) void this.transfer?.release(file).catch(() => undefined);
+    if (file)
+      this.trackRelease(
+        this.transfer?.release(file).catch(() => undefined) ??
+          Promise.resolve(),
+      );
   }
   private async readSlot(
     generation: Generation,
@@ -338,7 +362,7 @@ export class MediaGalleryController {
     try {
       generation.session.current();
     } catch (error) {
-      await this.transfer.release(file);
+      await this.trackRelease(this.transfer.release(file));
       throw error;
     }
     generation.files.set(index, file);
@@ -358,6 +382,18 @@ export class MediaGalleryController {
       ),
     });
   }
+  private trackOperation(operation: Promise<void>): void {
+    this.settling = Promise.all([
+      this.settling,
+      operation.catch(() => undefined),
+    ]).then(() => undefined);
+  }
+  private trackRelease(release: Promise<void>): Promise<void> {
+    this.releasing = Promise.all([this.releasing, release]).then(
+      () => undefined,
+    );
+    return this.releasing;
+  }
   private invalidate(): Promise<void> {
     const old = this.generation;
     this.generation = null;
@@ -376,7 +412,7 @@ export class MediaGalleryController {
         ).then(() => undefined);
       }
     }
-    return release;
+    return this.trackRelease(release);
   }
   private publish(view: GalleryView): void {
     this.view = Object.freeze(view);

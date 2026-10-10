@@ -433,3 +433,38 @@ test('semantic v2 nine-image ordered chain preserves all identities and changes 
     );
   }
 });
+
+test('typed comment and reply Media certificates retain ordered sets up to three, never a fourth', () => {
+  const f = fixture();
+  const attachments = Array.from({ length: 4 }, (_, ordinal) => ({
+    ...f.media.attachments[0]!,
+    ordinal,
+    assetId: randomUUID(),
+    bindingId: randomUUID(),
+    intentId: randomUUID(),
+    eventId: randomUUID(),
+  }));
+  const root = {
+    kind: 'comment' as const,
+    id: randomUUID(),
+    decision: 'allow' as const,
+    validUntil: null,
+    attachments: attachments.slice(0, 3),
+  };
+  const reply = { ...root, kind: 'reply' as const, id: randomUUID() };
+  const post = f.certificate.media_chain[0]!;
+  assert.equal(
+    semanticMediaChainSchema.safeParse([post, root, reply]).success,
+    true,
+  );
+  assert.equal(
+    semanticMediaChainSchema.safeParse([post, { ...root, attachments }, reply])
+      .success,
+    false,
+  );
+  assert.equal(
+    semanticMediaChainSchema.safeParse([post, root, { ...reply, attachments }])
+      .success,
+    false,
+  );
+});

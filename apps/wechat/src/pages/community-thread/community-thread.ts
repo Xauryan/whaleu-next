@@ -1,4 +1,9 @@
 import {
+  DiscussionGalleryController,
+  discussionImageGroups,
+  initialDiscussionGalleryView,
+} from '../../media/discussion-gallery';
+import {
   MessagingEntryNavigator,
   postEntry,
   commentEntry,
@@ -29,6 +34,7 @@ import {
 import { ThreadController, initialThreadView } from './controller';
 Page({
   data: {
+    mediaGallery: initialDiscussionGalleryView(),
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     report: initialReportMutationView(),
     block: initialBlockMutationView(),
@@ -37,6 +43,7 @@ Page({
     identityOverlay: initialOverlayView(),
     requestedReplyId: '',
   },
+  mediaGalleryController: undefined as DiscussionGalleryController | undefined,
   reportMutations: undefined as ReportMutationController | undefined,
   blockMutations: undefined as BlockMutationController | undefined,
   blockTargets: '',
@@ -62,6 +69,11 @@ Page({
   authorNavigator: undefined as AuthorNavigator | undefined,
   messagingEntry: undefined as MessagingEntryNavigator | undefined,
   onShow() {
+    this.mediaGalleryController?.dispose();
+    this.mediaGalleryController = new DiscussionGalleryController(
+      getApp<WhaleuApp>().mediaRead,
+      (view) => this.setData({ mediaGallery: view }),
+    );
     this.messagingEntry?.dispose();
     this.messagingEntry = new MessagingEntryNavigator(
       wx,
@@ -94,6 +106,7 @@ Page({
       (view) => {
         this.setData({ report: view });
         if (view.busy || view.frozen) {
+          this.mediaGalleryController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         }
@@ -103,6 +116,7 @@ Page({
     this.blockMutations = new BlockMutationController(runtime, (view) => {
       this.setData({ block: view });
       if (view.busy || view.frozen) {
+        this.mediaGalleryController?.clear();
         this.identityOverlay?.clear();
         this.overlayTargets = '';
       }
@@ -120,6 +134,7 @@ Page({
       (view) => {
         this.setData({ interaction: view });
         if (view.busy || view.frozen) {
+          this.mediaGalleryController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         }
@@ -135,6 +150,23 @@ Page({
       this.rootCommentId,
       this.replyId,
       (view) => {
+        this.mediaGalleryController?.reconcile(
+          view.busy ||
+            !view.loaded ||
+            view.needsReload ||
+            !view.post ||
+            !view.root
+            ? null
+            : discussionImageGroups(
+                view.post,
+                [view.root],
+                [
+                  ...view.replies,
+                  ...view.contextReplies,
+                  ...(view.locatedReply ? [view.locatedReply] : []),
+                ],
+              ),
+        );
         this.setData({ ...view });
         const targets: DisplayTarget[] =
           view.post && view.root
@@ -182,6 +214,7 @@ Page({
           this.data.interaction.busy ||
           this.data.interaction.frozen
         ) {
+          this.mediaGalleryController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         } else if (key !== this.overlayTargets) {
@@ -191,6 +224,71 @@ Page({
       },
     );
     void this.controller.load();
+  },
+  onSelectGallery(event: {
+    currentTarget: { dataset: { kind: string; id: string } };
+  }) {
+    if (
+      !this.data.post ||
+      !this.data.root ||
+      !this.data.loaded ||
+      this.data.busy ||
+      this.data.needsReload ||
+      this.data.block.busy ||
+      this.data.block.frozen ||
+      this.data.report.busy ||
+      this.data.report.frozen ||
+      this.data.interaction.busy ||
+      this.data.interaction.frozen
+    )
+      return;
+    const { kind, id } = event.currentTarget.dataset;
+    const group = discussionImageGroups(
+      this.data.post,
+      [this.data.root],
+      [
+        ...this.data.replies,
+        ...this.data.contextReplies,
+        ...(this.data.locatedReply ? [this.data.locatedReply] : []),
+      ],
+    ).find((item) => item.kind === kind && item.id === id);
+    if (group) void this.mediaGalleryController?.select(group);
+  },
+  onGalleryOpen(event: { currentTarget: { dataset: { index: number } } }) {
+    void this.mediaGalleryController?.open(
+      Number(event.currentTarget.dataset.index),
+    );
+  },
+  onGalleryWindow(event: { currentTarget: { dataset: { start: number } } }) {
+    void this.mediaGalleryController?.window(
+      Number(event.currentTarget.dataset.start),
+    );
+  },
+  onGalleryRetry(event: { currentTarget: { dataset: { index: number } } }) {
+    void this.mediaGalleryController?.retry(
+      Number(event.currentTarget.dataset.index),
+    );
+  },
+  onGalleryClose() {
+    void this.mediaGalleryController?.close();
+  },
+  onGalleryError(event: {
+    currentTarget: { dataset: { index: number; src: string; viewId: string } };
+  }) {
+    this.mediaGalleryController?.imageFailed(
+      Number(event.currentTarget.dataset.index),
+      event.currentTarget.dataset.src,
+      event.currentTarget.dataset.viewId,
+    );
+  },
+  onGalleryDismiss() {
+    this.mediaGalleryController?.clear();
+  },
+  onGalleryTouchMove() {
+    // Keep overlay gestures from scrolling the content behind the selected group.
+  },
+  onPageScroll() {
+    this.mediaGalleryController?.clear();
   },
   onReportPost() {
     const post = this.data.post;
@@ -369,6 +467,7 @@ Page({
     this.controller?.requestDelete(event.currentTarget.dataset.id);
   },
   onConfirmDelete() {
+    this.mediaGalleryController?.clear();
     void this.controller?.confirmDelete();
   },
   onDismissDelete() {
@@ -384,6 +483,8 @@ Page({
     this.mutations?.cancel();
   },
   onHide() {
+    this.mediaGalleryController?.dispose();
+    this.mediaGalleryController = undefined;
     this.messagingEntry?.dispose();
     this.messagingEntry = undefined;
     this.authorNavigator?.dispose();

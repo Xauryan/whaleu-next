@@ -12,6 +12,20 @@ export class UnavailableCommunityMediaAttachment extends UnavailableMedia {
     new MediaOwnerProofRegistry([]),
   );
 
+  override async detachMany(
+    targets: readonly { kind: 'post' | 'comment' | 'reply'; id: string }[],
+    tx: PoolClient,
+  ): Promise<void> {
+    await this.assets.detachMany(
+      targets.map(({ kind, id }) => ({
+        ownerKind: 'community' as const,
+        resourceKind: kind,
+        resourceId: id,
+        contentVersion: 1 as const,
+      })),
+      tx,
+    );
+  }
   override async detach(
     kind: 'post' | 'comment' | 'reply',
     id: string,

@@ -16,18 +16,23 @@ import {
   memberRequestHash,
   type BatchGateway,
   type BatchStatus,
-} from './batch-contracts';
+} from './batch-engine-contracts';
 import {
   PendingBatchStore,
   type PendingBatch,
   type PendingMember,
 } from './batch-pending';
 import { MediaBatchController, type BatchView } from './batch-controller';
-import { unavailableBatchGateway } from './batch-gateway';
+import { batchEngineGateway } from './batch-engine-gateway';
 import type { MediaSession } from './contracts';
 import type { UploadTransfer } from './upload-contracts';
-import { mediaPublicationReference } from './upload-runtime';
-import { batchCommandHash } from './batch-contracts';
+import {
+  batchPublicationReference as mediaPublicationReference,
+  identityMatchesAttempt,
+  discussionTarget,
+  publicationKind,
+} from './batch-publication';
+import { batchCommandHash } from './batch-engine-contracts';
 
 const writers = new Set<string>();
 /** A process-local single writer, not a cross-key or cross-device transaction. */
@@ -53,13 +58,18 @@ export interface BatchRuntimeOptions {
   readonly community: Pick<CommunityGateway, 'receipt'>;
   readonly clock: Clock;
   readonly newRequestId: () => Promise<string>;
-  readonly gateway?: BatchGateway;
+  readonly gateway?: import('./batch-contracts').BatchGateway;
+  readonly discussionGateway?: import('./discussion-batch-contracts').BatchGateway;
   readonly transfer?: UploadTransfer;
+  readonly discussionTransfer?: UploadTransfer;
   readonly privateViews?: PrivateViewLifecycle;
 }
 export interface MediaBatchRuntime {
   modeForActor(actor: string): 'legacy' | 'batch' | 'conflict';
-  create(render: (view: BatchView) => void): MediaBatchController;
+  create(
+    render: (view: BatchView) => void,
+    operation?: PendingAttempt['operation'],
+  ): MediaBatchController;
   reservePublication(attempt: PendingAttempt): void;
   beforePublication(
     attempt: PendingAttempt,
@@ -94,6 +104,10 @@ export function matchBatch(
 ): BatchStatus {
   const status = decodeBatchStatus(raw);
   if (
+    status.version !== record.version ||
+    (status.version === 4 &&
+      record.resolvedPostId &&
+      status.resolvedPostId !== record.resolvedPostId) ||
     status.batchRequestId !== record.batchRequestId ||
     status.batchRequestHash !== record.batchRequestHash ||
     (record.batchId && record.batchId !== status.batchId) ||
@@ -163,6 +177,7 @@ export function observeBatch(
         ];
   return store.update(record, {
     batchId: status.batchId,
+    ...(status.version === 4 ? { resolvedPostId: status.resolvedPostId } : {}),
     serverRevision: status.revision,
     members,
     retiring,
@@ -175,7 +190,7 @@ export function observeBatch(
 export class BatchPublicationCoordinator {
   readonly gateway: BatchGateway;
   constructor(readonly options: BatchRuntimeOptions) {
-    this.gateway = options.gateway ?? unavailableBatchGateway;
+    this.gateway = batchEngineGateway(options);
   }
   private actor(attempt: PendingAttempt): void {
     if (
@@ -187,8 +202,11 @@ export class BatchPublicationCoordinator {
   private matches(record: PendingBatch, attempt: PendingAttempt): void {
     this.actor(attempt);
     if (
-      attempt.operation !== 'publish_post' ||
-      attempt.payload.spaceId !== record.batchIdentity.spaceId ||
+      !identityMatchesAttempt(
+        record.batchIdentity,
+        attempt,
+        record.resolvedPostId,
+      ) ||
       !batchEqual(
         attempt.payload.imageAssetIds,
         record.publication?.orderedAssets.map((a) => a.assetId),
@@ -202,7 +220,6 @@ export class BatchPublicationCoordinator {
   }
   reserve(attempt: PendingAttempt): void {
     this.options.pending.assertBatchAdmission(attempt.accountId);
-    if (attempt.operation !== 'publish_post') return;
     if (!attempt.payload.imageAssetIds.length) {
       if (this.options.pending.load(attempt.accountId))
         throw new ClientError(
@@ -247,7 +264,11 @@ export class BatchPublicationCoordinator {
     });
     if (
       !assets.length ||
-      attempt.payload.spaceId !== record.batchIdentity.spaceId ||
+      !identityMatchesAttempt(
+        record.batchIdentity,
+        attempt,
+        record.resolvedPostId,
+      ) ||
       !batchEqual(
         assets.map((a) => a.assetId),
         attempt.payload.imageAssetIds,
@@ -263,6 +284,7 @@ export class BatchPublicationCoordinator {
           record.batchId,
           sealRevision,
           assets,
+          record.version,
         ),
         sealRevision,
         linkState: 'reserved',
@@ -276,7 +298,6 @@ export class BatchPublicationCoordinator {
   }
   async before(attempt: PendingAttempt, cancel: Cancellation): Promise<void> {
     this.options.pending.assertBatchAdmission(attempt.accountId);
-    if (attempt.operation !== 'publish_post') return;
     if (!attempt.payload.imageAssetIds.length) {
       if (this.options.pending.load(attempt.accountId))
         throw new ClientError(
@@ -380,7 +401,11 @@ export class BatchPublicationCoordinator {
             phase: 'seal_uncertain',
             pendingCommand: {
               ...command,
-              commandHash: batchCommandHash(record.batchId!, command),
+              commandHash: batchCommandHash(
+                record.batchId!,
+                command,
+                record.version,
+              ),
             },
           });
         }
@@ -397,6 +422,7 @@ export class BatchPublicationCoordinator {
           decodeBatchCommand(
             record.pendingCommand.kind,
             record.pendingCommand.payload,
+            record.version,
           ),
           session,
           cancel,
@@ -448,13 +474,12 @@ export class BatchPublicationCoordinator {
     session: MediaSession,
     cancel: Cancellation,
   ): Promise<PendingBatch> {
-    if (attempt.operation !== 'publish_post')
-      throw new ClientError('protocol', 'Invalid batch publication');
     const recovered = await this.gateway.recoverPublication(
       mediaPublicationReference(attempt),
       attempt.payload.imageAssetIds,
       session,
       cancel,
+      discussionTarget(attempt),
     );
     session.current();
     if (recovered.state !== 'recorded')
@@ -471,7 +496,11 @@ export class BatchPublicationCoordinator {
     )
       throw new ClientError('business', 'Exact original batch remains unknown');
     if (
-      identity.spaceId !== attempt.payload.spaceId ||
+      !identityMatchesAttempt(
+        identity,
+        attempt,
+        status.version === 4 ? status.resolvedPostId : undefined,
+      ) ||
       !batchEqual(
         status.orderedAssets.map((a) => a.assetId),
         attempt.payload.imageAssetIds,
@@ -502,6 +531,7 @@ export class BatchPublicationCoordinator {
               status.batchId,
               sealRevision,
               status.orderedAssets,
+              status.version,
             ),
         sealRevision,
         linkState: sealed ? 'linked' : 'reserved',
@@ -520,11 +550,7 @@ export class BatchPublicationCoordinator {
     cancel: Cancellation,
     lock = true,
   ): Promise<Receipt> {
-    if (
-      attempt.operation !== 'publish_post' ||
-      !attempt.payload.imageAssetIds.length
-    )
-      return decodeReceipt(raw);
+    if (!attempt.payload.imageAssetIds.length) return decodeReceipt(raw);
     if (lock)
       return batchWriter(this.options.pending, attempt.accountId, () =>
         this.verify(attempt, raw, cancel, false),
@@ -537,7 +563,7 @@ export class BatchPublicationCoordinator {
     this.matches(record, attempt);
     if (
       receipt.requestId !== record.publication!.reference.clientRequestId ||
-      receipt.operation !== 'publish_post'
+      receipt.operation !== attempt.operation
     )
       throw new ClientError('protocol', 'Receipt mismatch');
     if (
@@ -563,7 +589,9 @@ export class BatchPublicationCoordinator {
     if (receipt.outcome === 'created') {
       if (
         status.status !== 'bound_history' ||
-        status.parent.resourceId !== receipt.resourceId
+        status.parent.resourceId !== receipt.resourceId ||
+        status.parent.resourceKind !==
+          publicationKind(record.publication!.reference)
       )
         throw new ClientError('protocol', 'Complete bound history is required');
       this.matchSealed(record, status);
@@ -609,7 +637,11 @@ export class BatchPublicationCoordinator {
           phase: 'layout_uncertain',
           pendingCommand: {
             ...command,
-            commandHash: batchCommandHash(record.batchId!, command),
+            commandHash: batchCommandHash(
+              record.batchId!,
+              command,
+              record.version,
+            ),
           },
         });
       }
@@ -618,6 +650,7 @@ export class BatchPublicationCoordinator {
         decodeBatchCommand(
           record.pendingCommand!.kind,
           record.pendingCommand!.payload,
+          record.version,
         ),
         session,
         cancel,
@@ -644,11 +677,7 @@ export class BatchPublicationCoordinator {
     return receipt;
   }
   settled(attempt: PendingAttempt): void {
-    if (
-      attempt.operation !== 'publish_post' ||
-      !attempt.payload.imageAssetIds.length
-    )
-      return;
+    if (!attempt.payload.imageAssetIds.length) return;
     const { pending, publicationPending } = this.options;
     let record = pending.load(attempt.accountId);
     if (!record) return;
@@ -679,7 +708,8 @@ export function createMediaBatchRuntime(
   const publication = new BatchPublicationCoordinator(options);
   return {
     modeForActor: (actor) => options.pending.modeForActor(actor),
-    create: (render) => new MediaBatchController(options, publication, render),
+    create: (render, operation = 'publish_post') =>
+      new MediaBatchController(options, publication, render, operation),
     reservePublication: (attempt) => publication.reserve(attempt),
     beforePublication: (attempt, cancel) => publication.before(attempt, cancel),
     verifyReceipt: (attempt, receipt, cancel) =>

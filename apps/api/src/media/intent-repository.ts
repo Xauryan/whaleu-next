@@ -3,6 +3,7 @@ import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import { mediaRequestHash } from './contracts-v2.js';
 import { mediaMemberRequestHash } from './contracts-v3.js';
+import { mediaMemberRequestHash as discussionMemberHash } from './contracts-v4.js';
 import { MEDIA_POLICY_VERSION } from './contracts.js';
 import type { MediaPrepareScope } from './prepare-scope.js';
 import { MediaPrepareScopes } from './prepare-scope.js';
@@ -41,9 +42,12 @@ export class MediaIntentRepository {
     const declaredSha256 =
       'sha256' in input.declaration ? input.declaration.sha256 : null;
     const v2 = declaredSha256 !== null;
-    const v3 = 'protocolVersion' in input && input.protocolVersion === 3;
+    const v3 = 'protocolVersion' in input;
+    const protocol = v3 ? input.protocolVersion : v2 ? 2 : 1;
     const requestHash = v3
-      ? mediaMemberRequestHash(scope.actorAccountId, input.batchIdentity, {
+      ? (input.protocolVersion === 4
+          ? discussionMemberHash
+          : mediaMemberRequestHash)(scope.actorAccountId, input.batchIdentity, {
           clientRequestId: input.clientRequestId,
           memberId: input.memberId,
           sourceSlot: input.ordinal,
@@ -71,7 +75,7 @@ export class MediaIntentRepository {
     const hash = createHash('sha256')
       .update(
         v3
-          ? 'whaleu-media-intent:v3\n'
+          ? `whaleu-media-intent:v${protocol}\n`
           : v2
             ? 'whaleu-media-intent:v2\n'
             : 'whaleu-media-intent:v1\n',
@@ -95,9 +99,7 @@ export class MediaIntentRepository {
           mime: input.declaration.mime,
           bytes: input.declaration.bytes,
           policyVersion: MEDIA_POLICY_VERSION,
-          ...(v2
-            ? { protocolVersion: v3 ? 3 : 2, sha256: declaredSha256 }
-            : {}),
+          ...(v2 ? { protocolVersion: protocol, sha256: declaredSha256 } : {}),
           ...(v3
             ? { batchId: input.batchId, memberId: input.memberId, requestHash }
             : {}),
@@ -172,7 +174,7 @@ export class MediaIntentRepository {
           MEDIA_POLICY_VERSION,
           input.declaration.bytes,
           input.declaration.mime,
-          v3 ? 3 : v2 ? 2 : 1,
+          protocol,
           requestHash,
           declaredSha256,
         ],

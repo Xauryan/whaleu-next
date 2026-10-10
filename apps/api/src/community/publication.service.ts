@@ -1,3 +1,5 @@
+import { withDiscussionMediaMutation } from './../media/discussion-ancestor-proof.js';
+import { authorizeDiscussionPublication } from './discussion/publication-target.js';
 import type {
   AcceptedApproval,
   EffectiveContentEnvelopeDraft,
@@ -20,7 +22,6 @@ import {
   MEDIA_ATTACHMENT,
   requireDecision,
   requirePublication,
-  requireCommentControl,
 } from './community-policy.js';
 import type {
   ApprovedAsset,
@@ -295,97 +296,95 @@ export class PublicationService {
       'publish_comment',
       { postId, text, imageAssetIds, authorMode },
       async (actor, tx) => {
-        const { post, space } = await this.access.accessiblePost(
-          postId,
-          actor,
-          tx,
-          true,
-        );
-        await this.access.interaction(actor, post, tx);
-        const authority = await this.access.authority(actor, space, tx, {
-          publication: true,
-          targetPostId: post.id,
-          managementRequired:
-            post.comments_policy === 'restricted' && post.account_id !== actor,
-        });
-        const effectiveMode =
-          post.author_mode === 'anonymous' && post.account_id === actor
-            ? 'anonymous'
-            : authorMode;
-        requirePublication(
-          authority,
-          space,
-          post.category,
-          effectiveMode,
-          'publish_comment',
-          post.author_mode,
-        );
-        requireCommentControl(
-          authority!,
-          post.account_id === actor,
-          post.comments_policy === 'restricted',
-        );
-        const { images, approval } = await this.approved(
-          actor,
-          'publish_comment',
-          text,
-          imageAssetIds,
-          tx,
-          undefined,
-          {
-            version: 1,
-            accountId: actor,
-            purpose: 'publish_comment',
-            spaceId: space.id,
-            category: post.category,
-            authorMode: effectiveMode,
-            commentsPolicy: post.comments_policy,
-            postId: post.id,
-            rootCommentId: null,
-            targetReplyId: null,
+        const publish = async () => {
+          const {
+            post,
+            space,
+            authority,
+            mode: effectiveMode,
+          } = await authorizeDiscussionPublication(
+            this.access,
+            this.repository,
+            actor,
+            { kind: 'comment', postId },
+            tx,
+            authorMode,
+          );
+          const { images, approval } = await this.approved(
+            actor,
+            'publish_comment',
             text,
-            component: { kind: 'none' },
-            trading: null,
-            scope: this.scope(authority, space.id, space.operatingRegionId),
-          },
-        );
-        if (effectiveMode === 'named') await this.profiles.prepare(actor, tx);
-        const id = randomUUID();
-        const result = await tx.query<{ created_at: Date }>(
-          'INSERT INTO whaleu_community.root_comments(id,post_id,account_id,text,author_mode) VALUES ($1,$2,$3,$4,$5) RETURNING created_at',
-          [id, postId, actor, text, effectiveMode],
-        );
-        if (effectiveMode === 'anonymous')
-          await this.repository.persona(postId, actor, tx);
-        await this.repository.attach('comment', id, images, tx);
-        await this.bind(approval, 'comment', id, tx, images);
-        await this.repository.event(
-          `comment:${id}:created`,
-          'comment_created',
-          id,
-          tx,
-          {
-            experienceSourceVersion: 1,
-            actorAccountId: actor,
-            actorAuthorMode: effectiveMode,
-            resourceAuthorMode: effectiveMode,
-            postId: post.id,
-            recipientAccountIds:
-              post.account_id === actor ? [] : [post.account_id],
-            obligations: [
-              'post_author_notification',
-              'eligible_saved_subscriber_notification',
-              'comment_actor_reward',
-              'distinct_post_author_reward',
-              'discussion_ranking',
-              'media_audit',
-            ],
-          },
-        );
-        return {
-          resourceId: id,
-          createdAt: result.rows[0]!.created_at.toISOString(),
+            imageAssetIds,
+            tx,
+            undefined,
+            {
+              version: 1,
+              accountId: actor,
+              purpose: 'publish_comment',
+              spaceId: space.id,
+              category: post.category,
+              authorMode: effectiveMode,
+              commentsPolicy: post.comments_policy,
+              postId: post.id,
+              rootCommentId: null,
+              targetReplyId: null,
+              text,
+              component: { kind: 'none' },
+              trading: null,
+              scope: this.scope(authority, space.id, space.operatingRegionId),
+            },
+            {
+              clientRequestId,
+              operation: 'publish_comment',
+              intentHash: publicationHash('publish_comment', {
+                postId,
+                text,
+                imageAssetIds,
+                authorMode,
+              }),
+            },
+          );
+          if (effectiveMode === 'named') await this.profiles.prepare(actor, tx);
+          const id = randomUUID();
+          const result = await tx.query<{ created_at: Date }>(
+            'INSERT INTO whaleu_community.root_comments(id,post_id,account_id,text,author_mode) VALUES ($1,$2,$3,$4,$5) RETURNING created_at',
+            [id, postId, actor, text, effectiveMode],
+          );
+          if (effectiveMode === 'anonymous')
+            await this.repository.persona(postId, actor, tx);
+          await this.repository.attach('comment', id, images, tx);
+          await this.bind(approval, 'comment', id, tx, images);
+          await this.repository.event(
+            `comment:${id}:created`,
+            'comment_created',
+            id,
+            tx,
+            {
+              experienceSourceVersion: 1,
+              actorAccountId: actor,
+              actorAuthorMode: effectiveMode,
+              resourceAuthorMode: effectiveMode,
+              postId: post.id,
+              recipientAccountIds:
+                post.account_id === actor ? [] : [post.account_id],
+              obligations: [
+                'post_author_notification',
+                'eligible_saved_subscriber_notification',
+                'comment_actor_reward',
+                'distinct_post_author_reward',
+                'discussion_ranking',
+                'media_audit',
+              ],
+            },
+          );
+          return {
+            resourceId: id,
+            createdAt: result.rows[0]!.created_at.toISOString(),
+          };
         };
+        return imageAssetIds.length > 0
+          ? withDiscussionMediaMutation(tx, { actor, body }, publish)
+          : publish();
       },
     );
   }

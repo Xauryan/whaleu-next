@@ -36,6 +36,9 @@ export class MediaReadController {
   private descriptor: MediaAttachment | null = null;
   private descriptorTicket: SessionTicket | null = null;
   private running: Promise<void> | null = null;
+  private releasing: Promise<void> = Promise.resolve();
+  private settling: Promise<void> = Promise.resolve();
+  private beforeRead: Promise<void> | undefined;
   private disposed = false;
   private view = initialMediaReadView();
   private readonly unsubscribe: () => void;
@@ -67,8 +70,12 @@ export class MediaReadController {
     return this.view;
   }
   /** Called only after a fresh parent read; null is sent BEFORE reload/deletion. */
-  load(attachment: MediaAttachment | null): Promise<void> {
+  load(
+    attachment: MediaAttachment | null,
+    beforeRead?: Promise<void>,
+  ): Promise<void> {
     this.clear();
+    this.beforeRead = beforeRead;
     if (!attachment || this.disposed) return Promise.resolve();
     try {
       this.descriptor = decodeMediaAttachment(attachment);
@@ -97,7 +104,13 @@ export class MediaReadController {
   clear(): void {
     this.descriptor = null;
     this.descriptorTicket = null;
+    this.beforeRead = undefined;
     this.invalidate();
+  }
+  /** Revoke sources now; a different reader must await owned cleanup. */
+  clearAndWait(): Promise<void> {
+    this.clear();
+    return Promise.all([this.releasing, this.settling]).then(() => undefined);
   }
   hide(): void {
     this.clear();
@@ -145,7 +158,7 @@ export class MediaReadController {
     };
     this.read = read;
     this.publish({ status: 'loading', localSrc: '', expanded });
-    const operation = this.run(read, descriptor, expanded);
+    const operation = this.run(read, descriptor, expanded, this.beforeRead);
     this.running = operation;
     void operation.then(() => {
       if (this.running === operation) this.running = null;
@@ -156,9 +169,11 @@ export class MediaReadController {
     read: Read,
     descriptor: MediaAttachment,
     expanded: boolean,
+    beforeRead: Promise<void> | undefined,
   ): Promise<void> {
     const transfer = this.transfer!;
     try {
+      if (beforeRead) await beforeRead;
       read.session.current();
       // Observe late resolution even if an adapter ignores cancellation.
       const received = transfer
@@ -171,12 +186,19 @@ export class MediaReadController {
         )
         .then(async (file) => {
           if (!this.current(read)) {
-            await transfer.release(file);
+            await this.trackRelease(transfer.release(file));
             throw new ClientError('cancelled', 'Image view superseded');
           }
           read.file = file;
           return file;
         });
+      this.settling = Promise.all([
+        this.settling,
+        received.then(
+          () => undefined,
+          () => undefined,
+        ),
+      ]).then(() => undefined);
       const file = await cancellable(received, read.cancel);
       read.session.current();
       const localSrc = await cancellable(
@@ -218,6 +240,13 @@ export class MediaReadController {
       return false;
     }
   }
+  private trackRelease(release: Promise<void>): Promise<void> {
+    this.releasing = Promise.all([
+      this.releasing,
+      release.catch(() => undefined),
+    ]).then(() => undefined);
+    return this.releasing;
+  }
   private invalidate(): void {
     const read = this.read;
     this.read = null;
@@ -230,8 +259,8 @@ export class MediaReadController {
         try {
           read.cancel.cancel();
         } finally {
-          if (read.file)
-            void this.transfer?.release(read.file).catch(() => undefined);
+          if (read.file && this.transfer)
+            void this.trackRelease(this.transfer.release(read.file));
           read.file = null;
         }
       }

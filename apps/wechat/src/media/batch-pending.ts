@@ -1,3 +1,9 @@
+import {
+  decodePublicationReference,
+  protocolFor,
+  type ProtocolVersion,
+  type PublicationReference,
+} from './batch-engine-contracts';
 import { PendingMediaStore } from './pending';
 import { ClientError } from '../api/errors';
 import { normalizeOrigin } from '../api/origin';
@@ -25,15 +31,13 @@ import {
   type MemberStatus,
   type OrderedAsset,
   type PublicationCancellation,
-} from './batch-contracts';
+} from './batch-engine-contracts';
 import {
-  decodePublicationReference,
   uploadDigest,
   uploadExact,
   uploadId,
   uploadInteger,
   uploadInvalid,
-  type PublicationReference,
 } from './upload-contracts';
 export const MEDIA_BATCH_JOURNAL_BYTES = 64 * 1024;
 export type BatchPhase =
@@ -65,7 +69,9 @@ export interface BatchPublication {
   readonly history: Extract<BatchStatus, { status: 'bound_history' }> | null;
 }
 export interface PendingBatch {
-  readonly version: 3;
+  readonly version: 3 | 4;
+  /** Present only in journal v4; immutable server ancestry, never read authority. */
+  readonly resolvedPostId?: string | null;
   readonly revision: number;
   readonly actorAccountId: string;
   readonly origin: string;
@@ -104,7 +110,7 @@ function decodeMember(
     'requestHash',
     'observation',
   ]);
-  const prepare = decodeMemberPrepare(raw.prepare);
+  const prepare = decodeMemberPrepare(raw.prepare, protocolFor(identity));
   if (
     raw.memberId !== prepare.memberId ||
     raw.sourceSlot !== prepare.sourceSlot ||
@@ -115,7 +121,8 @@ function decodeMember(
     raw.observation === null ? null : decodeMemberStatus(raw.observation);
   if (
     observation &&
-    (observation.memberId !== prepare.memberId ||
+    (observation.version !== protocolFor(identity) ||
+      observation.memberId !== prepare.memberId ||
       observation.requestHash !== raw.requestHash ||
       !batchEqual(observation.prepare, prepare))
   )
@@ -131,6 +138,7 @@ function decodeMember(
 function decodePublication(
   raw: unknown,
   batchId: string | null,
+  version: ProtocolVersion,
 ): BatchPublication {
   uploadExact(raw, [
     'reference',
@@ -144,13 +152,13 @@ function decodePublication(
     'cancellation',
   ]);
   const reference = decodePublicationReference(raw.reference),
-    orderedAssets = decodeOrderedAssets(raw.orderedAssets);
+    orderedAssets = decodeOrderedAssets(raw.orderedAssets, version);
   if (
     !batchId ||
     !batchRevision(raw.sealRevision) ||
     !uploadDigest(raw.attachmentPlanDigest) ||
     raw.attachmentPlanDigest !==
-      attachmentPlanDigest(batchId, raw.sealRevision, orderedAssets) ||
+      attachmentPlanDigest(batchId, raw.sealRevision, orderedAssets, version) ||
     ![
       'reserved',
       'linked',
@@ -161,6 +169,8 @@ function decodePublication(
       String(raw.dispatchState),
     )
   )
+    uploadInvalid();
+  if ((reference.operation === 'publish_post') !== (version === 3))
     uploadInvalid();
   const receiptHint =
     raw.receiptHint === null ? null : decodeReceipt(raw.receiptHint);
@@ -176,7 +186,8 @@ function decodePublication(
       : decodePublicationCancellation(raw.cancellation);
   if (
     cancellation &&
-    (cancellation.requestId !== reference.clientRequestId ||
+    (cancellation.operation !== reference.operation ||
+      cancellation.requestId !== reference.clientRequestId ||
       cancellation.intentHash !== reference.intentHash ||
       receiptHint)
   )
@@ -184,7 +195,8 @@ function decodePublication(
   const history = raw.history === null ? null : decodeBatchStatus(raw.history);
   if (
     history &&
-    (history.status !== 'bound_history' ||
+    (history.version !== version ||
+      history.status !== 'bound_history' ||
       !batchEqual(history.publication, reference) ||
       !batchEqual(history.orderedAssets, orderedAssets) ||
       history.attachmentPlanDigest !== raw.attachmentPlanDigest ||
@@ -215,13 +227,15 @@ function decodePublication(
     history: history as BatchPublication['history'],
   });
 }
-export function decodePendingBatch(
+function decodePendingVersion(
   raw: unknown,
   actor: string,
   origin: string,
+  version: ProtocolVersion,
 ): PendingBatch {
   uploadExact(raw, [
     'version',
+    ...(version === 4 ? ['resolvedPostId'] : []),
     'revision',
     'actorAccountId',
     'origin',
@@ -240,7 +254,10 @@ export function decodePendingBatch(
     'publication',
   ]);
   if (
-    raw.version !== 3 ||
+    raw.version !== version ||
+    (version === 4 &&
+      ((raw.resolvedPostId !== null && !uploadId(raw.resolvedPostId)) ||
+        (raw.batchId !== null && raw.resolvedPostId === null))) ||
     !uploadInteger(raw.revision) ||
     !uploadId(actor) ||
     raw.actorAccountId !== actor ||
@@ -263,13 +280,14 @@ export function decodePendingBatch(
       'settlement_pending',
     ].includes(String(raw.phase)) ||
     !Array.isArray(raw.members) ||
-    raw.members.length > 9 ||
+    raw.members.length > (version === 3 ? 9 : 3) ||
     !Array.isArray(raw.retiring) ||
-    raw.retiring.length > 9
+    raw.retiring.length > (version === 3 ? 9 : 3)
   )
     uploadInvalid();
   const batchIdentity = decodeBatchIdentity(raw.batchIdentity);
   if (
+    protocolFor(batchIdentity) !== version ||
     batchIdentity.batchRequestId !== raw.batchRequestId ||
     batchRequestHash(actor, batchIdentity) !== raw.batchRequestHash
   )
@@ -277,7 +295,7 @@ export function decodePendingBatch(
   const members = raw.members.map((m) => decodeMember(m, actor, batchIdentity)),
     retiring = raw.retiring.map((m) => decodeMember(m, actor, batchIdentity)),
     all = [...members, ...retiring],
-    orderedMemberIds = batchIds(raw.orderedMemberIds);
+    orderedMemberIds = batchIds(raw.orderedMemberIds, 0, version);
   if (
     new Set(all.map((m) => m.memberId)).size !== all.length ||
     new Set(all.map((m) => m.prepare.clientRequestId)).size !== all.length ||
@@ -298,9 +316,11 @@ export function decodePendingBatch(
     const command = decodeBatchCommand(
       raw.pendingCommand.kind as BatchCommand['kind'],
       raw.pendingCommand.payload,
+      version,
     );
     if (
-      raw.pendingCommand.commandHash !== batchCommandHash(raw.batchId, command)
+      raw.pendingCommand.commandHash !==
+      batchCommandHash(raw.batchId, command, version)
     )
       uploadInvalid();
     pendingCommand = Object.freeze({
@@ -311,7 +331,7 @@ export function decodePendingBatch(
   const publication =
     raw.publication === null
       ? null
-      : decodePublication(raw.publication, raw.batchId);
+      : decodePublication(raw.publication, raw.batchId, version);
   if (
     (raw.phase === 'seal_uncertain' && pendingCommand?.kind !== 'seal') ||
     (raw.phase === 'layout_uncertain' && !pendingCommand) ||
@@ -334,8 +354,47 @@ export function decodePendingBatch(
         )))
   )
     uploadInvalid();
+  if (batchIdentity.version === 2) {
+    if (
+      raw.resolvedPostId !== null &&
+      batchIdentity.target.kind === 'comment' &&
+      raw.resolvedPostId !== batchIdentity.target.postId
+    )
+      uploadInvalid();
+    const operation =
+      batchIdentity.target.kind === 'comment'
+        ? 'publish_comment'
+        : 'publish_reply';
+    if (publication && publication.reference.operation !== operation)
+      uploadInvalid();
+    if (
+      pendingCommand &&
+      pendingCommand.kind !== 'layout' &&
+      (!publication ||
+        !batchEqual(pendingCommand.payload.publication, publication.reference))
+    )
+      uploadInvalid();
+    const history = publication?.history;
+    if (
+      history &&
+      (history.version !== 4 ||
+        history.resolvedPostId !== raw.resolvedPostId ||
+        history.batchRequestId !== raw.batchRequestId ||
+        history.batchRequestHash !== raw.batchRequestHash ||
+        !batchEqual(history.batchIdentity, batchIdentity) ||
+        history.members.some(
+          (member) =>
+            member.requestHash !==
+            memberRequestHash(actor, batchIdentity, member.prepare),
+        ))
+    )
+      uploadInvalid();
+  }
   const value: PendingBatch = Object.freeze({
-    version: 3,
+    version,
+    ...(version === 4
+      ? { resolvedPostId: raw.resolvedPostId as string | null }
+      : {}),
     revision: raw.revision,
     actorAccountId: actor,
     origin: normalizeOrigin(origin),
@@ -355,6 +414,21 @@ export function decodePendingBatch(
   });
   if (journalBytes(value) > MEDIA_BATCH_JOURNAL_BYTES) uploadInvalid();
   return value;
+}
+/** Frozen v3 entry point: v4 data is never admitted under the old decoder. */
+export function decodePendingBatch(
+  raw: unknown,
+  actor: string,
+  origin: string,
+): PendingBatch {
+  return decodePendingVersion(raw, actor, origin, 3);
+}
+export function decodePendingDiscussionBatch(
+  raw: unknown,
+  actor: string,
+  origin: string,
+): PendingBatch {
+  return decodePendingVersion(raw, actor, origin, 4);
 }
 /** Metadata-only aggregate WAL. Storage CAS is synchronous and process-local;
  * server batch revisions arbitrate other devices. No ready member is evicted. */
@@ -381,16 +455,22 @@ export class PendingBatchStore {
         'Recover the original legacy image before creating or changing a batch',
       );
   }
-  private key(actor: string): string {
+  private key(actor: string, version: ProtocolVersion): string {
     if (!uploadId(actor)) throw storageError();
-    return `whaleu.media.batch.pending.v3:${this.origin}:${actor}`;
+    return `whaleu.media.batch.pending.v${version}:${this.origin}:${actor}`;
   }
   load(actor: string): PendingBatch | null {
     try {
-      const raw = this.storage.get(this.key(actor));
-      return raw === undefined || raw === null
-        ? null
-        : decodePendingBatch(raw, actor, this.origin);
+      const v3 = this.storage.get(this.key(actor, 3)),
+        v4 = this.storage.get(this.key(actor, 4));
+      const has3 = v3 !== undefined && v3 !== null,
+        has4 = v4 !== undefined && v4 !== null;
+      if (has3 && has4) throw storageError();
+      return has3
+        ? decodePendingBatch(v3, actor, this.origin)
+        : has4
+          ? decodePendingDiscussionBatch(v4, actor, this.origin)
+          : null;
     } catch {
       throw storageError();
     }
@@ -399,9 +479,10 @@ export class PendingBatchStore {
     try {
       this.assertBatchAdmission(actor);
       const checked = decodeBatchIdentity(identity);
-      const value = decodePendingBatch(
+      const value = decodePendingVersion(
         {
-          version: 3,
+          version: protocolFor(checked),
+          ...(checked.version === 2 ? { resolvedPostId: null } : {}),
           revision: 1,
           actorAccountId: actor,
           origin: this.origin,
@@ -421,13 +502,14 @@ export class PendingBatchStore {
         },
         actor,
         this.origin,
+        protocolFor(checked),
       );
       const old = this.load(actor);
       if (old) {
         if (!batchEqual(old.batchIdentity, checked)) throw storageError();
         return this.assertStored(old);
       }
-      this.storage.set(this.key(actor), value);
+      this.storage.set(this.key(actor, value.version), value);
       return this.assertStored(value);
     } catch {
       throw storageError();
@@ -444,6 +526,7 @@ export class PendingBatchStore {
       Pick<
         PendingBatch,
         | 'batchId'
+        | 'resolvedPostId'
         | 'serverRevision'
         | 'lastObservedAt'
         | 'phase'
@@ -457,12 +540,17 @@ export class PendingBatchStore {
   ): PendingBatch {
     try {
       this.assertStored(expected);
-      const next = decodePendingBatch(
+      const next = decodePendingVersion(
         { ...expected, ...patch, revision: expected.revision + 1 },
         expected.actorAccountId,
         this.origin,
+        expected.version,
       );
-      if (expected.batchId && next.batchId !== expected.batchId)
+      if (
+        (expected.batchId && next.batchId !== expected.batchId) ||
+        (expected.resolvedPostId &&
+          next.resolvedPostId !== expected.resolvedPostId)
+      )
         throw storageError();
       for (const old of [...expected.members, ...expected.retiring]) {
         const current = [...next.members, ...next.retiring].find(
@@ -494,7 +582,10 @@ export class PendingBatchStore {
         expected.publication.linkState !== 'publication_cleared'
       )
         throw storageError();
-      this.storage.set(this.key(expected.actorAccountId), next);
+      this.storage.set(
+        this.key(expected.actorAccountId, expected.version),
+        next,
+      );
       return this.assertStored(next);
     } catch {
       throw storageError();
@@ -504,6 +595,9 @@ export class PendingBatchStore {
   settle(expected: PendingBatch, raw: BatchStatus): void {
     const proof = decodeBatchStatus(raw);
     if (
+      proof.version !== expected.version ||
+      (proof.version === 4 &&
+        proof.resolvedPostId !== expected.resolvedPostId) ||
       proof.batchRequestId !== expected.batchRequestId ||
       proof.batchRequestHash !== expected.batchRequestHash ||
       (expected.batchId && proof.batchId !== expected.batchId)
@@ -521,7 +615,7 @@ export class PendingBatchStore {
       uploadInvalid();
     try {
       this.assertStored(expected);
-      this.storage.remove(this.key(expected.actorAccountId));
+      this.storage.remove(this.key(expected.actorAccountId, expected.version));
       if (this.load(expected.actorAccountId)) throw storageError();
     } catch {
       throw storageError();

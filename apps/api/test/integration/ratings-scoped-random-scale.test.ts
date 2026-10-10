@@ -14,7 +14,7 @@ import {
 } from '../support/rating-scoped-adoption-fixture.js';
 import { withCommunityScopeWriter } from '../support/community-scope-fixtures.js';
 import { setRatingReviewState } from '../support/rating-runtime-fixture.js';
-import { observeDirectoryQueries } from '../support/directory-query-observer.js';
+import { observeRatingsCiQueries } from '../support/ratings-ci-diagnostics.js';
 import {
   scopedCommandContext,
   scopedSuccess,
@@ -38,6 +38,15 @@ test(
   async (t) => {
     const f = await ratingScopedFixture();
     t.after(() => f.close());
+    const diagnostics = observeRatingsCiQueries(f.app, {
+      syntheticFixture: 'ratings-scoped-random-scale',
+      enabled: process.env['WHALEU_RATINGS_CI_DIAGNOSTICS'] === '1',
+    });
+    t.after(() => {
+      diagnostics.restore();
+      if (diagnostics.enabled)
+        t.diagnostic(JSON.stringify(diagnostics.snapshot()));
+    });
     const actor = f.creator,
       scorer = await f.actor();
     const rootId = randomUUID(),
@@ -105,14 +114,16 @@ test(
     ).rows[0]!;
     assert.deepEqual(counts, { paths: 6144, targets: 2048 });
     const context = async (anchor: string | null = f.campusA) => {
-      const response = await f.requestScopedContext(actor, {
-        purpose: 'random',
-        mode: 'public',
-        selector:
-          anchor === null
-            ? { kind: 'global' }
-            : { kind: 'institution_with_global', anchorCampusId: anchor },
-      });
+      const response = await diagnostics.attempt('random-context', () =>
+        f.requestScopedContext(actor, {
+          purpose: 'random',
+          mode: 'public',
+          selector:
+            anchor === null
+              ? { kind: 'global' }
+              : { kind: 'institution_with_global', anchorCampusId: anchor },
+        }),
+      );
       assert.equal(response.status, 200, JSON.stringify(response.body));
       return ratingScopedContextSchema.parse(response.body);
     };
@@ -157,7 +168,7 @@ test(
     await t.test(
       '1001 child and 2048 root candidates are untruncated, despite 6144 real paths and >520 mixed descriptors',
       async () => {
-        const observer = observeDirectoryQueries(f.app);
+        const observer = diagnostics;
         let reviews = 0,
           batches = 0;
         try {
@@ -205,7 +216,7 @@ test(
             ),
           );
         } finally {
-          observer.restore();
+          observer.setHook(null);
         }
         const global = await context(null);
         const globalResult = await sample(global);
@@ -239,7 +250,15 @@ test(
       score: number,
       expectedRevision: string | null,
     ) => {
-      const c = await f.scopedContext(owner, { kind: 'global' }, 'interact');
+      const response = await diagnostics.attempt('score-context', () =>
+        f.requestScopedContext(owner, {
+          purpose: 'interact',
+          selector: { kind: 'global' },
+          mode: 'public',
+        }),
+      );
+      assert.equal(response.status, 200, JSON.stringify(response.body));
+      const c = ratingScopedContextSchema.parse(response.body);
       const category = (
         await f.pool.query(
           'SELECT effective_revision FROM whaleu_ratings.scoped_categories WHERE catalog_id=$1 AND category_id=$2',
@@ -261,26 +280,36 @@ test(
         },
       });
     };
-    let scoreRevision = '';
+    // Shared prerequisite, outside child tests: a failed real context/score write
+    // aborts this fixture instead of cascading an empty expectedRevision into a
+    // later child. No retry, fabricated UUID or schema bypass can repair setup.
+    const committedScores = new Map<string, string>();
+    for (const [owner, score] of [
+      [actor, 4],
+      [scorer, 5],
+    ] as const) {
+      const input = await scoreIntent(owner, score, null);
+      const response = await diagnostics.attempt('score-write', () =>
+        f
+          .auth(
+            request(f.http).put(`/v2/ratings/targets/${scored.id}/my-score`),
+            owner,
+          )
+          .send(input),
+      );
+      assert.equal(response.status, 200, JSON.stringify(response.body));
+      const receipt = scopedSuccess(response.body);
+      const revision = receipt.result['revision'];
+      assert.ok(typeof revision === 'string');
+      // The HTTP applied receipt is returned only after its real transaction
+      // commits. Keep that revision directly; diagnostics add no DB queries.
+      committedScores.set(owner.accountId, revision);
+    }
+    const scoreRevision = committedScores.get(actor.accountId);
+    assert.ok(scoreRevision, 'Actor score prerequisite must be committed');
     await t.test(
       'threshold filtering evaluates all 2048 real summaries with exact rational 4.5 versus 4.6 semantics',
       async () => {
-        for (const [owner, score] of [
-          [actor, 4],
-          [scorer, 5],
-        ] as const) {
-          const input = await scoreIntent(owner, score, null);
-          const response = await f
-            .auth(
-              request(f.http).put(`/v2/ratings/targets/${scored.id}/my-score`),
-              owner,
-            )
-            .send(input);
-          assert.equal(response.status, 200, JSON.stringify(response.body));
-          const receipt = scopedSuccess(response.body);
-          if (owner === actor)
-            scoreRevision = String(receipt.result['revision']);
-        }
         const current = await context();
         const included = await sample(current, rootId, 4.5);
         assert.equal(included.status, 200, JSON.stringify(included.body));
@@ -402,7 +431,7 @@ test(
       minimumAverage?: number,
     ) => {
       const current = await context(),
-        observer = observeDirectoryQueries(f.app);
+        observer = diagnostics;
       let changed = false;
       try {
         observer.setHook(async ({ sql }, tx) => {
@@ -419,7 +448,7 @@ test(
         );
         unavailable(response);
       } finally {
-        observer.restore();
+        observer.setHook(null);
       }
     };
     await t.test(

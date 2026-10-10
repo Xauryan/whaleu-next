@@ -753,10 +753,17 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
     await import('../src/media/controller-v3.js');
   const { MEDIA_BATCH_APPLICATION } =
     await import('../src/media/application-v3.js');
+  const { MediaDiscussionBatchController } =
+    await import('../src/media/controller-v4.js');
+  const { MEDIA_DISCUSSION_BATCH_APPLICATION } =
+    await import('../src/media/application-v4.js');
   const { MEDIA_INGRESS_STORAGE } =
     await import('../src/media/ingress-storage.js');
-  const { MediaMultipartInterceptor, MediaMultipartInterceptorV3 } =
-    await import('../src/media/multipart-ingress.js');
+  const {
+    MediaMultipartInterceptor,
+    MediaMultipartInterceptorV3,
+    MediaMultipartInterceptorV4,
+  } = await import('../src/media/multipart-ingress.js');
   const { mediaAttachmentDescriptorSchema } =
     await import('../src/media/contracts.js');
   const { z } = await import('zod');
@@ -794,6 +801,25 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
         'upload',
       ],
     ],
+    [
+      MediaDiscussionBatchController,
+      [
+        'prepare',
+        'recover',
+        'cancel',
+        'recoverPublication',
+        'fencePublication',
+        'layout',
+        'seal',
+        'reopen',
+        'prepareMember',
+        'memberStatus',
+        'grant',
+        'finalize',
+        'cancelMember',
+        'upload',
+      ],
+    ],
   ] as const) {
     for (const method of methods)
       if (
@@ -811,15 +837,40 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
       MediaController,
       MediaUploadControllerV2,
       MediaBatchController,
+      MediaDiscussionBatchController,
     ],
     providers: [
       MediaMultipartInterceptor,
       MediaMultipartInterceptorV3,
+      MediaMultipartInterceptorV4,
       { provide: MEDIA_INGRESS_STORAGE, useValue: null },
       {
         // Closed tooling-only application: constructing the actual unavailable
         // runtime would unnecessarily introduce Identity/Database dependencies.
         provide: MEDIA_BATCH_APPLICATION,
+        useValue: {
+          prepareBatch: fail,
+          recoverBatch: fail,
+          cancelBatch: fail,
+          recoverPublication: fail,
+          fencePublication: fail,
+          layout: fail,
+          seal: fail,
+          reopen: fail,
+          prepareMember: fail,
+          memberStatus: fail,
+          finalizeMember: fail,
+          cancelMember: fail,
+          grant: fail,
+          admit: fail,
+          observe: fail,
+          retire: fail,
+        },
+      },
+      {
+        // Closed tooling-only application: constructing the actual unavailable
+        // runtime would unnecessarily introduce Identity/Database dependencies.
+        provide: MEDIA_DISCUSSION_BATCH_APPLICATION,
         useValue: {
           prepareBatch: fail,
           recoverBatch: fail,

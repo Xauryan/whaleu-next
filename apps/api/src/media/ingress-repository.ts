@@ -37,6 +37,11 @@ import {
   mediaMemberRequestHash,
 } from './contracts-v3.js';
 import type { PrepareMediaV3Input } from './contracts-v3.js';
+import {
+  prepareMediaV4Schema,
+  mediaMemberRequestHash as discussionMemberHash,
+} from './contracts-v4.js';
+import type { PrepareMediaV4Input } from './contracts-v4.js';
 import { lockMediaBatchesForIntents } from './batch-locks.js';
 
 interface Intent {
@@ -53,6 +58,7 @@ interface Intent {
   scope_revision: string;
   ordinal: number;
   request_hash: string;
+  purpose: string;
 }
 interface Ingress {
   object_attempt_id: string;
@@ -93,7 +99,7 @@ export class MediaIngressRepository {
   private readonly proof = new MediaRequiredProof();
   constructor(
     readonly planning: MediaIngressPlanningPort,
-    private readonly protocolVersion: 2 | 3 = 2,
+    private readonly protocolVersion: 2 | 3 | 4 = 2,
   ) {
     mediaIdSchema.parse(planning.writerInstanceId);
   }
@@ -103,7 +109,7 @@ export class MediaIngressRepository {
     actor: string,
     id: string,
     tx: PoolClient,
-  ): Promise<PrepareMediaV2Input | PrepareMediaV3Input> {
+  ): Promise<PrepareMediaV2Input | PrepareMediaV3Input | PrepareMediaV4Input> {
     this.managed(tx);
     const row = (
       await tx.query<Intent & { client_draft_id: string; space_id: string }>(
@@ -114,7 +120,7 @@ export class MediaIngressRepository {
       )
     ).rows[0];
     if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
-    if (this.protocolVersion === 3) {
+    if (this.protocolVersion >= 3) {
       const member = (
         await tx.query<{
           batch_id: string;
@@ -127,13 +133,15 @@ export class MediaIngressRepository {
         )
       ).rows[0];
       if (!member) throw new ApplicationError('MEDIA_UNAVAILABLE');
-      return prepareMediaV3Schema.parse({
-        protocolVersion: 3,
+      return (
+        this.protocolVersion === 4 ? prepareMediaV4Schema : prepareMediaV3Schema
+      ).parse({
+        protocolVersion: this.protocolVersion,
         batchId: member.batch_id,
         batchIdentity: member.identity,
         memberId: member.member_id,
         clientRequestId: row.client_request_id,
-        purpose: 'community-post-image',
+        purpose: row.purpose,
         draftId: row.client_draft_id,
         spaceId: row.space_id,
         slot: 'images',
@@ -600,7 +608,7 @@ export class MediaIngressRepository {
     if (issued.scope.actorAccountId !== session.accountId)
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     await lockMediaBatchesForIntents([id], tx, true);
-    if (this.protocolVersion === 3) {
+    if (this.protocolVersion >= 3) {
       const member = (
         await tx.query(
           `SELECT 1 FROM whaleu_media.publication_batch_members m JOIN whaleu_media.publication_batches b ON b.id=m.batch_id WHERE m.intent_id=$1 AND m.actor_id=$2 AND m.state='live' AND b.state='editing'`,
@@ -617,9 +625,11 @@ export class MediaIngressRepository {
       )
     ).rows[0];
     const input =
-      this.protocolVersion === 3
-        ? prepareMediaV3Schema.parse(issued.input)
-        : prepareMediaV2Schema.parse(issued.input);
+      this.protocolVersion === 4
+        ? prepareMediaV4Schema.parse(issued.input)
+        : this.protocolVersion === 3
+          ? prepareMediaV3Schema.parse(issued.input)
+          : prepareMediaV2Schema.parse(issued.input);
     if (
       !row ||
       row.state !== 'prepared' ||
@@ -629,12 +639,18 @@ export class MediaIngressRepository {
       ('protocolVersion' in input &&
         (row.ordinal !== input.ordinal ||
           row.request_hash !==
-            mediaMemberRequestHash(session.accountId, input.batchIdentity, {
-              clientRequestId: input.clientRequestId,
-              memberId: input.memberId,
-              sourceSlot: input.ordinal,
-              declaration: input.declaration,
-            }))) ||
+            (input.protocolVersion === 4
+              ? discussionMemberHash
+              : mediaMemberRequestHash)(
+              session.accountId,
+              input.batchIdentity,
+              {
+                clientRequestId: input.clientRequestId,
+                memberId: input.memberId,
+                sourceSlot: input.ordinal,
+                declaration: input.declaration,
+              },
+            ))) ||
       row.client_request_id !== input.clientRequestId ||
       row.declared_sha256 !== input.declaration.sha256 ||
       Number(row.declared_bytes) !== input.declaration.bytes ||
