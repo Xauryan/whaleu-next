@@ -1,4 +1,4 @@
-import type { SessionStore } from '../../auth/session';
+import type { SessionStore, SessionTicket } from '../../auth/session';
 import {
   bioError,
   nicknameError,
@@ -74,6 +74,7 @@ export function initialProfileView(): ProfileView {
 }
 export class ProfileController extends OwnedController<ProfileView> {
   private baseline: OwnProfile | undefined;
+  private basicsAvailable = false;
   private preferenceDraft: Preferences | undefined;
   constructor(
     sessions: SessionStore,
@@ -83,15 +84,41 @@ export class ProfileController extends OwnedController<ProfileView> {
     super(sessions, gateway, initialProfileView, render);
   }
   protected resetPrivate(): void {
+    this.basicsAvailable = false;
     this.baseline = undefined;
     this.preferenceDraft = undefined;
   }
+  /** Only a completed, actor-current basics read may activate dependent media.
+   * A cancelled/failed refresh cannot reuse a previous loaded view as permission. */
+  avatarBasicsTicket(): SessionTicket | null {
+    if (
+      !this.basicsAvailable ||
+      !this.baseline ||
+      !this.view.loaded ||
+      this.view.loading ||
+      this.view.saving ||
+      this.view.needsReload ||
+      this.view.error
+    )
+      return null;
+    try {
+      this.sessions.assertCurrent(this.owner);
+      const ticket = this.sessions.snapshot();
+      return ticket.credentials?.accountId === this.baseline.accountId
+        ? ticket
+        : null;
+    } catch {
+      return null;
+    }
+  }
   async load(): Promise<void> {
+    this.basicsAvailable = false;
     await this.perform(
       'read',
       (gateway, cancel) => gateway.profile(cancel),
       (profile) => {
         this.checkProfile(profile);
+        this.basicsAvailable = true;
         this.baseline = profile;
         this.preferenceDraft = profile.preferences;
         this.update({

@@ -51,6 +51,7 @@ import {
   discoveryCursorBucket,
 } from '../../src/community/discovery-cursors.js';
 import { migrationSchemaNames } from '../support/migration-schemas.js';
+import { observeFirstScalableProfile } from '../support/scalable-profile-ci-diagnostics.js';
 
 // Only native platform I/O is bridged to loopback. These are the real gateways,
 // strict decoders, controllers and ordinary AppModule policy/owner providers.
@@ -878,7 +879,18 @@ test(
       await t.test(
         'histories beyond 1,024 reach oldest named entries and dated-to-undated likes exactly once',
         async () => {
-          const basic = await reader.discovery.profile(authorProfileId, cancel);
+          const basic = await observeFirstScalableProfile<
+            Awaited<ReturnType<typeof reader.discovery.profile>>
+          >(
+            app!,
+            pool,
+            {
+              enabled:
+                process.env['WHALEU_SCALABLE_PROFILE_CI_DIAGNOSTICS'] === '1',
+              emit: (snapshot) => t.diagnostic(JSON.stringify(snapshot)),
+            },
+            () => reader.discovery.profile(authorProfileId, cancel),
+          );
           assert.equal(basic.status, 'available');
           assert.equal(basic.postCount, 1102);
           assert.equal(basic.postCountStatus, 'known');

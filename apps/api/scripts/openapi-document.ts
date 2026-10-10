@@ -956,3 +956,109 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
 export async function renderMediaOpenApiDocument(): Promise<string> {
   return renderDocument(await createMediaOpenApiDocument());
 }
+
+/** Separate Profile-only guest/session contract; legacy Media paths stay exact. */
+export async function createProfileAvatarOpenApiDocument(): Promise<OpenAPIObject> {
+  const {
+    ProfileAvatarOwnedController,
+    ProfileAvatarPublicController,
+    ProfileAvatarMultipartInterceptor,
+  } = await import('../src/profile/avatar/controller.js');
+  const { ProfileAvatarService, PROFILE_AVATAR_RUNTIME } =
+    await import('../src/profile/avatar/service.js');
+  const { ProfileAvatarUploadApplication } =
+    await import('../src/profile/avatar/upload-application.js');
+  const { ProfileAvatarDelivery } =
+    await import('../src/profile/avatar/delivery.js');
+  for (const [controller, methods] of [
+    [
+      ProfileAvatarOwnedController,
+      [
+        'current',
+        'command',
+        'commandRecovery',
+        'commandCancel',
+        'prepare',
+        'recover',
+        'cancel',
+        'status',
+        'finalize',
+        'grant',
+        'observed',
+      ],
+    ],
+    [ProfileAvatarPublicController, ['catalog', 'current', 'open']],
+  ] as const) {
+    for (const method of methods)
+      if (
+        !Reflect.hasMetadata(PARAMTYPES_METADATA, controller.prototype, method)
+      )
+        throw new Error(
+          'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+        );
+  }
+  const fail = () => {
+    throw new Error('OpenAPI must not execute application work');
+  };
+  const testing = await Test.createTestingModule({
+    controllers: [ProfileAvatarOwnedController, ProfileAvatarPublicController],
+    providers: [
+      { provide: PROFILE_AVATAR_RUNTIME, useValue: null },
+      ProfileAvatarMultipartInterceptor,
+      {
+        provide: ProfileAvatarService,
+        useValue: {
+          ownCurrent: fail,
+          publicCurrent: fail,
+          command: fail,
+          recoverCommand: fail,
+          cancelCommand: fail,
+          catalog: fail,
+        },
+      },
+      {
+        provide: ProfileAvatarUploadApplication,
+        useValue: {
+          prepare: fail,
+          recover: fail,
+          cancelRequest: fail,
+          status: fail,
+          finalize: fail,
+          grant: fail,
+          admit: fail,
+          observe: fail,
+          retire: fail,
+          observed: fail,
+        },
+      },
+      { provide: ProfileAvatarDelivery, useValue: { open: fail } },
+    ],
+  }).compile();
+  const app = testing.createNestApplication({ logger: false });
+  try {
+    return SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setOpenAPIVersion('3.0.3')
+        .setTitle('WhaleU Profile avatar media')
+        .setVersion('profile-media-v1')
+        .addSecurity('accessToken', {
+          type: 'http',
+          scheme: 'bearer',
+          description:
+            'Required for owned edits and commands. Public Profile current/bytes permit an absent header only; invalid supplied credentials fail.',
+        })
+        .build(),
+      {
+        deepScanRoutes: false,
+        autoTagControllers: false,
+        excludeDynamicDefaults: true,
+      },
+    );
+  } finally {
+    await app.close();
+  }
+}
+export async function renderProfileAvatarOpenApiDocument(): Promise<string> {
+  return renderDocument(await createProfileAvatarOpenApiDocument());
+}

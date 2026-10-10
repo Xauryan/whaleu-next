@@ -1,4 +1,8 @@
 import {
+  NamedAvatarController,
+  initialNamedAvatarView,
+} from '../../profile/named-avatar';
+import {
   AnnouncementPopupController,
   initialAnnouncementPopupView,
 } from '../../announcements/popup-controller';
@@ -34,6 +38,7 @@ import type { WhaleuApp } from '../../app';
 import { FeedController, initialFeedView } from './controller';
 Page({
   data: {
+    namedAvatar: initialNamedAvatarView(),
     announcementPopup: initialAnnouncementPopupView(),
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     report: initialReportMutationView(),
@@ -58,6 +63,7 @@ Page({
       { key: 'deep_sea', label: '深海树洞' },
     ],
   },
+  namedAvatarController: undefined as NamedAvatarController | undefined,
   announcementPopup: undefined as AnnouncementPopupController | undefined,
   reportMutations: undefined as ReportMutationController | undefined,
   blockMutations: undefined as BlockMutationController | undefined,
@@ -70,6 +76,11 @@ Page({
   authorNavigator: undefined as AuthorNavigator | undefined,
   viewObserver: undefined as ViewObserver | undefined,
   onShow() {
+    this.namedAvatarController?.dispose();
+    this.namedAvatarController = new NamedAvatarController(
+      getApp<WhaleuApp>().profileAvatar,
+      (view) => this.setData({ namedAvatar: view }),
+    );
     this.announcementPopup?.dispose();
     this.announcementPopup = undefined;
     this.viewObserver?.dispose();
@@ -132,6 +143,7 @@ Page({
     this.blockMutations = new BlockMutationController(runtime, (view) => {
       this.setData({ block: view });
       if (view.busy || view.frozen) {
+        this.namedAvatarController?.clear();
         this.identityOverlay?.clear();
         this.overlayTargets = '';
       }
@@ -153,6 +165,7 @@ Page({
             : [],
           `${view.space?.id ?? ''}:${view.campusId}:${view.category}:${view.tradingSubtype}`,
         );
+        if (view.busy || !view.loaded) this.namedAvatarController?.clear();
         this.setData({ ...view }, presented);
         const key = view.posts
           .map((item) => item.id + ':' + item.author.kind)
@@ -275,7 +288,29 @@ Page({
         ?.author,
     );
   },
+  onAuthorAvatar(event: { currentTarget: { dataset: { id: string } } }) {
+    if (
+      !this.data.loaded ||
+      this.data.busy ||
+      this.data.block.busy ||
+      this.data.block.frozen ||
+      this.data.report.busy ||
+      this.data.report.frozen
+    )
+      return;
+    void this.namedAvatarController?.open(
+      this.data.posts.find((item) => item.id === event.currentTarget.dataset.id)
+        ?.author,
+    );
+  },
+  onNamedAvatarClose() {
+    this.namedAvatarController?.clear();
+  },
+  onNamedAvatarError() {
+    this.namedAvatarController?.imageFailed();
+  },
   onReload() {
+    this.namedAvatarController?.clear();
     this.reportMutations?.dismiss();
     this.blockMutations?.dismissBlock();
     void this.systemNoticesBadge?.load();
@@ -289,7 +324,12 @@ Page({
     this.updatesBadge?.cancel();
     this.controller?.cancel();
   },
+  onPageScroll() {
+    this.namedAvatarController?.clear();
+  },
   onHide() {
+    this.namedAvatarController?.dispose();
+    this.namedAvatarController = undefined;
     this.announcementPopup?.dispose();
     this.announcementPopup = undefined;
     this.viewObserver?.dispose();
@@ -311,6 +351,8 @@ Page({
     this.identityOverlay = undefined;
   },
   onUnload() {
+    this.namedAvatarController?.dispose();
+    this.namedAvatarController = undefined;
     this.announcementPopup?.dispose();
     this.announcementPopup = undefined;
     this.viewObserver?.dispose();

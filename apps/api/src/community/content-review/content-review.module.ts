@@ -1,3 +1,4 @@
+import { ProfileAvatarReviewFacade } from './profile-avatar-review.facade.js';
 import {
   MediaContentSnapshotFacade,
   UnavailableMediaContentSnapshotFacade,
@@ -22,6 +23,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
 @Module({
   imports: [CampusModule],
   providers: [
+    ProfileAvatarReviewFacade,
     {
       provide: MediaContentSnapshotFacade,
       useClass: UnavailableMediaContentSnapshotFacade,
@@ -39,6 +41,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
     LocalApprovedContentVisibility,
   ],
   exports: [
+    ProfileAvatarReviewFacade,
     MediaContentSnapshotFacade,
     DmContentReviewFacade,
     RatingContentReviewFacade,

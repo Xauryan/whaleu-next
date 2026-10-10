@@ -322,3 +322,44 @@ test('terminal revoked/blocked responses erase private drafts and local session,
   assert.equal(s.view().nickname, '');
   assert.match(s.view().error, /重新加载验证当前会话/);
 });
+
+test('dependent avatar basics ticket requires a successful current read and is revoked by failed, cancelled and old-actor loads', async () => {
+  const s = setup();
+  assert.equal(s.controller.avatarBasicsTicket(), null);
+  await s.controller.load();
+  assert.equal(
+    s.controller.avatarBasicsTicket()?.credentials?.accountId,
+    wireCredentials().accountId,
+  );
+  const failed = deferred<ReturnType<typeof ownProfile>>();
+  s.gateway.profileImpl = async () => failed.promise;
+  const refresh = s.controller.load();
+  assert.equal(s.controller.avatarBasicsTicket(), null);
+  failed.reject(new ClientError('network', 'Synthetic failed refresh'));
+  await refresh;
+  assert.equal(s.controller.avatarBasicsTicket(), null);
+  s.gateway.profileImpl = async () => ownProfile();
+  await s.controller.load();
+  const cancelled = deferred<ReturnType<typeof ownProfile>>();
+  s.gateway.profileImpl = async () => cancelled.promise;
+  const waiting = s.controller.load();
+  await flush();
+  s.controller.cancelOperation();
+  await waiting;
+  cancelled.resolve(ownProfile());
+  await flush();
+  assert.equal(s.controller.avatarBasicsTicket(), null);
+  const old = deferred<ReturnType<typeof ownProfile>>();
+  s.gateway.profileImpl = async () => old.promise;
+  const late = s.controller.load();
+  await flush();
+  s.sessions.completeLogin(s.sessions.beginLogin(), {
+    ...wireCredentials('b'),
+    accountId: '12345678-1234-4123-8123-123456789abd',
+  });
+  old.resolve(ownProfile());
+  await late;
+  assert.equal(s.controller.avatarBasicsTicket(), null);
+  s.controller.dispose();
+  assert.equal(s.controller.avatarBasicsTicket(), null);
+});

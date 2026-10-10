@@ -1,4 +1,8 @@
 import {
+  NamedAvatarController,
+  initialNamedAvatarView,
+} from '../../profile/named-avatar';
+import {
   initialMediaReadView,
   type MediaReadController,
 } from '../../media/read-controller';
@@ -67,6 +71,7 @@ import {
 } from '../../community/poll-controller';
 Page({
   data: {
+    namedAvatar: initialNamedAvatarView(),
     mediaRead: initialMediaReadView(),
     mediaGallery: initialDiscussionGalleryView(),
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
@@ -87,6 +92,7 @@ Page({
     tradingMutation: initialTradingMutationView(),
     tradingContacts: initialTradingContactsView(),
   },
+  namedAvatarController: undefined as NamedAvatarController | undefined,
   mediaReadController: undefined as MediaReadController | undefined,
   mediaGalleryController: undefined as DiscussionGalleryController | undefined,
   reportMutations: undefined as ReportMutationController | undefined,
@@ -131,6 +137,11 @@ Page({
   viewObserver: undefined as ViewObserver | undefined,
   messagingEntry: undefined as MessagingEntryNavigator | undefined,
   onShow() {
+    this.namedAvatarController?.dispose();
+    this.namedAvatarController = new NamedAvatarController(
+      getApp<WhaleuApp>().profileAvatar,
+      (view) => this.setData({ namedAvatar: view }),
+    );
     this.mediaGalleryController?.dispose();
     this.mediaReadController?.dispose();
     this.mediaReadController = getApp<WhaleuApp>().mediaRead?.create((view) =>
@@ -199,6 +210,7 @@ Page({
         this.setData({ report: view });
         if (view.busy || view.frozen) {
           this.mediaGalleryController?.clear();
+          this.namedAvatarController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         }
@@ -222,6 +234,7 @@ Page({
       this.setData({ block: view });
       if (view.busy || view.frozen) {
         this.mediaGalleryController?.clear();
+        this.namedAvatarController?.clear();
         this.identityOverlay?.clear();
         this.overlayTargets = '';
         this.formationIdentityOverlay?.clear();
@@ -255,6 +268,7 @@ Page({
           this.formationIdentityOverlay?.clear();
           this.formationOverlayTargets = '';
           this.mediaGalleryController?.clear();
+          this.namedAvatarController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         }
@@ -323,6 +337,7 @@ Page({
         this.setData({ interaction: view });
         if (view.busy || view.frozen) {
           this.mediaGalleryController?.clear();
+          this.namedAvatarController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         }
@@ -404,6 +419,8 @@ Page({
           view.loaded && view.post && !view.needsReload ? [view.post.id] : [],
           this.postId,
         );
+        if (view.busy || view.needsReload || !view.post)
+          this.namedAvatarController?.clear();
         this.setData({ ...view }, presented);
         if (view.busy || !view.loaded || view.needsReload)
           this.tradingContactsController?.load(null);
@@ -468,6 +485,7 @@ Page({
           this.data.interaction.frozen
         ) {
           this.mediaGalleryController?.clear();
+          this.namedAvatarController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         } else if (key !== this.overlayTargets) {
@@ -517,6 +535,7 @@ Page({
       this.data.interaction.frozen
     )
       return;
+    this.namedAvatarController?.clear();
     const { kind, id } = event.currentTarget.dataset;
     const group = discussionImageGroups(this.data.post, [
       ...this.data.comments,
@@ -531,6 +550,7 @@ Page({
     // Keep overlay gestures from scrolling the content behind the selected group.
   },
   onPageScroll() {
+    this.namedAvatarController?.clear();
     if (this.data.mediaGallery.groupKind !== 'post')
       this.mediaGalleryController?.clear();
   },
@@ -891,7 +911,49 @@ Page({
               : undefined;
     this.authorNavigator?.open(author);
   },
+  onAuthorAvatar(event: {
+    currentTarget: { dataset: { kind: string; id: string } };
+  }) {
+    if (!this.data.loaded || this.data.busy || this.data.needsReload) return;
+    if (
+      this.data.block.busy ||
+      this.data.block.frozen ||
+      this.data.report.busy ||
+      this.data.report.frozen
+    )
+      return;
+    // Avatar admission is non-preemptive: retain Community sources and budget.
+    const { kind, id } = event.currentTarget.dataset;
+    const comments = [
+      ...this.data.comments,
+      ...(this.data.locatedComment ? [this.data.locatedComment] : []),
+    ];
+    const author =
+      kind === 'post' && this.data.post?.id === id
+        ? this.data.post.author
+        : kind === 'comment'
+          ? comments.find((item) => item.id === id)?.author
+          : kind === 'reply'
+            ? comments
+                .flatMap((item) => item.replyPreview.items)
+                .find((item) => item.id === id)?.author
+            : kind === 'member' &&
+                this.data.formationView.loaded &&
+                !this.data.formationView.busy
+              ? this.data.formationView.formation?.members.find(
+                  (item) => item.id === id,
+                )?.author
+              : undefined;
+    void this.namedAvatarController?.open(author);
+  },
+  onNamedAvatarClose() {
+    this.namedAvatarController?.clear();
+  },
+  onNamedAvatarError() {
+    this.namedAvatarController?.imageFailed();
+  },
   onReload() {
+    this.namedAvatarController?.clear();
     this.reportMutations?.dismiss();
     this.blockMutations?.dismissBlock();
     void this.controller?.load();
@@ -968,6 +1030,8 @@ Page({
     this.savedMutations?.cancel();
   },
   onHide() {
+    this.namedAvatarController?.dispose();
+    this.namedAvatarController = undefined;
     this.mediaGalleryController?.dispose();
     this.mediaGalleryController = undefined;
     this.mediaReadController?.dispose();
@@ -1011,6 +1075,8 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.namedAvatarController?.dispose();
+    this.namedAvatarController = undefined;
     this.mediaGalleryController?.dispose();
     this.mediaGalleryController = undefined;
     this.mediaReadController?.dispose();

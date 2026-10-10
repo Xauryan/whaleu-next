@@ -15,8 +15,9 @@ export interface NativeMediaCredit {
 }
 interface Lease {
   readonly owner: object;
-  readonly epoch: number;
-  readonly accountId: string;
+  readonly epoch: number | null;
+  readonly accountId: string | null;
+  readonly guestGeneration: object | null;
   readonly path: string;
   readonly bytes: number;
 }
@@ -122,6 +123,47 @@ export class MediaLocalFiles {
     ticket: SessionTicket,
     reservation?: MediaReservation,
   ): LocalMediaFile {
+    if (!ticket.credentials)
+      throw new ClientError('storage', 'Temporary media capacity unavailable');
+    return this.adoptPrincipal(
+      path,
+      bytes,
+      owner,
+      {
+        epoch: ticket.epoch,
+        accountId: ticket.credentials.accountId,
+        guestGeneration: null,
+      },
+      reservation,
+    );
+  }
+  /** Profile-only guest lease. No invented account/session identity. */
+  adoptGuest(
+    path: string,
+    bytes: number,
+    owner: object,
+    generation: object,
+    reservation?: MediaReservation,
+  ): LocalMediaFile {
+    return this.adoptPrincipal(
+      path,
+      bytes,
+      owner,
+      {
+        epoch: null,
+        accountId: null,
+        guestGeneration: generation,
+      },
+      reservation,
+    );
+  }
+  private adoptPrincipal(
+    path: string,
+    bytes: number,
+    owner: object,
+    principal: Pick<Lease, 'epoch' | 'accountId' | 'guestGeneration'>,
+    reservation?: MediaReservation,
+  ): LocalMediaFile {
     const reserved = reservation
       ? this.reservations.get(reservation)
       : undefined;
@@ -129,7 +171,6 @@ export class MediaLocalFiles {
       !isNativeTemporaryPath(path) ||
       (reservation !== undefined && !reserved) ||
       (!reserved && !this.capacityAvailable) ||
-      !ticket.credentials ||
       !Number.isSafeInteger(bytes) ||
       bytes < 1 ||
       bytes > 5 * 1024 * 1024 ||
@@ -146,8 +187,7 @@ export class MediaLocalFiles {
       path,
       bytes,
       owner,
-      epoch: ticket.epoch,
-      accountId: ticket.credentials.accountId,
+      ...principal,
     });
     return handle;
   }
@@ -161,7 +201,8 @@ export class MediaLocalFiles {
       !lease ||
       lease.owner !== owner ||
       lease.epoch !== ticket.epoch ||
-      lease.accountId !== ticket.credentials?.accountId
+      lease.accountId !== ticket.credentials?.accountId ||
+      lease.guestGeneration !== null
     )
       throw new ClientError(
         'stale-session',
@@ -175,6 +216,29 @@ export class MediaLocalFiles {
         'storage',
         'Temporary image is no longer available',
       );
+    return lease.path;
+  }
+  async resolveGuest(
+    handle: LocalMediaFile,
+    owner: object,
+    generation: object,
+  ): Promise<string> {
+    const lease = this.leases.get(handle);
+    if (
+      !lease ||
+      lease.owner !== owner ||
+      lease.guestGeneration !== generation ||
+      lease.accountId !== null
+    )
+      throw new ClientError(
+        'stale-session',
+        'Guest image is no longer available',
+      );
+    if (
+      (await this.files.stat(lease.path)) !== lease.bytes ||
+      this.leases.get(handle) !== lease
+    )
+      throw new ClientError('storage', 'Guest image is no longer available');
     return lease.path;
   }
   release(handle: LocalMediaFile): Promise<void> {

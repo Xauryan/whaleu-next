@@ -1,3 +1,10 @@
+import { prepareProfileMediaSchema } from './contracts-profile.js';
+import type { PrepareProfileMediaInput } from './contracts-profile.js';
+import type {
+  AuthorizedProfileMediaEdit,
+  ProfileMediaDraftOwnerPort,
+} from './profile-prepare-scope.js';
+import { registerTransactionDeadline } from '../database/transaction-deadlines.js';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import { transactionReadEpoch } from '../database/transaction-deadlines.js';
@@ -68,11 +75,56 @@ export class MediaPrepareScopes {
         | PrepareMediaInput
         | PrepareMediaV2Input
         | PrepareMediaV3Input
-        | PrepareMediaV4Input;
-      scope: AuthorizedMediaDraft;
+        | PrepareMediaV4Input
+        | PrepareProfileMediaInput;
+      scope: AuthorizedMediaDraft | AuthorizedProfileMediaEdit;
     }
   >();
-  constructor(private readonly owner: MediaDraftOwnerPort) {}
+  constructor(
+    private readonly owner: MediaDraftOwnerPort,
+    private readonly profileOwner?: ProfileMediaDraftOwnerPort,
+  ) {}
+  async authorizeProfile(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    const input = prepareProfileMediaSchema.parse(raw);
+    const actor = mediaIdSchema.parse(actorAccountId);
+    const epoch = transactionReadEpoch(tx);
+    if (!epoch || !this.profileOwner)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const scope = await this.profileOwner.authorizePrepare(actor, input, tx);
+    if (
+      scope.actorAccountId !== actor ||
+      scope.ownerKind !== 'profile' ||
+      scope.resourceKind !== 'avatar' ||
+      scope.targetKind !== 'edit' ||
+      scope.contentVersion !== 1 ||
+      scope.audience !== 'profile-public' ||
+      scope.purpose !== 'profile-avatar-image' ||
+      scope.slot !== 'avatar' ||
+      scope.ordinal !== 0 ||
+      scope.scopeRevision !== String(input.expectedRevision) ||
+      !mediaIdSchema.safeParse(scope.serverScopeId).success ||
+      !Number.isSafeInteger(scope.expiresAt) ||
+      transactionReadEpoch(tx) !== epoch
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+    Object.freeze(input.declaration);
+    Object.freeze(input);
+    const capability: MediaPrepareScope = Object.freeze({
+      [brand]: true as const,
+    });
+    this.issued.set(capability, {
+      tx,
+      epoch,
+      input,
+      scope: Object.freeze({ ...scope }),
+    });
+    return capability;
+  }
   async resolvedDiscussionPostId(
     actor: string,
     scopeId: string,
@@ -186,8 +238,9 @@ export class MediaPrepareScopes {
       | PrepareMediaInput
       | PrepareMediaV2Input
       | PrepareMediaV3Input
-      | PrepareMediaV4Input;
-    scope: AuthorizedMediaDraft;
+      | PrepareMediaV4Input
+      | PrepareProfileMediaInput;
+    scope: AuthorizedMediaDraft | AuthorizedProfileMediaEdit;
   } {
     const issued = this.issued.get(capability);
     if (

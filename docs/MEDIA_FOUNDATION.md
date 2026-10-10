@@ -208,3 +208,14 @@ notification/search behavior and durable bounded descendant cleanup. Composed lo
 acceptance covers 6,140 tests, with explicit final UI-only revalidation. Hosted
 verification is pending; the previous nine-image checkpoint had hosted Ratings
 regression failures. Profile and other attachment owners remain separate work.
+
+## Profile avatar local slice
+
+The original Profile owner now supports catalog/custom avatar selection and clear,
+shared CAS and original-command recovery, exact current guest/session-controlled
+bytes, atomic replacement and retained cleanup obligations. Native named-avatar
+viewing shares existing bounded resources without replacing anonymous personas.
+[Composed local acceptance](PROFILE_AVATAR_MEDIA.md) covers 6,224 cases with the
+original failed source-list check and its final replacement explicitly recorded.
+Hosted verification is pending. The real 91-item catalog, background media,
+other owner projections, physical devices and real providers remain open.

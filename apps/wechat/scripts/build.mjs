@@ -34,6 +34,7 @@ for (const relative of [
   'community/view-contract.js',
   'messaging/pending.js',
   'media/upload-contracts.js',
+  'profile/avatar-contract.js',
   'media/upload-runtime.js',
   'media/batch-contracts.js',
   'media/discussion-batch-contracts.js',

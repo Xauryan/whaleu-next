@@ -1,3 +1,4 @@
+import { ProfileAvatarSafetyFacade } from './profile-avatar.facade.js';
 import { DmSafetyFacade } from './dm.facade.js';
 import { RatingSafetyFacade } from './rating.facade.js';
 import { SafetyErrandFacade } from './errand.facade.js';
@@ -16,6 +17,7 @@ import { SafetyContentVisibilityFacade } from './content-visibility.facade.js';
 @Module({
   imports: [ContentReviewModule],
   providers: [
+    ProfileAvatarSafetyFacade,
     DmSafetyFacade,
     RatingSafetyFacade,
     SafetyErrandFacade,
@@ -33,6 +35,7 @@ import { SafetyContentVisibilityFacade } from './content-visibility.facade.js';
     },
   ],
   exports: [
+    ProfileAvatarSafetyFacade,
     DmSafetyFacade,
     RatingSafetyFacade,
     SafetyErrandFacade,

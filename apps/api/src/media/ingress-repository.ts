@@ -1,3 +1,8 @@
+import {
+  prepareProfileMediaSchema,
+  profileMediaRequestHash,
+} from './contracts-profile.js';
+import type { PrepareProfileMediaInput } from './contracts-profile.js';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -99,7 +104,7 @@ export class MediaIngressRepository {
   private readonly proof = new MediaRequiredProof();
   constructor(
     readonly planning: MediaIngressPlanningPort,
-    private readonly protocolVersion: 2 | 3 | 4 = 2,
+    private readonly protocolVersion: 2 | 3 | 4 | 5 = 2,
   ) {
     mediaIdSchema.parse(planning.writerInstanceId);
   }
@@ -111,6 +116,8 @@ export class MediaIngressRepository {
     tx: PoolClient,
   ): Promise<PrepareMediaV2Input | PrepareMediaV3Input | PrepareMediaV4Input> {
     this.managed(tx);
+    if (this.protocolVersion === 5)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
     const row = (
       await tx.query<Intent & { client_draft_id: string; space_id: string }>(
         `SELECT i.*,d.client_draft_id,d.space_id FROM whaleu_media.upload_intents i
@@ -120,7 +127,7 @@ export class MediaIngressRepository {
       )
     ).rows[0];
     if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
-    if (this.protocolVersion >= 3) {
+    if (this.protocolVersion === 3 || this.protocolVersion === 4) {
       const member = (
         await tx.query<{
           batch_id: string;
@@ -160,6 +167,35 @@ export class MediaIngressRepository {
       spaceId: row.space_id,
       slot: 'images',
       ordinal: 0,
+      declaration: {
+        bytes: Number(row.declared_bytes),
+        mime: row.declared_mime,
+        sha256: row.declared_sha256,
+      },
+    });
+  }
+  async originalProfileInput(
+    actor: string,
+    id: string,
+    tx: PoolClient,
+  ): Promise<PrepareProfileMediaInput> {
+    this.managed(tx);
+    if (this.protocolVersion !== 5)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const row = (
+      await tx.query<Intent & { expected_revision: number }>(
+        `SELECT i.*,e.expected_revision FROM whaleu_media.upload_intents i
+       JOIN whaleu_profile.avatar_edits e ON e.id=i.resource_id AND e.actor_id=i.actor_id AND e.scope_revision=i.scope_revision
+       WHERE i.id=$1 AND i.actor_id=$2 AND i.protocol_version=5 AND i.owner_kind='profile'`,
+        [mediaIdSchema.parse(id), actor],
+      )
+    ).rows[0];
+    if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return prepareProfileMediaSchema.parse({
+      protocol: 'profile-media-v1',
+      clientRequestId: row.client_request_id,
+      expectedRevision: row.expected_revision,
+      slot: 'avatar',
       declaration: {
         bytes: Number(row.declared_bytes),
         mime: row.declared_mime,
@@ -608,7 +644,7 @@ export class MediaIngressRepository {
     if (issued.scope.actorAccountId !== session.accountId)
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     await lockMediaBatchesForIntents([id], tx, true);
-    if (this.protocolVersion >= 3) {
+    if (this.protocolVersion === 3 || this.protocolVersion === 4) {
       const member = (
         await tx.query(
           `SELECT 1 FROM whaleu_media.publication_batch_members m JOIN whaleu_media.publication_batches b ON b.id=m.batch_id WHERE m.intent_id=$1 AND m.actor_id=$2 AND m.state='live' AND b.state='editing'`,
@@ -625,11 +661,13 @@ export class MediaIngressRepository {
       )
     ).rows[0];
     const input =
-      this.protocolVersion === 4
-        ? prepareMediaV4Schema.parse(issued.input)
-        : this.protocolVersion === 3
-          ? prepareMediaV3Schema.parse(issued.input)
-          : prepareMediaV2Schema.parse(issued.input);
+      this.protocolVersion === 5
+        ? prepareProfileMediaSchema.parse(issued.input)
+        : this.protocolVersion === 4
+          ? prepareMediaV4Schema.parse(issued.input)
+          : this.protocolVersion === 3
+            ? prepareMediaV3Schema.parse(issued.input)
+            : prepareMediaV2Schema.parse(issued.input);
     if (
       !row ||
       row.state !== 'prepared' ||
@@ -651,6 +689,10 @@ export class MediaIngressRepository {
                 declaration: input.declaration,
               },
             ))) ||
+      ('protocol' in input &&
+        (issued.scope.ownerKind !== 'profile' ||
+          row.request_hash !==
+            profileMediaRequestHash(session.accountId, input))) ||
       row.client_request_id !== input.clientRequestId ||
       row.declared_sha256 !== input.declaration.sha256 ||
       Number(row.declared_bytes) !== input.declaration.bytes ||

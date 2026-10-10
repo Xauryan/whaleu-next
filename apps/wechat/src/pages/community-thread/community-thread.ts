@@ -1,4 +1,8 @@
 import {
+  NamedAvatarController,
+  initialNamedAvatarView,
+} from '../../profile/named-avatar';
+import {
   DiscussionGalleryController,
   discussionImageGroups,
   initialDiscussionGalleryView,
@@ -34,6 +38,7 @@ import {
 import { ThreadController, initialThreadView } from './controller';
 Page({
   data: {
+    namedAvatar: initialNamedAvatarView(),
     mediaGallery: initialDiscussionGalleryView(),
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     report: initialReportMutationView(),
@@ -43,6 +48,7 @@ Page({
     identityOverlay: initialOverlayView(),
     requestedReplyId: '',
   },
+  namedAvatarController: undefined as NamedAvatarController | undefined,
   mediaGalleryController: undefined as DiscussionGalleryController | undefined,
   reportMutations: undefined as ReportMutationController | undefined,
   blockMutations: undefined as BlockMutationController | undefined,
@@ -69,6 +75,11 @@ Page({
   authorNavigator: undefined as AuthorNavigator | undefined,
   messagingEntry: undefined as MessagingEntryNavigator | undefined,
   onShow() {
+    this.namedAvatarController?.dispose();
+    this.namedAvatarController = new NamedAvatarController(
+      getApp<WhaleuApp>().profileAvatar,
+      (view) => this.setData({ namedAvatar: view }),
+    );
     this.mediaGalleryController?.dispose();
     this.mediaGalleryController = new DiscussionGalleryController(
       getApp<WhaleuApp>().mediaRead,
@@ -107,6 +118,7 @@ Page({
         this.setData({ report: view });
         if (view.busy || view.frozen) {
           this.mediaGalleryController?.clear();
+          this.namedAvatarController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         }
@@ -117,6 +129,7 @@ Page({
       this.setData({ block: view });
       if (view.busy || view.frozen) {
         this.mediaGalleryController?.clear();
+        this.namedAvatarController?.clear();
         this.identityOverlay?.clear();
         this.overlayTargets = '';
       }
@@ -135,6 +148,7 @@ Page({
         this.setData({ interaction: view });
         if (view.busy || view.frozen) {
           this.mediaGalleryController?.clear();
+          this.namedAvatarController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         }
@@ -167,6 +181,8 @@ Page({
                 ],
               ),
         );
+        if (view.busy || view.needsReload || !view.post)
+          this.namedAvatarController?.clear();
         this.setData({ ...view });
         const targets: DisplayTarget[] =
           view.post && view.root
@@ -215,6 +231,7 @@ Page({
           this.data.interaction.frozen
         ) {
           this.mediaGalleryController?.clear();
+          this.namedAvatarController?.clear();
           this.identityOverlay?.clear();
           this.overlayTargets = '';
         } else if (key !== this.overlayTargets) {
@@ -242,6 +259,7 @@ Page({
       this.data.interaction.frozen
     )
       return;
+    this.namedAvatarController?.clear();
     const { kind, id } = event.currentTarget.dataset;
     const group = discussionImageGroups(
       this.data.post,
@@ -288,6 +306,7 @@ Page({
     // Keep overlay gestures from scrolling the content behind the selected group.
   },
   onPageScroll() {
+    this.namedAvatarController?.clear();
     this.mediaGalleryController?.clear();
   },
   onReportPost() {
@@ -414,7 +433,44 @@ Page({
               : undefined;
     this.authorNavigator?.open(author);
   },
+  onAuthorAvatar(event: {
+    currentTarget: { dataset: { kind: string; id: string } };
+  }) {
+    if (!this.data.loaded || this.data.busy || this.data.needsReload) return;
+    if (
+      this.data.block.busy ||
+      this.data.block.frozen ||
+      this.data.report.busy ||
+      this.data.report.frozen
+    )
+      return;
+    // Avatar admission is non-preemptive: retain Community sources and budget.
+    const { kind, id } = event.currentTarget.dataset;
+    const reply = [
+      ...this.data.replies,
+      ...this.data.contextReplies,
+      ...(this.data.locatedReply ? [this.data.locatedReply] : []),
+    ].find((item) => item.id === id);
+    const author =
+      kind === 'post' && this.data.post?.id === id
+        ? this.data.post.author
+        : kind === 'comment' && this.data.root?.id === id
+          ? this.data.root.author
+          : kind === 'reply'
+            ? reply?.author
+            : kind === 'reply_target' && reply?.target.status === 'available'
+              ? reply.target.author
+              : undefined;
+    void this.namedAvatarController?.open(author);
+  },
+  onNamedAvatarClose() {
+    this.namedAvatarController?.clear();
+  },
+  onNamedAvatarError() {
+    this.namedAvatarController?.imageFailed();
+  },
   onReload() {
+    this.namedAvatarController?.clear();
     this.reportMutations?.dismiss();
     this.blockMutations?.dismissBlock();
     void this.controller?.load();
@@ -483,6 +539,8 @@ Page({
     this.mutations?.cancel();
   },
   onHide() {
+    this.namedAvatarController?.dispose();
+    this.namedAvatarController = undefined;
     this.mediaGalleryController?.dispose();
     this.mediaGalleryController = undefined;
     this.messagingEntry?.dispose();

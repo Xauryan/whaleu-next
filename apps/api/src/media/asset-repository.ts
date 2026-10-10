@@ -33,7 +33,7 @@ export class MediaCurrentDenied extends ApplicationError {
   }
 }
 
-interface AssetRow {
+export interface AssetRow {
   created_at: Date;
   id: string;
   intent_id: string;
@@ -85,7 +85,7 @@ interface AcceptedFacts {
  * inference. Business first authorizes/locks its scope, then locks assets in UUID order. */
 export class MediaAssetRepository {
   private readonly accepted = new WeakMap<AcceptedMediaAssets, AcceptedFacts>();
-  private readonly proof = new MediaRequiredProof();
+  protected readonly proof = new MediaRequiredProof();
   constructor(
     private readonly owners: MediaOwnerProofRegistry,
     private readonly batches?: MediaBatchRepository,
@@ -672,7 +672,7 @@ export class MediaAssetRepository {
       mime: object.mime,
     });
   }
-  private async attachmentSetRevision(
+  protected async attachmentSetRevision(
     descriptors: readonly MediaAttachmentDescriptor[],
     expected: readonly { assetId: string; digest: string }[],
     tx: PoolClient,
@@ -711,7 +711,7 @@ export class MediaAssetRepository {
       )
       .digest('hex');
   }
-  private async requireRetention(
+  protected async requireRetention(
     asset: AssetRow,
     tx: PoolClient,
   ): Promise<void> {
@@ -725,7 +725,7 @@ export class MediaAssetRepository {
     // Community's requireDraft separately enrolls the immutable draft deadline
     // and its final owner proof before intent/assets are locked.
   }
-  private async current(
+  protected async current(
     asset: AssetRow,
     tx: PoolClient,
     detached = false,
@@ -775,7 +775,7 @@ export class MediaAssetRepository {
     return checked.manifest;
   }
 
-  private async lockIntents(
+  protected async lockIntents(
     ids: readonly string[],
     tx: PoolClient,
     mode: 'read' | 'write',
@@ -798,7 +798,7 @@ export class MediaAssetRepository {
       [ids],
     );
   }
-  private managed(tx: PoolClient): object {
+  protected managed(tx: PoolClient): object {
     const epoch = transactionReadEpoch(tx);
     if (!epoch) throw new ApplicationError('MEDIA_UNAVAILABLE');
     return epoch;

@@ -281,3 +281,7 @@ unknown/expired coverage, privacy/lifecycle lock ordering, post-wait expiry and
 bounded progress, optional-count expiry and opaque-cursor retention. Native gateway roundtrips, lifecycle/controller tests and build
 smokes supplement these. They are not real-device, production-provider, migration
 reconciliation or public deployment acceptance.
+
+### Profile avatar candidate
+
+[Profile avatar media](PROFILE_AVATAR_MEDIA.md) adds a Profile-only current/byte API with guest/session qualification and no invalid-token guest fallback. Native may lazily decorate an already-eligible named profile through it. Historical public/named DTOs remain `avatar:null`; no anonymous persona is associated with a named image, and inability to load an avatar does not hide otherwise visible content. This candidate still requires full validation and real provider/device/catalog acceptance.

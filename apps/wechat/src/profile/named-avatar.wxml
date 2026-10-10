@@ -1,0 +1,7 @@
+<template name="named-avatar-preview">
+  <view wx:if="{{avatar.opened}}" class="named-avatar-overlay" aria-role="dialog" aria-label="当前公开头像">
+    <image wx:if="{{avatar.localSrc}}" src="{{avatar.localSrc}}" mode="aspectFit" binderror="onNamedAvatarError" show-menu-by-longpress="{{false}}" />
+    <view wx:else>{{avatar.status === 'loading' ? '正在核验当前头像' : avatar.status === 'none' ? '尚未选择头像' : '头像暂不可用；可先关闭展开图片再重试，正文仍可正常查看'}}</view>
+    <button bindtap="onNamedAvatarClose">关闭并清除头像</button>
+  </view>
+</template>

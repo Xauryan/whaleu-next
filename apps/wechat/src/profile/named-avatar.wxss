@@ -1,0 +1,16 @@
+.named-avatar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: #111;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx;
+}
+.named-avatar-overlay image {
+  width: 90vw;
+  height: 70vh;
+}

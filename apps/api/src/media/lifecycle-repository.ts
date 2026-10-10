@@ -316,7 +316,9 @@ export class MediaLifecycleRepository {
       OR (i.state='ready' AND (EXISTS (SELECT 1 FROM whaleu_media.assets a
         WHERE a.intent_id=i.id AND a.created_at<=clock_timestamp()-interval '24 hours')
         OR EXISTS (SELECT 1 FROM whaleu_media.assets a JOIN whaleu_community.media_drafts d
-          ON d.id=a.resource_id AND d.actor_id=a.actor_id WHERE a.intent_id=i.id AND d.expires_at<=clock_timestamp()))
+          ON d.id=a.resource_id AND d.actor_id=a.actor_id WHERE a.intent_id=i.id AND a.owner_kind='community' AND d.expires_at<=clock_timestamp())
+        OR EXISTS (SELECT 1 FROM whaleu_media.assets a JOIN whaleu_profile.avatar_edits e
+          ON e.id=a.resource_id AND e.actor_id=a.actor_id AND e.scope_revision=a.scope_revision WHERE a.intent_id=i.id AND a.owner_kind='profile' AND e.expires_at<=clock_timestamp()))
         AND NOT EXISTS (SELECT 1 FROM whaleu_media.bindings b
           JOIN whaleu_media.assets a ON a.id=b.asset_id WHERE a.intent_id=i.id))
       ORDER BY i.expires_at,i.id

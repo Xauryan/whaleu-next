@@ -1,3 +1,4 @@
+@import '../../profile/named-avatar.wxss';
 @import '../../announcements/announcements.wxss';
 @import '../../experience/public-display.wxss';
 @import '../../community/forms.wxss';

@@ -601,5 +601,8 @@ ancestor cleanup, notifications and text-only discovery have local coverage.
 Composed acceptance includes 6,140 tests with zero failures, plus repeated final
 UI/HTTP checks after a two-file WXML/smoke correction. This does not claim a full
 PostgreSQL rerun on that final UI tree. The previous nine-image hosted checkpoint
-failed; the replacement full hosted gate is pending. Real providers/devices and
+failed; the replacement `72b21ec` hosted gate also failed one scalable-profile Safety
+lock-timeout leaf and its parent; subsequent diagnostics do not establish a root-cause fix. Real providers/devices and
 other Media owners remain open. See [evidence and limitations](MEDIA_DISCUSSION_BATCH.md).
+
+Profile-avatar local slice (composed acceptance passed; hosted pending): original Profile shared CAS now has separate default-catalog/custom-avatar selection, clear, same-key receipt recovery, exact Profile Review/current-byte delivery, and atomic old-binding cleanup paths. Native uses bounded lazy named-profile decoration; embedded historical DTOs remain `avatar:null`. Focused API/native/real-PG/process checks and composed 6,224-case acceptance passed, with strict affected-suite replacement after a test-source inventory fix; this is not a final-tree full PostgreSQL rerun. The synthetic catalog is not the real 91-item resource set. Real default-asset bytes/licensing/import, background media, Ratings/DM/notification projections, providers and physical devices remain open; overall Profile parity stays unchecked. See `PROFILE_AVATAR_MEDIA.md`.

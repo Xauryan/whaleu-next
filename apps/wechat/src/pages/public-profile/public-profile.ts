@@ -1,3 +1,11 @@
+import {
+  NamedAvatarController,
+  initialNamedAvatarView,
+} from '../../profile/named-avatar';
+import {
+  initialAvatarReadView,
+  type AvatarReadController,
+} from '../../profile/avatar-read-controller';
 import { MessagingEntryNavigator } from '../../messaging/entry';
 import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import type { WhaleuApp } from '../../app';
@@ -16,12 +24,17 @@ import {
 } from './controller';
 Page({
   data: {
+    namedAvatar: initialNamedAvatarView(),
+    avatarRead: initialAvatarReadView(),
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     ...initialPublicProfileView(),
     block: initialBlockMutationView(),
     tradingCategories,
     tradingLabels,
   },
+  namedAvatarController: undefined as NamedAvatarController | undefined,
+  avatarReader: undefined as AvatarReadController | undefined,
+  avatarTarget: '',
   controller: undefined as PublicProfileController | undefined,
   blockMutations: undefined as BlockMutationController | undefined,
   messagingEntry: undefined as MessagingEntryNavigator | undefined,
@@ -36,6 +49,16 @@ Page({
           : '';
   },
   onShow() {
+    this.namedAvatarController?.dispose();
+    this.namedAvatarController = new NamedAvatarController(
+      getApp<WhaleuApp>().profileAvatar,
+      (view) => this.setData({ namedAvatar: view }),
+    );
+    this.avatarReader?.dispose();
+    this.avatarTarget = '';
+    this.avatarReader = getApp<WhaleuApp>().profileAvatar?.createReader(
+      (view) => this.setData({ avatarRead: view }),
+    );
     this.messagingEntry?.dispose();
     this.messagingEntry = new MessagingEntryNavigator(
       wx,
@@ -64,6 +87,19 @@ Page({
       this.profileId,
       (view) => {
         this.setData({ ...view });
+        if (
+          view.busy ||
+          !view.loaded ||
+          view.profile?.status !== 'available' ||
+          this.blockPending
+        ) {
+          this.avatarTarget = '';
+          this.avatarReader?.clear();
+          this.namedAvatarController?.clear();
+        } else if (this.avatarTarget !== view.profile.profileId) {
+          this.avatarTarget = view.profile.profileId;
+          void this.avatarReader?.load(view.profile.profileId);
+        }
         if (this.blockPending && (view.busy || view.loaded))
           this.controller?.cancel();
         if (
@@ -74,6 +110,34 @@ Page({
       },
     );
     if (!this.blockPending) void this.controller.load();
+  },
+  onOpenAvatar() {
+    void this.avatarReader?.open();
+  },
+  onCloseAvatar() {
+    void this.avatarReader?.close();
+  },
+  onAvatarError() {
+    this.avatarReader?.imageFailed();
+  },
+  onPostAvatar(event: { currentTarget: { dataset: { id: string } } }) {
+    if (
+      this.data.busy ||
+      !this.data.loaded ||
+      this.blockPending ||
+      this.data.profile?.status !== 'available'
+    )
+      return;
+    void this.namedAvatarController?.open(
+      this.data.items.find((item) => item.id === event.currentTarget.dataset.id)
+        ?.author,
+    );
+  },
+  onNamedAvatarClose() {
+    this.namedAvatarController?.clear();
+  },
+  onNamedAvatarError() {
+    this.namedAvatarController?.imageFailed();
   },
   onPrivateMessage() {
     const profile = this.data.profile;
@@ -146,7 +210,15 @@ Page({
   onBlockCancel() {
     this.blockMutations?.cancel();
   },
+  onPageScroll() {
+    this.namedAvatarController?.clear();
+  },
   onHide() {
+    this.namedAvatarController?.dispose();
+    this.namedAvatarController = undefined;
+    this.avatarTarget = '';
+    this.avatarReader?.dispose();
+    this.avatarReader = undefined;
     this.messagingEntry?.dispose();
     this.messagingEntry = undefined;
     this.controller?.dispose();

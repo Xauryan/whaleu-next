@@ -25,6 +25,7 @@ const sources = [
   'publication_batches',
   'publication_batch_members',
   'publication_batch_commands',
+  'profile_request_markers',
 ];
 export async function verifyMediaOwnerFenceConcurrency(
   t: TestContext,

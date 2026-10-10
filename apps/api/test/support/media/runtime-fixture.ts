@@ -19,6 +19,7 @@ import {
  * services remain in place; only Media capability wiring is opted into this
  * disposable loopback app. No configuration/environment switch reaches it. */
 import { Test } from '@nestjs/testing';
+import type { TestingModuleBuilder } from '@nestjs/testing';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
 import type { RuntimeConfig } from '../../../src/config/config.js';
@@ -37,6 +38,7 @@ import { MediaPrepareScopes } from '../../../src/media/prepare-scope.js';
 import { MediaIntentRepository } from '../../../src/media/intent-repository.js';
 import { MediaLifecycleRepository } from '../../../src/media/lifecycle-repository.js';
 import { MediaAssetRepository } from '../../../src/media/asset-repository.js';
+import { MediaDeliveryBudgetPool } from '../../../src/media/delivery-budget.js';
 import { MediaDeliveryService } from '../../../src/media/delivery.js';
 import { MEDIA_APPLICATION } from '../../../src/media/application.js';
 import { directoryRuntimeFixture } from '../directory-runtime-fixture.js';
@@ -48,7 +50,16 @@ export async function syntheticMediaRuntimeFixture(
     sha256: string;
     verdict: 'allow' | 'held' | 'revoked';
   }[],
-  options: { readonly authRateLimit?: true } = {},
+  options: {
+    readonly authRateLimit?: true;
+    readonly configureTestModule?: (
+      builder: TestingModuleBuilder,
+      ports: {
+        storage: SyntheticMediaStorage;
+        ingressStorage: SyntheticMediaIngressStorage;
+      },
+    ) => void;
+  } = {},
 ) {
   const storage = await SyntheticMediaStorage.create();
   const ingressStorage = new SyntheticMediaIngressStorage(storage);
@@ -169,17 +180,24 @@ export async function syntheticMediaRuntimeFixture(
           })
           .overrideProvider(MEDIA_APPLICATION)
           .useFactory({
-            inject: [DatabaseService, CommunityAccessService, MEDIA_ATTACHMENT],
+            inject: [
+              DatabaseService,
+              CommunityAccessService,
+              MEDIA_ATTACHMENT,
+              MediaDeliveryBudgetPool,
+            ],
             factory: (
               database: DatabaseService,
               access: CommunityAccessService,
               _attachment: CommunityMediaAttachmentAdapter,
+              budget: MediaDeliveryBudgetPool,
             ) => {
               const scopes = new MediaPrepareScopes(owner);
               const delivery = new MediaDeliveryService(
                 database,
                 new CommunityMediaDeliveryAuthorizer(access, assets, owners),
                 storage,
+                budget,
               );
               return new CommunityMediaApplication(
                 database,
@@ -205,6 +223,7 @@ export async function syntheticMediaRuntimeFixture(
               ),
           });
         }
+        options.configureTestModule?.(builder, { storage, ingressStorage });
         const module = await builder.compile();
         return module.createNestApplication({ logger: false });
       },

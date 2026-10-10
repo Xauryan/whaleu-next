@@ -1,3 +1,4 @@
+@import '../../profile/named-avatar.wxss';
 @import '../../experience/public-display.wxss';
 @import '../../community/forms.wxss';
 .located {

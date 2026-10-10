@@ -111,3 +111,7 @@ Reviewed baseline: `WhaleUCampus/WhaleU@57cf169c11123acf249909a1a7215b8cb1ec1f8e
 - Schema/unit tests cover query bounds, Unicode/length rules, unknown fields, self-escalation attempts, exact booleans, defaults and all endpoint authentication wiring
 - Disposable PostgreSQL 18.6 integration tests use loopback and the dedicated `whaleu_test` name, a shared exclusive suite lock, refusal of pre-existing owned schemas, and serial execution. They cover real Nest HTTP, real identity authentication, migrations, literal search, initial/update races, optimistic conflicts, merged preferences, constraints, selection row locks and blocked/revoked accounts
 - Cleanup is limited to schemas the guarded suite created in that disposable database. No production cleanup, import, provider call or moderation service call is performed
+
+## Profile avatar implementation candidate
+
+The separate [Profile avatar media candidate](PROFILE_AVATAR_MEDIA.md) adds independent current/read/edit/selection/recovery endpoints to this same owner and shared revision. Focused local checks have passed; complete frozen-tree acceptance is pending and production remains disabled. The previous own-profile response shape stays unchanged; avatar-specific current state is separate. Default/catalog licensing and backgrounds remain open, and no synthetic asset is represented as a real legacy default.

@@ -16,6 +16,28 @@
   <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/public-profile/public-profile">我的公开主页 →</navigator>
   <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/community-liked/community-liked">我的点赞历史 →</navigator>
   <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/experience/experience">我的经验、头衔与颜色 →</navigator>
+  <view class="card">
+    <view class="card-title">头像</view>
+    <image wx:if="{{avatarRead.localSrc}}" class="profile-avatar" src="{{avatarRead.localSrc}}" mode="aspectFit" bindtap="onOpenAvatar" binderror="onAvatarImageError" />
+    <view wx:else class="hint">{{avatarRead.status === 'none' ? '尚未选择头像' : '头像当前不可显示'}}</view>
+    <view wx:if="{{avatarRead.expanded &amp;&amp; avatarRead.localSrc}}" class="avatar-overlay"><image src="{{avatarRead.localSrc}}" mode="aspectFit" binderror="onAvatarImageError" /><button bindtap="onCloseAvatar">关闭预览</button></view>
+    <image wx:if="{{avatar.previewSrc}}" class="profile-avatar" src="{{avatar.previewSrc}}" mode="aspectFit" /><view wx:if="{{avatar.previewSrc}}" class="hint">本地预览，尚未保存</view>
+    <view aria-role="status">{{avatar.status}}</view><view wx:if="{{avatar.error}}" class="error">{{avatar.error}}</view>
+    <button bindtap="onChooseCustomAvatar" disabled="{{!avatar.canChoose || avatar.busy || loading || saving || profileDirty || preferencesDirty}}">选择自定义头像</button>
+    <view wx:for="{{avatar.catalog}}" wx:key="itemId"><button data-item="{{item.itemId}}" bindtap="onAvatarCatalog" disabled="{{loading || saving || profileDirty || preferencesDirty}}">{{item.label}}{{avatar.selectedItem === item.itemId ? ' · 已选择' : ''}}</button></view>
+    <view wx:if="{{avatar.pickerWaiting}}" class="notice">系统选图界面尚未确认结束。请关闭系统选图界面，收到系统结束回调后可继续选择；其他头像选择与资料读取仍按当前可用资源执行。</view>
+    <view class="hint">使用系统图片选择器；专属 chooseAvatar 界面与裁切体验尚未启用或验收。</view>
+    <view wx:if="{{!avatar.catalog.length}}" class="hint">默认头像资源暂不可用；真实 91 项素材仍待核实导入。</view>
+    <button bindtap="onClearAvatar" disabled="{{!avatar.loaded || avatar.busy || loading || saving || profileDirty || preferencesDirty}}">选择清除头像</button>
+    <button wx:if="{{avatar.canSave}}" bindtap="onSaveAvatar" disabled="{{avatar.busy}}">保存头像选择</button>
+    <button wx:if="{{avatar.busy}}" bindtap="onStopAvatar">停止本地等待</button>
+    <button wx:if="{{avatar.needsRecovery}}" bindtap="onRecoverAvatar" disabled="{{avatar.busy}}">查询原头像请求</button>
+    <button wx:if="{{avatar.needsRecovery}}" bindtap="onRetryAvatar" disabled="{{avatar.busy}}">查询并重试原保存请求</button>
+    <button wx:if="{{avatar.needsRecovery}}" bindtap="onCancelAvatarCommand" disabled="{{avatar.busy}}">取消原保存请求及未绑定上传</button>
+    <button wx:if="{{avatar.needsRecovery}}" bindtap="onCancelAvatarEdit" disabled="{{avatar.busy}}">取消未保存的上传编辑</button>
+    <button bindtap="onReloadAvatar" disabled="{{avatar.busy}}">重新加载当前头像</button>
+    <view class="hint">上传 100% 不代表已保存；离开页面或切换账号会清除本地图片，未确认请求可由原账号恢复。清除头像是新增回退能力。</view>
+  </view>
   <block wx:if="{{loaded}}">
     <view class="card">
       <view class="card-title">我的校园</view>
@@ -27,13 +49,13 @@
     <view class="card">
       <view class="card-title">个人资料</view>
       <label class="field-label" for="nickname">昵称</label>
-      <input id="nickname" class="input" value="{{nickname}}" placeholder="填写你的昵称" maxlength="-1" disabled="{{loading || saving || needsReload}}" bindinput="onNickname" />
+      <input id="nickname" class="input" value="{{nickname}}" placeholder="填写你的昵称" maxlength="-1" disabled="{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}" bindinput="onNickname" />
       <view class="hint">1–20 个中文、字母、数字或 _ # &amp; @ . + -</view>
       <label class="field-label" for="bio">个人简介</label>
-      <textarea id="bio" class="textarea" value="{{bio}}" placeholder="向校园介绍一下自己" maxlength="-1" disabled="{{loading || saving || needsReload}}" bindinput="onBio" />
+      <textarea id="bio" class="textarea" value="{{bio}}" placeholder="向校园介绍一下自己" maxlength="-1" disabled="{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}" bindinput="onBio" />
       <view class="counter">{{bioLength}} / 100 字 · 最多 5 次换行</view>
       <view wx:if="{{validationError}}" class="error" aria-role="alert">{{validationError}}</view>
-      <button class="primary" bindtap="onSaveProfile" loading="{{saving}}" disabled="{{!profileDirty || loading || saving || needsReload}}">保存个人资料</button>
+      <button class="primary" bindtap="onSaveProfile" loading="{{saving}}" disabled="{{!profileDirty || loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}">保存个人资料</button>
     </view>
     <view class="card">
       <view class="card-title">使用偏好</view>
@@ -43,12 +65,12 @@
           <label class="preference-label" for="{{item.key}}">{{item.label}}</label>
           <view class="hint">{{item.hint}}</view>
         </view>
-        <switch id="{{item.key}}" checked="{{item.checked}}" color="#195a93" data-key="{{item.key}}" disabled="{{loading || saving || needsReload}}" bindchange="onPreference" />
+        <switch id="{{item.key}}" checked="{{item.checked}}" color="#195a93" data-key="{{item.key}}" disabled="{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}" bindchange="onPreference" />
       </view>
-      <button class="primary" bindtap="onSavePreferences" loading="{{saving}}" disabled="{{!preferencesDirty || loading || saving || needsReload}}">保存使用偏好</button>
+      <button class="primary" bindtap="onSavePreferences" loading="{{saving}}" disabled="{{!preferencesDirty || loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}">保存使用偏好</button>
     </view>
     <button wx:if="{{profileDirty || preferencesDirty}}" class="secondary" bindtap="onCancelEdits" disabled="{{loading || saving}}">取消未保存的修改</button>
   </block>
-  <view class="footnote">头像与媒体上传、手机号与学生认证办理、主题外观及其他业务功能待接入。此开发构建不代表完整功能对齐。</view>
+  <view class="footnote">头像媒体仅有默认关闭的开发链路；真实素材、微信真机与背景图仍待验收。手机号与学生认证办理、主题外观及其他业务功能待接入。此开发构建不代表完整功能对齐。</view>
   <navigator class="text-link" url="/pages/login/login" open-type="reLaunch">返回登录与会话管理</navigator>
 </view>

@@ -1,3 +1,23 @@
+import { MediaDeliveryBudgetModule } from '../media/delivery-budget.module.js';
+import { MediaDeliveryBudgetPool } from '../media/delivery-budget.js';
+import { ContentReviewModule } from '../community/content-review/content-review.module.js';
+import { ProfileAvatarReviewFacade } from '../community/content-review/profile-avatar-review.facade.js';
+import {
+  ProfileAvatarService,
+  PROFILE_AVATAR_RUNTIME,
+} from './avatar/service.js';
+import type { ProfileAvatarRuntime } from './avatar/service.js';
+import { ProfileAvatarUploadApplication } from './avatar/upload-application.js';
+import { ProfileAvatarDelivery } from './avatar/delivery.js';
+import {
+  ProfileAvatarOwnedController,
+  ProfileAvatarPublicController,
+  ProfileAvatarMultipartInterceptor,
+} from './avatar/controller.js';
+import { SafetyPolicyModule } from '../safety/policy.module.js';
+import { ProfileVisibilityFacade } from '../safety/profile-visibility.facade.js';
+import { ProfileAvatarSafetyFacade } from '../safety/profile-avatar.facade.js';
+import { DatabaseService } from '../database/database.js';
 import { AccountIdentityProfileService } from './account-identity-profile.service.js';
 import { PublicProfileFacade } from './public-profile.facade.js';
 import { AuthorDisplayService } from './author-display.service.js';
@@ -77,12 +97,65 @@ export class ProfileController {
 @Module({
   imports: [
     DatabaseModule,
+    MediaDeliveryBudgetModule,
+    SafetyPolicyModule,
+    ContentReviewModule,
     IdentityModule,
     CampusModule,
     ExperiencePublicDisplayModule,
   ],
-  controllers: [ProfileController],
+  controllers: [
+    ProfileController,
+    ProfileAvatarOwnedController,
+    ProfileAvatarPublicController,
+  ],
   providers: [
+    { provide: PROFILE_AVATAR_RUNTIME, useValue: null },
+    {
+      provide: ProfileAvatarService,
+      inject: [
+        DatabaseService,
+        IdentityService,
+        ProfileRepository,
+        ProfileVisibilityFacade,
+        ProfileAvatarSafetyFacade,
+        PROFILE_AVATAR_RUNTIME,
+        ProfileAvatarReviewFacade,
+      ],
+      useFactory: (
+        database: DatabaseService,
+        identity: IdentityService,
+        profiles: ProfileRepository,
+        safety: ProfileVisibilityFacade,
+        actorSafety: ProfileAvatarSafetyFacade,
+        runtime: ProfileAvatarRuntime | null,
+        reviews: ProfileAvatarReviewFacade,
+      ) =>
+        new ProfileAvatarService(
+          database,
+          identity,
+          profiles,
+          safety,
+          actorSafety,
+          runtime,
+          reviews,
+        ),
+    },
+    {
+      provide: ProfileAvatarUploadApplication,
+      inject: [ProfileAvatarService],
+      useFactory: (owner: ProfileAvatarService) =>
+        new ProfileAvatarUploadApplication(owner),
+    },
+    {
+      provide: ProfileAvatarDelivery,
+      inject: [ProfileAvatarService, MediaDeliveryBudgetPool],
+      useFactory: (
+        owner: ProfileAvatarService,
+        budget: MediaDeliveryBudgetPool,
+      ) => new ProfileAvatarDelivery(owner, budget),
+    },
+    ProfileAvatarMultipartInterceptor,
     ProfileRepository,
     ProfileService,
     AuthorDisplayService,
@@ -91,6 +164,9 @@ export class ProfileController {
     ProfileAdminParticipantFacade,
   ],
   exports: [
+    ProfileAvatarService,
+    ProfileAvatarUploadApplication,
+    PROFILE_AVATAR_RUNTIME,
     AuthorDisplayService,
     AccountIdentityProfileService,
     PublicProfileFacade,

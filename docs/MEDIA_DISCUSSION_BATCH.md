@@ -170,3 +170,14 @@ causes remain unproven. Bounded, allowlisted test diagnostics preserve future
 failure evidence without changing public errors, production logic or proof budgets.
 A new full hosted run remains required. Physical-device/provider activation,
 other attachment owners and production rollout are still separate gates.
+
+### Hosted checkpoint
+
+The replacement signed commit `72b21ec` also had a failed
+[hosted main gate](https://github.com/Xauryan/whaleu-next/actions/runs/38061205017).
+Main PostgreSQL reported 2,326 passes and two failures: a single first-profile
+Safety lock-timeout leaf and its parent aggregation. Cheap checks, all 42 semantic
+cases and stats passed. The prior Ratings random and notification regressions
+passed in that run. The following Profile increment adds bounded, test-only
+observations; the historical blocking source remains unknown. Neither failed
+checkpoint should be described as CI-green.

@@ -1,3 +1,4 @@
+import { lockAvatarActor } from './avatar/current-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.js';
@@ -52,6 +53,17 @@ export class ProfileRepository {
     return result.rows[0] ?? null;
   }
 
+  /** Avatar reads use a separate final exact owner proof. Avoid taking a
+   * tuple lock before that proof's bounded actor fence; ordinary Profile reads
+   * intentionally retain their historical FOR SHARE behavior. */
+  async avatarPublicTarget(profileId: string, tx: PoolClient) {
+    const result = await tx.query<{ accountId: string; profileId: string }>(
+      'SELECT account_id AS "accountId",public_id AS "profileId" FROM whaleu_profile.profiles WHERE public_id=$1',
+      [profileId],
+    );
+    return result.rows[0] ?? null;
+  }
+
   async publicReference(
     accountId: string,
     tx: PoolClient,
@@ -78,6 +90,7 @@ export class ProfileRepository {
     transaction: PoolClient,
   ): Promise<{ profileId: string; displayName: string }> {
     // Only called by the publication boundary; ordinary profile GET remains read-only.
+    await lockAvatarActor(accountId, transaction);
     await transaction.query(
       'INSERT INTO whaleu_profile.profiles(account_id) VALUES ($1) ON CONFLICT (account_id) DO NOTHING',
       [accountId],
@@ -133,37 +146,56 @@ export class ProfileRepository {
       transaction: PoolClient,
     ) => Promise<ProfileChanges>,
   ): Promise<StoredProfile> {
-    return this.database.transaction(async (transaction) => {
-      await transaction.query(
-        'INSERT INTO whaleu_profile.profiles(account_id) VALUES ($1) ON CONFLICT (account_id) DO NOTHING',
-        [accountId],
-      );
-      const result = await transaction.query<StoredProfile>(
-        `SELECT ${projection} FROM whaleu_profile.profiles WHERE account_id = $1 FOR UPDATE`,
-        [accountId],
-      );
-      const current = result.rows[0]!;
-      if (
-        current.revision !== expectedRevision ||
-        current.revision === 2147483647
-      )
-        throw new ApplicationError('PROFILE_REVISION_CONFLICT');
-      const next = { ...current, ...(await change(current, transaction)) };
-      // Decode the fixed preference contract even when this operation changes another field.
-      preferencesSchema.parse(next.preferences);
-      const updated = await transaction.query<StoredProfile>(
-        `UPDATE whaleu_profile.profiles SET nickname=$2, bio=$3, selected_campus_id=$4,
+    return this.database.transaction((transaction) =>
+      this.updateInTransaction(
+        accountId,
+        expectedRevision,
+        change,
+        transaction,
+      ),
+    );
+  }
+
+  /** The avatar owner participates in this original shared Profile CAS. */
+  async updateInTransaction(
+    accountId: string,
+    expectedRevision: number,
+    change: (
+      current: StoredProfile,
+      transaction: PoolClient,
+    ) => Promise<ProfileChanges>,
+    transaction: PoolClient,
+  ): Promise<StoredProfile> {
+    await lockAvatarActor(accountId, transaction);
+    await transaction.query(
+      'INSERT INTO whaleu_profile.profiles(account_id) VALUES ($1) ON CONFLICT (account_id) DO NOTHING',
+      [accountId],
+    );
+    const result = await transaction.query<StoredProfile>(
+      `SELECT ${projection} FROM whaleu_profile.profiles WHERE account_id = $1 FOR UPDATE`,
+      [accountId],
+    );
+    const current = result.rows[0]!;
+    if (
+      current.revision !== expectedRevision ||
+      current.revision === 2147483647
+    )
+      throw new ApplicationError('PROFILE_REVISION_CONFLICT');
+    const next = { ...current, ...(await change(current, transaction)) };
+    // Decode the fixed preference contract even when this operation changes another field.
+    preferencesSchema.parse(next.preferences);
+    const updated = await transaction.query<StoredProfile>(
+      `UPDATE whaleu_profile.profiles SET nickname=$2, bio=$3, selected_campus_id=$4,
          preferences=$5::jsonb, revision=revision+1, updated_at=clock_timestamp()
          WHERE account_id=$1 RETURNING ${projection}`,
-        [
-          accountId,
-          next.nickname,
-          next.bio,
-          next.selectedCampusId,
-          JSON.stringify(next.preferences),
-        ],
-      );
-      return updated.rows[0]!;
-    });
+      [
+        accountId,
+        next.nickname,
+        next.bio,
+        next.selectedCampusId,
+        JSON.stringify(next.preferences),
+      ],
+    );
+    return updated.rows[0]!;
   }
 }

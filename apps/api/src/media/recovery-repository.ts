@@ -1,3 +1,4 @@
+import { rejectProfileRequestMarker } from './profile-request-marker.js';
 import type { PoolClient } from 'pg';
 import { mediaStatusV4Schema, mediaCancelV4Schema } from './contracts-v4.js';
 import type { MediaStatusV4, MediaCancelV4 } from './contracts-v4.js';
@@ -62,6 +63,7 @@ export class MediaRecoveryRepository {
   ): Promise<MediaRequestRecovery> {
     this.managed(tx);
     mediaIdSchema.parse(requestId);
+    await rejectProfileRequestMarker(actor, requestId, tx);
     const fence = (
       await tx.query<Fence>(
         'SELECT * FROM whaleu_media.upload_request_fences WHERE actor_id=$1 AND client_request_id=$2',
@@ -314,6 +316,7 @@ export class MediaRecoveryRepository {
     const { requestHash } = mediaCancelRequestSchema.parse(input);
     mediaIdSchema.parse(requestId);
     await lockMediaActor(actor, tx);
+    await rejectProfileRequestMarker(actor, requestId, tx);
     const fence = (
       await tx.query<Fence>(
         'SELECT * FROM whaleu_media.upload_request_fences WHERE actor_id=$1 AND client_request_id=$2 FOR UPDATE',
@@ -380,19 +383,40 @@ export class MediaRecoveryRepository {
       status,
     });
   }
-  private async cleanup(
+  private cleanup(
     id: string,
     tx: PoolClient,
   ): Promise<'pending' | 'retained' | 'confirmed'> {
-    const row = (
-      await tx.query<{
-        unresolved_writer: boolean;
-        pending: boolean;
-        retained: boolean;
-        attempts: boolean;
-        obligations: boolean;
-      }>(
-        `SELECT
+    return readMediaCleanupState(id, tx);
+  }
+  private managed(tx: PoolClient): void {
+    if (!transactionReadEpoch(tx))
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+  }
+  private async now(tx: PoolClient): Promise<number> {
+    this.managed(tx);
+    const now = (
+      await tx.query<{ now: Date }>('SELECT clock_timestamp() now')
+    ).rows[0]?.now.getTime();
+    if (!now || !Number.isSafeInteger(now))
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return now;
+  }
+}
+
+export async function readMediaCleanupState(
+  id: string,
+  tx: PoolClient,
+): Promise<'pending' | 'retained' | 'confirmed'> {
+  const row = (
+    await tx.query<{
+      unresolved_writer: boolean;
+      pending: boolean;
+      retained: boolean;
+      attempts: boolean;
+      obligations: boolean;
+    }>(
+      `SELECT
         EXISTS(SELECT 1 FROM whaleu_media.upload_ingress_writers w JOIN whaleu_media.object_attempts a ON a.id=w.object_attempt_id WHERE a.intent_id=$1 AND w.state<>'retired') unresolved_writer,
         EXISTS(SELECT 1 FROM whaleu_media.object_attempts WHERE intent_id=$1) attempts,
         EXISTS(SELECT 1 FROM whaleu_media.cleanup_obligations c LEFT JOIN whaleu_media.object_attempts a ON a.id=c.object_attempt_id
@@ -410,29 +434,15 @@ export class MediaRecoveryRepository {
           LEFT JOIN whaleu_media.object_attempts wa ON wa.id=w.object_attempt_id
           LEFT JOIN whaleu_media.assets s ON s.id=c.asset_id LEFT JOIN whaleu_media.derived_object_attempts d ON d.id=c.derived_attempt_id
           WHERE coalesce(a.intent_id,wa.intent_id,s.intent_id,d.intent_id)=$1 AND c.state='retained') retained`,
-        [id],
-      )
-    ).rows[0];
-    if (
-      !row ||
-      row.unresolved_writer ||
-      row.retained ||
-      (row.attempts && !row.obligations)
+      [id],
     )
-      return 'retained';
-    return row.pending ? 'pending' : 'confirmed';
-  }
-  private managed(tx: PoolClient): void {
-    if (!transactionReadEpoch(tx))
-      throw new ApplicationError('MEDIA_UNAVAILABLE');
-  }
-  private async now(tx: PoolClient): Promise<number> {
-    this.managed(tx);
-    const now = (
-      await tx.query<{ now: Date }>('SELECT clock_timestamp() now')
-    ).rows[0]?.now.getTime();
-    if (!now || !Number.isSafeInteger(now))
-      throw new ApplicationError('MEDIA_UNAVAILABLE');
-    return now;
-  }
+  ).rows[0];
+  if (
+    !row ||
+    row.unresolved_writer ||
+    row.retained ||
+    (row.attempts && !row.obligations)
+  )
+    return 'retained';
+  return row.pending ? 'pending' : 'confirmed';
 }

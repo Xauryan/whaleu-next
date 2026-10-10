@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { Readable } from 'node:stream';
 import type { PoolClient } from 'pg';
+import { MediaDeliveryBudgetPool } from '../src/media/delivery-budget.js';
 import { MediaDeliveryService } from '../src/media/delivery.js';
 import type { InternalMediaDeliveryPlan } from '../src/media/delivery.js';
 import type { ImmutableMediaStorage } from '../src/media/storage-port.js';
@@ -90,6 +91,7 @@ function setup(
       },
     },
     storage,
+    new MediaDeliveryBudgetPool(),
   );
   return {
     service,

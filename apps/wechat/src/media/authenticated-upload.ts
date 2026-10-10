@@ -40,6 +40,7 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
   private sequence = 0;
   private nativeUploads = 0;
   private pickerActive = 0;
+  private readonly pickerListeners = new Set<() => void>();
   private operations = 0;
   constructor(
     origin: string,
@@ -67,6 +68,29 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
       throw new ClientError('auth-required', 'Sign in to select image');
     return value;
   }
+  subscribePicker(listener: () => void): () => void {
+    this.pickerListeners.add(listener);
+    return () => {
+      this.pickerListeners.delete(listener);
+    };
+  }
+  private notifyPicker(): void {
+    for (const listener of this.pickerListeners) {
+      try {
+        listener();
+      } catch {
+        /* UI listeners cannot interrupt native cleanup. */
+      }
+    }
+  }
+  /** Native complete is the admission fence; cancellation alone does not reopen it. */
+  get pickerState(): 'ready' | 'waiting-native' | 'unavailable' {
+    return this.pickerActive
+      ? 'waiting-native'
+      : this.wx.chooseMedia
+        ? 'ready'
+        : 'unavailable';
+  }
   async pick(
     session: MediaSession,
     cancel: Cancellation,
@@ -83,6 +107,7 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
     const releaseNativeReservation = this.registry.holdReservation(reservation);
     this.pickerActive++;
     this.operations++;
+    this.notifyPicker();
     let path: string | undefined;
     let adopted = false;
     try {
@@ -105,6 +130,7 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
             completed = true;
             this.pickerActive--;
             releaseNativeReservation();
+            this.notifyPicker();
           }
           if (!settled)
             finish(new ClientError('network', 'Image selection incomplete'));
@@ -185,6 +211,21 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
       if (path && !adopted) await this.registry.discard(path, reservation);
       this.registry.releaseReservation(reservation);
     }
+  }
+  /** Resolve only an already-adopted picker capability for another media owner's
+   * independent transport. It grants no wire protocol, account or remote URL authority. */
+  async resolveSelected(
+    file: LocalMediaFile,
+    session: MediaSession,
+    cancel: Cancellation,
+  ): Promise<string> {
+    const ticket = this.current(session, cancel);
+    const path = await cancellable(
+      this.registry.resolve(file, this.owner, ticket),
+      cancel,
+    );
+    this.current(session, cancel, ticket);
+    return path;
   }
   async inspect(
     file: LocalMediaFile,

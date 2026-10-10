@@ -228,3 +228,22 @@ if (args[0] === '--check') {
   await writeFile(mediaArtifact, mediaRendered, 'utf8');
   console.log('Generated docs/openapi/media.json.');
 }
+
+const { renderProfileAvatarOpenApiDocument } =
+  await import('./openapi-document.js');
+const profileAvatarArtifact = new URL(
+  '../../../../docs/openapi/profile-avatars.json',
+  import.meta.url,
+);
+const profileAvatarRendered = await renderProfileAvatarOpenApiDocument();
+if (args[0] === '--check') {
+  const existing = await readFile(profileAvatarArtifact, 'utf8');
+  if (existing !== profileAvatarRendered)
+    throw new Error(
+      'Profile avatar OpenAPI artifact stale; run npm run openapi:generate.',
+    );
+  console.log('Profile avatar OpenAPI artifact is current.');
+} else {
+  await writeFile(profileAvatarArtifact, profileAvatarRendered, 'utf8');
+  console.log('Generated docs/openapi/profile-avatars.json.');
+}

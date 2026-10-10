@@ -1,3 +1,7 @@
+import {
+  createProfileAvatarRuntime,
+  type ProfileAvatarRuntime,
+} from './profile/avatar-runtime';
 import { createMediaReadRuntime, type MediaReadRuntime } from './media/runtime';
 import {
   createExperienceRuntime,
@@ -22,6 +26,7 @@ import {
 
 export interface WhaleuApp {
   mediaRead?: MediaReadRuntime;
+  profileAvatar?: ProfileAvatarRuntime;
   identity: IdentityRuntime | undefined;
   community: CommunityRuntime | undefined;
   verification: VerificationRuntime | undefined;
@@ -45,6 +50,7 @@ App<WhaleuApp>({
   },
   onHide() {
     this.experience?.hide();
+    this.profileAvatar?.hide();
     this.community?.views?.hide();
     this.community?.privateViews?.clear();
     this.verification?.privateViews.clear();
@@ -65,6 +71,17 @@ App<WhaleuApp>({
       systemClock,
       this.community.privateViews,
     );
+    if (this.identity.api)
+      this.profileAvatar = createProfileAvatarRuntime({
+        sessions: this.identity.sessions,
+        storage: new WechatStorage(wx),
+        origin: clientConfiguration.apiOrigin,
+        clock: systemClock,
+        newRequestId: this.community.newRequestId,
+        ...(this.community.privateViews
+          ? { privateViews: this.community.privateViews }
+          : {}),
+      });
     this.identityCampus = createIdentityCampusRuntime(
       this.identity,
       new WechatStorage(wx),
