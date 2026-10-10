@@ -7,5 +7,6 @@
   <navigator wx:if="{{frozen}}" class="link" url="/pages/target-owner-delete/target-owner-delete">创建者删除申请恢复与撤销 →</navigator>
   <navigator wx:if="{{frozen}}" class="link" url="/pages/rating-category-create/rating-category-create">分类创建申请恢复与撤销 →</navigator>
   <navigator wx:if="{{frozen}}" class="link" url="/pages/rating-create/rating-create">创建申请恢复与撤销 →</navigator>
-  <navigator class="link" url="/pages/rating-catalog/rating-catalog">重新进入评分目录 →</navigator>
+  <navigator class="link" url="/pages/rating-scoped/rating-scoped?mode=catalog&amp;scope=global">进入校园范围评分目录 →</navigator>
+  <navigator class="link" url="/pages/rating-catalog/rating-catalog">重新进入原地区评分目录 →</navigator>
 </view>

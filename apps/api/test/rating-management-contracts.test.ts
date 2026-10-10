@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
+import type { RatingLegacyBridgeService } from '../src/ratings/scoped/legacy-bridge.service.js';
 import { canonicalJson } from '../src/community/content-review/contracts.js';
 import {
   prepareRatingTargetSchema,
@@ -287,6 +288,11 @@ test('M1 commit replay excludes expectedContextRevision from intent hash and rea
     },
   } as unknown as RatingsAccessService;
   const service = new RatingManagementService(
+    {
+      begin: async () => {
+        throw new Error('Historical receipt must not enter bridge');
+      },
+    } as unknown as RatingLegacyBridgeService,
     database,
     access,
     {} as RatingsRepository,

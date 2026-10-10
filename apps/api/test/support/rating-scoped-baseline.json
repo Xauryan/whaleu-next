@@ -1,0 +1,831 @@
+{
+  "head": "07ba9306a13ed8e27e957a20d9707c32b173b05b",
+  "tree": "80b10351d4f8d806d397e693416d031fbbea4a42",
+  "reviewVersion": 5,
+  "journalVersion": 9,
+  "migrations": {
+    "0001_identity_sessions.sql": "c0af26022502908b1d49768e38a6d70b0ec9788575cdae05167d5594beea43d7",
+    "0002_identity_retention_index.sql": "fcc0c1b8cf2e7ff68e376120c91e35e6d8da2e164bbc6ce20f1b4261f96a4e94",
+    "0003_campus_profile.sql": "977972b314bcbfba5eaceca178fdf0e00a557bd21860ace6d976e8e2fa8f2758",
+    "0004_community.sql": "1aa5b26fafdb945309c84a3fdcef58962bbb77ff08048b3acc35c5a4d626a97d",
+    "0005_authorization_identity_privacy.sql": "dbba65f5e28503de33127e4b3e15a76f7e0ba1c4515d5c19b7d65b5da4951aa8",
+    "0006_school_identifiers.sql": "0ff7e5066287110b0a01cce93a3c77cc2379ea6ce5e518b2adc529439c85c902",
+    "0007_verification_ledger.sql": "c83ca5374d3c96aeef39766dc66eb533ebf76045e8f3c640a1dfb37dede610d4",
+    "0008_community_polls.sql": "f3e9570f420659bdc97c2bc03d8d9d9f0e9e369d4f3d7739a1a29bac4e295141",
+    "0009_community_discussion.sql": "628800a91245b03d84af27c2c9d43a037a02c63f614de808605bc10646e16f63",
+    "0010_community_trading.sql": "d1bd8a9454ff27d77cb65e49154b380c04148037ed0555ca416e988effe6d5c3",
+    "0011_community_formations.sql": "a4a01ce9dcb6cf62471439d0e1da555de518cc595fdc3a83b3df31f38e3202f8",
+    "0012_community_saved.sql": "b4764f83f38ed84d3621213daddce288dd4c79798d9a95dac7f8b8ae3ce60357",
+    "0013_community_updates.sql": "928b09dd1ecd7da9f39225ad9eced2edb20a6d12c0312729d6f0d754e91c841b",
+    "0014_named_blocks.sql": "389bad7cd9496801c02bdbc3f06e65a09297d77b1cefdfb48529f4d9b5063dfe",
+    "0015_reporting_jury.sql": "d6eed97969a6495bcab858cfd1860f2090960e18930ade2f857365ead19dad0a",
+    "0016_community_runtime_policy.sql": "bd44edbaae28f47ddd210934e10a6c949282f64b643415d781c06a31c6587f27",
+    "0017_identity_campus_selection.sql": "b94cd7f8229f40926ae2e7a8b024145ccf48e00e438826836484cadc6fdd7306",
+    "0018_public_profile_sources.sql": "f21c942c5a86da0f56d5e1fce4692a805a6e7019312d5b9d4862d1a601690b0f",
+    "0019_community_liked_history.sql": "58bb951994433e966fcf0b307968ad78479035eb92d5b51c8f25da79233780ad",
+    "0020_discovery_cursors.sql": "3b47512adf32e825078664a23472c366e22bb410849cf15811870a2b87a533c1",
+    "0021_exact_discovery_count_proofs.sql": "66b0b219914a0306cd868f086e3b90ce2e937edaffcac8a7b680a28f2e922863",
+    "0022_local_experience.sql": "24dd02f530070631a4f1e62d098ae4af2e4a49dc7fce84d94a931d9fd4db209b",
+    "0023_experience_ranking.sql": "d479c39b28962b7512332a7c14ef3fccaabbd99827e8d30222c705700d6c8d58",
+    "0024_title_redemption.sql": "271407c263f56db60fee41e21a12e6b92f4aef2bb1be7327c87a2ae24b718b32",
+    "0025_title_maintenance.sql": "31a79cbf2f55aad3ad3761867ead5a9fc6863be971666bddb6cca0ea407248fe",
+    "0026_local_post_subscription_component.sql": "f88aa8ea11623eeed347afa4899af4e3f75acd2039147ad0d6e20fb0c2f97ffc",
+    "0027_local_post_like_component.sql": "940c140211075765ecab00d86838d11d4f71933f6f3a03e149628088cff9290a",
+    "0028_federated_search_catalog.sql": "815a0a181a17faed54a406dc94c6a10ddd1c0b460ff5dcdab6fc2d39b6a641f0",
+    "0029_local_post_view_component.sql": "0bcb858baf4f2b92c534ce5addf8f5bc535e9c03f346d5020db95db7835805a1",
+    "0030_shared_request_throttling.sql": "13e02739ea11d044991e6e35e6db9266f6e348f8a4f4dc16c8b6cf1c69ec309a",
+    "0031_local_post_comment_component.sql": "80295c07355613b9725887efd35a91cc8157b3be7c542cb97e180cea999e41e1",
+    "0032_organization_directory.sql": "bbb6fbce972256287c857ddd18df3402457ab1bcfa7b1f556bc8957f5922ad54",
+    "0033_unified_public_hot_feed.sql": "51080b4dd0d314498d4207b3c742040c832722b217efc6aec180c0ac9dd14bc5",
+    "0034_announcements.sql": "b42f8abccb6c3daf530d66c4f8ec88d042be9a5ce1d623a2d48fcc3880cadb4e",
+    "0035_discussion_content_search.sql": "4eb43febb81f90ce3cfc54959470729326a2fbb43c33cc355bc8b73cf9a2ee94",
+    "0036_activities.sql": "718ac5125b4067426ca61dce206598c95b04ef6883c1fb15785cc850bb842f0e",
+    "0037_errands.sql": "5a541ea020c560b08b6e31f4700bd4c71077b1be189e4cb6d33dc33a0d3a4457",
+    "0038_errand_admin_reads.sql": "fc19d82c1c957852cf781a8474b9582d4d5104141ea76c8b2092f6a5980bc33d",
+    "0039_errand_restriction_ledger.sql": "9e98959dc390b0b2064a0a6696792f827cc4adaa5d51403ec4c194ebeabdbc83",
+    "0040_errand_admin_commands.sql": "a485de0ff6618aa522ec98d2b559d26fd6676369d09a15a46c8748cc29d02845",
+    "0041_errand_administrative_notices.sql": "f1650d0cb1566aae7935c7f47d60a65097c7554bff7e51daaa2c1620f376b846",
+    "0042_ratings.sql": "84ba54176af62505fd5666d4343752fca83851c1b88708901e00cb655fa3fd38",
+    "0043_rating_owner_authorities.sql": "e839661f9f4960e5b29825be7d5fd7dbc040871cb6af75fcb9556ca0f6509fd4",
+    "0044_rating_bindings.sql": "64437c04bc38ba249138a6c4ef08de89b554febee53b3327269912d3ca6f9664",
+    "0045_rating_replies.sql": "7d55c00a1034cc2703d6c1d5cb5522fbdeb519cda6a27b5394c8ffe94cb85a73",
+    "0046_rating_effects_and_source_registry.sql": "670dae8dab973c75a37cd27a265e4df7e56059f5c42cd2b7dc24c01cb433649a",
+    "0047_rating_direct_updates.sql": "acac53a2bc6c5b3b5069604b07b0b3d9bd324b0e3da99eec842aaf826dd06833",
+    "0048_rating_likes.sql": "569990993e4e6bcc5c26f9b6245cdd28eef1f6269c696f739e829ceaa40f3d18",
+    "0049_rating_like_updates.sql": "aa7d86f1b2143471b9843a195e052642d3f71646f103c54e0756150babde4721",
+    "0050_rating_like_order.sql": "dcb4c2cfbc3c39b676d69d0b786acba6c79641594b93eea146aa7807116096aa",
+    "0051_rating_target_subscriptions.sql": "317e285c8696e786b9232742710371f79568c730bc672e65bb3a05d5dae4e1e1",
+    "0052_rating_subscription_fanout.sql": "b23f070a8cbbb4dcdd2f084352384c9a97f62afc25ee99a43d1913b4b965a8cf",
+    "0053_rating_deletion_authority.sql": "01cf59018ec4df04d87b5f65c7b8dc243b1834bd3672acf55a01086d4737c161",
+    "0054_rating_complete_random_pool.sql": "03f50d764dcfa07bb069e139e8a4cca8b4da210cb48609254be11577a956e98a",
+    "0055_rating_target_creation.sql": "77794b2b8d288e8e86ddae9aaeef9cc37b4ae1a7b1374a4f55909b5ab9e90743",
+    "0056_rating_target_owner_deletion.sql": "9100d53025b16d28415576d889bd8b7dbbe71490f60b70416a41b72f38c0772c",
+    "0057_rating_target_definition_editing.sql": "9d993387aa4e25d8f3eeaae08b8b68d8b49c13cb831283f60a6e74ddfe6fa823",
+    "0058_rating_category_management.sql": "c5a539940e250867a5a3ba570756666faca3f499a84fda0a127269d0ae747e5c",
+    "0059_private_message_state.sql": "36472d62d566bff5aeae7dc0773823b4477c236424115502b7361ee4f31d8393",
+    "0060_private_message_authority.sql": "97ef2a843ee79ff764a681b926fbf86bc48e3a03d1a887e3f62f46c0e4d38983",
+    "0061_private_message_source_and_safety.sql": "334485b6205634bac3ddf1f20c37b6b54592e013d31a3b7d3882db2e888974d7"
+  },
+  "functions": {
+    "whaleu_ratings.immutable": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "3a308bd77474e14e36a3f820038ce6b3fa3e55742f55a60fe206307b3329668e"
+    },
+    "whaleu_ratings.policy_writer": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "eee334cc341cd2bad64da59c5660b63bc2ec8e19f5397816ae263b866418115a"
+    },
+    "whaleu_ratings.nested_insert": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "fc3746cd4ca7a46163b2b678681f054452b79c0ca2c1a685ce01402febf56797"
+    },
+    "whaleu_ratings.category_tree": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "df46c9749c9010da16b59b75615af320cf3eee4ef08e8c23a394eb0ad6366fd2"
+    },
+    "whaleu_ratings.source_transaction_causal": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "096997251c8048c35d40a28e18be6199cb441329ddef8b6f00cc538896b13737"
+    },
+    "whaleu_ratings.membership_validate": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "5dda35b3f54b82404940069bab26106e06593f40ba580839da65b801cd70edce"
+    },
+    "whaleu_ratings.catalog_seal": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "5453c82f1b7252b2a54b0437bd096f741b50864bdc8b7d52db9e995d57d658aa"
+    },
+    "whaleu_ratings.head_validate": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "59984328a4bbc71d2307382b0b8ddef4c6af2046e968eabf247319eabd2d187c"
+    },
+    "whaleu_ratings.target_definition": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "bb97c55d060754958f04ac99ebbce4d1030aa5d711ce6d2f0fc8de01b640c835"
+    },
+    "whaleu_ratings.record_target_creation": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "5d045a7c7f5a32d91dde36f38f5e380bf67762350d4bd203878062a1174850d0"
+    },
+    "whaleu_ratings.fresh_score_baseline": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "91cfb216a0ab2440601451c3a17d009580ac268af39c4b70f31f6ec4a43860a4"
+    },
+    "whaleu_ratings.initialize_summary": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "da304fbd180e0b985a53e530689c10e091992fadcf3669a383771d2eb415ba83"
+    },
+    "whaleu_ratings.summary_causal": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "c92bee8039a622c31cf4dd3a9b77e9064553e44d90d65d3ed61bd5953277be52"
+    },
+    "whaleu_ratings.apply_score_transition": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "a8377a1ca3482e705c77618351782e81b68efdf572596c7ab3feaf080c763d0c"
+    },
+    "whaleu_ratings.comment_change": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "2807cfebdf6eea65187504a4943a0f0542ef53b405387772a088eb8f85b25c08"
+    },
+    "whaleu_ratings.record_comment_transition": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "81ebd48e50715342a363b202d16cadf01bc27c24319af5fc3511c38d096e1dce"
+    },
+    "whaleu_ratings.request_immutable": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "8b2ea39946b534dd17c6179d95f2524f2fdd9866e1bc2395f8123345453c37a6"
+    },
+    "whaleu_ratings.request_causal": {
+      "migration": "0045_rating_replies.sql",
+      "bodySha256": "bbeb317ba90049bf576dfc142fa6b83a39344f47f5cd0bb7d7ddb43c3601c151"
+    },
+    "whaleu_ratings.score_chain_causal": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "97864718c9e79a35b50cba2dcb7ce2b9ff617ba46630a15d6d53b2536fad13d3"
+    },
+    "whaleu_ratings.advance_navigation_epoch": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "b8cbaca0c743e1ce4070157cf8f130f0a23ebbba1e948c44e73bdc4460164fd0"
+    },
+    "whaleu_ratings.guard_navigation_epoch": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "4596e3f75d37bd780ba636d383e41d850f7d7a3a376f5c2672bf85f187b09ebf"
+    },
+    "whaleu_ratings.record_target_state": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "cecf0d92d12759a85bc0652ad87efbff7c6ca53208768008e41b5c3b8c3a8bc9"
+    },
+    "whaleu_ratings.summary_reverse_causal": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "04425592e35a8fd1514ed4055a8decf67e6d43c19810e1fe956407af47449ebf"
+    },
+    "whaleu_ratings.score_delta_causal": {
+      "migration": "0042_ratings.sql",
+      "bodySha256": "716303fbac4be2a5ed1f32eb874322394a6bea4231b88cf0ab8d0c08b46ebdf5"
+    },
+    "whaleu_community.rating_review_head_validate": {
+      "migration": "0043_rating_owner_authorities.sql",
+      "bodySha256": "b9b284d6c77969ca343ca5b2b01dbf1455978213c89ee786d273eb5927d597ca"
+    },
+    "whaleu_community.rating_review_binding_validate": {
+      "migration": "0043_rating_owner_authorities.sql",
+      "bodySha256": "20421ef789f730b8be8af8924d7c100505d40541b789e70a6bd2a80b982b0792"
+    },
+    "whaleu_community.guard_rating_review_epoch": {
+      "migration": "0043_rating_owner_authorities.sql",
+      "bodySha256": "3b6df1401a552050301f67c0805acf250eae2908046d623d2df28574679097d4"
+    },
+    "whaleu_community.advance_rating_review_epoch": {
+      "migration": "0043_rating_owner_authorities.sql",
+      "bodySha256": "91b374bc2545a2e027a32d78db38e4a694d351472146670c45bdff6485eb4cef"
+    },
+    "whaleu_community.rating_envelope_shape": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "2fe858f6d56483ed48de1b652fe438c01a596678ddb9ac95cfece21f3f5e0b70"
+    },
+    "whaleu_ratings.require_review_binding": {
+      "migration": "0045_rating_replies.sql",
+      "bodySha256": "f99cf1601aa8b4fc40f5b43afc8e0ae5bf408a71056579db3722ae0a33bbff2f"
+    },
+    "whaleu_ratings.reply_change": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "0364946ef68958a3c3a8a5f8ee58ad6d87c5083ed96c422709b4323b4de9a4a5"
+    },
+    "whaleu_ratings.record_reply_transition": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "1a83e48e88525df9e441e470f14bc372b5bca59e13a4de3ecd37ce3334116c21"
+    },
+    "whaleu_ratings.root_parent_lock": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "778fe92f3fa16603e9c416ecc234960206594e5e6bd0f897448c020d4529b27f"
+    },
+    "whaleu_ratings.reply_transition_source": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "af1859e8b83ce2aa94f0c7c70d43bdc2e226a7facff77074611ac7c33d17dbe6"
+    },
+    "whaleu_ratings.reply_head_guard": {
+      "migration": "0045_rating_replies.sql",
+      "bodySha256": "a24ced3885325ca5bdba26f4706cb0d77fbbf43c8c6f181c83a7878f78fe82f6"
+    },
+    "whaleu_ratings.advance_reply_head": {
+      "migration": "0045_rating_replies.sql",
+      "bodySha256": "ee831b6968014995c54e43d3117e469c23f85a670a31efbdcd2ebb1385bd42f0"
+    },
+    "whaleu_ratings.canonical_text": {
+      "migration": "0045_rating_replies.sql",
+      "bodySha256": "e9434d9faefd05a93d435ff55d0c32fe536d2854fb5fdbb9215cfc75d465d9ca"
+    },
+    "whaleu_ratings.expected_reward_units": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "c3b0cce6c6e91f3cc894601f1aaf7b14f4f4849c87ac217cf01afd38cadaf6cb"
+    },
+    "whaleu_ratings.expected_direct_notices": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "fac39834d4d670790c7368b1a122afc717aa95fdea7188274b3b68b0e7a30baa"
+    },
+    "whaleu_ratings.effect_guard": {
+      "migration": "0046_rating_effects_and_source_registry.sql",
+      "bodySha256": "badd1d9a0dd9628fdf831a08dfd5934d046c85a91b86ee28497544521509fff3"
+    },
+    "whaleu_ratings.record_effect": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "92650efc7cb48eed7e783ebcb8a1fae463b1b514976ff4a4f887161ed14c31a9"
+    },
+    "whaleu_ratings.notice_obligation_guard": {
+      "migration": "0046_rating_effects_and_source_registry.sql",
+      "bodySha256": "61af98d572f7eb81342fd81445ec0823857aa9b7ed5e0d7fdc6c7c945b8a9e1c"
+    },
+    "whaleu_ratings.reward_group_guard": {
+      "migration": "0046_rating_effects_and_source_registry.sql",
+      "bodySha256": "9f067af914b50823d97585e95bdfadba5cf691ed3b784238af9998bcc3cccac5"
+    },
+    "whaleu_ratings.reward_unit_guard": {
+      "migration": "0046_rating_effects_and_source_registry.sql",
+      "bodySha256": "ed2d867849d1878b5840d0b2cb1de8218eb5f142bb5dc7ac273fb7cc4a1082e3"
+    },
+    "whaleu_ratings.effect_complete": {
+      "migration": "0046_rating_effects_and_source_registry.sql",
+      "bodySha256": "9baed36543235006a5c333e6eacf3fc25d9e0e3749fa128cd8eec88f5bffb4ed"
+    },
+    "whaleu_ratings.transition_effect_complete": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "55d232bac320a357ba22abbb0e617d0ba28de24e7610f42c689e96a83cf98f08"
+    },
+    "whaleu_ratings.like_subject_guard": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "315dce58d8fcb80266cb7a1824eebe9499e9e3a42c84b12ca78ca6a1714c18e8"
+    },
+    "whaleu_ratings.lock_like_subject": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "9489a18d435aeb0fd04b0262915bd291d825383e625d5ecc39eec6b2160cf044"
+    },
+    "whaleu_ratings.like_membership_change": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "1ffdd799a559a3c257db5181cc93e7bcff720fed73039ad15477a3b6772b654e"
+    },
+    "whaleu_ratings.record_like_transition": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "822e66b27d090e083a35e09baecc074f6dfaede6e5a7c982b449bc3ed0647694"
+    },
+    "whaleu_ratings.like_transition_guard": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "247c0ce9b7a5b17090cd947b73880ba58d73c969140367ccbde6bca16cf4f61d"
+    },
+    "whaleu_ratings.like_state_guard": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "72b4f6212d3f88721674e09b98cd30b2e07d7157c24dd07b96eacac8b42144e5"
+    },
+    "whaleu_ratings.initialize_like_state": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "dab0b474f4a101a10218b27957fa5f55c6a540f143fb4812841c8d2ec2ef0c9e"
+    },
+    "whaleu_ratings.advance_like_state": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "0810ccb9b91bc231a31ddd6322a5076a81a7d9a75372526067dc9a24a85a4810"
+    },
+    "whaleu_ratings.like_noop_guard": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "7991598293f6be510c07a6daddcd193d0999f7dc192a24746d63eed7a8c88eb1"
+    },
+    "whaleu_ratings.like_effect_guard": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "4405ddb658bf459975521399665084587a6b3f53629c5e2ae56941bc248ea27d"
+    },
+    "whaleu_ratings.record_like_effect": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "ee5496b2f5f6a83baa799a2ef08c12c248916557d4561fd3fa4728e7c7fdc090"
+    },
+    "whaleu_ratings.like_reward_source_guard": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "66ef1050d0ac8dfd0fecbe98cd6b4a7f07d93cd8819a60b1f739d4873cee0e23"
+    },
+    "whaleu_ratings.like_request_causal": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "cc9568b744e74935c4883963e43d8250b65dbad6911ad3894b94b27b54ad2c47"
+    },
+    "whaleu_ratings.like_transition_complete": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "c381d1ef199387d2ea2da58df8a86f12a8543af51ba051e15b1bbb191716efc8"
+    },
+    "whaleu_ratings.like_subject_complete": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "c1f48949876ef0f4dec92307845caaff2dae817b1bd6fe3d3d76cd2ca1a97c17"
+    },
+    "whaleu_ratings.enroll_native_like_subject": {
+      "migration": "0048_rating_likes.sql",
+      "bodySha256": "dbd7a91a9ec4fdb314a42437c447008d72816e1335f32ec0bc25e9463cd04e8b"
+    },
+    "whaleu_ratings.root_order_baseline_guard": {
+      "migration": "0050_rating_like_order.sql",
+      "bodySha256": "7d526db045598e320ab2c5f617b01e7f704f70dc0dcb3ab7d769310cefd6287b"
+    },
+    "whaleu_ratings.initialize_root_order": {
+      "migration": "0050_rating_like_order.sql",
+      "bodySha256": "91ca7bc3dce162dcdfbb62bd715e3fe10f55b3d33222652f24e2c025f9740c0f"
+    },
+    "whaleu_ratings.root_order_event_guard": {
+      "migration": "0050_rating_like_order.sql",
+      "bodySha256": "c7f7410a6731ff2913cc1c4c4e5336d1db6ee789e72fe1f2a9dd6322978aa8a2"
+    },
+    "whaleu_ratings.root_order_projection_guard": {
+      "migration": "0050_rating_like_order.sql",
+      "bodySha256": "8e63328604041a3512b780e6271893bd571db09e93bf60794c15331b5384b53e"
+    },
+    "whaleu_ratings.project_root_order_event": {
+      "migration": "0050_rating_like_order.sql",
+      "bodySha256": "cc4c91932fe356da1d6f705e719af330d75afdf5dbd1913f4ea70ec34f7abb20"
+    },
+    "whaleu_ratings.record_root_order_event": {
+      "migration": "0050_rating_like_order.sql",
+      "bodySha256": "abbe828933e0c7172e63a0e73472679c4b8d730e9f1c2046c8339dc3057ce4d9"
+    },
+    "whaleu_ratings.root_order_event_complete": {
+      "migration": "0050_rating_like_order.sql",
+      "bodySha256": "ecc32aea012e4ce1431dfdc3558382e9da3bac8d3907986684cfc79d0fa657f3"
+    },
+    "whaleu_ratings.root_order_source_complete": {
+      "migration": "0050_rating_like_order.sql",
+      "bodySha256": "c15e44a2b713577e3d73d0167288f6d06070056447c92be97e14ed574e2c754f"
+    },
+    "whaleu_ratings.root_order_target_complete": {
+      "migration": "0050_rating_like_order.sql",
+      "bodySha256": "e4bdb2c26651c2e0664b630598bf9e477d319f15e2ae4575249ebec3533b2057"
+    },
+    "whaleu_ratings.subscription_baseline_guard": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "ffec7d84efdf0b9edd480817d06954ea0316d654981a1ec31e56b7b85812af57"
+    },
+    "whaleu_ratings.subscription_state_guard": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "d01830cb021271db825217ea45fb81874335c85a3f7790ef84a75dc9c126fac6"
+    },
+    "whaleu_ratings.initialize_subscription_state": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "19dfdeae2218f2e06b84847a2f3ad557e976811e1426eb61260ecb31bed6aea6"
+    },
+    "whaleu_ratings.subscription_baseline_complete": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "47aeaa41fd52d99dd1b5df0f22635a9fc0510fac80182937a9208e8587e0ba13"
+    },
+    "whaleu_ratings.initialize_target_subscription": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "84ad2f2d1274b40b1f468b287056c770c062fccab738072d87cd680a81f617c3"
+    },
+    "whaleu_ratings.subscription_stream_guard": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "17640c15e44f93ad92e930a11553af182bc24c59d64e4a36545d243ca1d4d5e4"
+    },
+    "whaleu_ratings.subscription_stream_entry_guard": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "e51ca527332cd9aa506d73e90538d0fb37d6babbd161ccb10cb1957a5f749ce1"
+    },
+    "whaleu_ratings.advance_subscription_stream": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "d664f19d97305e06b20199e17f8c4e3753aa27b6697ee76b797436208bdd55b9"
+    },
+    "whaleu_ratings.next_subscription_order": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "fdfb791b37f110e4cf9cb694800868813f6dd4b17688afb9d4ca5554d0f6720f"
+    },
+    "whaleu_ratings.lock_subscription_target": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "4d1393a0fa894670dbdbd69f194caacb30bca3900f45f22156acbcb584ea975f"
+    },
+    "whaleu_ratings.subscription_membership_change": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "a05439f50c7b6f505190ff5d9d841624f449453d4f5fb2eb6aae8179adf44d9f"
+    },
+    "whaleu_ratings.record_subscription_transition": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "0ba5b13eae4f78922349ff7df99c7cacc88f95cb7918103ac474b1f58220cdae"
+    },
+    "whaleu_ratings.subscription_transition_guard": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "9b821ce96fdf9e981ddb36f05f0dde0ac2f165457be1040c5d07f02bbe33ff3a"
+    },
+    "whaleu_ratings.project_subscription_transition": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "ec674f3adc2eddbe7db133664145053db09990dd31accc37cb02b4e8fda2f78c"
+    },
+    "whaleu_ratings.subscription_epoch_guard": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "a2d1ba743fa2a1fc650eb55b186c8035839913b12197adcadcc75722d13019e0"
+    },
+    "whaleu_ratings.subscription_noop_guard": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "bdd46176232cbed214da450f6b0be99c266944cab2ce3035dcd5917fb4bdd613"
+    },
+    "whaleu_ratings.subscription_request_causal": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "08a5671585846fcdcd9d7ded9862e44ab43e4981c9b76e80698f75a81a62adbb"
+    },
+    "whaleu_ratings.subscription_transition_complete": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "2cb41641ecc3e22019b4ec8917326c6c4fccb62e1b0fa3b54b6b979af9d0dc27"
+    },
+    "whaleu_ratings.subscription_stream_complete": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "c5ecb063e104ea342287ac6c3ae4ff6a5109d88fdbf3669d68db7992cb161a74"
+    },
+    "whaleu_ratings.subscription_target_complete": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "07abbe3adfa5fc1f7d229e38b0cedcd3cc7b12ad10e49f747eb0683e948ac75f"
+    },
+    "whaleu_ratings.subscription_effect_guard": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "f7e02563eb3cd049d872eb30cb43466c4c2a7ef88cfef11bc52a2f429b8cace7"
+    },
+    "whaleu_ratings.record_subscription_effect": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "06115909832d3f75f3b77c029d180892a899c5d41312d3040b3576f4f57dfb69"
+    },
+    "whaleu_ratings.subscription_transition_effect_complete": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "0bbc67aa591dfda1c981b2b873179449d30c8babb05cdff2bade754145ba42b7"
+    },
+    "whaleu_ratings.subscription_reward_source_guard": {
+      "migration": "0051_rating_target_subscriptions.sql",
+      "bodySha256": "6dc211b5167a14fed3ad720dbaabbc2ac02bfd100661edc49a8e7c0a1a2a307e"
+    },
+    "whaleu_ratings.subscription_fanout_source_guard": {
+      "migration": "0052_rating_subscription_fanout.sql",
+      "bodySha256": "b41674f93e903ff4ac467d45ca6befb9639d5fc83d1f4f3e7f2cb31bfb687484"
+    },
+    "whaleu_ratings.capture_subscription_fanout": {
+      "migration": "0052_rating_subscription_fanout.sql",
+      "bodySha256": "e16a9e3ec6810e8e473fc46a1860b8e8311d9b74d844b3255bcebd86dfb57c2f"
+    },
+    "whaleu_ratings.subscription_fanout_complete": {
+      "migration": "0052_rating_subscription_fanout.sql",
+      "bodySha256": "b8369aff0ff613596aa3259d5b6afa9642438f2bab0a1c735f5baf88c742d1e6"
+    },
+    "whaleu_ratings.subscription_fanout_raw_page": {
+      "migration": "0052_rating_subscription_fanout.sql",
+      "bodySha256": "b40b3a114ebec0b79f613c9e4b00c1fe14841042f5223787a2ddb732245cae47"
+    },
+    "whaleu_ratings.origin_head_guard": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "284fe3c2e861ada66626ba66a4d4e1475efa4654890229550131aaed8c42ffb4"
+    },
+    "whaleu_ratings.origin_topology_shape": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "db02741c04eced5fe6e753ef96f83720c88799d126168736ecdd986f8c70afe9"
+    },
+    "whaleu_ratings.admin_delete_audit_guard": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "8148002b67c7b7561e367e8998b44e371cd883cef937c8548778c3c8750e4a9a"
+    },
+    "whaleu_ratings.admin_delete_cause": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "e5eeafcf03627cfefea96a5f7e2f8a2deba47ae4d8d0efdaf8ba9abd113a25f5"
+    },
+    "whaleu_ratings.comment_transition_source": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "f63975bdb93e3db27ba34339581d885b673e9bf3e47102684e25b0054ca5a5bb"
+    },
+    "whaleu_ratings.admin_delete_effect_guard": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "b6e9d8ed0c38ab1ed4334413a953d57774aaef74eb3a6576f2b661686a74a4b9"
+    },
+    "whaleu_ratings.verify_admin_delete_request": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "8423da9481a4e0ddca25f044403cebca0a2cecb986fbe65597b66b1ebc9a7875"
+    },
+    "whaleu_ratings.admin_request_causal": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "36e6a6aa67c8483452a8565c8ec5cec1f5e6c7b751c4d606728ea3faf0878ee5"
+    },
+    "whaleu_ratings.admin_delete_audit_complete": {
+      "migration": "0053_rating_deletion_authority.sql",
+      "bodySha256": "78820cf36a57c7afe5008d5e2aab11c62ea56e489800ea3a4871cf7e39c88a6f"
+    },
+    "whaleu_ratings.guard_random_pool_epoch": {
+      "migration": "0054_rating_complete_random_pool.sql",
+      "bodySha256": "53111133b7cf033495a9a850d83a1de5eadebd65691f0767b3fdededee734c7f"
+    },
+    "whaleu_ratings.advance_random_pool_epoch": {
+      "migration": "0054_rating_complete_random_pool.sql",
+      "bodySha256": "bb15ddfb13259c2dd1693377a04244635a4f4977f7bfc93a003c094505791844"
+    },
+    "whaleu_community.guard_rating_review_binding_epoch": {
+      "migration": "0054_rating_complete_random_pool.sql",
+      "bodySha256": "2fa4a281c69befafc5c8f1a37b648892a2ecb642d08213cd0ff713b8b5de4f18"
+    },
+    "whaleu_community.advance_rating_review_binding_epoch": {
+      "migration": "0054_rating_complete_random_pool.sql",
+      "bodySha256": "389f188e508e8ec782182307dea01085d68a9c72a0a91f6bb9f62e000a537f9a"
+    },
+    "whaleu_ratings.native_policy_head_guard": {
+      "migration": "0055_rating_target_creation.sql",
+      "bodySha256": "98e39c6d130c573aa54a58b0120d0eaf15c1facacbf01c94d58bf399a348fa0b"
+    },
+    "whaleu_ratings.claim_command": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "1e73d062e3969b3de83e1f7d52db2979f19df021a7152537b85ab05ac5414847"
+    },
+    "whaleu_ratings.creation_canonical_json": {
+      "migration": "0055_rating_target_creation.sql",
+      "bodySha256": "092bc0d0c5a392e6a1697c7d966de1bcec555c216d913acff73a7bfe7ebcf180"
+    },
+    "whaleu_ratings.preparation_definition": {
+      "migration": "0055_rating_target_creation.sql",
+      "bodySha256": "be2ea9750c86c9a8afd5884eb1de295d9c35a1bd5a58ed9d1e5af8ff657a4fd5"
+    },
+    "whaleu_ratings.verify_target_create": {
+      "migration": "0055_rating_target_creation.sql",
+      "bodySha256": "e69ef99ec6037add7c4470181571d3821596143de05ae8716da032a7fadf42d4"
+    },
+    "whaleu_ratings.target_create_causal": {
+      "migration": "0055_rating_target_creation.sql",
+      "bodySha256": "456eed80748f75da2e4d3cdb086b94f3a0355e9880e64ff719228755b840563c"
+    },
+    "whaleu_ratings.managed_source_causal": {
+      "migration": "0055_rating_target_creation.sql",
+      "bodySha256": "e8347158af6c42e673783db70ac6bd50b3f1d4e26749a6a46ab75bf32c1d183d"
+    },
+    "whaleu_ratings.owner_delete_id_valid": {
+      "migration": "0056_rating_target_owner_deletion.sql",
+      "bodySha256": "c30fa4ebf939819f45f428fc3da75537149818c5ffb24f0c72058d1bc668cb21"
+    },
+    "whaleu_ratings.owner_delete_intent_valid": {
+      "migration": "0056_rating_target_owner_deletion.sql",
+      "bodySha256": "3a7ff98c4571413ac5ee0176c15140bacfa2b37a9db302d6f71fb251fe401f67"
+    },
+    "whaleu_ratings.owner_delete_intent_hash": {
+      "migration": "0056_rating_target_owner_deletion.sql",
+      "bodySha256": "83630f8441493bf641eb7cfc79b6cc5de12f2d9724c9cb211f342958f7fe5961"
+    },
+    "whaleu_ratings.target_owner_delete_writer": {
+      "migration": "0056_rating_target_owner_deletion.sql",
+      "bodySha256": "440779bf55d0c399cf9d35c86387d7135ee2e8919aa11f7fe9532f3b3e815a0a"
+    },
+    "whaleu_ratings.owner_delete_audit_guard": {
+      "migration": "0056_rating_target_owner_deletion.sql",
+      "bodySha256": "b9b4066b383881261d84b97f0c7c68d4b74b2c28f4024b75573132a3876eabc4"
+    },
+    "whaleu_ratings.owner_tombstone_guard": {
+      "migration": "0056_rating_target_owner_deletion.sql",
+      "bodySha256": "fe3ac102995509c63ef7f734345092974f61f1f52d4141487d198b310893ac35"
+    },
+    "whaleu_ratings.verify_target_owner_delete": {
+      "migration": "0056_rating_target_owner_deletion.sql",
+      "bodySha256": "c3bb0792c79b0483026bd8d885aa302bae727d1fbcb9cc9e3fc9078cd9e74f9e"
+    },
+    "whaleu_ratings.target_owner_delete_causal": {
+      "migration": "0056_rating_target_owner_deletion.sql",
+      "bodySha256": "5536df89d0c71c94ba9a48f9df823ec9a056e1e86193a2f49bd9c64d9efa777a"
+    },
+    "whaleu_ratings.target_owner_delete_state_causal": {
+      "migration": "0056_rating_target_owner_deletion.sql",
+      "bodySha256": "48c8a5a19091ee617b20d5af8e4f15c943b04af10b78a43099a2dbe09703a8c7"
+    },
+    "whaleu_ratings.target_edit_intent_valid": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "4d64a905688f172642ec6ed5e4c2ab39526072ed57c1efd185013b174c858fae"
+    },
+    "whaleu_ratings.target_edit_intent_hash": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "4cd32ecbe3e814b5829272a6cf8eb1fe981b2e99093ec82e29f7bdda165dfc85"
+    },
+    "whaleu_community.rating_target_edit_uuid_valid": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "82c4c3603f1b0bf53c91af7ad768128d08aa68aff83bc7a9e2d47d99d0015794"
+    },
+    "whaleu_community.rating_target_edit_text_valid": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "429414b51c501ff6e31839b652cb3ef66676eaf3cb6f040b50666833cc97c8c6"
+    },
+    "whaleu_community.rating_target_edit_envelope_shape": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "21dfa998ace24dff65e85e472673925a9303dd34c3ed011c8818f59861024fb4"
+    },
+    "whaleu_community.rating_target_definition_binding_validate": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "68bf3ea694106734e4893e6a90500946b6f59c3c5b9744d88dec0c7d98b0c921"
+    },
+    "whaleu_community.rating_target_definition_current": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "28a01a032004dfbf2942b456b25d00a4a129a44fed0a7c312e7d954414e38937"
+    },
+    "whaleu_ratings.target_edit_writer": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "b8c31b33510b7a841bc83cccee5db06ab261e02a7f646d3c1ae01dc51179eca3"
+    },
+    "whaleu_ratings.target_edit_envelope": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "cab87d042cb3b73f4e9634da10a96f50da340e2caabed75680864ea67a004855"
+    },
+    "whaleu_ratings.target_edit_session_current": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "e89395a909b51f3e7fe0c2dc3d151a4e2125e52bde93541b3b7b1e32e4467307"
+    },
+    "whaleu_ratings.target_edit_catalog_current": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "6d07b2c0cd4541c23639834b4d224a1b23644d161924a1da05419f5e5781a4b0"
+    },
+    "whaleu_ratings.assert_target_edit_before": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "d5a420e25e59b58aa9b4273ecb385729d6aeb4ca057752028788fc2ee4b6de4a"
+    },
+    "whaleu_ratings.target_edit_preparation_guard": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "6e0cebd03ad417547de6e1d1b6db6b23a60834ddba8d3753a0aa54d6229642f7"
+    },
+    "whaleu_ratings.target_edit_transition_guard": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "0d23be29dc328f4f0eb8e0e4c300de0024be7862e63c6ca950b962e3fc2f31b6"
+    },
+    "whaleu_ratings.target_edit_noop_guard": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "0a4146072140e99bd51ad7783ec7d1f69b6d7391b4e561e8d99e37d44b56ff3a"
+    },
+    "whaleu_ratings.target_definition_version_guard": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "12ed37b0ba5df2579d70c3c86302878b135639082438ee4d6760aa44f7590bd7"
+    },
+    "whaleu_ratings.target_definition_head_guard": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "ffeea08d9be94ca8a2a25755cbe79323f488e4b3e1a292bac3799b9597f0d54b"
+    },
+    "whaleu_ratings.initialize_target_definition": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "ee36d17a363bbaf5d28179e4323479cc5f17584931f1ee8308ba248cd6dbd613"
+    },
+    "whaleu_ratings.target_state_definition_guard": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "b7d0d0263fdbfcbddfdaf970f889f171294ebdcee844edcd4c23a38cfed1f837"
+    },
+    "whaleu_ratings.record_target_definition_lifecycle": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "f63ccf3ef70ef3474deb72567f2aa1b2488a9eeaa889788be5980b047dde6c5f"
+    },
+    "whaleu_ratings.target_definition_lifecycle_guard": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "558ef919093ca325fcffbc7e500e9e9fd9d344b73c468111290c2a761fb7c06b"
+    },
+    "whaleu_ratings.target_edit_closure_guard": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "f993f4b64244529ac1fbf3f941e3a249c691461bcaf1606de9590b50a4d74e14"
+    },
+    "whaleu_ratings.verify_target_edit": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "f80362cc7f1bbe744c188ad2bc06bf427ce54e4f32cc75da5c2599269b9d4c47"
+    },
+    "whaleu_ratings.target_edit_command_causal": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "1481ddda3fa75b4da786ef120736b9d744e092ee13c0e4d2482306e5303e845e"
+    },
+    "whaleu_ratings.target_edit_preparation_causal": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "b1c5e2a021b1615e308be6870d153d902dca2701bfab8947f76097df7e4a8610"
+    },
+    "whaleu_ratings.verify_target_definition_initial": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "98267837be14b4007df3d33a3040199530fff56834f06a052e6b64e625554a42"
+    },
+    "whaleu_ratings.verify_target_definition_lifecycle": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "221056be9762f806d043251e5393f4c3f860b150e5ba5c9f6e164aebacc4b2da"
+    },
+    "whaleu_ratings.target_definition_artifact_causal": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "d6b9cf9d0ec6f904d8d8506326102eb6984afbd81426a16302835fea2f86b21d"
+    },
+    "whaleu_ratings.target_edit_state_causal": {
+      "migration": "0057_rating_target_definition_editing.sql",
+      "bodySha256": "a0d004e0656132a747a2280f246e8d56d63c3873473a0a4ca11f8df4270d9266"
+    },
+    "whaleu_ratings.category_intent_valid": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "13f41ef5454393ab32789b733edf68742830168f7675a0f9de62fc3106826aa4"
+    },
+    "whaleu_ratings.category_intent_hash": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "e3d7643ffcc715a1507098108fcccb60b41a599d3a5e360be805d4e76c156523"
+    },
+    "whaleu_community.rating_category_keys": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "f3b0a24c0702a829ba450599a577ee35e78925705f256b282a6ccc6dd5012092"
+    },
+    "whaleu_community.rating_category_ids": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "487805edc8dd4f9aa32bb3d20a2c4ddaafab3821f00d9138f249ef9da1f729c1"
+    },
+    "whaleu_community.rating_category_envelope_shape": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "fde117add3b3772f3b781438cc912382e503f3c4a0de7e7c4bf0e6fb737484c6"
+    },
+    "whaleu_community.rating_category_decision_current": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "6910fdb4963e92772f2a9b8b954bd37a9b4b7d8b264a7ebb389b73d6d9a90004"
+    },
+    "whaleu_community.rating_category_base_binding_validate": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "d6252187cf5c995512671411b0ddce0027518741f847d04d0f236ad2c5eae28d"
+    },
+    "whaleu_community.rating_category_base_current": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "5106a8ae9d52a3e1c36c658c811a339d9e30e80889249c80d18020e5922408f3"
+    },
+    "whaleu_ratings.category_topology_regions": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "bd63389ec8d68409dad9eb993f07381b2c20d689c1643004ac171f94c87284b8"
+    },
+    "whaleu_ratings.category_authority_snapshot": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "a3cbd01a02ee60a213cd39b74e96951f7b700cd6adf1ccf87bd2f0311e1e9234"
+    },
+    "whaleu_ratings.category_envelope": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "12979eb33ff40088f7352878681d348d08ab46d16ffc3fb3b6dc443e216ab88d"
+    },
+    "whaleu_ratings.category_catalog_sources_complete": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "ce97b84dcf90234d3c34abfe530f83536412a4add581f558ffe6359768ce367f"
+    },
+    "whaleu_ratings.category_ancestry_current": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "7628a73b683d75dd0bbade0f0118ba7c9b1f086f9a53aea4293ee47d09605f89"
+    },
+    "whaleu_ratings.category_catalog_compat_current": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "0006df0ac529e101feedfd65e1e43a66056322fb3c024aa669587800b342f2f3"
+    },
+    "whaleu_ratings.assert_category_context": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "a79abcc613450a06b5de65be1a021a583cf1197fbaaf536bb134fe924885c300"
+    },
+    "whaleu_ratings.category_preparation_guard": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "f9dc02092e2ad57685db1618c7759af584576b59d02f063d455d1df9958d2122"
+    },
+    "whaleu_ratings.category_transition_guard": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "427f76fae9d544f147579db2fb8d1612a14187092b526aa2f53bad99980629c4"
+    },
+    "whaleu_ratings.category_closure_guard": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "1a92d0098082e64e41093feaebca295ef9b7ec65e58e91ad815f474aa23e7689"
+    },
+    "whaleu_ratings.category_command_publish": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "a3a39901f54ac7870a17c6497a1b79efd1bdf9984b90ecdef5176a49fa4ad5c9"
+    },
+    "whaleu_ratings.category_record_opaque_catalog": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "19baf8fe2c672d0d97c96a71e5fb380ae813467e446c382e998546eb2e629f2c"
+    },
+    "whaleu_ratings.category_record_opaque_lineage": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "4d49380c08f82d6667cfef37182feca4318ef08f4f8766ab89de81ce54bba7ba"
+    },
+    "whaleu_ratings.category_copy_target_lineage": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "bdcf5f1dd5aabf5e80844e69ad50f6bdf8af1788a2d8500e1fbb5b7ba36976e0"
+    },
+    "whaleu_ratings.verify_category_release": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "b1ba8bdec09871795949383e3439eebc73e148725855797d881905e87349d3e6"
+    },
+    "whaleu_ratings.verify_category_catalog": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "ea0cfe06bd8f3a1f0d1030c0754d45c9d03ad5c6e7c54d10846ec0c477f6e5dc"
+    },
+    "whaleu_ratings.category_command_causal": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "33383d996e4df5e7c42a3c09a768d4e5d17ad88c4c1d81da68cea101b1c0dde0"
+    },
+    "whaleu_ratings.category_preparation_causal": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "ebdbaaeba0ba1d4834abc5867cc3d5cd85e404aaa742bd11a4c25488ace1d40f"
+    },
+    "whaleu_ratings.category_source_artifact_causal": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "f58a07ba84d8481fc2618be8a5339628457ad923598aac178e4ba88ad7269a74"
+    },
+    "whaleu_ratings.category_catalog_artifact_causal": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "1ce07d2ca474485804b84d45128bd918668de77f4c1bd62132148fa50ff9060f"
+    },
+    "whaleu_ratings.category_effective_row_causal": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "ef99b362b29e05729e90d90a6971b2c236bbe84359b3798d587e42064e6fa89f"
+    },
+    "whaleu_ratings.category_materialization_guard": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "2575476c3b04fbb3df4325a5cc7563a7d154f16b4257dca8b1f75c7795f0ce99"
+    },
+    "whaleu_ratings.category_writer": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "e79f560262d942a8d763598639254e08c319ff7636b7dacacb3e57005aa24dc5"
+    },
+    "whaleu_ratings.category_head_preserves_native": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "d634e2b8896ef29cfd012afe4bca47397ff4afd866953762ec7b115a0081ace6"
+    },
+    "whaleu_ratings.category_catalog_compat_until": {
+      "migration": "0058_rating_category_management.sql",
+      "bodySha256": "0b97236a111dac8f951b7abd509d14aa65685b4885148874c2a6dde0a5924847"
+    }
+  }
+}

@@ -1,3 +1,6 @@
+import { requireLegacyRatingFreshScope } from '../../scoped/legacy-boundary.js';
+import { RatingLegacyBridgeService } from '../../scoped/legacy-bridge.service.js';
+import { canonicalRatingTargetDefinition } from '../../../community/content-review/rating-target-definition-contracts.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -51,6 +54,8 @@ type RejectionCode = Extract<
 @Injectable()
 export class RatingTargetEditService {
   constructor(
+    @Inject(RatingLegacyBridgeService)
+    private readonly bridges: RatingLegacyBridgeService,
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(RatingsAccessService) private readonly access: RatingsAccessService,
     @Inject(RatingsRepository) private readonly catalogs: RatingsRepository,
@@ -158,6 +163,12 @@ export class RatingTargetEditService {
     intent?: PrepareRatingTargetEdit,
   ) {
     const identity = await this.records.identity(targetId, actor, tx, !!intent);
+    if (intent)
+      await requireLegacyRatingFreshScope(
+        identity.region_id,
+        tx,
+        'edit_target',
+      );
     await this.access.resolveOwnerEditAccount(actor, identity.region_id, tx);
     this.catalogs.enable(tx);
     // Catalog itself never changes in this operation, so its ordinary head fact
@@ -448,6 +459,12 @@ export class RatingTargetEditService {
           return receipt;
         }
         const { p, catalog, accepted } = current;
+        const bridge = await this.bridges.begin(
+          actor,
+          intent.clientRequestId,
+          intent,
+          tx,
+        );
         let row = current.row,
           occurredAt: string,
           outcome: 'applied' | 'noop';
@@ -535,7 +552,11 @@ export class RatingTargetEditService {
             { ...row, revision: p.after_revision },
             tx,
           );
-          await this.review.bindTargetDefinition(accepted, row.definition, tx);
+          await this.review.bindTargetDefinition(
+            accepted,
+            canonicalRatingTargetDefinition(row.definition),
+            tx,
+          );
         }
         const receipt = ratingTargetEditReceiptSchema.parse({
           requestId: intent.clientRequestId,
@@ -548,6 +569,7 @@ export class RatingTargetEditService {
           occurredAt,
         });
         await this.save(actor, intent.clientRequestId, receipt, tx);
+        await this.bridges.finish(bridge, tx);
         await retainTargetEditSnapshot(row, catalog.id, tx, {
           requestId: intent.clientRequestId,
           intentHash: hash,

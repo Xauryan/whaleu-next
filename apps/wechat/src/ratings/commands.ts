@@ -2,6 +2,7 @@ import { ClientError } from '../api/errors';
 import type { CommunityRuntime } from '../community/runtime';
 import type { Cancellation } from '../platform/contracts';
 import {
+  isRatingScopedIntent,
   isRatingCategoryCreationIntent,
   isRatingTargetOwnerEditingIntent,
   isRatingTargetCreationIntent,
@@ -15,6 +16,14 @@ import {
   type RatingCommandReceipt,
 } from './pending';
 export const ratingCommandLabels = {
+  set_score_scoped: '校园评分',
+  create_comment_scoped: '校园文字评价发布',
+  create_reply_scoped: '校园回复发布',
+  set_comment_like_scoped: '校园评价点赞状态',
+  set_reply_like_scoped: '校园回复点赞状态',
+  set_target_subscription_scoped: '校园目标订阅状态',
+  create_target_scoped: '校园评分对象创建',
+  edit_target_scoped: '校园评分对象编辑',
   create_categories: '管理员创建评分分类',
   edit_target: '创建者编辑评分对象',
   create_target: '评分对象创建',
@@ -42,6 +51,13 @@ export function runRatingCommand(
     throw new ClientError('stale-session', 'Account changed');
   runtime.pendingRatings!.assertOriginal(attempt);
   const intent = attempt.intent;
+  if (isRatingScopedIntent(intent)) {
+    if (!runtime.ratingScoped)
+      throw new ClientError('configuration', 'Scoped ratings unavailable');
+    return retry
+      ? runtime.ratingScoped.command(intent, cancel)
+      : runtime.ratingScoped.receipt(intent.payload.clientRequestId, cancel);
+  }
   if (isRatingCategoryCreationIntent(intent)) {
     if (!runtime.ratingCategoryManagement)
       throw new ClientError('configuration', 'Category management unavailable');
@@ -169,6 +185,15 @@ export function settleRatingCommand(
     runtime.ratingCatalogChanges?.publish({
       releaseId: receipt.releaseId,
       catalogs: receipt.catalogs,
+    });
+  if (
+    (receipt.operation === 'edit_target_scoped' ||
+      receipt.operation === 'create_target_scoped') &&
+    receipt.outcome !== 'closed'
+  )
+    runtime.ratingTargetChanges?.publish({
+      targetId: receipt.result.targetId,
+      revision: receipt.result.revision,
     });
   return receipt;
 }

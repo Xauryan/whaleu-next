@@ -497,6 +497,18 @@ export async function renderErrandsOpenApiDocument(): Promise<string> {
 
 /** Tooling-only rating routes. No live database, issuer or provider. */
 export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { RatingScopedController, RatingScopedNoticesController } =
+    await import('../src/ratings/scoped/controller.js');
+  const { RatingScopedContextService } =
+    await import('../src/ratings/scoped/context.service.js');
+  const { RatingScopedCommands } =
+    await import('../src/ratings/scoped/commands.service.js');
+  const { RatingScopedReadService } =
+    await import('../src/ratings/scoped/read.service.js');
+  const { RatingScopedRandomService } =
+    await import('../src/ratings/scoped/random.service.js');
+  const { RatingScopedNoticeService } =
+    await import('../src/ratings/scoped/notice.service.js');
   const { RatingRandomController } =
     await import('../src/ratings/random/controller.js');
   const { RatingRandomService } =
@@ -578,6 +590,8 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
   };
   const testing = await Test.createTestingModule({
     controllers: [
+      RatingScopedController,
+      RatingScopedNoticesController,
       RatingRandomController,
       RatingManagementController,
       RatingCategoryManagementController,
@@ -593,6 +607,11 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       RatingLikeUpdatesController,
     ],
     providers: [
+      { provide: RatingScopedContextService, useValue: {} },
+      { provide: RatingScopedCommands, useValue: {} },
+      { provide: RatingScopedReadService, useValue: {} },
+      { provide: RatingScopedRandomService, useValue: {} },
+      { provide: RatingScopedNoticeService, useValue: {} },
       { provide: RatingRandomService, useValue: {} },
       { provide: RatingManagementService, useValue: {} },
       { provide: RatingCategoryManagementService, useValue: {} },

@@ -1,4 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { RatingScopedNoticeRecipientFacade } from './scoped-recipient.facade.js';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
 import { RatingsAccessService } from '../access.js';
@@ -17,20 +18,31 @@ export class RatingSubscriptionUpdatesProjectionFacade {
     private readonly replies: RatingDiscussionRepository,
     @Inject(RatingDiscussionProjection)
     private readonly projection: RatingDiscussionProjection,
+    @Optional()
+    @Inject(RatingScopedNoticeRecipientFacade)
+    private readonly scopedRecipients?: RatingScopedNoticeRecipientFacade,
   ) {}
   async eligible(
     target: RatingSubscriptionSource['target'],
     accountId: string,
     tx: PoolClient,
     epochId?: string,
+    eventId?: string,
   ): Promise<RatingUpdateEligibility> {
     try {
       this.records.enable(tx);
-      await this.access.resolveAccount(accountId, target.regionId, tx, {
-        phone: true,
-      });
-      const catalog = await this.records.catalog(target.regionId, tx);
-      await this.projection.target(catalog, target.targetId, tx);
+      if (eventId && !this.scopedRecipients)
+        throw new ApplicationError('RATING_UNAVAILABLE');
+      const scoped = eventId
+        ? await this.scopedRecipients!.qualify(eventId, accountId, target, tx)
+        : false;
+      if (!scoped) {
+        await this.access.resolveAccount(accountId, target.regionId, tx, {
+          phone: true,
+        });
+        const catalog = await this.records.catalog(target.regionId, tx);
+        await this.projection.target(catalog, target.targetId, tx);
+      }
       if (epochId !== undefined) {
         const member = (
           await tx.query<{ active_epoch_id: string | null }>(

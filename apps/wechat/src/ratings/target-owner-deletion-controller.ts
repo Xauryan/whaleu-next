@@ -286,7 +286,7 @@ export class RatingTargetOwnerDeletionController extends CommunityController<Rat
       returnToCatalog:
         receipt.operation === 'delete_target' && receipt.outcome !== 'rejected',
       receiptStatus:
-        receipt.outcome === 'rejected'
+        receipt.outcome === 'rejected' || receipt.outcome === 'closed'
           ? ratingError(
               new ClientError('business', 'Rejected', {
                 serverCode: receipt.code,

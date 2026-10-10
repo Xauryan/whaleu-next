@@ -360,7 +360,7 @@ test('missing named coverage still registers a mandatory negative epoch', async 
     (await facade.named(id(1), id(2), 'rating_list', f.tx)).kind,
     'unavailable',
   );
-  f.state.fence = false;
+  f.state.lockFailure = true;
   await assert.rejects(
     checkTransactionDeadlines(f.tx),
     errorIs('SAFETY_UNAVAILABLE'),

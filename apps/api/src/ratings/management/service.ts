@@ -1,3 +1,5 @@
+import { requireLegacyRatingFreshScope } from '../scoped/legacy-boundary.js';
+import { RatingLegacyBridgeService } from '../scoped/legacy-bridge.service.js';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -46,6 +48,8 @@ interface Preparation {
 @Injectable()
 export class RatingManagementService {
   constructor(
+    @Inject(RatingLegacyBridgeService)
+    private readonly bridges: RatingLegacyBridgeService,
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(RatingsAccessService) private readonly access: RatingsAccessService,
     @Inject(RatingsRepository) private readonly records: RatingsRepository,
@@ -101,6 +105,7 @@ export class RatingManagementService {
     hash: string,
     tx: PoolClient,
   ) {
+    await requireLegacyRatingFreshScope(intent.regionId, tx, 'create_target');
     await this.access.resolveAccount(actor, intent.regionId, tx, {
       phone: true,
     });
@@ -395,6 +400,19 @@ export class RatingManagementService {
           baselineId = randomUUID(),
           originId = randomUUID(),
           reference = `rating-create:${session.accountId}:${intent.clientRequestId}`;
+        const bridge = await this.bridges.begin(
+          session.accountId,
+          intent.clientRequestId,
+          intent,
+          tx,
+          [
+            {
+              logicalScopeKey: intent.regionId ?? 'global',
+              beforeCatalogId: intent.expectedCatalogRevision,
+              afterCatalogId: after,
+            },
+          ],
+        );
         await this.catalogs.copy(
           intent.expectedCatalogRevision,
           after,
@@ -490,6 +508,7 @@ export class RatingManagementService {
           'UPDATE whaleu_ratings.requests SET receipt=$3::jsonb WHERE account_id=$1 AND request_id=$2',
           [session.accountId, intent.clientRequestId, canonicalJson(result)],
         );
+        await this.bridges.finish(bridge, tx);
         await retainCreation(
           {
             actor: session.accountId,

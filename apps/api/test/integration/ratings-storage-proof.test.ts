@@ -13,6 +13,7 @@ import {
 import { RatingsRepository } from '../../src/ratings/repository.js';
 import { RatingsAccessService } from '../../src/ratings/access.js';
 import { RatingsService } from '../../src/ratings/service.js';
+import { prepareLegacyBoundaryRequest } from '../support/rating-legacy-boundary-fixture.js';
 import { lockSafetyPolicy } from '../../src/safety/locks.js';
 
 test('rating storage causality, independent fresh provenance and final catalog proof', async (t) => {
@@ -94,9 +95,18 @@ test('rating storage causality, independent fresh provenance and final catalog p
           let revision = old.revision;
           for (const value of [old.score, old.score === 5 ? 1 : 5, 3]) {
             const key = randomUUID();
-            await tx.query(
-              `INSERT INTO whaleu_ratings.requests(account_id,request_id,operation,intent_hash) VALUES($1,$2,'set_score',$3)`,
-              [actor.accountId, key, 'b'.repeat(64)],
+            await prepareLegacyBoundaryRequest(
+              tx,
+              actor.accountId,
+              'set_score',
+              {
+                clientRequestId: key,
+                targetId: target.id,
+                regionId: c.regionId,
+                expectedTargetRevision: target.revision,
+                expectedRevision: revision,
+                score: value,
+              },
             );
             const result = await records.setScore(
               target.id,
@@ -160,9 +170,18 @@ test('rating storage causality, independent fresh provenance and final catalog p
                   )
                 ).rows[0]!,
                 key = randomUUID();
-              await tx.query(
-                `INSERT INTO whaleu_ratings.requests(account_id,request_id,operation,intent_hash) VALUES($1,$2,'set_score',$3)`,
-                [actor.accountId, key, 'c'.repeat(64)],
+              await prepareLegacyBoundaryRequest(
+                tx,
+                actor.accountId,
+                'set_score',
+                {
+                  clientRequestId: key,
+                  targetId: target.id,
+                  regionId: c.regionId,
+                  expectedTargetRevision: target.revision,
+                  expectedRevision: prior.revision,
+                  score: 4,
+                },
               );
               const result = await records.setScore(
                   target.id,
@@ -187,6 +206,9 @@ test('rating storage causality, independent fresh provenance and final catalog p
               await tx.query(
                 'UPDATE whaleu_ratings.requests SET receipt=$3 WHERE account_id=$1 AND request_id=$2',
                 [actor.accountId, key, JSON.stringify(receipt)],
+              );
+              await tx.query(
+                'SET CONSTRAINTS whaleu_ratings.rating_request_causal IMMEDIATE',
               );
             },
             { isolationLevel: 'read committed' },

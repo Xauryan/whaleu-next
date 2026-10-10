@@ -1,3 +1,8 @@
+import * as scoped from '../src/ratings/scoped/contracts.js';
+import * as scopedRead from '../src/ratings/scoped/read.service.js';
+import * as scopedRandom from '../src/ratings/scoped/random.service.js';
+import * as scopedNotices from '../src/ratings/scoped/notice.service.js';
+import * as scopedController from '../src/ratings/scoped/controller.js';
 import * as categories from '../src/ratings/category-management/contracts.js';
 import * as ownerEdit from '../src/ratings/management/target-edit/contracts.js';
 import * as ownerDeletion from '../src/ratings/management/target-deletion/contracts.js';
@@ -47,7 +52,7 @@ test('ratings OpenAPI is deterministic offline and artifact-current', async () =
       'utf8',
     ),
   ));
-test('all 66 rating operations have exact schemas and safe auth/error metadata', async () => {
+test('all 66 legacy and 39 scoped rating operations have exact schemas and safe auth/error metadata', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
     [
@@ -315,10 +320,256 @@ test('all 66 rating operations have exact schemas and safe auth/error metadata',
   ] as const;
   assert.equal(cases.length, 66);
   assert.equal(
-    Object.values(doc.paths).reduce((n, p) => n + Object.keys(p!).length, 0),
-    cases.length,
+    Object.entries(doc.paths)
+      .filter(([path]) => path.startsWith('/v1/'))
+      .reduce((n, [, item]) => n + Object.keys(item!).length, 0),
+    66,
   );
-  for (const [path, method, schema] of cases) {
+  const scopedCases = [
+    [
+      '/v2/ratings/contexts',
+      'post',
+      scoped.ratingScopedContextSchema,
+      'ratingScopedCreateContext',
+    ],
+    [
+      '/v2/ratings/locators/resolve',
+      'post',
+      scopedNotices.ratingScopedResolvedLocatorSchema,
+      'ratingScopedResolveLocator',
+    ],
+    [
+      '/v2/ratings/categories',
+      'get',
+      scopedRead.ratingScopedCategoryPageSchema,
+      'ratingScopedListCategories',
+    ],
+    [
+      '/v2/ratings/targets',
+      'get',
+      scopedRead.ratingScopedTargetPageSchema,
+      'ratingScopedListTargets',
+    ],
+    [
+      '/v2/ratings/targets/{id}',
+      'get',
+      contracts.ratingTargetSchema,
+      'ratingScopedGetTarget',
+    ],
+    [
+      '/v2/ratings/targets/{id}/my-score',
+      'get',
+      contracts.ratingMyScoreSchema,
+      'ratingScopedGetMyScore',
+    ],
+    [
+      '/v2/ratings/targets/{id}/score-summary',
+      'get',
+      contracts.ratingSummarySchema,
+      'ratingScopedGetScoreSummary',
+    ],
+    [
+      '/v2/ratings/targets/{id}/comments',
+      'get',
+      scopedRead.ratingScopedCommentPageSchema,
+      'ratingScopedListComments',
+    ],
+    [
+      '/v2/ratings/comments/{id}',
+      'get',
+      contracts.ratingCommentSchema,
+      'ratingScopedGetComment',
+    ],
+    [
+      '/v2/ratings/comments/{id}/discussion',
+      'get',
+      scopedRead.ratingScopedDiscussionSchema,
+      'ratingScopedGetDiscussion',
+    ],
+    [
+      '/v2/ratings/comments/{id}/replies',
+      'get',
+      scopedRead.ratingScopedReplyPageSchema,
+      'ratingScopedListReplies',
+    ],
+    [
+      '/v2/ratings/replies/{id}',
+      'get',
+      discussion.ratingReplySchema,
+      'ratingScopedGetReply',
+    ],
+    [
+      '/v2/ratings/replies/{id}/position',
+      'get',
+      scopedRead.ratingScopedReplyPositionSchema,
+      'ratingScopedGetReplyPosition',
+    ],
+    [
+      '/v2/ratings/comments/{id}/like',
+      'get',
+      likes.ratingLikeStateSchema,
+      'ratingScopedGetCommentLike',
+    ],
+    [
+      '/v2/ratings/replies/{id}/like',
+      'get',
+      likes.ratingLikeStateSchema,
+      'ratingScopedGetReplyLike',
+    ],
+    [
+      '/v2/ratings/targets/{id}/subscription',
+      'get',
+      subscriptions.ratingSubscriptionStateSchema,
+      'ratingScopedGetSubscription',
+    ],
+    [
+      '/v2/ratings/subscriptions',
+      'get',
+      scopedRead.ratingScopedSubscriptionPageSchema,
+      'ratingScopedListSubscriptions',
+    ],
+    [
+      '/v2/ratings/random-target',
+      'get',
+      scopedRandom.ratingScopedRandomResponseSchema,
+      'ratingScopedGetRandomTarget',
+    ],
+    [
+      '/v2/ratings/management/owner-edit/targets/{targetId}/context',
+      'get',
+      scopedController.ratingScopedEditContextSchema,
+      'ratingScopedGetEditContext',
+    ],
+    [
+      '/v2/ratings/requests/{requestId}',
+      'get',
+      scoped.ratingScopedReceiptSchema,
+      'ratingScopedGetRequest',
+    ],
+    [
+      '/v2/ratings/subscription-states/query',
+      'post',
+      subscriptions.ratingSubscriptionQueryResponseSchema,
+      'ratingScopedQuerySubscriptionStates',
+    ],
+    [
+      '/v2/ratings/targets/{id}/my-score',
+      'put',
+      scoped.ratingScopedReceiptSchema,
+      'ratingScopedSetScore',
+    ],
+    [
+      '/v2/ratings/targets/{id}/comments',
+      'post',
+      scoped.ratingScopedReceiptSchema,
+      'ratingScopedCreateComment',
+    ],
+    [
+      '/v2/ratings/comments/{id}/replies',
+      'post',
+      scoped.ratingScopedReceiptSchema,
+      'ratingScopedCreateReply',
+    ],
+    [
+      '/v2/ratings/comments/{id}/like',
+      'put',
+      scoped.ratingScopedReceiptSchema,
+      'ratingScopedSetCommentLike',
+    ],
+    [
+      '/v2/ratings/replies/{id}/like',
+      'put',
+      scoped.ratingScopedReceiptSchema,
+      'ratingScopedSetReplyLike',
+    ],
+    [
+      '/v2/ratings/targets/{id}/subscription',
+      'put',
+      scoped.ratingScopedReceiptSchema,
+      'ratingScopedSetSubscription',
+    ],
+    [
+      '/v2/ratings/management/prepare',
+      'post',
+      scopedController.ratingScopedPrepareResponseSchema,
+      'ratingScopedPrepareTarget',
+    ],
+    [
+      '/v2/ratings/management/targets',
+      'post',
+      scoped.ratingScopedReceiptSchema,
+      'ratingScopedCreateTarget',
+    ],
+    [
+      '/v2/ratings/management/cancel',
+      'post',
+      scoped.ratingScopedReceiptSchema,
+      'ratingScopedCancelTargetCreation',
+    ],
+    [
+      '/v2/ratings/management/owner-edit/prepare',
+      'post',
+      scopedController.ratingScopedPrepareResponseSchema,
+      'ratingScopedPrepareTargetEdit',
+    ],
+    [
+      '/v2/ratings/management/owner-edit/commit',
+      'post',
+      scoped.ratingScopedReceiptSchema,
+      'ratingScopedCommitTargetEdit',
+    ],
+    [
+      '/v2/ratings/management/owner-edit/cancel',
+      'post',
+      scoped.ratingScopedReceiptSchema,
+      'ratingScopedCancelTargetEdit',
+    ],
+    [
+      '/v2/me/ratings/updates',
+      'get',
+      scopedNotices.ratingScopedNoticePageSchema,
+      'ratingScopedListUpdates',
+    ],
+    [
+      '/v2/me/ratings/updates/{noticeId}/target',
+      'get',
+      scopedNotices.ratingScopedNoticeTargetSchema,
+      'ratingScopedResolveUpdateTarget',
+    ],
+    [
+      '/v2/me/ratings/like-updates',
+      'get',
+      scopedNotices.ratingScopedNoticePageSchema,
+      'ratingScopedListLikeUpdates',
+    ],
+    [
+      '/v2/me/ratings/like-updates/{noticeId}/target',
+      'get',
+      scopedNotices.ratingScopedNoticeTargetSchema,
+      'ratingScopedResolveLikeUpdateTarget',
+    ],
+    [
+      '/v2/me/ratings/subscription-updates',
+      'get',
+      scopedNotices.ratingScopedNoticePageSchema,
+      'ratingScopedListSubscriptionUpdates',
+    ],
+    [
+      '/v2/me/ratings/subscription-updates/{noticeId}/target',
+      'get',
+      scopedNotices.ratingScopedNoticeTargetSchema,
+      'ratingScopedResolveSubscriptionUpdateTarget',
+    ],
+  ] as const;
+  assert.equal(scopedCases.length, 39);
+  for (const [path, method, , operationId] of scopedCases)
+    assert.equal(doc.paths[path]![method]!.operationId, operationId);
+  const allCases = [...cases, ...scopedCases] as const;
+  assert.equal(
+    Object.values(doc.paths).reduce((n, p) => n + Object.keys(p!).length, 0),
+    allCases.length,
+  );
+  for (const [path, method, schema] of allCases) {
     const op = doc.paths[path]![method]!;
     assert.deepEqual(op.security, [{ accessToken: [] }]);
     assert.equal(!!op.requestBody, method !== 'get');

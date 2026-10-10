@@ -1,3 +1,5 @@
+import { RatingScopedContentReviewFacade } from './rating-scoped-content-review.facade.js';
+import type { RatingScopedCategorySourceDescriptor } from './rating-scoped-contracts.js';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
@@ -87,6 +89,13 @@ interface BoundRow extends TimedRow {
 }
 @Injectable()
 export class RatingCategoryContentReviewFacade {
+  private readonly scoped = new RatingScopedContentReviewFacade();
+  currentScopedSource(
+    input: RatingScopedCategorySourceDescriptor,
+    tx: PoolClient,
+  ) {
+    return this.scoped.currentCategorySource(input, tx);
+  }
   async navigation(tx: PoolClient): Promise<string> {
     const readEpoch = transactionReadEpoch(tx);
     if (!readEpoch) throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');

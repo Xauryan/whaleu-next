@@ -1,4 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { RatingScopedNoticeRecipientFacade } from './scoped-recipient.facade.js';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
 import { RatingsAccessService } from '../access.js';
@@ -39,22 +40,38 @@ export class RatingUpdatesProjectionFacade {
     @Inject(RatingSafetyFacade) private readonly safety: RatingSafetyFacade,
     @Inject(AuthorDisplayService)
     private readonly authors: AuthorDisplayService,
+    @Optional()
+    @Inject(RatingScopedNoticeRecipientFacade)
+    private readonly scopedRecipients?: RatingScopedNoticeRecipientFacade,
   ) {}
   async eligible(
     target: RatingUpdateTarget,
     recipient: RatingUpdateRecipient,
     tx: PoolClient,
+    eventId?: string,
   ): Promise<RatingUpdateEligibility> {
     try {
       this.records.enable(tx);
-      await this.access.resolveAccount(
-        recipient.accountId,
-        target.regionId,
-        tx,
-        { phone: true },
-      );
-      const catalog = await this.records.catalog(target.regionId, tx);
-      await this.projection.target(catalog, target.targetId, tx);
+      if (eventId && !this.scopedRecipients)
+        throw new ApplicationError('RATING_UNAVAILABLE');
+      const scoped = eventId
+        ? await this.scopedRecipients!.qualify(
+            eventId,
+            recipient.accountId,
+            target,
+            tx,
+          )
+        : false;
+      if (!scoped) {
+        await this.access.resolveAccount(
+          recipient.accountId,
+          target.regionId,
+          tx,
+          { phone: true },
+        );
+        const catalog = await this.records.catalog(target.regionId, tx);
+        await this.projection.target(catalog, target.targetId, tx);
+      }
       const root = await this.records.comment(
         target.rootId,
         target.targetId,
@@ -109,17 +126,30 @@ export class RatingUpdatesProjectionFacade {
     recipient: RatingLikeUpdateRecipient,
     actorAccountId: string,
     tx: PoolClient,
+    eventId?: string,
   ): Promise<RatingLikeUpdateEligibility> {
     try {
       this.records.enable(tx);
-      await this.access.resolveAccount(
-        recipient.accountId,
-        target.regionId,
-        tx,
-        { phone: true },
-      );
-      const catalog = await this.records.catalog(target.regionId, tx);
-      await this.projection.target(catalog, target.targetId, tx);
+      if (eventId && !this.scopedRecipients)
+        throw new ApplicationError('RATING_UNAVAILABLE');
+      const scoped = eventId
+        ? await this.scopedRecipients!.qualify(
+            eventId,
+            recipient.accountId,
+            target,
+            tx,
+          )
+        : false;
+      if (!scoped) {
+        await this.access.resolveAccount(
+          recipient.accountId,
+          target.regionId,
+          tx,
+          { phone: true },
+        );
+        const catalog = await this.records.catalog(target.regionId, tx);
+        await this.projection.target(catalog, target.targetId, tx);
+      }
       const root = await this.records.comment(
         target.rootId,
         target.targetId,

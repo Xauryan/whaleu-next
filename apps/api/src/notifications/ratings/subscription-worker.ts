@@ -209,6 +209,7 @@ export class RatingSubscriptionUpdatesWorker {
                   work.recipient_account_id,
                   tx,
                   work.epoch_id,
+                  start.event.id,
                 ),
               );
               if (decision.outcome === 'eligible') {
@@ -257,6 +258,7 @@ export class RatingSubscriptionUpdatesWorker {
                   selected.recipient_account_id,
                   tx,
                   selected.epoch_id,
+                  start.event.id,
                 );
                 if (decision.outcome === 'unavailable') {
                   await this.records.retry(selected, decision.code, tx);

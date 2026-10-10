@@ -6,8 +6,10 @@ import type { TransactionOptions } from '../../src/database/database.js';
 export function observeDirectoryQueries(app: INestApplication) {
   const database = app.get(DatabaseService);
   const originalTransaction = database.transaction.bind(database);
-  let hook: ((event: { sql: string }, tx: PoolClient) => Promise<void>) | null =
-    null;
+  type QueryHook =
+    ((event: { sql: string }, tx: PoolClient) => Promise<void>) | null;
+  let hook: QueryHook = null;
+  let beforeHook: QueryHook = null;
   database.transaction = async function <T>(
     operation: (tx: PoolClient) => Promise<T>,
     options: TransactionOptions = {},
@@ -20,6 +22,7 @@ export function observeDirectoryQueries(app: INestApplication) {
           tx.query = originalQuery;
         };
         tx.query = (async (sql: string, values?: unknown[]) => {
+          if (beforeHook) await beforeHook({ sql }, tx);
           const result = await originalQuery(sql, values);
           // PostgreSQL multi-statement SET queries return arrays rather than one
           // QueryResult. Never interpret or replace their ordinary result shape.
@@ -33,8 +36,11 @@ export function observeDirectoryQueries(app: INestApplication) {
     }
   };
   return {
-    setHook(value: typeof hook) {
+    setHook(value: QueryHook) {
       hook = value;
+    },
+    setBeforeHook(value: QueryHook) {
+      beforeHook = value;
     },
     restore() {
       database.transaction = originalTransaction;

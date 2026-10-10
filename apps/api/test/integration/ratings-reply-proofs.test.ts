@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import type { PoolClient } from 'pg';
 import request from 'supertest';
 import { ratingDiscussionFixture } from '../support/rating-discussion-fixture.js';
+import { prepareLegacyBoundaryRequest } from '../support/rating-legacy-boundary-fixture.js';
 import { approveRating } from '../support/rating-runtime-fixture.js';
 import { RatingsRepository } from '../../src/ratings/repository.js';
 import { RatingDiscussionRepository } from '../../src/ratings/discussion-repository.js';
@@ -379,9 +380,11 @@ test('rating reply bounded final facts, large-root tombstones, source capture ro
         for (const command of commands) {
           const envelope = f.envelope(owner, catalog, target, command);
           const accepted = await review.accepted(envelope, tx);
-          await tx.query(
-            "INSERT INTO whaleu_ratings.requests(account_id,request_id,operation,intent_hash) VALUES($1,$2,'create_comment',$3)",
-            [owner.accountId, command.clientRequestId, 'c'.repeat(64)],
+          await prepareLegacyBoundaryRequest(
+            tx,
+            owner.accountId,
+            'create_comment',
+            { targetId: target.id, ...command },
           );
           const id = randomUUID(),
             result = await records.insertComment(
@@ -481,9 +484,11 @@ test('rating reply bounded final facts, large-root tombstones, source capture ro
         for (const command of commands) {
           const envelope = f.replyEnvelope(owner, catalog, target, r, command),
             accepted = await review.accepted(envelope, tx);
-          await tx.query(
-            "INSERT INTO whaleu_ratings.requests(account_id,request_id,operation,intent_hash) VALUES($1,$2,'create_reply',$3)",
-            [owner.accountId, command.clientRequestId, 'd'.repeat(64)],
+          await prepareLegacyBoundaryRequest(
+            tx,
+            owner.accountId,
+            'create_reply',
+            { rootId: r.id, ...command },
           );
           const id = randomUUID(),
             result = await replies.insert(
@@ -559,9 +564,11 @@ test('rating reply bounded final facts, large-root tombstones, source capture ro
         );
         const envelope = f.replyEnvelope(owner, catalog, target, r, command),
           accepted = await review.accepted(envelope, tx);
-        await tx.query(
-          "INSERT INTO whaleu_ratings.requests(account_id,request_id,operation,intent_hash) VALUES($1,$2,'create_reply',$3)",
-          [owner.accountId, command.clientRequestId, '8'.repeat(64)],
+        await prepareLegacyBoundaryRequest(
+          tx,
+          owner.accountId,
+          'create_reply',
+          { rootId: r.id, ...command },
         );
         createdId = randomUUID();
         const created = await records.insert(
@@ -654,9 +661,11 @@ test('rating reply bounded final facts, large-root tombstones, source capture ro
         await tx.query('SAVEPOINT synthetic_reply');
         const envelope = f.replyEnvelope(owner, catalog, target, r, rolled),
           accepted = await review.accepted(envelope, tx);
-        await tx.query(
-          "INSERT INTO whaleu_ratings.requests(account_id,request_id,operation,intent_hash) VALUES($1,$2,'create_reply',$3)",
-          [owner.accountId, rolled.clientRequestId, '7'.repeat(64)],
+        await prepareLegacyBoundaryRequest(
+          tx,
+          owner.accountId,
+          'create_reply',
+          { rootId: r.id, ...rolled },
         );
         const id = randomUUID();
         await records.insert(

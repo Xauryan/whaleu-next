@@ -1,3 +1,4 @@
+import { RatingCompatReadFacade } from '../scoped/compat-read.facade.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { RatingCategoryContentReviewFacade } from '../../community/content-review/rating-category-content-review.facade.js';
 import type { PoolClient, QueryResult, QueryResultRow } from 'pg';
@@ -24,7 +25,7 @@ import {
   ratingCurrentTargetDefinitionJoins,
   type CurrentTargetRead,
 } from '../target-definition.repository.js';
-import type { RatingTargetDefinitionDescriptor } from '../../community/content-review/rating-target-definition-contracts.js';
+import type { AnyRatingTargetDefinitionDescriptor } from '../../community/content-review/rating-target-definition-contracts.js';
 
 /** Whole-request admission, independent of the unchanged per-item proof limits. */
 export const RATING_COMPLETE_POOL_BATCH_SIZE = 128;
@@ -41,7 +42,7 @@ export interface RatingCompletePoolHandle {
 export interface RatingPoolTargetPath {
   readonly id: string;
   readonly envelope: unknown;
-  readonly definition: RatingTargetDefinitionDescriptor;
+  readonly definition: AnyRatingTargetDefinitionDescriptor;
   readonly row: CurrentTargetRow;
   readonly catalog: RatingCatalog;
   readonly summary: RatingSummary;
@@ -250,6 +251,8 @@ export class RatingCompletePoolRepository {
   constructor(
     @Inject(RatingCategoryContentReviewFacade)
     private readonly categoryReview: RatingCategoryContentReviewFacade = new RatingCategoryContentReviewFacade(),
+    @Inject(RatingCompatReadFacade)
+    private readonly compat?: RatingCompatReadFacade,
   ) {}
   /** Capture before resolving catalog/category/membership/score inputs. */
   async capture(tx: PoolClient): Promise<RatingCompletePoolHandle> {
@@ -427,6 +430,7 @@ export class RatingCompletePoolRepository {
           catalog,
           path,
           tx,
+          this.compat,
         );
         const allowed = decisions.every((decision) => decision === 'allow');
         state.categoryEligibility.set(`${catalog.id}:${categoryId}`, allowed);
@@ -531,6 +535,7 @@ export class RatingCompletePoolRepository {
           catalog,
           unique,
           tx,
+          this.compat,
         );
         const byId = new Map(
           unique.map((row, index) => [row.id, decisions[index]]),

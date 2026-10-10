@@ -1,5 +1,11 @@
+import { RatingScopedContextService } from './scoped/context.service.js';
+import { RatingScopedRepository } from './scoped/repository.js';
+import { RatingScopedProjection } from './scoped/projection.js';
+import { RatingScopedSourceFacade } from './scoped/source.facade.js';
+import { RatingCompatReadFacade } from './scoped/compat-read.facade.js';
 import { RatingDeletionRepository } from './deletion/repository.js';
 import { Module } from '@nestjs/common';
+import { DatabaseModule } from '../database/database.js';
 import { IdentityModule } from '../identity/identity.module.js';
 import { VerificationModule } from '../verification/verification.module.js';
 import { AuthorizationModule } from '../authorization/authorization.module.js';
@@ -13,6 +19,7 @@ import { RatingDiscussionRepository } from './discussion-repository.js';
 import { RatingDiscussionProjection } from './discussion-projection.js';
 @Module({
   imports: [
+    DatabaseModule,
     IdentityModule,
     VerificationModule,
     AuthorizationModule,
@@ -22,6 +29,12 @@ import { RatingDiscussionProjection } from './discussion-projection.js';
     ContentReviewModule,
   ],
   providers: [
+    RatingScopedContextService,
+    RatingScopedRepository,
+    RatingScopedProjection,
+    RatingScopedSourceFacade,
+
+    RatingCompatReadFacade,
     RatingDeletionRepository,
     RatingsAccessService,
     RatingsRepository,
@@ -29,6 +42,12 @@ import { RatingDiscussionProjection } from './discussion-projection.js';
     RatingDiscussionProjection,
   ],
   exports: [
+    RatingScopedContextService,
+    RatingScopedRepository,
+    RatingScopedProjection,
+    RatingScopedSourceFacade,
+
+    RatingCompatReadFacade,
     RatingDeletionRepository,
     RatingsAccessService,
     RatingsRepository,

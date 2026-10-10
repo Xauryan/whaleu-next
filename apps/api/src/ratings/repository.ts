@@ -1,3 +1,4 @@
+import { RatingCompatReadFacade } from './scoped/compat-read.facade.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { RatingCategoryContentReviewFacade } from '../community/content-review/rating-category-content-review.facade.js';
 import { canonicalRatingCategoryBase } from '../community/content-review/rating-category-contracts.js';
@@ -55,6 +56,7 @@ interface CategorySourceRead {
     base_revision: string | null;
     scope_version_id: string | null;
     topology_snapshot_id: string | null;
+    compat_projection_id?: string | null;
   } | null;
   base: {
     category_id: string;
@@ -86,6 +88,8 @@ export async function qualifyRatingCategoryRows(
   catalog: RatingCatalog,
   categories: readonly CategoryRow[],
   tx: PoolClient,
+  compat?: RatingCompatReadFacade,
+  mode: 'read' | 'write' = 'read',
 ): Promise<readonly ('allow' | 'deny')[]> {
   if (!categories.length) return Object.freeze([]);
   if (categories.length > 512) throw new ApplicationError('RATING_UNAVAILABLE');
@@ -104,6 +108,7 @@ export async function qualifyRatingCategoryRows(
     throw new ApplicationError('RATING_UNAVAILABLE');
   const native: { index: number; descriptor: RatingCategoryBaseDescriptor }[] =
     [];
+  const canonical: number[] = [];
   for (const [index, source] of rows.entries()) {
     const category = categories[index]!,
       lineage = source.lineage;
@@ -123,6 +128,19 @@ export async function qualifyRatingCategoryRows(
         source.source_scope !== null
       )
         throw new ApplicationError('RATING_UNAVAILABLE');
+      continue;
+    }
+    if (lineage.source_kind === 'compat_effective') {
+      if (
+        lineage.base_revision !== null ||
+        lineage.scope_version_id !== null ||
+        !lineage.compat_projection_id ||
+        source.base !== null ||
+        source.head_revision !== null ||
+        source.source_scope !== null
+      )
+        throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
+      canonical.push(index);
       continue;
     }
     const base = source.base,
@@ -185,6 +203,20 @@ export async function qualifyRatingCategoryRows(
   if (decisions.length !== native.length)
     throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
   const result: ('allow' | 'deny')[] = categories.map(() => 'allow');
+  if (canonical.length) {
+    if (!compat) throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
+    const qualified = await compat.qualify(
+      catalog,
+      canonical.map((index) => categories[index]!),
+      tx,
+      mode,
+    );
+    if (qualified.length !== canonical.length)
+      throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
+    qualified.forEach((decision, index) => {
+      result[canonical[index]!] = decision;
+    });
+  }
   for (const [index, decision] of decisions.entries()) {
     if (decision.kind === 'unavailable')
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
@@ -312,6 +344,8 @@ export class RatingsRepository {
   constructor(
     @Inject(RatingCategoryContentReviewFacade)
     private readonly categoryReview: RatingCategoryContentReviewFacade = new RatingCategoryContentReviewFacade(),
+    @Inject(RatingCompatReadFacade)
+    private readonly compat?: RatingCompatReadFacade,
   ) {}
   enable(tx: PoolClient) {
     enableRequiredTransactionProof(tx, proof);
@@ -413,7 +447,14 @@ export class RatingsRepository {
       throw new ApplicationError('RATING_NOT_FOUND');
     if (
       (
-        await qualifyRatingCategoryRows(this.categoryReview, catalog, rows, tx)
+        await qualifyRatingCategoryRows(
+          this.categoryReview,
+          catalog,
+          rows,
+          tx,
+          this.compat,
+          'write',
+        )
       ).some((decision) => decision === 'deny')
     )
       throw new ApplicationError('RATING_NOT_FOUND');
@@ -445,6 +486,7 @@ export class RatingsRepository {
         catalog,
         rows,
         tx,
+        this.compat,
       );
       rows.forEach((row, index) => {
         if (decisions[index] === 'allow') allowed.push(row);

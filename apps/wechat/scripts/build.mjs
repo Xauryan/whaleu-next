@@ -30,7 +30,11 @@ await copyAssets(path.join(root, 'src'), out);
 
 // TypeScript emits CommonJS, not an npm bundle. Ship the vetted browser-only
 // implementation under a relative Mini Program path (never Node's crypto entry).
-for (const relative of ['community/view-contract.js', 'messaging/pending.js']) {
+for (const relative of [
+  'community/view-contract.js',
+  'messaging/pending.js',
+  'ratings/scoped-contract.js',
+]) {
   const cryptoModule = path.join(out, relative);
   const compiled = await readFile(cryptoModule, 'utf8');
   if (!compiled.includes('require("js-sha256")'))

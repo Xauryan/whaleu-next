@@ -7,6 +7,7 @@ import { ratingDiscussionFixture } from '../support/rating-discussion-fixture.js
 import { inTransaction } from '../../src/database/database.js';
 import { ratingIso } from '../../src/ratings/repository.js';
 import { RatingEffectsCapture } from '../../src/ratings/effects/capture.js';
+import { prepareLegacyBoundaryRequest } from '../support/rating-legacy-boundary-fixture.js';
 import { ExperienceSourceRouter } from '../../src/experience/source-router.js';
 
 test(
@@ -108,11 +109,40 @@ test(
       tx: PoolClient,
       actor: string,
       key: string,
-      operation = 'set_comment_like',
+      target: Target,
+      root: Content,
+      liked = true,
+      reply?: Content,
+      expectedLikeRevision?: string,
     ) => {
-      await tx.query(
-        'INSERT INTO whaleu_ratings.requests(account_id,request_id,operation,intent_hash) VALUES($1,$2,$3,$4)',
-        [actor, key, operation, 'c'.repeat(64)],
+      const subject = reply ?? root;
+      const current = (
+        await tx.query<{ revision: string }>(
+          'SELECT coalesce(m.revision,s.baseline_id) revision FROM whaleu_ratings.like_subjects s LEFT JOIN whaleu_ratings.like_memberships m ON m.subject_id=s.id AND m.account_id=$2 WHERE s.id=$1',
+          [subject.id, actor],
+        )
+      ).rows[0];
+      // The missing-baseline counterexample supplies its deliberately invalid
+      // CAS explicitly; ordinary commands use the actual independent baseline.
+      const expected = expectedLikeRevision ?? current?.revision;
+      assert.ok(expected, 'A real observed like CAS is required');
+      await prepareLegacyBoundaryRequest(
+        tx,
+        actor,
+        reply ? 'set_reply_like' : 'set_comment_like',
+        {
+          clientRequestId: key,
+          targetId: target.id,
+          regionId: null,
+          expectedTargetRevision: target.revision,
+          rootId: root.id,
+          expectedRevision: subject.revision,
+          expectedLikeRevision: expected,
+          liked,
+          ...(reply
+            ? { replyId: reply.id, expectedRootRevision: root.revision }
+            : {}),
+        },
       );
     };
     const rawSet = async (
@@ -127,7 +157,6 @@ test(
     ) => {
       const subject = reply ?? root;
       const operation = reply ? 'set_reply_like' : 'set_comment_like';
-      await newRequest(tx, actor.accountId, key, operation);
       const before = (
         await tx.query<{
           revision: string;
@@ -141,6 +170,16 @@ test(
           [subject.id, actor.accountId],
         )
       ).rows[0]!;
+      await newRequest(
+        tx,
+        actor.accountId,
+        key,
+        target,
+        root,
+        liked,
+        reply,
+        before.revision,
+      );
       if (before.liked === liked)
         await tx.query(
           'INSERT INTO whaleu_ratings.like_noop_observations(account_id,request_id,subject_id,baseline_id,anchor_transition_id,liked,revision,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
@@ -646,11 +685,21 @@ test(
           1,
         );
         await reject(async (tx) => {
-          const key = randomUUID();
-          await newRequest(tx, actor.accountId, key);
+          const key = randomUUID(),
+            fakeBaseline = randomUUID();
+          await newRequest(
+            tx,
+            actor.accountId,
+            key,
+            target,
+            root,
+            false,
+            undefined,
+            fakeBaseline,
+          );
           await tx.query(
             'INSERT INTO whaleu_ratings.like_noop_observations(account_id,request_id,subject_id,baseline_id,liked,revision,occurred_at) VALUES($1,$2,$3,$4,false,$4,clock_timestamp())',
-            [actor.accountId, key, root.id, randomUUID()],
+            [actor.accountId, key, root.id, fakeBaseline],
           );
         });
         assert.equal(
@@ -703,7 +752,7 @@ test(
         );
         await reject(async (tx) => {
           const key = randomUUID();
-          await newRequest(tx, actor.accountId, key);
+          await newRequest(tx, actor.accountId, key, target, root);
           await tx.query(
             'UPDATE whaleu_ratings.like_memberships SET liked=true,request_id=$3,expected_revision=revision WHERE subject_id=$1 AND account_id=$2',
             [root.id, actor.accountId, key],
@@ -711,7 +760,7 @@ test(
         });
         await reject(async (tx) => {
           const key = randomUUID();
-          await newRequest(tx, actor.accountId, key);
+          await newRequest(tx, actor.accountId, key, target, root);
           await tx.query(
             `INSERT INTO whaleu_ratings.like_transitions(id,subject_id,target_id,root_id,reply_id,account_id,request_id,operation,old_revision,new_revision,previous_actor_transition_id,old_active_like_id,new_active_like_id,delta,previous_count,new_count,previous_head_id,occurred_at,mutation_transaction)
         SELECT gen_random_uuid(),subject_id,target_id,root_id,reply_id,account_id,$2,operation,old_revision,gen_random_uuid(),previous_actor_transition_id,old_active_like_id,new_active_like_id,delta,previous_count,new_count,previous_head_id,clock_timestamp(),pg_current_xact_id() FROM whaleu_ratings.like_transitions WHERE root_id=$1 LIMIT 1`,
@@ -742,13 +791,25 @@ test(
             );
           assert.equal(positive.status, 200, JSON.stringify(positive.body));
           const before = await count(root);
+          const realReply =
+            variant === 'wrong operation'
+              ? await f.publishReply(actor, c, target, root)
+              : undefined;
           await reject(async (tx) => {
             const key = randomUUID(),
               operation =
                 variant === 'wrong operation'
                   ? 'set_reply_like'
                   : 'set_comment_like';
-            await newRequest(tx, actor.accountId, key, operation);
+            await newRequest(
+              tx,
+              actor.accountId,
+              key,
+              target,
+              root,
+              true,
+              realReply,
+            );
             const row = (
               await tx.query<{
                 baseline_id: string;
@@ -794,6 +855,9 @@ test(
                 }),
               ],
             );
+            await tx.query(
+              'SET CONSTRAINTS whaleu_ratings.rating_like_request_causal IMMEDIATE',
+            );
           });
           assert.deepEqual(await count(root), before);
         },
@@ -806,7 +870,7 @@ test(
           before = await count(root);
         await reject(async (tx) => {
           const key = randomUUID();
-          await newRequest(tx, actor.accountId, key);
+          await newRequest(tx, actor.accountId, key, target, root);
           await tx.query(
             'UPDATE whaleu_ratings.requests SET receipt=$3::jsonb WHERE account_id=$1 AND request_id=$2',
             [
@@ -824,6 +888,9 @@ test(
                 occurredAt: '2026-10-09T00:00:00.123456Z',
               }),
             ],
+          );
+          await tx.query(
+            'SET CONSTRAINTS whaleu_ratings.rating_like_request_causal IMMEDIATE',
           );
         });
         await reject(async (tx) => {
@@ -898,7 +965,7 @@ test(
         assert.equal(positive.status, 200, JSON.stringify(positive.body));
         await reject(async (tx) => {
           const key = randomUUID();
-          await newRequest(tx, actor.accountId, key);
+          await newRequest(tx, actor.accountId, key, target, root);
           await tx.query(
             `INSERT INTO whaleu_ratings.effect_events(id,source_version,rule_version,event_kind,target_id,root_id,reply_id,actor_account_id,author_mode,root_author_id,subject_author_id,subject_author_mode,region_id,like_transition_id,request_id,occurred_at,mutation_transaction,expected_experience_units,expected_direct_notice_obligations)
         SELECT gen_random_uuid(),source_version,rule_version,event_kind,target_id,root_id,reply_id,actor_account_id,author_mode,root_author_id,subject_author_id,subject_author_mode,region_id,like_transition_id,$2,clock_timestamp(),pg_current_xact_id(),expected_experience_units,expected_direct_notice_obligations FROM whaleu_ratings.effect_events WHERE root_id=$1 AND source_version=2 LIMIT 1`,

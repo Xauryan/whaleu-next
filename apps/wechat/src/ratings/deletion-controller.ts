@@ -26,6 +26,7 @@ import {
 } from './deletion-contract';
 import {
   decodeRatingCommandIntent,
+  isRatingScopedIntent,
   isRatingCategoryCreationIntent,
   isRatingTargetCreationIntent,
   isRatingTargetOwnerEditingIntent,
@@ -288,6 +289,7 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
             : ratingOwnerDeletionIntent(confirmation.context, id),
         );
         if (
+          isRatingScopedIntent(intent) ||
           isRatingTargetOwnerEditingIntent(intent) ||
           isRatingTargetOwnerDeletionIntent(intent) ||
           isRatingCategoryCreationIntent(intent) ||
@@ -347,7 +349,7 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
       recoveryOperation: '',
       needsRefresh: true,
       receiptStatus:
-        receipt.outcome === 'rejected'
+        receipt.outcome === 'rejected' || receipt.outcome === 'closed'
           ? ratingError(
               new ClientError('business', 'Rejected', {
                 serverCode: receipt.code,

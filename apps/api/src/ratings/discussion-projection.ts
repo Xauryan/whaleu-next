@@ -3,6 +3,7 @@ import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import { RatingContentReviewFacade } from '../community/content-review/rating-content-review.facade.js';
 import { canonicalRatingEnvelope } from '../community/content-review/rating-contracts.js';
+import { canonicalRatingScopedEnvelope } from '../community/content-review/rating-scoped-contracts.js';
 import { RatingSafetyFacade } from '../safety/rating.facade.js';
 import { AuthorDisplayService } from '../profile/author-display.service.js';
 import { RatingsRepository } from './repository.js';
@@ -84,12 +85,17 @@ export class RatingDiscussionProjection {
     tx: PoolClient,
   ) {
     if (row.deleted_at !== null) return null;
-    const d = await this.review.current(
-      kind,
-      row.id,
-      canonicalRatingEnvelope(row.envelope),
-      tx,
-    );
+    const contentEnvelope =
+      (row.envelope as { version?: number })?.version === 5
+        ? canonicalRatingScopedEnvelope(row.envelope)
+        : canonicalRatingEnvelope(row.envelope);
+    if (
+      contentEnvelope.version === 5 &&
+      contentEnvelope.purpose !== 'publish_rating_comment_scoped' &&
+      contentEnvelope.purpose !== 'publish_rating_reply_scoped'
+    )
+      throw new ApplicationError('RATING_UNAVAILABLE');
+    const d = await this.review.current(kind, row.id, contentEnvelope, tx);
     if (d.kind === 'deny') return null;
     if (d.kind !== 'allow')
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');

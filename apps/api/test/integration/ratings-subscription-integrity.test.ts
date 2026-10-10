@@ -11,6 +11,7 @@ import { lockSafetyPolicy } from '../../src/safety/locks.js';
 import { RatingEffectsCapture } from '../../src/ratings/effects/capture.js';
 import { ratingIso } from '../../src/ratings/repository.js';
 import { canonicalRatingEnvelope } from '../../src/community/content-review/rating-contracts.js';
+import { prepareLegacyBoundaryRequest } from '../support/rating-legacy-boundary-fixture.js';
 import { canonicalJson } from '../../src/community/content-review/contracts.js';
 
 test('subscription SQL causality, immutable epochs, independent coverage and same-transaction history', async (t) => {
@@ -52,10 +53,20 @@ test('subscription SQL causality, immutable epochs, independent coverage and sam
       )
     ).rows[0]!;
     const key = randomUUID();
-    await tx.query(
-      "INSERT INTO whaleu_ratings.requests(account_id,request_id,operation,intent_hash) VALUES($1,$2,'set_target_subscription',$3)",
-      [actor, key, 'a'.repeat(64)],
-    );
+    const targetRevision = (
+      await tx.query<{ revision: string }>(
+        'SELECT revision FROM whaleu_ratings.targets WHERE id=$1',
+        [target],
+      )
+    ).rows[0]!.revision;
+    await prepareLegacyBoundaryRequest(tx, actor, 'set_target_subscription', {
+      clientRequestId: key,
+      targetId: target,
+      regionId: c.regionId,
+      expectedTargetRevision: targetRevision,
+      expectedSubscriptionRevision: before.revision,
+      subscribed,
+    });
     const outcome = before.subscribed === subscribed ? 'noop' : 'applied';
     if (outcome === 'noop')
       await tx.query(
@@ -319,22 +330,46 @@ test('subscription SQL causality, immutable epochs, independent coverage and sam
       await assert.rejects(
         transaction(async (tx) => {
           const key = randomUUID();
+          const targetRevision = (
+            await tx.query<{ revision: string }>(
+              'SELECT revision FROM whaleu_ratings.targets WHERE id=$1',
+              [target],
+            )
+          ).rows[0]!.revision;
+          const revision = randomUUID();
+          await prepareLegacyBoundaryRequest(
+            tx,
+            a.accountId,
+            'set_target_subscription',
+            {
+              clientRequestId: key,
+              targetId: target,
+              regionId: c.regionId,
+              expectedTargetRevision: targetRevision,
+              expectedSubscriptionRevision: revision,
+              subscribed: false,
+            },
+          );
           await tx.query(
-            "INSERT INTO whaleu_ratings.requests(account_id,request_id,operation,intent_hash,receipt) VALUES($1,$2,'set_target_subscription',$3,$4::jsonb)",
+            'UPDATE whaleu_ratings.requests SET receipt=$3::jsonb WHERE account_id=$1 AND request_id=$2',
             [
               a.accountId,
               key,
-              'b'.repeat(64),
               JSON.stringify({
                 requestId: key,
                 operation: 'set_target_subscription',
                 outcome: 'noop',
                 targetId: target,
                 subscribed: false,
-                revision: randomUUID(),
+                revision,
                 occurredAt: '2026-10-09T00:00:00Z',
               }),
             ],
+          );
+          // Exercise the original missing-noop-observation guard first; the
+          // new selector witness is valid and cannot mask this counterexample.
+          await tx.query(
+            'SET CONSTRAINTS whaleu_ratings.rating_subscription_request_causal IMMEDIATE',
           );
         }),
         /noop/,

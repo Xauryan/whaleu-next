@@ -1,3 +1,4 @@
+import { smokeRatingsScoped } from './smoke-ratings-scoped.mjs';
 import { smokeMessaging } from './smoke-messaging.mjs';
 import { smokeRatingCategoryManagement } from './smoke-rating-category-management.mjs';
 import { smokeRatingOwnerEditing } from './smoke-rating-owner-editing.mjs';
@@ -1999,6 +2000,7 @@ await smokeRatingsR3R({ app, dist, flush: flushTrading });
 await smokeRatingOwnerManagement({ app, dist, flush: flushTrading });
 await smokeRatingOwnerEditing({ app, dist, flush: flushTrading });
 await smokeRatingCategoryManagement({ app, dist, flush: flushTrading });
+await smokeRatingsScoped({ app, dist });
 await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeErrandAdminMutations({ app, dist, flush: flushTrading });
 await smokeErrandAdminNotices({ app, dist, flush: flushTrading });

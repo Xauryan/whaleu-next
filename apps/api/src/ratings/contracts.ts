@@ -33,6 +33,8 @@ const outputText = (maximum: number, required = true) =>
     const r = ratingText(maximum, required).safeParse(s);
     return r.success && r.data === s;
   });
+/** Strict text for immutable scoped intents and output schemas. */
+export const ratingCanonicalText = outputText;
 const pageInput = {
   limit: z
     .union([

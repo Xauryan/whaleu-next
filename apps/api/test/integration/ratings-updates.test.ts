@@ -804,7 +804,10 @@ test('rating direct updates: real obligations, atomic local materialization, own
               sql.includes('wanted AS')
             )
               counts.reviewTimes = (values?.[0] as unknown[]).length;
-            if (sql.includes('pg_try_advisory_xact_lock(1464356102,128)'))
+            if (
+              sql ===
+              'LOCK TABLE whaleu_safety.discovery_count_epochs IN SHARE MODE NOWAIT'
+            )
               counts.safetyFences++;
           } else if (sql.includes('SELECT r.*,r.ordinal::text'))
             bodies.push(String(values?.[0]));

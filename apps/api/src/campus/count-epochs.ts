@@ -14,24 +14,15 @@ export const campusCountProofOwner: CountProofOwner = {
     ).rows;
   },
   async fence(tx) {
-    // This gate is exclusive only during the final no-more-source-waits phase.
-    // Saturated writers wait here in SHARED mode and retry the slot scan.
-    if (
-      (
-        await tx.query<{ locked: boolean }>(
-          'SELECT pg_try_advisory_xact_lock(1464356103,128) AS locked',
-        )
-      ).rows[0]?.locked !== true
-    )
-      return false;
-    // ORDER BY is inside the subquery so lock calls use ascending slot order.
-    // Reading generated slots never hides missing metadata; capture rejects it.
-    const rows = (
-      await tx.query<{ locked: boolean }>(
-        `SELECT pg_try_advisory_xact_lock_shared(1464356103,slot) AS locked
-       FROM (SELECT generate_series(0,127) AS slot ORDER BY slot) AS slots`,
-      )
-    ).rows;
-    return rows.length === 128 && rows.every((row) => row.locked === true);
+    // Compatible readers share one final fence. Every admitted BEFORE STATEMENT
+    // writer (including zero-row writes) must UPDATE this epoch table before
+    // touching business rows, so its RowExclusiveLock conflicts in either order.
+    // Do not also take shared advisory slots: a writer could exhaust them, pass
+    // the now-unowned overflow gate, and raise 55P03 instead of waiting here.
+    // Keep the original writer/overflow protocol and fixed-vector validation.
+    await tx.query(
+      'LOCK TABLE whaleu_campus.discovery_count_epochs IN SHARE MODE NOWAIT',
+    );
+    return true;
   },
 };

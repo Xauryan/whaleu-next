@@ -1,3 +1,4 @@
+import { isRatingScopedIntent } from './pending';
 import { ratingDeletionPath } from './deletion-contract';
 import { decodeRatingSubscriptionNoticeTarget } from './subscription-updates-contract';
 import { readRatingLikeStates, type RatingLikeStates } from './like-controller';
@@ -866,6 +867,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const intent = decodeRatingCommandIntent(make(id));
         if (
+          isRatingScopedIntent(intent) ||
           isRatingTargetOwnerEditingIntent(intent) ||
           isRatingTargetOwnerDeletionIntent(intent) ||
           isRatingCategoryCreationIntent(intent) ||
@@ -903,7 +905,8 @@ export class RatingThreadController extends CommunityController<RatingThreadView
       invalidRating();
     const result = settleRatingCommand(this.runtime, this.pending, raw);
     this.pending = this.runtime.pendingRatings!.load(this.accountId()!);
-    const success = result.outcome !== 'rejected';
+    const success =
+      result.outcome !== 'rejected' && result.outcome !== 'closed';
     this.update({
       frozen: false,
       recoveryOperation: '',

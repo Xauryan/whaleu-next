@@ -336,7 +336,7 @@ export class RatingTargetOwnerEditingController extends CommunityController<Rati
       recoveryOperation: '',
       needsRefresh: true,
       receiptStatus:
-        receipt.outcome === 'rejected'
+        receipt.outcome === 'rejected' || receipt.outcome === 'closed'
           ? ratingError(
               new ClientError('business', 'Rejected', {
                 serverCode: receipt.code,

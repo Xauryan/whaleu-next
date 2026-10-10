@@ -1,3 +1,4 @@
+import { RatingScopedNoticeRecipientFacade } from './scoped-recipient.facade.js';
 import { RatingsSubscriptionUpdatesSourceFacade } from './subscription-facade.js';
 import { RatingSubscriptionUpdatesProjectionFacade } from './subscription-projection.js';
 import { ProfileModule } from '../../profile/profile.module.js';
@@ -9,6 +10,7 @@ import { RatingUpdatesProjectionFacade } from './projection.js';
 @Module({
   imports: [RatingsReadModule, ProfileModule, SafetyPolicyModule],
   providers: [
+    RatingScopedNoticeRecipientFacade,
     RatingsUpdatesSourceFacade,
     RatingUpdatesProjectionFacade,
     RatingsSubscriptionUpdatesSourceFacade,

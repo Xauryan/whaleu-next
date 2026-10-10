@@ -1,4 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { RatingScopedContentReviewFacade } from './rating-scoped-content-review.facade.js';
+import type {
+  AcceptedRatingScopedApproval,
+  RatingScopedTargetDefinitionDescriptor,
+  RatingScopedTargetEnvelope,
+  RatingScopedContentEnvelope,
+} from './rating-scoped-contracts.js';
+import type { AnyRatingTargetDefinitionDescriptor } from './rating-target-definition-contracts.js';
 import { z } from 'zod';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
@@ -38,7 +46,10 @@ import type {
   RatingApprovalRow,
   RatingTargetDefinitionBinding,
 } from './rating-approval-validation.js';
-import { canonicalRatingTargetDefinition } from './rating-target-definition-contracts.js';
+import {
+  canonicalAnyRatingTargetDefinition,
+  canonicalRatingTargetDefinition,
+} from './rating-target-definition-contracts.js';
 import type { RatingTargetDefinitionDescriptor } from './rating-target-definition-contracts.js';
 type Fact =
   | { type: 'epoch'; fingerprint: string }
@@ -258,6 +269,15 @@ const proof: RequiredTransactionProof<Fact> = {
 /** Typed sidecar under canonical Review. No query reads rating business tables. */
 @Injectable()
 export class RatingContentReviewFacade {
+  private readonly scoped = new RatingScopedContentReviewFacade();
+
+  /** Explicit mixed-protocol batch; no legacy parser or binding is relabelled. */
+  async currentDefinitionBatch(
+    inputs: readonly AnyRatingTargetDefinitionDescriptor[],
+    tx: PoolClient,
+  ) {
+    return this.scoped.currentTargetDefinitions(inputs, tx);
+  }
   /** Explicit, private lifetime for the complete Ratings-owned source scan.
    * No batch registers per-target facts. The two monotonic owner epochs cover
    * every binding/decision/head/event/policy change, including authoritative
@@ -378,6 +398,56 @@ export class RatingContentReviewFacade {
   ): Promise<readonly ('allow' | 'deny')[]> {
     const context = targetEligibilityContext(handle, tx);
     if (!batch.length) return Object.freeze([]);
+    // A complete legacy-compatible source pool may contain a v5 definition.
+    // Dispatch its real binding protocol without coercing origin into view.
+    if (
+      batch.some(
+        (input) =>
+          (input.definition.envelope as { version: number }).version === 5,
+      )
+    ) {
+      const definitions = batch.map((input) => {
+        let definition: AnyRatingTargetDefinitionDescriptor;
+        try {
+          definition = canonicalAnyRatingTargetDefinition(input.definition);
+        } catch {
+          throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+        }
+        const envelope = definition.envelope;
+        const regionId =
+          envelope.version === 5
+            ? envelope.targetOrigin.regionId
+            : envelope.scope.regionId;
+        if (
+          !canonicalEqual(envelope, input.envelope) ||
+          !canonicalEqual(envelope, input.row.envelope) ||
+          !canonicalEqual(definition, input.row.definition) ||
+          definition.targetId !== input.id ||
+          input.row.id !== input.id ||
+          input.row.category_id !== envelope.categoryId ||
+          input.row.creator_id !== envelope.accountId ||
+          input.row.region_id !== regionId ||
+          input.row.name !== envelope.name ||
+          input.row.description !== envelope.description
+        )
+          throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+        return definition;
+      });
+      const results = await this.scoped.currentTargetDefinitions(
+        definitions,
+        tx,
+      );
+      targetEligibilityContext(handle, tx);
+      return Object.freeze(
+        results.map((result) => {
+          if (result.kind === 'unavailable')
+            throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+          context.validatedCount += 1;
+          if (result.kind === 'allow') context.allowedCount += 1;
+          return result.kind;
+        }),
+      );
+    }
     const inputs = batch.map((input) => {
       let definition: RatingTargetDefinitionDescriptor;
       try {
@@ -670,7 +740,24 @@ export class RatingContentReviewFacade {
   async currentTargetDefinition(
     descriptor: RatingTargetDefinitionDescriptor,
     tx: PoolClient,
-  ): Promise<Decision<AcceptedRatingApproval>> {
+  ): Promise<Decision<AcceptedRatingApproval>>;
+  async currentTargetDefinition(
+    descriptor: RatingScopedTargetDefinitionDescriptor,
+    tx: PoolClient,
+  ): Promise<Decision<AcceptedRatingScopedApproval>>;
+  async currentTargetDefinition(
+    descriptor: AnyRatingTargetDefinitionDescriptor,
+    tx: PoolClient,
+  ): Promise<Decision<AcceptedRatingApproval | AcceptedRatingScopedApproval>>;
+  async currentTargetDefinition(
+    descriptor: AnyRatingTargetDefinitionDescriptor,
+    tx: PoolClient,
+  ): Promise<Decision<AcceptedRatingApproval | AcceptedRatingScopedApproval>> {
+    if (descriptor?.envelope?.version === 5)
+      return this.scoped.currentTargetDefinition(
+        descriptor as RatingScopedTargetDefinitionDescriptor,
+        tx,
+      );
     await this.navigation(tx);
     let definition: RatingTargetDefinitionDescriptor;
     try {
@@ -766,7 +853,52 @@ export class RatingContentReviewFacade {
     id: string,
     envelope: RatingContentEnvelope,
     tx: PoolClient,
-  ): Promise<Decision<AcceptedRatingApproval>> {
+  ): Promise<Decision<AcceptedRatingApproval>>;
+  async current(
+    kind: RatingContentKind,
+    id: string,
+    envelope: RatingScopedTargetEnvelope | RatingScopedContentEnvelope,
+    tx: PoolClient,
+  ): Promise<Decision<AcceptedRatingScopedApproval>>;
+  async current(
+    kind: RatingContentKind,
+    id: string,
+    envelope:
+      | RatingContentEnvelope
+      | RatingScopedTargetEnvelope
+      | RatingScopedContentEnvelope,
+    tx: PoolClient,
+  ): Promise<Decision<AcceptedRatingApproval | AcceptedRatingScopedApproval>>;
+  async current(
+    kind: RatingContentKind,
+    id: string,
+    envelope:
+      | RatingContentEnvelope
+      | RatingScopedTargetEnvelope
+      | RatingScopedContentEnvelope,
+    tx: PoolClient,
+  ): Promise<Decision<AcceptedRatingApproval | AcceptedRatingScopedApproval>> {
+    if (envelope?.version === 5) {
+      if (
+        envelope.purpose === 'publish_rating_target_scoped' ||
+        envelope.purpose === 'edit_rating_target_scoped'
+      ) {
+        if (kind !== 'target' || envelope.targetId !== id)
+          return { kind: 'unavailable' };
+        return this.scoped.currentTargetDefinition(
+          {
+            targetId: id,
+            contentVersion: envelope.contentVersion,
+            definitionRevision: envelope.definitionRevision,
+            appliedTargetRevision: envelope.targetRevision,
+            envelope,
+          },
+          tx,
+        );
+      }
+      if (kind === 'target') return { kind: 'unavailable' };
+      return this.scoped.currentContent(kind, id, envelope, tx);
+    }
     await this.navigation(tx);
     let canonical: RatingContentEnvelope;
     try {

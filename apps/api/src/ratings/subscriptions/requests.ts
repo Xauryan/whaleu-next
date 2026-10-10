@@ -1,3 +1,6 @@
+import { RatingLegacyBridgeService } from '../scoped/legacy-bridge.service.js';
+import type { LegacyRatingBridge } from '../scoped/legacy-bridge.service.js';
+import { requireLegacyRatingFreshScope } from '../scoped/legacy-boundary.js';
 import { assertRatingCommandClaim } from '../management/requests.js';
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
@@ -19,6 +22,8 @@ import type {
 @Injectable()
 export class RatingSubscriptionRequests {
   constructor(
+    @Inject(RatingLegacyBridgeService)
+    private readonly bridges: RatingLegacyBridgeService,
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(RatingsAccessService) private readonly access: RatingsAccessService,
   ) {}
@@ -68,10 +73,17 @@ export class RatingSubscriptionRequests {
           await this.access.recheck(token, tx);
           return ratingReceiptSchema.parse(row.receipt);
         }
+        await requireLegacyRatingFreshScope(
+          (intent as { regionId?: string | null }).regionId ?? null,
+          tx,
+          operation,
+        );
         const checkpoint = checkpointTransactionDeadlines(tx);
         await tx.query('SAVEPOINT rating_command');
         let receipt: RatingReceipt;
+        let bridge: LegacyRatingBridge | null = null;
         try {
+          bridge = await this.bridges.begin(actor, requestId, intent, tx);
           receipt = ratingReceiptSchema.parse({
             requestId,
             operation,
@@ -97,6 +109,8 @@ export class RatingSubscriptionRequests {
           'UPDATE whaleu_ratings.requests SET receipt=$3::jsonb WHERE account_id=$1 AND request_id=$2',
           [actor, requestId, JSON.stringify(receipt)],
         );
+        if (receipt.outcome !== 'rejected')
+          await this.bridges.finish(bridge, tx);
         await this.access.recheck(token, tx);
         return receipt;
       },

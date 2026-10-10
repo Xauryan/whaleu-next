@@ -1,4 +1,4 @@
-<view class="screen">
+<view class="screen"><navigator class="link" url="/pages/rating-scoped/rating-scoped?mode=catalog&amp;scope=global">校园范围评分：明确选择校园 →</navigator>
   <view class="eyebrow">WHALEU · 本地评分更新</view><view class="title">评分更新</view>
   <view class="chips"><button data-category="reply" bindtap="onCategory" class="{{category === 'reply' ? 'active' : 'secondary'}}">回复</button><button data-category="like" bindtap="onCategory" class="{{category === 'like' ? 'active' : 'secondary'}}">赞</button><button data-category="subscription" bindtap="onCategory" class="{{category === 'subscription' ? 'active' : 'secondary'}}">订阅</button></view>
   <view class="notice">按分类展示本账号已生成的直接评分回复、赞通知或订阅目标的新评价与回复。直接回复和订阅更新独立保留、独立已读。同一个人对同一条内容的赞只通知一次；取消后再赞不重置已读。未接入微信外部推送，历史通知覆盖不作推断。</view>

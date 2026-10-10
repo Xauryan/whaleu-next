@@ -71,6 +71,20 @@ test(
           [namespace],
         )
       ).rows[0]!.n;
+    const epochShareLocks = async (pid: number) =>
+      (
+        await pool.query<{ n: number }>(
+          `SELECT count(*)::integer n FROM pg_locks WHERE pid=$1
+      AND locktype='relation' AND mode='ShareLock' AND relation=ANY($2::regclass[])`,
+          [
+            pid,
+            [
+              'whaleu_safety.discovery_count_epochs',
+              'whaleu_campus.discovery_count_epochs',
+            ],
+          ],
+        )
+      ).rows[0]!.n;
     try {
       suite = await pool.connect();
       locked = (
@@ -260,34 +274,47 @@ test(
       await t.test(
         'partial owner fence failure releases acquired earlier-owner locks',
         async () => {
-          const writer = await pool.connect(),
-            reader = await pool.connect();
-          try {
-            await writer.query('BEGIN');
-            await writer.query(
-              'UPDATE whaleu_safety.account_heads SET actions_allowed=actions_allowed WHERE false',
-            );
-            await reader.query('BEGIN ISOLATION LEVEL READ COMMITTED');
-            startTransactionDeadlines(reader);
-            const proof = await captureCountProof(reader);
-            assert.ok(proof);
-            let invalidated = false;
-            registerOptionalTransactionProof(reader, {
-              validate: () => proof.validate(reader),
-              invalidate: () => {
-                invalidated = true;
-              },
-            });
-            await checkTransactionDeadlines(reader);
-            assert.equal(invalidated, true);
-            for (const owner of owners)
-              assert.equal(await slotLocks(reader, namespaces[owner]), 0);
-          } finally {
-            clearTransactionDeadlines(reader);
-            await reader.query('ROLLBACK');
-            await writer.query('ROLLBACK');
-            reader.release();
-            writer.release();
+          for (const source of [
+            'whaleu_safety.account_heads',
+            'whaleu_campus.operating_regions',
+          ]) {
+            const writer = await pool.connect(),
+              reader = await pool.connect();
+            try {
+              await writer.query('BEGIN');
+              await writer.query(`DELETE FROM ${source} WHERE false`);
+              await reader.query('BEGIN ISOLATION LEVEL READ COMMITTED');
+              startTransactionDeadlines(reader);
+              const proof = await captureCountProof(reader);
+              assert.ok(proof);
+              let invalidated = false;
+              registerOptionalTransactionProof(reader, {
+                validate: () => proof.validate(reader),
+                invalidate: () => {
+                  invalidated = true;
+                },
+              });
+              await checkTransactionDeadlines(reader);
+              assert.equal(invalidated, true);
+              for (const owner of owners)
+                assert.equal(await slotLocks(reader, namespaces[owner]), 0);
+              const pid = (
+                await reader.query<{ pid: number }>(
+                  'SELECT pg_backend_pid() pid',
+                )
+              ).rows[0]!.pid;
+              assert.equal(
+                await epochShareLocks(pid),
+                0,
+                'Campus failure must also release the earlier Safety relation fence',
+              );
+            } finally {
+              clearTransactionDeadlines(reader);
+              await reader.query('ROLLBACK');
+              await writer.query('ROLLBACK');
+              reader.release();
+              writer.release();
+            }
           }
         },
       );
@@ -310,7 +337,19 @@ test(
                   for (const owner of owners)
                     assert.equal(
                       await slotLocks(client, namespaces[owner]),
-                      129,
+                      owner === 'community' ? 129 : 0,
+                    );
+                  for (const owner of ['safety', 'campus'])
+                    assert.equal(
+                      (
+                        await client.query<{ held: boolean }>(
+                          `SELECT EXISTS(SELECT 1 FROM pg_locks
+                         WHERE pid=pg_backend_pid() AND locktype='relation'
+                           AND relation=$1::regclass AND mode='ShareLock' AND granted) held`,
+                          [`whaleu_${owner}.discovery_count_epochs`],
+                        )
+                      ).rows[0]!.held,
+                      true,
                     );
                   mutation = writer.query(
                     "INSERT INTO whaleu_community.spaces VALUES($1,'global',NULL,'fenced',true)",
@@ -545,6 +584,11 @@ test(
                 countLocks,
                 0,
                 'No final count fence before deferred constraint finishes',
+              );
+              assert.equal(
+                await epochShareLocks(pid),
+                0,
+                'No Safety or Campus epoch SHARE fence before deferred constraint finishes',
               );
               await pool.query(
                 'SELECT pg_sleep_until(to_timestamp($1::double precision/1000))',

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { canonicalRatingScopedTargetDefinition } from './rating-scoped-contracts.js';
 import { canonicalEqual } from './contracts.js';
 import { canonicalRatingEnvelope } from './rating-contracts.js';
 import type { RatingContentEnvelope } from './rating-contracts.js';
@@ -51,4 +52,22 @@ export function canonicalRatingTargetDefinition(
   )
     throw new Error('Invalid rating target definition purpose');
   return Object.freeze({ ...descriptor, envelope });
+}
+
+/** The public v1 descriptor above deliberately stays unchanged. Shared current
+ * readers use this discriminated envelope union rather than parsing Review v5
+ * through the legacy scope/initial-binding protocol. */
+export type AnyRatingTargetDefinitionDescriptor =
+  | RatingTargetDefinitionDescriptor
+  | import('./rating-scoped-contracts.js').RatingScopedTargetDefinitionDescriptor;
+export function canonicalAnyRatingTargetDefinition(
+  value: unknown,
+): AnyRatingTargetDefinitionDescriptor {
+  const candidate = descriptorSchema.parse(value);
+  return typeof candidate.envelope === 'object' &&
+    candidate.envelope !== null &&
+    'version' in candidate.envelope &&
+    candidate.envelope.version === 5
+    ? canonicalRatingScopedTargetDefinition(candidate)
+    : canonicalRatingTargetDefinition(candidate);
 }

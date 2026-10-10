@@ -485,7 +485,7 @@ export class RatingCategoryManagementController extends CommunityController<Rati
       recoveryOperation: '',
       needsRefresh: true,
       receiptStatus:
-        receipt.outcome === 'rejected'
+        receipt.outcome === 'rejected' || receipt.outcome === 'closed'
           ? ratingCategoryError(
               new ClientError('business', 'Rejected', {
                 serverCode: receipt.code,

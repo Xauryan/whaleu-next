@@ -1,3 +1,17 @@
+import { RatingLegacyBridgeService } from './scoped/legacy-bridge.service.js';
+import {
+  RatingScopedController,
+  RatingScopedNoticesController,
+} from './scoped/controller.js';
+import { RatingScopedCommands } from './scoped/commands.service.js';
+import { RatingScopedReadService } from './scoped/read.service.js';
+import { RatingScopedRandomService } from './scoped/random.service.js';
+import { RatingScopedNoticeService } from './scoped/notice.service.js';
+import { RatingScopedReleaseRepository } from './scoped/release.repository.js';
+import { RatingUpdatesRepository } from '../notifications/ratings/repository.js';
+import { RatingSubscriptionUpdatesRepository } from '../notifications/ratings/subscription-repository.js';
+import { RatingUpdatesCursors } from '../notifications/ratings/cursor.js';
+import { RatingSubscriptionUpdatesCursors } from '../notifications/ratings/subscription-cursor.js';
 import { RatingCategoryManagementController } from './category-management/controller.js';
 import { RatingCategoryManagementService } from './category-management/service.js';
 import { RatingTargetEditController } from './management/target-edit/controller.js';
@@ -67,6 +81,8 @@ import { RatingsCursors } from './cursor.js';
     RatingRequestThrottlingModule,
   ],
   controllers: [
+    RatingScopedController,
+    RatingScopedNoticesController,
     RatingCategoryManagementController,
     RatingTargetEditController,
     RatingTargetOwnerDeletionController,
@@ -79,6 +95,16 @@ import { RatingsCursors } from './cursor.js';
     RatingLikesController,
   ],
   providers: [
+    RatingLegacyBridgeService,
+    RatingScopedCommands,
+    RatingScopedReadService,
+    RatingScopedRandomService,
+    RatingScopedNoticeService,
+    RatingScopedReleaseRepository,
+    RatingUpdatesRepository,
+    RatingSubscriptionUpdatesRepository,
+    RatingUpdatesCursors,
+    RatingSubscriptionUpdatesCursors,
     RatingCategoryManagementService,
     RatingTargetEditService,
     RatingTargetEditRepository,

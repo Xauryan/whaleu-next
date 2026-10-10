@@ -1,3 +1,5 @@
+import { requireLegacyRatingFreshScope } from '../scoped/legacy-boundary.js';
+import { RatingLegacyBridgeService } from '../scoped/legacy-bridge.service.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -63,6 +65,8 @@ type Rejection = Extract<
 @Injectable()
 export class RatingCategoryManagementService {
   constructor(
+    @Inject(RatingLegacyBridgeService)
+    private readonly bridges: RatingLegacyBridgeService,
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(RatingsAccessService) private readonly access: RatingsAccessService,
     @Inject(CampusRatingCategoryScopeFacade)
@@ -220,6 +224,12 @@ export class RatingCategoryManagementService {
       throw new ApplicationError('RATING_UNAVAILABLE');
     const heads: Head[] = [];
     for (const selected of wanted) {
+      if (intent)
+        await requireLegacyRatingFreshScope(
+          selected.regionId,
+          tx,
+          'create_categories',
+        );
       const row = (
         await tx.query<{
           id: string;
@@ -577,6 +587,12 @@ export class RatingCategoryManagementService {
           await this.access.recheck(token, tx);
           return receipt;
         }
+        const bridge = await this.bridges.begin(
+          actor,
+          intent.clientRequestId,
+          intent,
+          tx,
+        );
         const result = (
           await tx.query<{ receipt: unknown }>(
             'SELECT whaleu_ratings.category_command_publish($1,$2,$3,$4) receipt',
@@ -591,6 +607,7 @@ export class RatingCategoryManagementService {
         const receipt = ratingCategoryReceiptSchema.parse(result?.receipt);
         if (receipt.outcome !== 'applied')
           throw new ApplicationError('RATING_UNAVAILABLE');
+        await this.bridges.finish(bridge, tx);
         await retainCategoryHeads(
           p.catalogs.map((row) => ({
             regionId: row.regionId,

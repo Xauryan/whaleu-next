@@ -9,6 +9,7 @@
     <button bindtap="onRecover" disabled="{{busy}}">查询原回执</button>
     <button bindtap="onRetry" disabled="{{busy}}">重试原请求</button>
     <navigator class="link" url="/pages/rating-category-create/rating-category-create">分类创建申请恢复与撤销 →</navigator>
+    <navigator class="link" url="/pages/rating-scoped/rating-scoped?mode=recovery">校园范围创建与编辑恢复、取消 →</navigator>
   </view>
   <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">{{needsRefresh ? '刷新后重新确认' : '重新加载'}}</button>
   <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>

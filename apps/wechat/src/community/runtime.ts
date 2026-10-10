@@ -1,4 +1,8 @@
 import {
+  HttpRatingScopedGateway,
+  type RatingScopedGateway,
+} from '../ratings/scoped-gateway';
+import {
   createMessagingRuntime,
   type MessagingRuntime,
 } from '../messaging/runtime';
@@ -122,6 +126,7 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly ratingScoped?: RatingScopedGateway;
   readonly messaging?: MessagingRuntime;
   readonly ratingCatalogChanges?: RatingCatalogChanges;
   readonly ratingCategoryManagement?: RatingCategoryManagementGateway;
@@ -189,6 +194,14 @@ export function createCommunityRuntime(
   const browsingScopeChanges = new PrivateViewLifecycle();
   const runtime: CommunityRuntime = {
     sessions: identity.sessions,
+    ...(identity.api
+      ? {
+          ratingScoped: new HttpRatingScopedGateway(
+            identity.api,
+            identity.sessions,
+          ),
+        }
+      : {}),
     ratingTargetChanges: new RatingTargetChanges(),
     ratingCatalogChanges: new RatingCatalogChanges(),
     ...(identity.api ? { ratings: new HttpRatingsGateway(identity.api) } : {}),

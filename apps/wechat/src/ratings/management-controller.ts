@@ -250,7 +250,7 @@ export class RatingManagementController extends CommunityController<RatingManage
       canCancelCreation: false,
       cancelCreationConfirmation: false,
       receiptStatus:
-        receipt.outcome === 'rejected'
+        receipt.outcome === 'rejected' || receipt.outcome === 'closed'
           ? ratingError(
               new ClientError('business', 'Rejected', {
                 serverCode: receipt.code,

@@ -32,6 +32,10 @@ const conditions = {
     message: 'Refresh the conversation before marking it read',
   },
 
+  RATING_SCOPED_CONTEXT_CHANGED: {
+    status: 409,
+    message: 'Rating scoped context changed.',
+  },
   RATING_DELETION_CONTEXT_CHANGED: {
     status: 409,
     message: 'Deletion context changed; refresh and confirm again',

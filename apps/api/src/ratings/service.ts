@@ -9,6 +9,7 @@ import { DatabaseService } from '../database/database.js';
 import { ApplicationError } from '../http/application-error.js';
 import { RatingContentReviewFacade } from '../community/content-review/rating-content-review.facade.js';
 import { canonicalRatingEnvelope } from '../community/content-review/rating-contracts.js';
+import { canonicalRatingScopedEnvelope } from '../community/content-review/rating-scoped-contracts.js';
 import { RatingSafetyFacade } from '../safety/rating.facade.js';
 import { AuthorDisplayService } from '../profile/author-display.service.js';
 import { RatingsAccessService } from './access.js';
@@ -306,10 +307,20 @@ export class RatingsService {
     tx: PoolClient,
     purpose: 'rating_list' | 'rating_direct',
   ): Promise<RatingComment | null> {
+    const contentEnvelope =
+      (row.envelope as { version?: number })?.version === 5
+        ? canonicalRatingScopedEnvelope(row.envelope)
+        : canonicalRatingEnvelope(row.envelope);
+    if (
+      contentEnvelope.version === 5 &&
+      contentEnvelope.purpose !== 'publish_rating_comment_scoped' &&
+      contentEnvelope.purpose !== 'publish_rating_reply_scoped'
+    )
+      throw new ApplicationError('RATING_UNAVAILABLE');
     const decision = await this.review.current(
       'comment',
       row.id,
-      canonicalRatingEnvelope(row.envelope),
+      contentEnvelope,
       tx,
     );
     if (decision.kind === 'deny') return null;

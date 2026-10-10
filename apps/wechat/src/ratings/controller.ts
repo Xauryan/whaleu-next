@@ -1,3 +1,4 @@
+import { isRatingScopedIntent } from './pending';
 import { ratingCategoryManagementPath } from './category-management-contract';
 import { ratingTargetOwnerEditingPath } from './target-owner-editing-contract';
 import { ratingTargetOwnerDeletionPath } from './target-owner-deletion-contract';
@@ -1037,6 +1038,7 @@ export class RatingController extends CommunityController<RatingView> {
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const intent = decodeRatingCommandIntent(make(id));
         if (
+          isRatingScopedIntent(intent) ||
           isRatingAdminDeletionIntent(intent) ||
           isRatingCategoryCreationIntent(intent) ||
           isRatingTargetCreationIntent(intent) ||
@@ -1148,7 +1150,8 @@ export class RatingController extends CommunityController<RatingView> {
       invalidRating();
     const receipt = settleRatingCommand(this.runtime, this.pending, raw);
     this.pending = this.runtime.pendingRatings!.load(this.accountId()!);
-    const success = receipt.outcome !== 'rejected';
+    const success =
+      receipt.outcome !== 'rejected' && receipt.outcome !== 'closed';
     this.update({
       frozen: false,
       recoveryOperation: '',
@@ -1168,7 +1171,9 @@ export class RatingController extends CommunityController<RatingView> {
           ),
       confirmedTargetId:
         success && receipt.operation !== 'create_categories'
-          ? receipt.targetId
+          ? 'result' in receipt
+            ? receipt.result.targetId
+            : receipt.targetId
           : '',
       needsRefresh: !success,
       status: '原请求已确认',

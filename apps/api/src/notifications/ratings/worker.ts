@@ -208,11 +208,13 @@ export class RatingUpdatesWorker {
                       recipient as RatingLikeNoticeRecipient,
                       event.actorAccountId,
                       tx,
+                      event.id,
                     )
                   : await this.projection.eligible(
                       event.target,
                       recipient as RatingNoticeRecipient,
                       tx,
+                      event.id,
                     );
               if (decision.outcome === 'eligible' && event.kind === 'like') {
                 ratingLikeNoticePreviewSchema.parse(decision.preview);

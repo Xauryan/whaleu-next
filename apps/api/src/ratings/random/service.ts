@@ -4,7 +4,7 @@ import { DatabaseService } from '../../database/database.js';
 import { ApplicationError } from '../../http/application-error.js';
 import { CampusRatingRandomScopeFacade } from '../../campus/rating-random-scope.facade.js';
 import { RatingContentReviewFacade } from '../../community/content-review/rating-content-review.facade.js';
-import type { RatingTargetDefinitionDescriptor } from '../../community/content-review/rating-target-definition-contracts.js';
+import type { AnyRatingTargetDefinitionDescriptor } from '../../community/content-review/rating-target-definition-contracts.js';
 import { RatingSafetyFacade } from '../../safety/rating.facade.js';
 import { RatingsAccessService } from '../access.js';
 import { RatingsRepository, type RatingCatalog } from '../repository.js';
@@ -68,13 +68,16 @@ export class RatingRandomService {
             {
               id: string;
               revision: string;
-              definition: RatingTargetDefinitionDescriptor;
+              definition: AnyRatingTargetDefinitionDescriptor;
               catalog: RatingCatalog;
             }
           >();
           const observed = new Map<
             string,
-            { revision: string; definition: RatingTargetDefinitionDescriptor }
+            {
+              revision: string;
+              definition: AnyRatingTargetDefinitionDescriptor;
+            }
           >();
           while (true) {
             const batch = await this.pool.next(pool, tx);

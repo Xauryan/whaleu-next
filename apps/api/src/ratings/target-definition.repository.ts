@@ -1,7 +1,7 @@
 import { ApplicationError } from '../http/application-error.js';
 import {
-  canonicalRatingTargetDefinition,
-  type RatingTargetDefinitionDescriptor,
+  canonicalAnyRatingTargetDefinition,
+  type AnyRatingTargetDefinitionDescriptor,
 } from '../community/content-review/rating-target-definition-contracts.js';
 import { ratingPublicIdSchema, ratingTargetSchema } from './contracts.js';
 
@@ -39,8 +39,8 @@ export interface CurrentTargetRead extends RatingTargetIdentityRow {
 export interface CurrentTargetRow extends RatingTargetIdentityRow {
   name: string;
   description: string;
-  envelope: RatingTargetDefinitionDescriptor['envelope'];
-  definition: RatingTargetDefinitionDescriptor;
+  envelope: AnyRatingTargetDefinitionDescriptor['envelope'];
+  definition: AnyRatingTargetDefinitionDescriptor;
 }
 
 /** The aliases t/h/d/l are private Ratings-owner inputs in both bounded reads. */
@@ -84,9 +84,9 @@ export function currentRatingTargetRow(
     }).success
   )
     throw new ApplicationError('RATING_UNAVAILABLE');
-  let definition: RatingTargetDefinitionDescriptor;
+  let definition: AnyRatingTargetDefinitionDescriptor;
   try {
-    definition = canonicalRatingTargetDefinition({
+    definition = canonicalAnyRatingTargetDefinition({
       targetId: row.id,
       contentVersion: row.content_version,
       definitionRevision: row.definition_revision,
@@ -99,7 +99,9 @@ export function currentRatingTargetRow(
   if (
     definition.envelope.accountId !== row.creator_id ||
     definition.envelope.categoryId !== row.category_id ||
-    definition.envelope.scope.regionId !== row.region_id ||
+    (definition.envelope.version === 5
+      ? definition.envelope.targetOrigin.regionId
+      : definition.envelope.scope.regionId) !== row.region_id ||
     definition.envelope.name !== row.name ||
     definition.envelope.description !== row.description
   )
@@ -119,8 +121,8 @@ export function currentRatingTargetRow(
 }
 
 export function sameRatingTargetDefinition(
-  left: RatingTargetDefinitionDescriptor,
-  right: RatingTargetDefinitionDescriptor,
+  left: AnyRatingTargetDefinitionDescriptor,
+  right: AnyRatingTargetDefinitionDescriptor,
 ): boolean {
   return (
     left.targetId === right.targetId &&
