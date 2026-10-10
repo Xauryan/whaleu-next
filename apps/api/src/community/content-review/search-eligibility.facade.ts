@@ -2,7 +2,26 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
 import { CampusContentScopeFacade } from '../../campus/content-scope.facade.js';
-import { transactionReadEpoch } from '../../database/transaction-deadlines.js';
+import {
+  transactionReadEpoch,
+  registerTransactionDeadline,
+} from '../../database/transaction-deadlines.js';
+import { SnapshotReadBudget } from './count-snapshot.repository.js';
+import {
+  MediaContentSnapshotFacade,
+  UnavailableMediaContentSnapshotFacade,
+  mediaContentKey,
+} from '../../media/content-snapshot.facade.js';
+import type { MediaContentFact } from '../../media/content-snapshot.facade.js';
+import {
+  captureSemanticMediaProof,
+  requireSemanticMediaProof,
+} from '../search/semantic/eligibility-proof.js';
+import {
+  semanticMediaChainSchema,
+  semanticMediaNode,
+} from '../search/semantic/media-certificate.js';
+import type { SemanticMediaChain } from '../search/semantic/media-certificate.js';
 import { ApplicationError } from '../../http/application-error.js';
 import { categorySchema } from '../contracts.js';
 import type { ContentKind } from './contracts.js';
@@ -44,19 +63,36 @@ const certificateSchema = z.strictObject({
   certificate_version: z.literal(1),
   valid_until: z.date().nullable(),
 });
+export const certificateV2Schema = certificateSchema
+  .extend({
+    certificate_version: z.literal(2),
+    media_chain: semanticMediaChainSchema,
+  })
+  .superRefine((certificate, ctx) => {
+    if (
+      certificate.media_chain.length !== certificate.source_revision.length ||
+      certificate.media_chain.some(
+        (node, index) =>
+          node.kind !== certificate.source_revision[index]?.[0] ||
+          node.id !== certificate.source_revision[index]?.[1],
+      )
+    )
+      ctx.addIssue({ code: 'custom', message: 'Incomplete Media ancestry' });
+  });
+const anyCertificateSchema = z.union([certificateSchema, certificateV2Schema]);
 /** Persistent evidence contains neither body nor approval envelope. Its complete
  * ordered revision chain binds every ancestor, not merely the leaf lifecycle. */
 export type SearchContentCertificate = Readonly<
-  z.infer<typeof certificateSchema>
+  z.infer<typeof anyCertificateSchema>
 >;
 export type SearchContentDecision = 'allow' | 'deny' | 'unknown';
 interface Conditional {
   decision: SearchContentDecision;
   validUntil: number | null;
+  eligibilityRevision?: unknown;
 }
 const minimum = (a: number | null, b: number | null): number | null =>
   a === null ? b : b === null ? a : Math.min(a, b);
-const unknown = (): Conditional => ({ decision: 'unknown', validUntil: null });
 
 export interface SearchContentNode extends ApprovalMetadata {
   kind: ContentKind;
@@ -73,13 +109,19 @@ export interface SearchContentNode extends ApprovalMetadata {
   decision_id: string | null;
   event_id: string | null;
   stored_certificate?: unknown;
+  stored_certificate_v2?: unknown;
+  expected_images?: unknown;
+  images?: readonly { assetId: string; digest: string; position: number }[];
+  media_fact?: MediaContentFact;
   exact_time_valid: boolean;
+  read_at?: Date;
 }
 interface StructuralRow extends SearchCandidate {
   space_active: boolean | null;
   space_kind: string | null;
   region_id: string | null;
   certificate: unknown;
+  certificate_v2?: unknown;
   current_revision: unknown;
 }
 /** Internal transaction handle, never an HTTP DTO or a bag of caller supplied
@@ -88,6 +130,7 @@ export interface SearchContentEligibilityRelation {
   readonly tableName: string;
   readonly nodesTableName: string;
   readonly validUntil: number | null;
+  readonly mediaAware?: boolean;
   assertCurrent(tx: PoolClient): void;
 }
 const handles = new WeakSet<object>();
@@ -151,51 +194,146 @@ export function evaluateSearchContentCertificate(
     certificate.root_comment_id === candidate.rootCommentId &&
     certificate.space_id === candidate.spaceId &&
     certificate.region_id === scope.regionId &&
-    certificate.certificate_version === 1 &&
-    certificate.source_revision.length === ancestry.length;
+    certificate.source_revision.length === ancestry.length &&
+    (certificate.certificate_version === 1 ||
+      certificateV2Schema.safeParse(certificate).success);
   let until: number | null = null;
+  const consumed: unknown[] = [];
+  const finish = (decision: SearchContentDecision): Conditional => ({
+    decision,
+    validUntil: until,
+    ...(certificate?.certificate_version === 2
+      ? {
+          eligibilityRevision: [
+            'semantic-media-eligibility-v2',
+            certificate.source_revision,
+            certificate.media_chain,
+            consumed,
+            decision,
+            until,
+          ],
+        }
+      : {}),
+  });
   for (const [index, [kind, id]] of ancestry.entries()) {
     const node = nodes.get(`${kind}:${id}`);
     if (!node || node.deleted_at || node.visibility !== 'approved')
-      return { decision: 'deny', validUntil: until };
+      return finish('deny');
     if (kind === 'post' && (!scope.active || !scope.regionActive))
-      return { decision: 'deny', validUntil: until };
+      return finish('deny');
     if (
       node.post_id !== candidate.postId ||
       (kind !== 'post' && node.root_comment_id !== candidate.rootCommentId) ||
       (kind === 'post' && node.publication_state !== 'published') ||
       !['regional', 'global'].includes(scope.kind ?? '')
     )
-      return unknown();
-    // A missing certificate cannot attest the immutable binding/envelope even
-    // when a superficially well-shaped review metadata row says allow/deny.
-    if (!certified) return unknown();
+      return finish('unknown');
+    if (!certified || !certificate) return finish('unknown');
     const revision = certificate.source_revision[index]!;
+    consumed.push([
+      kind,
+      id,
+      node.generation,
+      node.digest,
+      node.decision_id,
+      node.policy_revision_id,
+      node.event_id,
+    ]);
     if (
       revision[0] !== kind ||
       revision[1] !== id ||
       revision[2] !== node.generation ||
       revision[3] !== node.digest ||
       revision[4] !== node.decision_id ||
-      revision[5] !== node.policy_revision_id
+      revision[5] !== node.policy_revision_id ||
+      node.exact_time_valid !== true
     )
-      return unknown();
-    if (node.exact_time_valid !== true) return unknown();
+      return finish('unknown');
     const reviewed = validateApprovalMetadata(node, false, now);
     until = minimum(until, reviewed.optionalUntil);
     if (reviewed.decision.kind !== 'allow')
-      return {
-        decision: reviewed.decision.kind === 'deny' ? 'deny' : 'unknown',
-        validUntil: until,
-      };
-    // Head revoke/restore ABA never revives a certificate, even with equal body.
-    if (revision[6] !== node.event_id) return unknown();
+      return finish(reviewed.decision.kind === 'deny' ? 'deny' : 'unknown');
+    if (revision[6] !== node.event_id) return finish('unknown');
+    const images = exactNodeImages(node);
+    if (!images) return finish('unknown');
+    if (certificate.certificate_version === 1) {
+      // V1 authority is limited to a CURRENT, explicitly proved all-empty chain.
+      if (images.length) return finish('unknown');
+      continue;
+    }
+    const current =
+      node.media_fact && semanticMediaNode(kind, id, node.media_fact);
+    const stored = certificate.media_chain[index];
+    if (!current || !stored || current.decision === 'review-denied')
+      return finish('unknown');
+    consumed.push(current);
+    until = minimum(until, current.validUntil);
+    if (current.validUntil !== null && current.validUntil <= now)
+      return finish('unknown');
+    const immutableAttachments = (attachments: typeof current.attachments) =>
+      attachments.map((attachment) => ({
+        slot: attachment.slot,
+        ordinal: attachment.ordinal,
+        bindingId: attachment.bindingId,
+        assetId: attachment.assetId,
+        manifestDigest: attachment.manifestDigest,
+        policyRevision: attachment.policyRevision,
+        intentId: attachment.intentId,
+        intentState: attachment.intentState,
+      }));
+    if (
+      stored.decision === 'review-denied' ||
+      semanticFingerprint(immutableAttachments(current.attachments)) !==
+        semanticFingerprint(immutableAttachments(stored.attachments))
+    )
+      return finish('unknown');
+    if (current.decision === 'deny') return finish('deny');
+    // Equality includes binding identity and the monotonic head/event. A -> B ->
+    // A-looking C cannot revive old authority, while text vector identity stays V1.
+    if (semanticFingerprint(current) !== semanticFingerprint(stored))
+      return finish('unknown');
   }
-  if (!certificate) return unknown();
-  const storedUntil = certificate.valid_until?.getTime() ?? null;
-  if (storedUntil !== until || (until !== null && until <= now))
-    return unknown();
-  return { decision: 'allow', validUntil: until };
+  if (
+    !certificate ||
+    (certificate.valid_until?.getTime() ?? null) !== until ||
+    (until !== null && until <= now)
+  )
+    return finish('unknown');
+  return finish('allow');
+}
+
+const imageIdentitySchema = z
+  .array(z.strictObject({ assetId: uuid, digest }))
+  .max(9);
+function exactNodeImages(
+  node: SearchContentNode,
+): { assetId: string; digest: string }[] | null {
+  const expected = imageIdentitySchema.safeParse(node.expected_images);
+  if (
+    !expected.success ||
+    !node.images ||
+    node.images.some((image, index) => image.position !== index)
+  )
+    return null;
+  const current = imageIdentitySchema.safeParse(
+    node.images.map(({ assetId, digest }) => ({ assetId, digest })),
+  );
+  return current.success &&
+    semanticFingerprint(current.data) === semanticFingerprint(expected.data)
+    ? current.data
+    : null;
+}
+function decodeCertificate(raw: unknown): SearchContentCertificate | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as Record<string, unknown>;
+  const parsed = anyCertificateSchema.safeParse({
+    ...value,
+    valid_until:
+      value['valid_until'] === null
+        ? null
+        : new Date(String(value['valid_until'])),
+  });
+  return parsed.success ? parsed.data : null;
 }
 
 /** Canonical community owner. Query work is O(scope metadata), not O(definition
@@ -216,38 +354,185 @@ export class ContentReviewSearchEligibilityFacade {
   constructor(
     private readonly visibility: LocalApprovedContentVisibility,
     private readonly campuses: CampusContentScopeFacade,
+    private readonly media: MediaContentSnapshotFacade = new UnavailableMediaContentSnapshotFacade(),
   ) {}
+
+  private async hasV2(tx: PoolClient): Promise<boolean> {
+    return (
+      (
+        await tx.query<{ present: boolean }>(
+          "SELECT to_regclass('whaleu_semantic.certificates_v2') IS NOT NULL AS present",
+        )
+      ).rows[0]?.present === true
+    );
+  }
 
   private async nodes(
     candidates: readonly SearchCandidate[],
     tx: PoolClient,
     indexSpaceKey: string | null = null,
+    mediaAware = false,
+    activePosts?: ReadonlySet<string>,
   ): Promise<Map<string, SearchContentNode>> {
-    const keys = new Map(
-      candidates
-        .flatMap(chain)
-        .map(([kind, id]) => [`${kind}:${id}`, { kind, id }]),
-    );
-    const rows = await tx.query<SearchContentNode>(
-      `WITH timing AS MATERIALIZED (SELECT clock_timestamp() AS now), wanted AS (SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(kind text,id uuid)),
-       sources AS (
-         SELECT 'post'::text kind,s.id,s.id post_id,NULL::uuid root_comment_id,s.account_id,s.author_mode,
-           s.visibility,s.deleted_at,s.publication_state FROM whaleu_community.posts s JOIN wanted w ON w.kind='post' AND w.id=s.id
-         UNION ALL SELECT 'comment',s.id,s.post_id,s.id,s.account_id,s.author_mode,s.visibility,s.deleted_at,NULL::text
-           FROM whaleu_community.root_comments s JOIN wanted w ON w.kind='comment' AND w.id=s.id
-         UNION ALL SELECT 'reply',s.id,s.post_id,s.root_comment_id,s.account_id,s.author_mode,s.visibility,s.deleted_at,NULL::text
-           FROM whaleu_community.replies s JOIN wanted w ON w.kind='reply' AND w.id=s.id
-       ) SELECT s.*,g.generation,b.digest,b.decision_id,h.event_id,CASE WHEN cert.content_id IS NULL THEN NULL ELSE to_jsonb(cert) END AS stored_certificate,${SEARCH_APPROVAL_EXACT_TIME_PREDICATE} AS exact_time_valid,${metadataProjection}
-       FROM sources s CROSS JOIN timing LEFT JOIN whaleu_semantic.source_generations g ON g.kind=s.kind AND g.content_id=s.id
-       LEFT JOIN whaleu_community.content_approval_bindings b ON b.content_kind=s.kind AND b.content_id=s.id AND b.content_version=1
-       LEFT JOIN whaleu_community.content_approval_decisions d ON d.id=b.decision_id
-       LEFT JOIN whaleu_community.content_approval_policies p ON p.id=d.policy_revision_id
-       LEFT JOIN whaleu_community.content_approval_heads h ON h.decision_id=d.id
-       LEFT JOIN whaleu_community.content_approval_events e ON e.id=h.event_id AND e.decision_id=d.id
-       LEFT JOIN whaleu_semantic.certificates cert ON cert.index_space_key=$2 AND cert.kind=s.kind AND cert.content_id=s.id`,
-      [JSON.stringify([...keys.values()]), indexSpaceKey],
-    );
-    return new Map(rows.rows.map((row) => [`${row.kind}:${row.id}`, row]));
+    const all = new Map<string, SearchContentNode>();
+    for (let offset = 0; offset < candidates.length; offset += 256) {
+      const keys = new Map(
+        candidates
+          .slice(offset, offset + 256)
+          .flatMap(chain)
+          .map(([kind, id]) => [`${kind}:${id}`, { kind, id }]),
+      );
+      const budget = new SnapshotReadBudget();
+      const rows = await budget.rows<SearchContentNode>(
+        tx,
+        `WITH timing AS MATERIALIZED (SELECT clock_timestamp() AS now), wanted AS (SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(kind text,id uuid)),
+         sources AS (
+           SELECT 'post'::text kind,s.id,s.id post_id,NULL::uuid root_comment_id,s.account_id,s.author_mode,
+             s.visibility,s.deleted_at,s.publication_state FROM whaleu_community.posts s JOIN wanted w ON w.kind='post' AND w.id=s.id
+           UNION ALL SELECT 'comment',s.id,s.post_id,s.id,s.account_id,s.author_mode,s.visibility,s.deleted_at,NULL::text
+             FROM whaleu_community.root_comments s JOIN wanted w ON w.kind='comment' AND w.id=s.id
+           UNION ALL SELECT 'reply',s.id,s.post_id,s.root_comment_id,s.account_id,s.author_mode,s.visibility,s.deleted_at,NULL::text
+             FROM whaleu_community.replies s JOIN wanted w ON w.kind='reply' AND w.id=s.id
+         ) SELECT s.*,timing.now AS read_at,g.generation,b.digest,b.decision_id,h.event_id,b.envelope->'images' AS expected_images,
+         CASE WHEN cert.content_id IS NULL THEN NULL ELSE to_jsonb(cert) END AS stored_certificate,
+         ${mediaAware ? 'CASE WHEN cv2.content_id IS NULL THEN NULL ELSE to_jsonb(cv2) END' : 'NULL::jsonb'} AS stored_certificate_v2,
+         ${SEARCH_APPROVAL_EXACT_TIME_PREDICATE} AS exact_time_valid,${metadataProjection}
+         FROM sources s CROSS JOIN timing LEFT JOIN whaleu_semantic.source_generations g ON g.kind=s.kind AND g.content_id=s.id
+         LEFT JOIN whaleu_community.content_approval_bindings b ON b.content_kind=s.kind AND b.content_id=s.id AND b.content_version=1
+         LEFT JOIN whaleu_community.content_approval_decisions d ON d.id=b.decision_id
+         LEFT JOIN whaleu_community.content_approval_policies p ON p.id=d.policy_revision_id
+         LEFT JOIN whaleu_community.content_approval_heads h ON h.decision_id=d.id
+         LEFT JOIN whaleu_community.content_approval_events e ON e.id=h.event_id AND e.decision_id=d.id
+         LEFT JOIN whaleu_semantic.certificates cert ON cert.index_space_key=$2 AND cert.kind=s.kind AND cert.content_id=s.id
+         ${mediaAware ? 'LEFT JOIN whaleu_semantic.certificates_v2 cv2 ON cv2.index_space_key=$2 AND cv2.kind=s.kind AND cv2.content_id=s.id' : ''}`,
+        [JSON.stringify([...keys.values()]), indexSpaceKey],
+        keys.size,
+        [
+          'read_at',
+          'deleted_at',
+          'evaluated_at',
+          'consume_until',
+          'visibility_until',
+          'policy_valid_from',
+          'policy_valid_until',
+          'event_at',
+        ],
+      );
+      const ids = (kind: ContentKind) =>
+        [...keys.values()]
+          .filter((key) => key.kind === kind)
+          .map((key) => key.id);
+      const images = await budget.rows<{
+        kind: ContentKind;
+        id: string;
+        assetId: string;
+        digest: string;
+        position: number;
+      }>(
+        tx,
+        `SELECT * FROM (
+          SELECT 'post'::text kind,post_id id,asset_id AS "assetId",digest,position FROM whaleu_community.post_images WHERE post_id=ANY($1::uuid[])
+          UNION ALL SELECT 'comment',comment_id,asset_id,digest,position FROM whaleu_community.comment_images WHERE comment_id=ANY($2::uuid[])
+          UNION ALL SELECT 'reply',reply_id,asset_id,digest,position FROM whaleu_community.reply_images WHERE reply_id=ANY($3::uuid[])
+        ) image_rows ORDER BY kind,id,position`,
+        [ids('post'), ids('comment'), ids('reply')],
+        9 * ids('post').length +
+          3 * ids('comment').length +
+          3 * ids('reply').length,
+      );
+      const grouped = new Map<string, typeof images>();
+      for (const image of images) {
+        const key = `${image.kind}:${image.id}`;
+        const existing = grouped.get(key) ?? [];
+        existing.push(image);
+        grouped.set(key, existing);
+      }
+      const references = [];
+      for (const node of rows) {
+        node.images = grouped.get(`${node.kind}:${node.id}`) ?? [];
+        if (
+          !mediaAware ||
+          node.deleted_at ||
+          node.visibility !== 'approved' ||
+          (activePosts && !activePosts.has(node.post_id)) ||
+          (node.kind === 'post' && node.publication_state !== 'published')
+        )
+          continue;
+        // Review is canonical before Media. Never force unrelated Media after a
+        // known earlier review rejection, or turn malformed evidence into denial.
+        const reviewed = validateApprovalMetadata(
+          node,
+          false,
+          node.read_at?.getTime() ?? NaN,
+        );
+        const expected = exactNodeImages(node);
+        if (
+          node.exact_time_valid !== true ||
+          reviewed.decision.kind !== 'allow' ||
+          !expected
+        )
+          continue;
+        if (expected.length) requireSemanticMediaProof(tx);
+        references.push({
+          parent: {
+            ownerKind: 'community' as const,
+            resourceKind: node.kind,
+            resourceId: node.id,
+            contentVersion: 1 as const,
+          },
+          expected,
+        });
+      }
+      let facts: ReadonlyMap<string, MediaContentFact>;
+      try {
+        facts = await this.media.readBatch(references, tx, budget);
+      } catch {
+        throw unavailable();
+      }
+      for (const node of rows) {
+        const fact = facts.get(
+          mediaContentKey({
+            ownerKind: 'community',
+            resourceKind: node.kind,
+            resourceId: node.id,
+            contentVersion: 1,
+          }),
+        );
+        if (fact) node.media_fact = fact;
+        all.set(`${node.kind}:${node.id}`, node);
+      }
+    }
+    return all;
+  }
+
+  async captureCurrent(
+    source: SemanticAuthorizedSource,
+    profile: QwenSemanticProfile,
+    tx: PoolClient,
+    read?: SearchReadContext,
+  ): Promise<SearchContentCertificate> {
+    return this.capture(source, profile, tx, read, true);
+  }
+
+  async captureEligibilityCurrent(
+    candidate: SearchCandidate,
+    profile: QwenSemanticProfile,
+    tx: PoolClient,
+    read?: SearchReadContext,
+  ): Promise<{
+    decision: SearchContentDecision;
+    certificate?: SearchContentCertificate;
+  }> {
+    await captureSemanticMediaProof(tx);
+    const nodes = await this.nodes([candidate], tx);
+    const hasImages = chain(candidate).some(([kind, id]) => {
+      const node = nodes.get(`${kind}:${id}`);
+      const images = node && exactNodeImages(node);
+      return !images || images.length > 0;
+    });
+    return hasImages
+      ? this.captureEligibilityV2(candidate, profile, tx, read)
+      : this.captureEligibility(candidate, profile, tx, read);
   }
 
   async capture(
@@ -255,6 +540,7 @@ export class ContentReviewSearchEligibilityFacade {
     profile: QwenSemanticProfile,
     tx: PoolClient,
     read?: SearchReadContext,
+    currentMedia = false,
   ): Promise<SearchContentCertificate> {
     if (
       !semanticRevisionSchema.safeParse(source.revision).success ||
@@ -262,12 +548,11 @@ export class ContentReviewSearchEligibilityFacade {
         createHash('sha256').update(source.text, 'utf8').digest('hex')
     )
       throw unavailable();
-    const result = await this.captureEligibility(
-      source.candidate,
-      profile,
-      tx,
-      read,
-    );
+    const result = await (
+      currentMedia
+        ? this.captureEligibilityCurrent.bind(this)
+        : this.captureEligibility.bind(this)
+    )(source.candidate, profile, tx, read);
     if (
       result.decision !== 'allow' ||
       !result.certificate ||
@@ -295,6 +580,33 @@ export class ContentReviewSearchEligibilityFacade {
     decision: SearchContentDecision;
     certificate?: SearchContentCertificate;
   }> {
+    return this.captureVersion(candidate, profile, tx, read, 1);
+  }
+
+  async captureEligibilityV2(
+    candidate: SearchCandidate,
+    profile: QwenSemanticProfile,
+    tx: PoolClient,
+    read?: SearchReadContext,
+  ): Promise<{
+    decision: SearchContentDecision;
+    certificate?: SearchContentCertificate;
+  }> {
+    await captureSemanticMediaProof(tx);
+    if (!(await this.hasV2(tx))) throw unavailable();
+    return this.captureVersion(candidate, profile, tx, read, 2);
+  }
+
+  private async captureVersion(
+    candidate: SearchCandidate,
+    profile: QwenSemanticProfile,
+    tx: PoolClient,
+    read: SearchReadContext | undefined,
+    version: 1 | 2,
+  ): Promise<{
+    decision: SearchContentDecision;
+    certificate?: SearchContentCertificate;
+  }> {
     requireQwenSemanticProfile(profile);
     const epoch = transactionReadEpoch(tx);
     if (!epoch || !searchCandidateSchema.safeParse(candidate).success)
@@ -316,18 +628,37 @@ export class ContentReviewSearchEligibilityFacade {
       );
       if (locked.rows[0]?.committed !== true) throw unavailable();
     }
-    const nodes = await this.nodes([candidate], tx);
     const current = (
-      await tx.query<{ space_id: string; region_id: string | null; now: Date }>(
-        `SELECT p.space_id,sp.operating_region_id AS region_id,clock_timestamp() AS now
+      await tx.query<{
+        space_id: string;
+        region_id: string | null;
+        active: boolean;
+        now: Date;
+      }>(
+        `SELECT p.space_id,sp.operating_region_id AS region_id,sp.is_active AS active,clock_timestamp() AS now
        FROM whaleu_community.posts p JOIN whaleu_community.spaces sp ON sp.id=p.space_id WHERE p.id=$1`,
         [candidate.postId],
       )
     ).rows[0];
     if (!current || current.space_id !== candidate.spaceId)
       return { decision: 'unknown' };
+    const regions = current.region_id
+      ? await this.campuses.readRegionsBatch([current.region_id], tx)
+      : null;
+    const active =
+      current.active === true &&
+      (current.region_id === null || regions?.get(current.region_id) === true);
+    if (!active) return { decision: 'deny' };
+    const nodes = await this.nodes(
+      [candidate],
+      tx,
+      null,
+      version === 2,
+      new Set([candidate.postId]),
+    );
     let validUntil: number | null = null;
     const ancestors: SearchContentCertificate[] = [];
+    const mediaChain: SemanticMediaChain = [];
     for (const [ordinal, [kind, id]] of chain(candidate).entries()) {
       const node = nodes.get(`${kind}:${id}`);
       if (!node || node.deleted_at || node.visibility !== 'approved')
@@ -354,7 +685,7 @@ export class ContentReviewSearchEligibilityFacade {
         tx,
         'list_projection',
         read,
-        false, // Persisted text certificates do not bind Media safety revisions.
+        version === 2, // Legacy V1 never receives Media authority.
       );
       if (checked.kind === 'unavailable') return { decision: 'unknown' };
       const evaluated = validateApprovalMetadata(
@@ -364,11 +695,44 @@ export class ContentReviewSearchEligibilityFacade {
       );
       if (evaluated.decision.kind === 'unavailable')
         return { decision: 'unknown' };
-      if (checked.kind === 'deny' && evaluated.decision.kind !== 'deny')
+      const mediaNode =
+        version === 2 && node.media_fact
+          ? semanticMediaNode(kind, id, node.media_fact)
+          : null;
+      const mediaDenied =
+        version === 2 &&
+        evaluated.decision.kind === 'allow' &&
+        mediaNode?.decision === 'deny';
+      if (
+        checked.kind === 'deny' &&
+        evaluated.decision.kind !== 'deny' &&
+        !mediaDenied
+      )
         return { decision: 'deny' };
-      if (checked.kind !== evaluated.decision.kind)
+      if (checked.kind !== evaluated.decision.kind && !mediaDenied)
         return { decision: 'unknown' };
       validUntil = minimum(validUntil, evaluated.optionalUntil);
+      if (version === 2) {
+        if (evaluated.decision.kind === 'deny')
+          mediaChain.push({
+            kind,
+            id,
+            decision: 'review-denied',
+            attachments: null,
+            validUntil: null,
+          });
+        else {
+          if (
+            !mediaNode ||
+            mediaNode.decision === 'review-denied' ||
+            mediaNode.decision !== checked.kind
+          )
+            return { decision: 'unknown' };
+          mediaChain.push(mediaNode);
+          validUntil = minimum(validUntil, mediaNode.validUntil);
+        }
+        registerTransactionDeadline(tx, validUntil, 'COMMUNITY_UNAVAILABLE');
+      }
       const table =
         kind === 'post'
           ? 'posts'
@@ -404,7 +768,7 @@ export class ContentReviewSearchEligibilityFacade {
           ])
       )
         return { decision: 'unknown' };
-      const parsed = certificateSchema.parse({
+      const parsed = anyCertificateSchema.parse({
         index_space_key: profile.indexSpaceKey,
         kind,
         content_id: id,
@@ -415,11 +779,23 @@ export class ContentReviewSearchEligibilityFacade {
         has_searchable_text: body.text !== null && body.text.trim().length > 0,
         space_id: current.space_id,
         region_id: current.region_id,
-        certificate_version: 1,
+        certificate_version: version,
+        ...(version === 2 ? { media_chain: [...mediaChain] } : {}),
         valid_until: validUntil === null ? null : new Date(validUntil),
       });
       for (const item of parsed.source_revision) Object.freeze(item);
       Object.freeze(parsed.source_revision);
+      if (parsed.certificate_version === 2) {
+        for (const node of parsed.media_chain) {
+          if (node.attachments) {
+            for (const attachment of node.attachments)
+              Object.freeze(attachment);
+            Object.freeze(node.attachments);
+          }
+          Object.freeze(node);
+        }
+        Object.freeze(parsed.media_chain);
+      }
       const certificate = Object.freeze(parsed);
       ancestors.push(certificate);
       if (checked.kind === 'deny' || ordinal === chain(candidate).length - 1) {
@@ -447,17 +823,29 @@ export class ContentReviewSearchEligibilityFacade {
       proof.encoded !== JSON.stringify(certificate)
     )
       throw unavailable();
-    const c = certificateSchema.safeParse(certificate);
+    const c = anyCertificateSchema.safeParse(certificate);
     if (!c.success) throw unavailable();
     for (const item of proof.ancestors) {
+      if (item.certificate_version === 2) {
+        if (
+          item.media_chain.some((node) => (node.attachments?.length ?? 0) > 0)
+        )
+          requireSemanticMediaProof(tx);
+        registerTransactionDeadline(
+          tx,
+          item.valid_until?.getTime() ?? null,
+          'COMMUNITY_UNAVAILABLE',
+        );
+      }
+      const v2 = item.certificate_version === 2;
       const written = await tx.query(
-        `INSERT INTO whaleu_semantic.certificates(index_space_key,kind,content_id,post_id,root_comment_id,source_revision,
-       body_digest,space_id,region_id,certificate_version,valid_until,has_searchable_text)
-       VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12)
+        `INSERT INTO whaleu_semantic.${v2 ? 'certificates_v2' : 'certificates'}(index_space_key,kind,content_id,post_id,root_comment_id,source_revision,
+       body_digest,space_id,region_id,certificate_version,valid_until,has_searchable_text${v2 ? ',media_chain' : ''})
+       VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12${v2 ? ',$13::jsonb' : ''})
        ON CONFLICT(index_space_key,kind,content_id) DO UPDATE SET post_id=EXCLUDED.post_id,
        root_comment_id=EXCLUDED.root_comment_id,source_revision=EXCLUDED.source_revision,body_digest=EXCLUDED.body_digest,
        space_id=EXCLUDED.space_id,region_id=EXCLUDED.region_id,certificate_version=EXCLUDED.certificate_version,
-       valid_until=EXCLUDED.valid_until,has_searchable_text=EXCLUDED.has_searchable_text RETURNING *`,
+       valid_until=EXCLUDED.valid_until,has_searchable_text=EXCLUDED.has_searchable_text${v2 ? ',media_chain=EXCLUDED.media_chain' : ''} RETURNING *`,
         [
           item.index_space_key,
           item.kind,
@@ -471,9 +859,12 @@ export class ContentReviewSearchEligibilityFacade {
           item.certificate_version,
           item.valid_until,
           item.has_searchable_text,
+          ...(item.certificate_version === 2
+            ? [JSON.stringify(item.media_chain)]
+            : []),
         ],
       );
-      const returned = certificateSchema.safeParse(written.rows[0]);
+      const returned = anyCertificateSchema.safeParse(written.rows[0]);
       if (
         written.rowCount !== 1 ||
         !returned.success ||
@@ -489,6 +880,8 @@ export class ContentReviewSearchEligibilityFacade {
     tx: PoolClient,
   ): Promise<SearchContentEligibilityRelation> {
     requireQwenSemanticProfile(profile);
+    await captureSemanticMediaProof(tx);
+    const v2Installed = await this.hasV2(tx);
     const epoch = transactionReadEpoch(tx);
     if (!epoch) throw unavailable();
     const rows = await tx.query<StructuralRow>(
@@ -500,10 +893,12 @@ export class ContentReviewSearchEligibilityFacade {
        to_char(s.at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS at,
        sp.is_active AS space_active,sp.kind AS space_kind,sp.operating_region_id AS region_id,
        CASE WHEN c.content_id IS NULL THEN NULL ELSE to_jsonb(c) END AS certificate,
+       ${v2Installed ? 'CASE WHEN cv2.content_id IS NULL THEN NULL ELSE to_jsonb(cv2) END' : 'NULL::jsonb'} AS certificate_v2,
        whaleu_semantic.source_revision(s.kind,s.id) AS current_revision
       FROM structural s JOIN whaleu_community.posts p ON p.id=s.post_id
       LEFT JOIN whaleu_community.spaces sp ON sp.id=p.space_id
       LEFT JOIN whaleu_semantic.certificates c ON c.index_space_key=$10 AND c.kind=s.kind AND c.content_id=s.id
+      ${v2Installed ? 'LEFT JOIN whaleu_semantic.certificates_v2 cv2 ON cv2.index_space_key=$10 AND cv2.kind=s.kind AND cv2.content_id=s.id' : ''}
       WHERE p.visibility='approved' AND p.deleted_at IS NULL AND s.kind=ANY($11::text[]) AND (($1::uuid IS NOT NULL AND p.space_id=$1)
        OR ($1::uuid IS NULL AND ((p.space_id=ANY($2::uuid[]) AND p.category=ANY($12::text[]))
          OR (p.space_id=ANY($3::uuid[]) AND p.category='discussion'))))
@@ -540,7 +935,6 @@ export class ContentReviewSearchEligibilityFacade {
       if (!parsed.success) throw unavailable();
       return parsed.data;
     });
-    const nodes = await this.nodes(candidates, tx, profile.indexSpaceKey);
     const regionIds = [
       ...new Set(
         rows.rows.flatMap((row) => (row.region_id ? [row.region_id] : [])),
@@ -553,6 +947,22 @@ export class ContentReviewSearchEligibilityFacade {
         tx,
       ))
         regions.set(id, active);
+    const activePosts = new Set(
+      rows.rows
+        .filter(
+          (row) =>
+            row.space_active === true &&
+            (row.region_id === null || regions.get(row.region_id) === true),
+        )
+        .map((row) => row.postId),
+    );
+    const nodes = await this.nodes(
+      candidates,
+      tx,
+      profile.indexSpaceKey,
+      v2Installed,
+      activePosts,
+    );
     const now = (
       await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
     ).rows[0]?.now.getTime();
@@ -567,23 +977,31 @@ export class ContentReviewSearchEligibilityFacade {
         purpose: string;
         base_decision: SearchContentDecision;
         base_valid_until: string | null;
+        eligibility_revision: unknown;
       }
     >();
     const facts = rows.rows.map((row, index) => {
       // JSON timestamp decoding is explicit; invalid/missing certificates are
       // unknown, never silently omitted from coverage or treated as denied.
-      const raw = row.certificate as Record<string, unknown> | null;
-      const parsed = certificateSchema.safeParse(
-        raw && {
-          ...raw,
-          valid_until:
-            raw['valid_until'] === null
-              ? null
-              : new Date(String(raw['valid_until'])),
-        },
-      );
-      const certificate = parsed.success ? parsed.data : null;
       const candidate = candidates[index]!;
+      const choose = (
+        subject: SearchCandidate,
+        legacy: unknown,
+        v2: unknown,
+      ) => {
+        const textOnly = chain(subject).every(([kind, id]) => {
+          const node = nodes.get(`${kind}:${id}`);
+          return node !== undefined && exactNodeImages(node)?.length === 0;
+        });
+        return textOnly
+          ? (decodeCertificate(legacy) ?? decodeCertificate(v2))
+          : decodeCertificate(v2);
+      };
+      const certificate = choose(
+        candidate,
+        row.certificate,
+        row.certificate_v2,
+      );
       const result = evaluateSearchContentCertificate(
         candidate,
         certificate,
@@ -606,18 +1024,16 @@ export class ContentReviewSearchEligibilityFacade {
             : 'list_projection';
         const nodeKey = `${kind}:${id}:${purpose}`;
         const node = nodes.get(`${kind}:${id}`);
-        const rawNodeCertificate = node?.stored_certificate as Record<
-          string,
-          unknown
-        > | null;
-        const parsedNodeCertificate = certificateSchema.safeParse(
-          rawNodeCertificate && {
-            ...rawNodeCertificate,
-            valid_until:
-              rawNodeCertificate['valid_until'] === null
-                ? null
-                : new Date(String(rawNodeCertificate['valid_until'])),
-          },
+        const subject = {
+          ...candidate,
+          kind,
+          id,
+          rootCommentId: kind === 'post' ? null : candidate.rootCommentId,
+        };
+        const nodeCertificate = choose(
+          subject,
+          node?.stored_certificate,
+          node?.stored_certificate_v2,
         );
         const base = evaluateSearchContentCertificate(
           {
@@ -626,7 +1042,7 @@ export class ContentReviewSearchEligibilityFacade {
             id,
             rootCommentId: kind === 'post' ? null : candidate.rootCommentId,
           },
-          parsedNodeCertificate.success ? parsedNodeCertificate.data : null,
+          nodeCertificate,
           nodes,
           {
             active: row.space_active === true,
@@ -645,6 +1061,7 @@ export class ContentReviewSearchEligibilityFacade {
             node?.author_mode === 'named' ? node.account_id : null,
           purpose,
           base_decision: base.decision,
+          eligibility_revision: base.eligibilityRevision ?? null,
           base_valid_until:
             base.validUntil === null
               ? null
@@ -682,13 +1099,16 @@ export class ContentReviewSearchEligibilityFacade {
     );
     await tx.query(
       `CREATE TEMP TABLE ${nodesTableName} ON COMMIT DROP AS SELECT * FROM jsonb_to_recordset($1::jsonb)
-     AS x(node_key text,author_mode text,named_account_id uuid,purpose text,base_decision text,base_valid_until timestamptz)`,
+     AS x(node_key text,author_mode text,named_account_id uuid,purpose text,base_decision text,base_valid_until timestamptz,eligibility_revision jsonb)`,
       [JSON.stringify([...safetyNodes.values()])],
     );
     const relation = Object.freeze({
       tableName,
       nodesTableName,
       validUntil,
+      mediaAware: [...safetyNodes.values()].some(
+        (node) => node.eligibility_revision !== null,
+      ),
       assertCurrent(client: PoolClient) {
         if (client !== tx || transactionReadEpoch(client) !== epoch)
           throw unavailable();

@@ -35,7 +35,51 @@ function validEpochs(rows: readonly CountEpochRow[]): boolean {
  * Facts remain conditional until registered pre-commit validation succeeds. */
 export class CountProofCollector {
   private horizon: number | null = null;
-  private constructor(private readonly owners: readonly CapturedOwner[]) {}
+  private imageAware = false;
+  private constructor(
+    private readonly owners: readonly CapturedOwner[],
+    private readonly media: CapturedOwner | null = null,
+  ) {}
+
+  /** This is deliberately a separate, fixed profile, not a fourth arbitrary
+   * owner admitted by the legacy collector. Capture Media before any candidate
+   * read, but select it only after the complete traversal consumes image facts.
+   * A missing Media deployment must not erase a proved text-only count. */
+  static async captureImageAware(
+    tx: PoolClient,
+    owners: readonly [
+      CountProofOwner,
+      CountProofOwner,
+      CountProofOwner,
+      CountProofOwner,
+    ],
+    read: PoolClient = tx,
+  ): Promise<CountProofCollector | null> {
+    const orders = [1464356101, 1464356102, 1464356103, 40];
+    if (
+      owners.length !== 4 ||
+      owners.some((owner, index) => owner.order !== orders[index])
+    )
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    const ordinary = await this.capture(tx, owners.slice(0, 3), read);
+    // The independent <=1024 fallback takes complete source SHARE fences; it
+    // never claims that epoch slots cover unsupported server writer capacity.
+    if (!ordinary) return null;
+    const owner = owners[3];
+    const media = await optionalCountMediaStep(tx, async () => {
+      const epochs = await owner.capture(read);
+      if (!validEpochs(epochs))
+        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      return { owner, epochs: epochs.map((row) => ({ ...row })) };
+    });
+    return new CountProofCollector(ordinary.owners, media);
+  }
+
+  /** Called only for an actually consumed allow/deny image dependency. */
+  requireMedia(): void {
+    if (!this.media) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    this.imageAware = true;
+  }
 
   static async capture(
     tx: PoolClient,
@@ -59,7 +103,6 @@ export class CountProofCollector {
       isolation.writer_capacity < 1
     )
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-    if (isolation.writer_capacity >= COUNT_EPOCH_SLOTS) return null;
     const ordered = [...owners].sort((a, b) => a.order - b.order);
     if (
       !ordered.length ||
@@ -67,6 +110,7 @@ export class CountProofCollector {
       new Set(ordered.map((owner) => owner.order)).size !== ordered.length
     )
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    if (isolation.writer_capacity >= COUNT_EPOCH_SLOTS) return null;
     const captured: CapturedOwner[] = [];
     for (const owner of ordered) {
       const epochs = await owner.capture(read);
@@ -128,9 +172,15 @@ export class CountProofCollector {
       },
     });
     try {
-      for (const { owner } of this.owners)
+      // Media's mandatory-owner order is 40. This explicit v2 profile instead
+      // retains the fixed discovery lock order Community -> Safety -> Campus ->
+      // Media, then performs every fresh RC vector read under all four fences.
+      const owners = this.imageAware
+        ? [...this.owners, this.media!]
+        : this.owners;
+      for (const { owner } of owners)
         if (!(await owner.fence(read))) return false;
-      for (const { owner, epochs } of this.owners) {
+      for (const { owner, epochs } of owners) {
         const current = await owner.capture(read);
         if (
           !validEpochs(current) ||
@@ -148,3 +198,33 @@ export class CountProofCollector {
 
 export const COUNT_FINAL_PROOF_BUDGET_MS = 100;
 class FinalProofBudgetExpired extends Error {}
+
+/** Recover only the optional Media substep. Rollback/release failure is fatal;
+ * mandatory page registrations and locks predate this nested savepoint. */
+export async function optionalCountMediaStep<T>(
+  tx: PoolClient,
+  action: () => Promise<T>,
+): Promise<T | null> {
+  await tx.query('SAVEPOINT discovery_optional_media');
+  let value: T;
+  try {
+    value = await action();
+  } catch (error) {
+    await tx.query('ROLLBACK TO SAVEPOINT discovery_optional_media');
+    await tx.query('RELEASE SAVEPOINT discovery_optional_media');
+    if (
+      (error instanceof ApplicationError &&
+        ['COMMUNITY_UNAVAILABLE', 'MEDIA_UNAVAILABLE'].includes(error.code)) ||
+      (typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        ['55P03', '57014', '53400', '42P01', '42703', '3F000'].includes(
+          String(error.code),
+        ))
+    )
+      return null;
+    throw error;
+  }
+  await tx.query('RELEASE SAVEPOINT discovery_optional_media');
+  return value;
+}

@@ -1,4 +1,4 @@
-import { currentMediaSafety } from './current-safety.js';
+import { validateCurrentMedia } from './current-facts.js';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -8,7 +8,6 @@ import {
 } from '../database/transaction-deadlines.js';
 import { MediaLifecycleRepository } from './lifecycle-repository.js';
 import { MediaRequiredProof } from './required-proof.js';
-import { sealManifest } from './manifest.js';
 import { mediaAttachmentDescriptorSchema } from './contracts.js';
 import type {
   MediaAttachmentDescriptor,
@@ -518,33 +517,30 @@ export class MediaAssetRepository {
         policy_revision: string;
         effective_at: Date;
         valid_until: Date;
+        exact_time_valid: boolean;
+        read_at: Date;
       }>(
-        'SELECT * FROM whaleu_media.asset_safety_events WHERE asset_id=$1 AND revision=$2 AND id=$3',
+        `SELECT e.*,t.read_at,
+         (e.effective_at<=t.read_at AND e.valid_until>t.read_at AND e.valid_until>e.effective_at) AS exact_time_valid
+         FROM whaleu_media.asset_safety_events e CROSS JOIN (SELECT clock_timestamp() AS read_at) t
+         WHERE asset_id=$1 AND revision=$2 AND id=$3`,
         [asset.id, head.revision, head.event_id],
       )
     ).rows[0];
-    const now = (
-      await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
-    ).rows[0]?.now.getTime();
-    const decision = currentMediaSafety(
+    const checked = validateCurrentMedia(
+      asset,
+      intent.state,
       event,
-      asset.manifest_digest,
-      asset.policy_revision,
-      now,
+      event?.read_at.getTime(),
+      event?.exact_time_valid === true,
     );
-    if (decision === 'unknown' || !event)
+    if (checked.decision === 'unknown')
       throw new ApplicationError('MEDIA_NOT_READY');
-    const sealed = sealManifest(asset.manifest);
-    if (sealed.digest !== asset.manifest_digest)
-      throw new ApplicationError('MEDIA_NOT_READY');
-    registerTransactionDeadline(
-      tx,
-      event.valid_until.getTime(),
-      'MEDIA_UNAVAILABLE',
-    );
-    if (decision === 'deny') throw new MediaCurrentDenied();
-    return sealed.manifest;
+    registerTransactionDeadline(tx, checked.validUntil, 'MEDIA_UNAVAILABLE');
+    if (checked.decision === 'deny') throw new MediaCurrentDenied();
+    return checked.manifest;
   }
+
   private async lockIntents(
     ids: readonly string[],
     tx: PoolClient,

@@ -11,6 +11,11 @@ import type { RuntimeConfig } from '../src/config/config.js';
 import type { DatabaseService } from '../src/database/database.js';
 import { checkpointTransactionDeadlines } from '../src/database/transaction-deadlines.js';
 import { ApplicationError } from '../src/http/application-error.js';
+import { mediaContentKey } from '../src/media/content-snapshot.facade.js';
+import type {
+  MediaContentSnapshotFacade,
+  MediaContentReference,
+} from '../src/media/content-snapshot.facade.js';
 import type { IdentityService } from '../src/identity/identity.service.js';
 import type { SafetyContentVisibilityFacade } from '../src/safety/content-visibility.facade.js';
 import type { SafetyRepository } from '../src/safety/repository.js';
@@ -153,7 +158,9 @@ function fixture(collision = false) {
       rootCommentId: kind === 'reply' ? rootId : null,
       targetReplyId: kind === 'reply' ? reply.target_reply_id : null,
       text: node.text,
-      images: [],
+      images: (snapshot.images.get(contentKey(kind, node.id)) ?? []).map(
+        ({ assetId, digest }) => ({ assetId, digest }),
+      ),
       component: { kind: 'none' },
       trading: null,
       scope: {
@@ -217,6 +224,8 @@ function fixture(collision = false) {
   const tx = {
     query: async (sql: string, args: unknown[] = []) => {
       const one = (value: unknown) => ({ rows: value ? [value] : [] });
+      if (/^(SAVEPOINT|ROLLBACK TO SAVEPOINT|RELEASE SAVEPOINT) /.test(sql))
+        return { rows: [] };
       if (sql.includes('clock_timestamp')) return one({ now: new Date(now) });
       if (sql.includes('pg_advisory')) return { rows: [] };
       if (sql.includes('whaleu_identity.accounts')) return one({ id: args[0] });
@@ -284,9 +293,28 @@ function fixture(collision = false) {
       return { id: regionId, isActive: true };
     },
   } as unknown as CampusService;
+  const mediaState = {
+    decision: 'unknown' as 'allow' | 'deny' | 'unknown',
+    until: null as number | null,
+    inputs: [] as (readonly MediaContentReference[])[],
+    failure: null as Error | null,
+  };
   const base = new LocalApprovedContentVisibility(
     new ApprovalRepository(),
     new ContentDefinitionRepository(campus),
+    {
+      current: async (kind, _id, images) => {
+        if (
+          kind !== 'post' ||
+          images.length !== 1 ||
+          mediaState.decision === 'unknown'
+        )
+          return { kind: 'unavailable' };
+        return mediaState.decision === 'allow'
+          ? { kind: 'allow', value: undefined }
+          : { kind: 'deny', reason: 'POST_NOT_FOUND' };
+      },
+    },
   );
   const scalarSafety = {
     directions: async (_viewer: string, author: string) =>
@@ -334,7 +362,34 @@ function fixture(collision = false) {
       };
     },
   } as unknown as SafetyContentVisibilityFacade;
-  const facade = new ContentReviewCountFacade(records, countCampus, safety);
+  const media: MediaContentSnapshotFacade = {
+    readBatch: async (references, _tx, budget) => {
+      assert.equal(budget, snapshot.budget);
+      mediaState.inputs.push(references);
+      if (mediaState.failure) throw mediaState.failure;
+      return new Map(
+        references.map(({ parent, expected }) => [
+          mediaContentKey(parent),
+          {
+            version: 1 as const,
+            parent,
+            decision:
+              parent.resourceKind === 'post' && expected.length === 1
+                ? mediaState.decision
+                : 'unknown',
+            validUntil: mediaState.until,
+            attachments: [],
+          },
+        ]),
+      );
+    },
+  };
+  const facade = new ContentReviewCountFacade(
+    records,
+    countCampus,
+    safety,
+    media,
+  );
   const scalarPost = async () => {
     try {
       await access.accessiblePost(post.id, viewer, tx);
@@ -373,6 +428,7 @@ function fixture(collision = false) {
     blocked,
     unknownSafety,
     safetyInputs,
+    mediaState,
     bind,
     facade,
     tx,
@@ -811,4 +867,167 @@ test('empty indexed owner key sets require no source SQL or payload allocation',
     ),
     [],
   );
+});
+
+function attachImage(
+  f: ReturnType<typeof fixture>,
+  kind: ContentKind = 'post',
+) {
+  const id =
+    kind === 'post' ? f.post.id : kind === 'comment' ? f.root.id : f.reply.id;
+  f.snapshot.images.set(contentKey(kind, id), [
+    {
+      assetId: randomUUID(),
+      digest: 'd'.repeat(64),
+      position: 0,
+      kind,
+      content_id: id,
+    },
+  ]);
+  f.bind(kind);
+}
+
+test('single-image post and its text-only liked reply match current scalar Media decisions with one batch', async () => {
+  for (const decision of ['allow', 'deny', 'unknown'] as const) {
+    const f = fixture();
+    attachImage(f);
+    f.mediaState.decision = decision;
+    f.mediaState.until = f.snapshot.now + 1000;
+    const before = checkpointTransactionDeadlines(f.tx);
+    const posts = await f.facade.evaluatePosts([f.post.id], f.viewer, f.tx);
+    assert.equal(posts.facts.get(f.post.id)?.decision, await f.scalarPost());
+    assert.equal(posts.mediaRequired, true);
+    const liked = await f.facade.evaluateLiked([f.membership], f.viewer, f.tx);
+    assert.equal(
+      liked.facts.get(`reply:${f.membership.like_id}`)?.decision,
+      await f.scalarLiked(),
+    );
+    assert.equal(liked.mediaRequired, true);
+    assert.equal(liked.optionalUntil, f.mediaState.until);
+    assert.deepEqual(checkpointTransactionDeadlines(f.tx), before);
+    assert.equal(f.mediaState.inputs.length, 2);
+    assert.ok(
+      f.mediaState.inputs.every(
+        (refs) => refs.length === 1 && refs[0]!.parent.resourceKind === 'post',
+      ),
+    );
+  }
+});
+
+test('earlier review denial avoids Media dependencies; Media denial precedes later unknown ancestry and Safety', async () => {
+  const prior = fixture();
+  attachImage(prior);
+  prior.bind('post').state = 'held';
+  const denied = await prior.facade.evaluateLiked(
+    [prior.membership],
+    prior.viewer,
+    prior.tx,
+  );
+  assert.equal(
+    denied.facts.get(`reply:${prior.membership.like_id}`)?.decision,
+    'deny',
+  );
+  assert.equal(denied.mediaRequired, false);
+  assert.deepEqual(prior.mediaState.inputs, []);
+
+  const media = fixture();
+  attachImage(media);
+  media.mediaState.decision = 'deny';
+  media.mediaState.until = media.snapshot.now + 1000;
+  media.snapshot.bindings.delete(contentKey('reply', media.reply.id));
+  media.unknownSafety.add(media.post.account_id);
+  const result = await media.facade.evaluateLiked(
+    [media.membership],
+    media.viewer,
+    media.tx,
+  );
+  assert.equal(
+    result.facts.get(`reply:${media.membership.like_id}`)?.decision,
+    'deny',
+  );
+  assert.equal(result.mediaRequired, true);
+  assert.equal(result.optionalUntil, media.mediaState.until);
+});
+
+test('Media unknown is not erased by a later Safety denial and unsupported comment attachments stay unknown', async () => {
+  const unknown = fixture();
+  attachImage(unknown);
+  unknown.blocked.add(unknown.post.account_id);
+  const result = await unknown.facade.evaluatePosts(
+    [unknown.post.id],
+    unknown.viewer,
+    unknown.tx,
+  );
+  assert.equal(result.facts.get(unknown.post.id)?.decision, 'unknown');
+  assert.equal(result.mediaRequired, true);
+
+  const comment = fixture();
+  attachImage(comment, 'comment');
+  comment.mediaState.decision = 'allow';
+  const liked = await comment.facade.evaluateLiked(
+    [comment.membership],
+    comment.viewer,
+    comment.tx,
+  );
+  assert.equal(
+    liked.facts.get(`reply:${comment.membership.like_id}`)?.decision,
+    'unknown',
+  );
+});
+
+test('text and single-image post counts while unchanged exact approval remains mandatory after Media allow', async () => {
+  const f = fixture();
+  attachImage(f);
+  f.mediaState.decision = 'allow';
+  const allowed = await f.facade.evaluatePosts([f.post.id], f.viewer, f.tx);
+  assert.equal(allowed.facts.get(f.post.id)?.decision, 'allow');
+  f.post.text = 'Changed after approval';
+  const stale = await f.facade.evaluatePosts([f.post.id], f.viewer, f.tx);
+  assert.equal(stale.facts.get(f.post.id)?.decision, 'unknown');
+});
+
+test('image-only post remains rejected by the existing canonical publication contract', () => {
+  const f = fixture();
+  attachImage(f);
+  const binding = f.snapshot.bindings.get(contentKey('post', f.post.id))!;
+  for (const text of ['', '   '])
+    assert.throws(
+      () => canonicalEnvelope({ ...structuredClone(binding.envelope), text }),
+      /Empty post/,
+    );
+});
+
+test('failed Media prefetch is consumed only after current liked membership, with managed savepoint recovery', async () => {
+  const f = fixture();
+  attachImage(f);
+  f.mediaState.failure = Object.assign(new Error('Media table unavailable'), {
+    code: '42P01',
+  });
+  f.setCurrent(null);
+  const removed = await f.facade.evaluateLiked(
+    [f.membership],
+    f.viewer,
+    f.tx,
+    f.tx,
+  );
+  assert.equal(
+    removed.facts.get(`reply:${f.membership.like_id}`)?.decision,
+    'deny',
+  );
+  assert.equal(removed.mediaRequired, false);
+  f.setCurrent({
+    like_id: f.membership.like_id,
+    liked_at: f.membership.liked_at,
+  });
+  const current = await f.facade.evaluateLiked(
+    [f.membership],
+    f.viewer,
+    f.tx,
+    f.tx,
+  );
+  assert.equal(
+    current.facts.get(`reply:${f.membership.like_id}`)?.decision,
+    'unknown',
+  );
+  assert.equal(current.mediaRequired, true);
 });

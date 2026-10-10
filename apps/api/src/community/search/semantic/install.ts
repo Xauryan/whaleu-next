@@ -23,6 +23,45 @@ export async function installSemanticSearch(
     'utf8',
   );
   const checksum = createHash('sha256').update(sql).digest('hex');
+  const mediaSql = await readFile(
+    new URL(
+      '../../../../optional-migrations/semantic-search/0002_media_certificates.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  const mediaChecksum = createHash('sha256').update(mediaSql).digest('hex');
+  const installMedia = async (
+    tx: import('pg').PoolClient,
+  ): Promise<boolean> => {
+    const exists = (
+      await tx.query<{ present: boolean }>(
+        "SELECT to_regclass('whaleu_semantic.media_installation') IS NOT NULL AS present",
+      )
+    ).rows[0]?.present;
+    if (exists) {
+      const rows = (
+        await tx.query<{ version: number; checksum: string }>(
+          'SELECT version,checksum FROM whaleu_semantic.media_installation',
+        )
+      ).rows;
+      if (
+        rows.length !== 1 ||
+        rows[0]!.version !== 2 ||
+        rows[0]!.checksum !== mediaChecksum
+      )
+        throw new Error(
+          'Optional semantic Media installation history mismatch',
+        );
+      return false;
+    }
+    await tx.query(mediaSql);
+    await tx.query(
+      'INSERT INTO whaleu_semantic.media_installation(version,checksum) VALUES(2,$1)',
+      [mediaChecksum],
+    );
+    return true;
+  };
   const base = await readMigrations(
     fileURLToPath(new URL('../../../../migrations/', import.meta.url)),
   );
@@ -92,9 +131,10 @@ export async function installSemanticSearch(
         !extension?.valid
       )
         throw new Error('Optional semantic installation history mismatch');
+      const upgraded = await installMedia(tx);
       await tx.query('COMMIT');
       begun = false;
-      return 'already_installed';
+      return upgraded ? 'installed' : 'already_installed';
     }
     // Installation is maintenance: common outer gate precedes relation locks,
     // base rows and generation seeding, so no concurrent source transition is lost.
@@ -109,6 +149,7 @@ export async function installSemanticSearch(
       'UPDATE whaleu_semantic.installation SET checksum=$1 WHERE version=1',
       [checksum],
     );
+    await installMedia(tx);
     await tx.query('COMMIT');
     begun = false;
     return 'installed';

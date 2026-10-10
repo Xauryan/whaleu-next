@@ -76,6 +76,13 @@ export class SemanticCorpusRepository {
         WHEN b.reply_safety_key IS NOT NULL AND ${replyBase}<>'allow' THEN ${replyBase}
         WHEN b.reply_safety_key IS NOT NULL AND ${replySafety}<>'allow' THEN ${replySafety}
         ELSE 'allow' END AS eligibility,
+        ${
+          relation.mediaAware
+            ? `jsonb_build_array('semantic-media-scope-v2',p.eligibility_revision,
+          CASE WHEN ${afterPost} THEN r.eligibility_revision END,
+          CASE WHEN ${afterRoot} THEN l.eligibility_revision END) AS media_eligibility,`
+            : ''
+        }
         LEAST(p.base_valid_until,
           CASE WHEN ${afterPostBase} THEN ps.valid_until END,
           CASE WHEN ${afterPost} THEN r.base_valid_until END,
@@ -101,7 +108,7 @@ export class SemanticCorpusRepository {
        encode(sha256(convert_to(COALESCE(string_agg(jsonb_build_array(kind,id,"spaceId","postId","rootCommentId",at,eligibility,
          CASE WHEN eligibility='allow' THEN source_revision ELSE NULL END,
          CASE WHEN eligibility='allow' THEN body_digest ELSE NULL END,
-         CASE WHEN eligibility='allow' THEN has_searchable_text ELSE NULL END)::text,'' ORDER BY key COLLATE "C"),''),'UTF8')),'hex') AS fingerprint
+         CASE WHEN eligibility='allow' THEN has_searchable_text ELSE NULL END${relation.mediaAware ? ',media_eligibility' : ''})::text,'' ORDER BY key COLLATE "C"),''),'UTF8')),'hex') AS fingerprint
        FROM ${table}`,
       )
     ).rows[0];

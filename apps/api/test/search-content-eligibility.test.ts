@@ -31,6 +31,8 @@ const candidate: SearchCandidate = {
 };
 const node: SearchContentNode = {
   exact_time_valid: true,
+  images: [],
+  expected_images: [],
   kind: 'post',
   id,
   post_id: id,
@@ -238,6 +240,42 @@ test('exact PostgreSQL chronology failure cannot become allow or deny after JS d
   assert.equal(evaluate({ exact_time_valid: false }).decision, 'unknown');
   assert.equal(
     evaluate({ exact_time_valid: false, state: 'revoked' }).decision,
+    'unknown',
+  );
+});
+
+test('legacy certificates require explicit current empty attachments for the entire ancestry', () => {
+  const missing = { ...node };
+  delete missing.images;
+  assert.equal(
+    evaluateSearchContentCertificate(
+      candidate,
+      certificate,
+      new Map([[`post:${id}`, missing]]),
+      scope,
+      profile,
+      now,
+    ).decision,
+    'unknown',
+  );
+  delete missing.expected_images;
+  assert.equal(
+    evaluateSearchContentCertificate(
+      candidate,
+      certificate,
+      new Map([[`post:${id}`, missing]]),
+      scope,
+      profile,
+      now,
+    ).decision,
+    'unknown',
+  );
+  const assetId = randomUUID();
+  assert.equal(
+    evaluate({
+      images: [{ assetId, digest, position: 0 }],
+      expected_images: [{ assetId, digest }],
+    }).decision,
     'unknown',
   );
 });

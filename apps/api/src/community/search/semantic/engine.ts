@@ -175,7 +175,7 @@ export class SemanticSearchEngine {
           )
             throw unavailable();
           if (this.certificates) {
-            const certificate = await this.certificates.capture(
+            const certificate = await this.certificates.captureCurrent(
               source,
               this.provider.profile,
               tx,
@@ -194,7 +194,7 @@ export class SemanticSearchEngine {
         }
         if (this.certificates) {
           for (const candidate of scope.deniedSources ?? []) {
-            const evidence = await this.certificates.captureEligibility(
+            const evidence = await this.certificates.captureEligibilityCurrent(
               candidate,
               this.provider.profile,
               tx,
@@ -204,7 +204,7 @@ export class SemanticSearchEngine {
             await this.certificates.persist(evidence.certificate, tx);
           }
           for (const source of scope.nonTextSources ?? []) {
-            const certificate = await this.certificates.capture(
+            const certificate = await this.certificates.captureCurrent(
               source,
               this.provider.profile,
               tx,

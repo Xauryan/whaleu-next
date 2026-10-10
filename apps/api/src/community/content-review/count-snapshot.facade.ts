@@ -2,6 +2,16 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { CampusContentScopeFacade } from '../../campus/content-scope.facade.js';
 import { ApplicationError } from '../../http/application-error.js';
+import { optionalCountMediaStep } from '../../database/count-proof.js';
+import {
+  MediaContentSnapshotFacade,
+  UnavailableMediaContentSnapshotFacade,
+  mediaContentKey,
+} from '../../media/content-snapshot.facade.js';
+import type {
+  MediaContentFact,
+  MediaContentReference,
+} from '../../media/content-snapshot.facade.js';
 import { SafetyContentVisibilityFacade } from '../../safety/content-visibility.facade.js';
 import type { Decision } from '../community-policy.js';
 import type {
@@ -39,6 +49,7 @@ export {
 } from './count-snapshot.repository.js';
 export type CountSnapshotDecision = 'allow' | 'deny' | 'unknown';
 export interface CountSnapshotFact {
+  mediaRequired?: true;
   decision: CountSnapshotDecision;
   optionalUntil: number | null;
   post: Pick<
@@ -48,6 +59,8 @@ export interface CountSnapshotFact {
   listing: { subtype: string; resolution: string } | null;
 }
 export interface CountSnapshotBatch {
+  /** Only image dependencies reached in canonical short-circuit order. */
+  mediaRequired: boolean;
   facts: Map<string, CountSnapshotFact>;
   dependencies: {
     contentIds: string[];
@@ -57,6 +70,7 @@ export interface CountSnapshotBatch {
   optionalUntil: number | null;
 }
 interface ConditionalDecision {
+  mediaRequired?: true;
   decision: CountSnapshotDecision;
   optionalUntil: number | null;
 }
@@ -93,6 +107,9 @@ function then(
   const second = next();
   return {
     ...second,
+    ...(first.mediaRequired || second.mediaRequired
+      ? { mediaRequired: true as const }
+      : {}),
     optionalUntil: minimum(first.optionalUntil, second.optionalUntil),
   };
 }
@@ -123,9 +140,11 @@ function publicFact(
  * visibility is added to an already-authorized discovery request. */
 class SnapshotEvaluator {
   private readonly baseCache = new Map<string, ConditionalDecision>();
+  readonly mediaRequests = new Map<string, MediaContentReference>();
   constructor(
     private readonly snapshot: CountReviewSnapshot,
     private readonly regions: Map<string, boolean>,
+    private readonly media: ReadonlyMap<string, MediaContentFact> = new Map(),
   ) {}
   private regionActive(post: DefinitionPost): boolean {
     const space = this.snapshot.spaces.get(post.space_id);
@@ -227,8 +246,34 @@ class SnapshotEvaluator {
           );
           result = then(result, () => conditional(stored));
           if (stored.kind === 'allow') {
+            const images = stored.value.envelope.images;
+            if (images.length) {
+              const reference: MediaContentReference = {
+                parent: {
+                  ownerKind: 'community',
+                  resourceKind: kind,
+                  resourceId: id,
+                  contentVersion: 1,
+                },
+                expected: images,
+              };
+              const mediaKey = mediaContentKey(reference.parent);
+              this.mediaRequests.set(mediaKey, reference);
+              result = then(result, () => {
+                const fact = this.media.get(mediaKey);
+                return {
+                  decision: fact?.decision ?? 'unknown',
+                  optionalUntil: fact?.validUntil ?? null,
+                  mediaRequired: true,
+                };
+              });
+            }
             result = then(result, () =>
-              definitionMatchesApproval(stored.value, accepted.value)
+              definitionMatchesApproval(
+                stored.value,
+                accepted.value,
+                images.length > 0,
+              )
                 ? allowed()
                 : unknown(),
             );
@@ -287,11 +332,14 @@ export class ContentReviewCountFacade {
     private readonly campuses: CampusContentScopeFacade,
     @Inject(SafetyContentVisibilityFacade)
     private readonly safety: SafetyContentVisibilityFacade,
+    @Inject(MediaContentSnapshotFacade)
+    private readonly media: MediaContentSnapshotFacade = new UnavailableMediaContentSnapshotFacade(),
   ) {}
   private async prepare(
     snapshot: CountReviewSnapshot,
     viewer: string | null,
     tx: PoolClient,
+    managed?: PoolClient,
   ) {
     const regions = await this.campuses.readRegionsBatch(
       [
@@ -303,7 +351,47 @@ export class ContentReviewCountFacade {
       ],
       tx,
     );
-    const evaluator = new SnapshotEvaluator(snapshot, regions);
+    let evaluator = new SnapshotEvaluator(snapshot, regions);
+    // Probe canonical gates first. Earlier Review/structure denial never gains
+    // an artificial Media dependency, and all image requests are batch-local.
+    for (const post of snapshot.posts.values())
+      evaluator.beforeRelationship('post', post.id);
+    for (const root of snapshot.roots.values())
+      evaluator.beforeRelationship('comment', root.id);
+    for (const reply of snapshot.replies.values())
+      evaluator.beforeRelationship('reply', reply.id);
+    if (evaluator.mediaRequests.size) {
+      let media: ReadonlyMap<string, MediaContentFact>;
+      try {
+        const readMedia = () =>
+          this.media.readBatch(
+            [...evaluator.mediaRequests.values()],
+            tx,
+            snapshot.budget,
+          );
+        // Prefetch alone is not a dependency: e.g. a removed liked membership
+        // can deny before any image is consumed. Recover SQL failures with the
+        // real managed client, then let canonical evaluation consume unknowns.
+        media =
+          (managed
+            ? await optionalCountMediaStep(managed, readMedia)
+            : await readMedia()) ?? new Map();
+      } catch (error) {
+        // Optional source errors unwind the runner's savepoint, never the
+        // independently authorized page. Do not swallow integrity failures.
+        if (
+          (error instanceof ApplicationError &&
+            error.code === 'MEDIA_UNAVAILABLE') ||
+          (typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            ['42P01', '42703', '3F000'].includes(String(error.code)))
+        )
+          throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+        throw error;
+      }
+      evaluator = new SnapshotEvaluator(snapshot, regions, media);
+    }
     const before = new Map<string, ConditionalDecision>();
     const named: string[] = [];
     const collect = (
@@ -350,6 +438,7 @@ export class ContentReviewCountFacade {
     ids: readonly string[],
     viewer: string | null,
     tx: PoolClient,
+    managed?: PoolClient,
   ): Promise<CountSnapshotBatch> {
     if (ids.length > COUNT_SNAPSHOT_BATCH)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
@@ -357,7 +446,7 @@ export class ContentReviewCountFacade {
       { posts: [...ids], roots: [], replies: [] },
       tx,
     );
-    const direct = await this.prepare(snapshot, viewer, tx),
+    const direct = await this.prepare(snapshot, viewer, tx, managed),
       facts = new Map<string, CountSnapshotFact>();
     for (const id of ids)
       facts.set(
@@ -366,6 +455,9 @@ export class ContentReviewCountFacade {
       );
     return {
       facts,
+      mediaRequired: [...facts.values()].some(
+        (fact) => fact.mediaRequired === true,
+      ),
       dependencies: snapshot.dependencies,
       optionalUntil: minimum(
         ...[...facts.values()].map((fact) => fact.optionalUntil),
@@ -376,6 +468,7 @@ export class ContentReviewCountFacade {
     candidates: readonly LikedCandidate[],
     viewer: string,
     tx: PoolClient,
+    managed?: PoolClient,
   ): Promise<CountSnapshotBatch> {
     if (candidates.length > COUNT_SNAPSHOT_BATCH)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
@@ -397,7 +490,7 @@ export class ContentReviewCountFacade {
       tx,
       snapshot.budget,
     );
-    const direct = await this.prepare(snapshot, viewer, tx),
+    const direct = await this.prepare(snapshot, viewer, tx, managed),
       facts = new Map<string, CountSnapshotFact>();
     for (const candidate of candidates) {
       const membership = current.get(
@@ -447,6 +540,9 @@ export class ContentReviewCountFacade {
     }
     return {
       facts,
+      mediaRequired: [...facts.values()].some(
+        (fact) => fact.mediaRequired === true,
+      ),
       dependencies: snapshot.dependencies,
       optionalUntil: minimum(
         ...[...facts.values()].map((fact) => fact.optionalUntil),

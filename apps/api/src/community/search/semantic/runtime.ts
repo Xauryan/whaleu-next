@@ -1,3 +1,4 @@
+import { MediaContentSnapshotFacade } from '../../../media/content-snapshot.facade.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { APP_CONFIG } from '../../../config/config.js';
 import type { RuntimeConfig } from '../../../config/config.js';
@@ -64,6 +65,7 @@ export class SemanticSearchRuntime {
     @Inject(CampusContentScopeFacade) campuses: CampusContentScopeFacade,
     @Inject(SafetySearchEligibilityFacade)
     safety: SafetySearchEligibilityFacade,
+    @Inject(MediaContentSnapshotFacade) media: MediaContentSnapshotFacade,
   ) {
     if (!provider || config.COMMUNITY_SEMANTIC_SEARCH === 'disabled') {
       this.engine = null;
@@ -73,6 +75,7 @@ export class SemanticSearchRuntime {
     const certificates = new ContentReviewSearchEligibilityFacade(
       visibility,
       campuses,
+      media,
     );
     const corpus = new SemanticCorpusRepository(safety);
     this.engine = new SemanticSearchEngine(

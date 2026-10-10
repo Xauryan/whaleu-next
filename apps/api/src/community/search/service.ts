@@ -3,7 +3,10 @@ import type { ContentReviewSearchEligibilityFacade } from '../content-review/sea
 import type { SemanticCorpusRepository } from './semantic/corpus-repository.js';
 import type { QwenSemanticProfile } from './semantic/profile.js';
 import type { SemanticEmbedding } from './semantic/provider.js';
-import { captureSemanticEligibilityProof } from './semantic/eligibility-proof.js';
+import {
+  captureSemanticEligibilityProof,
+  captureSemanticMediaProof,
+} from './semantic/eligibility-proof.js';
 import { semanticFingerprint } from './semantic/contracts.js';
 import type {
   SemanticScopeSnapshot,
@@ -409,10 +412,11 @@ export class SearchService {
     return this.repository.database.transaction(
       async (tx) => {
         enableSafetyRelationshipProof(tx);
+        await lockSafetyPolicy(tx);
+        if (intent === 'search') await captureSemanticEligibilityProof(tx);
+        else await captureSemanticMediaProof(tx);
         const read = this.canonicalReadContext(tx);
         try {
-          await lockSafetyPolicy(tx);
-          if (intent === 'search') await captureSemanticEligibilityProof(tx);
           const { session, actor, explicit, resolved, scope } =
             await this.semanticContext(token, query, tx);
           const readMetadata = async (): Promise<SearchCandidate[]> => {
@@ -573,10 +577,10 @@ export class SearchService {
     return this.repository.database.transaction(
       async (tx) => {
         enableSafetyRelationshipProof(tx);
+        await lockSafetyPolicy(tx);
+        await captureSemanticEligibilityProof(tx);
         const read = this.canonicalReadContext(tx);
         try {
-          await lockSafetyPolicy(tx);
-          await captureSemanticEligibilityProof(tx);
           const { session, actor, explicit, resolved, scope } =
             await this.semanticContext(token, query, tx);
           const relation = await content.prepare(scope, profile, tx);

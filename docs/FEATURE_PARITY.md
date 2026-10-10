@@ -566,3 +566,15 @@ for this increment remain pending. Ordinary runtime stays unavailable until the
 provider, device, resource and deployment gates are separately established;
 server/provider foreign-writer reclamation is not proven by native process tests.
 See [upload contract and precise remaining limits](MEDIA_UPLOAD_RECOVERY.md).
+
+### Single-image text discovery local acceptance
+
+Existing lawful single-image posts and their text comments/replies now have
+image-aware optional exact counts and versioned semantic eligibility. The stage
+preserves keyword/Profile/liked cursor contracts, whole-scope semantic coverage,
+independent count failure and notification unread bookkeeping. It searches text,
+not image pixels; nonempty publication text is still required. Integrated local
+acceptance passed 5,944 tests with zero failures, skips, cancellations or TODOs,
+including 2,249 main PostgreSQL and 34 semantic tests. Hosted checks remain pending.
+Real provider/device activation, nine images, comment attachments and other Media
+owners remain separate gates. See [discovery contract and evidence](MEDIA_DISCOVERY.md).

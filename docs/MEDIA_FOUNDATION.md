@@ -74,12 +74,11 @@ production availability, complete all-owner media, or WeChat device parity.
   a known denial: detail not-found, list filtering. Its final proof and expiry
   remain required even when filtering. Missing, expired or mismatched evidence
   is unknown and cannot silently become an empty page.
-- Exact aggregate count snapshots remain image-unknown because their existing
-  conditional metadata does not carry Media safety revisions. This work does
-  not claim image-aware exact counts or discovery-count acceptance.
-- Persisted semantic eligibility certificates remain text-only, including
-  ancestors. Their existing revision tuple does not bind Media state; ordinary
-  current visibility cannot be reused to issue an image-backed certificate.
+- Image-aware conditional count snapshots and a separate semantic v2 Media
+  certificate path are implemented in the follow-on discovery stage. Their
+  current validation boundary is recorded in [MEDIA_DISCOVERY.md](MEDIA_DISCOVERY.md).
+  Existing v1 certificates remain text-only; the seven-tuple text/vector revision
+  is unchanged, and ordinary Media configuration remains disabled.
 - Other hot/search/discovery/profile/notification consumers that reach canonical
   visibility and serializers also encounter the default unavailable or current
   Media port. Per-surface nonempty-image behavior is not yet fully accepted.
@@ -174,3 +173,14 @@ The hosted verification job budget increases from 60 to 75 minutes because the
 preceding accepted job took 56 minutes 3 seconds and this slice adds mandatory
 real retention/decode/native tests. Individual statement and test thresholds are
 unchanged. This is scheduling headroom, not a capacity or performance claim.
+
+## Image-aware discovery increment
+
+The subsequent [discovery stage](MEDIA_DISCOVERY.md) passed integrated local
+acceptance with 5,944 tests. It supplies bounded conditional Media facts for
+optional exact counts and versioned semantic eligibility for lawful single-image
+posts and their plain-text children. Count-only failures remain independent from
+proved pages; missing semantic coverage remains explicit unavailable. Old v1
+certificate and text-vector identities are preserved. Nine-image publication,
+image-only posts and additional attachment owners remain separate work. Hosted
+checks for this stage are pending; ordinary provider/device activation is closed.

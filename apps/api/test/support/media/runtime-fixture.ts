@@ -1,3 +1,4 @@
+import { MediaContentSnapshotFacade } from '../../../src/media/content-snapshot.facade.js';
 import { MEDIA_UPLOAD_APPLICATION_V2 } from '../../../src/media/application-v2.js';
 import { MEDIA_INGRESS_STORAGE } from '../../../src/media/ingress-storage.js';
 import { MediaIngressRepository } from '../../../src/media/ingress-repository.js';
@@ -60,6 +61,8 @@ export async function syntheticMediaRuntimeFixture(
         const builder = Test.createTestingModule({
           imports: [AppModule.register(config)],
         })
+          .overrideProvider(MediaContentSnapshotFacade)
+          .useClass(MediaContentSnapshotFacade)
           .overrideProvider(CONTENT_MEDIA_PROOF)
           .useClass(CurrentContentMediaProof)
           .overrideProvider(MEDIA_ATTACHMENT)

@@ -1,4 +1,8 @@
 import {
+  MediaContentSnapshotFacade,
+  UnavailableMediaContentSnapshotFacade,
+} from '../../media/content-snapshot.facade.js';
+import {
   CONTENT_MEDIA_PROOF,
   UnavailableContentMediaProof,
 } from './media-proof.js';
@@ -18,6 +22,10 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
 @Module({
   imports: [CampusModule],
   providers: [
+    {
+      provide: MediaContentSnapshotFacade,
+      useClass: UnavailableMediaContentSnapshotFacade,
+    },
     { provide: CONTENT_MEDIA_PROOF, useClass: UnavailableContentMediaProof },
     DmContentReviewFacade,
     RatingContentReviewFacade,
@@ -31,6 +39,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
     LocalApprovedContentVisibility,
   ],
   exports: [
+    MediaContentSnapshotFacade,
     DmContentReviewFacade,
     RatingContentReviewFacade,
     RatingScopedContentReviewFacade,

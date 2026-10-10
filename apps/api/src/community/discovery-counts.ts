@@ -8,7 +8,10 @@ import {
 import { APP_CONFIG } from '../config/config.js';
 import type { RuntimeConfig } from '../config/config.js';
 import { ContentReviewCountFacade } from './content-review/count-snapshot.facade.js';
-import { captureCountProof } from './count-proof.js';
+import { captureImageAwareCountProof } from './count-proof.js';
+import { optionalCountMediaStep } from '../database/count-proof.js';
+import type { CountProofCollector } from '../database/count-proof.js';
+import { mediaCountProofOwner } from '../media/required-proof.js';
 import { fenceSmallCommunityCount } from './small-count-fence.js';
 import { fenceSmallSafetyContentCount } from '../safety/content-count-fence.js';
 import { fenceSmallCampusContentCount } from '../campus/content-count-fence.js';
@@ -99,18 +102,40 @@ export class CommunityDiscoveryCounts {
       read: PoolClient,
       includeUntil: (until: number | null) => void,
       maxCandidates: number,
-    ) => Promise<{ value: number; candidates: number }>,
+    ) => Promise<{ value: number; candidates: number; mediaRequired: boolean }>,
     budgetMs: number,
   ): Promise<CurrentDiscoveryCount> {
+    let proof: CountProofCollector | null = null;
+    let fallback = false;
+    let mediaFenced = false;
     return this.runner.attempt<number>(
       tx,
-      scan,
+      async (read, includeUntil, maxCandidates) => {
+        const result = await scan(read, includeUntil, maxCandidates);
+        if (result.mediaRequired) {
+          if (fallback) {
+            if (!mediaFenced) throw new OptionalCountUnavailable();
+          } else proof?.requireMedia();
+        }
+        return result;
+      },
       budgetMs,
-      captureCountProof,
+      async (managed, read) => {
+        proof = await captureImageAwareCountProof(managed, read);
+        return proof;
+      },
       async (read) => {
         await fenceSmallCommunityCount(read);
         await fenceSmallSafetyContentCount(read);
         await fenceSmallCampusContentCount(read);
+        // Always attempt Media before a fresh fallback rescan, including an
+        // initially text-only count whose Community epoch changed. Missing or
+        // conflicting Media can preserve only a completely text-only rescan.
+        mediaFenced =
+          (await optionalCountMediaStep(tx, () =>
+            mediaCountProofOwner.fence(read),
+          )) === true;
+        fallback = true;
       },
     );
   }
@@ -129,6 +154,7 @@ export class CommunityDiscoveryCounts {
         let after: PostPosition | null = null;
         let value = 0;
         let seen = 0;
+        let mediaRequired = false;
         for (;;) {
           const candidates: PostPosition[] = (
             await read.query<PostPosition>(
@@ -161,8 +187,10 @@ export class CommunityDiscoveryCounts {
               current.map((item) => item.id),
               viewer,
               read,
+              tx,
             );
             includeUntil(batch.optionalUntil);
+            mediaRequired ||= batch.mediaRequired === true;
             for (const candidate of current) {
               const fact = batch.facts.get(candidate.id);
               if (!fact || fact.decision === 'unknown')
@@ -191,7 +219,7 @@ export class CommunityDiscoveryCounts {
             }
           }
           if (candidates.length <= DISCOVERY_COUNT_BATCH)
-            return { value, candidates: seen };
+            return { value, candidates: seen, mediaRequired };
           if (seen >= maxCandidates) throw new OptionalCountUnavailable();
           const next = current.at(-1)!;
           if (
@@ -220,6 +248,7 @@ export class CommunityDiscoveryCounts {
         let after: LikedAnchor | null = null;
         let value = 0;
         let seen = 0;
+        let mediaRequired = false;
         for (;;) {
           const candidates = await this.likes.candidates(
             owner,
@@ -234,8 +263,14 @@ export class CommunityDiscoveryCounts {
           seen += current.length;
           if (seen > maxCandidates) throw new OptionalCountUnavailable();
           if (current.length) {
-            const batch = await this.facts.evaluateLiked(current, owner, read);
+            const batch = await this.facts.evaluateLiked(
+              current,
+              owner,
+              read,
+              tx,
+            );
             includeUntil(batch.optionalUntil);
+            mediaRequired ||= batch.mediaRequired === true;
             for (const candidate of current) {
               const fact = batch.facts.get(
                 `${candidate.kind}:${candidate.like_id}`,
@@ -249,7 +284,7 @@ export class CommunityDiscoveryCounts {
             }
           }
           if (candidates.length <= DISCOVERY_COUNT_BATCH)
-            return { value, candidates: seen };
+            return { value, candidates: seen, mediaRequired };
           if (seen >= maxCandidates) throw new OptionalCountUnavailable();
           const last = current.at(-1)!;
           const next = likedPosition(last);

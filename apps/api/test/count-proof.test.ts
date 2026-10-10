@@ -405,3 +405,122 @@ test('optional settings-read and restoration cancellations recover within the fi
     assert.equal(f.commands.at(-1), 'COMMIT');
   }
 });
+
+test('legacy profile still rejects four owners and v2 accepts only the fixed ordered owner set', async () => {
+  const f = fixture();
+  startTransactionDeadlines(f.tx);
+  try {
+    const owners = [1464356101, 1464356102, 1464356103, 40].map(
+      (order) => ownerFixture(order).owner,
+    );
+    for (const capacity of [108, 128]) {
+      f.state.writerCapacity = capacity;
+      await assert.rejects(
+        CountProofCollector.capture(f.tx, owners),
+        errorIs('COMMUNITY_UNAVAILABLE'),
+      );
+    }
+    f.state.writerCapacity = 108;
+    for (const invalid of [
+      owners.slice(0, 3),
+      [...owners].reverse(),
+      [...owners.slice(0, 3), owners[0]!],
+    ])
+      await assert.rejects(
+        CountProofCollector.captureImageAware(
+          f.tx,
+          invalid as unknown as Parameters<
+            typeof CountProofCollector.captureImageAware
+          >[1],
+        ),
+        errorIs('COMMUNITY_UNAVAILABLE'),
+      );
+  } finally {
+    clearTransactionDeadlines(f.tx);
+  }
+});
+
+test('v2 captures early but selects four fences before all fresh vectors only when Media was consumed', async () => {
+  const f = fixture();
+  startTransactionDeadlines(f.tx);
+  try {
+    const calls: string[] = [];
+    const owners = [1464356101, 1464356102, 1464356103, 40].map((order) => {
+      const owner = ownerFixture(order);
+      return {
+        ...owner.owner,
+        capture: async () => {
+          calls.push(`capture:${order}`);
+          return owner.state.rows;
+        },
+        fence: async () => {
+          calls.push(`fence:${order}`);
+          return true;
+        },
+      };
+    }) as unknown as Parameters<
+      typeof CountProofCollector.captureImageAware
+    >[1];
+    const proof = await CountProofCollector.captureImageAware(f.tx, owners);
+    assert.ok(proof);
+    assert.deepEqual(
+      calls,
+      owners.map((owner) => `capture:${owner.order}`),
+    );
+    calls.length = 0;
+    assert.equal(await proof.validate(f.tx), true);
+    assert.deepEqual(calls, [
+      ...owners.slice(0, 3).map((owner) => `fence:${owner.order}`),
+      ...owners.slice(0, 3).map((owner) => `capture:${owner.order}`),
+    ]);
+    calls.length = 0;
+    proof.requireMedia();
+    assert.equal(await proof.validate(f.tx), true);
+    assert.deepEqual(calls, [
+      ...owners.map((owner) => `fence:${owner.order}`),
+      ...owners.map((owner) => `capture:${owner.order}`),
+    ]);
+  } finally {
+    clearTransactionDeadlines(f.tx);
+  }
+});
+
+test('failed early optional Media capture preserves text proof and mandatory facts but cannot be upgraded later', async () => {
+  for (const code of ['42P01', '42703', '55P03', '57014']) {
+    const f = fixture();
+    startTransactionDeadlines(f.tx);
+    try {
+      registerTransactionDeadline(f.tx, 500, 'SESSION_REVOKED');
+      const owners = [1464356101, 1464356102, 1464356103, 40].map(
+        (order) => ownerFixture(order).owner,
+      );
+      owners[3] = {
+        ...owners[3]!,
+        capture: async () => {
+          throw Object.assign(new Error('Media unavailable'), { code });
+        },
+      };
+      const proof = await CountProofCollector.captureImageAware(
+        f.tx,
+        owners as unknown as Parameters<
+          typeof CountProofCollector.captureImageAware
+        >[1],
+      );
+      assert.ok(proof);
+      assert.equal(await proof.validate(f.tx), true);
+      assert.throws(
+        () => proof.requireMedia(),
+        errorIs('COMMUNITY_UNAVAILABLE'),
+      );
+      assert.deepEqual(
+        [...checkpointTransactionDeadlines(f.tx)],
+        [['SESSION_REVOKED', 500]],
+      );
+      assert.ok(
+        f.commands.includes('ROLLBACK TO SAVEPOINT discovery_optional_media'),
+      );
+    } finally {
+      clearTransactionDeadlines(f.tx);
+    }
+  }
+});

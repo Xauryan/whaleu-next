@@ -30,6 +30,10 @@ function fixture(size = 1025, poolMax = 10) {
   const batches: number[] = [];
   const state = {
     epoch: '1',
+    mediaEpoch: '1',
+    mediaMissing: false,
+    mediaFence: true,
+    images: new Set<string>(),
     writerCapacity: 108,
     unknown: null as string | null,
     denied: new Set<string>(),
@@ -63,6 +67,23 @@ function fixture(size = 1025, poolMax = 10) {
             },
           ],
         };
+      if (sql.includes('whaleu_media.media_owner_states')) {
+        if (state.mediaMissing)
+          throw Object.assign(new Error('Media schema absent'), {
+            code: '42P01',
+          });
+        if (sql.includes('LOCK TABLE') && !state.mediaFence)
+          throw Object.assign(new Error('Media writer active'), {
+            code: '55P03',
+          });
+        return {
+          rows: Array.from({ length: COUNT_EPOCH_SLOTS }, (_, slot) => ({
+            slot,
+            version: 1,
+            epoch: state.mediaEpoch,
+          })),
+        };
+      }
       if (sql.includes('discovery_count_epochs'))
         return {
           rows: Array.from({ length: COUNT_EPOCH_SLOTS }, (_, slot) => ({
@@ -103,6 +124,7 @@ function fixture(size = 1025, poolMax = 10) {
       assert.ok(ids.length <= DISCOVERY_COUNT_BATCH);
       return {
         optionalUntil: state.until,
+        mediaRequired: ids.some((id) => state.images.has(id)),
         facts: new Map(
           ids.map((id) => [
             id,
@@ -424,6 +446,112 @@ test('unsupported liked Date coordinates are optional uncertainty, never RangeEr
     const count = await f.service.liked(f.owner, f.tx);
     assert.equal(count.status, 'unavailable');
     assert.equal(count.value, null);
+    clearTransactionDeadlines(f.tx);
+  }
+});
+
+test('late image batch uses Media vector captured before the first candidate and invalidates on Media-only churn', async () => {
+  const f = fixture(4097);
+  f.state.images.add(f.source.at(-1)!.id);
+  const count = await f.service.profile(f.owner, null, 'posts', f.tx);
+  assert.equal(count.value, 4097);
+  const early = f.commands.findIndex((entry) =>
+    entry.sql.includes('FROM whaleu_media.media_owner_states'),
+  );
+  const candidates = f.commands.findIndex((entry) =>
+    entry.sql.includes('FROM whaleu_community.posts'),
+  );
+  assert.ok(early >= 0 && early < candidates);
+  let invalidated = false;
+  bindDiscoveryCount(f.tx, count, () => {
+    invalidated = true;
+  });
+  f.state.mediaEpoch = '2';
+  await checkTransactionDeadlines(f.tx);
+  assert.equal(invalidated, true);
+  clearTransactionDeadlines(f.tx);
+});
+
+test('missing Media capture preserves only a fully scanned text-only total, never a first-batch guess', async () => {
+  for (const image of [false, true]) {
+    const f = fixture(4097);
+    f.state.mediaMissing = true;
+    if (image) f.state.images.add(f.source.at(-1)!.id);
+    registerTransactionDeadline(f.tx, 500, 'SESSION_REVOKED');
+    const count = await f.service.profile(f.owner, null, 'posts', f.tx);
+    assert.equal(count.status, image ? 'unavailable' : 'known');
+    assert.equal(count.value, image ? null : 4097);
+    assert.equal(f.batches.length, 17);
+    assert.deepEqual(
+      [...checkpointTransactionDeadlines(f.tx)],
+      [['SESSION_REVOKED', 500]],
+    );
+    if (!image) {
+      let invalidated = false;
+      bindDiscoveryCount(f.tx, count, () => {
+        invalidated = true;
+      });
+      await checkTransactionDeadlines(f.tx);
+      assert.equal(invalidated, false);
+      assert.equal(
+        f.commands.some((entry) =>
+          entry.sql.includes('LOCK TABLE whaleu_media'),
+        ),
+        false,
+      );
+    }
+    clearTransactionDeadlines(f.tx);
+  }
+});
+
+test('unsupported writer capacity permits image counts only under complete Media source fences before fresh rescan', async () => {
+  for (const fenced of [true, false]) {
+    const f = fixture(200);
+    f.state.writerCapacity = 300;
+    f.state.images.add(f.source[0]!.id);
+    f.state.mediaFence = fenced;
+    const count = await f.service.profile(f.owner, null, 'posts', f.tx);
+    assert.equal(count.value, 200);
+    let invalidated = false;
+    bindDiscoveryCount(f.tx, count, () => {
+      invalidated = true;
+    });
+    const before = f.commands.length;
+    await checkTransactionDeadlines(f.tx);
+    assert.equal(invalidated, !fenced);
+    const final = f.commands.slice(before);
+    const fence = final.findIndex((entry) =>
+      entry.sql.includes('LOCK TABLE whaleu_media'),
+    );
+    const scan = final.findIndex((entry) =>
+      entry.sql.includes('FROM whaleu_community.posts'),
+    );
+    assert.ok(fence >= 0 && scan > fence);
+    for (const source of [
+      'media_owner_states',
+      'bindings',
+      'asset_safety_heads',
+      'upload_ingress',
+      'upload_ingress_writers',
+    ])
+      assert.ok(final[fence]!.sql.includes(`whaleu_media.${source}`));
+    clearTransactionDeadlines(f.tx);
+  }
+});
+
+test('small text-only fallback can survive a Media conflict, but cannot adopt newly introduced images without the fence', async () => {
+  for (const image of [false, true]) {
+    const f = fixture(1);
+    const count = await f.service.profile(f.owner, null, 'posts', f.tx);
+    f.state.epoch = '2';
+    f.state.mediaFence = false;
+    if (image) f.state.images.add(f.source[0]!.id);
+    let invalidated = false;
+    bindDiscoveryCount(f.tx, count, () => {
+      invalidated = true;
+    });
+    await checkTransactionDeadlines(f.tx);
+    assert.equal(invalidated, image);
     clearTransactionDeadlines(f.tx);
   }
 });
