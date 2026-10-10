@@ -249,3 +249,13 @@ batch/system administration and related authoring UI remain separate work. M3D
 production source reconciliation, accepted adoption/import and operational
 cutover also remain outstanding. Real issuers/providers, production load and
 physical-device acceptance require their own release evidence.
+
+## Explicit target-cover protocol
+
+The additive `/v3/ratings/target-cover` surface uses independent context3,
+command3 and exact Review6 for one generic target cover, with native journal11.
+It reuses the scoped owner and current definition head. Complete covered content
+requires this explicit projection; original v2 auxiliary reads and interactions
+retain their original contracts with additional current covered-target checks.
+See [the target-cover contract](ratings/target-cover.md) for scope registration,
+body/cover CAS, authenticated Media transport, deletion and recovery boundaries.

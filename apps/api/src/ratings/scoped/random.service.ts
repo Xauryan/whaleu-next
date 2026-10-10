@@ -1,3 +1,7 @@
+import { ratingTargetCoverContextSchema } from './target-cover-contracts.js';
+import { currentRatingTargetCoverDescriptor } from '../target-cover-current.js';
+import { ratingsMediaDescriptorSchema } from '../../media/contracts-ratings.js';
+import { requireTargetCoverRead } from './target-cover-capability.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { z, ZodError } from 'zod';
 import { DatabaseService } from '../../database/database.js';
@@ -113,6 +117,43 @@ type PoolPath = Awaited<
 function unavailable(): never {
   throw new ApplicationError('RATING_UNAVAILABLE');
 }
+export const ratingTargetCoverRandomResponseSchema = z
+  .strictObject({
+    ...ratingScopedRandomResponseSchema.shape,
+    item: z
+      .strictObject({
+        ...ratingScopedRandomResponseSchema.shape.item.unwrap().shape,
+        cover: ratingsMediaDescriptorSchema.nullable(),
+        coverContext: ratingTargetCoverContextSchema,
+      })
+      .nullable(),
+  })
+  .superRefine((value, ctx) => {
+    const { item, ...rest } = value;
+    const old = ratingScopedRandomResponseSchema.safeParse({
+      ...rest,
+      item: item
+        ? { locator: item.locator, target: item.target, summary: item.summary }
+        : null,
+    });
+    if (
+      !old.success ||
+      (item &&
+        (!canonicalEqual(item.coverContext.selector, item.locator.selector) ||
+          item.coverContext.protocolGeneration !==
+            item.locator.protocolGeneration ||
+          item.coverContext.purpose !== 'read' ||
+          item.coverContext.mode !== 'public' ||
+          (item.cover && item.cover.targetId !== item.target.id) ||
+          (item.cover &&
+            (item.cover.contextId !== item.coverContext.id ||
+              item.cover.contextToken !== item.coverContext.token))))
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Invalid exact covered random result',
+      });
+  });
 function observation(path: PoolPath) {
   const definition = canonicalAnyRatingTargetDefinition(path.definition),
     row = path.row,
@@ -125,7 +166,7 @@ function observation(path: PoolPath) {
     row.name !== envelope.name ||
     row.description !== envelope.description ||
     row.region_id !==
-      (envelope.version === 5
+      (envelope.version === 5 || envelope.version === 6
         ? envelope.targetOrigin.regionId
         : envelope.scope.regionId) ||
     !canonicalEqual(row.definition, definition)
@@ -160,14 +201,23 @@ export class RatingScopedRandomService {
     private readonly projection: RatingScopedProjection,
     @Inject(RatingRandomDraw) private readonly draw: RatingRandomDraw,
   ) {}
-  async select(token: string, input: RatingScopedRandomQuery) {
+  async select(
+    token: string,
+    input: RatingScopedRandomQuery,
+    protocolVersion: 2 | 3 = 2,
+  ) {
     const query = ratingScopedRandomQuerySchema.parse(input);
     try {
       return await this.database.transaction(
         async (tx) => {
           this.records.enable(tx);
           this.scoped.enable(tx);
-          const random = await this.contexts.resolveRandom(token, query, tx);
+          const random = await this.contexts.resolveRandom(
+            token,
+            query,
+            tx,
+            protocolVersion,
+          );
           if (
             random.context.purpose !== 'random' ||
             random.context.mode !== 'public'
@@ -212,6 +262,8 @@ export class RatingScopedRandomService {
             );
             if (decisions.length !== batch.items.length)
               throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+            for (const candidate of batch.items)
+              requireTargetCoverRead(candidate.scope, candidate.definition);
             for (let index = 0; index < batch.items.length; index++) {
               const candidate = batch.items[index]!,
                 scopeKey = ratingScopedScopeKey(candidate.scope.selector),
@@ -276,6 +328,11 @@ export class RatingScopedRandomService {
             unavailable();
           const selected = index === null ? null : candidates[index]!;
           let item = null;
+          let cover: ReturnType<typeof currentRatingTargetCoverDescriptor> =
+            null;
+          let coverContext: z.infer<
+            typeof ratingTargetCoverContextSchema
+          > | null = null;
           if (selected) {
             const current = await this.scoped
               .target(selected.scope, selected.id, tx)
@@ -332,10 +389,33 @@ export class RatingScopedRandomService {
                 },
               }),
             };
+            if (protocolVersion === 3) {
+              coverContext = await this.contexts.createCover(
+                token,
+                {
+                  purpose: 'read',
+                  mode: 'public',
+                  selector: selected.scope.selector,
+                },
+                tx,
+              );
+              cover = currentRatingTargetCoverDescriptor(
+                current.row.definition,
+                {
+                  contextId: coverContext.id,
+                  contextToken: coverContext.token,
+                },
+                tx,
+              );
+            }
             await this.scoped.retainAfter(selected.scope, tx);
           }
           await this.access.recheck(token, tx);
-          return ratingScopedRandomResponseSchema.parse({
+          return (
+            protocolVersion === 3
+              ? ratingTargetCoverRandomResponseSchema
+              : ratingScopedRandomResponseSchema
+          ).parse({
             context: {
               contextId: random.context.id,
               selector,
@@ -344,7 +424,10 @@ export class RatingScopedRandomService {
               minimumAverage: query.minimumAverage ?? null,
             },
             candidateCount: candidates.length,
-            item,
+            item:
+              protocolVersion === 3 && item
+                ? { ...item, cover, coverContext }
+                : item,
           });
         },
         { isolationLevel: 'read committed' },

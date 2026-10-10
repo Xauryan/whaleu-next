@@ -1,4 +1,24 @@
 import {
+  decodeRatingCoverRecovery,
+  ratingCoverPrepareHash,
+  type RatingCoverRecovery,
+} from './target-cover-media-contract';
+import {
+  decodePendingRatingCoverUpload,
+  decodeRatingCoverScopeCancellation,
+  type RatingCoverScopeCancellation,
+  type PendingRatingCoverUpload,
+} from './target-cover-upload-scope';
+import {
+  decodeRatingTargetCoverIntent,
+  decodeRatingTargetCoverReceipt,
+  isRatingTargetCoverIntent,
+  matchRatingTargetCoverReceipt,
+  type RatingTargetCoverIntent,
+  type RatingTargetCoverReceipt,
+} from './target-cover-contract';
+export { isRatingTargetCoverIntent } from './target-cover-contract';
+import {
   decodeRatingCategoryScopedIntent,
   decodeRatingCategoryScopedReceipt,
   isRatingCategoryScopedOperation,
@@ -85,6 +105,7 @@ import {
 type RatingV2Intent = RatingIntent | RatingReplyIntent | RatingLikeIntent;
 export type RatingCommandIntent =
   | RatingV2Intent
+  | RatingTargetCoverIntent
   | RatingSubscriptionIntent
   | RatingAdminDeletionIntent
   | RatingTargetCreationIntent
@@ -95,6 +116,7 @@ export type RatingCommandIntent =
   | RatingCategoryScopedIntent;
 export type RatingCommandReceipt =
   | RatingReceipt
+  | RatingTargetCoverReceipt
   | RatingReplyReceipt
   | RatingLikeReceipt
   | RatingSubscriptionReceipt
@@ -155,6 +177,12 @@ export type PendingRating =
       readonly version: 10;
       readonly accountId: string;
       readonly intent: RatingCategoryScopedIntent;
+    }
+  | {
+      readonly version: 11;
+      readonly accountId: string;
+      readonly intent: RatingTargetCoverIntent;
+      readonly upload?: PendingRatingCoverUpload;
     };
 export function isRatingCategoryScopedIntent(
   intent: RatingCommandIntent,
@@ -164,7 +192,10 @@ export function isRatingCategoryScopedIntent(
 export function isRatingScopedIntent(
   intent: RatingCommandIntent,
 ): intent is RatingScopedIntent {
-  return isRatingScopedOperation(intent.operation);
+  return (
+    !isRatingTargetCoverIntent(intent) &&
+    isRatingScopedOperation(intent.operation)
+  );
 }
 export function isRatingCategoryCreationIntent(
   intent: RatingCommandIntent,
@@ -223,6 +254,8 @@ export function isRatingSubscriptionIntent(
   return intent.operation === 'set_target_subscription';
 }
 export function decodeRatingCommandIntent(value: unknown): RatingCommandIntent {
+  if (isRatingTargetCoverIntent(value))
+    return decodeRatingTargetCoverIntent(value);
   if (isRecord(value) && isRatingCategoryScopedOperation(value.operation))
     return decodeRatingCategoryScopedIntent(value);
   if (isRecord(value) && isRatingScopedOperation(value.operation))
@@ -258,6 +291,10 @@ function decodeRatingV2Intent(value: unknown): RatingV2Intent {
     : decodeRatingIntent(value);
 }
 export function ratingIntentTarget(intent: RatingCommandIntent): string {
+  if (isRatingTargetCoverIntent(intent))
+    return intent.operation === 'create_target_scoped'
+      ? ''
+      : intent.payload.targetId;
   if (isRatingCategoryScopedIntent(intent)) return '';
   if (isRatingScopedIntent(intent))
     return intent.operation === 'create_target_scoped'
@@ -284,9 +321,16 @@ const unavailable = (): ClientError =>
 function decode(
   value: unknown,
   accountId: string,
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11,
 ): PendingRating {
-  exact(value, ['version', 'accountId', 'intent']);
+  exact(value, [
+    'version',
+    'accountId',
+    'intent',
+    ...(version === 11 && isRecord(value) && 'upload' in value
+      ? ['upload']
+      : []),
+  ]);
   if (
     value.version !== version ||
     !ratingId(accountId) ||
@@ -312,11 +356,55 @@ function decode(
                     ? decodeRatingCategoryCreationIntent(value.intent)
                     : version === 9
                       ? decodeRatingScopedIntent(value.intent)
-                      : decodeRatingCategoryScopedIntent(value.intent);
+                      : version === 10
+                        ? decodeRatingCategoryScopedIntent(value.intent)
+                        : decodeRatingTargetCoverIntent(value.intent);
   if (!equal(intent, value.intent)) invalidRating();
-  return Object.freeze({ version, accountId, intent }) as PendingRating;
+  const upload =
+    version === 11 && 'upload' in value
+      ? decodePendingRatingCoverUpload(value.upload, accountId)
+      : undefined;
+  if (upload) matchCoverUploadCommand(upload, intent);
+  return Object.freeze({
+    version,
+    accountId,
+    intent,
+    ...(upload ? { upload } : {}),
+  }) as PendingRating;
 }
-/** One immutable command per origin/account. Recovery order is v1, v2, v3, v4, v5, v6, v7, v8, v9, v10; every original key and payload stays unchanged. */
+function matchCoverUploadCommand(
+  upload: PendingRatingCoverUpload,
+  intent: RatingCommandIntent,
+): void {
+  if (
+    !isRatingTargetCoverIntent(intent) ||
+    !upload.scope ||
+    upload.status?.status !== 'ready_unbound' ||
+    intent.payload.clientRequestId !== upload.scopeInput.commandRequestId ||
+    intent.payload.cover.action !== 'replace' ||
+    intent.payload.cover.uploadScopeId !== upload.scope.scopeId ||
+    intent.payload.cover.assetId !== upload.status.assetId ||
+    intent.payload.categoryId !== upload.scopeInput.categoryId ||
+    intent.payload.expectedCategoryRevision !==
+      upload.scopeInput.expectedCategoryRevision ||
+    JSON.stringify(intent.context) !== JSON.stringify(upload.scopeInput.context)
+  )
+    invalidRating();
+  const target = upload.scopeInput.target;
+  if (
+    intent.operation === 'create_target_scoped'
+      ? target !== null
+      : target === null ||
+        intent.payload.targetId !== target.targetId ||
+        intent.payload.expectedTargetRevision !==
+          target.expectedTargetRevision ||
+        intent.payload.expectedDefinitionRevision !==
+          target.expectedDefinitionRevision ||
+        intent.payload.expectedContentVersion !== target.expectedContentVersion
+  )
+    invalidRating();
+}
+/** One immutable command per origin/account. Recovery order is v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11; every original key and payload stays unchanged. */
 export class PendingRatingStore {
   constructor(
     private readonly storage: Storage,
@@ -324,19 +412,161 @@ export class PendingRatingStore {
   ) {}
   private key(
     accountId: string,
-    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
+    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11,
   ): string {
     if (!ratingId(accountId)) throw unavailable();
     return `whaleu.ratings.pending.v${version}:${this.origin}:${accountId}`;
   }
   private read(
     accountId: string,
-    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
+    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11,
   ): PendingRating | null {
     const raw = this.storage.get(this.key(accountId, version));
     return raw === undefined || raw === null || raw === ''
       ? null
       : decode(raw, accountId, version);
+  }
+  loadCoverUpload(accountId: string): PendingRatingCoverUpload | null {
+    try {
+      const raw = this.storage.get(this.key(accountId, 11));
+      if (!isRecord(raw) || raw.phase !== 'upload') return null;
+      const value = decodePendingRatingCoverUpload(raw, accountId);
+      if (!equal(value, raw)) throw unavailable();
+      for (const version of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const)
+        if (this.read(accountId, version)) throw unavailable();
+      return value;
+    } catch {
+      throw unavailable();
+    }
+  }
+  freezeCoverUpload(raw: PendingRatingCoverUpload): PendingRatingCoverUpload {
+    try {
+      const value = decodePendingRatingCoverUpload(raw, raw.accountId);
+      if (value.scope !== null || value.status !== null) throw unavailable();
+      const original = this.loadCoverUpload(value.accountId);
+      if (original) {
+        if (!equal(original, value)) throw unavailable();
+        return original;
+      }
+      // Includes corrupt later slots; no new upload can bypass an existing owner command.
+      for (const version of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const)
+        if (this.read(value.accountId, version)) throw unavailable();
+      this.storage.set(this.key(value.accountId, 11), value);
+      if (!equal(this.loadCoverUpload(value.accountId), value))
+        throw unavailable();
+      return value;
+    } catch {
+      throw unavailable();
+    }
+  }
+  updateCoverUpload(
+    original: PendingRatingCoverUpload,
+    raw: PendingRatingCoverUpload,
+  ): PendingRatingCoverUpload {
+    try {
+      if (!equal(this.loadCoverUpload(original.accountId), original))
+        throw unavailable();
+      const value = decodePendingRatingCoverUpload(raw, original.accountId);
+      if (
+        !equal(value.scopeInput, original.scopeInput) ||
+        (original.scope !== null && !equal(original.scope, value.scope))
+      )
+        throw unavailable();
+      this.storage.set(this.key(value.accountId, 11), value);
+      if (!equal(this.loadCoverUpload(value.accountId), value))
+        throw unavailable();
+      return value;
+    } catch {
+      throw unavailable();
+    }
+  }
+  settleCoverScopeCancellation(
+    original: PendingRatingCoverUpload,
+    raw: RatingCoverScopeCancellation,
+  ): void {
+    const result = decodeRatingCoverScopeCancellation(
+      raw,
+      original.accountId,
+      original.scopeInput,
+    );
+    if (!(
+      result.recovery.state === 'cancelled_before_prepare' ||
+      (result.recovery.state === 'recorded' &&
+        result.recovery.status.status === 'terminal')
+    ))
+      throw unavailable();
+    try {
+      if (!equal(this.loadCoverUpload(original.accountId), original))
+        throw unavailable();
+      this.storage.remove(this.key(original.accountId, 11));
+      if (this.storage.get(this.key(original.accountId, 11)))
+        throw unavailable();
+    } catch {
+      try {
+        if (!this.storage.get(this.key(original.accountId, 11)))
+          this.storage.set(this.key(original.accountId, 11), original);
+      } catch {
+        /* Preserve uncertainty. */
+      }
+      throw unavailable();
+    }
+  }
+  settleCoverUploadCancellation(
+    original: PendingRatingCoverUpload,
+    raw: RatingCoverRecovery,
+  ): void {
+    try {
+      const result = decodeRatingCoverRecovery(raw);
+      if (
+        !original.scope ||
+        result.requestId !== original.scope.prepare.clientRequestId ||
+        result.requestHash !==
+          ratingCoverPrepareHash(original.accountId, original.scope.prepare) ||
+        !(
+          result.state === 'cancelled_before_prepare' ||
+          (result.state === 'recorded' && result.status.status === 'terminal')
+        )
+      )
+        throw unavailable();
+      if (!equal(this.loadCoverUpload(original.accountId), original))
+        throw unavailable();
+      this.storage.remove(this.key(original.accountId, 11));
+      if (this.storage.get(this.key(original.accountId, 11)))
+        throw unavailable();
+    } catch {
+      try {
+        if (!this.storage.get(this.key(original.accountId, 11)))
+          this.storage.set(this.key(original.accountId, 11), original);
+      } catch {
+        /* unknown remains blocked */
+      }
+      throw unavailable();
+    }
+  }
+  sealCoverUpload(
+    original: PendingRatingCoverUpload,
+    intent: RatingTargetCoverIntent,
+  ): Extract<PendingRating, { version: 11 }> {
+    try {
+      if (!equal(this.loadCoverUpload(original.accountId), original))
+        throw unavailable();
+      const value = decode(
+        {
+          version: 11,
+          accountId: original.accountId,
+          intent,
+          upload: original,
+        },
+        original.accountId,
+        11,
+      );
+      if (value.version !== 11) throw unavailable();
+      this.storage.set(this.key(value.accountId, 11), value);
+      this.assertOriginal(value);
+      return value;
+    } catch {
+      throw unavailable();
+    }
   }
   load(accountId: string): PendingRating | null {
     try {
@@ -350,7 +580,8 @@ export class PendingRatingStore {
         this.read(accountId, 7) ??
         this.read(accountId, 8) ??
         this.read(accountId, 9) ??
-        this.read(accountId, 10)
+        this.read(accountId, 10) ??
+        this.read(accountId, 11)
       );
     } catch {
       throw unavailable();
@@ -358,9 +589,14 @@ export class PendingRatingStore {
   }
   freeze(raw: PendingRating): PendingRating {
     try {
-      exact(raw, ['version', 'accountId', 'intent']);
+      exact(raw, [
+        'version',
+        'accountId',
+        'intent',
+        ...(raw.version === 11 && 'upload' in raw ? ['upload'] : []),
+      ]);
       if (
-        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(raw.version) ||
+        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].includes(raw.version) ||
         !ratingId(raw.accountId)
       )
         invalidRating();
@@ -386,8 +622,17 @@ export class PendingRatingStore {
                           ? decodeRatingCategoryCreationIntent(raw.intent)
                           : raw.version === 9
                             ? decodeRatingScopedIntent(raw.intent)
-                            : decodeRatingCategoryScopedIntent(raw.intent),
+                            : raw.version === 10
+                              ? decodeRatingCategoryScopedIntent(raw.intent)
+                              : decodeRatingTargetCoverIntent(raw.intent),
+        ...(raw.version === 11 && raw.upload
+          ? {
+              upload: decodePendingRatingCoverUpload(raw.upload, raw.accountId),
+            }
+          : {}),
       }) as PendingRating;
+      if (attempt.version === 11 && attempt.upload)
+        matchCoverUploadCommand(attempt.upload, attempt.intent);
       // Read every version before writing. Any old unresolved or untrusted journal blocks a new command.
       const old1 = this.read(attempt.accountId, 1),
         old2 = this.read(attempt.accountId, 2),
@@ -398,11 +643,22 @@ export class PendingRatingStore {
         old7 = this.read(attempt.accountId, 7),
         old8 = this.read(attempt.accountId, 8),
         old9 = this.read(attempt.accountId, 9),
-        old10 = this.read(attempt.accountId, 10);
+        old10 = this.read(attempt.accountId, 10),
+        old11 = this.read(attempt.accountId, 11);
       if (
-        [old1, old2, old3, old4, old5, old6, old7, old8, old9, old10].some(
-          (old) => old && !equal(old, attempt),
-        )
+        [
+          old1,
+          old2,
+          old3,
+          old4,
+          old5,
+          old6,
+          old7,
+          old8,
+          old9,
+          old10,
+          old11,
+        ].some((old) => old && !equal(old, attempt))
       )
         throw unavailable();
       if (
@@ -415,7 +671,8 @@ export class PendingRatingStore {
         !old7 &&
         !old8 &&
         !old9 &&
-        !old10
+        !old10 &&
+        !old11
       )
         this.storage.set(this.key(attempt.accountId, attempt.version), attempt);
       this.assertOriginal(attempt);
@@ -444,7 +701,17 @@ export class PendingRatingStore {
     raw: RatingCommandReceipt,
   ): RatingCommandReceipt {
     let receipt: RatingCommandReceipt;
-    if (isRatingCategoryScopedIntent(attempt.intent)) {
+    if (isRatingTargetCoverIntent(attempt.intent)) {
+      receipt = decodeRatingTargetCoverReceipt(raw);
+      matchRatingTargetCoverReceipt(attempt.intent, receipt);
+      if (
+        attempt.version === 11 &&
+        attempt.upload?.scope &&
+        receipt.outcome !== 'closed' &&
+        receipt.result.targetId !== attempt.upload.scope.targetId
+      )
+        invalidRating();
+    } else if (isRatingCategoryScopedIntent(attempt.intent)) {
       receipt = decodeRatingCategoryScopedReceipt(raw);
       matchRatingCategoryScopedReceipt(attempt.intent, receipt);
     } else if (isRatingScopedIntent(attempt.intent)) {
@@ -490,7 +757,8 @@ export class PendingRatingStore {
           attempt.version === 7 ||
           attempt.version === 8 ||
           attempt.version === 9 ||
-          attempt.version === 10) &&
+          attempt.version === 10 ||
+          attempt.version === 11) &&
         removing
       ) {
         // A failed settle/read-back must not silently lose the only recovery key.

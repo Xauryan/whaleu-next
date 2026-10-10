@@ -99,7 +99,7 @@ export function currentRatingTargetRow(
   if (
     definition.envelope.accountId !== row.creator_id ||
     definition.envelope.categoryId !== row.category_id ||
-    (definition.envelope.version === 5
+    (definition.envelope.version === 5 || definition.envelope.version === 6
       ? definition.envelope.targetOrigin.regionId
       : definition.envelope.scope.regionId) !== row.region_id ||
     definition.envelope.name !== row.name ||

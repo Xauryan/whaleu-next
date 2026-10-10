@@ -1,3 +1,24 @@
+import { RatingTargetCoverController } from './scoped/target-cover-controller.js';
+import {
+  RatingTargetCoverMediaService,
+  RATINGS_TARGET_COVER_RUNTIME,
+} from './target-cover-media.service.js';
+import {
+  RATINGS_TARGET_MEDIA_OWNER,
+  RatingsTargetUploadApplication,
+  type RatingsTargetMediaRuntime,
+} from '../media/application-ratings.js';
+import {
+  RatingsTargetMediaController,
+  RatingsTargetMultipartInterceptor,
+} from '../media/controller-ratings.js';
+import { MediaDeliveryBudgetPool } from '../media/delivery-budget.js';
+import { MediaDeliveryBudgetModule } from '../media/delivery-budget.module.js';
+import { DatabaseService } from '../database/database.js';
+import { IdentityService } from '../identity/identity.service.js';
+import { RatingsAccessService } from './access.js';
+import { RatingScopedContextService } from './scoped/context.service.js';
+import { RatingScopedRepository } from './scoped/repository.js';
 import { RatingCategoryScopedManagementController } from './category-management/scoped-controller.js';
 import { RatingCategoryScopedManagementService } from './category-management/scoped-service.js';
 import { RatingCategoryManagementReader } from './category-management/scoped-reader.repository.js';
@@ -72,6 +93,7 @@ import { RatingsCursors } from './cursor.js';
 @Module({
   imports: [
     DatabaseModule,
+    MediaDeliveryBudgetModule,
     RatingsReadModule,
     ExperienceIngressModule,
     IdentityModule,
@@ -85,6 +107,8 @@ import { RatingsCursors } from './cursor.js';
     RatingRequestThrottlingModule,
   ],
   controllers: [
+    RatingTargetCoverController,
+    RatingsTargetMediaController,
     RatingScopedController,
     RatingScopedNoticesController,
     RatingCategoryManagementController,
@@ -100,6 +124,49 @@ import { RatingsCursors } from './cursor.js';
     RatingLikesController,
   ],
   providers: [
+    { provide: RATINGS_TARGET_COVER_RUNTIME, useValue: null },
+    {
+      provide: RatingTargetCoverMediaService,
+      inject: [
+        DatabaseService,
+        IdentityService,
+        RatingsAccessService,
+        RatingScopedContextService,
+        RatingScopedRepository,
+        RATINGS_TARGET_COVER_RUNTIME,
+        MediaDeliveryBudgetPool,
+      ],
+      useFactory: (
+        db: DatabaseService,
+        identity: IdentityService,
+        access: RatingsAccessService,
+        contexts: RatingScopedContextService,
+        scoped: RatingScopedRepository,
+        runtime: RatingsTargetMediaRuntime | null,
+        budget: MediaDeliveryBudgetPool,
+      ) =>
+        new RatingTargetCoverMediaService(
+          db,
+          identity,
+          access,
+          contexts,
+          scoped,
+          runtime,
+          budget,
+        ),
+    },
+    {
+      provide: RATINGS_TARGET_MEDIA_OWNER,
+      useExisting: RatingTargetCoverMediaService,
+    },
+    {
+      provide: RatingsTargetUploadApplication,
+      inject: [RatingTargetCoverMediaService],
+      useFactory: (owner: RatingTargetCoverMediaService) =>
+        new RatingsTargetUploadApplication(owner),
+    },
+    RatingsTargetMultipartInterceptor,
+
     RatingLegacyBridgeService,
     RatingScopedCommands,
     RatingScopedReadService,

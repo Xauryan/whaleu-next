@@ -47,7 +47,7 @@ export class RatingScopedProjection {
       row.name !== envelope.name ||
       row.description !== envelope.description ||
       row.region_id !==
-        (envelope.version === 5
+        (envelope.version === 5 || envelope.version === 6
           ? envelope.targetOrigin.regionId
           : envelope.scope.regionId)
     )

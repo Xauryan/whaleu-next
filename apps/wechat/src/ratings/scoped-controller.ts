@@ -1,3 +1,22 @@
+import {
+  RatingTargetCoverContextLease,
+  matchRatingCoverScopePair,
+  type RatingTargetCoverContext,
+} from './target-cover-context';
+import {
+  RatingCoverReadController,
+  type RatingCoverReadView,
+} from './target-cover-read-controller';
+import {
+  RatingCoverUploadController,
+  type RatingCoverUploadView,
+} from './target-cover-upload-controller';
+import {
+  decodeRatingTargetCoverIntent,
+  ratingTargetCoverContext,
+  isRatingTargetCoverIntent,
+  type RatingTargetCoverChange,
+} from './target-cover-contract';
 import { ratingCategoryScopedPath } from './category-scoped-route';
 import { ClientError, isRecord } from '../api/errors';
 import {
@@ -62,6 +81,12 @@ import type {
   RatingScopedRandomResult,
 } from './scoped-read-contract';
 
+function publicCoverTarget(
+  target: RatingTarget,
+): RatingTarget & { readonly hasCover: boolean } {
+  const { cover, ...body } = target as RatingTarget & { cover?: unknown };
+  return { ...body, hasCover: cover !== undefined && cover !== null };
+}
 export type RatingScopedMode =
   | 'catalog'
   | 'detail'
@@ -199,6 +224,11 @@ export function ratingScopedError(error: unknown): string {
   );
 }
 export interface RatingScopedView extends CommunityView {
+  readonly coverEnabled: boolean;
+  readonly cover: RatingCoverReadView;
+  readonly coverThumbnails: Readonly<Record<string, RatingCoverReadView>>;
+  readonly coverUpload: RatingCoverUploadView;
+  readonly coverAction: 'keep' | 'clear' | 'replace';
   readonly mode: RatingScopedMode;
   readonly loaded: boolean;
   readonly scopeLabel: string;
@@ -281,6 +311,17 @@ export const initialRatingScopedView = (): RatingScopedView => ({
   name: '',
   description: '',
   definitionConfirmation: false,
+  coverEnabled: false,
+  cover: { status: 'idle', localSrc: '', expanded: false },
+  coverThumbnails: {},
+  coverAction: 'clear',
+  coverUpload: {
+    status: 'idle',
+    localSrc: '',
+    progress: 0,
+    pickerWaiting: false,
+    message: '',
+  },
   pickerOpen: false,
   campusQuery: '',
   campuses: [],
@@ -297,6 +338,20 @@ type PageKind = 'categories' | 'targets' | 'comments' | 'replies' | 'notices';
 /** One native page, the existing domain DTOs, and one account-scoped journal. No token, request body or cursor enters page data. */
 export class RatingScopedController extends CommunityController<RatingScopedView> {
   private inactive = false;
+  private readonly coverClock: Clock;
+  private readonly thumbnailReaders = new Map<
+    string,
+    RatingCoverReadController
+  >();
+  private readonly visibleCovers = new Set<string>();
+  private thumbnailLoading = false;
+  private thumbnailEpoch = 0;
+  private coverPreviewOpen = false;
+  private coverOpening = false;
+  private coverReader: RatingCoverReadController | undefined;
+  private randomCoverContext: RatingTargetCoverContext | null = null;
+  private coverUploader: RatingCoverUploadController | undefined;
+  private coverChange: RatingTargetCoverChange = { action: 'clear' };
   private routeInitialized = false;
   private requestedRoute: unknown = {};
   private route: RatingScopedRoute = {
@@ -304,6 +359,8 @@ export class RatingScopedController extends CommunityController<RatingScopedView
     selector: { kind: 'global' },
   };
   private readonly lease: RatingScopedContextLease;
+  private readonly coverReadLease: RatingTargetCoverContextLease;
+  private readonly coverCommandLease: RatingTargetCoverContextLease;
   private readonly commandLease: RatingScopedContextLease;
   private readonly subscriptionsToChanges: (() => void)[];
   private pending: PendingRating | null = null;
@@ -328,6 +385,38 @@ export class RatingScopedController extends CommunityController<RatingScopedView
     clock: Clock = systemClock,
   ) {
     super(runtime, initialRatingScopedView, render);
+    this.coverClock = clock;
+    this.coverReadLease = new RatingTargetCoverContextLease(
+      runtime.sessions,
+      () => this.invalidate(),
+      clock,
+    );
+    this.coverCommandLease = new RatingTargetCoverContextLease(
+      runtime.sessions,
+      () => this.invalidate(),
+      clock,
+    );
+    this.coverReader = new RatingCoverReadController(
+      runtime.sessions,
+      runtime.ratingCoverDownload,
+      clock,
+      (cover) => {
+        this.update({ cover });
+        if (!this.coverOpening && this.coverPreviewOpen && !cover.expanded) {
+          this.coverPreviewOpen = false;
+          void this.drainCoverThumbnails();
+        }
+      },
+    );
+    if (runtime.pendingRatings && runtime.ratingCoverMedia) {
+      this.coverUploader = new RatingCoverUploadController(
+        runtime.sessions,
+        runtime.pendingRatings,
+        runtime.ratingCoverMedia,
+        runtime.ratingCoverUpload,
+        (coverUpload) => this.update({ coverUpload }),
+      );
+    }
     this.lease = new RatingScopedContextLease(
       runtime.sessions,
       () => this.invalidate(),
@@ -358,6 +447,13 @@ export class RatingScopedController extends CommunityController<RatingScopedView
     return true;
   }
   protected override resetPrivate(): void {
+    this.coverUploader?.hide();
+    this.coverReader?.clear();
+    this.randomCoverContext = null;
+    this.clearCoverThumbnails();
+    this.coverChange = { action: 'clear' };
+    this.coverReadLease?.clear();
+    this.coverCommandLease?.clear();
     this.lease?.clear();
     this.commandLease?.clear();
     this.pending = null;
@@ -373,9 +469,16 @@ export class RatingScopedController extends CommunityController<RatingScopedView
     this.invalidate();
   }
   private clearContent(): void {
+    this.coverUploader?.hide();
+    this.coverReader?.clear();
+    this.randomCoverContext = null;
+    this.clearCoverThumbnails();
+    this.coverChange = { action: 'clear' };
     this.stop();
     this.lease.clear();
     this.commandLease.clear();
+    this.coverReadLease.clear();
+    this.coverCommandLease.clear();
     this.category = null;
     this.editing = null;
     this.replyTo = null;
@@ -385,6 +488,7 @@ export class RatingScopedController extends CommunityController<RatingScopedView
     this.seenCursors = {};
     this.update({
       loaded: false,
+      coverEnabled: false,
       busy: false,
       categories: [],
       targets: [],
@@ -441,6 +545,28 @@ export class RatingScopedController extends CommunityController<RatingScopedView
       if (this.pending) this.showPending(this.pending);
       return true;
     } catch (error) {
+      try {
+        const coverUpload = this.runtime.pendingRatings!.loadCoverUpload(
+          this.accountId()!,
+        );
+        if (coverUpload) {
+          this.update({
+            frozen: true,
+            coverEnabled: true,
+            coverUpload: {
+              status: 'pending',
+              localSrc: '',
+              progress: 0,
+              pickerWaiting: false,
+              message: '请恢复或明确取消原封面请求',
+            },
+            status: '原封面请求保留中，不能新建替代请求',
+          });
+          return false;
+        }
+      } catch {
+        /* Corrupt or conflicting journals remain unavailable. */
+      }
       this.clearContent();
       this.update({
         frozen: true,
@@ -456,7 +582,7 @@ export class RatingScopedController extends CommunityController<RatingScopedView
       frozen: true,
       recoveryOperation: ratingCommandLabels[pending.intent.operation],
       canCancelPending:
-        pending.version === 9 &&
+        (pending.version === 9 || pending.version === 11) &&
         (pending.intent.operation === 'create_target_scoped' ||
           pending.intent.operation === 'edit_target_scoped'),
       composerOpen: false,
@@ -588,6 +714,40 @@ export class RatingScopedController extends CommunityController<RatingScopedView
       });
     return lease.accept(context, request, generation);
   }
+  private async issueCover(
+    request: RatingScopedContextRequest,
+    cancel: Cancellation,
+    lease = this.coverReadLease,
+  ): Promise<RatingTargetCoverContext> {
+    if (!this.runtime.ratingTargetCover) invalidRating();
+    const generation = lease.capture();
+    const context = await this.runtime.ratingTargetCover.context(
+      request,
+      cancel,
+    );
+    if (cancel.isCancelled)
+      throw new ClientError('cancelled', 'Ratings cover context interrupted');
+    if (
+      this.route.protocolGeneration &&
+      context.protocolGeneration !== this.route.protocolGeneration
+    )
+      invalidRating();
+    return lease.accept(context, request, generation);
+  }
+  private coverReadContext(): RatingTargetCoverContext | null {
+    if (!this.runtime.ratingTargetCover) return null;
+    const context = this.coverReadLease.current();
+    matchRatingCoverScopePair(this.lease.current(), context);
+    return context;
+  }
+  private assertCoverContextPair(): void {
+    this.assertContextPair();
+    this.coverReadContext();
+    matchRatingCoverScopePair(
+      this.lease.current(),
+      this.coverCommandLease.current(),
+    );
+  }
   private assertContextPair(): void {
     matchRatingScopedContextPair(
       this.lease.current(),
@@ -662,17 +822,43 @@ export class RatingScopedController extends CommunityController<RatingScopedView
         );
         this.assertRead(cancel, context);
         this.assertContextPair();
+        const coverRead = this.runtime.ratingTargetCover
+          ? await this.issueCover(this.request(), cancel)
+          : null;
+        if (coverRead) matchRatingCoverScopePair(context, coverRead);
+        const coverCommand =
+          this.runtime.ratingTargetCover &&
+          (route.mode === 'create' || route.mode === 'edit')
+            ? await this.issueCover(
+                {
+                  purpose: this.commandPurpose(),
+                  selector: route.selector,
+                  mode: 'public',
+                },
+                cancel,
+                this.coverCommandLease,
+              )
+            : null;
+        if (coverCommand) matchRatingCoverScopePair(context, coverCommand);
         const common = {
           loaded: true,
           identityCampusId: context.identityCampusId,
           needsRefresh: false,
           status: '当前范围已核验',
+          coverEnabled: !!coverCommand?.capabilities.includes('target_cover'),
         };
         if (route.mode === 'catalog') {
           const [categories, targets] = await Promise.all([
             gateway.categories(context, route.categoryId ?? null, null, cancel),
             route.categoryId
-              ? gateway.targets(context, route.categoryId, null, cancel)
+              ? coverRead && this.runtime.ratingTargetCover
+                ? this.runtime.ratingTargetCover.targets(
+                    coverRead,
+                    route.categoryId,
+                    null,
+                    cancel,
+                  )
+                : gateway.targets(context, route.categoryId, null, cancel)
               : Promise.resolve(null),
           ]);
           this.assertRead(cancel, context);
@@ -691,7 +877,7 @@ export class RatingScopedController extends CommunityController<RatingScopedView
           return {
             ...common,
             categories: categories.items,
-            targets: targets?.items ?? [],
+            targets: targets?.items.map(publicCoverTarget) ?? [],
             subscriptions: Object.fromEntries(
               states?.items.map((item) => [item.targetId, item.state]) ?? [],
             ),
@@ -700,7 +886,14 @@ export class RatingScopedController extends CommunityController<RatingScopedView
           };
         }
         if (route.mode === 'subscriptions') {
-          const page = await gateway.subscriptions(context, null, cancel);
+          const page =
+            coverRead && this.runtime.ratingTargetCover
+              ? await this.runtime.ratingTargetCover.subscriptions(
+                  coverRead,
+                  null,
+                  cancel,
+                )
+              : await gateway.subscriptions(context, null, cancel);
           this.assertRead(cancel, context);
           this.cursors.targets = page.nextCursor;
           const states = page.items.length
@@ -715,7 +908,7 @@ export class RatingScopedController extends CommunityController<RatingScopedView
             : null;
           return {
             ...common,
-            targets: page.items,
+            targets: page.items.map(publicCoverTarget),
             subscriptions: Object.fromEntries(
               states?.items.map((item) => [item.targetId, item.state]) ?? [],
             ),
@@ -723,6 +916,8 @@ export class RatingScopedController extends CommunityController<RatingScopedView
           };
         }
         if (route.mode === 'create') {
+          this.coverChange = { action: 'clear' };
+          this.update({ coverAction: 'clear' });
           const category = await this.findCategory(
             context,
             route.categoryId!,
@@ -738,11 +933,21 @@ export class RatingScopedController extends CommunityController<RatingScopedView
           };
         }
         if (route.mode === 'edit') {
-          const editing = await gateway.editContext(
-            commandContext,
-            route.targetId!,
-            cancel,
-          );
+          const editing =
+            coverCommand?.capabilities.includes('target_cover') &&
+            this.runtime.ratingTargetCover
+              ? await this.runtime.ratingTargetCover.editContext(
+                  coverCommand,
+                  route.targetId!,
+                  cancel,
+                )
+              : await gateway.editContext(
+                  commandContext,
+                  route.targetId!,
+                  cancel,
+                );
+          this.coverChange = { action: 'keep' };
+          this.update({ coverAction: 'keep' });
           this.assertRead(cancel, context);
           this.editing = editing;
           return {
@@ -752,7 +957,16 @@ export class RatingScopedController extends CommunityController<RatingScopedView
             status: '创建者编辑资格已核验，请确认修改内容',
           };
         }
-        const target = await gateway.detail(context, route.targetId!, cancel);
+        const target =
+          coverRead && this.runtime.ratingTargetCover
+            ? (
+                await this.runtime.ratingTargetCover.detail(
+                  coverRead,
+                  route.targetId!,
+                  cancel,
+                )
+              ).target
+            : await gateway.detail(context, route.targetId!, cancel);
         this.assertRead(cancel, context);
         const category = await this.findCategory(
           context,
@@ -837,6 +1051,8 @@ export class RatingScopedController extends CommunityController<RatingScopedView
       (result) => {
         this.assertContextPair();
         this.update(result);
+        if (this.view.detail && this.runtime.ratingTargetCover)
+          void this.openCover(undefined, false);
       },
       (error) => {
         this.clearContent();
@@ -892,13 +1108,26 @@ export class RatingScopedController extends CommunityController<RatingScopedView
         if (kind === 'targets') {
           const page =
             this.route.mode === 'subscriptions'
-              ? await gateway.subscriptions(context, cursor, cancel)
-              : await gateway.targets(
-                  context,
-                  this.route.categoryId!,
-                  cursor,
-                  cancel,
-                );
+              ? this.runtime.ratingTargetCover
+                ? await this.runtime.ratingTargetCover.subscriptions(
+                    this.coverReadContext()!,
+                    cursor,
+                    cancel,
+                  )
+                : await gateway.subscriptions(context, cursor, cancel)
+              : this.runtime.ratingTargetCover
+                ? await this.runtime.ratingTargetCover.targets(
+                    this.coverReadContext()!,
+                    this.route.categoryId!,
+                    cursor,
+                    cancel,
+                  )
+                : await gateway.targets(
+                    context,
+                    this.route.categoryId!,
+                    cursor,
+                    cancel,
+                  );
           this.assertRead(cancel, context);
           this.cursors.targets = page.nextCursor;
           if (
@@ -918,7 +1147,10 @@ export class RatingScopedController extends CommunityController<RatingScopedView
               )
             : null;
           return {
-            targets: [...this.view.targets, ...page.items],
+            targets: [
+              ...this.view.targets,
+              ...page.items.map(publicCoverTarget),
+            ],
             subscriptions: {
               ...this.view.subscriptions,
               ...Object.fromEntries(
@@ -1278,6 +1510,10 @@ export class RatingScopedController extends CommunityController<RatingScopedView
       !this.view.definitionConfirmation
     )
       return;
+    if (this.view.coverEnabled && this.runtime.ratingTargetCover) {
+      await this.commitCoverDefinition();
+      return;
+    }
     const form = this.confirmation,
       category = this.category,
       editing = this.editing;
@@ -1311,6 +1547,339 @@ export class RatingScopedController extends CommunityController<RatingScopedView
           assetIds: [],
         },
       }));
+  }
+  async openCover(targetId?: string, expanded = true): Promise<void> {
+    if (
+      !this.runtime.ratingTargetCover ||
+      !this.coverReader ||
+      !this.view.loaded ||
+      this.view.frozen
+    )
+      return;
+    const id =
+      targetId ??
+      this.view.detail?.id ??
+      this.view.randomResult?.item?.target.id;
+    if (!id || !ratingId(id)) return;
+    const expected =
+      this.view.detail?.id === id
+        ? this.view.detail
+        : (this.view.targets.find((target) => target.id === id) ??
+          this.view.randomResult?.item?.target);
+    if (!expected) return;
+    this.coverPreviewOpen = expanded;
+    if (expanded) this.clearCoverThumbnails(false);
+    this.coverOpening = true;
+    try {
+      await this.coverReader.load(async (session, cancel) => {
+        session.current();
+        const context =
+          this.route.mode === 'random'
+            ? this.randomCoverContext
+            : this.coverReadContext();
+        if (!context) invalidRating();
+        const result = await this.runtime.ratingTargetCover!.detail(
+          context,
+          id,
+          cancel,
+        );
+        session.current();
+        if (result.target.revision !== expected.revision) {
+          this.invalidate();
+          throw new ClientError(
+            'business',
+            'Target body and cover changed together',
+          );
+        }
+        return { context, cover: result.cover };
+      }, expanded);
+    } finally {
+      this.coverOpening = false;
+      this.coverPreviewOpen = this.coverReader.snapshot().expanded;
+      if (!this.coverPreviewOpen) void this.drainCoverThumbnails();
+    }
+  }
+  closeCover(): void {
+    this.coverPreviewOpen = false;
+    this.coverReader?.clear();
+    if (this.view.detail || this.randomCoverContext)
+      void this.openCover(undefined, false);
+    else void this.drainCoverThumbnails();
+  }
+  coverFailed(): void {
+    this.coverReader?.imageFailed();
+  }
+  private clearCoverThumbnails(clearVisible = true): void {
+    if (!this.thumbnailReaders) return; // Base-constructor reset before field initialization.
+    ++this.thumbnailEpoch;
+    this.thumbnailLoading = false;
+    const readers = [...this.thumbnailReaders.values()];
+    this.thumbnailReaders.clear();
+    if (clearVisible) {
+      this.visibleCovers.clear();
+      this.coverPreviewOpen = false;
+    }
+    for (const reader of readers) reader.dispose();
+    this.update({ coverThumbnails: {} });
+  }
+  coverVisible(targetId: string, visible: boolean): void {
+    if (!ratingId(targetId) || this.inactive) return;
+    if (visible && this.view.targets.some((target) => target.id === targetId))
+      this.visibleCovers.add(targetId);
+    else {
+      this.visibleCovers.delete(targetId);
+      const reader = this.thumbnailReaders.get(targetId);
+      this.thumbnailReaders.delete(targetId);
+      reader?.dispose();
+      const views = { ...this.view.coverThumbnails };
+      delete views[targetId];
+      this.update({ coverThumbnails: views });
+    }
+    void this.drainCoverThumbnails();
+  }
+  coverThumbnailFailed(targetId: string): void {
+    this.thumbnailReaders.get(targetId)?.imageFailed();
+  }
+  coverViewportUnavailable(targetId: string): void {
+    const old = this.view.coverThumbnails[targetId];
+    if (old?.status === 'unavailable') return;
+    this.update({
+      coverThumbnails: {
+        ...this.view.coverThumbnails,
+        [targetId]: { status: 'unavailable', localSrc: '', expanded: false },
+      },
+    });
+  }
+  private async drainCoverThumbnails(): Promise<void> {
+    if (
+      this.thumbnailLoading ||
+      this.coverPreviewOpen ||
+      this.inactive ||
+      !this.view.loaded ||
+      this.view.frozen ||
+      !this.runtime.ratingTargetCover
+    )
+      return;
+    const epoch = this.thumbnailEpoch;
+    this.thumbnailLoading = true;
+    try {
+      for (const id of this.visibleCovers) {
+        if (
+          epoch !== this.thumbnailEpoch ||
+          this.coverPreviewOpen ||
+          this.inactive
+        )
+          return;
+        let reader = this.thumbnailReaders.get(id);
+        if (!reader) {
+          if (this.thumbnailReaders.size >= 4) continue;
+          const created: RatingCoverReadController =
+            new RatingCoverReadController(
+              this.runtime.sessions,
+              this.runtime.ratingCoverDownload,
+              this.coverClock,
+              (value) => {
+                if (this.thumbnailReaders.get(id) !== created) return;
+                this.update({
+                  coverThumbnails: {
+                    ...this.view.coverThumbnails,
+                    [id]: value,
+                  },
+                });
+                if (value.status === 'idle' && !this.thumbnailLoading)
+                  void this.drainCoverThumbnails();
+              },
+            );
+          this.thumbnailReaders.set(id, created);
+          reader = created;
+        }
+        if (reader.snapshot().status !== 'idle') continue;
+        // Sequential admission shares the same 2-I/O/4-lease/10-MiB registry with
+        // full preview and uploads. A failed budget/byte read is explicit unavailable.
+        await reader.load(async (session, cancel) => {
+          session.current();
+          const context = this.coverReadContext();
+          if (!context) invalidRating();
+          const expected = this.view.targets.find((target) => target.id === id);
+          if (!expected)
+            throw new ClientError('cancelled', 'Target left the page');
+          const result = await this.runtime.ratingTargetCover!.detail(
+            context,
+            id,
+            cancel,
+          );
+          session.current();
+          if (result.target.revision !== expected.revision) {
+            this.invalidate();
+            throw new ClientError(
+              'business',
+              'Target body and cover changed together',
+            );
+          }
+          return { context, cover: result.cover };
+        });
+      }
+    } finally {
+      if (epoch === this.thumbnailEpoch) this.thumbnailLoading = false;
+    }
+  }
+  async chooseCover(): Promise<void> {
+    if (!this.canDraft() || !this.view.coverEnabled || !this.coverUploader)
+      return;
+    const category = this.category,
+      editing = this.editing,
+      owner = this.runtime.sessions.snapshot();
+    const context = ratingTargetCoverContext(this.coverCommandLease.current());
+    if (!category && !editing) return;
+    this.confirmation = null;
+    this.update({ definitionConfirmation: false });
+    await this.coverUploader.choose(async (declaration) => {
+      const clientRequestId = await this.runtime.newRequestId(),
+        commandRequestId = await this.runtime.newRequestId(),
+        draftRevision = await this.runtime.newRequestId();
+      this.runtime.sessions.assertCurrent(owner);
+      if (!this.coverCommandLease.matches(context)) invalidRating();
+      return {
+        protocolVersion: 3,
+        context,
+        clientRequestId,
+        commandRequestId,
+        draftRevision,
+        categoryId: editing?.categoryId ?? category!.id,
+        expectedCategoryRevision:
+          editing?.categoryRevision ?? category!.revision,
+        target: editing
+          ? {
+              targetId: editing.targetId,
+              expectedTargetRevision: editing.revision,
+              expectedDefinitionRevision: editing.definitionRevision,
+              expectedContentVersion: editing.contentVersion,
+            }
+          : null,
+        declaration,
+      };
+    });
+    if (this.coverUploader.snapshot().status === 'ready')
+      this.update({ coverAction: 'replace' });
+  }
+  setCoverAction(action: 'keep' | 'clear'): void {
+    if (
+      !this.canDraft() ||
+      !this.view.coverEnabled ||
+      (action === 'keep' && this.route.mode !== 'edit')
+    )
+      return;
+    try {
+      if (this.runtime.pendingRatings!.loadCoverUpload(this.accountId()!))
+        throw new ClientError('business', '请先明确取消原封面请求');
+      this.coverUploader?.hide();
+      this.coverChange = { action };
+      this.confirmation = null;
+      this.update({ coverAction: action, definitionConfirmation: false });
+    } catch (error) {
+      this.update({ error: ratingScopedError(error) });
+    }
+  }
+  async recoverCover(cancelOriginal = false): Promise<void> {
+    if (!this.coverUploader) return;
+    await this.coverUploader.recover(cancelOriginal);
+    if (cancelOriginal) {
+      this.update({ needsRefresh: true, status: '请重新读取当前范围后继续' });
+    }
+  }
+  private async commitCoverDefinition(): Promise<void> {
+    if (
+      !this.confirmation ||
+      !this.runtime.ratingTargetCover ||
+      !this.runtime.pendingRatings
+    )
+      return;
+    if (
+      this.coverUploader &&
+      ['selecting', 'uploading'].includes(this.coverUploader.snapshot().status)
+    ) {
+      this.update({ error: '请先等待当前封面选择或上传结束' });
+      return;
+    }
+    const form = this.confirmation,
+      category = this.category,
+      editing = this.editing,
+      draft = this.draftGeneration;
+    const owner = this.runtime.sessions.snapshot(),
+      accountId = this.accountId()!;
+    let context: RatingScopedCommandContext;
+    try {
+      this.assertCoverContextPair();
+      context = ratingTargetCoverContext(this.coverCommandLease.current());
+    } catch (error) {
+      this.update({ error: ratingScopedError(error) });
+      return;
+    }
+    await this.run(
+      async (cancel) => {
+        const upload = this.runtime.pendingRatings!.loadCoverUpload(accountId);
+        const clientRequestId =
+          upload?.scopeInput.commandRequestId ??
+          (await this.runtime.newRequestId());
+        this.runtime.sessions.assertCurrent(owner);
+        if (
+          cancel.isCancelled ||
+          draft !== this.draftGeneration ||
+          form !== this.confirmation ||
+          !this.coverCommandLease.matches(context)
+        )
+          invalidRating();
+        let cover = this.coverChange;
+        if (upload) {
+          if (!upload.scope || upload.status?.status !== 'ready_unbound')
+            throw new ClientError('business', '封面尚未准备好');
+          cover = {
+            action: 'replace',
+            assetId: upload.status.assetId,
+            uploadScopeId: upload.scope.scopeId,
+          };
+        }
+        const intent = decodeRatingTargetCoverIntent({
+          protocolVersion: 3,
+          operation: editing ? 'edit_target_scoped' : 'create_target_scoped',
+          context,
+          payload: {
+            clientRequestId,
+            categoryId: editing?.categoryId ?? category!.id,
+            expectedCategoryRevision:
+              editing?.categoryRevision ?? category!.revision,
+            ...form,
+            cover,
+            ...(editing
+              ? {
+                  targetId: editing.targetId,
+                  expectedTargetRevision: editing.revision,
+                  expectedDefinitionRevision: editing.definitionRevision,
+                  expectedContentVersion: editing.contentVersion,
+                }
+              : {}),
+          },
+        });
+        const attempt = upload
+          ? this.runtime.pendingRatings!.sealCoverUpload(upload, intent)
+          : this.runtime.pendingRatings!.freeze({
+              version: 11,
+              accountId,
+              intent,
+            });
+        this.pending = attempt;
+        this.coverUploader?.hide();
+        this.confirmation = null;
+        this.showPending(attempt);
+        return runRatingCommand(this.runtime, attempt, cancel, true);
+      },
+      (receipt) => this.settle(receipt),
+      (error) =>
+        this.update({
+          error: ratingScopedError(error),
+          status: '原请求仍待确认，请勿新建替代请求',
+        }),
+    );
   }
   private async submit(
     make: (
@@ -1420,6 +1989,25 @@ export class RatingScopedController extends CommunityController<RatingScopedView
   }
   async cancelPending(): Promise<void> {
     if (
+      !this.view.busy &&
+      this.view.cancelPendingConfirmation &&
+      this.pending &&
+      isRatingTargetCoverIntent(this.pending.intent) &&
+      this.runtime.ratingTargetCover
+    ) {
+      const intent = this.pending.intent,
+        attempt = this.pending;
+      await this.run(
+        async (cancel) => {
+          await this.runtime.ratingTargetCover!.cancel(intent, cancel);
+          return runRatingCommand(this.runtime, attempt, cancel, false);
+        },
+        (receipt) => this.settle(receipt),
+        (error) => this.update({ error: ratingScopedError(error) }),
+      );
+      return;
+    }
+    if (
       this.view.busy ||
       !this.view.cancelPendingConfirmation ||
       !this.journal() ||
@@ -1464,6 +2052,8 @@ export class RatingScopedController extends CommunityController<RatingScopedView
     this.stop();
     this.lease.clear();
     this.commandLease.clear();
+    this.coverReadLease.clear();
+    this.coverCommandLease.clear();
     this.draftGeneration++;
     this.update({
       busy: false,
@@ -1560,17 +2150,28 @@ export class RatingScopedController extends CommunityController<RatingScopedView
     }
     this.lease.clear();
     this.commandLease.clear();
+    this.coverReadLease.clear();
+    this.coverCommandLease.clear();
+    this.coverReader?.clear();
+    this.randomCoverContext = null;
     this.update({ randomResult: null });
     await this.run(
       async (cancel) => {
-        const context = await this.issue(
-          {
-            purpose: 'random',
-            selector: ratingRandomSelector(this.route.selector),
-            mode: 'public',
-          },
-          cancel,
-        );
+        const request: RatingScopedContextRequest = {
+          purpose: 'random',
+          selector: ratingRandomSelector(this.route.selector),
+          mode: 'public',
+        };
+        if (this.runtime.ratingTargetCover) {
+          const context = await this.issueCover(request, cancel);
+          return this.runtime.ratingTargetCover.random(
+            context,
+            this.route.categoryId!,
+            minimumAverage,
+            cancel,
+          );
+        }
+        const context = await this.issue(request, cancel);
         return this.runtime.ratingScoped!.random(
           context,
           this.route.categoryId!,
@@ -1578,13 +2179,31 @@ export class RatingScopedController extends CommunityController<RatingScopedView
           cancel,
         );
       },
-      (result) =>
+      (result) => {
+        // Never render a read token/context into setData. The selected read3 lease
+        // stays private; every image load rechecks the selected target projection.
+        const item = result.item;
+        if (item && 'coverContext' in item)
+          this.randomCoverContext =
+            item.coverContext as RatingTargetCoverContext;
         this.update({
-          randomResult: result,
-          status: result.item
+          randomResult: {
+            context: result.context,
+            candidateCount: result.candidateCount,
+            item: item
+              ? {
+                  locator: item.locator,
+                  target: item.target,
+                  summary: item.summary,
+                }
+              : null,
+          },
+          status: item
             ? '已按不同目标均匀抽取'
             : '合法分类下没有满足条件的目标',
-        }),
+        });
+        if (this.randomCoverContext) void this.openCover(undefined, false);
+      },
       (error) =>
         this.update({ randomResult: null, error: ratingScopedError(error) }),
     );
@@ -1807,6 +2426,11 @@ export class RatingScopedController extends CommunityController<RatingScopedView
   override dispose(): void {
     if (this.inactive) return;
     this.inactive = true;
+    this.coverUploader?.dispose();
+    this.coverReader?.dispose();
+    this.clearCoverThumbnails();
+    this.coverReadLease.dispose();
+    this.coverCommandLease.dispose();
     this.lease.dispose();
     this.commandLease.dispose();
     this.subscriptionsToChanges.forEach((unsubscribe) => unsubscribe());

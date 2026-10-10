@@ -1,3 +1,5 @@
+import { requireCurrentTargetCoverScope } from './target-cover-capability.js';
+import { retainRatingReadBytes } from '../target-cover-current.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
@@ -368,6 +370,7 @@ export class RatingScopedRepository {
         [scope.catalog.id, scope.catalog.scopeKey, id],
       )
     ).rows;
+    retainRatingReadBytes(tx, rows);
     if (!rows.length) return { leaf: null, allowed: false };
     const leaf = rows.at(-1)!;
     if (
@@ -495,6 +498,7 @@ export class RatingScopedRepository {
     id: string,
     tx: PoolClient,
     write = false,
+    coverMutation = false,
   ): Promise<{ row: CurrentTargetRow; category: CategoryRow }> {
     assertResolvedRatingScope(scope, tx);
     if (!write) await this.navigation(tx);
@@ -517,15 +521,75 @@ export class RatingScopedRepository {
       unavailable();
     const category = await this.category(scope, raw.category_id, tx, write),
       row = currentRatingTargetRow(raw);
-    const decision = await this.review.currentTargetDefinition(
-      row.definition,
-      tx,
-    );
+    await requireCurrentTargetCoverScope(scope, [row.definition], tx);
+    const decision =
+      coverMutation && write
+        ? await this.review.currentTargetDefinitionForCoverMutation(
+            row.definition,
+            tx,
+          )
+        : await this.review.currentTargetDefinition(row.definition, tx);
     if (decision.kind === 'unavailable')
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     if (decision.kind === 'deny')
       throw new ApplicationError('RATING_NOT_FOUND');
     return { row, category };
+  }
+  /** List candidates are qualified as one complete Media/Review vector before
+   * projection. A denied candidate is omitted; unknown aborts the page. */
+  async currentTargetBatch(
+    scope: ResolvedRatingReadScope,
+    ids: readonly string[],
+    tx: PoolClient,
+  ): Promise<ReadonlyMap<string, CurrentTargetRow>> {
+    assertResolvedRatingScope(scope, tx);
+    if (ids.length > 50 || new Set(ids).size !== ids.length) unavailable();
+    await this.navigation(tx);
+    if (!ids.length) return new Map();
+    const rows = (
+      await tx.query<MembershipRead>(
+        `SELECT ${ratingCurrentTargetColumns},m.category_id membership_category,m.placement_revision,
+      coalesce(p.target_id=t.id AND $3=ANY(p.scope_keys) AND whaleu_ratings.scoped_source_current(p.source_id,p.source_revision,clock_timestamp()),false) placement_valid
+      FROM whaleu_ratings.scoped_target_memberships m JOIN whaleu_ratings.targets t ON t.id=m.target_id
+      LEFT JOIN whaleu_ratings.target_scope_placements p ON p.placement_revision=m.placement_revision AND p.target_id=m.target_id
+      ${ratingCurrentTargetDefinitionJoins} WHERE m.catalog_id=$1 AND m.target_id=ANY($2::uuid[]) ORDER BY t.id FOR SHARE OF t`,
+        [scope.catalog.id, ids, scope.catalog.scopeKey],
+      )
+    ).rows;
+    retainRatingReadBytes(tx, rows);
+    if (rows.length !== ids.length) unavailable();
+    const current: CurrentTargetRow[] = [],
+      categories = new Set<string>();
+    for (const raw of rows) {
+      if (
+        raw.placement_valid !== true ||
+        raw.membership_category !== raw.category_id
+      )
+        unavailable();
+      if (!raw.active || raw.owner_deleted) continue;
+      if (!categories.has(raw.category_id)) {
+        await this.category(scope, raw.category_id, tx);
+        categories.add(raw.category_id);
+      }
+      current.push(currentRatingTargetRow(raw));
+    }
+    await requireCurrentTargetCoverScope(
+      scope,
+      current.map((r) => r.definition),
+      tx,
+    );
+    const decisions = await this.review.currentDefinitionBatch(
+        current.map((r) => r.definition),
+        tx,
+      ),
+      result = new Map<string, CurrentTargetRow>();
+    for (const [index, row] of current.entries()) {
+      const d = decisions[index];
+      if (!d || d.kind === 'unavailable')
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      if (d.kind === 'allow') result.set(row.id, row);
+    }
+    return result;
   }
   async targets(
     scope: ResolvedRatingReadScope,
@@ -704,6 +768,7 @@ export class RatingScopedRepository {
         state.rawPaths++;
         state.rawTargets.add(path.target_id);
         state.bytes += Buffer.byteLength(JSON.stringify(path), 'utf8');
+        retainRatingReadBytes(tx, path);
         if (
           state.rawPaths > RATING_SCOPED_POOL_PATH_LIMIT ||
           state.rawTargets.size > RATING_SCOPED_POOL_TARGET_LIMIT ||

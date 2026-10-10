@@ -1,3 +1,4 @@
+import { isRatingTargetCoverIntent } from './target-cover-contract';
 import { isRatingCategoryScopedIntent, isRatingScopedIntent } from './pending';
 import { ratingCategoryManagementPath } from './category-management-contract';
 import { ratingTargetOwnerEditingPath } from './target-owner-editing-contract';
@@ -1038,6 +1039,7 @@ export class RatingController extends CommunityController<RatingView> {
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const intent = decodeRatingCommandIntent(make(id));
         if (
+          isRatingTargetCoverIntent(intent) ||
           isRatingScopedIntent(intent) ||
           isRatingCategoryScopedIntent(intent) ||
           isRatingAdminDeletionIntent(intent) ||

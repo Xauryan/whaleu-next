@@ -42,6 +42,9 @@ for (const relative of [
   'platform/wechat-upload.js',
   'ratings/scoped-contract.js',
   'ratings/category-scoped-contract.js',
+  'ratings/target-cover-contract.js',
+  'ratings/target-cover-media-contract.js',
+  'ratings/target-cover-upload-scope.js',
 ]) {
   const cryptoModule = path.join(out, relative);
   const compiled = await readFile(cryptoModule, 'utf8');
@@ -68,3 +71,13 @@ await cp(
 execFileSync(process.execPath, [path.join(root, 'scripts/smoke-build.mjs')], {
   stdio: 'inherit',
 });
+
+execFileSync(
+  process.execPath,
+  [
+    '--import',
+    'tsx',
+    path.join(root, 'test/rating-target-cover-page-smoke.mjs'),
+  ],
+  { stdio: 'inherit', cwd: root },
+);

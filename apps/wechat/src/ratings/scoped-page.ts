@@ -1,3 +1,4 @@
+import { RatingCoverViewport } from './target-cover-viewport';
 import type { WhaleuApp } from '../app';
 import { DirectoryNavigator } from '../directory/navigation';
 import {
@@ -25,6 +26,7 @@ export function registerRatingScopedPage(): void {
     route: {} as unknown,
     navigationActive: false,
     controller: undefined as RatingScopedController | undefined,
+    coverViewport: undefined as RatingCoverViewport | undefined,
     navigator: undefined as DirectoryNavigator | undefined,
     unsubscribeSession: undefined as (() => void) | undefined,
     unsubscribeHide: undefined as (() => void) | undefined,
@@ -57,6 +59,7 @@ export function registerRatingScopedPage(): void {
       });
     },
     onShow() {
+      this.coverViewport?.dispose();
       this.controller?.dispose();
       this.navigator?.dispose();
       const runtime = getApp<WhaleuApp>().community;
@@ -71,9 +74,24 @@ export function registerRatingScopedPage(): void {
       this.navigator = new DirectoryNavigator(wx, () =>
         this.setData({ error: '暂不能打开评分页面，请重试' }),
       );
-      this.controller = new RatingScopedController(runtime, (view) =>
-        this.setData({ ...view }),
+      this.coverViewport = new RatingCoverViewport(
+        wx,
+        this,
+        (id, visible) => this.controller?.coverVisible(id, visible),
+        (id) => this.controller?.coverViewportUnavailable(id),
       );
+      this.controller = new RatingScopedController(runtime, (view) => {
+        const commit = this.coverViewport?.render(
+          view.loaded && !view.frozen
+            ? view.targets
+                .filter(
+                  (target) => 'hasCover' in target && target.hasCover === true,
+                )
+                .map((target) => target.id)
+            : [],
+        );
+        this.setData({ ...view }, commit);
+      });
       void this.controller.load(this.route);
     },
     async onCategoryManagement() {
@@ -212,6 +230,35 @@ export function registerRatingScopedPage(): void {
       )
         void this.controller?.selectSort(sort, order);
     },
+    onCoverOpen(event: Tap) {
+      void this.controller?.openCover(event.currentTarget.dataset.id);
+    },
+    onCoverClose() {
+      this.controller?.closeCover();
+    },
+    onCoverThumbError(event: Tap) {
+      this.controller?.coverThumbnailFailed(
+        event.currentTarget.dataset.id ?? '',
+      );
+    },
+    onCoverError() {
+      this.controller?.coverFailed();
+    },
+    onCoverChoose() {
+      void this.controller?.chooseCover();
+    },
+    onCoverKeep() {
+      this.controller?.setCoverAction('keep');
+    },
+    onCoverClear() {
+      this.controller?.setCoverAction('clear');
+    },
+    onCoverRecover() {
+      void this.controller?.recoverCover();
+    },
+    onCoverCancel() {
+      void this.controller?.recoverCover(true);
+    },
     onName(event: { detail: { value: string } }) {
       this.controller?.setDefinition('name', event.detail.value);
     },
@@ -258,6 +305,8 @@ export function registerRatingScopedPage(): void {
         navigator.open(path);
     },
     onHide() {
+      this.coverViewport?.dispose();
+      this.coverViewport = undefined;
       this.navigationActive = false;
       const route = this.controller?.snapshotRoute();
       if (route) this.route = route;

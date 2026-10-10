@@ -1,3 +1,6 @@
+import * as cover from '../src/ratings/scoped/target-cover-contracts.js';
+import * as coverController from '../src/ratings/scoped/target-cover-controller.js';
+import { ratingsMediaDescriptorSchema } from '../src/media/contracts-ratings.js';
 import * as scopedCategories from '../src/ratings/category-management/scoped-contracts.js';
 import { ratingScopedRequestReceiptSchema } from '../src/ratings/scoped/request-receipt.js';
 import * as scoped from '../src/ratings/scoped/contracts.js';
@@ -619,7 +622,84 @@ test('all 66 legacy, 39 scoped and eight category management operations have exa
   ] as const;
   for (const [path, method, , operationId] of categoryCases)
     assert.equal(doc.paths[path]![method]!.operationId, operationId);
-  const allCases = [...cases, ...scopedCases, ...categoryCases] as const;
+  const coverCases = [
+    [
+      '/v3/ratings/target-cover/contexts',
+      'post',
+      cover.ratingTargetCoverContextSchema,
+    ],
+    [
+      '/v3/ratings/target-cover/prepare',
+      'post',
+      z.union([
+        cover.ratingTargetCoverPreparationSchema,
+        cover.ratingTargetCoverReceiptSchema,
+      ]),
+    ],
+    [
+      '/v3/ratings/target-cover/commit',
+      'post',
+      cover.ratingTargetCoverReceiptSchema,
+    ],
+    [
+      '/v3/ratings/target-cover/cancel',
+      'post',
+      cover.ratingTargetCoverReceiptSchema,
+    ],
+    [
+      '/v3/ratings/target-cover/receipts/{id}',
+      'get',
+      cover.ratingTargetCoverReceiptSchema,
+    ],
+    [
+      '/v3/ratings/target-cover/upload-scopes',
+      'post',
+      coverController.ratingTargetCoverUploadScopeResponseSchema,
+    ],
+    [
+      '/v3/ratings/target-cover/upload-scopes/cancel',
+      'post',
+      coverController.ratingTargetCoverCancelScopeResponseSchema,
+    ],
+    [
+      '/v3/ratings/target-cover/targets/{id}/edit-context',
+      'get',
+      scopedController.ratingScopedEditContextSchema.extend({
+        cover: cover.ratingTargetCoverReferenceSchema.nullable(),
+      }),
+    ],
+    [
+      '/v3/ratings/target-cover/targets/{id}',
+      'get',
+      coverController.ratingTargetCoverCurrentSchema,
+    ],
+    [
+      '/v3/ratings/target-cover/targets',
+      'get',
+      coverController.ratingTargetCoverPageSchema,
+    ],
+    [
+      '/v3/ratings/target-cover/subscriptions',
+      'get',
+      coverController.ratingTargetCoverSubscriptionPageSchema,
+    ],
+    [
+      '/v3/ratings/target-cover/random-target',
+      'get',
+      scopedRandom.ratingTargetCoverRandomResponseSchema,
+    ],
+    [
+      '/v3/ratings/target-cover/targets/{id}/appearances/{appearanceId}',
+      'get',
+      ratingsMediaDescriptorSchema,
+    ],
+  ] as const;
+  const allCases = [
+    ...cases,
+    ...scopedCases,
+    ...categoryCases,
+    ...coverCases,
+  ] as const;
   assert.equal(
     Object.values(doc.paths).reduce((n, p) => n + Object.keys(p!).length, 0),
     allCases.length,
@@ -652,5 +732,25 @@ test('all 66 legacy, 39 scoped and eight category management operations have exa
       assert.ok(response.headers?.['cache-control']);
       assert.ok(response.headers?.['vary']);
     }
+  }
+});
+
+test('target cover input contracts keep independent version and exact upload identity', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  for (const [path, schema] of [
+    ['contexts', scoped.ratingScopedContextRequestSchema],
+    ['prepare', cover.ratingTargetCoverIntentSchema],
+    ['commit', cover.ratingTargetCoverCommitSchema],
+    ['cancel', cover.ratingTargetCoverIntentSchema],
+    ['upload-scopes', cover.ratingTargetCoverUploadScopeSchema],
+    ['upload-scopes/cancel', cover.ratingTargetCoverUploadScopeSchema],
+  ] as const) {
+    const body =
+      doc.paths[`/v3/ratings/target-cover/${path}`]!.post!.requestBody!;
+    assert.ok(!('$ref' in body));
+    assert.deepEqual(
+      body.content['application/json']!.schema,
+      z.toJSONSchema(schema, { target: 'openapi-3.0', io: 'input' }),
+    );
   }
 });

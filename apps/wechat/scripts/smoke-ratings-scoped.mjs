@@ -470,10 +470,11 @@ export async function smokeRatingsScoped({ app, dist }) {
   );
   const tree = parse(source),
     templates = Object.fromEntries(
-      parse(readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8'))
-        .children.filter(
-          (node) => typeof node !== 'string' && node.tag === 'template',
+      ['ratings/common.wxml', 'ratings/target-cover.wxml']
+        .flatMap(
+          (file) => parse(readFileSync(path.join(dist, file), 'utf8')).children,
         )
+        .filter((node) => typeof node !== 'string' && node.tag === 'template')
         .map((node) => [node.attrs.name, node]),
     );
   const visible = (native) =>

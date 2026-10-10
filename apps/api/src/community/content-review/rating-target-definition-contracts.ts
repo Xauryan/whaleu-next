@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { canonicalRatingTargetCoverDefinition } from './rating-target-cover-contracts.js';
 import { canonicalRatingScopedTargetDefinition } from './rating-scoped-contracts.js';
 import { canonicalEqual } from './contracts.js';
 import { canonicalRatingEnvelope } from './rating-contracts.js';
@@ -59,15 +60,21 @@ export function canonicalRatingTargetDefinition(
  * through the legacy scope/initial-binding protocol. */
 export type AnyRatingTargetDefinitionDescriptor =
   | RatingTargetDefinitionDescriptor
-  | import('./rating-scoped-contracts.js').RatingScopedTargetDefinitionDescriptor;
+  | import('./rating-scoped-contracts.js').RatingScopedTargetDefinitionDescriptor
+  | import('./rating-target-cover-contracts.js').RatingTargetCoverDefinitionDescriptor;
 export function canonicalAnyRatingTargetDefinition(
   value: unknown,
 ): AnyRatingTargetDefinitionDescriptor {
   const candidate = descriptorSchema.parse(value);
-  return typeof candidate.envelope === 'object' &&
+  if (
+    typeof candidate.envelope === 'object' &&
     candidate.envelope !== null &&
-    'version' in candidate.envelope &&
-    candidate.envelope.version === 5
-    ? canonicalRatingScopedTargetDefinition(candidate)
-    : canonicalRatingTargetDefinition(candidate);
+    'version' in candidate.envelope
+  ) {
+    if (candidate.envelope.version === 6)
+      return canonicalRatingTargetCoverDefinition(candidate);
+    if (candidate.envelope.version === 5)
+      return canonicalRatingScopedTargetDefinition(candidate);
+  }
+  return canonicalRatingTargetDefinition(candidate);
 }

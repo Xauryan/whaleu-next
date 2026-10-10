@@ -1,3 +1,4 @@
+import { retainRatingReadBytes } from '../target-cover-current.js';
 import { RatingCompatReadFacade } from '../scoped/compat-read.facade.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { RatingCategoryContentReviewFacade } from '../../community/content-review/rating-category-content-review.facade.js';
@@ -525,6 +526,7 @@ export class RatingCompletePoolRepository {
           ...new Map(categoryRows.map((row) => [row.id, row])).values(),
         ];
         state.bytes += Buffer.byteLength(JSON.stringify(categoryRows), 'utf8');
+        retainRatingReadBytes(tx, categoryRows);
         if (
           categoryRows.length > missing.length * 3 ||
           state.bytes > RATING_COMPLETE_POOL_BYTE_LIMIT
@@ -595,6 +597,7 @@ export class RatingCompletePoolRepository {
         state.paths++;
         state.targets.add(current.id);
         state.bytes += Buffer.byteLength(JSON.stringify(path), 'utf8');
+        retainRatingReadBytes(tx, path);
         if (
           state.paths > RATING_COMPLETE_POOL_PATH_LIMIT ||
           state.targets.size > RATING_COMPLETE_POOL_TARGET_LIMIT ||

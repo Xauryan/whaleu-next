@@ -189,6 +189,8 @@ export class RatingTargetEditService {
     ).rows[0];
     if (!membership) throw new ApplicationError('RATING_NOT_FOUND');
     const row = await this.records.definition(identity, tx);
+    if (intent && row.envelope.version === 6)
+      throw new ApplicationError('RATING_EDIT_CONTEXT_CHANGED');
     const decision = await this.review.currentTargetDefinition(
       row.definition,
       tx,

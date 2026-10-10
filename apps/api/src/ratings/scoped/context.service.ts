@@ -1,3 +1,10 @@
+import {
+  ratingTargetCoverContextSchema,
+  type RatingCurrentContext,
+  type RatingTargetCoverContext,
+} from './target-cover-contracts.js';
+import { retainRatingReadByteCount } from '../target-cover-current.js';
+import { targetCoverCapabilities } from './target-cover-capability.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -68,7 +75,7 @@ export interface ResolvedRatingScope {
   readonly actor: string;
   readonly actorId: string;
   readonly session: SessionView;
-  readonly context: RatingScopedContext;
+  readonly context: RatingCurrentContext;
   readonly catalog: RatingScopedCatalog;
   readonly campusProof: RatingScopedCampusProof;
   readonly deadline: number;
@@ -81,6 +88,7 @@ export interface ResolvedRatingScope {
   readonly sourceDigest: string;
   readonly authorized: boolean;
   readonly write: boolean;
+  readonly targetCoverCapable: boolean;
 }
 /** Internal recipient proof has no bearer token, synthetic session, or public context. */
 export interface ResolvedRatingRecipientScope {
@@ -99,7 +107,7 @@ export type ResolvedRatingReadScope =
 export interface ResolvedRatingRandomScope {
   readonly actor: string;
   readonly session: SessionView;
-  readonly context: RatingScopedContext;
+  readonly context: RatingCurrentContext;
   readonly campusProof: RatingScopedCampusProof;
   readonly deadline: number;
   readonly scopes: readonly ResolvedRatingScope[];
@@ -420,6 +428,7 @@ export class RatingScopedContextService {
     accountId: string,
     request: RatingScopedContextRequest,
     tx: PoolClient,
+    protocolVersion: 2 | 3 = 2,
   ): Promise<AuthorityCapture> {
     const base = await this.access.resolveAccount(accountId, null, tx, {
       phone: true,
@@ -591,6 +600,13 @@ export class RatingScopedContextService {
       }),
     );
     const sourceDigest = ratingScopedDigest('vector', source.vector);
+    const coverCapabilities =
+      protocolVersion === 3
+        ? await targetCoverCapabilities(
+            protocols.map((p) => p.versionId),
+            tx,
+          )
+        : null;
     const authority = {
       baseFingerprint: base.fingerprint,
       phoneFingerprint: phone.fingerprint,
@@ -603,12 +619,23 @@ export class RatingScopedContextService {
       grantFingerprint,
       sourceVector: source.vector,
       creationPolicy,
+      ...(protocolVersion === 3
+        ? {
+            contextAuthority: 'ratings-target-cover-context-v1',
+            targetCoverCapabilities: coverCapabilities,
+          }
+        : {}),
     };
     const deadline = Math.min(
       campus.validUntil ?? Infinity,
       source.validUntil,
       ...catalogs.map((c) => c.valid_until.getTime()),
       ...protocolRows.map((r) => r.valid_until.getTime()),
+      ...(coverCapabilities ?? []).flatMap((capability) =>
+        capability.current && 'validUntil' in capability
+          ? [Date.parse(capability.validUntil!)]
+          : [],
+      ),
     );
     if (!Number.isFinite(deadline)) unavailable();
     registerTransactionDeadline(tx, deadline, 'RATING_SCOPE_UNAVAILABLE');
@@ -635,6 +662,7 @@ export class RatingScopedContextService {
         'utf8',
       );
     if (observedBytes > RATING_SCOPED_BYTE_LIMIT) unavailable();
+    retainRatingReadByteCount(tx, observedBytes);
     return {
       campus,
       catalogs,
@@ -651,32 +679,37 @@ export class RatingScopedContextService {
     token: string,
     request: RatingScopedContextRequest,
     tx: PoolClient,
+    protocolVersion: 2 | 3 = 2,
   ): Promise<Capture> {
     const session = await this.access.authenticate(token, tx);
     const captured = await this.captureAuthority(
       session.accountId,
       request,
       tx,
+      protocolVersion,
     );
     const authority = {
       ...captured.authority,
       sessionGeneration: this.sessionGeneration(token, session),
     };
-    const scopeRevision = ratingScopedDigest('context', {
-      actorId: session.accountId,
-      purpose: request.purpose,
-      mode: request.mode,
-      selector: request.selector,
-      authority,
-      protocols: captured.protocols,
-      heads: captured.catalogs.map((c) => ({
-        scopeKey: c.scope_key,
-        catalogId: c.id,
-        headRevision: c.head_revision,
-        releaseId: c.release_id,
-        sourceDigest: c.source_digest,
-      })),
-    });
+    const scopeRevision = ratingScopedDigest(
+      protocolVersion === 3 ? 'target-cover-context' : 'context',
+      {
+        actorId: session.accountId,
+        purpose: request.purpose,
+        mode: request.mode,
+        selector: request.selector,
+        authority,
+        protocols: captured.protocols,
+        heads: captured.catalogs.map((c) => ({
+          scopeKey: c.scope_key,
+          catalogId: c.id,
+          headRevision: c.head_revision,
+          releaseId: c.release_id,
+          sourceDigest: c.source_digest,
+        })),
+      },
+    );
     const deadline = Math.min(session.expiresAt, captured.deadline);
     registerTransactionDeadline(tx, deadline, 'RATING_SCOPE_UNAVAILABLE');
     const observedBytes =
@@ -766,15 +799,20 @@ export class RatingScopedContextService {
   }
   private retainContext(
     row: ContextRow,
-    context: RatingScopedContext,
+    context: RatingCurrentContext,
     tx: PoolClient,
   ): void {
     enableRequiredTransactionProof(tx, contextProof);
-    const digest = ratingScopedDigest('context-record', {
-      context: row.context,
-      authority: row.authority,
-      protocolTuples: row.protocol_tuples,
-    });
+    const digest = ratingScopedDigest(
+      context.protocolVersion === 3
+        ? 'target-cover-context-record'
+        : 'context-record',
+      {
+        context: row.context,
+        authority: row.authority,
+        protocolTuples: row.protocol_tuples,
+      },
+    );
     registerRequiredTransactionFact(
       tx,
       contextProof,
@@ -797,9 +835,10 @@ export class RatingScopedContextService {
     token: string,
     input: RatingScopedContextRequest,
     tx: PoolClient,
-  ): Promise<RatingScopedContext> {
+    protocolVersion: 2 | 3 = 2,
+  ): Promise<RatingCurrentContext> {
     const request = ratingScopedContextRequestSchema.parse(input),
-      captured = await this.capture(token, request, tx);
+      captured = await this.capture(token, request, tx, protocolVersion);
     const instant = (
       await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
     ).rows[0]?.now;
@@ -810,8 +849,12 @@ export class RatingScopedContextService {
       expiresAt = Math.min(instant.getTime() + 300000, captured.deadline);
     if (expiresAt <= instant.getTime()) unavailable();
     const generation = this.protocolGeneration(request.selector, captured);
-    const context = ratingScopedContextSchema.parse({
-      protocolVersion: 2,
+    const context = (
+      protocolVersion === 3
+        ? ratingTargetCoverContextSchema
+        : ratingScopedContextSchema
+    ).parse({
+      protocolVersion,
       id: contextId,
       token: secret,
       tokenDigest: createHash('sha256').update(secret).digest('hex'),
@@ -836,7 +879,17 @@ export class RatingScopedContextService {
           ? ['read']
           : request.purpose === 'random'
             ? ['random']
-            : [request.purpose],
+            : [
+                request.purpose,
+                ...(protocolVersion === 3 &&
+                (
+                  captured.authority['targetCoverCapabilities'] as {
+                    current: boolean;
+                  }[]
+                ).every((c) => c.current)
+                  ? ['target_cover']
+                  : []),
+              ],
     });
     const row = (
       await tx.query<ContextRow>(
@@ -876,16 +929,38 @@ export class RatingScopedContextService {
     tx?: PoolClient,
   ): Promise<RatingScopedContext> {
     return tx
-      ? this.issue(token, request, tx)
-      : this.db.transaction((client) => this.issue(token, request, client), {
-          isolationLevel: 'read committed',
-        });
+      ? this.issue(token, request, tx).then((c) =>
+          ratingScopedContextSchema.parse(c),
+        )
+      : this.db.transaction(
+          async (client) =>
+            ratingScopedContextSchema.parse(
+              await this.issue(token, request, client),
+            ),
+          {
+            isolationLevel: 'read committed',
+          },
+        );
+  }
+  createCover(
+    token: string,
+    request: RatingScopedContextRequest,
+    tx?: PoolClient,
+  ): Promise<RatingTargetCoverContext> {
+    const run = async (client: PoolClient) =>
+      ratingTargetCoverContextSchema.parse(
+        await this.issue(token, request, client, 3),
+      );
+    return tx
+      ? run(tx)
+      : this.db.transaction(run, { isolationLevel: 'read committed' });
   }
   private async load(
     token: string,
     query: { contextId: string; contextToken: string },
     tx: PoolClient,
     write: boolean,
+    expectedProtocol: 2 | 3 = 2,
   ) {
     // Route-specific strict schemas already validate pagination/filter fields.
     // This owner consumes only the authentication tuple, never those filters.
@@ -903,9 +978,22 @@ export class RatingScopedContextService {
       )
     ).rows[0];
     if (!row) changed();
-    let context: RatingScopedContext;
+    let context: RatingCurrentContext;
     try {
-      context = ratingScopedContextSchema.parse(row.context);
+      const storedVersion = (row.context as { protocolVersion?: unknown })
+        .protocolVersion;
+      context = (
+        storedVersion === 3
+          ? ratingTargetCoverContextSchema
+          : ratingScopedContextSchema
+      ).parse(row.context);
+      if (context.protocolVersion !== expectedProtocol) changed();
+      if (
+        context.protocolVersion === 3 &&
+        (row.authority as Record<string, unknown>)['contextAuthority'] !==
+          'ratings-target-cover-context-v1'
+      )
+        unavailable();
     } catch {
       unavailable();
     }
@@ -930,7 +1018,12 @@ export class RatingScopedContextService {
       selector: context.selector,
       mode: context.mode,
     });
-    const captured = await this.capture(token, request, tx);
+    const captured = await this.capture(
+      token,
+      request,
+      tx,
+      context.protocolVersion,
+    );
     if (
       captured.session.accountId !== row.account_id ||
       captured.session.sessionId !== row.session_id ||
@@ -976,7 +1069,7 @@ export class RatingScopedContextService {
     return { context, captured, state };
   }
   private scope(
-    context: RatingScopedContext,
+    context: RatingCurrentContext,
     captured: Capture,
     state: RootState,
     catalog: CatalogRead,
@@ -998,6 +1091,14 @@ export class RatingScopedContextService {
       actorId: captured.session.accountId,
       session: captured.session,
       context,
+      targetCoverCapable:
+        context.protocolVersion === 3 &&
+        (
+          (captured.authority['targetCoverCapabilities'] ?? []) as {
+            protocolVersionId: string;
+            current: boolean;
+          }[]
+        ).some((c) => c.protocolVersionId === protocol.versionId && c.current),
       catalog: {
         id: catalog.id,
         scopeKey: catalog.scope_key,
@@ -1028,9 +1129,16 @@ export class RatingScopedContextService {
     options: {
       purpose?: RatingScopedContextRequest['purpose'];
       write?: boolean;
+      protocolVersion?: 2 | 3;
     } = {},
   ): Promise<ResolvedRatingScope> {
-    const loaded = await this.load(token, query, tx, options.write ?? false);
+    const loaded = await this.load(
+      token,
+      query,
+      tx,
+      options.write ?? false,
+      options.protocolVersion ?? 2,
+    );
     if (
       loaded.context.purpose === 'random' ||
       loaded.captured.catalogs.length !== 1 ||
@@ -1049,8 +1157,9 @@ export class RatingScopedContextService {
     token: string,
     query: { contextId: string; contextToken: string },
     tx: PoolClient,
+    protocolVersion: 2 | 3 = 2,
   ): Promise<ResolvedRatingRandomScope> {
-    const loaded = await this.load(token, query, tx, false);
+    const loaded = await this.load(token, query, tx, false, protocolVersion);
     if (loaded.context.purpose !== 'random' || loaded.context.mode !== 'public')
       changed();
     const scopes = loaded.captured.catalogs.map((c) =>

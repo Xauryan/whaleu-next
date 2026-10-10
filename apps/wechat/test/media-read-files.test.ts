@@ -202,3 +202,21 @@ test('changed or missing bytes invalidate resolving but never substitute another
   await h.registry.release(h.handle);
   await flush();
 });
+
+test('unreserved late callback keeps maximum byte debt when unlink outcome is unknown', async () => {
+  const h = fixture();
+  await h.registry.release(h.handle);
+  h.files.failUnlink = true;
+  for (const path of [
+    'wxfile://tmp/late-one.png',
+    'wxfile://tmp/late-two.png',
+  ]) {
+    h.files.put(path);
+    await h.registry.discard(path);
+  }
+  assert.throws(() => h.registry.reserve(1), { kind: 'storage' });
+  h.files.failUnlink = false;
+  await h.registry.retryCleanup();
+  const reservation = h.registry.reserve();
+  h.registry.releaseReservation(reservation);
+});

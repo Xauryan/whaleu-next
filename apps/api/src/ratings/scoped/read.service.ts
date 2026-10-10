@@ -1,3 +1,6 @@
+import { requireTargetCoverRead } from './target-cover-capability.js';
+import { currentRatingTargetCoverDescriptor } from '../target-cover-current.js';
+import { ratingsMediaDescriptorSchema } from '../../media/contracts-ratings.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { z, ZodError } from 'zod';
 import type { PoolClient } from 'pg';
@@ -209,6 +212,7 @@ export class RatingScopedReadService {
     token: string,
     query: ReadQuery,
     operation: (scope: ResolvedRatingScope, tx: PoolClient) => Promise<T>,
+    protocolVersion: 2 | 3 = 2,
   ): Promise<T> {
     try {
       return await this.database.transaction(
@@ -219,7 +223,7 @@ export class RatingScopedReadService {
             token,
             { contextId: query.contextId, contextToken: query.contextToken },
             tx,
-            { purpose: 'read' },
+            { purpose: 'read', protocolVersion },
           );
           const result = await operation(scope, tx);
           await this.access.recheck(token, tx);
@@ -332,59 +336,109 @@ export class RatingScopedReadService {
       });
     });
   }
-  targets(token: string, query: TargetQuery) {
-    return this.run(token, query, async (scope, tx) => {
-      await this.scoped.category(scope, query.categoryId, tx);
-      const cursorScope = await this.cursorScope(
-        scope,
-        'targets',
-        { categoryId: query.categoryId, limit: query.limit },
-        tx,
-      );
-      const after = query.cursor
-        ? await this.cursors.get(query.cursor, cursorScope, tx)
-        : null;
-      const rows = await this.scoped.targets(
+  targets(token: string, query: TargetQuery, includeCover = false) {
+    return this.run(
+      token,
+      query,
+      async (scope, tx) => {
+        await this.scoped.category(scope, query.categoryId, tx);
+        const cursorScope = await this.cursorScope(
           scope,
-          query.categoryId,
-          after,
-          query.limit,
+          'targets',
+          { categoryId: query.categoryId, limit: query.limit },
           tx,
-        ),
-        more = rows.length > query.limit,
-        chosen = rows.slice(0, query.limit),
-        items = [];
-      for (const candidate of chosen) {
-        try {
-          const { row } = await this.targetRow(scope, candidate.id, tx);
-          items.push(await this.projection.target(row, this.actor(scope), tx));
-        } catch (error) {
-          if (!notFound(error)) throw error;
-        }
-      }
-      const nextCursor = more
-        ? await this.cursors.create(
-            scope.actor,
-            cursorScope,
-            chosen.at(-1)!.ordinal,
+        );
+        const after = query.cursor
+          ? await this.cursors.get(query.cursor, cursorScope, tx)
+          : null;
+        const rows = await this.scoped.targets(
+            scope,
+            query.categoryId,
+            after,
+            query.limit,
             tx,
-          )
-        : null;
-      return ratingScopedTargetPageSchema.parse({
-        context: { ...this.pageContext(scope), categoryId: query.categoryId },
-        items,
-        nextCursor,
-        continuation: more ? (items.length ? 'more' : 'scan') : 'end',
-      });
-    });
+          ),
+          more = rows.length > query.limit,
+          chosen = rows.slice(0, query.limit),
+          items = [];
+        const qualified = await this.scoped.currentTargetBatch(
+          scope,
+          chosen.map((c) => c.id),
+          tx,
+        );
+        for (const candidate of chosen) {
+          try {
+            const row = qualified.get(candidate.id);
+            if (!row) continue;
+            requireTargetCoverRead(scope, row.definition);
+            const target = await this.projection.target(
+              row,
+              this.actor(scope),
+              tx,
+            );
+            const cover = includeCover
+              ? currentRatingTargetCoverDescriptor(
+                  row.definition,
+                  {
+                    contextId: query.contextId,
+                    contextToken: query.contextToken,
+                  },
+                  tx,
+                )
+              : null;
+            items.push(includeCover ? { ...target, cover } : target);
+          } catch (error) {
+            if (!notFound(error)) throw error;
+          }
+        }
+        const nextCursor = more
+          ? await this.cursors.create(
+              scope.actor,
+              cursorScope,
+              chosen.at(-1)!.ordinal,
+              tx,
+            )
+          : null;
+        const result = {
+          context: { ...this.pageContext(scope), categoryId: query.categoryId },
+          items,
+          nextCursor,
+          continuation: more ? (items.length ? 'more' : 'scan') : 'end',
+        };
+        return includeCover
+          ? ratingScopedTargetPageSchema
+              .safeExtend({
+                items: z
+                  .array(
+                    ratingTargetSchema.extend({
+                      cover: ratingsMediaDescriptorSchema.nullable(),
+                    }),
+                  )
+                  .max(50),
+              })
+              .parse(result)
+          : ratingScopedTargetPageSchema.parse(result);
+      },
+      includeCover ? 3 : 2,
+    );
   }
-  target(token: string, id: string, query: ReadQuery) {
-    return this.run(token, query, async (scope, tx) =>
-      this.projection.target(
-        (await this.targetRow(scope, id, tx)).row,
-        this.actor(scope),
-        tx,
-      ),
+  target(token: string, id: string, query: ReadQuery, includeCover = false) {
+    return this.run(
+      token,
+      query,
+      async (scope, tx) => {
+        const row = (await this.targetRow(scope, id, tx)).row;
+        requireTargetCoverRead(scope, row.definition);
+        const target = await this.projection.target(row, this.actor(scope), tx);
+        if (!includeCover) return target;
+        const cover = currentRatingTargetCoverDescriptor(
+          row.definition,
+          { contextId: query.contextId, contextToken: query.contextToken },
+          tx,
+        );
+        return { context: this.pageContext(scope), target, cover };
+      },
+      includeCover ? 3 : 2,
     );
   }
   myScore(token: string, id: string, query: ReadQuery) {
@@ -774,49 +828,92 @@ export class RatingScopedReadService {
       });
     });
   }
-  listSubscriptions(token: string, query: PageQuery) {
-    return this.run(token, query, async (scope, tx) => {
-      const cursorScope = await this.cursorScope(
-          scope,
-          'subscriptions',
-          { limit: query.limit },
-          tx,
-          [await this.scoped.subscriptionNavigation(scope, tx)],
-        ),
-        after = query.cursor
-          ? await this.cursors.get(query.cursor, cursorScope, tx)
-          : null;
-      const rows = await this.scoped.subscriptions(
-          scope,
-          after,
-          query.limit,
-          tx,
-        ),
-        more = rows.length > query.limit,
-        chosen = rows.slice(0, query.limit),
-        items = [];
-      for (const candidate of chosen) {
-        try {
-          const { row } = await this.targetRow(scope, candidate.id, tx);
-          items.push(await this.projection.target(row, this.actor(scope), tx));
-        } catch (error) {
-          if (!notFound(error)) throw error;
-        }
-      }
-      const nextCursor = more
-        ? await this.cursors.create(
-            scope.actor,
-            cursorScope,
-            chosen.at(-1)!.ordinal,
+  listSubscriptions(token: string, query: PageQuery, includeCover = false) {
+    return this.run(
+      token,
+      query,
+      async (scope, tx) => {
+        const cursorScope = await this.cursorScope(
+            scope,
+            'subscriptions',
+            { limit: query.limit },
             tx,
-          )
-        : null;
-      return ratingScopedSubscriptionPageSchema.parse({
-        context: this.pageContext(scope),
-        items,
-        nextCursor,
-        continuation: more ? (items.length ? 'more' : 'scan') : 'end',
-      });
-    });
+            [await this.scoped.subscriptionNavigation(scope, tx)],
+          ),
+          after = query.cursor
+            ? await this.cursors.get(query.cursor, cursorScope, tx)
+            : null;
+        const rows = await this.scoped.subscriptions(
+            scope,
+            after,
+            query.limit,
+            tx,
+          ),
+          more = rows.length > query.limit,
+          chosen = rows.slice(0, query.limit),
+          items = [];
+        const qualified = await this.scoped.currentTargetBatch(
+          scope,
+          chosen.map((c) => c.id),
+          tx,
+        );
+        for (const candidate of chosen) {
+          try {
+            const row = qualified.get(candidate.id);
+            if (!row) continue;
+            requireTargetCoverRead(scope, row.definition);
+            const target = await this.projection.target(
+              row,
+              this.actor(scope),
+              tx,
+            );
+            items.push(
+              includeCover
+                ? {
+                    ...target,
+                    cover: currentRatingTargetCoverDescriptor(
+                      row.definition,
+                      {
+                        contextId: query.contextId,
+                        contextToken: query.contextToken,
+                      },
+                      tx,
+                    ),
+                  }
+                : target,
+            );
+          } catch (error) {
+            if (!notFound(error)) throw error;
+          }
+        }
+        const nextCursor = more
+          ? await this.cursors.create(
+              scope.actor,
+              cursorScope,
+              chosen.at(-1)!.ordinal,
+              tx,
+            )
+          : null;
+        return (
+          includeCover
+            ? ratingScopedSubscriptionPageSchema.safeExtend({
+                items: z
+                  .array(
+                    ratingTargetSchema.extend({
+                      cover: ratingsMediaDescriptorSchema.nullable(),
+                    }),
+                  )
+                  .max(50),
+              })
+            : ratingScopedSubscriptionPageSchema
+        ).parse({
+          context: this.pageContext(scope),
+          items,
+          nextCursor,
+          continuation: more ? (items.length ? 'more' : 'scan') : 'end',
+        });
+      },
+      includeCover ? 3 : 2,
+    );
   }
 }

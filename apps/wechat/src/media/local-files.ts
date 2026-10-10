@@ -263,6 +263,12 @@ export class MediaLocalFiles {
         this.reservations.delete(reservation);
       }
     }
+    // A late callback can outlive its consumed/released reservation. Unknown bytes
+    // are not zero bytes: conservatively retain one full admitted-file budget until
+    // unlink succeeds. Cleanup debt may exceed admission limits; it never permits
+    // another picker/download to bypass the shared page's 10 MiB budget.
+    if (!this.tombstoneBytes.has(path))
+      this.tombstoneBytes.set(path, 5 * 1024 * 1024);
     // At most two native callbacks and four retained leases/tombstones are admitted.
     this.tombstones.add(path);
     const deletion = this.files

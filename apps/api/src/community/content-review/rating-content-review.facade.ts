@@ -1,3 +1,5 @@
+import { currentRatingTargetCovers } from '../../ratings/target-cover-current.js';
+import type { AcceptedRatingTargetCoverApproval } from './rating-target-cover-contracts.js';
 import { Injectable } from '@nestjs/common';
 import { RatingScopedContentReviewFacade } from './rating-scoped-content-review.facade.js';
 import type {
@@ -276,7 +278,17 @@ export class RatingContentReviewFacade {
     inputs: readonly AnyRatingTargetDefinitionDescriptor[],
     tx: PoolClient,
   ) {
-    return this.scoped.currentTargetDefinitions(inputs, tx);
+    const results = await this.scoped.currentTargetDefinitions(inputs, tx);
+    const covers = await currentRatingTargetCovers(inputs, tx);
+    return Object.freeze(
+      results.map((result, index) =>
+        covers[index] === 'unavailable'
+          ? { kind: 'unavailable' as const }
+          : covers[index] === 'deny'
+            ? { kind: 'deny' as const, reason: 'RATING_NOT_FOUND' as const }
+            : result,
+      ),
+    );
   }
   /** Explicit, private lifetime for the complete Ratings-owned source scan.
    * No batch registers per-target facts. The two monotonic owner epochs cover
@@ -398,12 +410,21 @@ export class RatingContentReviewFacade {
   ): Promise<readonly ('allow' | 'deny')[]> {
     const context = targetEligibilityContext(handle, tx);
     if (!batch.length) return Object.freeze([]);
+    if (
+      batch.some(
+        (item) =>
+          item.definition.envelope.version === 6 &&
+          item.definition.envelope.cover !== null,
+      )
+    )
+      throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
     // A complete legacy-compatible source pool may contain a v5 definition.
     // Dispatch its real binding protocol without coercing origin into view.
     if (
-      batch.some(
-        (input) =>
-          (input.definition.envelope as { version: number }).version === 5,
+      batch.some((input) =>
+        [5, 6].includes(
+          (input.definition.envelope as { version: number }).version,
+        ),
       )
     ) {
       const definitions = batch.map((input) => {
@@ -415,7 +436,7 @@ export class RatingContentReviewFacade {
         }
         const envelope = definition.envelope;
         const regionId =
-          envelope.version === 5
+          envelope.version === 5 || envelope.version === 6
             ? envelope.targetOrigin.regionId
             : envelope.scope.regionId;
         if (
@@ -433,10 +454,7 @@ export class RatingContentReviewFacade {
           throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
         return definition;
       });
-      const results = await this.scoped.currentTargetDefinitions(
-        definitions,
-        tx,
-      );
+      const results = await this.currentDefinitionBatch(definitions, tx);
       targetEligibilityContext(handle, tx);
       return Object.freeze(
         results.map((result) => {
@@ -737,6 +755,22 @@ export class RatingContentReviewFacade {
     );
   }
 
+  async currentTargetDefinitionForCoverMutation(
+    descriptor: AnyRatingTargetDefinitionDescriptor,
+    tx: PoolClient,
+  ) {
+    const review = (
+      await this.scoped.currentTargetDefinitions([descriptor], tx)
+    )[0]!;
+    const cover = (
+      await currentRatingTargetCovers([descriptor], tx, false)
+    )[0]!;
+    return cover === 'unavailable'
+      ? { kind: 'unavailable' as const }
+      : cover === 'deny'
+        ? { kind: 'deny' as const, reason: 'RATING_NOT_FOUND' as const }
+        : review;
+  }
   async currentTargetDefinition(
     descriptor: RatingTargetDefinitionDescriptor,
     tx: PoolClient,
@@ -748,16 +782,28 @@ export class RatingContentReviewFacade {
   async currentTargetDefinition(
     descriptor: AnyRatingTargetDefinitionDescriptor,
     tx: PoolClient,
-  ): Promise<Decision<AcceptedRatingApproval | AcceptedRatingScopedApproval>>;
+  ): Promise<
+    Decision<
+      | AcceptedRatingApproval
+      | AcceptedRatingScopedApproval
+      | AcceptedRatingTargetCoverApproval
+    >
+  >;
   async currentTargetDefinition(
     descriptor: AnyRatingTargetDefinitionDescriptor,
     tx: PoolClient,
-  ): Promise<Decision<AcceptedRatingApproval | AcceptedRatingScopedApproval>> {
-    if (descriptor?.envelope?.version === 5)
-      return this.scoped.currentTargetDefinition(
-        descriptor as RatingScopedTargetDefinitionDescriptor,
-        tx,
-      );
+  ): Promise<
+    Decision<
+      | AcceptedRatingApproval
+      | AcceptedRatingScopedApproval
+      | AcceptedRatingTargetCoverApproval
+    >
+  > {
+    if (
+      descriptor?.envelope?.version === 6 ||
+      descriptor?.envelope?.version === 5
+    )
+      return (await this.currentDefinitionBatch([descriptor], tx))[0]!;
     await this.navigation(tx);
     let definition: RatingTargetDefinitionDescriptor;
     try {
@@ -868,7 +914,13 @@ export class RatingContentReviewFacade {
       | RatingScopedTargetEnvelope
       | RatingScopedContentEnvelope,
     tx: PoolClient,
-  ): Promise<Decision<AcceptedRatingApproval | AcceptedRatingScopedApproval>>;
+  ): Promise<
+    Decision<
+      | AcceptedRatingApproval
+      | AcceptedRatingScopedApproval
+      | AcceptedRatingTargetCoverApproval
+    >
+  >;
   async current(
     kind: RatingContentKind,
     id: string,
@@ -877,7 +929,13 @@ export class RatingContentReviewFacade {
       | RatingScopedTargetEnvelope
       | RatingScopedContentEnvelope,
     tx: PoolClient,
-  ): Promise<Decision<AcceptedRatingApproval | AcceptedRatingScopedApproval>> {
+  ): Promise<
+    Decision<
+      | AcceptedRatingApproval
+      | AcceptedRatingScopedApproval
+      | AcceptedRatingTargetCoverApproval
+    >
+  > {
     if (envelope?.version === 5) {
       if (
         envelope.purpose === 'publish_rating_target_scoped' ||

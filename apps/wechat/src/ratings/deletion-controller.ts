@@ -1,3 +1,4 @@
+import { isRatingTargetCoverIntent } from './target-cover-contract';
 import { ClientError } from '../api/errors';
 import {
   CommunityController,
@@ -290,6 +291,7 @@ export class RatingDeletionController extends CommunityController<RatingDeletion
             : ratingOwnerDeletionIntent(confirmation.context, id),
         );
         if (
+          isRatingTargetCoverIntent(intent) ||
           isRatingScopedIntent(intent) ||
           isRatingCategoryScopedIntent(intent) ||
           isRatingTargetOwnerEditingIntent(intent) ||

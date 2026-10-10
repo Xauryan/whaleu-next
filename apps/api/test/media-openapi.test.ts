@@ -1,3 +1,4 @@
+import * as ratingsMedia from '../src/media/contracts-ratings.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -326,6 +327,59 @@ const v4cases = [
   ],
 ] as const;
 
+const ratingsCases = [
+  [
+    '/v3/media/ratings-target/upload-scopes',
+    'post',
+    ratingsMedia.prepareRatingsMediaSchema,
+    ratingsMedia.ratingsMediaStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-target/upload-requests/{id}',
+    'get',
+    undefined,
+    ratingsMedia.ratingsMediaRecoverySchema,
+  ],
+  [
+    '/v3/media/ratings-target/upload-requests/{id}/cancel',
+    'post',
+    ratingsMedia.cancelRatingsMediaRequestSchema,
+    ratingsMedia.ratingsMediaRecoverySchema,
+  ],
+  [
+    '/v3/media/ratings-target/upload-scopes/{id}',
+    'get',
+    undefined,
+    ratingsMedia.ratingsMediaStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-target/upload-scopes/{id}/grant',
+    'post',
+    z.strictObject({}),
+    ratingsMedia.ratingsMediaGrantSchema,
+  ],
+  [
+    '/v3/media/ratings-target/upload-scopes/{id}/finalize',
+    'post',
+    z.strictObject({}),
+    ratingsMedia.ratingsMediaStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-target/upload-scopes/{id}/cancel',
+    'post',
+    z.strictObject({}),
+    ratingsMedia.ratingsMediaCancelSchema,
+  ],
+  [
+    '/v3/media/ratings-target/upload-scopes/{id}/uploads/{grantId}',
+    'post',
+    undefined,
+    ratingsMedia.ratingsMediaUploadObservedSchema,
+  ],
+] as const;
+const ratingsDeliveryPath =
+  '/v3/media/ratings-target/targets/{targetId}/appearances/{appearanceId}/{variant}';
+
 test('Media official Swagger export is offline, deterministic and artifact-current', async () => {
   assert.equal(
     await render(),
@@ -341,7 +395,16 @@ test('Media operations require bearer auth and private sanitized responses', asy
   assert.equal(doc.openapi, '3.0.3');
   assert.deepEqual(
     Object.keys(doc.paths).sort(),
-    [...cases, ...v2cases, ...v3cases, ...v4cases].map(([p]) => p).sort(),
+    [
+      ...cases,
+      ...v2cases,
+      ...v3cases,
+      ...v4cases,
+      ...ratingsCases,
+      [ratingsDeliveryPath],
+    ]
+      .map(([p]) => p)
+      .sort(),
   );
   for (const [path, method, success] of cases) {
     assert.deepEqual(Object.keys(doc.paths[path]!), [method]);
@@ -469,6 +532,7 @@ test('Media v2, v3 and v4 export exact strict recovery, batch, member and shared
     ...v2cases,
     ...v3cases,
     ...v4cases,
+    ...ratingsCases,
   ]) {
     assert.deepEqual(Object.keys(doc.paths[path]!), [method]);
     const operation = doc.paths[path]![method]!;
@@ -617,4 +681,15 @@ test('Media v3 documents nine-member bounds, immutable source slots and metadata
   assert.deepEqual(result.required, ['version', 'status', 'cancellation']);
   assert.ok(result.properties?.['cancellation']);
   assert.equal(result.properties?.['receipt'], undefined);
+});
+
+test('Ratings derived bytes require bearer and never expose range or redirect', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  const op = doc.paths[ratingsDeliveryPath]!.get!;
+  assert.deepEqual(op.security, [{ accessToken: [] }]);
+  assert.equal(op.responses['206'], undefined);
+  assert.equal(op.responses['302'], undefined);
+  const response = op.responses['200']!;
+  assert.ok(!('$ref' in response));
+  assert.ok(response.content?.['image/jpeg']);
 });

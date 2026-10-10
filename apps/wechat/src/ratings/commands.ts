@@ -1,8 +1,14 @@
+import { ratingCoverPrepareHash } from './target-cover-media-contract';
+import {
+  matchRatingTargetCoverReceipt,
+  type RatingTargetCoverReceipt,
+} from './target-cover-contract';
 import { ClientError } from '../api/errors';
 import type { CommunityRuntime } from '../community/runtime';
 import type { Cancellation } from '../platform/contracts';
 import {
   isRatingScopedIntent,
+  isRatingTargetCoverIntent,
   isRatingCategoryScopedIntent,
   isRatingCategoryCreationIntent,
   isRatingTargetOwnerEditingIntent,
@@ -61,6 +67,113 @@ export function runRatingCommand(
     throw new ClientError('stale-session', 'Account changed');
   runtime.pendingRatings!.assertOriginal(attempt);
   const intent = attempt.intent;
+  if (isRatingTargetCoverIntent(intent)) {
+    if (!runtime.ratingTargetCover)
+      throw new ClientError(
+        'configuration',
+        'Target cover commands unavailable',
+      );
+    const gateway = runtime.ratingTargetCover;
+    const verifyMedia = async (
+      receipt: RatingTargetCoverReceipt,
+    ): Promise<RatingTargetCoverReceipt> => {
+      matchRatingTargetCoverReceipt(intent, receipt);
+      if (attempt.version !== 11 || !attempt.upload) return receipt;
+      const upload = attempt.upload,
+        scope = upload.scope;
+      if (!runtime.ratingCoverMedia || !scope)
+        throw new ClientError(
+          'configuration',
+          'Original Ratings media recovery unavailable',
+        );
+      const session = {
+        current: () => {
+          runtime.sessions.assertCurrent(owner);
+          if (cancel.isCancelled)
+            throw new ClientError('cancelled', 'Original recovery interrupted');
+          runtime.pendingRatings!.assertOriginal(attempt);
+          return runtime.sessions.snapshot();
+        },
+      };
+      const hash = ratingCoverPrepareHash(attempt.accountId, scope.prepare);
+      let recovered = await runtime.ratingCoverMedia.recover(
+        scope.prepare.clientRequestId,
+        session,
+        cancel,
+      );
+      session.current();
+      if (recovered.state === 'not_recorded' || recovered.requestHash !== hash)
+        throw new ClientError(
+          'business',
+          'Original media outcome remains unknown',
+        );
+      if (receipt.outcome === 'closed') {
+        if (
+          recovered.state === 'recorded' &&
+          recovered.status.status === 'bound_history'
+        )
+          throw new ClientError(
+            'protocol',
+            'Closed command and bound media disagree',
+          );
+        if (
+          recovered.state === 'recorded' &&
+          recovered.status.status !== 'terminal'
+        ) {
+          recovered = await runtime.ratingCoverMedia.cancelRequest(
+            scope.prepare.clientRequestId,
+            hash,
+            session,
+            cancel,
+          );
+          session.current();
+        }
+        if (
+          recovered.requestHash !== hash ||
+          !(
+            recovered.state === 'cancelled_before_prepare' ||
+            (recovered.state === 'recorded' &&
+              recovered.status.status === 'terminal')
+          )
+        )
+          throw new ClientError(
+            'business',
+            'Original media cancellation remains unknown',
+          );
+      } else if (
+        recovered.state !== 'recorded' ||
+        recovered.status.status !== 'bound_history' ||
+        recovered.status.editScopeId !== scope.scopeId ||
+        recovered.status.targetId !== receipt.result.targetId ||
+        intent.payload.cover.action !== 'replace' ||
+        recovered.status.assetId !== intent.payload.cover.assetId
+      )
+        throw new ClientError(
+          'protocol',
+          'Original media bound history mismatch',
+        );
+      return receipt;
+    };
+    return (async () => {
+      let receipt: RatingTargetCoverReceipt;
+      try {
+        receipt = await gateway.receipt(intent.payload.clientRequestId, cancel);
+        runtime.sessions.assertCurrent(owner);
+      } catch (error) {
+        runtime.sessions.assertCurrent(owner);
+        if (
+          !retry ||
+          cancel.isCancelled ||
+          !(error instanceof ClientError) ||
+          error.details.serverCode !== 'REQUEST_NOT_FOUND'
+        )
+          throw error;
+        runtime.pendingRatings!.assertOriginal(attempt);
+        receipt = await gateway.command(intent, cancel);
+      }
+      return verifyMedia(receipt);
+    })();
+  }
   if (isRatingCategoryScopedIntent(intent)) {
     if (!runtime.ratingCategoryScoped)
       throw new ClientError('configuration', 'Category management unavailable');

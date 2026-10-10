@@ -1,0 +1,20 @@
+<template name="rating-target-cover">
+  <view class="rating-cover">
+    <image wx:if="{{cover.localSrc}}" src="{{cover.localSrc}}" mode="aspectFit" bindtap="onCoverOpen" binderror="onCoverError" />
+    <view wx:elif="{{cover.status === 'none'}}">暂无封面</view>
+    <view wx:elif="{{cover.status === 'unavailable'}}">封面暂不可用，请重新读取</view>
+    <view wx:if="{{cover.expanded}}" class="rating-cover-expanded"><image src="{{cover.localSrc}}" mode="aspectFit" binderror="onCoverError" /><button bindtap="onCoverClose">关闭大图</button></view>
+  </view>
+</template>
+<template name="rating-target-cover-editor">
+  <view class="rating-cover-editor">
+    <image wx:if="{{coverUpload.localSrc}}" src="{{coverUpload.localSrc}}" mode="aspectFit" />
+    <view>{{coverUpload.message}}</view>
+    <button bindtap="onCoverChoose" disabled="{{busy || frozen || needsRefresh || coverUpload.pickerWaiting || coverUpload.status === 'selecting' || coverUpload.status === 'uploading' || coverUpload.status === 'pending' || coverUpload.status === 'ready'}}">选择单张封面</button>
+    <button wx:if="{{mode === 'edit'}}" bindtap="onCoverKeep" disabled="{{busy || frozen || needsRefresh || coverUpload.status === 'selecting' || coverUpload.status === 'uploading' || coverUpload.status === 'pending' || coverUpload.status === 'ready'}}">保留当前封面</button>
+    <button bindtap="onCoverClear" disabled="{{busy || frozen || needsRefresh || coverUpload.status === 'selecting' || coverUpload.status === 'uploading' || coverUpload.status === 'pending' || coverUpload.status === 'ready'}}">清除封面</button>
+    <button wx:if="{{coverUpload.status === 'pending'}}" bindtap="onCoverRecover" disabled="{{busy}}">恢复原封面请求</button>
+    <button wx:if="{{coverUpload.status === 'pending' || coverUpload.status === 'ready'}}" bindtap="onCoverCancel" disabled="{{busy}}">明确取消原封面请求</button>
+    <view>名称必填，正文与封面将共同核对当前版本并提交。</view>
+  </view>
+</template>

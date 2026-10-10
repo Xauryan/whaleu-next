@@ -1,3 +1,4 @@
+import { isRatingTargetCoverIntent } from '../src/ratings/target-cover-contract';
 import { ClientError } from '../src/api/errors';
 import type { CommunityRuntime } from '../src/community/runtime';
 import { SafetyChanges } from '../src/community/safety-changes';
@@ -178,6 +179,7 @@ export const receipt = (
   outcome: 'applied' | 'noop' = 'applied',
 ): Extract<RatingReceipt, { outcome: 'applied' | 'noop' }> => {
   if (
+    isRatingTargetCoverIntent(command) ||
     isRatingScopedIntent(command) ||
     isRatingCategoryScopedIntent(command) ||
     isRatingCategoryCreationIntent(command) ||
@@ -219,6 +221,7 @@ export const rejected = (
   >['code'] = 'RATING_REVISION_CONFLICT',
 ): RatingReceipt => {
   if (
+    isRatingTargetCoverIntent(command) ||
     isRatingScopedIntent(command) ||
     isRatingCategoryScopedIntent(command) ||
     isRatingCategoryCreationIntent(command) ||

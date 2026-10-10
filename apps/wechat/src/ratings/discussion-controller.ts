@@ -1,3 +1,4 @@
+import { isRatingTargetCoverIntent } from './target-cover-contract';
 import { isRatingCategoryScopedIntent, isRatingScopedIntent } from './pending';
 import { ratingDeletionPath } from './deletion-contract';
 import { decodeRatingSubscriptionNoticeTarget } from './subscription-updates-contract';
@@ -867,6 +868,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const intent = decodeRatingCommandIntent(make(id));
         if (
+          isRatingTargetCoverIntent(intent) ||
           isRatingScopedIntent(intent) ||
           isRatingCategoryScopedIntent(intent) ||
           isRatingTargetOwnerEditingIntent(intent) ||

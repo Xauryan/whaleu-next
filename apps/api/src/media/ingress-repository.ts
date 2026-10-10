@@ -1,4 +1,9 @@
 import {
+  prepareRatingsMediaSchema,
+  ratingsMediaRequestHash,
+} from './contracts-ratings.js';
+import type { PrepareRatingsMediaInput } from './contracts-ratings.js';
+import {
   prepareProfileMediaSchema,
   profileMediaRequestHash,
 } from './contracts-profile.js';
@@ -104,7 +109,7 @@ export class MediaIngressRepository {
   private readonly proof = new MediaRequiredProof();
   constructor(
     readonly planning: MediaIngressPlanningPort,
-    private readonly protocolVersion: 2 | 3 | 4 | 5 = 2,
+    private readonly protocolVersion: 2 | 3 | 4 | 5 | 6 = 2,
   ) {
     mediaIdSchema.parse(planning.writerInstanceId);
   }
@@ -116,7 +121,7 @@ export class MediaIngressRepository {
     tx: PoolClient,
   ): Promise<PrepareMediaV2Input | PrepareMediaV3Input | PrepareMediaV4Input> {
     this.managed(tx);
-    if (this.protocolVersion === 5)
+    if (this.protocolVersion === 5 || this.protocolVersion === 6)
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const row = (
       await tx.query<Intent & { client_draft_id: string; space_id: string }>(
@@ -167,6 +172,36 @@ export class MediaIngressRepository {
       spaceId: row.space_id,
       slot: 'images',
       ordinal: 0,
+      declaration: {
+        bytes: Number(row.declared_bytes),
+        mime: row.declared_mime,
+        sha256: row.declared_sha256,
+      },
+    });
+  }
+  async originalRatingsInput(
+    actor: string,
+    id: string,
+    tx: PoolClient,
+  ): Promise<PrepareRatingsMediaInput> {
+    this.managed(tx);
+    if (this.protocolVersion !== 6)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const row = (
+      await tx.query<Intent>(
+        `SELECT i.* FROM whaleu_media.upload_intents i JOIN whaleu_ratings.target_cover_upload_scopes s
+       ON s.id=i.resource_id AND s.actor_id=i.actor_id AND s.scope_revision=i.scope_revision
+       WHERE i.id=$1 AND i.actor_id=$2 AND i.protocol_version=6 AND i.owner_kind='ratings'`,
+        [mediaIdSchema.parse(id), actor],
+      )
+    ).rows[0];
+    if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return prepareRatingsMediaSchema.parse({
+      protocol: 'ratings-target-media-v1',
+      clientRequestId: row.client_request_id,
+      editScopeId: row.resource_id,
+      scopeRevision: row.scope_revision,
+      slot: 'cover',
       declaration: {
         bytes: Number(row.declared_bytes),
         mime: row.declared_mime,
@@ -661,13 +696,15 @@ export class MediaIngressRepository {
       )
     ).rows[0];
     const input =
-      this.protocolVersion === 5
-        ? prepareProfileMediaSchema.parse(issued.input)
-        : this.protocolVersion === 4
-          ? prepareMediaV4Schema.parse(issued.input)
-          : this.protocolVersion === 3
-            ? prepareMediaV3Schema.parse(issued.input)
-            : prepareMediaV2Schema.parse(issued.input);
+      this.protocolVersion === 6
+        ? prepareRatingsMediaSchema.parse(issued.input)
+        : this.protocolVersion === 5
+          ? prepareProfileMediaSchema.parse(issued.input)
+          : this.protocolVersion === 4
+            ? prepareMediaV4Schema.parse(issued.input)
+            : this.protocolVersion === 3
+              ? prepareMediaV3Schema.parse(issued.input)
+              : prepareMediaV2Schema.parse(issued.input);
     if (
       !row ||
       row.state !== 'prepared' ||
@@ -690,6 +727,12 @@ export class MediaIngressRepository {
               },
             ))) ||
       ('protocol' in input &&
+        input.protocol === 'ratings-target-media-v1' &&
+        (issued.scope.ownerKind !== 'ratings' ||
+          row.request_hash !==
+            ratingsMediaRequestHash(session.accountId, input))) ||
+      ('protocol' in input &&
+        input.protocol === 'profile-media-v1' &&
         (issued.scope.ownerKind !== 'profile' ||
           row.request_hash !==
             profileMediaRequestHash(session.accountId, input))) ||

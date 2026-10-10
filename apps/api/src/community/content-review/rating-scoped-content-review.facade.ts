@@ -1,3 +1,15 @@
+import {
+  canonicalRatingTargetCoverEnvelope,
+  canonicalRatingTargetCoverDefinition,
+  ratingTargetCoverApprovalDigest,
+  type RatingTargetCoverEnvelope,
+  type RatingTargetCoverDefinitionDescriptor,
+  type AcceptedRatingTargetCoverApproval,
+} from './rating-target-cover-contracts.js';
+import {
+  ratingTargetCoverBindingMatches,
+  validateRatingTargetCoverApprovalRow,
+} from './rating-target-cover-validation.js';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
@@ -88,6 +100,21 @@ const proof: RequiredTransactionProof<{ fingerprint: string }> = {
     boundedOwnerProof(tx, 'CONTENT_REVIEW_UNAVAILABLE', async (read) => {
       await read.query(
         'LOCK TABLE whaleu_community.rating_review_epoch,whaleu_community.rating_approval_bindings,whaleu_community.rating_target_definition_bindings,whaleu_community.rating_scoped_content_bindings,whaleu_community.rating_scoped_target_definition_bindings,whaleu_community.rating_scoped_category_source_bindings IN SHARE MODE NOWAIT',
+      );
+      if (facts.length !== 1 || facts[0]!.fingerprint !== (await epoch(read)))
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    }),
+};
+/** Cover bindings are a v6 dependency, not part of the frozen v1/v3/v5
+ * navigation contract. Keep the old fence usable during pre-cover upgrades;
+ * actual v6 reads/writes add this mandatory fence without replacing old facts. */
+const coverProof: RequiredTransactionProof<{ fingerprint: string }> = {
+  maximumFacts: 1,
+  failureCode: 'CONTENT_REVIEW_UNAVAILABLE',
+  validate: (facts, tx) =>
+    boundedOwnerProof(tx, 'CONTENT_REVIEW_UNAVAILABLE', async (read) => {
+      await read.query(
+        'LOCK TABLE whaleu_community.rating_target_cover_definition_bindings IN SHARE MODE NOWAIT',
       );
       if (facts.length !== 1 || facts[0]!.fingerprint !== (await epoch(read)))
         throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
@@ -256,6 +283,110 @@ export class RatingScopedContentReviewFacade {
     if (used.length) throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     return result.value;
   }
+  private async coverNavigation(tx: PoolClient): Promise<void> {
+    const fingerprint = await this.navigation(tx);
+    enableRequiredTransactionProof(tx, coverProof);
+    registerRequiredTransactionFact(
+      tx,
+      coverProof,
+      'scoped-cover-review-epoch',
+      Object.freeze({ fingerprint }),
+    );
+  }
+  async acceptedCover(
+    input: RatingTargetCoverEnvelope,
+    tx: PoolClient,
+  ): Promise<AcceptedRatingTargetCoverApproval> {
+    await this.coverNavigation(tx);
+    const envelope = canonicalRatingTargetCoverEnvelope(input);
+    if (
+      !(
+        await tx.query(
+          'SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE',
+          [envelope.accountId],
+        )
+      ).rows.length
+    )
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    const row = (
+      await tx.query<TimedRow>(
+        `WITH instant AS MATERIALIZED (SELECT clock_timestamp() now),candidate AS MATERIALIZED (
+      SELECT id FROM whaleu_community.rating_approval_decisions WHERE account_id=$1 AND operation=$2 AND envelope_version=6 AND digest=$3 ORDER BY evaluated_at DESC,id DESC LIMIT 1), locked_head AS MATERIALIZED (SELECT h.* FROM whaleu_community.rating_approval_heads h JOIN candidate c ON c.id=h.decision_id ORDER BY h.decision_id FOR SHARE OF h)
+      SELECT ${approvalProjection},instant.now,${exactTime('true')} exact_time
+      FROM candidate c JOIN whaleu_community.rating_approval_decisions d ON d.id=c.id
+      LEFT JOIN whaleu_community.content_approval_policies p ON p.id=d.policy_revision_id
+      LEFT JOIN locked_head h ON h.decision_id=d.id
+      LEFT JOIN whaleu_community.rating_approval_events e ON e.id=h.event_id AND e.decision_id=d.id CROSS JOIN instant`,
+        [
+          envelope.accountId,
+          envelope.purpose,
+          ratingTargetCoverApprovalDigest(envelope),
+        ],
+      )
+    ).rows[0];
+    if (
+      !row ||
+      row.exact_time !== true ||
+      !(row.now instanceof Date) ||
+      !canonicalEqual(row.envelope, envelope)
+    )
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    const result = validateRatingTargetCoverApprovalRow(
+      row,
+      true,
+      row.now.getTime(),
+    );
+    registerTransactionDeadline(
+      tx,
+      result.optionalUntil,
+      'CONTENT_REVIEW_UNAVAILABLE',
+    );
+    if (result.decision.kind === 'deny')
+      throw new ApplicationError('CONTENT_REJECTED');
+    if (result.decision.kind !== 'allow')
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    if (
+      (
+        await tx.query(
+          'SELECT 1 FROM whaleu_community.rating_target_cover_definition_bindings WHERE decision_id=$1',
+          [result.decision.value.decisionId],
+        )
+      ).rows.length
+    )
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    return result.decision.value;
+  }
+  async bindCover(
+    accepted: AcceptedRatingTargetCoverApproval,
+    input: RatingTargetCoverDefinitionDescriptor,
+    tx: PoolClient,
+  ): Promise<void> {
+    const d = canonicalRatingTargetCoverDefinition(input),
+      fresh = await this.acceptedCover(d.envelope, tx);
+    if (
+      accepted.version !== 6 ||
+      accepted.decisionId !== fresh.decisionId ||
+      accepted.digest !== fresh.digest ||
+      !canonicalEqual(accepted.envelope, d.envelope)
+    )
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    await tx.query(
+      `INSERT INTO whaleu_community.rating_target_cover_definition_bindings(decision_id,account_id,operation,digest,envelope,envelope_version,target_id,content_version,definition_revision,applied_target_revision,scope)
+      VALUES($1,$2,$3,$4,$5::jsonb,6,$6,$7,$8,$9,$10::jsonb)`,
+      [
+        fresh.decisionId,
+        d.envelope.accountId,
+        d.envelope.purpose,
+        fresh.digest,
+        canonicalJson(d.envelope),
+        d.targetId,
+        d.contentVersion,
+        d.definitionRevision,
+        d.appliedTargetRevision,
+        canonicalJson(d.envelope.scope),
+      ],
+    );
+  }
   async bind(
     accepted: AcceptedRatingScopedApproval,
     input: RatingScopedReviewDescriptor,
@@ -396,7 +527,11 @@ export class RatingScopedContentReviewFacade {
     inputs: readonly AnyRatingTargetDefinitionDescriptor[],
     tx: PoolClient,
   ): Promise<
-    readonly Decision<AcceptedRatingApproval | AcceptedRatingScopedApproval>[]
+    readonly Decision<
+      | AcceptedRatingApproval
+      | AcceptedRatingScopedApproval
+      | AcceptedRatingTargetCoverApproval
+    >[]
   > {
     if (inputs.length > 128)
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
@@ -410,6 +545,14 @@ export class RatingScopedContentReviewFacade {
         inputs.map(() => ({ kind: 'unavailable' as const })),
       );
     }
+    const withCover = descriptors.some((d) => d.envelope.version === 6);
+    if (withCover) await this.coverNavigation(tx);
+    // PostgreSQL resolves every relation in a UNION, even a false branch.
+    // Never refer to the v6 table for a purely historical definition vector.
+    const coverBindingBranch = withCover
+      ? `UNION ALL SELECT to_jsonb(b),b.decision_id,b.bound_at FROM whaleu_community.rating_target_cover_definition_bindings b
+          WHERE w.review_version=6 AND b.target_id=w.id AND b.content_version=w.content_version AND b.definition_revision=w.revision`
+      : '';
     type Row = TimedRow & {
       ordinal: number;
       account_exists: boolean;
@@ -436,6 +579,7 @@ export class RatingScopedContentReviewFacade {
           WHERE w.review_version=3 AND b.target_id=w.id AND b.content_version=w.content_version AND b.definition_revision=w.revision
         UNION ALL SELECT to_jsonb(b),b.decision_id,b.bound_at FROM whaleu_community.rating_scoped_target_definition_bindings b
           WHERE w.review_version=5 AND b.target_id=w.id AND b.content_version=w.content_version AND b.definition_revision=w.revision
+        ${coverBindingBranch}
       ) q ON true LEFT JOIN whaleu_community.rating_approval_decisions d ON d.id=q.decision_id
       LEFT JOIN whaleu_community.content_approval_policies p ON p.id=d.policy_revision_id
       LEFT JOIN whaleu_community.rating_approval_heads h ON h.decision_id=d.id
@@ -456,26 +600,35 @@ export class RatingScopedContentReviewFacade {
         (
           row,
           index,
-        ): Decision<AcceptedRatingApproval | AcceptedRatingScopedApproval> => {
+        ): Decision<
+          | AcceptedRatingApproval
+          | AcceptedRatingScopedApproval
+          | AcceptedRatingTargetCoverApproval
+        > => {
           const descriptor = descriptors[index]!;
           const matches =
             row.binding &&
-            (descriptor.envelope.version === 5
-              ? ratingScopedTargetDefinitionBindingMatches(
+            (descriptor.envelope.version === 6
+              ? ratingTargetCoverBindingMatches(
                   row.binding as RatingScopedTargetDefinitionBinding,
-                  descriptor as RatingScopedTargetDefinitionDescriptor,
+                  descriptor as RatingTargetCoverDefinitionDescriptor,
                 )
-              : descriptor.contentVersion === 1
-                ? ratingBindingMatches(
-                    row.binding as RatingApprovalBinding,
-                    'target',
-                    descriptor.targetId,
-                    descriptor.envelope,
+              : descriptor.envelope.version === 5
+                ? ratingScopedTargetDefinitionBindingMatches(
+                    row.binding as RatingScopedTargetDefinitionBinding,
+                    descriptor as RatingScopedTargetDefinitionDescriptor,
                   )
-                : ratingTargetDefinitionBindingMatches(
-                    row.binding as RatingTargetDefinitionBinding,
-                    descriptor as RatingTargetDefinitionDescriptor,
-                  ));
+                : descriptor.contentVersion === 1
+                  ? ratingBindingMatches(
+                      row.binding as RatingApprovalBinding,
+                      'target',
+                      descriptor.targetId,
+                      descriptor.envelope,
+                    )
+                  : ratingTargetDefinitionBindingMatches(
+                      row.binding as RatingTargetDefinitionBinding,
+                      descriptor as RatingTargetDefinitionDescriptor,
+                    ));
           if (
             row.ordinal !== index + 1 ||
             row.account_exists !== true ||
@@ -489,9 +642,15 @@ export class RatingScopedContentReviewFacade {
           )
             return { kind: 'unavailable' };
           const result =
-            descriptor.envelope.version === 5
-              ? validateRatingScopedApprovalRow(row, false, row.now.getTime())
-              : validateRatingApprovalRow(row, false, row.now.getTime());
+            descriptor.envelope.version === 6
+              ? validateRatingTargetCoverApprovalRow(
+                  row,
+                  false,
+                  row.now.getTime(),
+                )
+              : descriptor.envelope.version === 5
+                ? validateRatingScopedApprovalRow(row, false, row.now.getTime())
+                : validateRatingApprovalRow(row, false, row.now.getTime());
           registerTransactionDeadline(
             tx,
             result.optionalUntil,

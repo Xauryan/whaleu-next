@@ -1,3 +1,13 @@
+import type { RatingCoverReadTransfer } from '../ratings/target-cover-download';
+import {
+  HttpRatingTargetCoverGateway,
+  type RatingTargetCoverGateway,
+} from '../ratings/target-cover-gateway';
+import {
+  HttpRatingCoverMediaGateway,
+  type RatingCoverMediaGateway,
+} from '../ratings/target-cover-media-gateway';
+import type { RatingCoverUploadTransfer } from '../ratings/target-cover-transfer';
 import type { MediaBatchRuntime } from '../media/batch-runtime';
 import type { MediaUploadRuntime } from '../media/upload-runtime';
 import {
@@ -132,6 +142,10 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly ratingTargetCover?: RatingTargetCoverGateway;
+  readonly ratingCoverMedia?: RatingCoverMediaGateway;
+  readonly ratingCoverUpload?: RatingCoverUploadTransfer;
+  readonly ratingCoverDownload?: RatingCoverReadTransfer;
   /** Explicit dependency injection only; normal app construction never enables upload. */
   readonly mediaUpload?: MediaUploadRuntime;
   /** Additive metadata-only v3 path; explicit test DI only. */
@@ -211,6 +225,11 @@ export function createCommunityRuntime(
             identity.api,
             identity.sessions,
           ),
+          ratingTargetCover: new HttpRatingTargetCoverGateway(
+            identity.api,
+            identity.sessions,
+          ),
+          ratingCoverMedia: new HttpRatingCoverMediaGateway(identity.api),
           ratingScoped: new HttpRatingScopedGateway(
             identity.api,
             identity.sessions,

@@ -1,3 +1,24 @@
+import { requireTargetCoverRead } from './target-cover-capability.js';
+import {
+  RatingTargetCoverMediaService,
+  type RatingCoverUploadScopeRow,
+} from '../target-cover-media.service.js';
+import { retainRatingTargetCoverMediaAfter } from '../target-cover-current.js';
+import { ratingsMediaRequestHash } from '../../media/contracts-ratings.js';
+import {
+  canonicalRatingTargetCoverEnvelope,
+  type RatingTargetCoverEnvelope,
+} from '../../community/content-review/rating-target-cover-contracts.js';
+import {
+  ratingCurrentScopedIntentSchema as ratingScopedIntentSchema,
+  ratingCurrentScopedReceiptSchema as ratingScopedReceiptSchema,
+  ratingCurrentScopedCommandHash as ratingScopedCommandHash,
+  ratingTargetCoverPreparationSchema,
+  ratingTargetCoverUploadScopeSchema,
+  type RatingCurrentScopedIntent as RatingScopedIntent,
+  type RatingCurrentScopedReceipt as RatingScopedReceipt,
+  type RatingTargetCoverReference,
+} from './target-cover-contracts.js';
 import { ratingScopedRequestReceiptSchema } from './request-receipt.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
@@ -33,14 +54,9 @@ import { RatingScopedRepository } from './repository.js';
 import { RatingScopedSourceFacade } from './source.facade.js';
 import { RatingScopedReleaseRepository } from './release.repository.js';
 import {
-  ratingScopedIntentSchema,
-  ratingScopedReceiptSchema,
   ratingScopedPreparationSchema,
   ratingScopedClosureSchema,
-  type RatingScopedIntent,
-  type RatingScopedReceipt,
 } from './contracts.js';
-import { ratingScopedCommandHash } from './protocol-registry.js';
 interface Preparation {
   account_id: string;
   request_id: string;
@@ -57,7 +73,7 @@ interface Preparation {
   definition_revision: string;
   content_version: number;
   before_state: Record<string, unknown>;
-  envelope: RatingScopedEnvelope | null;
+  envelope: RatingScopedEnvelope | RatingTargetCoverEnvelope | null;
   policy_source_id: string | null;
   policy_source_revision: string | null;
   valid_until: Date;
@@ -102,6 +118,8 @@ export class RatingScopedCommands {
     private readonly sources: RatingScopedSourceFacade,
     @Inject(RatingScopedReleaseRepository)
     private readonly releases: RatingScopedReleaseRepository,
+    @Inject(RatingTargetCoverMediaService)
+    private readonly coverMedia: RatingTargetCoverMediaService,
   ) {}
   private async enter(token: string, tx: PoolClient) {
     await lockSafetyPolicy(tx, true);
@@ -160,6 +178,7 @@ export class RatingScopedCommands {
               ? 'edit_target'
               : 'interact',
         write: true,
+        protocolVersion: i.protocolVersion,
       },
     );
     if (
@@ -177,6 +196,11 @@ export class RatingScopedCommands {
       })
     )
       throw new ApplicationError('RATING_SCOPED_CONTEXT_CHANGED');
+    if (
+      i.protocolVersion === 3 &&
+      !s.context.capabilities.includes('target_cover')
+    )
+      throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
     return s;
   }
   private async makePreparation(
@@ -195,6 +219,32 @@ export class RatingScopedCommands {
         old.session_id !== scope.session.sessionId
       )
         throw new ApplicationError('REQUEST_CONFLICT');
+      // A stored preparation is immutable intent, not a fresh CAS grant. Lock
+      // and recheck before inserting the SQL execution cause (and before noop).
+      if (i.protocolVersion === 3 && i.operation === 'edit_target_scoped') {
+        const current = await this.scoped.target(
+          scope,
+          i.payload.targetId,
+          tx,
+          true,
+          true,
+        );
+        if (
+          current.row.creator_id !== actor ||
+          current.category.kind !== 'general'
+        )
+          throw new ApplicationError('RATING_NOT_FOUND');
+        if (
+          current.row.revision !== i.payload.expectedTargetRevision ||
+          current.row.definition.definitionRevision !==
+            i.payload.expectedDefinitionRevision ||
+          current.row.definition.contentVersion !==
+            i.payload.expectedContentVersion ||
+          current.category.id !== i.payload.categoryId ||
+          current.category.revision !== i.payload.expectedCategoryRevision
+        )
+          throw new ApplicationError('RATING_REVISION_CONFLICT');
+      }
       return { p: old, scope };
     }
     const cat = await this.scoped.category(
@@ -208,7 +258,13 @@ export class RatingScopedCommands {
     const target =
       i.operation === 'create_target_scoped'
         ? null
-        : await this.scoped.target(scope, i.payload.targetId, tx, true);
+        : await this.scoped.target(
+            scope,
+            i.payload.targetId,
+            tx,
+            true,
+            i.protocolVersion === 3,
+          );
     if (
       target &&
       (target.row.revision !==
@@ -228,6 +284,12 @@ export class RatingScopedCommands {
         cat.kind !== 'general')
     )
       throw new ApplicationError('RATING_NOT_FOUND');
+    if (
+      i.protocolVersion === 2 &&
+      i.operation === 'edit_target_scoped' &&
+      target!.row.envelope.version === 6
+    )
+      throw new ApplicationError('RATING_SCOPED_CONTEXT_CHANGED');
     const policy =
       i.operation === 'create_target_scoped'
         ? await this.sources.requireCreationPolicy(scope.catalog.scopeKey, tx)
@@ -239,7 +301,14 @@ export class RatingScopedCommands {
         policy.payload['enabled'] !== true)
     )
       throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
-    const targetId = target?.row.id ?? ratingScopedArtifactId(hash, 'target'),
+    const targetId =
+        target?.row.id ??
+        (i.protocolVersion === 3
+          ? ratingScopedArtifactId(
+              `${actor}:${i.payload.clientRequestId}`,
+              'cover-target',
+            )
+          : ratingScopedArtifactId(hash, 'target')),
       targetRevision =
         i.operation === 'create_target_scoped' ||
         i.operation === 'edit_target_scoped'
@@ -320,7 +389,7 @@ export class RatingScopedCommands {
         throw new ApplicationError('RATING_NOT_FOUND');
     }
     const origin =
-      target?.row.envelope.version === 5
+      target?.row.envelope.version === 5 || target?.row.envelope.version === 6
         ? target.row.envelope.targetOrigin
         : {
             regionId: target
@@ -353,10 +422,42 @@ export class RatingScopedCommands {
       targetOrigin: origin,
       assetIds: [],
     };
-    let envelope: RatingScopedEnvelope | null = null;
+    let envelope: RatingScopedEnvelope | RatingTargetCoverEnvelope | null =
+      null;
+    let resolvedCover: RatingTargetCoverReference | null = null;
+    if (i.protocolVersion === 3) {
+      if (i.payload.cover.action === 'keep')
+        resolvedCover =
+          target?.row.envelope.version === 6 ? target.row.envelope.cover : null;
+      if (i.payload.cover.action === 'replace') {
+        const upload = await this.coverUploadScope(
+          actor,
+          i,
+          targetId,
+          tx,
+          scope,
+        );
+        const ready = await this.coverMedia.assets.describeRatingsReady(
+          {
+            actor,
+            scopeId: upload.id,
+            scopeRevision: upload.scope_revision,
+            expiresAt: upload.expires_at.getTime(),
+          },
+          i.payload.cover.assetId,
+          tx,
+        );
+        resolvedCover = {
+          appearanceId: ratingScopedArtifactId(hash, 'cover-appearance'),
+          assetId: ready.assetId,
+          manifestDigest: ready.manifestDigest,
+        };
+      }
+    }
     if (
-      i.operation === 'create_target_scoped' ||
-      i.operation === 'edit_target_scoped'
+      i.protocolVersion === 2 &&
+      (i.operation === 'create_target_scoped' ||
+        i.operation === 'edit_target_scoped')
     )
       envelope = canonicalRatingScopedEnvelope({
         ...base,
@@ -376,6 +477,31 @@ export class RatingScopedCommands {
             }
           : {}),
       });
+    if (i.protocolVersion === 3) {
+      const { assetIds, ...coverBase } = base;
+      if (assetIds.length !== 0)
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      envelope = canonicalRatingTargetCoverEnvelope({
+        ...coverBase,
+        version: 6,
+        purpose:
+          i.operation === 'create_target_scoped'
+            ? 'publish_rating_target_cover_scoped'
+            : 'edit_rating_target_cover_scoped',
+        definitionRevision,
+        contentVersion,
+        name: i.payload.name,
+        description: i.payload.description,
+        cover: resolvedCover,
+        ...(i.operation === 'edit_target_scoped'
+          ? {
+              previousTargetRevision: target!.row.revision,
+              previousDefinitionRevision:
+                target!.row.definition.definitionRevision,
+            }
+          : {}),
+      });
+    }
     if (
       i.operation === 'create_comment_scoped' ||
       i.operation === 'create_reply_scoped'
@@ -415,6 +541,7 @@ export class RatingScopedCommands {
           }
         : null,
       definition: target?.row.definition ?? null,
+      ...(i.protocolVersion === 3 ? { resolvedCover } : {}),
       name: target?.row.name ?? null,
       description: target?.row.description ?? null,
       root: root ? { id: root.id, revision: root.revision } : null,
@@ -449,6 +576,306 @@ export class RatingScopedCommands {
     ).rows[0]!;
     return { p, scope };
   }
+  private async coverUploadScope(
+    actor: string,
+    i: RatingScopedIntent,
+    targetId: string,
+    tx: PoolClient,
+    scope: ResolvedRatingScope,
+  ): Promise<RatingCoverUploadScopeRow> {
+    if (i.protocolVersion !== 3 || i.payload.cover.action !== 'replace')
+      throw new ApplicationError('MEDIA_NOT_READY');
+    const upload = await this.coverMedia.uploadScope(
+      actor,
+      i.payload.cover.uploadScopeId,
+      tx,
+      scope,
+    );
+    if (
+      upload.command_request_id !== i.payload.clientRequestId ||
+      upload.target_id !== targetId ||
+      upload.category_id !== i.payload.categoryId ||
+      upload.context_id !== i.context.id ||
+      upload.context_revision !== i.context.scopeRevision ||
+      (i.operation === 'edit_target_scoped'
+        ? upload.expected_target_revision !==
+            i.payload.expectedTargetRevision ||
+          upload.expected_definition_revision !==
+            i.payload.expectedDefinitionRevision ||
+          upload.expected_content_version !== i.payload.expectedContentVersion
+        : upload.expected_target_revision !== null)
+    )
+      throw new ApplicationError('MEDIA_NOT_READY');
+    return upload;
+  }
+  private async attachCover(
+    scope: ResolvedRatingScope,
+    p: Preparation,
+    old: RatingTargetCoverReference | null,
+    tx: PoolClient,
+  ) {
+    const i = p.intent;
+    if (
+      i.protocolVersion !== 3 ||
+      p.envelope?.version !== 6 ||
+      i.payload.cover.action === 'keep'
+    )
+      return null;
+    const upload =
+      i.payload.cover.action === 'replace'
+        ? await this.coverUploadScope(scope.actor, i, p.target_id, tx, scope)
+        : null;
+    const replacement = await this.coverMedia.assets.prepareRatingsReplacement(
+      scope.actor,
+      old
+        ? {
+            ownerKind: 'ratings',
+            resourceKind: 'target_cover',
+            resourceId: old.appearanceId,
+            contentVersion: 1,
+          }
+        : null,
+      i.payload.cover.action === 'replace' ? i.payload.cover.assetId : null,
+      tx,
+    );
+    if (i.payload.cover.action === 'replace') {
+      if (!upload) throw new ApplicationError('MEDIA_NOT_READY');
+      const accepted = await this.coverMedia.assets.acceptRatingsOwned(
+        {
+          actor: scope.actor,
+          scopeId: upload.id,
+          scopeRevision: upload.scope_revision,
+          expiresAt: upload.expires_at.getTime(),
+        },
+        i.payload.cover.assetId,
+        replacement,
+        tx,
+      );
+      const cover = p.envelope.cover;
+      if (
+        !cover ||
+        cover.assetId !== accepted.assetId ||
+        cover.manifestDigest !== accepted.manifestDigest
+      )
+        throw new ApplicationError('MEDIA_NOT_READY');
+      const binding = await this.coverMedia.assets.bindRatings(
+        accepted,
+        {
+          ownerKind: 'ratings',
+          resourceKind: 'target_cover',
+          resourceId: cover.appearanceId,
+          contentVersion: 1,
+        },
+        replacement,
+        tx,
+      );
+      await tx.query(
+        'INSERT INTO whaleu_ratings.target_cover_appearances(id,target_id,actor_id,asset_id,manifest_digest,media_binding_id) VALUES($1,$2,$3,$4,$5,$6)',
+        [
+          cover.appearanceId,
+          p.target_id,
+          scope.actor,
+          cover.assetId,
+          cover.manifestDigest,
+          binding,
+        ],
+      );
+    }
+    return replacement;
+  }
+  cancelUploadScope(token: string, raw: unknown) {
+    const input = ratingTargetCoverUploadScopeSchema.parse(raw);
+    return this.coverMedia.authorized(token, async (session, tx) => {
+      const old = (
+        await tx.query<RatingCoverUploadScopeRow>(
+          'SELECT * FROM whaleu_ratings.target_cover_upload_scopes WHERE actor_id=$1 AND client_request_id=$2',
+          [session.accountId, input.clientRequestId],
+        )
+      ).rows[0];
+      if (old && canonicalJson(old.input) !== canonicalJson(input))
+        throw new ApplicationError('MEDIA_REQUEST_CONFLICT');
+      const scopeRevision = createHash('sha256')
+        .update(
+          'whaleu:rating-target-cover-upload-scope:v1\n' +
+            session.accountId +
+            '\n' +
+            canonicalJson(input),
+        )
+        .digest('hex');
+      const scopeId = ratingScopedArtifactId(
+        scopeRevision,
+        'cover-upload-scope',
+      );
+      const prepare = {
+        protocol: 'ratings-target-media-v1' as const,
+        clientRequestId: input.clientRequestId,
+        editScopeId: scopeId,
+        scopeRevision,
+        slot: 'cover' as const,
+        declaration: input.declaration,
+      };
+      const recovery = await this.coverMedia.recovery.cancelRequest(
+        session.accountId,
+        input.clientRequestId,
+        {
+          protocol: 'ratings-target-media-v1',
+          requestHash: ratingsMediaRequestHash(session.accountId, prepare),
+        },
+        tx,
+      );
+      return {
+        protocolVersion: 3 as const,
+        clientRequestId: input.clientRequestId,
+        scopeId,
+        scopeRevision,
+        prepare,
+        recovery,
+      };
+    });
+  }
+  prepareUploadScope(token: string, raw: unknown) {
+    const input = ratingTargetCoverUploadScopeSchema.parse(raw);
+    return this.db.transaction(
+      async (tx) => {
+        const session = await this.enter(token, tx);
+        const old = (
+          await tx.query<RatingCoverUploadScopeRow>(
+            'SELECT * FROM whaleu_ratings.target_cover_upload_scopes WHERE actor_id=$1 AND client_request_id=$2 FOR SHARE',
+            [session.accountId, input.clientRequestId],
+          )
+        ).rows[0];
+        if (old) {
+          if (canonicalJson(old.input) !== canonicalJson(input))
+            throw new ApplicationError('MEDIA_REQUEST_CONFLICT');
+          await this.access.recheck(token, tx);
+          return this.uploadScopeResponse(old);
+        }
+        const scope = await this.contexts.resolve(
+          token,
+          { contextId: input.context.id, contextToken: input.context.token },
+          tx,
+          {
+            purpose: input.target ? 'edit_target' : 'create_target',
+            write: true,
+            protocolVersion: 3,
+          },
+        );
+        if (
+          !scope.context.capabilities.includes('target_cover') ||
+          canonicalJson(input.context) !==
+            canonicalJson({
+              id: scope.context.id,
+              token: scope.context.token,
+              tokenDigest: scope.context.tokenDigest,
+              selector: scope.selector,
+              scopeRevision: scope.scopeRevision,
+              protocolGeneration: scope.protocolGeneration,
+              catalogRevision: scope.catalogRevision,
+              headRevision: scope.headRevision,
+              sourceDigest: scope.sourceDigest,
+            })
+        )
+          throw new ApplicationError('RATING_SCOPED_CONTEXT_CHANGED');
+        const category = await this.scoped.category(
+          scope,
+          input.categoryId,
+          tx,
+          true,
+        );
+        if (
+          category.kind !== 'general' ||
+          category.revision !== input.expectedCategoryRevision
+        )
+          throw new ApplicationError('RATING_REVISION_CONFLICT');
+        const targetId =
+          input.target?.targetId ??
+          ratingScopedArtifactId(
+            `${scope.actor}:${input.commandRequestId}`,
+            'cover-target',
+          );
+        if (input.target) {
+          const current = await this.scoped.target(scope, targetId, tx, true);
+          if (
+            current.row.creator_id !== scope.actor ||
+            current.row.category_id !== input.categoryId ||
+            current.row.revision !== input.target.expectedTargetRevision ||
+            current.row.definition.definitionRevision !==
+              input.target.expectedDefinitionRevision ||
+            current.row.definition.contentVersion !==
+              input.target.expectedContentVersion
+          )
+            throw new ApplicationError('RATING_REVISION_CONFLICT');
+        } else
+          await this.sources.requireCreationPolicy(scope.catalog.scopeKey, tx);
+        const scopeRevision = createHash('sha256')
+          .update(
+            'whaleu:rating-target-cover-upload-scope:v1\n' +
+              scope.actor +
+              '\n' +
+              canonicalJson(input),
+          )
+          .digest('hex');
+        const scopeId = ratingScopedArtifactId(
+          scopeRevision,
+          'cover-upload-scope',
+        );
+        const prepare = {
+          protocol: 'ratings-target-media-v1' as const,
+          clientRequestId: input.clientRequestId,
+          editScopeId: scopeId,
+          scopeRevision,
+          slot: 'cover' as const,
+          declaration: input.declaration,
+        };
+        const row = (
+          await tx.query<RatingCoverUploadScopeRow>(
+            `INSERT INTO whaleu_ratings.target_cover_upload_scopes(id,actor_id,client_request_id,command_request_id,scope_revision,request_hash,input,declaration,context_id,context_revision,session_id,target_id,category_id,expected_target_revision,expected_definition_revision,expected_content_version,expires_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+            [
+              scopeId,
+              scope.actor,
+              input.clientRequestId,
+              input.commandRequestId,
+              scopeRevision,
+              ratingsMediaRequestHash(scope.actor, prepare),
+              canonicalJson(input),
+              canonicalJson(input.declaration),
+              scope.contextId,
+              scope.scopeRevision,
+              scope.session.sessionId,
+              targetId,
+              input.categoryId,
+              input.target?.expectedTargetRevision ?? null,
+              input.target?.expectedDefinitionRevision ?? null,
+              input.target?.expectedContentVersion ?? null,
+              scope.context.expiresAt,
+            ],
+          )
+        ).rows[0]!;
+        await this.scoped.retainAfter(scope, tx);
+        await this.access.recheck(token, tx);
+        return this.uploadScopeResponse(row);
+      },
+      { isolationLevel: 'read committed' },
+    );
+  }
+  private uploadScopeResponse(row: RatingCoverUploadScopeRow) {
+    return {
+      protocolVersion: 3 as const,
+      scopeId: row.id,
+      scopeRevision: row.scope_revision,
+      targetId: row.target_id,
+      expiresAt: row.expires_at.toISOString(),
+      prepare: {
+        protocol: 'ratings-target-media-v1' as const,
+        clientRequestId: row.client_request_id,
+        editScopeId: row.id,
+        scopeRevision: row.scope_revision,
+        slot: 'cover' as const,
+        declaration: row.declaration,
+      },
+    };
+  }
   prepare(token: string, raw: RatingScopedIntent) {
     const i = ratingScopedIntentSchema.parse(raw);
     return this.db.transaction(
@@ -473,7 +900,13 @@ export class RatingScopedCommands {
         }
         const { p } = await this.makePreparation(token, i, tx);
         await this.access.recheck(token, tx);
-        return ratingScopedPreparationSchema.parse({
+        if (i.protocolVersion === 3)
+          await retainRatingTargetCoverMediaAfter(tx);
+        return (
+          i.protocolVersion === 3
+            ? ratingTargetCoverPreparationSchema
+            : ratingScopedPreparationSchema
+        ).parse({
           intent: p.intent,
           contextRevision: p.context_revision,
           targetId: p.target_id,
@@ -496,7 +929,7 @@ export class RatingScopedCommands {
   ) {
     const hash = ratingScopedCommandHash(i),
       receipt = ratingScopedReceiptSchema.parse({
-        protocolVersion: 2,
+        protocolVersion: i.protocolVersion,
         requestId: i.payload.clientRequestId,
         operation: i.operation,
         intentHash: hash,
@@ -588,6 +1021,15 @@ export class RatingScopedCommands {
         await tx.query('SAVEPOINT scoped_command');
         let result: RatingScopedReceipt;
         try {
+          if (
+            i.protocolVersion === 3 &&
+            !(await this.preparation(
+              session.accountId,
+              i.payload.clientRequestId,
+              tx,
+            ))
+          )
+            throw new ApplicationError('RATING_SCOPED_CONTEXT_CHANGED');
           const { p, scope } = await this.makePreparation(token, i, tx);
           if (
             (i.operation === 'create_target_scoped' ||
@@ -779,6 +1221,7 @@ export class RatingScopedCommands {
     token: string,
     targetId: string,
     query: { contextId: string; contextToken: string },
+    includeCover = false,
   ) {
     return this.db.transaction(
       async (tx) => {
@@ -786,8 +1229,10 @@ export class RatingScopedCommands {
         this.scoped.enable(tx);
         const scope = await this.contexts.resolve(token, query, tx, {
             purpose: 'edit_target',
+            protocolVersion: includeCover ? 3 : 2,
           }),
           target = await this.scoped.target(scope, targetId, tx);
+        requireTargetCoverRead(scope, target.row.definition);
         if (
           target.row.creator_id !== scope.actor ||
           target.category.kind !== 'general'
@@ -810,6 +1255,14 @@ export class RatingScopedCommands {
           categoryRevision: target.category.revision,
           name: target.row.name,
           description: target.row.description,
+          ...(includeCover
+            ? {
+                cover:
+                  target.row.envelope.version === 6
+                    ? target.row.envelope.cover
+                    : null,
+              }
+            : {}),
         };
       },
       { isolationLevel: 'read committed' },
@@ -823,10 +1276,17 @@ export class RatingScopedCommands {
     const i = p.intent;
     if (
       i.operation !== 'edit_target_scoped' ||
-      p.envelope?.purpose !== 'edit_rating_target_scoped'
+      (p.envelope?.purpose !== 'edit_rating_target_scoped' &&
+        p.envelope?.purpose !== 'edit_rating_target_cover_scoped')
     )
       throw new ApplicationError('RATING_UNAVAILABLE');
-    const current = await this.scoped.target(scope, p.target_id, tx, true);
+    const current = await this.scoped.target(
+      scope,
+      p.target_id,
+      tx,
+      true,
+      i.protocolVersion === 3,
+    );
     if (
       current.row.creator_id !== scope.actor ||
       current.row.revision !== i.payload.expectedTargetRevision ||
@@ -842,8 +1302,15 @@ export class RatingScopedCommands {
     ).rows[0]!.now;
     if (
       current.row.name === i.payload.name &&
-      current.row.description === i.payload.description
-    )
+      current.row.description === i.payload.description &&
+      (i.protocolVersion !== 3 ||
+        canonicalJson(
+          current.row.envelope.version === 6
+            ? current.row.envelope.cover
+            : null,
+        ) === canonicalJson(p.envelope.version === 6 ? p.envelope.cover : null))
+    ) {
+      if (i.protocolVersion === 3) await retainRatingTargetCoverMediaAfter(tx);
       return {
         outcome: 'noop' as const,
         result: {
@@ -854,7 +1321,17 @@ export class RatingScopedCommands {
           occurredAt: now,
         },
       };
-    const accepted = await this.review.accepted(p.envelope, tx);
+    }
+    const accepted =
+      p.envelope.version === 6
+        ? await this.review.acceptedCover(p.envelope, tx)
+        : await this.review.accepted(p.envelope, tx);
+    const replacement = await this.attachCover(
+      scope,
+      p,
+      current.row.envelope.version === 6 ? current.row.envelope.cover : null,
+      tx,
+    );
     await tx.query(
       `INSERT INTO whaleu_ratings.scoped_command_causes(account_id,request_id,cause_kind,artifact_id,artifact_revision,proof) VALUES($1,$2,'target_edit',$3,$4,$5::jsonb)`,
       [
@@ -890,20 +1367,38 @@ export class RatingScopedCommands {
       'UPDATE whaleu_ratings.target_definition_heads SET content_version=$2,definition_revision=$3 WHERE target_id=$1',
       [p.target_id, p.content_version, p.definition_revision],
     );
-    await this.review.bind(
-      accepted,
-      {
-        kind: 'target',
-        definition: {
+    if (p.envelope.version === 6 && accepted.version === 6)
+      await this.review.bindCover(
+        accepted,
+        {
           targetId: p.target_id,
           contentVersion: p.content_version,
           definitionRevision: p.definition_revision,
           appliedTargetRevision: p.target_revision,
           envelope: p.envelope,
         },
-      },
-      tx,
-    );
+        tx,
+      );
+    else if (p.envelope.version === 5 && accepted.version === 5)
+      await this.review.bind(
+        accepted,
+        {
+          kind: 'target',
+          definition: {
+            targetId: p.target_id,
+            contentVersion: p.content_version,
+            definitionRevision: p.definition_revision,
+            appliedTargetRevision: p.target_revision,
+            envelope: p.envelope,
+          },
+        },
+        tx,
+      );
+    else throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    if (replacement)
+      await this.coverMedia.assets.finishRatingsReplacement(replacement, tx);
+    else if (i.protocolVersion === 3)
+      await retainRatingTargetCoverMediaAfter(tx);
     return {
       outcome: 'applied' as const,
       result: {
@@ -923,7 +1418,8 @@ export class RatingScopedCommands {
     const i = p.intent;
     if (
       i.operation !== 'create_target_scoped' ||
-      p.envelope?.purpose !== 'publish_rating_target_scoped'
+      (p.envelope?.purpose !== 'publish_rating_target_scoped' &&
+        p.envelope?.purpose !== 'publish_rating_target_cover_scoped')
     )
       throw new ApplicationError('RATING_UNAVAILABLE');
     const policy = await this.sources.requireCreationPolicy(
@@ -935,8 +1431,12 @@ export class RatingScopedCommands {
       policy.revision !== p.policy_source_revision
     )
       throw new ApplicationError('RATING_SCOPED_CONTEXT_CHANGED');
-    const accepted = await this.review.accepted(p.envelope, tx),
-      now = (
+    const accepted =
+      p.envelope.version === 6
+        ? await this.review.acceptedCover(p.envelope, tx)
+        : await this.review.accepted(p.envelope, tx);
+    const replacement = await this.attachCover(scope, p, null, tx);
+    const now = (
         await tx.query<{ now: string }>(
           `SELECT ${ratingIso('clock_timestamp()')} now`,
         )
@@ -998,20 +1498,38 @@ export class RatingScopedCommands {
       'INSERT INTO whaleu_ratings.target_origin_heads VALUES($1,$2,1)',
       [p.target_id, originId],
     );
-    await this.review.bind(
-      accepted,
-      {
-        kind: 'target',
-        definition: {
+    if (p.envelope.version === 6 && accepted.version === 6)
+      await this.review.bindCover(
+        accepted,
+        {
           targetId: p.target_id,
           contentVersion: 1,
           definitionRevision: p.definition_revision,
           appliedTargetRevision: p.target_revision,
           envelope: p.envelope,
         },
-      },
-      tx,
-    );
+        tx,
+      );
+    else if (p.envelope.version === 5 && accepted.version === 5)
+      await this.review.bind(
+        accepted,
+        {
+          kind: 'target',
+          definition: {
+            targetId: p.target_id,
+            contentVersion: 1,
+            definitionRevision: p.definition_revision,
+            appliedTargetRevision: p.target_revision,
+            envelope: p.envelope,
+          },
+        },
+        tx,
+      );
+    else throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    if (replacement)
+      await this.coverMedia.assets.finishRatingsReplacement(replacement, tx);
+    else if (i.protocolVersion === 3)
+      await retainRatingTargetCoverMediaAfter(tx);
     // This SQL owner derivative checks the accepted native policy and exact fresh
     // execution/initial causes; it cannot issue arbitrary placement or omission.
     await tx.query('SELECT whaleu_ratings.scoped_native_placement($1,$2)', [

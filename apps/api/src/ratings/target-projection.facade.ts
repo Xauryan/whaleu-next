@@ -13,6 +13,11 @@ export async function qualifyCurrentRatingTarget(
   write = false,
 ) {
   const result = await records.target(catalog, id, tx, write);
+  if (
+    result.row.definition.envelope.version === 6 &&
+    result.row.definition.envelope.cover !== null
+  )
+    throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
   const decision = await review.currentTargetDefinition(
     result.row.definition,
     tx,

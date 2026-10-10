@@ -497,6 +497,10 @@ export async function renderErrandsOpenApiDocument(): Promise<string> {
 
 /** Tooling-only rating routes. No live database, issuer or provider. */
 export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { RatingTargetCoverController } =
+    await import('../src/ratings/scoped/target-cover-controller.js');
+  const { RatingTargetCoverMediaService } =
+    await import('../src/ratings/target-cover-media.service.js');
   const { RatingCategoryScopedManagementController } =
     await import('../src/ratings/category-management/scoped-controller.js');
   const { RatingCategoryScopedManagementService } =
@@ -614,6 +618,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
   };
   const testing = await Test.createTestingModule({
     controllers: [
+      RatingTargetCoverController,
       RatingScopedController,
       RatingScopedNoticesController,
       RatingRandomController,
@@ -632,6 +637,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       RatingLikeUpdatesController,
     ],
     providers: [
+      { provide: RatingTargetCoverMediaService, useValue: {} },
       { provide: RatingScopedContextService, useValue: {} },
       { provide: RatingScopedCommands, useValue: {} },
       { provide: RatingScopedReadService, useValue: {} },
@@ -743,6 +749,10 @@ export async function renderMessagingOpenApiDocument() {
 
 /** Offline-only Media contract: no runtime module, database or provider graph. */
 export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
+  const { RatingsTargetMediaController, RatingsTargetMultipartInterceptor } =
+    await import('../src/media/controller-ratings.js');
+  const { RatingsTargetUploadApplication, RATINGS_TARGET_MEDIA_OWNER } =
+    await import('../src/media/application-ratings.js');
   const { MediaController } = await import('../src/media/controller.js');
   const { MEDIA_APPLICATION } = await import('../src/media/application.js');
   const { MediaUploadControllerV2 } =
@@ -834,12 +844,16 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
   };
   const testing = await Test.createTestingModule({
     controllers: [
+      RatingsTargetMediaController,
       MediaController,
       MediaUploadControllerV2,
       MediaBatchController,
       MediaDiscussionBatchController,
     ],
     providers: [
+      RatingsTargetMultipartInterceptor,
+      { provide: RatingsTargetUploadApplication, useValue: {} },
+      { provide: RATINGS_TARGET_MEDIA_OWNER, useValue: { runtime: null } },
       MediaMultipartInterceptor,
       MediaMultipartInterceptorV3,
       MediaMultipartInterceptorV4,

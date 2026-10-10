@@ -1,3 +1,4 @@
+import { rejectRatingsRequestMarker } from './ratings-request-marker.js';
 import { rejectProfileRequestMarker } from './profile-request-marker.js';
 import type { PoolClient } from 'pg';
 import { mediaStatusV4Schema, mediaCancelV4Schema } from './contracts-v4.js';
@@ -64,6 +65,7 @@ export class MediaRecoveryRepository {
     this.managed(tx);
     mediaIdSchema.parse(requestId);
     await rejectProfileRequestMarker(actor, requestId, tx);
+    await rejectRatingsRequestMarker(actor, requestId, tx);
     const fence = (
       await tx.query<Fence>(
         'SELECT * FROM whaleu_media.upload_request_fences WHERE actor_id=$1 AND client_request_id=$2',
@@ -317,6 +319,7 @@ export class MediaRecoveryRepository {
     mediaIdSchema.parse(requestId);
     await lockMediaActor(actor, tx);
     await rejectProfileRequestMarker(actor, requestId, tx);
+    await rejectRatingsRequestMarker(actor, requestId, tx);
     const fence = (
       await tx.query<Fence>(
         'SELECT * FROM whaleu_media.upload_request_fences WHERE actor_id=$1 AND client_request_id=$2 FOR UPDATE',
