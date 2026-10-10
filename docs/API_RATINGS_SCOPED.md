@@ -9,7 +9,11 @@ is supplied by synthetic acceptance fixtures.
 
 See the [generated OpenAPI](openapi/ratings.json) for exact schemas and headers,
 [acceptance status](acceptance/ratings-m3b.md) for executed checks and release gates,
-and [feature parity](FEATURE_PARITY.md) for remaining M3C/M3D work. The new API
+and [feature parity](FEATURE_PARITY.md) for remaining acceptance and M3D work.
+The additive [M3C category-management API](API_RATINGS_CATEGORY_SCOPED.md) adds
+eight routes and nine category-only commands under separate pending acceptance.
+The shared request endpoint now has a strict category receipt branch; the eight
+M3B public/target command schemas remain unchanged. The new API
 supplements [v1 ratings](API_RATINGS.md); it does not replace historical receipts,
 cleanup or journals.
 

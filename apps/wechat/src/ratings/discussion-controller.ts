@@ -1,4 +1,4 @@
-import { isRatingScopedIntent } from './pending';
+import { isRatingCategoryScopedIntent, isRatingScopedIntent } from './pending';
 import { ratingDeletionPath } from './deletion-contract';
 import { decodeRatingSubscriptionNoticeTarget } from './subscription-updates-contract';
 import { readRatingLikeStates, type RatingLikeStates } from './like-controller';
@@ -868,6 +868,7 @@ export class RatingThreadController extends CommunityController<RatingThreadView
         const intent = decodeRatingCommandIntent(make(id));
         if (
           isRatingScopedIntent(intent) ||
+          isRatingCategoryScopedIntent(intent) ||
           isRatingTargetOwnerEditingIntent(intent) ||
           isRatingTargetOwnerDeletionIntent(intent) ||
           isRatingCategoryCreationIntent(intent) ||

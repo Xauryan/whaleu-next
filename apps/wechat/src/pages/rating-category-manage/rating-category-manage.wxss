@@ -1,0 +1,2 @@
+@import '../../ratings/ratings.wxss';
+@import '../../ratings/category-scoped.wxss';

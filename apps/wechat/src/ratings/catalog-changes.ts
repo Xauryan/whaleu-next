@@ -1,4 +1,9 @@
 export interface RatingCatalogChange {
+  readonly scopedHeads?: readonly {
+    readonly scopeKey: string;
+    readonly catalogRevision: string;
+    readonly headRevision: string;
+  }[];
   readonly releaseId: string;
   readonly catalogs: readonly {
     readonly regionId: string | null;
@@ -17,6 +22,13 @@ export class RatingCatalogChanges {
   publish(change: RatingCatalogChange): void {
     const safe = Object.freeze({
       releaseId: change.releaseId,
+      ...(change.scopedHeads === undefined
+        ? {}
+        : {
+            scopedHeads: Object.freeze(
+              change.scopedHeads.map((head) => Object.freeze({ ...head })),
+            ),
+          }),
       catalogs: Object.freeze(
         change.catalogs.map((catalog) =>
           Object.freeze({

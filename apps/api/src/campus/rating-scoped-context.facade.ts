@@ -2,6 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
 import { campusCountProofOwner } from './count-epochs.js';
+import {
+  assertRatingCategoryManagementAuthority,
+  requireRatingCategoryManagementAuthority,
+} from '../authorization/rating-category-management.facade.js';
+import type { RatingCategoryManagementAuthority } from '../authorization/rating-category-management.facade.js';
 import type { RatingGrantScope } from '../authorization/rating-grants.facade.js';
 import { ApplicationError } from '../http/application-error.js';
 import {
@@ -92,7 +97,8 @@ export interface RatingScopedCampusProof {
     readonly campusId: string;
     readonly decision: 'allow' | 'deny';
   }[];
-  readonly authorizationMode: 'ordinary' | 'managed_preview' | 'none';
+  readonly authorizationMode:
+    'ordinary' | 'managed_preview' | 'category_management' | 'none';
   readonly authorizationFingerprint: string;
   readonly inventoryFingerprint: string;
   readonly fingerprint: string;
@@ -361,6 +367,36 @@ const proof: RequiredTransactionProof<Fact> = {
           unavailable();
     }),
 };
+/** Owner-only complete inventory for category authority expansion. This proves
+ * physical/topological absence too, and does not confer publication authority. */
+export async function resolveRatingCategoryManagementInventory(
+  tx: PoolClient,
+): Promise<{
+  readonly mappings: readonly RatingScopedCampusMapping[];
+  readonly fingerprint: string;
+  readonly validUntil: number | null;
+}> {
+  const epochFingerprint = await campusEpoch(tx);
+  const inventory = await captureInventory(tx);
+  if (!inventory.complete) unavailable();
+  enableRequiredTransactionProof(tx, proof);
+  const fact = freeze({
+    inventoryFingerprint: inventory.fingerprint,
+    accountId: null,
+    identityFingerprint: null,
+  });
+  registerRequiredTransactionFact(tx, proof, ownerFingerprint(fact), fact);
+  registerTransactionDeadline(
+    tx,
+    inventory.validUntil,
+    'IDENTITY_CAMPUS_UNAVAILABLE',
+  );
+  return freeze({
+    mappings: inventory.mappings,
+    fingerprint: ownerFingerprint([inventory.fingerprint, epochFingerprint]),
+    validUntil: inventory.validUntil,
+  });
+}
 @Injectable()
 export class CampusRatingScopedContextFacade {
   constructor(
@@ -688,6 +724,112 @@ export class CampusRatingScopedContextFacade {
       inventory,
       tx,
     );
+  }
+  /** Category-only write composition. Both owner handles are produced in this
+   * transaction; no DTO, preview proof, or affiliation can manufacture it. */
+  async resolveCategoryManagementDomain(
+    actor: Pick<RatingScopedActor, 'accountId'>,
+    input: RatingNavigationSelector,
+    authority: RatingCategoryManagementAuthority,
+    tx: PoolClient,
+  ): Promise<RatingScopedCampusProof> {
+    return (
+      await this.resolveCategoryManagementDomains(actor, [input], authority, tx)
+    )[0]!;
+  }
+  /** A release may span every physical campus plus independent global. Capture
+   * the complete owner inventory once, then brand each exact view. All results
+   * share one immutable inventory fact; proof capacity does not grow per view. */
+  async resolveCategoryManagementDomains(
+    actor: Pick<RatingScopedActor, 'accountId'>,
+    inputs: readonly RatingNavigationSelector[],
+    authority: RatingCategoryManagementAuthority,
+    tx: PoolClient,
+  ): Promise<readonly RatingScopedCampusProof[]> {
+    assertRatingCategoryManagementAuthority(authority, tx);
+    if (
+      !id.safeParse(actor.accountId).success ||
+      actor.accountId !== authority.accountId ||
+      !Array.isArray(inputs) ||
+      inputs.length === 0 ||
+      inputs.length > RATING_SCOPED_CAMPUS_LIMIT + 1
+    )
+      throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
+    const selectors = inputs.map((input) => navigationSchema.parse(input));
+    const scopeKeys = selectors.map((selector) =>
+      selector.kind === 'global' ? 'global' : `campus:${selector.campusId}`,
+    );
+    if (new Set(scopeKeys).size !== scopeKeys.length)
+      throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
+    const epochFingerprint = await campusEpoch(tx);
+    const inventory = await captureInventory(tx);
+    inventory.epochFingerprint = epochFingerprint;
+    const inventoryFingerprint = ownerFingerprint([
+      inventory.fingerprint,
+      epochFingerprint,
+    ]);
+    if (
+      !inventory.complete ||
+      inventoryFingerprint !== authority.inventoryFingerprint
+    )
+      unavailable();
+    const mappings = new Map(
+      inventory.mappings
+        .filter((mapping) => mapping.isActive)
+        .map((mapping) => [mapping.campusId, mapping]),
+    );
+    const campusIds = selectors.flatMap((selector) =>
+      selector.kind === 'campus' ? [selector.campusId] : [],
+    );
+    if (campusIds.some((campusId) => !mappings.has(campusId))) unavailable();
+    requireRatingCategoryManagementAuthority(
+      authority,
+      campusIds,
+      selectors.some((selector) => selector.kind === 'global'),
+      tx,
+    );
+    const results: RatingScopedCampusProof[] = [];
+    for (const selector of selectors) {
+      const selected =
+        selector.kind === 'campus' ? mappings.get(selector.campusId)! : null;
+      results.push(
+        await this.finish(
+          {
+            kind: 'navigation',
+            selector,
+            scopeKeys: [selected ? `campus:${selected.campusId}` : 'global'],
+            campusIds: selected ? [selected.campusId] : [],
+            mappings: inventory.mappings,
+            topologyState: 'complete',
+            topologySnapshotId: inventory.topologySnapshotId,
+            topologyRevision: inventory.topologyRevision,
+            identity: null,
+            origin: null,
+            view: selected
+              ? {
+                  campusId: selected.campusId,
+                  institutionId: selected.institutionId,
+                  regionId: selected.regionId,
+                }
+              : null,
+            authorization: selected
+              ? [{ campusId: selected.campusId, decision: 'allow' }]
+              : [],
+            authorizationMode: 'category_management',
+            authorizationFingerprint: authority.fingerprint,
+            inventoryFingerprint,
+            validUntil: earliestDeadline(
+              inventory.validUntil,
+              authority.validUntil,
+            ),
+          },
+          null,
+          inventory,
+          tx,
+        ),
+      );
+    }
+    return Object.freeze(results);
   }
   async resolveLegacyCompatDomain(
     input: RatingLegacyCompatSelector,

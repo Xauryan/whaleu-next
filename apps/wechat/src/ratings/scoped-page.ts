@@ -23,6 +23,7 @@ export function registerRatingScopedPage(): void {
   Page({
     data: { ...initialRatingScopedView(), scores: [1, 2, 3, 4, 5] },
     route: {} as unknown,
+    navigationActive: false,
     controller: undefined as RatingScopedController | undefined,
     navigator: undefined as DirectoryNavigator | undefined,
     unsubscribeSession: undefined as (() => void) | undefined,
@@ -40,10 +41,19 @@ export function registerRatingScopedPage(): void {
         ) {
           owner = current;
           this.navigator?.dispose();
+          this.navigator = this.navigationActive
+            ? new DirectoryNavigator(wx, () =>
+                this.setData({ error: '暂不能打开评分页面，请重试' }),
+              )
+            : undefined;
         }
       });
       this.unsubscribeHide = runtime.privateViews?.subscribe((accountId) => {
-        if (accountId === undefined) this.navigator?.dispose();
+        if (accountId === undefined) {
+          this.navigationActive = false;
+          this.navigator?.dispose();
+          this.navigator = undefined;
+        }
       });
     },
     onShow() {
@@ -57,6 +67,7 @@ export function registerRatingScopedPage(): void {
         });
         return;
       }
+      this.navigationActive = true;
       this.navigator = new DirectoryNavigator(wx, () =>
         this.setData({ error: '暂不能打开评分页面，请重试' }),
       );
@@ -64,6 +75,14 @@ export function registerRatingScopedPage(): void {
         this.setData({ ...view }),
       );
       void this.controller.load(this.route);
+    },
+    async onCategoryManagement() {
+      const controller = this.controller,
+        navigator = this.navigator;
+      if (!controller || !navigator) return;
+      const path = await controller.categoryManagementPath();
+      if (this.controller === controller && this.navigator === navigator)
+        navigator.open(path);
     },
     onRefresh() {
       void this.controller?.reload();
@@ -239,6 +258,7 @@ export function registerRatingScopedPage(): void {
         navigator.open(path);
     },
     onHide() {
+      this.navigationActive = false;
       const route = this.controller?.snapshotRoute();
       if (route) this.route = route;
       this.controller?.dispose();

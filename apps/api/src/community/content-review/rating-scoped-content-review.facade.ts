@@ -328,6 +328,68 @@ export class RatingScopedContentReviewFacade {
       );
     }
   }
+  /** Management batches reuse the exact v5 base/override envelope. Canonicalize
+   * the whole vector before reading decisions or writing a binding; metadata-
+   * only operations and override inheritance resets have no new body here. */
+  async acceptedCategorySources(
+    inputs: readonly RatingScopedCategorySourceDescriptor[],
+    tx: PoolClient,
+  ): Promise<readonly AcceptedRatingScopedApproval[]> {
+    const sources = this.categorySources(inputs);
+    const accepted: AcceptedRatingScopedApproval[] = [];
+    for (const source of sources)
+      accepted.push(await this.accepted(source.envelope, tx));
+    if (
+      new Set(accepted.map((entry) => entry.decisionId)).size !==
+      accepted.length
+    )
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    return Object.freeze(accepted);
+  }
+  async bindCategorySources(
+    accepted: readonly AcceptedRatingScopedApproval[],
+    inputs: readonly RatingScopedCategorySourceDescriptor[],
+    tx: PoolClient,
+  ): Promise<void> {
+    const sources = this.categorySources(inputs);
+    if (
+      accepted.length !== sources.length ||
+      new Set(accepted.map((entry) => entry.decisionId)).size !==
+        accepted.length ||
+      accepted.some(
+        (entry, index) =>
+          entry.version !== 5 ||
+          !z.uuid().safeParse(entry.decisionId).success ||
+          entry.decisionId !== entry.decisionId.toLowerCase() ||
+          entry.digest !==
+            ratingScopedApprovalDigest(sources[index]!.envelope) ||
+          !canonicalEqual(entry.envelope, sources[index]!.envelope),
+      )
+    )
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    // bind reconsumes each exact current decision and registers its deadlines.
+    // The caller's owner transaction commits the entire vector or rolls it back.
+    for (const [index, source] of sources.entries())
+      await this.bind(accepted[index]!, { kind: 'category', source }, tx);
+  }
+  private categorySources(
+    inputs: readonly RatingScopedCategorySourceDescriptor[],
+  ): readonly RatingScopedCategorySourceDescriptor[] {
+    try {
+      if (!Array.isArray(inputs) || inputs.length > 128)
+        throw new Error('Category Review batch capacity');
+      const sources = inputs.map(canonicalRatingScopedCategorySource);
+      if (
+        new Set(sources.map((source) => source.sourceId)).size !==
+          sources.length ||
+        new Set(sources.map((source) => source.envelope.accountId)).size > 1
+      )
+        throw new Error('Category Review batch identity');
+      return Object.freeze(sources);
+    } catch {
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    }
+  }
   /** Fixed-size chunks may be repeated for an arbitrary complete source scan.
    * The Ratings owner, not Review, proves current-head and scan completeness. */
   async currentTargetDefinitions(

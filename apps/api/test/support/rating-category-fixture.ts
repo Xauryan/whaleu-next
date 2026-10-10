@@ -102,8 +102,8 @@ export function approveCategoryEnvelope(
     writeCategoryApproval(tx, envelope, options),
   );
 }
-export async function ratingCategoryFixture() {
-  const f = await ratingEditFixture();
+export async function ratingCategoryFixture(maximumMigration?: number) {
+  const f = await ratingEditFixture(maximumMigration);
   type Actor = Awaited<ReturnType<typeof f.actor>>;
   const context = async (actor: Actor, regionId: string | null = null) => {
     let get = f.auth(

@@ -1,3 +1,5 @@
+import * as scopedCategories from '../src/ratings/category-management/scoped-contracts.js';
+import { ratingScopedRequestReceiptSchema } from '../src/ratings/scoped/request-receipt.js';
 import * as scoped from '../src/ratings/scoped/contracts.js';
 import * as scopedRead from '../src/ratings/scoped/read.service.js';
 import * as scopedRandom from '../src/ratings/scoped/random.service.js';
@@ -33,7 +35,8 @@ async function render() {
     {
       cwd: fileURLToPath(new URL('../', import.meta.url)),
       timeout: 30000,
-      maxBuffer: 2 * 1024 * 1024,
+      // Additional strict category intent unions expand this offline document.
+      maxBuffer: 4 * 1024 * 1024,
       env: {
         ...process.env,
         DATABASE_URL: 'invalid:offline-only',
@@ -52,7 +55,7 @@ test('ratings OpenAPI is deterministic offline and artifact-current', async () =
       'utf8',
     ),
   ));
-test('all 66 legacy and 39 scoped rating operations have exact schemas and safe auth/error metadata', async () => {
+test('all 66 legacy, 39 scoped and eight category management operations have exact schemas and safe auth/error metadata', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
     [
@@ -443,7 +446,7 @@ test('all 66 legacy and 39 scoped rating operations have exact schemas and safe 
     [
       '/v2/ratings/requests/{requestId}',
       'get',
-      scoped.ratingScopedReceiptSchema,
+      ratingScopedRequestReceiptSchema,
       'ratingScopedGetRequest',
     ],
     [
@@ -564,7 +567,59 @@ test('all 66 legacy and 39 scoped rating operations have exact schemas and safe 
   assert.equal(scopedCases.length, 39);
   for (const [path, method, , operationId] of scopedCases)
     assert.equal(doc.paths[path]![method]!.operationId, operationId);
-  const allCases = [...cases, ...scopedCases] as const;
+  const categoryCases = [
+    [
+      '/v2/ratings/category-management/contexts',
+      'post',
+      scopedCategories.ratingCategoryManagementContextSchema,
+      'ratingScopedCategoryManagementContext',
+    ],
+    [
+      '/v2/ratings/category-management/categories',
+      'get',
+      scopedCategories.ratingManagedCategoriesSchema,
+      'ratingScopedCategoryManagementList',
+    ],
+    [
+      '/v2/ratings/category-management/categories/{categoryId}',
+      'get',
+      scopedCategories.ratingManagedCategorySchema,
+      'ratingScopedCategoryManagementDetail',
+    ],
+    [
+      '/v2/ratings/category-management/categories/{categoryId}/history',
+      'get',
+      scopedCategories.ratingCategoryManagementHistorySchema,
+      'ratingScopedCategoryManagementHistory',
+    ],
+    [
+      '/v2/ratings/category-management/system-options',
+      'get',
+      scopedCategories.ratingCategorySystemOptionsSchema,
+      'ratingScopedCategoryManagementSystemOptions',
+    ],
+    [
+      '/v2/ratings/category-management/prepare',
+      'post',
+      scopedCategories.ratingCategoryScopedPrepareResultSchema,
+      'ratingScopedCategoryManagementPrepare',
+    ],
+    [
+      '/v2/ratings/category-management/commit',
+      'post',
+      scopedCategories.ratingCategoryScopedReceiptSchema,
+      'ratingScopedCategoryManagementCommit',
+    ],
+    [
+      '/v2/ratings/category-management/cancel',
+      'post',
+      scopedCategories.ratingCategoryScopedReceiptSchema,
+      'ratingScopedCategoryManagementCancel',
+    ],
+  ] as const;
+  for (const [path, method, , operationId] of categoryCases)
+    assert.equal(doc.paths[path]![method]!.operationId, operationId);
+  const allCases = [...cases, ...scopedCases, ...categoryCases] as const;
   assert.equal(
     Object.values(doc.paths).reduce((n, p) => n + Object.keys(p!).length, 0),
     allCases.length,

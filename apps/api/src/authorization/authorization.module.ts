@@ -1,3 +1,4 @@
+import { RatingCategoryManagementAuthorityFacade } from './rating-category-management.facade.js';
 import { RatingAuthorizationFacade } from './rating-grants.facade.js';
 import { AuthorizationReportWeightSource } from './report-weight.source.js';
 import {
@@ -34,12 +35,14 @@ export class AuthorizationController {
   controllers: [AuthorizationController],
   providers: [
     RatingAuthorizationFacade,
+    RatingCategoryManagementAuthorityFacade,
     AuthorizationRepository,
     AuthorizationService,
     AuthorizationReportWeightSource,
   ],
   exports: [
     RatingAuthorizationFacade,
+    RatingCategoryManagementAuthorityFacade,
     AuthorizationService,
     AuthorizationReportWeightSource,
   ],

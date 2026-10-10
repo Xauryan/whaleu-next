@@ -205,8 +205,8 @@ export async function writeRatingScopedApproval(
   };
 }
 
-export async function ratingScopedFixture() {
-  const f = await ratingCategoryFixture();
+export async function ratingScopedFixture(maximumMigration?: number) {
+  const f = await ratingCategoryFixture(maximumMigration);
   try {
     const campusA = f.scope.home.campusId,
       campusB = randomUUID(),

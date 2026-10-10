@@ -1,4 +1,4 @@
-import { isRatingScopedIntent } from './pending';
+import { isRatingCategoryScopedIntent, isRatingScopedIntent } from './pending';
 import { ratingCategoryManagementPath } from './category-management-contract';
 import { ratingTargetOwnerEditingPath } from './target-owner-editing-contract';
 import { ratingTargetOwnerDeletionPath } from './target-owner-deletion-contract';
@@ -1039,6 +1039,7 @@ export class RatingController extends CommunityController<RatingView> {
         const intent = decodeRatingCommandIntent(make(id));
         if (
           isRatingScopedIntent(intent) ||
+          isRatingCategoryScopedIntent(intent) ||
           isRatingAdminDeletionIntent(intent) ||
           isRatingCategoryCreationIntent(intent) ||
           isRatingTargetCreationIntent(intent) ||
@@ -1172,7 +1173,9 @@ export class RatingController extends CommunityController<RatingView> {
       confirmedTargetId:
         success && receipt.operation !== 'create_categories'
           ? 'result' in receipt
-            ? receipt.result.targetId
+            ? 'targetId' in receipt.result
+              ? receipt.result.targetId
+              : ''
             : receipt.targetId
           : '',
       needsRefresh: !success,

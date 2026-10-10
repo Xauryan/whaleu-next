@@ -299,6 +299,19 @@ export class RatingScopedRepository {
         throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
       return result.kind;
     }
+    if (
+      source.source_kind === 'scoped_category_override' &&
+      source.payload['action'] === 'inherit'
+    ) {
+      const reset = (
+        await tx.query<{ valid: boolean }>(
+          `SELECT issuer='ratings-category-management' AND payload->>'categoryId'=$3 AND payload->'modes'=jsonb_build_object('name',jsonb_build_object('mode','inherit'),'description',jsonb_build_object('mode','inherit')) AND NOT payload ? 'reviewEnvelope' valid FROM whaleu_ratings.scoped_source_attestations WHERE id=$1 AND revision=$2`,
+          [source.id, source.revision, categoryId],
+        )
+      ).rows[0];
+      if (reset?.valid !== true) unavailable();
+      return 'allow';
+    }
     if (source.source_kind === 'legacy_adoption') {
       const evidence = source.payload['reviewSource'];
       if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence))

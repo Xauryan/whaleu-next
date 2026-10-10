@@ -1,3 +1,7 @@
+import {
+  assertCategoryScopedShaPackaging,
+  smokeRatingCategoryScoped,
+} from './smoke-rating-category-scoped.mjs';
 import { smokeRatingsScoped } from './smoke-ratings-scoped.mjs';
 import { smokeMessaging } from './smoke-messaging.mjs';
 import { smokeRatingCategoryManagement } from './smoke-rating-category-management.mjs';
@@ -39,6 +43,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 const dist = path.join(root, 'dist');
+assertCategoryScopedShaPackaging(dist);
 let app;
 let page;
 let calls = 0;
@@ -2001,6 +2006,7 @@ await smokeRatingOwnerManagement({ app, dist, flush: flushTrading });
 await smokeRatingOwnerEditing({ app, dist, flush: flushTrading });
 await smokeRatingCategoryManagement({ app, dist, flush: flushTrading });
 await smokeRatingsScoped({ app, dist });
+await smokeRatingCategoryScoped({ app, dist });
 await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeErrandAdminMutations({ app, dist, flush: flushTrading });
 await smokeErrandAdminNotices({ app, dist, flush: flushTrading });

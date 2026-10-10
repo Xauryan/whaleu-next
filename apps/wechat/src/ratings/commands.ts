@@ -3,6 +3,7 @@ import type { CommunityRuntime } from '../community/runtime';
 import type { Cancellation } from '../platform/contracts';
 import {
   isRatingScopedIntent,
+  isRatingCategoryScopedIntent,
   isRatingCategoryCreationIntent,
   isRatingTargetOwnerEditingIntent,
   isRatingTargetCreationIntent,
@@ -16,6 +17,15 @@ import {
   type RatingCommandReceipt,
 } from './pending';
 export const ratingCommandLabels = {
+  create_categories_scoped: '创建评分分类',
+  edit_category_base_scoped: '编辑共享基础',
+  set_category_override_scoped: '设置校园覆盖与继承',
+  set_category_visibility_scoped: '设置视图显示状态',
+  reorder_categories_scoped: '调整完整同级排序',
+  set_category_scope_scoped: '替换分类适用范围',
+  set_category_lifecycle_scoped: '启停、归档或恢复分类',
+  batch_update_subcategories_scoped: '原子更新直接子分类',
+  create_system_category_scoped: '创建已注册系统分类',
   set_score_scoped: '校园评分',
   create_comment_scoped: '校园文字评价发布',
   create_reply_scoped: '校园回复发布',
@@ -51,6 +61,16 @@ export function runRatingCommand(
     throw new ClientError('stale-session', 'Account changed');
   runtime.pendingRatings!.assertOriginal(attempt);
   const intent = attempt.intent;
+  if (isRatingCategoryScopedIntent(intent)) {
+    if (!runtime.ratingCategoryScoped)
+      throw new ClientError('configuration', 'Category management unavailable');
+    // A generic retry must never commit an unreviewed preview. The management
+    // recovery page prepares the immutable original and asks for explicit confirmation.
+    return runtime.ratingCategoryScoped.receipt(
+      intent.payload.clientRequestId,
+      cancel,
+    );
+  }
   if (isRatingScopedIntent(intent)) {
     if (!runtime.ratingScoped)
       throw new ClientError('configuration', 'Scoped ratings unavailable');
@@ -195,5 +215,20 @@ export function settleRatingCommand(
       targetId: receipt.result.targetId,
       revision: receipt.result.revision,
     });
+  if (
+    isRatingCategoryScopedIntent(attempt.intent) &&
+    'protocolVersion' in receipt &&
+    receipt.protocolVersion === 2 &&
+    receipt.outcome !== 'closed' &&
+    'result' in receipt &&
+    'heads' in receipt.result &&
+    receipt.result.releaseId !== null
+  ) {
+    runtime.ratingCatalogChanges?.publish({
+      releaseId: receipt.result.releaseId,
+      catalogs: [],
+      scopedHeads: receipt.result.heads,
+    });
+  }
   return receipt;
 }

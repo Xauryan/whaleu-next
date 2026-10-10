@@ -13,8 +13,8 @@ import {
 } from '../../src/ratings/management/target-edit/contracts.js';
 import type { PrepareRatingTargetEdit } from '../../src/ratings/management/target-edit/contracts.js';
 export const ratingEditPrefix = '/v1/ratings/management/owner-edit';
-export async function ratingEditFixture() {
-  const f = await ratingDeletionFixture();
+export async function ratingEditFixture(maximumMigration?: number) {
+  const f = await ratingDeletionFixture(maximumMigration);
   type Actor = Awaited<ReturnType<typeof f.actor>>;
   const context = async (actor: Actor, id: string) => {
     const response = await f.auth(

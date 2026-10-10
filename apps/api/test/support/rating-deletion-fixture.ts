@@ -6,8 +6,8 @@ import { ratingDiscussionFixture } from './rating-discussion-fixture.js';
 import { withCommunityScopeWriter } from './community-scope-fixtures.js';
 import { ratingAdminDeletionContextSchema } from '../../src/ratings/deletion/contracts.js';
 import type { RatingAdminDeletionContext } from '../../src/ratings/deletion/contracts.js';
-export async function ratingDeletionFixture() {
-  const f = await ratingDiscussionFixture();
+export async function ratingDeletionFixture(maximumMigration?: number) {
+  const f = await ratingDiscussionFixture(maximumMigration);
   type Actor = Awaited<ReturnType<typeof f.actor>>;
   const grant = async (
     actor: Actor,

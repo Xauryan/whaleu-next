@@ -89,3 +89,15 @@ metadata build and drift checks are part of the existing root commands. See
 ## Ratings R1
 
 [ratings.json](openapi/ratings.json) covers all twelve current authenticated ratings operations, with separate strict score, text, list, summary and minimal receipt schemas. The offline export uses the actual controller and Zod contracts and does not start PostgreSQL, an issuer, provider or runtime task. Unknown source coverage never appears as a known zero. See [Ratings API](API_RATINGS.md).
+
+## Scoped category management M3C
+
+The ratings OpenAPI source now registers the eight category-management v2
+operations and the strict shared request-receipt union. The original 66 v1 and
+39 M3B scoped operations remain distinct; M3C adds eight routes. The offline
+export graph stubs the new service and must not execute a database, source issuer
+or Review provider. The generated ratings artifact and exact schema tests must
+be regenerated and checked during M3C acceptance; source registration alone is
+not an executed drift check. See the
+[M3C API](API_RATINGS_CATEGORY_SCOPED.md) and
+[validation status](acceptance/ratings-m3c.md).

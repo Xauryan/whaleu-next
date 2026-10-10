@@ -1,3 +1,4 @@
+import { ratingScopedRequestReceiptSchema } from './request-receipt.js';
 import {
   applyDecorators,
   BadRequestException,
@@ -404,7 +405,7 @@ export class RatingScopedController {
     'GET',
     'requests/:requestId',
     'GetRequest',
-    contracts.ratingScopedReceiptSchema,
+    ratingScopedRequestReceiptSchema,
   )
   request(
     @Headers('authorization') auth: unknown,

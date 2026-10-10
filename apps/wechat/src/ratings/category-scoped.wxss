@@ -1,0 +1,25 @@
+.category-node,
+.history-row,
+.order-row {
+  margin: 20rpx 0;
+  padding: 20rpx;
+  border: 1rpx solid #dce4ea;
+  border-radius: 16rpx;
+}
+.category-node input,
+.category-node textarea {
+  margin: 16rpx 0;
+  padding: 16rpx;
+  background: #f4f7fa;
+  border-radius: 12rpx;
+}
+.confirmation {
+  border: 2rpx solid #3b7b70;
+}
+.recovery {
+  border: 2rpx solid #ad7a2e;
+}
+.order-row button {
+  display: inline-block;
+  margin-right: 12rpx;
+}

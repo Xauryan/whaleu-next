@@ -24,6 +24,7 @@ import type { RatingsGateway } from '../src/ratings/gateway';
 import {
   PendingRatingStore,
   isRatingScopedIntent,
+  isRatingCategoryScopedIntent,
   isRatingReplyIntent,
   isRatingCategoryCreationIntent,
   isRatingTargetCreationIntent,
@@ -178,6 +179,7 @@ export const receipt = (
 ): Extract<RatingReceipt, { outcome: 'applied' | 'noop' }> => {
   if (
     isRatingScopedIntent(command) ||
+    isRatingCategoryScopedIntent(command) ||
     isRatingCategoryCreationIntent(command) ||
     isRatingTargetCreationIntent(command) ||
     isRatingTargetOwnerEditingIntent(command) ||
@@ -218,6 +220,7 @@ export const rejected = (
 ): RatingReceipt => {
   if (
     isRatingScopedIntent(command) ||
+    isRatingCategoryScopedIntent(command) ||
     isRatingCategoryCreationIntent(command) ||
     isRatingTargetCreationIntent(command) ||
     isRatingTargetOwnerEditingIntent(command) ||

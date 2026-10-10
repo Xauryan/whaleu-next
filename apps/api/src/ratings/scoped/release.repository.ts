@@ -69,7 +69,7 @@ export type ScopedReleaseCause =
       issuanceSourceRevision: string;
     }
   | {
-      kind: 'create_target_scoped';
+      kind: 'create_target_scoped' | 'category_management';
       accountId: string;
       requestId: string;
     }

@@ -1,3 +1,4 @@
+import { ratingScopedRequestReceiptSchema } from './request-receipt.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -531,7 +532,7 @@ export class RatingScopedCommands {
             )
           ).rows[0];
         if (!r?.receipt) throw new ApplicationError('REQUEST_NOT_FOUND');
-        const result = ratingScopedReceiptSchema.parse(r.receipt);
+        const result = ratingScopedRequestReceiptSchema.parse(r.receipt);
         await this.access.recheck(token, tx);
         return result;
       },

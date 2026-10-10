@@ -9,6 +9,7 @@ import { registerTransactionDeadline } from '../../database/transaction-deadline
 import {
   RatingScopedCompilationBudget,
   type ScopedCompilationInput,
+  type ScopedExpectedCategory,
   type ScopedMembershipInput,
 } from './compiler.js';
 import {
@@ -46,16 +47,19 @@ export class RatingScopedSourceFacade {
     @Inject(RatingCategoryContentReviewFacade)
     private readonly nativeReview: RatingCategoryContentReviewFacade,
   ) {}
-  private async verifyReviews(
+  async verifyReviews(
     rows: readonly ScopedSourceRow[],
     tx: PoolClient,
     budget: RatingScopedCompilationBudget,
+    strict = true,
   ) {
+    const blocked = new Set<string>();
     const scoped = rows
       .filter(
         (row) =>
           row.source_kind === 'scoped_category_base' ||
-          row.source_kind === 'scoped_category_override',
+          (row.source_kind === 'scoped_category_override' &&
+            row.payload['action'] !== 'inherit'),
       )
       .map((row) =>
         canonicalRatingScopedCategorySource({
@@ -75,10 +79,13 @@ export class RatingScopedSourceFacade {
           .map((source) => ({ kind: 'category' as const, source })),
         tx,
       );
-      if (decisions.some((d) => d.kind !== 'allow'))
+      decisions.forEach((d, n) => {
+        if (d.kind !== 'allow') blocked.add(scoped[at + n]!.sourceId);
+      });
+      if (strict && decisions.some((d) => d.kind !== 'allow'))
         throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     }
-    const native = [];
+    const native: ReturnType<typeof canonicalRatingCategoryBase>[] = [];
     for (const row of rows.filter(
       (row) => row.source_kind === 'm3a_native_bridge',
     )) {
@@ -107,13 +114,49 @@ export class RatingScopedSourceFacade {
       );
     }
     budget.observe(native);
-    for (let at = 0; at < native.length; at += 128)
-      if (
-        (
-          await this.nativeReview.currentBatch(native.slice(at, at + 128), tx)
-        ).some((d) => d.kind !== 'allow')
-      )
+    for (let at = 0; at < native.length; at += 128) {
+      const decisions = await this.nativeReview.currentBatch(
+        native.slice(at, at + 128),
+        tx,
+      );
+      decisions.forEach((d, n) => {
+        if (d.kind !== 'allow')
+          for (const row of rows)
+            if (
+              row.source_kind === 'm3a_native_bridge' &&
+              row.payload['categoryId'] === native[at + n]!.categoryId
+            )
+              blocked.add(row.id);
+      });
+      if (strict && decisions.some((d) => d.kind !== 'allow'))
         throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    }
+    for (const adopted of rows.filter(
+      (r) => r.source_kind === 'legacy_adoption',
+    )) {
+      const ref = adopted.payload['reviewSource'] as
+        Record<string, unknown> | undefined;
+      if (ref?.['kind'] !== 'scoped_category_v5') unavailable();
+      const reviewed = (
+        await tx.query<ScopedSourceRow>(
+          `SELECT s.*,whaleu_ratings.scoped_source_current(s.id,s.revision,clock_timestamp()) current FROM whaleu_ratings.scoped_source_attestations s WHERE id=$1 AND revision=$2 AND source_kind='scoped_category_base'`,
+          [ref['sourceId'], ref['sourceRevision']],
+        )
+      ).rows[0];
+      if (!reviewed?.current) {
+        if (strict) unavailable();
+        blocked.add(adopted.id);
+        continue;
+      }
+      registerTransactionDeadline(
+        tx,
+        reviewed.valid_until.getTime(),
+        'RATING_SCOPE_UNAVAILABLE',
+      );
+      if ((await this.verifyReviews([reviewed], tx, budget, strict)).size)
+        blocked.add(adopted.id);
+    }
+    return blocked;
   }
 
   async readExactSourceVector(
@@ -199,7 +242,21 @@ export class RatingScopedSourceFacade {
       mappings: proof.mappings,
       topology: proof.topologySnapshotId,
     });
-    await this.verifyReviews(captured.rows, tx, budget);
+    const consumed = (
+      await tx.query<{ id: string }>(
+        `SELECT DISTINCT id FROM (
+      SELECT p.base_source_id id FROM whaleu_ratings.category_scope_placements p WHERE p.scope_keys&&$1::text[] AND whaleu_ratings.scoped_source_current(p.source_id,p.source_revision,clock_timestamp())
+      UNION SELECT s.id FROM whaleu_ratings.scoped_source_heads h JOIN whaleu_ratings.scoped_source_attestations s ON (s.id,s.revision)=(h.source_id,h.source_revision) WHERE s.source_kind='scoped_category_override' AND EXISTS(SELECT 1 FROM whaleu_ratings.category_scope_placements p WHERE p.category_id=coalesce(s.payload->'reviewEnvelope'->>'categoryId',s.payload->>'categoryId')::uuid AND p.scope_keys&&s.scope_keys AND s.scope_keys&&$1::text[] AND whaleu_ratings.scoped_source_current(p.source_id,p.source_revision,clock_timestamp()))
+    ) used`,
+        [proof.scopeKeys],
+      )
+    ).rows;
+    const ids = new Set(consumed.map((r) => r.id));
+    await this.verifyReviews(
+      captured.rows.filter((r) => ids.has(r.id)),
+      tx,
+      budget,
+    );
     const inputs: ScopedCompilationInput[] = [];
     let totalCategories = budget.snapshot().categories,
       totalMemberships = budget.snapshot().memberships;
@@ -232,6 +289,9 @@ export class RatingScopedSourceFacade {
         categories.some((c) => c.expected === null)
       )
         unavailable();
+      // The compiler validates the complete category parent tree. Intersect the
+      // immutable target placement with this exact current category domain; the
+      // independent SQL publication verifier proves category eligibility again.
       const members = (
         await tx.query<{
           target_id: string;
@@ -243,7 +303,7 @@ export class RatingScopedSourceFacade {
           `WITH locked AS MATERIALIZED (
             SELECT t.id target_id,t.category_id,p.placement_revision,t.region_id target_region_id
             FROM whaleu_ratings.target_scope_placements p JOIN whaleu_ratings.targets t ON t.id=p.target_id
-            WHERE $1=ANY(p.scope_keys) AND whaleu_ratings.scoped_source_current(p.source_id,p.source_revision,clock_timestamp())
+            WHERE $1=ANY(p.scope_keys) AND whaleu_ratings.scoped_source_current(p.source_id,p.source_revision,clock_timestamp()) AND t.category_id=ANY($4::uuid[])
             ORDER BY t.id LIMIT $2 FOR SHARE OF t,p)
           SELECT current.*, (CASE WHEN previous.ordinal IS NOT NULL THEN previous.ordinal ELSE
             COALESCE((SELECT max(ordinal) FROM whaleu_ratings.scoped_target_memberships WHERE catalog_id=$3),-1)
@@ -257,6 +317,9 @@ export class RatingScopedSourceFacade {
               RATING_SCOPED_RELEASE_MEMBERSHIP_LIMIT - totalMemberships,
             ) + 1,
             head?.catalog_id ?? null,
+            categories.map(
+              (c) => (c.expected as ScopedExpectedCategory).body.id,
+            ),
           ],
         )
       ).rows;

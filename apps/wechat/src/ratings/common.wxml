@@ -8,6 +8,7 @@
     <view class="notice">未查到回执也不能创建替代请求。这里只恢复原编号和原意图；当前内容、评分、点赞与订阅状态需重新读取。</view>
     <button bindtap="onRecover" disabled="{{busy}}">查询原回执</button>
     <button bindtap="onRetry" disabled="{{busy}}">重试原请求</button>
+    <navigator class="link" url="/pages/rating-category-manage/rating-category-manage?scope=global">分类管理原请求：预览、确认与取消 →</navigator>
     <navigator class="link" url="/pages/rating-category-create/rating-category-create">分类创建申请恢复与撤销 →</navigator>
     <navigator class="link" url="/pages/rating-scoped/rating-scoped?mode=recovery">校园范围创建与编辑恢复、取消 →</navigator>
   </view>

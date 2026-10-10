@@ -74,6 +74,11 @@ const conditions = {
   },
   RATING_UNAVAILABLE: { status: 503, message: 'Ratings are unavailable' },
   RATING_NOT_FOUND: { status: 404, message: 'Rating content not found' },
+  RATING_CATEGORY_SOURCE_UNRESOLVED: {
+    status: 409,
+    message:
+      'Category sources disagree on identity, shared definition or business state; reconcile them before changing scope',
+  },
   RATING_SCOPE_UNAVAILABLE: {
     status: 403,
     message: 'Rating scope unavailable',

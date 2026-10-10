@@ -34,6 +34,7 @@ for (const relative of [
   'community/view-contract.js',
   'messaging/pending.js',
   'ratings/scoped-contract.js',
+  'ratings/category-scoped-contract.js',
 ]) {
   const cryptoModule = path.join(out, relative);
   const compiled = await readFile(cryptoModule, 'utf8');

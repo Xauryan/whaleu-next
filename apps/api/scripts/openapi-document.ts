@@ -497,6 +497,10 @@ export async function renderErrandsOpenApiDocument(): Promise<string> {
 
 /** Tooling-only rating routes. No live database, issuer or provider. */
 export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { RatingCategoryScopedManagementController } =
+    await import('../src/ratings/category-management/scoped-controller.js');
+  const { RatingCategoryScopedManagementService } =
+    await import('../src/ratings/category-management/scoped-service.js');
   const { RatingScopedController, RatingScopedNoticesController } =
     await import('../src/ratings/scoped/controller.js');
   const { RatingScopedContextService } =
@@ -585,6 +589,26 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       throw new Error(
         'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
       );
+  for (const method of [
+    'context',
+    'list',
+    'detail',
+    'history',
+    'systemOptions',
+    'prepare',
+    'commit',
+    'cancel',
+  ])
+    if (
+      !Reflect.hasMetadata(
+        PARAMTYPES_METADATA,
+        RatingCategoryScopedManagementController.prototype,
+        method,
+      )
+    )
+      throw new Error(
+        'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+      );
   const fail = () => {
     throw new Error('OpenAPI must not execute application work');
   };
@@ -595,6 +619,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       RatingRandomController,
       RatingManagementController,
       RatingCategoryManagementController,
+      RatingCategoryScopedManagementController,
       RatingTargetOwnerDeletionController,
       RatingTargetEditController,
       RatingDeletionController,
@@ -615,6 +640,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       { provide: RatingRandomService, useValue: {} },
       { provide: RatingManagementService, useValue: {} },
       { provide: RatingCategoryManagementService, useValue: {} },
+      { provide: RatingCategoryScopedManagementService, useValue: {} },
       { provide: RatingTargetOwnerDeletionService, useValue: {} },
       { provide: RatingTargetEditService, useValue: {} },
       { provide: RatingDeletionService, useValue: {} },

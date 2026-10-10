@@ -1,3 +1,7 @@
+import { RatingCategoryScopedManagementController } from './category-management/scoped-controller.js';
+import { RatingCategoryScopedManagementService } from './category-management/scoped-service.js';
+import { RatingCategoryManagementReader } from './category-management/scoped-reader.repository.js';
+import { RatingCategorySourceIssuer } from './category-management/source-issuer.js';
 import { RatingLegacyBridgeService } from './scoped/legacy-bridge.service.js';
 import {
   RatingScopedController,
@@ -84,6 +88,7 @@ import { RatingsCursors } from './cursor.js';
     RatingScopedController,
     RatingScopedNoticesController,
     RatingCategoryManagementController,
+    RatingCategoryScopedManagementController,
     RatingTargetEditController,
     RatingTargetOwnerDeletionController,
     RatingRandomController,
@@ -106,6 +111,9 @@ import { RatingsCursors } from './cursor.js';
     RatingUpdatesCursors,
     RatingSubscriptionUpdatesCursors,
     RatingCategoryManagementService,
+    RatingCategoryScopedManagementService,
+    RatingCategoryManagementReader,
+    RatingCategorySourceIssuer,
     RatingTargetEditService,
     RatingTargetEditRepository,
     RatingTargetOwnerDeletionService,

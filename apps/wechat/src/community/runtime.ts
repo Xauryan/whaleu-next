@@ -1,4 +1,8 @@
 import {
+  HttpRatingCategoryScopedGateway,
+  type RatingCategoryScopedGateway,
+} from '../ratings/category-scoped-gateway';
+import {
   HttpRatingScopedGateway,
   type RatingScopedGateway,
 } from '../ratings/scoped-gateway';
@@ -126,6 +130,7 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly ratingCategoryScoped?: RatingCategoryScopedGateway;
   readonly ratingScoped?: RatingScopedGateway;
   readonly messaging?: MessagingRuntime;
   readonly ratingCatalogChanges?: RatingCatalogChanges;
@@ -196,6 +201,10 @@ export function createCommunityRuntime(
     sessions: identity.sessions,
     ...(identity.api
       ? {
+          ratingCategoryScoped: new HttpRatingCategoryScopedGateway(
+            identity.api,
+            identity.sessions,
+          ),
           ratingScoped: new HttpRatingScopedGateway(
             identity.api,
             identity.sessions,

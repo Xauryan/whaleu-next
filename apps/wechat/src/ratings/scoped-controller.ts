@@ -1,3 +1,4 @@
+import { ratingCategoryScopedPath } from './category-scoped-route';
 import { ClientError, isRecord } from '../api/errors';
 import {
   CommunityController,
@@ -42,6 +43,7 @@ import {
 } from './scoped-context';
 import {
   decodeRatingNavigationSelector,
+  ratingNavigationKey,
   decodeRatingScopedIntent,
   decodeRatingScopedLocator,
   ratingRandomSelector,
@@ -1729,6 +1731,37 @@ export class RatingScopedController extends CommunityController<RatingScopedView
       });
     }
     return null;
+  }
+  async categoryManagementPath(): Promise<string | null> {
+    if (
+      !this.available() ||
+      this.view.busy ||
+      this.view.frozen ||
+      !this.runtime.ratingCategoryScoped
+    )
+      return null;
+    const selector = this.route.selector;
+    let path: string | null = null;
+    await this.run(
+      (cancel) => this.runtime.ratingCategoryScoped!.context(selector, cancel),
+      (context) => {
+        if (
+          ratingNavigationKey(context.commandContext.selector) !==
+          ratingNavigationKey(selector)
+        )
+          invalidRating();
+        if (!context.operations.length) {
+          this.update({ error: '当前范围没有可用分类管理操作' });
+          return;
+        }
+        path = ratingCategoryScopedPath({ selector, categoryId: null });
+      },
+      () =>
+        this.update({
+          error: '当前范围的管理授权或来源暂不可用；普通评分仍可独立使用',
+        }),
+    );
+    return path;
   }
   sectionPath(mode: 'catalog' | 'updates' | 'subscriptions'): string | null {
     if (!this.available() || this.view.busy || this.view.frozen) return null;
