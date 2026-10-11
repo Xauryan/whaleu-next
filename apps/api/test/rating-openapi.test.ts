@@ -1,3 +1,4 @@
+import * as courses from '../src/ratings/courses/contracts.js';
 import * as discussionMedia from '../src/ratings/scoped/discussion-media-contracts.js';
 import * as discussionProjection from '../src/ratings/discussion-media-projection-contracts.js';
 import { ratingDiscussionNoticeSchema } from '../src/notifications/ratings/discussion-media-contracts.js';
@@ -370,7 +371,10 @@ test('legacy, scoped, category management and category icon operations have exac
   assert.equal(cases.length, 66);
   assert.equal(
     Object.entries(doc.paths)
-      .filter(([path]) => path.startsWith('/v1/'))
+      .filter(
+        ([path]) =>
+          path.startsWith('/v1/') && !path.startsWith('/v1/ratings/courses'),
+      )
       .reduce((n, [, item]) => n + Object.keys(item!).length, 0),
     66,
   );
@@ -942,7 +946,24 @@ test('legacy, scoped, category management and category icon operations have exac
   assert.equal(categoryIconCases.length, 20);
   for (const [path, method, , operationId] of categoryIconCases)
     assert.equal(doc.paths[path]![method]!.operationId, operationId);
+  const courseCases = [
+    ['/v1/ratings/courses', 'get', courses.coursePageSchema],
+    ['/v1/ratings/courses/{id}', 'get', courses.courseDetailSchema],
+    ['/v1/ratings/courses/{id}/my-score', 'get', courses.courseOwnSchema],
+    ['/v1/ratings/courses/{id}/summary', 'get', courses.courseSummarySchema],
+    [
+      '/v1/ratings/courses/{id}/first-score',
+      'post',
+      courses.courseReceiptSchema,
+    ],
+    [
+      '/v1/ratings/courses/requests/{requestId}',
+      'get',
+      courses.courseReceiptSchema,
+    ],
+  ] as const;
   const allCases = [
+    ...courseCases,
     ...cases,
     ...scopedCases,
     ...categoryCases,
@@ -1120,4 +1141,30 @@ test('discussion4 exposes strict UUID and closed kind path parameters', async ()
         }
     }
   }
+});
+
+test('course first-score has separately typed strict immutable input and six source-specific operations', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  const coursePaths = Object.keys(doc.paths).filter((path) =>
+    path.startsWith('/v1/ratings/courses'),
+  );
+  assert.equal(coursePaths.length, 6);
+  const body =
+    doc.paths['/v1/ratings/courses/{id}/first-score']!.post!.requestBody!;
+  assert.ok(!('$ref' in body));
+  assert.deepEqual(
+    body.content['application/json']!.schema,
+    z.toJSONSchema(courses.courseFirstScoreSchema, {
+      target: 'openapi-3.0',
+      io: 'input',
+    }),
+  );
+  assert.equal(
+    doc.paths['/v1/ratings/courses/{id}/first-score']!.put,
+    undefined,
+  );
+  assert.equal(
+    doc.paths['/v1/ratings/courses/{id}/first-score']!.delete,
+    undefined,
+  );
 });

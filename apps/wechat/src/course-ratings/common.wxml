@@ -1,0 +1,35 @@
+<template name="course-status">
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{receiptStatus}}" class="notice">{{receiptStatus}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录与会话管理 →</navigator>
+  <navigator wx:if="{{hasSession &amp;&amp; error === '请先完成手机号验证，再重新加载课程评分'}}" class="link" url="/pages/phone-binding/phone-binding">手机号验证与验证请求恢复 →</navigator>
+  <view wx:if="{{frozen}}" class="card recovery">
+    <view class="section-title">原课程评分结果待确认</view>
+    <view wx:if="{{recoveryCourseId}}" class="meta">原课程编号：{{recoveryCourseId}}</view>
+    <view class="notice">查询未找到回执也不能重新评分。这里只查询原回执或重试原编号、原三个分数和原版本；课程下架后仍可查询。</view>
+    <view wx:if="{{recoveryScores}}" class="body">得分 {{recoveryScores.gradeScore}} · 能力 {{recoveryScores.abilityScore}} · 综合 {{recoveryScores.overallScore}}</view>
+    <button bindtap="onRecover" disabled="{{busy}}">查询原回执</button>
+    <button bindtap="onRetry" disabled="{{busy}}">重试原请求</button>
+  </view>
+  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">重新加载{{restartRequired ? '，从第一页开始' : ''}}</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+</template>
+<template name="course-facts">
+  <view class="section-title">{{course.name}}</view>
+  <view class="meta">院系编号：{{course.department}} · 类别：{{course.category === null ? '未提供' : course.category}}</view>
+  <view class="meta">课程性质：{{course.nature === null ? '未提供' : course.nature}}</view>
+  <view class="meta">校区：{{course.campusLabel}} · 课程代码：{{course.code === null ? '未提供' : course.code}}</view>
+</template>
+<template name="course-summary">
+  <block wx:if="{{summary.kind === 'known'}}">
+    <view class="meta">已确认 {{summary.count}} 人评分</view>
+    <block wx:if="{{summary.count &gt; 0}}">
+      <view class="body">得分维度均分（grade_score）：{{summary.gradeScore}}</view>
+      <view class="body">能力维度均分（ability_score）：{{summary.abilityScore}}</view>
+      <view class="body">综合评分均分（overall_score）：{{summary.overallScore}}</view>
+    </block>
+    <view wx:else class="notice">已确认尚无评分，三个均分均为空。</view>
+  </block>
+  <view wx:else class="notice">评分历史与均分暂不可用，不能当作零人评分。</view>
+</template>

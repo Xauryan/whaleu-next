@@ -1,0 +1,42 @@
+<import src="../../course-ratings/common.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 课程评分</view><view class="title">课程详情</view>
+  <template is="course-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryCourseId,recoveryScores,busy,restartRequired}}" />
+  <block wx:if="{{loaded &amp;&amp; detail}}">
+    <view class="card"><template is="course-facts" data="{{course:detail.course}}" /><view class="meta">来源校区标识：{{detail.course.sourceCampusKey}}</view><view class="meta">已核验目录版本：{{detail.catalogRevision}}</view><view class="notice">来源标识用于保留目录映射，不授予校区或评分权限。</view></view>
+    <view class="card"><view class="section-title">三个独立均分</view><template is="course-summary" data="{{summary:detail.course.summary}}" /></view>
+    <view class="card">
+      <view class="section-title">我的首次评分</view>
+      <view wx:if="{{frozen &amp;&amp; (!recoveryCourseId || recoveryCourseId === detail.course.id)}}" class="notice">原请求结果待确认，当前快照不能解除原请求；请查询原回执。</view>
+      <block wx:elif="{{detail.myScore.kind === 'recorded'}}">
+        <view class="body">得分维度（grade_score）：{{detail.myScore.gradeScore}}</view>
+        <view class="body">能力维度（ability_score）：{{detail.myScore.abilityScore}}</view>
+        <view class="body">综合评分（overall_score）：{{detail.myScore.overallScore}}</view>
+        <view class="notice">已提交。每个账号对每门课只有一次评分，不能修改或删除。</view>
+      </block>
+      <view wx:elif="{{detail.myScore.kind === 'unavailable'}}" class="notice">我的历史评分暂不能确认，不能当作尚未提交。</view>
+      <view wx:else class="notice">当前已确认尚未评分。</view>
+      <view class="notice">{{blocker}}</view>
+    </view>
+    <view wx:if="{{canScore}}" class="card">
+      <view class="section-title">分别选择三个分数</view>
+      <view class="body">得分维度（grade_score）：{{gradeScore === null ? '尚未选择' : gradeScore}}</view>
+      <view class="course-scores"><button wx:for="{{scores}}" wx:key="*this" data-axis="gradeScore" data-score="{{item}}" class="{{gradeScore === item ? 'score-selected' : ''}}" bindtap="onScore" disabled="{{busy || confirming}}">{{item}}</button></view>
+      <view class="body">能力维度（ability_score）：{{abilityScore === null ? '尚未选择' : abilityScore}}</view>
+      <view class="course-scores"><button wx:for="{{scores}}" wx:key="*this" data-axis="abilityScore" data-score="{{item}}" class="{{abilityScore === item ? 'score-selected' : ''}}" bindtap="onScore" disabled="{{busy || confirming}}">{{item}}</button></view>
+      <view class="body">综合评分（overall_score）：{{overallScore === null ? '尚未选择' : overallScore}}</view>
+      <view class="course-scores"><button wx:for="{{scores}}" wx:key="*this" data-axis="overallScore" data-score="{{item}}" class="{{overallScore === item ? 'score-selected' : ''}}" bindtap="onScore" disabled="{{busy || confirming}}">{{item}}</button></view>
+      <view class="notice">综合评分由你独立选择，不会用前两项计算。三个维度均为 0.5 至 5 分。</view>
+      <button bindtap="onConfirm" disabled="{{busy || !canSubmit || confirming}}">核对首次评分</button>
+    </view>
+    <view wx:if="{{confirming}}" class="card confirmation">
+      <view class="section-title">确认唯一一次评分</view>
+      <view class="body">课程：{{detail.course.name}}</view>
+      <view class="body">得分 {{gradeScore}} · 能力 {{abilityScore}} · 综合 {{overallScore}}</view>
+      <view class="notice">提交后不能修改或删除。确认后会先保存原请求，再发送；断网或退出后只能恢复这个请求。</view>
+      <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认提交这三个分数</button>
+      <button bindtap="onCloseConfirmation" disabled="{{busy || frozen}}">返回调整</button>
+    </view>
+  </block>
+  <navigator class="link" url="/pages/course-ratings/course-ratings">课程目录与独立回执查询 →</navigator>
+</view>

@@ -1,5 +1,7 @@
 <import src="../../ratings/common.wxml" />
-<view class="screen"><navigator class="link" url="/pages/rating-scoped/rating-scoped?mode=catalog&amp;scope=global">校园范围评分：明确选择校园 →</navigator>
+<view class="screen">
+  <navigator class="link" url="/pages/course-ratings/course-ratings">课程目录、首次三维评分与原请求恢复 →</navigator>
+<navigator class="link" url="/pages/rating-scoped/rating-scoped?mode=catalog&amp;scope=global">校园范围评分：明确选择校园 →</navigator>
   <view class="eyebrow">WHALEU · 校园评分</view><view class="title">发现值得评价的校园事物</view>
   <navigator class="link" url="/pages/rating-recovery/rating-recovery">独立查询评分与文字操作结果 →</navigator>
   <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />

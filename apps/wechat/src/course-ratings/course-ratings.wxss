@@ -1,0 +1,27 @@
+@import '../ratings/ratings.wxss';
+.course-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin: 16rpx 0 28rpx;
+}
+.course-scores button {
+  width: calc(20% - 12rpx);
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.filter-picker {
+  padding: 24rpx;
+  border: 1px solid #c8d6e5;
+  border-radius: 12rpx;
+  margin: 16rpx 0;
+}
+.course-field {
+  padding: 20rpx;
+  border-bottom: 1px solid #c8d6e5;
+  margin: 12rpx 0;
+}
+.confirmation {
+  border: 2px solid #175990;
+}

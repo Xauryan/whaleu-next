@@ -149,3 +149,10 @@ This is a fresh repository. It includes no old Git history, production datasets,
 private audit material, or credentials. Do not commit `.env`, real client app
 credentials, production backups, or secrets. No software license has been chosen
 yet; public visibility alone does not grant an open-source license.
+
+Specialist course scoring C1 is a separate Ratings vertical slice: source-accepted
+course discovery, three independent 0.5–5 half-step first-lifetime scores, exact
+per-axis summaries and durable original-key recovery on new Next native pages.
+Catalog and historical coverage remain unavailable until explicitly accepted; no
+production catalog/history or provider is activated. Generic Ratings and other
+specialist domains are unchanged. See [scope and verification](docs/COURSE_RATINGS.md).

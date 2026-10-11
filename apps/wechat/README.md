@@ -543,3 +543,12 @@ See [contracts and acceptance boundaries](../../docs/ANNOUNCEMENT_AUTHORING.md).
 ### Student verification pages
 
 `student-verification`, `student-verification-review` and `student-verification-notices` are registered and linked from the existing verification page. One private image, explicit submit/decision, original-key recovery, rejection/reapplication, expired material recovery and local notifications are available with configured test adapters. The same App continues through existing phone-binding, identity-campus and ordinary compose/Review/publication. Inline files and transient reviewer state clear on hide, account/revision/scope change and failed authorization refresh. No private material payload is persisted in local journals. Simulated emitted Page/WXML acceptance does not establish actual WeChat device or production-provider readiness.
+
+## Course directory and immutable first scores
+
+The [native course rating flow](docs/course-ratings.md) adds dedicated catalog and
+course-detail pages reachable from Ratings. It preserves source metadata,
+mutually exclusive department/category filters, all ten independent half-step
+choices for each of three axes, and original-key recovery. Production catalog
+availability remains source-gated; synthetic verification does not prove legacy
+course-page parity or real-device acceptance.

@@ -3,6 +3,23 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  COURSE_CATALOG_UNAVAILABLE: {
+    status: 503,
+    message: 'Accepted course catalog is unavailable',
+  },
+  COURSE_NOT_FOUND: { status: 404, message: 'Course is unavailable' },
+  COURSE_HISTORY_UNAVAILABLE: {
+    status: 503,
+    message: 'Course rating history coverage is unavailable',
+  },
+  COURSE_ALREADY_RATED: {
+    status: 409,
+    message: 'The original course rating cannot be changed',
+  },
+  COURSE_REVISION_CONFLICT: {
+    status: 409,
+    message: 'Course catalog changed; reload before confirming',
+  },
   STUDENT_VERIFICATION_CANCELLED: {
     status: 409,
     message: 'The original student verification command was cancelled',

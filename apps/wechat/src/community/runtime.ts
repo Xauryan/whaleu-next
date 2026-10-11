@@ -1,4 +1,9 @@
 import {
+  HttpCourseRatingsGateway,
+  type CourseRatingsGateway,
+} from '../course-ratings/gateway';
+import { PendingCourseRatingStore } from '../course-ratings/pending';
+import {
   HttpFeedbackNoticesGateway,
   type FeedbackNoticesGateway,
 } from './feedback-notices-gateway';
@@ -168,6 +173,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly courseRatings?: CourseRatingsGateway;
+  readonly pendingCourseRatings?: PendingCourseRatingStore;
   readonly ratingCategoryIconPublic?: CategoryIconPublicGateway;
   readonly ratingCategoryIcon?: RatingCategoryIconGateway;
   readonly ratingCategoryIconMedia?: CategoryIconMediaGateway;
@@ -328,6 +335,10 @@ export function createCommunityRuntime(
           ratingDiscussion: new HttpRatingDiscussionGateway(identity.api),
           ratingUpdates: new HttpRatingUpdatesGateway(identity.api),
         }
+      : {}),
+    pendingCourseRatings: new PendingCourseRatingStore(storage, origin),
+    ...(identity.api
+      ? { courseRatings: new HttpCourseRatingsGateway(identity.api) }
       : {}),
     pendingRatings: new PendingRatingStore(storage, origin),
     pendingRatingDiscussionMedia,
