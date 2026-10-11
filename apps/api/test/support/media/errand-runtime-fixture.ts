@@ -1,3 +1,4 @@
+import type { TestingModuleBuilder } from '@nestjs/testing';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
@@ -35,12 +36,16 @@ export async function errandMediaFixture(
     sha256: string;
     verdict: 'allow' | 'held' | 'revoked';
   }[],
+  options: {
+    configureTestModule?: (builder: TestingModuleBuilder) => void;
+  } = {},
 ) {
   const base = await syntheticMediaRuntimeFixture(fixtures, {
     configureTestModule(builder, { storage, ingressStorage }) {
       builder
         .overrideProvider(ERRAND_MEDIA_RUNTIME)
         .useValue({ planning: ingressStorage, storage, ingressStorage });
+      options.configureTestModule?.(builder);
     },
   });
   const publications = base.app.get(ErrandPublicationService),

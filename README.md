@@ -26,7 +26,10 @@ errand administration adds public-only search and exact-or-unavailable totals,
 bounded deletion/feature restrictions, global recorded history/release, local
 notices and native same-key recovery. A separately versioned [Errand image publication](docs/ERRAND_IMAGE_PUBLICATION.md)
 adds public/private images with persistent participant history and exact Review.
-Historical administrative byte policy, live providers, group delivery and
+An [E4 group-delivery contract](docs/ERRAND_GROUP_DELIVERY.md) scopes bounded
+per-destination synthetic delivery and its current-authority/recovery requirements;
+normal runtime stays disabled and candidate acceptance is tracked separately.
+Historical administrative byte policy, live providers, delivery activation and
 authoritative migration remain open. The remaining business modules and complete
 end-to-end onboarding/provider integration are still being implemented. Normal
 runtime text access now consumes canonical policy and exact review records;

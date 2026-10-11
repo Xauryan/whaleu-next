@@ -1,3 +1,5 @@
+import { ErrandGroupDeliveryModule } from '../notifications/errand-group/module.js';
+import { ErrandGroupSource } from './group-source.js';
 import { ModuleRef } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { DatabaseService } from '../database/database.js';
@@ -42,6 +44,7 @@ import { ErrandRequests } from './requests.js';
 @Module({
   imports: [
     DatabaseModule,
+    ErrandGroupDeliveryModule,
     MediaDeliveryBudgetModule,
     PostgresRequestThrottlingModule,
     ThrottlerModule.forRootAsync({
@@ -77,6 +80,7 @@ import { ErrandRequests } from './requests.js';
   exports: [ErrandsService, ErrandMediaService, ErrandPublicationService],
   providers: [
     ErrandPublicationService,
+    ErrandGroupSource,
     ErrandMediaRequestGuard,
     ErrandMultipartInterceptor,
     { provide: ERRAND_MEDIA_RUNTIME, useValue: null },

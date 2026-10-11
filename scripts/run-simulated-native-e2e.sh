@@ -21,6 +21,8 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/errand-draft-fence.test.ts \
   test/integration/errand-media.test.ts \
   test/integration/errand-media-native-roundtrip.test.ts \
+  test/integration/errand-group-delivery.test.ts \
+  test/integration/errand-group-native-roundtrip.test.ts \
   test/integration/school-posting-policy.test.ts \
   test/integration/school-posting-policy-native-roundtrip.test.ts \
   test/integration/organization-management.test.ts \

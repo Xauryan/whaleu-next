@@ -1,5 +1,6 @@
 import { ApplicationError } from '../http/application-error.js';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { ErrandGroupEnrollment } from '../notifications/errand-group/enrollment.js';
 import type { PoolClient } from 'pg';
 import { randomUUID } from 'node:crypto';
 import type {
@@ -91,6 +92,10 @@ export function errandEnvelope(row: ErrandRow): ErrandContentEnvelope {
 }
 @Injectable()
 export class ErrandsRepository {
+  constructor(
+    @Inject(ErrandGroupEnrollment)
+    private readonly groups: ErrandGroupEnrollment,
+  ) {}
   async read(
     id: string,
     tx: PoolClient,
@@ -256,6 +261,14 @@ export class ErrandsRepository {
         ],
       )
     ).rows[0]!.occurred_at.toISOString();
+    if (operation === 'publish')
+      await this.groups.record(
+        id,
+        row.id,
+        row.target_region_id,
+        row.created_at.toISOString(),
+        tx,
+      );
     return { id, occurredAt };
   }
   async remember(
