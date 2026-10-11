@@ -1,4 +1,3 @@
-import { withOwnerFixtureWindow } from '../support/owner-fixture-window.js';
 import {
   readyBatch,
   sealBatchPost,
@@ -488,30 +487,15 @@ for (const imageCount of [1, 9])
                 await holder.query(
                   'LOCK TABLE whaleu_media.upload_intents IN SHARE UPDATE EXCLUSIVE MODE',
                 );
-                // Real competing holder, with no positive-fixture window: the
-                // original mandatory fence rejects and returns no search result.
+                // The original mandatory fence rejects a real competing holder
+                // and returns no search result.
                 await assert.rejects(engine.search(token, query), unavailable);
                 assert.deepEqual(await state(), beforeBlockedRead);
               } finally {
                 await holder.query('ROLLBACK');
                 holder.release();
               }
-              // Only this known-healthy 9-image read is isolated. Indexing,
-              // child reads and hostile provider-wait tests remain unchanged.
-              const healthy = await withOwnerFixtureWindow(
-                f.app,
-                ['whaleu_media.upload_intents'],
-                () => engine.search(token, query),
-                'semantic_preflight', // The original first transaction is preflight, without Media facts.
-              );
-              assert.equal(healthy.result.items.length, 1);
-              // Only pre-rerank and post-rerank owner transactions carry Media facts.
-              assert.equal(healthy.skippedTransactions, 1);
-              assert.equal(healthy.transactions, 2);
-              assert.equal(healthy.prelocks, 2);
-              assert.equal(healthy.commits, 2);
-              assert.equal(healthy.rollbacks, 0);
-              assert.ok(healthy.finalNowaitAttempts >= 2);
+              assert.equal((await engine.search(token, query)).items.length, 1);
               assert.deepEqual(await state(), beforeBlockedRead);
             } else
               assert.equal((await engine.search(token, query)).items.length, 1);

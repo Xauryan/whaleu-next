@@ -1,4 +1,3 @@
-import { withOwnerFixtureWindow } from '../support/owner-fixture-window.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -70,16 +69,10 @@ async function imageContent(
   actor: BatchActor,
   target: Parameters<typeof readyDiscussionBatch>[2],
   bytes: Buffer,
-  prepareWindow?: Parameters<typeof readyDiscussionBatch>[5],
 ) {
-  const ready = await readyDiscussionBatch(
-    f,
-    actor,
-    target,
-    3,
-    [{ mime: 'image/png', bytes }],
-    prepareWindow,
-  );
+  const ready = await readyDiscussionBatch(f, actor, target, 3, [
+    { mime: 'image/png', bytes },
+  ]);
   const sealed = await sealDiscussionBatch(f, actor, ready.status, '');
   const result = await request(f.app.getHttpServer())
     .post(sealed.path)
@@ -427,7 +420,7 @@ test(
           try {
             await holder.query('BEGIN');
             // SUE permits ordinary row writers but conflicts with the mandatory
-            // final SHARE NOWAIT. Do not wrap this refusal in a fixture window.
+            // final SHARE NOWAIT on the ordinary HTTP path.
             await holder.query(
               'LOCK TABLE whaleu_media.object_attempts IN SHARE UPDATE EXCLUSIVE MODE',
             );
@@ -460,22 +453,6 @@ test(
                 actor,
                 { kind: 'comment', postId },
                 bytes,
-                ancestor === 'root' && state === 'deleted'
-                  ? async (sendOriginal) => {
-                      const window = await withOwnerFixtureWindow(
-                        f.app,
-                        ['whaleu_media.object_attempts'],
-                        sendOriginal,
-                      );
-                      // prepareBatch delegates to exactly one authorized transaction.
-                      assert.equal(window.transactions, 1);
-                      assert.equal(window.prelocks, 1);
-                      assert.ok(window.finalNowaitAttempts >= 1);
-                      assert.equal(window.commits, 1);
-                      assert.equal(window.rollbacks, 0);
-                      return window.result;
-                    }
-                  : undefined,
               );
               const reply = await imageContent(
                 f,

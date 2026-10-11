@@ -20,18 +20,9 @@ jobs:
     # The projected ~103m exceeds 100m; allow 120m PG plus other verification.
     # This does not change individual tests, SQL/proof limits or resource capacity.
     timeout-minutes: 150
-    services:
-      postgres:
-        image: postgres:18.6-bookworm
-        env:
-          POSTGRES_USER: whaleu_test
-          POSTGRES_PASSWORD: local_ci_only
-          POSTGRES_DB: whaleu_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U whaleu_test -d whaleu_test"
-          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      MAIN_PG_CONTAINER: whaleu-main-${{ github.run_id }}-${{ github.run_attempt }}
+      WHALEU_TEST_MAINTENANCE: controlled
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -47,18 +38,56 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run check
       - run: npm run format:check
+      - name: Verify disposable database admission guards
+        run: node --test scripts/verify-test-postgres.test.mjs
+      - name: Start fresh controlled-maintenance PostgreSQL
+        shell: bash
+        run: |
+          [[ "$WHALEU_TEST_MAINTENANCE" == controlled ]]
+          docker run --detach --name "$MAIN_PG_CONTAINER" \
+            --network host --shm-size=256m \
+            --env POSTGRES_USER=whaleu_test \
+            --env POSTGRES_PASSWORD=local_ci_only \
+            --env POSTGRES_DB=whaleu_test \
+            --health-cmd 'pg_isready -h 127.0.0.1 -p 5432 -U whaleu_test -d whaleu_test' \
+            --health-interval 5s --health-timeout 3s --health-retries 10 \
+            postgres:18.6-bookworm \
+            postgres -c listen_addresses=127.0.0.1 -p 5432 -c autovacuum=off
+          for attempt in {1..30}; do
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$MAIN_PG_CONTAINER")
+            if [[ "$status" == healthy ]]; then exit 0; fi
+            if [[ "$status" == unhealthy ]]; then break; fi
+            sleep 2
+          done
+          docker logs "$MAIN_PG_CONTAINER"
+          exit 1
+      - name: Verify fresh controlled-maintenance service
+        run: node scripts/verify-test-postgres.mjs
+        env:
+          NODE_ENV: test
+          TEST_DATABASE_URL: postgresql://whaleu_test:local_ci_only@127.0.0.1:5432/whaleu_test
       - name: Real PostgreSQL integration tests
         run: timeout 7200 npm run test:integration
         env:
           WHALEU_RATINGS_CI_DIAGNOSTICS: '1'
           WHALEU_SCALABLE_PROFILE_CI_DIAGNOSTICS: '1'
           TEST_DATABASE_URL: postgresql://whaleu_test:local_ci_only@127.0.0.1:5432/whaleu_test
+      - name: Show disposable database diagnostics on failure
+        if: failure()
+        run: docker logs "$MAIN_PG_CONTAINER"
+      - name: Remove disposable database container
+        if: always()
+        run: |
+          if docker inspect "$MAIN_PG_CONTAINER" >/dev/null 2>&1; then
+            docker rm --force --volumes "$MAIN_PG_CONTAINER"
+          fi
 
   semantic-integration:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       SEMANTIC_PG_CONTAINER: whaleu-semantic-${{ github.run_id }}-${{ github.run_attempt }}
+      WHALEU_TEST_MAINTENANCE: controlled
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -77,6 +106,7 @@ jobs:
         run: |
           # Host networking preserves inet_server_addr()=127.0.0.1 for the
           # installer's disposable-loopback guard; bind PostgreSQL only there.
+          [[ "$WHALEU_TEST_MAINTENANCE" == controlled ]]
           docker run --detach --name "$SEMANTIC_PG_CONTAINER" \
             --network host --shm-size=256m \
             --env POSTGRES_USER=whaleu_test \
@@ -85,7 +115,7 @@ jobs:
             --health-cmd 'pg_isready -h 127.0.0.1 -p 55433 -U whaleu_test -d whaleu_test' \
             --health-interval 5s --health-timeout 3s --health-retries 10 \
             pgvector/pgvector:0.8.7-pg18-bookworm@sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11 \
-            postgres -c listen_addresses=127.0.0.1 -p 55433
+            postgres -c listen_addresses=127.0.0.1 -p 55433 -c autovacuum=off
           for attempt in {1..30}; do
             status=$(docker inspect --format '{{.State.Health.Status}}' "$SEMANTIC_PG_CONTAINER")
             if [[ "$status" == healthy ]]; then
@@ -98,6 +128,11 @@ jobs:
           done
           docker logs "$SEMANTIC_PG_CONTAINER"
           exit 1
+      - name: Verify fresh controlled-maintenance service
+        run: node scripts/verify-test-postgres.mjs
+        env:
+          NODE_ENV: test
+          TEST_DATABASE_URL: postgresql://whaleu_test:local_ci_only@127.0.0.1:55433/whaleu_test
       - name: Verify pinned PostgreSQL and optional extension namespace
         shell: bash
         run: |

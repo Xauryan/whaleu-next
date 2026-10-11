@@ -1,4 +1,3 @@
-import { withOwnerFixtureWindow } from '../support/owner-fixture-window.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
@@ -373,6 +372,46 @@ test(
           (SELECT jsonb_agg(to_jsonb(e) ORDER BY e.singleton) FROM whaleu_ratings.random_pool_epoch e) pool`)
           ).rows;
         const beforeBlockedRead = await epochState();
+        // Exercise real maintenance before the ordinary healthy read. The pool
+        // client stays outside BEGIN, and is released before either HTTP request.
+        const maintenance = await f.pool.connect();
+        try {
+          const maintenanceStats = async () =>
+            (
+              await maintenance.query<{
+                relation: string;
+                vacuums: number;
+                analyzes: number;
+              }>(`SELECT relname relation,vacuum_count::int vacuums,analyze_count::int analyzes
+          FROM pg_stat_all_tables WHERE schemaname='whaleu_ratings'
+          AND relname IN ('navigation_epoch','random_pool_epoch') ORDER BY relname`)
+            ).rows;
+          await maintenance.query('SELECT pg_stat_force_next_flush()');
+          await maintenance.query('SELECT pg_stat_clear_snapshot()');
+          const before = await maintenanceStats();
+          assert.deepEqual(
+            before.map((row) => row.relation),
+            ['navigation_epoch', 'random_pool_epoch'],
+          );
+          const vacuum = await maintenance.query(
+            'VACUUM (ANALYZE) whaleu_ratings.navigation_epoch,whaleu_ratings.random_pool_epoch',
+          );
+          assert.equal(vacuum.command, 'VACUUM');
+          // Flush this same backend's completed work before reading fresh stats.
+          await maintenance.query('SELECT pg_stat_force_next_flush()');
+          await maintenance.query('SELECT pg_stat_clear_snapshot()');
+          const after = await maintenanceStats();
+          assert.deepEqual(
+            after.map((row) => row.relation),
+            before.map((row) => row.relation),
+          );
+          for (const [index, row] of after.entries()) {
+            assert.ok(row.vacuums > before[index]!.vacuums);
+            assert.ok(row.analyzes > before[index]!.analyzes);
+          }
+        } finally {
+          maintenance.release();
+        }
         const holder = await f.pool.connect();
         try {
           await holder.query('BEGIN');
@@ -391,29 +430,9 @@ test(
           await holder.query('ROLLBACK');
           holder.release();
         }
-        // Only this final restored healthy request gets a scheduling window.
-        // Unknown/denied/full-domain mutation cases above and below stay raw.
-        const healthy = await withOwnerFixtureWindow(
-          f.app,
-          [
-            'whaleu_ratings.navigation_epoch',
-            'whaleu_ratings.random_pool_epoch',
-          ],
-          async () => sample(recoveredContext),
-          'rate_limit', // Leave the original HTTP PostgreSQL rate-limit transaction untouched.
-        );
-        assert.equal(
-          healthy.result.status,
-          200,
-          JSON.stringify(healthy.result.body),
-        );
-        assert.equal(healthy.result.body.candidateCount, 2048);
-        assert.equal(healthy.skippedTransactions, 1);
-        assert.equal(healthy.transactions, 1);
-        assert.equal(healthy.prelocks, 1);
-        assert.equal(healthy.commits, 1);
-        assert.equal(healthy.rollbacks, 0);
-        assert.ok(healthy.finalNowaitAttempts >= 1);
+        const healthy = await sample(recoveredContext);
+        assert.equal(healthy.status, 200, JSON.stringify(healthy.body));
+        assert.equal(healthy.body.candidateCount, 2048);
         assert.deepEqual(await epochState(), beforeBlockedRead);
       },
     );

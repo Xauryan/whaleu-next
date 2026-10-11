@@ -1,4 +1,3 @@
-import { withOwnerFixtureWindow } from '../support/owner-fixture-window.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -70,14 +69,6 @@ test(
       assetId: string;
       requestId: string;
     }> = [];
-    const finalizeWindows = {
-      windows: 0,
-      transactions: 0,
-      prelocks: 0,
-      finalNowaitAttempts: 0,
-      commits: 0,
-      rollbacks: 0,
-    };
     let unisolatedFinalizeRefusals = 0;
     // Four subjects per actor: four batch keys + four member keys = eight/minute,
     // below the unchanged shared ten/minute admission limit. No waiting or refill.
@@ -120,8 +111,8 @@ test(
               try {
                 await holder.query('BEGIN');
                 // A real unrelated relation owner conflicts with final SHARE NOWAIT,
-                // while permitting normal ROW EXCLUSIVE lifecycle writes. This
-                // deliberate refusal is OUTSIDE the healthy finalize fixture window.
+                // while permitting normal ROW EXCLUSIVE lifecycle writes on the
+                // ordinary HTTP finalize path.
                 await holder.query(
                   'LOCK TABLE whaleu_media.jobs IN SHARE UPDATE EXCLUSIVE MODE',
                 );
@@ -148,32 +139,6 @@ test(
               }
             }
           : undefined,
-        undefined, // Do not opt into or broaden budgetSetupFinalize recovery.
-        async (sendOriginal) => {
-          const window = await withOwnerFixtureWindow(
-            f.app,
-            ['whaleu_media.jobs'],
-            sendOriginal,
-          );
-          // RatingsDiscussionUploadApplication.finalize first reads status and
-          // then invokes the original authorized write. Both original transactions
-          // prelock on their own connection and still run the final Media fence.
-          assert.equal(window.transactions, 2);
-          assert.equal(window.prelocks, 2);
-          assert.ok(window.finalNowaitAttempts >= window.transactions);
-          assert.equal(window.commits, 2);
-          assert.equal(window.rollbacks, 0);
-          finalizeWindows.windows++;
-          for (const key of [
-            'transactions',
-            'prelocks',
-            'finalNowaitAttempts',
-            'commits',
-            'rollbacks',
-          ] as const)
-            finalizeWindows[key] += window[key];
-          return window.result;
-        },
       );
       const published = await f.execute(actor, upload.intent),
         receipt = published.receipt;
@@ -194,12 +159,6 @@ test(
       });
     }
     assert.equal(unisolatedFinalizeRefusals, 1);
-    assert.equal(finalizeWindows.windows, 20);
-    assert.equal(finalizeWindows.transactions, 40);
-    assert.equal(finalizeWindows.prelocks, 40);
-    assert.ok(finalizeWindows.finalNowaitAttempts >= 40);
-    assert.equal(finalizeWindows.commits, 40);
-    assert.equal(finalizeWindows.rollbacks, 0);
     const quota = (
       await f.pool.query<{ actor_id: string; keys: number }>(
         `SELECT actor_id,count(*)::int keys FROM (
