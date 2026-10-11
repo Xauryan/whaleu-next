@@ -56,6 +56,7 @@ export async function syntheticMediaRuntimeFixture(
     readonly configureTestModule?: (
       builder: TestingModuleBuilder,
       ports: {
+        runtimeConfig: RuntimeConfig;
         storage: SyntheticMediaStorage;
         ingressStorage: SyntheticMediaIngressStorage;
       },
@@ -224,7 +225,11 @@ export async function syntheticMediaRuntimeFixture(
               ),
           });
         }
-        options.configureTestModule?.(builder, { storage, ingressStorage });
+        options.configureTestModule?.(builder, {
+          storage,
+          ingressStorage,
+          runtimeConfig: config,
+        });
         const module = await builder.compile();
         return module.createNestApplication({ logger: false });
       },

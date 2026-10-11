@@ -18,10 +18,9 @@
     </view>
     <view class="footnote">以上是本次查询结果。认证状态不代表操作权限，实际操作仍由服务端实时校验。选择浏览校园、账号编号或管理角色均不构成学生认证。</view>
   </block>
-  <view class="card pending-feature">
-    <view class="card-title">认证办理功能待接入</view>
-    <view class="detail">此页支持状态查询；手机号授权验证请使用下方独立入口。学生认证申请、证明材料上传、审核与重新申请尚未开放，不能在此提交或办理。社区操作不要求学号认证，实际资格由服务端按操作分别校验。</view>
-  </view>
+  <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/student-verification/student-verification">办理学生归属申请与查看结果 →</navigator>
+  <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/student-verification-review/student-verification-review">校方学生申请审核 →</navigator>
+  <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/student-verification-notices/student-verification-notices">认证站内消息 →</navigator>
   <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/phone-binding/phone-binding">前往手机号授权验证 →</navigator>
   <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/identity-campus/identity-campus">查看身份校区状态与可选校区 →</navigator>
   <navigator class="text-link" url="/pages/profile/profile">查看我的资料</navigator>

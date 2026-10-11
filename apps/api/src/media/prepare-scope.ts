@@ -1,4 +1,13 @@
 import {
+  prepareVerificationEvidenceMediaSchema,
+  verificationEvidenceMediaRequestHash,
+} from './contracts-verification-evidence.js';
+import type { PrepareVerificationEvidenceMediaInput } from './contracts-verification-evidence.js';
+import type {
+  AuthorizedVerificationEvidenceMediaEdit,
+  VerificationEvidenceMediaDraftOwnerPort,
+} from './verification-evidence-prepare-scope.js';
+import {
   prepareAnnouncementMediaSchema,
   announcementMediaRequestHash,
 } from './contracts-announcement.js';
@@ -140,6 +149,7 @@ export class MediaPrepareScopes {
         | PrepareMediaV4Input
         | PrepareProfileMediaInput
         | PrepareRatingsMediaInput
+        | PrepareVerificationEvidenceMediaInput
         | PrepareAnnouncementMediaInput
         | PrepareActivityMediaInput
         | PrepareOrganizationMediaInput
@@ -150,6 +160,7 @@ export class MediaPrepareScopes {
         | AuthorizedMediaDraft
         | AuthorizedProfileMediaEdit
         | AuthorizedRatingsMediaEdit
+        | AuthorizedVerificationEvidenceMediaEdit
         | AuthorizedAnnouncementMediaEdit
         | AuthorizedActivityMediaEdit
         | AuthorizedOrganizationMediaEdit
@@ -168,6 +179,7 @@ export class MediaPrepareScopes {
     private readonly organizationOwner?: OrganizationMediaDraftOwnerPort,
     private readonly activityOwner?: ActivityMediaDraftOwnerPort,
     private readonly announcementOwner?: AnnouncementMediaDraftOwnerPort,
+    private readonly verificationEvidenceOwner?: VerificationEvidenceMediaDraftOwnerPort,
   ) {}
   async authorizeRatingsDiscussionBatch(
     actor: string,
@@ -249,6 +261,52 @@ export class MediaPrepareScopes {
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+  }
+  async authorizeVerificationEvidence(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    const input = prepareVerificationEvidenceMediaSchema.parse(raw),
+      actor = mediaIdSchema.parse(actorAccountId),
+      epoch = transactionReadEpoch(tx);
+    if (!epoch || !this.verificationEvidenceOwner)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const scope = await this.verificationEvidenceOwner.authorizePrepare(
+      actor,
+      input,
+      tx,
+    );
+    if (
+      scope.actorAccountId !== actor ||
+      scope.ownerKind !== 'verification' ||
+      scope.resourceKind !== 'student_evidence' ||
+      scope.targetKind !== 'edit' ||
+      scope.contentVersion !== 1 ||
+      scope.audience !== 'verification-private' ||
+      scope.purpose !== 'verification-evidence-image' ||
+      scope.slot !== 'evidence' ||
+      scope.ordinal !== 0 ||
+      !mediaIdSchema.safeParse(scope.serverScopeId).success ||
+      scope.scopeRevision !==
+        verificationEvidenceMediaRequestHash(actor, input) ||
+      !Number.isSafeInteger(scope.expiresAt) ||
+      transactionReadEpoch(tx) !== epoch
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+    Object.freeze(input.declaration);
+    Object.freeze(input);
+    const capability: MediaPrepareScope = Object.freeze({
+      [brand]: true as const,
+    });
+    this.issued.set(capability, {
+      tx,
+      epoch,
+      input,
+      scope: Object.freeze({ ...scope }),
+    });
+    return capability;
   }
   async authorizeAnnouncement(
     actorAccountId: string,
@@ -665,6 +723,7 @@ export class MediaPrepareScopes {
       | PrepareMediaV4Input
       | PrepareProfileMediaInput
       | PrepareRatingsMediaInput
+      | PrepareVerificationEvidenceMediaInput
       | PrepareAnnouncementMediaInput
       | PrepareActivityMediaInput
       | PrepareOrganizationMediaInput
@@ -675,6 +734,7 @@ export class MediaPrepareScopes {
       | AuthorizedMediaDraft
       | AuthorizedProfileMediaEdit
       | AuthorizedRatingsMediaEdit
+      | AuthorizedVerificationEvidenceMediaEdit
       | AuthorizedAnnouncementMediaEdit
       | AuthorizedActivityMediaEdit
       | AuthorizedOrganizationMediaEdit

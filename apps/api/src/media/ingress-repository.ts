@@ -1,3 +1,9 @@
+import { VerificationEvidenceMediaRequiredProof } from './verification-evidence-required-proof.js';
+import {
+  prepareVerificationEvidenceMediaSchema,
+  verificationEvidenceMediaRequestHash,
+} from './contracts-verification-evidence.js';
+import type { PrepareVerificationEvidenceMediaInput } from './contracts-verification-evidence.js';
 import { AnnouncementMediaRequiredProof } from './announcement-required-proof.js';
 import {
   prepareAnnouncementMediaSchema,
@@ -145,24 +151,45 @@ export class MediaIngressRepository {
   constructor(
     readonly planning: MediaIngressPlanningPort,
     private readonly protocolVersion:
-      2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 = 2,
+      2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 = 2,
   ) {
     this.proof =
-      protocolVersion === 12
-        ? new AnnouncementMediaRequiredProof()
-        : protocolVersion === 11
-          ? new ActivityMediaRequiredProof()
-          : protocolVersion === 10
-            ? new OrganizationMediaRequiredProof()
-            : protocolVersion === 9
-              ? new SchoolQrMediaRequiredProof()
-              : protocolVersion === 8
-                ? new CategoryIconMediaRequiredProof()
-                : new MediaRequiredProof();
+      protocolVersion === 13
+        ? new VerificationEvidenceMediaRequiredProof()
+        : protocolVersion === 12
+          ? new AnnouncementMediaRequiredProof()
+          : protocolVersion === 11
+            ? new ActivityMediaRequiredProof()
+            : protocolVersion === 10
+              ? new OrganizationMediaRequiredProof()
+              : protocolVersion === 9
+                ? new SchoolQrMediaRequiredProof()
+                : protocolVersion === 8
+                  ? new CategoryIconMediaRequiredProof()
+                  : new MediaRequiredProof();
     mediaIdSchema.parse(planning.writerInstanceId);
   }
   /** Nonlocking routing hint only; authority is re-established by scopes and the
    * locked canonical intent is matched below before granting anything. */
+  async originalVerificationEvidenceInput(
+    actor: string,
+    id: string,
+    tx: PoolClient,
+  ): Promise<PrepareVerificationEvidenceMediaInput> {
+    this.managed(tx);
+    if (this.protocolVersion !== 13)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const row = (
+      await tx.query<{ input: unknown }>(
+        `SELECT s.input FROM whaleu_media.upload_intents i
+      JOIN whaleu_media.verification_evidence_scopes s ON s.id=i.resource_id AND s.actor_id=i.actor_id
+      WHERE i.id=$1 AND i.actor_id=$2 AND i.protocol_version=13 AND i.owner_kind='verification'`,
+        [mediaIdSchema.parse(id), actor],
+      )
+    ).rows[0];
+    if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return prepareVerificationEvidenceMediaSchema.parse(row.input);
+  }
   async originalAnnouncementInput(
     actor: string,
     id: string,
@@ -253,7 +280,8 @@ export class MediaIngressRepository {
       this.protocolVersion === 9 ||
       this.protocolVersion === 10 ||
       this.protocolVersion === 11 ||
-      this.protocolVersion === 12
+      this.protocolVersion === 12 ||
+      this.protocolVersion === 13
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const row = (
@@ -886,27 +914,29 @@ export class MediaIngressRepository {
       )
     ).rows[0];
     const input =
-      this.protocolVersion === 12
-        ? prepareAnnouncementMediaSchema.parse(issued.input)
-        : this.protocolVersion === 11
-          ? prepareActivityMediaSchema.parse(issued.input)
-          : this.protocolVersion === 10
-            ? prepareOrganizationMediaSchema.parse(issued.input)
-            : this.protocolVersion === 9
-              ? prepareSchoolQrMediaSchema.parse(issued.input)
-              : this.protocolVersion === 8
-                ? prepareCategoryIconMediaSchema.parse(issued.input)
-                : this.protocolVersion === 7
-                  ? ratingsDiscussionMemberPrepareSchema.parse(issued.input)
-                  : this.protocolVersion === 6
-                    ? prepareRatingsMediaSchema.parse(issued.input)
-                    : this.protocolVersion === 5
-                      ? prepareProfileMediaSchema.parse(issued.input)
-                      : this.protocolVersion === 4
-                        ? prepareMediaV4Schema.parse(issued.input)
-                        : this.protocolVersion === 3
-                          ? prepareMediaV3Schema.parse(issued.input)
-                          : prepareMediaV2Schema.parse(issued.input);
+      this.protocolVersion === 13
+        ? prepareVerificationEvidenceMediaSchema.parse(issued.input)
+        : this.protocolVersion === 12
+          ? prepareAnnouncementMediaSchema.parse(issued.input)
+          : this.protocolVersion === 11
+            ? prepareActivityMediaSchema.parse(issued.input)
+            : this.protocolVersion === 10
+              ? prepareOrganizationMediaSchema.parse(issued.input)
+              : this.protocolVersion === 9
+                ? prepareSchoolQrMediaSchema.parse(issued.input)
+                : this.protocolVersion === 8
+                  ? prepareCategoryIconMediaSchema.parse(issued.input)
+                  : this.protocolVersion === 7
+                    ? ratingsDiscussionMemberPrepareSchema.parse(issued.input)
+                    : this.protocolVersion === 6
+                      ? prepareRatingsMediaSchema.parse(issued.input)
+                      : this.protocolVersion === 5
+                        ? prepareProfileMediaSchema.parse(issued.input)
+                        : this.protocolVersion === 4
+                          ? prepareMediaV4Schema.parse(issued.input)
+                          : this.protocolVersion === 3
+                            ? prepareMediaV3Schema.parse(issued.input)
+                            : prepareMediaV2Schema.parse(issued.input);
     if (
       !row ||
       row.state !== 'prepared' ||
@@ -934,6 +964,13 @@ export class MediaIngressRepository {
           row.ordinal !== input.sourceSlot ||
           row.request_hash !==
             ratingsDiscussionMemberHash(session.accountId, input))) ||
+      ('protocol' in input &&
+        input.protocol === 'verification-evidence-media-v1' &&
+        (issued.scope.ownerKind !== 'verification' ||
+          issued.scope.resourceKind !== 'student_evidence' ||
+          issued.scope.slot !== 'evidence' ||
+          row.request_hash !==
+            verificationEvidenceMediaRequestHash(session.accountId, input))) ||
       ('protocol' in input &&
         input.protocol === 'announcement-media-v1' &&
         (issued.scope.ownerKind !== 'announcements' ||

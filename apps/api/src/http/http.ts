@@ -83,7 +83,7 @@ export function configureHttp(app: INestApplication): void {
     response.setHeader('x-request-id', requestId);
     response.setHeader(
       'cache-control',
-      /^\/v[12]\/media(?:\/|$)/.test(request.path)
+      /^\/v[123]\/media(?:\/|$)/.test(request.path)
         ? 'private, no-store'
         : 'no-store',
     );
@@ -94,7 +94,7 @@ export function configureHttp(app: INestApplication): void {
         request.path,
       ) ||
       /^\/v1\/admin\/errands(?:\/|$)/.test(request.path) ||
-      /^\/v2\/media(?:\/|$)/.test(request.path)
+      /^\/v[23]\/media(?:\/|$)/.test(request.path)
     )
       response.vary('Authorization');
     response.once('finish', () => {

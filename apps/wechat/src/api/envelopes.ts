@@ -57,6 +57,12 @@ export function responseError(response: HttpResponse): ClientError | null {
     ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
   };
   const expectedStatus: Readonly<Record<string, number>> = {
+    STUDENT_VERIFICATION_CONFLICT: 409,
+    STUDENT_VERIFICATION_CANCELLED: 409,
+    STUDENT_VERIFICATION_NOT_FOUND: 404,
+    STUDENT_VERIFICATION_ALREADY_VERIFIED: 409,
+    STUDENT_VERIFICATION_EXPIRED: 409,
+    STUDENT_VERIFICATION_SELF_REVIEW: 403,
     ACTIVITY_PUBLICATION_CONFLICT: 409,
     ACTIVITY_PUBLICATION_CANCELLED: 409,
     ACTIVITY_COVER_REQUIRED: 422,

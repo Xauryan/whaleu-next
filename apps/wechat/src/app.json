@@ -66,7 +66,10 @@
     "pages/activity-native/activity-native",
     "pages/activity-native-detail/activity-native-detail",
     "pages/announcement-manage/announcement-manage",
-    "pages/announcement-edit/announcement-edit"
+    "pages/announcement-edit/announcement-edit",
+    "pages/student-verification/student-verification",
+    "pages/student-verification-review/student-verification-review",
+    "pages/student-verification-notices/student-verification-notices"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

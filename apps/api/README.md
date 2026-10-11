@@ -295,3 +295,7 @@ accepted historical sources remain explicitly separate; no legacy completeness
 is fabricated. Exact operation receipts, stable ID popup markers and private
 upload-preparation closure remain recoverable. Local simulated acceptance is
 separate from physical-device/provider and production acceptance.
+
+### Student document verification (private, non-production adapters closed)
+
+See [scope and policy](../../docs/STUDENT_VERIFICATION.md). Native application/review/local-notice endpoints are owned by Verification; protocol 13 materials use private typed upload and inline delivery. Approvals issue only document-review affiliation, preserve independent phone/student-number pointers, and use internal Campus institution UUIDs. Material retention requires an explicit per-item immutable policy; normal runtime evidence adapters stay unavailable. Exact original request recovery, expiry and owner-only cancellation are separate from current reviewer authority.

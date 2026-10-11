@@ -381,6 +381,12 @@ for (const route of config.pages.filter(
       assert.equal(current.data.id, '');
       assert.equal(current.uploader, undefined);
     }
+  } else if (route.startsWith('pages/student-verification')) {
+    assert.equal(current.controller, undefined);
+    assert.equal(current.data.loaded, false);
+    assert.equal(current.data.application, null);
+    assert.equal(current.data.evidenceSrc, '');
+    assert.ok(current.data.error);
   } else assert.ok(current.controller);
   current.onUnload();
   if (route === 'pages/rating-create/rating-create') {
@@ -482,7 +488,14 @@ const verificationTemplate = readFileSync(
   'utf8',
 );
 assert.match(verificationTemplate, /实际操作仍由服务端实时校验/);
-assert.match(verificationTemplate, /尚未开放/);
+assert.match(
+  verificationTemplate,
+  /pages\/student-verification\/student-verification/,
+);
+assert.match(
+  verificationTemplate,
+  /pages\/student-verification-review\/student-verification-review/,
+);
 assert.equal(
   /getPhoneNumber|bindgetphonenumber|chooseImage|<input|<textarea/.test(
     verificationTemplate,

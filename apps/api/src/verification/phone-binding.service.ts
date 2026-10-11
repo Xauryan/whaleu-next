@@ -287,7 +287,6 @@ export class PhoneBindingService {
               [actor.accountId],
             )
           ).rows[0]!;
-          if (head.revision !== row.base_revision) throw unavailable();
           const prior = head.snapshot_id
             ? (
                 await tx.query<SnapshotRecord>(
@@ -297,6 +296,24 @@ export class PhoneBindingService {
               ).rows[0]
             : undefined;
           if (head.snapshot_id && !prior) throw unavailable();
+          // Other independent writers may append while the provider is running.
+          // A changed phone pointer conflicts; affiliation/application updates do not.
+          const base =
+            row.base_revision && row.base_revision > 0
+              ? (
+                  await tx.query<{ phone_assertion_id: string | null }>(
+                    'SELECT phone_assertion_id FROM whaleu_verification.snapshots WHERE account_id=$1 AND revision=$2',
+                    [actor.accountId, row.base_revision],
+                  )
+                ).rows[0]
+              : undefined;
+          if (
+            (row.base_revision !== 0 && !base) ||
+            (base?.phone_assertion_id ?? null) !==
+              (prior?.phone_assertion_id ?? null)
+          )
+            throw unavailable();
+
           const proofId = randomUUID(),
             assertion = randomUUID(),
             snapshot = randomUUID(),

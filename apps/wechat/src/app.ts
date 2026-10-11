@@ -1,3 +1,4 @@
+import { createVerificationEvidenceRuntime } from './verification/evidence-runtime';
 import {
   createAnnouncementMediaRuntime,
   type AnnouncementMediaRuntime,
@@ -45,6 +46,7 @@ import {
 } from './verification/runtime';
 
 export interface WhaleuApp {
+  studentEvidence?: ReturnType<typeof createVerificationEvidenceRuntime>;
   schoolQr?: SchoolQrRuntime;
   organizationMedia?: OrganizationMediaRuntime;
   activityMedia?: ActivityMediaRuntime;
@@ -74,6 +76,7 @@ App<WhaleuApp>({
     void this.community?.views?.foreground();
   },
   onHide() {
+    this.studentEvidence?.clear();
     this.schoolQr?.hide();
     this.organizationMedia?.hide();
     this.activityMedia?.hide();
@@ -98,6 +101,19 @@ App<WhaleuApp>({
     const nativeFiles = new WechatNativeMediaFiles(wx, systemClock);
     const registry = new MediaLocalFiles(nativeFiles);
     this.mediaLocalFiles = registry;
+    if (this.identity.api && this.identity.auth)
+      this.studentEvidence = createVerificationEvidenceRuntime({
+        api: this.identity.api,
+        sessions: this.identity.sessions,
+        storage: new WechatStorage(wx),
+        origin: clientConfiguration.apiOrigin,
+        clock: systemClock,
+        newRequestId: this.community.newRequestId,
+        wx,
+        files: nativeFiles,
+        registry,
+        auth: this.identity.auth,
+      });
     if (this.identity.api && this.identity.auth)
       this.schoolQr = createSchoolQrRuntime({
         api: this.identity.api,

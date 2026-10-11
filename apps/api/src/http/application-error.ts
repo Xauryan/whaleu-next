@@ -3,6 +3,33 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  STUDENT_VERIFICATION_CANCELLED: {
+    status: 409,
+    message: 'The original student verification command was cancelled',
+  },
+  STUDENT_VERIFICATION_CONFLICT: {
+    status: 409,
+    message:
+      'Student verification request or revision changed; recover the original request',
+  },
+  STUDENT_VERIFICATION_NOT_FOUND: {
+    status: 404,
+    message: 'Student verification application is unavailable',
+  },
+  STUDENT_VERIFICATION_ALREADY_VERIFIED: {
+    status: 409,
+    message:
+      'Current affiliation or an approved application requires school administrator assistance',
+  },
+  STUDENT_VERIFICATION_EXPIRED: {
+    status: 409,
+    message: 'Evidence expired; create a new application with new evidence',
+  },
+  STUDENT_VERIFICATION_SELF_REVIEW: {
+    status: 403,
+    message: 'An applicant cannot review their own application',
+  },
+
   ACTIVITY_PUBLICATION_CONFLICT: {
     status: 409,
     message:

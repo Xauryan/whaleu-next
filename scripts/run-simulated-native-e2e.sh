@@ -35,4 +35,7 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/announcement-media.test.ts \
   test/integration/announcement-read.test.ts \
   test/integration/announcement-concurrency.test.ts \
-  test/integration/announcement-native-roundtrip.test.ts
+  test/integration/announcement-native-roundtrip.test.ts \
+  test/integration/student-verification.test.ts \
+  test/integration/student-verification-evidence.test.ts \
+  test/integration/student-verification-native-roundtrip.test.ts

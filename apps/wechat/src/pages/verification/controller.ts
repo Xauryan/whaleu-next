@@ -61,7 +61,7 @@ const applicationLabels: Record<ApplicationStatus, string> = {
 const applicationDetails: Record<ApplicationStatus, string> = {
   none: '服务端确认当前没有待处理申请；不据此判断历史申请或认证结果',
   pending: '提交或等待审核不代表已经通过认证',
-  rejected: '本页仅展示状态，重新申请功能尚未开放',
+  rejected: '可前往学生归属申请查看原因并重新提交新材料',
   unavailable: '尚无法确认申请记录，不能据此判断审核结果',
 };
 function rows(summary: VerificationSummary): readonly VerificationRow[] {

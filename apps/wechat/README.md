@@ -539,3 +539,7 @@ history. The home popup uses documented native-first selection and explicit
 acknowledgement only. Independent optional-guest Media supports 0–9 images and
 account-scoped original-key recovery, including abandoned upload preparations.
 See [contracts and acceptance boundaries](../../docs/ANNOUNCEMENT_AUTHORING.md).
+
+### Student verification pages
+
+`student-verification`, `student-verification-review` and `student-verification-notices` are registered and linked from the existing verification page. One private image, explicit submit/decision, original-key recovery, rejection/reapplication, expired material recovery and local notifications are available with configured test adapters. The same App continues through existing phone-binding, identity-campus and ordinary compose/Review/publication. Inline files and transient reviewer state clear on hide, account/revision/scope change and failed authorization refresh. No private material payload is persisted in local journals. Simulated emitted Page/WXML acceptance does not establish actual WeChat device or production-provider readiness.
