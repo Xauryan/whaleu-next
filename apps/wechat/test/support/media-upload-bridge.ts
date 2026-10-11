@@ -44,15 +44,18 @@ export class NativeMediaUploadBridge {
     readonly port: number,
     readonly origin: string,
     private readonly root: string,
+    private readonly owner: 'community' | 'school-configuration',
   ) {}
   static async create(
     port: number,
     origin = 'https://native-experience.invalid',
+    owner: 'community' | 'school-configuration' = 'community',
   ): Promise<NativeMediaUploadBridge> {
     return new NativeMediaUploadBridge(
       port,
       origin,
       await mkdtemp(join(tmpdir(), 'whaleu-native-upload-')),
+      owner,
     );
   }
   /** Info is obtained by the API fixture's real sharp decoder, never used as Review evidence. */
@@ -163,7 +166,9 @@ export class NativeMediaUploadBridge {
     assert.equal(url.origin, this.origin);
     assert.match(
       url.pathname,
-      /^\/v2\/media\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i,
+      this.owner === 'school-configuration'
+        ? /^\/v3\/media\/school-configuration\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+        : /^\/v2\/media\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i,
     );
     assert.equal(url.search, '');
     assert.equal(url.hash, '');

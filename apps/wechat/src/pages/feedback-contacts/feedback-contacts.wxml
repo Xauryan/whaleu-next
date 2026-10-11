@@ -1,0 +1,7 @@
+<view class="screen"><view class="title">发布者提供的联系方式</view><view class="notice">由发布者自愿填写，不代表已认证；分身发布也可能通过联系方式被识别。</view>
+<view aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view><view>{{contacts.status}}</view><view wx:if="{{contacts.error}}" class="error">{{contacts.error}}</view>
+<button bindtap="onReveal" disabled="{{busy || contacts.busy || !contacts.enabled}}">重新核验并查看联系方式</button>
+<view wx:if="{{contacts.contacts &amp;&amp; contacts.contacts.wechat}}">微信：{{contacts.contacts.wechat}}<button bindtap="onCopy" data-field="wechat" disabled="{{contacts.busy}}">核验并复制微信</button></view>
+<view wx:if="{{contacts.contacts &amp;&amp; contacts.contacts.qq}}">QQ：{{contacts.contacts.qq}}<button bindtap="onCopy" data-field="qq" disabled="{{contacts.busy}}">核验并复制 QQ</button></view>
+<view wx:if="{{contacts.contacts &amp;&amp; contacts.contacts.phone}}">电话：{{contacts.contacts.phone}}<button bindtap="onCopy" data-field="phone" disabled="{{contacts.busy}}">核验并复制电话</button></view>
+<button bindtap="onReload" disabled="{{busy || contacts.busy}}">重新读取帖子权限</button></view>

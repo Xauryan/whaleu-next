@@ -61,8 +61,10 @@ export function matchPublicationReview(
 export function supportsTextReview(attempt: PendingAttempt): boolean {
   const payload = attempt.payload;
   return (
-    payload.authorMode === 'named' &&
-    payload.imageAssetIds.length === 0 &&
+    ((attempt.operation === 'publish_post' &&
+      attempt.payload.category === 'feedback') ||
+      attempt.operation !== 'publish_post' ||
+      (payload.authorMode === 'named' && payload.imageAssetIds.length === 0)) &&
     (attempt.operation !== 'publish_post' ||
       (attempt.payload.category !== 'trading' &&
         !attempt.payload.trading &&

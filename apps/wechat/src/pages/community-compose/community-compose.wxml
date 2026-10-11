@@ -1,6 +1,13 @@
-<view class="screen"><view class="eyebrow">WHALEU · 写下此刻</view><view class="title">{{frozen ? '确认原发布结果' : (isTrading ? '发布校园交易' : maxText === 500 ? '写一条评论' : '分享校园里的事')}}</view>
+<view class="screen">
+  <view wx:if="{{isFeedback}}" class="card"><view class="title">全站意见建议</view><view class="notice">这是公开专题。实名或分身、正文、已审核图片与认证学校会在全站展示；需要私密帮助时请勿在此填写敏感信息。</view>
+    <view class="field-label">联系方式（选填）</view>
+    <input data-field="wechat" value="{{feedbackDraft.wechat}}" placeholder="微信（最多 50 字节）" maxlength="-1" disabled="{{frozen || busy}}" bindinput="onFeedbackField" />
+    <input data-field="qq" value="{{feedbackDraft.qq}}" placeholder="QQ（最多 50 字节）" maxlength="-1" disabled="{{frozen || busy}}" bindinput="onFeedbackField" />
+    <input data-field="phone" value="{{feedbackDraft.phone}}" placeholder="电话（最多 50 字节）" maxlength="-1" disabled="{{frozen || busy}}" bindinput="onFeedbackField" />
+    <label><switch checked="{{feedbackDraft.consent}}" disabled="{{frozen || busy}}" bindchange="onFeedbackConsent" />填写联系方式后，同意登录且有权查看此帖的人主动查看；联系方式可能识别分身背后的你。</label>
+  </view><view class="eyebrow">WHALEU · 写下此刻</view><view class="title">{{frozen ? '确认原发布结果' : (isTrading ? '发布校园交易' : maxText === 500 ? '写一条评论' : '分享校园里的事')}}</view>
   <view class="subtitle">本地草稿与已提交内容分别保存。结果未确认前，原请求不会被修改或替换。</view>
-  <view class="notice">显示身份选项不代表已取得发布资格或内容已获审核。可另行确认身份校区，内容审核提交流程尚未开放；发布不可用时，仍可查询本账号的原请求回执。</view>
+  <view class="notice">显示身份选项不代表已取得发布资格或内容已获审核。可另行确认身份校区。开发环境启用文字审核后，需等待明确审核结果，再主动确认发布原请求；发布不可用时，仍可查询本账号的原请求回执。</view>
   <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
   <navigator wx:if="{{hasSession &amp;&amp; !busy &amp;&amp; canOpenIdentityCampus}}" class="link" url="/pages/identity-campus/identity-campus">查看身份校区状态与可选校区（返回后需再次点击发送）→</navigator>
   <view wx:if="{{hasSession}}" class="card"><view wx:if="{{recoveryOperation}}" class="meta">待确认类型：{{recoveryOperation}}</view><view wx:if="{{replyTargetName}}" class="scope">回复：{{replyTargetName}}</view><view class="label">正文 · 最多 {{maxText}} 字</view><textarea value="{{text}}" bindinput="onText" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="说说你想分享的事…" />

@@ -1,3 +1,4 @@
+import { feedbackInputSchema } from '../feedback/contracts.js';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { authorModeSchema, categorySchema } from '../contracts.js';
@@ -62,14 +63,31 @@ const contentEnvelopeV2Schema = z.strictObject({
   authorMode: z.literal('named'),
   allowAnonymousDm: z.boolean(),
 });
+const contentEnvelopeV3Schema = z.strictObject({
+  ...contentEnvelopeShape,
+  version: z.literal(3),
+  purpose: z.literal('publish_post'),
+  category: z.literal('feedback'),
+  commentsPolicy: z.literal('open'),
+  feedback: feedbackInputSchema,
+});
 export const effectiveContentEnvelopeSchema = z
   .discriminatedUnion('version', [
     contentEnvelopeV1Schema,
     contentEnvelopeV2Schema,
+    contentEnvelopeV3Schema,
   ])
   .superRefine((value, ctx) => {
     const invalid = (message: string) =>
       ctx.addIssue({ code: 'custom', message });
+    if (
+      value.category === 'feedback' &&
+      (value.scope.originalRegionId !== null ||
+        value.component.kind !== 'none' ||
+        value.trading !== null ||
+        (value.purpose === 'publish_post' && value.version !== 3))
+    )
+      invalid('Invalid global feedback definition');
     if (value.spaceId !== value.scope.originalSpaceId)
       invalid('Scope does not match space');
     if (
@@ -126,11 +144,12 @@ export type EffectiveContentEnvelopeV2 = Extract<
 >;
 export type EffectiveContentEnvelopeDraft =
   | Omit<z.input<typeof contentEnvelopeV1Schema>, 'images'>
-  | Omit<z.input<typeof contentEnvelopeV2Schema>, 'images'>;
+  | Omit<z.input<typeof contentEnvelopeV2Schema>, 'images'>
+  | Omit<z.input<typeof contentEnvelopeV3Schema>, 'images'>;
 export interface AcceptedApproval {
   decisionId: string;
   digest: string;
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   envelope: EffectiveContentEnvelope;
 }
 export interface ContentApprovalInput {

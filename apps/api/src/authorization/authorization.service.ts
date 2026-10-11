@@ -31,6 +31,29 @@ export class AuthorizationService {
     return this.repository.activeGrants(accountId, transaction);
   }
 
+  /** Candidate discovery only. Callers must independently retain current
+   * grants() evidence before using any account as a feedback recipient. */
+  async feedbackRecipientAccountIds(
+    transaction: PoolClient,
+  ): Promise<string[]> {
+    try {
+      const result = await transaction.query<{ account_id: string }>(
+        `SELECT DISTINCT account_id FROM whaleu_authorization.role_grants
+         WHERE role='super_admin' AND operating_region_id IS NULL
+           AND revoked_at IS NULL AND valid_from<=clock_timestamp()
+           AND (expires_at IS NULL OR expires_at>clock_timestamp())
+         ORDER BY account_id LIMIT 1025`,
+      );
+      // Match the bounded local-notification recipient budget. The sentinel
+      // fails the whole publication rather than silently dropping recipients.
+      if (result.rows.length > 1024)
+        throw new ApplicationError('AUTHORIZATION_UNAVAILABLE');
+      return result.rows.map((row) => row.account_id);
+    } catch {
+      throw new ApplicationError('AUTHORIZATION_UNAVAILABLE');
+    }
+  }
+
   private selectedGlobal(
     grants: readonly ActiveGrant[],
   ): ActiveGrant | undefined {

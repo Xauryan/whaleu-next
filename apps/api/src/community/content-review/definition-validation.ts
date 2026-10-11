@@ -185,7 +185,12 @@ export function reconstructDefinition(
     kind === 'post' ? (post.publication_envelope_version ?? 1) : 1;
   if (
     kind === 'post' &&
-    ((version === 1 && post.allow_anonymous_dm != null) ||
+    ((version === 3 &&
+      (post.category !== 'feedback' ||
+        !post.feedback ||
+        post.allow_anonymous_dm != null)) ||
+      (version !== 3 && post.feedback != null) ||
+      (version === 1 && post.allow_anonymous_dm != null) ||
       (version === 2 &&
         (post.author_mode !== 'named' ||
           typeof post.allow_anonymous_dm !== 'boolean')))
@@ -195,6 +200,7 @@ export function reconstructDefinition(
     const envelope = canonicalEnvelope({
       version,
       ...(version === 2 ? { allowAnonymousDm: post.allow_anonymous_dm } : {}),
+      ...(version === 3 ? { feedback: post.feedback } : {}),
       accountId: content.account_id,
       purpose: operationForKind(kind),
       spaceId: post.space_id,

@@ -1,3 +1,4 @@
+import { requireFeedbackSpace } from '../feedback/topic.js';
 import { registerTransactionDeadline } from '../../database/transaction-deadlines.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -33,9 +34,21 @@ export class TextReviewRuntime {
   async available(
     space: Pick<CommunitySpace, 'id' | 'operatingRegionId'>,
     tx: PoolClient,
+    category?: string,
   ): Promise<boolean> {
-    if (
-      !this.configured() ||
+    const feedback = category === 'feedback';
+    if (!this.configured()) return false;
+    if (feedback) {
+      if (
+        space.id !== this.config.COMMUNITY_FEEDBACK_SPACE_ID ||
+        space.operatingRegionId !== null
+      )
+        return false;
+      await requireFeedbackSpace(
+        { ...space, kind: 'global', isActive: true, name: 'feedback' },
+        tx,
+      );
+    } else if (
       space.id !== this.config.COMMUNITY_TEXT_REVIEW_SPACE_ID ||
       space.operatingRegionId !== this.config.COMMUNITY_TEXT_REVIEW_REGION_ID
     )
@@ -58,8 +71,8 @@ export class TextReviewRuntime {
     tx: PoolClient,
   ): Promise<void> {
     if (
-      envelope.authorMode !== 'named' ||
-      envelope.images.length ||
+      (envelope.category !== 'feedback' &&
+        (envelope.authorMode !== 'named' || envelope.images.length > 0)) ||
       envelope.component.kind !== 'none' ||
       envelope.trading !== null ||
       envelope.commentsPolicy !== 'open' ||
@@ -70,6 +83,7 @@ export class TextReviewRuntime {
           operatingRegionId: envelope.scope.originalRegionId,
         },
         tx,
+        envelope.category,
       ))
     )
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');

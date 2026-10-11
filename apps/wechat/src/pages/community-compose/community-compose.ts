@@ -102,6 +102,18 @@ Page({
   onReplaceImage(event: { currentTarget: { dataset: { id: string } } }) {
     void this.controller?.replaceImage(event.currentTarget.dataset.id);
   },
+  onFeedbackField(event: {
+    detail: { value: string };
+    currentTarget: { dataset: { field: string } };
+  }) {
+    this.controller?.setFeedbackField(
+      event.currentTarget.dataset.field,
+      event.detail.value,
+    );
+  },
+  onFeedbackConsent(event: { detail: { value: boolean } }) {
+    this.controller?.setFeedbackConsent(event.detail.value);
+  },
   onTradingField(event: {
     detail: { value: string };
     currentTarget: { dataset: { field: string } };

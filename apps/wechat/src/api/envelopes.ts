@@ -43,6 +43,10 @@ export function responseError(response: HttpResponse): ClientError | null {
     ...(requestId ? { requestId } : {}),
   };
   const expectedStatus: Readonly<Record<string, number>> = {
+    SCHOOL_CONFIGURATION_UNAVAILABLE: 503,
+    SCHOOL_CONFIGURATION_REVISION_CONFLICT: 409,
+    SCHOOL_CONFIGURATION_REQUEST_CONFLICT: 409,
+    SCHOOL_CONFIGURATION_CANCELLED: 409,
     RATING_UNAVAILABLE: 503,
     RATING_NOT_FOUND: 404,
     RATING_SCOPE_UNAVAILABLE: 403,

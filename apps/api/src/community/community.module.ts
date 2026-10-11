@@ -1,3 +1,11 @@
+import { FeedbackProjectionService } from './feedback/projection.js';
+import { FeedbackNotificationsModule } from '../notifications/feedback/module.js';
+import { FeedbackNoticesController } from '../notifications/feedback/controller.js';
+import { FeedbackNoticesService } from '../notifications/feedback/service.js';
+import { FeedbackNoticeTargetSource } from '../notifications/feedback/contracts.js';
+import { CommunityFeedbackNoticeTargetSource } from './feedback/notice-target.js';
+import { FeedbackController } from './feedback/controller.js';
+import { FeedbackService } from './feedback/service.js';
 import { TextReviewController } from './text-review/controller.js';
 import { CommunityMediaCleanupFacade } from './media/cleanup-facade.js';
 import { CommunityMediaCleanupWorker } from './media/cleanup-worker.js';
@@ -277,6 +285,7 @@ export class CommunityRecoveryController {
 }
 @Module({
   imports: [
+    FeedbackNotificationsModule,
     SemanticSearchRequestModule,
     HotFeedProcessingModule,
     CommunityViewComponentModule,
@@ -295,6 +304,8 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    FeedbackNoticesController,
+    FeedbackController,
     TextReviewController,
     MediaController,
     MediaUploadControllerV2,
@@ -332,6 +343,14 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    FeedbackNoticesService,
+    CommunityFeedbackNoticeTargetSource,
+    {
+      provide: FeedbackNoticeTargetSource,
+      useExisting: CommunityFeedbackNoticeTargetSource,
+    },
+    FeedbackService,
+    FeedbackProjectionService,
     CommunityMediaCleanupFacade,
     CommunityMediaCleanupWorker,
     MediaMultipartInterceptor,

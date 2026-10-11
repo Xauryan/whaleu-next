@@ -40,11 +40,13 @@ export function parse(source) {
   assert.equal(stack.length, 1);
   return root;
 }
+// WXML absent optional fields evaluate to undefined, not a JavaScript unbound
+// identifier. Only repository-owned template expressions enter this model.
 const expression = (source, scope) =>
   Function(
-    ...Object.keys(scope),
-    `return (${source});`,
-  )(...Object.values(scope));
+    'scope',
+    `with (scope) { return (${source}); }`,
+  )(new Proxy(scope, { has: () => true }));
 const interpolate = (text, scope) =>
   text.replace(/{{([\s\S]*?)}}/g, (_, source) => expression(source, scope));
 export function render(nodes, scope, templates) {

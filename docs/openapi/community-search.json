@@ -201,6 +201,7 @@
               "category": {
                 "enum": [
                   "discussion",
+                  "feedback",
                   "confession",
                   "companions",
                   "pets",
@@ -554,6 +555,7 @@
               "category": {
                 "enum": [
                   "discussion",
+                  "feedback",
                   "confession",
                   "companions",
                   "pets",
@@ -912,6 +914,7 @@
               "category": {
                 "enum": [
                   "discussion",
+                  "feedback",
                   "confession",
                   "companions",
                   "pets",
@@ -1317,6 +1320,7 @@
               "category": {
                 "enum": [
                   "discussion",
+                  "feedback",
                   "confession",
                   "companions",
                   "pets",
@@ -1670,6 +1674,7 @@
               "category": {
                 "enum": [
                   "discussion",
+                  "feedback",
                   "confession",
                   "companions",
                   "pets",
@@ -2028,6 +2033,7 @@
               "category": {
                 "enum": [
                   "discussion",
+                  "feedback",
                   "confession",
                   "companions",
                   "pets",
@@ -2263,7 +2269,7 @@
   "paths": {
     "/v1/community/search": {
       "get": {
-        "description": "Literal Unicode lowercase substring search of posts, root comments and replies, newest first by exact microsecond time, kind and ID. No semantic or relevance ranking. Choose exactly one spaceId or scope; all/global forbid category/subtype, regional allows them. Global explicit spaces support discussion only. Type defaults to all; guest all has effectiveTypes=[post], explicit child types require login before scanning. from is inclusive and to exclusive, UTC with up to six fractional digits; range applies to each hit itself. postId narrows one discussion. Query-independent 128-source window and metadata-only sentinel; sparse pages may return scan_pending. Current authorized ancestry is proved before matching and again at transaction finalization. Continued traversal requires current session and phone evidence. Opaque cursors bind every filter, ordering, matcher, session and federated membership; they contain no body. Existing v1 route is upgraded without a parallel legacy engine.",
+        "description": "Literal Unicode lowercase substring search of posts, root comments and replies, newest first by exact microsecond time, kind and ID. No semantic or relevance ranking. Choose exactly one spaceId or scope; all/global forbid category/subtype, regional allows them. Global explicit spaces support discussion and the explicitly bound feedback topic. Type defaults to all; guest all has effectiveTypes=[post], explicit child types require login before scanning. from is inclusive and to exclusive, UTC with up to six fractional digits; range applies to each hit itself. postId narrows one discussion. Query-independent 128-source window and metadata-only sentinel; sparse pages may return scan_pending. Current authorized ancestry is proved before matching and again at transaction finalization. Continued traversal requires current session and phone evidence. Opaque cursors bind every filter, ordering, matcher, session and federated membership; they contain no body. Existing v1 route is upgraded without a parallel legacy engine.",
         "operationId": "searchCommunityContent",
         "parameters": [
           {
@@ -2340,6 +2346,7 @@
             "schema": {
               "enum": [
                 "discussion",
+                "feedback",
                 "confession",
                 "companions",
                 "pets",
@@ -2655,6 +2662,7 @@
             "schema": {
               "enum": [
                 "discussion",
+                "feedback",
                 "confession",
                 "companions",
                 "pets",

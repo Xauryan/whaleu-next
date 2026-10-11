@@ -1323,3 +1323,103 @@ export async function createUsableTextOpenApiDocument(): Promise<OpenAPIObject> 
 export async function renderUsableTextOpenApiDocument(): Promise<string> {
   return renderDocument(await createUsableTextOpenApiDocument());
 }
+
+/** School owner documentation is generated without enabling Media providers. */
+export async function createSchoolConfigurationOpenApiDocument(): Promise<OpenAPIObject> {
+  const { SchoolServicesController, SchoolConfigurationController } =
+    await import('../src/school-configuration/controller.js');
+  const { SchoolConfigurationService } =
+    await import('../src/school-configuration/service.js');
+  const { SchoolConfigurationRequestGuard } =
+    await import('../src/school-configuration/request-guard.js');
+  const { SchoolQrMediaService, SCHOOL_QR_MEDIA_RUNTIME } =
+    await import('../src/school-configuration/media/facade.js');
+  const { SchoolQrMediaController, SchoolQrMultipartInterceptor } =
+    await import('../src/school-configuration/media/controller.js');
+  const { SchoolQrRequestGuard } =
+    await import('../src/school-configuration/media/request-guard.js');
+  for (const method of ['save', 'cancel', 'recover'])
+    if (
+      !Reflect.hasMetadata(
+        PARAMTYPES_METADATA,
+        SchoolConfigurationController.prototype,
+        method,
+      )
+    )
+      throw new Error(
+        'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+      );
+  const fail = () => {
+    throw new Error('OpenAPI must not execute application work');
+  };
+  const testing = await Test.createTestingModule({
+    controllers: [
+      SchoolServicesController,
+      SchoolConfigurationController,
+      SchoolQrMediaController,
+    ],
+    providers: [
+      {
+        provide: SchoolConfigurationService,
+        useValue: {
+          public: fail,
+          management: fail,
+          capabilities: fail,
+          save: fail,
+          cancel: fail,
+          recover: fail,
+        },
+      },
+      {
+        provide: SchoolQrMediaService,
+        useValue: {
+          runtime: null,
+          prepare: fail,
+          recover: fail,
+          status: fail,
+          cancelRequest: fail,
+          cancel: fail,
+          grant: fail,
+          finalize: fail,
+          observed: fail,
+          descriptor: fail,
+          open: fail,
+        },
+      },
+      { provide: SCHOOL_QR_MEDIA_RUNTIME, useValue: null },
+      SchoolQrMultipartInterceptor,
+    ],
+  })
+    .overrideGuard(SchoolConfigurationRequestGuard)
+    .useValue({ canActivate: fail })
+    .overrideGuard(SchoolQrRequestGuard)
+    .useValue({ canActivate: fail })
+    .compile();
+  const app = testing.createNestApplication({ logger: false });
+  try {
+    return SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setOpenAPIVersion('3.0.3')
+        .setTitle('WhaleU school service configuration')
+        .setVersion('1')
+        .addSecurity('accessToken', {
+          type: 'http',
+          scheme: 'bearer',
+          description:
+            'Required for management. Public service and QR reads permit an absent header; invalid supplied credentials fail.',
+        })
+        .build(),
+      {
+        deepScanRoutes: false,
+        autoTagControllers: false,
+        excludeDynamicDefaults: true,
+      },
+    );
+  } finally {
+    await app.close();
+  }
+}
+export async function renderSchoolConfigurationOpenApiDocument(): Promise<string> {
+  return renderDocument(await createSchoolConfigurationOpenApiDocument());
+}

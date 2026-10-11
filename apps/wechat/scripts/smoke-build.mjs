@@ -237,6 +237,8 @@ for (const route of config.pages.filter(
     [
       'pages/activity-list/activity-list',
       'pages/rating-updates/rating-updates',
+      'pages/school-services/school-services',
+      'pages/school-configuration/school-configuration',
     ].includes(route)
       ? {}
       : {
@@ -304,7 +306,20 @@ for (const route of config.pages.filter(
   current.onShow();
   if (route === 'pages/phone-binding/phone-binding')
     assert.equal(current.phone, undefined);
-  else assert.ok(current.controller);
+  else if (
+    [
+      'pages/school-services/school-services',
+      'pages/school-configuration/school-configuration',
+    ].includes(route)
+  ) {
+    assert.equal(current.controller, undefined);
+    assert.equal(current.data.loaded, false);
+    assert.deepEqual(current.data.entries, []);
+    assert.ok(current.data.error);
+    assert.equal(current.reader, undefined);
+    if (route === 'pages/school-configuration/school-configuration')
+      assert.equal(current.uploader, undefined);
+  } else assert.ok(current.controller);
   current.onUnload();
   if (route === 'pages/rating-create/rating-create') {
     assertColdRatingCreation(current);

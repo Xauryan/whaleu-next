@@ -1,3 +1,12 @@
+import {
+  prepareSchoolQrMediaSchema,
+  schoolQrMediaRequestHash,
+} from './contracts-school-qr.js';
+import type { PrepareSchoolQrMediaInput } from './contracts-school-qr.js';
+import type {
+  AuthorizedSchoolQrMediaEdit,
+  SchoolQrMediaDraftOwnerPort,
+} from './school-qr-prepare-scope.js';
 import { prepareCategoryIconMediaSchema } from './contracts-category-icon.js';
 import type { PrepareCategoryIconMediaInput } from './contracts-category-icon.js';
 import type {
@@ -104,12 +113,14 @@ export class MediaPrepareScopes {
         | PrepareMediaV4Input
         | PrepareProfileMediaInput
         | PrepareRatingsMediaInput
+        | PrepareSchoolQrMediaInput
         | PrepareCategoryIconMediaInput
         | RatingsDiscussionMemberPrepare;
       scope:
         | AuthorizedMediaDraft
         | AuthorizedProfileMediaEdit
         | AuthorizedRatingsMediaEdit
+        | AuthorizedSchoolQrMediaEdit
         | AuthorizedCategoryIconMediaEdit
         | AuthorizedRatingsDiscussionDraft;
     }
@@ -120,6 +131,7 @@ export class MediaPrepareScopes {
     private readonly ratingsOwner?: RatingsMediaDraftOwnerPort,
     private readonly ratingsDiscussionOwner?: RatingsDiscussionMediaDraftOwnerPort,
     private readonly categoryIconOwner?: CategoryIconMediaDraftOwnerPort,
+    private readonly schoolQrOwner?: SchoolQrMediaDraftOwnerPort,
   ) {}
   async authorizeRatingsDiscussionBatch(
     actor: string,
@@ -201,6 +213,47 @@ export class MediaPrepareScopes {
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+  }
+  async authorizeSchoolQr(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    const input = prepareSchoolQrMediaSchema.parse(raw),
+      actor = mediaIdSchema.parse(actorAccountId),
+      epoch = transactionReadEpoch(tx);
+    if (!epoch || !this.schoolQrOwner)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const scope = await this.schoolQrOwner.authorizePrepare(actor, input, tx);
+    if (
+      scope.actorAccountId !== actor ||
+      scope.ownerKind !== 'school_configuration' ||
+      scope.resourceKind !== 'entry_qr' ||
+      scope.targetKind !== 'edit' ||
+      scope.contentVersion !== 1 ||
+      scope.audience !== 'school-config-gated' ||
+      scope.purpose !== 'school-configuration-qr-image' ||
+      scope.slot !== 'qr' ||
+      scope.ordinal !== 0 ||
+      !mediaIdSchema.safeParse(scope.serverScopeId).success ||
+      scope.scopeRevision !== schoolQrMediaRequestHash(actor, input) ||
+      !Number.isSafeInteger(scope.expiresAt) ||
+      transactionReadEpoch(tx) !== epoch
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+    Object.freeze(input.declaration);
+    Object.freeze(input);
+    const capability: MediaPrepareScope = Object.freeze({
+      [brand]: true as const,
+    });
+    this.issued.set(capability, {
+      tx,
+      epoch,
+      input,
+      scope: Object.freeze({ ...scope }),
+    });
+    return capability;
   }
   async authorizeCategoryIcon(
     actorAccountId: string,
@@ -445,12 +498,14 @@ export class MediaPrepareScopes {
       | PrepareMediaV4Input
       | PrepareProfileMediaInput
       | PrepareRatingsMediaInput
+      | PrepareSchoolQrMediaInput
       | PrepareCategoryIconMediaInput
       | RatingsDiscussionMemberPrepare;
     scope:
       | AuthorizedMediaDraft
       | AuthorizedProfileMediaEdit
       | AuthorizedRatingsMediaEdit
+      | AuthorizedSchoolQrMediaEdit
       | AuthorizedCategoryIconMediaEdit
       | AuthorizedRatingsDiscussionDraft;
   } {

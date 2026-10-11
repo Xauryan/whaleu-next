@@ -3,6 +3,22 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  SCHOOL_CONFIGURATION_CANCELLED: {
+    status: 409,
+    message: 'The school service command was cancelled',
+  },
+  SCHOOL_CONFIGURATION_UNAVAILABLE: {
+    status: 503,
+    message: 'School service configuration is unavailable',
+  },
+  SCHOOL_CONFIGURATION_REVISION_CONFLICT: {
+    status: 409,
+    message: 'School service changed; reload before saving',
+  },
+  SCHOOL_CONFIGURATION_REQUEST_CONFLICT: {
+    status: 409,
+    message: 'The request key belongs to another school service command',
+  },
   DM_COMMAND_CANCELLED: {
     status: 409,
     message: 'The original private message command was cancelled',

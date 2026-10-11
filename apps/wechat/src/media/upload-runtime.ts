@@ -37,6 +37,7 @@ export function mediaPublicationReference(
     authorMode: body.authorMode,
     commentsPolicy: body.commentsPolicy,
     ...(body.trading ? { trading: body.trading } : {}),
+    ...(body.feedback ? { feedback: body.feedback } : {}),
     ...(body.component?.kind === 'poll' || body.component?.kind === 'formation'
       ? { component: body.component }
       : {}),

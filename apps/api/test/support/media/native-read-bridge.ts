@@ -89,11 +89,16 @@ export class NativeMediaReadBridge {
   private constructor(
     readonly port: number,
     private readonly root: string,
+    private readonly owner: 'community' | 'school-configuration',
   ) {}
-  static async create(port: number): Promise<NativeMediaReadBridge> {
+  static async create(
+    port: number,
+    owner: 'community' | 'school-configuration' = 'community',
+  ): Promise<NativeMediaReadBridge> {
     return new NativeMediaReadBridge(
       port,
       await mkdtemp(join(tmpdir(), 'whaleu-media-native-read-')),
+      owner,
     );
   }
   holdNext() {
@@ -140,9 +145,21 @@ export class NativeMediaReadBridge {
     assert.equal(url.origin, nativeOrigin);
     assert.match(
       url.pathname,
-      /^\/v1\/media\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i,
+      this.owner === 'school-configuration'
+        ? /^\/v3\/media\/school-configuration\/entries\/(treehole|trading|errand|official_account|admin)\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+        : /^\/v1\/media\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i,
     );
-    assert.equal(url.search, '');
+    if (this.owner === 'school-configuration') {
+      assert.deepEqual([...url.searchParams.keys()].sort(), [
+        'campusId',
+        'entryRevision',
+      ]);
+      assert.match(url.searchParams.get('campusId') ?? '', /^[a-f0-9-]{36}$/i);
+      assert.match(
+        url.searchParams.get('entryRevision') ?? '',
+        /^[1-9][0-9]*$/,
+      );
+    } else assert.equal(url.search, '');
     assert.equal(url.hash, '');
     let onHeader: HeaderListener | undefined;
     let onProgress: ProgressListener | undefined;
@@ -155,7 +172,7 @@ export class NativeMediaReadBridge {
           {
             hostname: '127.0.0.1',
             port: this.port,
-            path: url.pathname,
+            path: `${url.pathname}${url.search}`,
             method: 'GET',
             headers: input.header,
             agent: false,

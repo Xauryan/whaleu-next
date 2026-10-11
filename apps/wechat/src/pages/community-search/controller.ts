@@ -390,7 +390,8 @@ export class SearchController extends CommunityController<SearchView> {
         (!this.view.space ||
           (this.view.space.kind === 'global' &&
             category !== 'all' &&
-            category !== 'discussion')))
+            category !== 'discussion' &&
+            category !== 'feedback')))
     )
       return;
     this.clearPage();
@@ -590,7 +591,9 @@ export class SearchController extends CommunityController<SearchView> {
         if (
           space?.kind === 'global' &&
           (selected.tradingSubtype ||
-            (selected.category && selected.category !== 'discussion'))
+            (selected.category &&
+              selected.category !== 'discussion' &&
+              selected.category !== 'feedback'))
         )
           throw new ClientError('protocol', 'Unsupported global search filter');
         if (cancel.isCancelled)

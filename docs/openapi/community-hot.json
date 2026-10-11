@@ -344,6 +344,7 @@
           "category": {
             "enum": [
               "discussion",
+              "feedback",
               "confession",
               "companions",
               "pets",
@@ -1266,7 +1267,7 @@
   "paths": {
     "/v1/community/hot": {
       "get": {
-        "description": "One explicit current regional or global space; regional supported categories, global discussion only. Six rolling publication-age ranges: day 24h/cap50, week7d/cap200, month30d, half_year180d, year365d, history all ages (latter four cap1000). Inclusive age boundary; no future publication. Full independent native component coverage only, no historical-import claim. Unified cumulative score, with current visibility and normal/open trading only. No public score or numerical rank. Live numeric-keyset navigation may repeat or omit moving posts across pages; caps count delivered slots. Refresh resets navigation. First page accepts guests; further traversal needs current phone evidence. Empty bounded scan may continue via scan_pending. Public reads never settle or compute. Disabled default; manual_only is local acceptance without continuous maintenance.",
+        "description": "One explicit current regional or global space; regional supported categories, global discussion and the explicitly bound feedback topic. Six rolling publication-age ranges: day 24h/cap50, week7d/cap200, month30d, half_year180d, year365d, history all ages (latter four cap1000). Inclusive age boundary; no future publication. Full independent native component coverage only, no historical-import claim. Unified cumulative score, with current visibility and normal/open trading only. No public score or numerical rank. Live numeric-keyset navigation may repeat or omit moving posts across pages; caps count delivered slots. Refresh resets navigation. First page accepts guests; further traversal needs current phone evidence. Empty bounded scan may continue via scan_pending. Public reads never settle or compute. Disabled default; manual_only is local acceptance without continuous maintenance.",
         "operationId": "readCommunityHot",
         "parameters": [
           {

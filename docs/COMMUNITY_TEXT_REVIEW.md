@@ -7,6 +7,22 @@ only through the explicit preview/apply operator commands below. Runtime never
 imports test helpers. Tests still need synthetic identity/scope facts; passing
 those tests is not real-provider or device acceptance.
 
+## Simulated user acceptance
+
+The [repeatable emitted native journey](SIMULATED_NATIVE_E2E.md) runs fresh login,
+explicit phone authorization, local single-region policy, post/comment/reply
+review and publication, rendered feed/keyword search, response loss, cancellation
+and account switching against normal AppModule and disposable PostgreSQL. Only
+platform/provider transports, the initial catalog and operator inputs are
+synthetic. No student grant or publication approval is fabricated by the client.
+
+This caught and fixed an actual comment-entry mismatch: ordinary read authority
+intentionally omits affiliation/policy facts, so the local review comment hint now
+loads its separate full advisory instead of treating phone-only authority as a
+publication decision. Every write still rechecks the original requirements. The
+same journey corrected the feed popup's template parameter binding. Neither fix
+establishes real-provider/device or whole-rewrite completion.
+
 ## Bounded interface
 
 - `POST /v1/community/reviews/posts`: existing PublishPost body.

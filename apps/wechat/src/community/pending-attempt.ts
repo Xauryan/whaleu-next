@@ -1,3 +1,4 @@
+import { decodeFeedbackDraft, type FeedbackDraft } from './feedback-contract';
 import {
   decodeTradingContacts,
   tradingText,
@@ -187,6 +188,7 @@ export class PendingAttemptStore {
   }
 }
 export interface Draft {
+  readonly feedback?: FeedbackDraft;
   readonly allowAnonymousDm?: boolean;
   readonly trading?: TradingDraft;
   readonly poll?: PollDraft;
@@ -268,6 +270,11 @@ export class DraftStore {
           !target.startsWith('post:'))
       )
         throw storageError();
+      const hasFeedback = Object.prototype.hasOwnProperty.call(
+        value,
+        'feedback',
+      );
+      if (hasFeedback && !target.endsWith(':feedback')) throw storageError();
       const hasTrading = Object.prototype.hasOwnProperty.call(value, 'trading');
       const hasPoll = Object.prototype.hasOwnProperty.call(value, 'poll');
       const hasFormation = Object.prototype.hasOwnProperty.call(
@@ -281,6 +288,7 @@ export class DraftStore {
       )
         throw storageError();
       exact(value, [
+        ...(hasFeedback ? ['feedback'] : []),
         ...(hasAnonymousDm ? ['allowAnonymousDm'] : []),
         'version',
         'text',
@@ -307,6 +315,9 @@ export class DraftStore {
       if (poll?.enabled && formation?.enabled) throw storageError();
       return Object.freeze({
         version: 1,
+        ...(hasFeedback
+          ? { feedback: decodeFeedbackDraft(value.feedback) }
+          : {}),
         ...(hasAnonymousDm
           ? { allowAnonymousDm: value.allowAnonymousDm as boolean }
           : {}),
@@ -347,8 +358,19 @@ export class DraftStore {
         ? decodeFormationDraft(draft.formation)
         : undefined;
       if (poll?.enabled && formation?.enabled) throw storageError();
+      if (
+        draft.feedback &&
+        (!target.endsWith(':feedback') ||
+          draft.poll ||
+          draft.formation ||
+          draft.trading)
+      )
+        throw storageError();
       const checked: Draft = {
         version: 1,
+        ...(draft.feedback
+          ? { feedback: decodeFeedbackDraft(draft.feedback) }
+          : {}),
         ...(hasAnonymousDm
           ? { allowAnonymousDm: draft.allowAnonymousDm! }
           : {}),

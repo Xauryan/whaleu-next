@@ -82,7 +82,7 @@ export class SearchRepository {
         WHERE '${kind}'=ANY($13::text[])
           AND (($1::uuid IS NOT NULL AND p.space_id=$1)
             OR ($1::uuid IS NULL AND ((p.space_id=ANY($2::uuid[]) AND p.category=ANY($14::text[]))
-              OR (p.space_id=ANY($3::uuid[]) AND p.category='discussion'))))
+              OR (p.space_id=ANY($3::uuid[]) AND p.category IN ('discussion','feedback')))))
           AND ($4::text IS NULL OR p.category=$4)
           AND p.deleted_at IS NULL AND p.visibility='approved'
           ${kind === 'post' ? '' : `AND ${alias}.deleted_at IS NULL AND ${alias}.visibility='approved'`}

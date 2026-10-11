@@ -137,7 +137,7 @@ export class MediaLocalFiles {
       reservation,
     );
   }
-  /** Profile-only guest lease. No invented account/session identity. */
+  /** Explicit guest lease. No invented account/session identity. */
   adoptGuest(
     path: string,
     bytes: number,

@@ -234,6 +234,7 @@
                   "category": {
                     "enum": [
                       "discussion",
+                      "feedback",
                       "confession",
                       "companions",
                       "pets",
@@ -346,6 +347,29 @@
                         "type": "object"
                       }
                     ]
+                  },
+                  "feedback": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "contacts": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "phone": {
+                            "type": "string"
+                          },
+                          "qq": {
+                            "type": "string"
+                          },
+                          "wechat": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["wechat", "qq", "phone"],
+                        "type": "object"
+                      }
+                    },
+                    "required": ["contacts"],
+                    "type": "object"
                   },
                   "imageAssetIds": {
                     "default": [],

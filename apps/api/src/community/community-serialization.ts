@@ -1,3 +1,4 @@
+import { FeedbackProjectionService } from './feedback/projection.js';
 import { TextReviewRuntime } from './text-review/runtime.js';
 import { mediaAttachmentDescriptorSchema } from '../media/contracts.js';
 import { SavedRepository } from './saved/repository.js';
@@ -55,6 +56,9 @@ export class CommunitySerializer {
     @Optional()
     @Inject(TextReviewRuntime)
     private readonly reviews?: TextReviewRuntime,
+    @Optional()
+    @Inject(FeedbackProjectionService)
+    private readonly feedbackProjection?: FeedbackProjectionService,
   ) {}
   async author(
     content: StoredPost | StoredComment,
@@ -153,10 +157,24 @@ export class CommunitySerializer {
       authority?.runtime &&
       post.comments_policy === 'open' &&
       !!this.reviews &&
-      (await this.reviews.available(space, tx));
-    if (authority && (!authority.runtime || reviewAvailable))
+      (await this.reviews.available(space, tx, post.category));
+    // Ordinary interaction authority omits publication facts; refresh only
+    // this optional hint, retaining every original publication check.
+    const commentAuthority =
+      authority?.runtime && reviewAvailable && viewer
+        ? await this.access.advisory(viewer, space, tx, {
+            publication: true,
+            targetPostId: post.id,
+          })
+        : authority;
+    if (commentAuthority && (!commentAuthority.runtime || reviewAvailable))
       for (const mode of ['named', 'anonymous'] as const) {
-        if (authority.runtime && mode !== 'named') continue;
+        if (
+          commentAuthority.runtime &&
+          mode !== 'named' &&
+          post.category !== 'feedback'
+        )
+          continue;
         if (
           post.author_mode === 'anonymous' &&
           viewer === post.account_id &&
@@ -165,7 +183,7 @@ export class CommunitySerializer {
           continue;
         try {
           requirePublication(
-            authority,
+            commentAuthority,
             space,
             post.category,
             mode,
@@ -175,7 +193,7 @@ export class CommunitySerializer {
           canComment =
             post.comments_policy === 'open' ||
             viewer === post.account_id ||
-            authority.canManage;
+            commentAuthority.canManage;
         } catch {
           /* Advisory only; every write rechecks. */
         }
@@ -189,7 +207,14 @@ export class CommunitySerializer {
       authority,
       tx,
     );
+    const feedback =
+      post.category === 'feedback'
+        ? await this.feedbackProjection?.project(post, space, tx)
+        : undefined;
+    if (post.category === 'feedback' && !feedback)
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     return {
+      ...(feedback ? { feedback } : {}),
       saveCount: saved.saveCount,
       trading: await this.trading.project(post, viewer, authority, tx),
       component: poll

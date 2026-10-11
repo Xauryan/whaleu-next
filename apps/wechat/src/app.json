@@ -53,7 +53,12 @@
     "pages/private-message-detail/private-message-detail",
     "pages/private-message-recovery/private-message-recovery",
     "pages/rating-category-manage/rating-category-manage",
-    "pages/rating-category-editor/rating-category-editor"
+    "pages/rating-category-editor/rating-category-editor",
+    "pages/school-services/school-services",
+    "pages/school-configuration/school-configuration",
+    "pages/feedback/feedback",
+    "pages/feedback-notices/feedback-notices",
+    "pages/feedback-contacts/feedback-contacts"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

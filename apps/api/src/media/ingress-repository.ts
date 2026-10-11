@@ -1,3 +1,9 @@
+import { SchoolQrMediaRequiredProof } from './school-qr-required-proof.js';
+import {
+  prepareSchoolQrMediaSchema,
+  schoolQrMediaRequestHash,
+} from './contracts-school-qr.js';
+import type { PrepareSchoolQrMediaInput } from './contracts-school-qr.js';
 import { CategoryIconMediaRequiredProof } from './category-icon-required-proof.js';
 import {
   prepareCategoryIconMediaSchema,
@@ -120,16 +126,37 @@ export class MediaIngressRepository {
   private readonly proof: MediaRequiredProof;
   constructor(
     readonly planning: MediaIngressPlanningPort,
-    private readonly protocolVersion: 2 | 3 | 4 | 5 | 6 | 7 | 8 = 2,
+    private readonly protocolVersion: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 = 2,
   ) {
     this.proof =
-      protocolVersion === 8
-        ? new CategoryIconMediaRequiredProof()
-        : new MediaRequiredProof();
+      protocolVersion === 9
+        ? new SchoolQrMediaRequiredProof()
+        : protocolVersion === 8
+          ? new CategoryIconMediaRequiredProof()
+          : new MediaRequiredProof();
     mediaIdSchema.parse(planning.writerInstanceId);
   }
   /** Nonlocking routing hint only; authority is re-established by scopes and the
    * locked canonical intent is matched below before granting anything. */
+  async originalSchoolQrInput(
+    actor: string,
+    id: string,
+    tx: PoolClient,
+  ): Promise<PrepareSchoolQrMediaInput> {
+    this.managed(tx);
+    if (this.protocolVersion !== 9)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const row = (
+      await tx.query<{ input: unknown }>(
+        `SELECT s.input FROM whaleu_media.upload_intents i
+      JOIN whaleu_school_configuration.qr_upload_scopes s ON s.id=i.resource_id AND s.actor_id=i.actor_id
+      WHERE i.id=$1 AND i.actor_id=$2 AND i.protocol_version=9 AND i.owner_kind='school_configuration'`,
+        [mediaIdSchema.parse(id), actor],
+      )
+    ).rows[0];
+    if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return prepareSchoolQrMediaSchema.parse(row.input);
+  }
   async originalInput(
     actor: string,
     id: string,
@@ -140,7 +167,8 @@ export class MediaIngressRepository {
       this.protocolVersion === 5 ||
       this.protocolVersion === 6 ||
       this.protocolVersion === 7 ||
-      this.protocolVersion === 8
+      this.protocolVersion === 8 ||
+      this.protocolVersion === 9
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const row = (
@@ -773,19 +801,21 @@ export class MediaIngressRepository {
       )
     ).rows[0];
     const input =
-      this.protocolVersion === 8
-        ? prepareCategoryIconMediaSchema.parse(issued.input)
-        : this.protocolVersion === 7
-          ? ratingsDiscussionMemberPrepareSchema.parse(issued.input)
-          : this.protocolVersion === 6
-            ? prepareRatingsMediaSchema.parse(issued.input)
-            : this.protocolVersion === 5
-              ? prepareProfileMediaSchema.parse(issued.input)
-              : this.protocolVersion === 4
-                ? prepareMediaV4Schema.parse(issued.input)
-                : this.protocolVersion === 3
-                  ? prepareMediaV3Schema.parse(issued.input)
-                  : prepareMediaV2Schema.parse(issued.input);
+      this.protocolVersion === 9
+        ? prepareSchoolQrMediaSchema.parse(issued.input)
+        : this.protocolVersion === 8
+          ? prepareCategoryIconMediaSchema.parse(issued.input)
+          : this.protocolVersion === 7
+            ? ratingsDiscussionMemberPrepareSchema.parse(issued.input)
+            : this.protocolVersion === 6
+              ? prepareRatingsMediaSchema.parse(issued.input)
+              : this.protocolVersion === 5
+                ? prepareProfileMediaSchema.parse(issued.input)
+                : this.protocolVersion === 4
+                  ? prepareMediaV4Schema.parse(issued.input)
+                  : this.protocolVersion === 3
+                    ? prepareMediaV3Schema.parse(issued.input)
+                    : prepareMediaV2Schema.parse(issued.input);
     if (
       !row ||
       row.state !== 'prepared' ||
@@ -813,6 +843,12 @@ export class MediaIngressRepository {
           row.ordinal !== input.sourceSlot ||
           row.request_hash !==
             ratingsDiscussionMemberHash(session.accountId, input))) ||
+      ('protocol' in input &&
+        input.protocol === 'school-configuration-qr-media-v1' &&
+        (issued.scope.ownerKind !== 'school_configuration' ||
+          issued.scope.resourceKind !== 'entry_qr' ||
+          row.request_hash !==
+            schoolQrMediaRequestHash(session.accountId, input))) ||
       ('protocol' in input &&
         input.protocol === 'ratings-category-icon-media-v1' &&
         (issued.scope.ownerKind !== 'ratings' ||

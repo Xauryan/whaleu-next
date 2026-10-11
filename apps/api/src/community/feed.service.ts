@@ -1,3 +1,4 @@
+import { requireFeedbackSpace } from './feedback/topic.js';
 import { TextReviewRuntime } from './text-review/runtime.js';
 import { enableSafetyRelationshipProof } from '../safety/relationship-proof.js';
 import { lockSafetyPolicy } from '../safety/locks.js';
@@ -52,6 +53,7 @@ export class FeedService {
     return this.repository.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);
       const space = await this.repository.space(spaceId, tx);
+      if (category === 'feedback') await requireFeedbackSpace(space, tx);
       const decision = await this.access.authorization.resolve(
         actor,
         space,
@@ -101,8 +103,8 @@ export class FeedService {
         category !== 'trading' &&
         result.authorModes.includes('named') &&
         !!this.reviews &&
-        (await this.reviews.available(space, tx));
-      if (decision.value.runtime && reviewAvailable)
+        (await this.reviews.available(space, tx, category));
+      if (decision.value.runtime && reviewAvailable && category !== 'feedback')
         result.authorModes = ['named'];
       if (result.authorModes.length)
         result.publish =
@@ -126,6 +128,8 @@ export class FeedService {
         await lockSafetyPolicy(tx);
         const actor = token ? await this.access.actor(token, tx) : null;
         const space = await this.repository.space(query.spaceId, tx);
+        if (query.category === 'feedback')
+          await requireFeedbackSpace(space, tx);
         const authority = await this.access.advisory(actor, space, tx);
         if (query.cursor) {
           if (!actor) throw new ApplicationError('AUTHENTICATION_REQUIRED');
@@ -273,11 +277,15 @@ export class FeedService {
           }
         }
         const reviewAvailable =
-          result.authorModes.includes('named') &&
+          result.authorModes.length > 0 &&
           post.comments_policy === 'open' &&
           !!this.reviews &&
-          (await this.reviews.available(space, tx));
-        if (decision.value.runtime && reviewAvailable)
+          (await this.reviews.available(space, tx, post.category));
+        if (
+          decision.value.runtime &&
+          reviewAvailable &&
+          post.category !== 'feedback'
+        )
           result.authorModes = ['named'];
         if (result.authorModes.length) {
           result.availability =

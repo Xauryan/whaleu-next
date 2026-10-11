@@ -44,7 +44,9 @@ export class HotRepository {
       ORDER BY hs.score DESC,p.id DESC LIMIT ${HOT_SCAN_BATCH + 1}`,
         [
           space.id,
-          space.kind === 'global' ? ['discussion'] : categorySchema.options,
+          space.kind === 'global'
+            ? ['discussion', 'feedback']
+            : categorySchema.options,
           clock,
           HOT_RANGES[query.range].days,
           after?.score ?? null,
@@ -79,7 +81,9 @@ export class HotRepository {
           [
             id,
             space.id,
-            space.kind === 'global' ? ['discussion'] : categorySchema.options,
+            space.kind === 'global'
+              ? ['discussion', 'feedback']
+              : categorySchema.options,
             clock,
             HOT_RANGES[query.range].days,
           ],

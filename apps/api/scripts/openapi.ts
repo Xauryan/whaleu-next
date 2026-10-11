@@ -265,3 +265,27 @@ if (args[0] === '--check') {
   await writeFile(usableTextArtifact, usableTextRendered, 'utf8');
   console.log('Generated docs/openapi/usable-text-workflow.json.');
 }
+
+const { renderSchoolConfigurationOpenApiDocument } =
+  await import('./openapi-document.js');
+const schoolConfigurationArtifact = new URL(
+  '../../../../docs/openapi/school-configuration.json',
+  import.meta.url,
+);
+const schoolConfigurationRendered =
+  await renderSchoolConfigurationOpenApiDocument();
+if (args[0] === '--check') {
+  const existing = await readFile(schoolConfigurationArtifact, 'utf8');
+  if (existing !== schoolConfigurationRendered)
+    throw new Error(
+      'School configuration OpenAPI artifact is stale; run npm run openapi:generate.',
+    );
+  console.log('School configuration OpenAPI artifact is current.');
+} else {
+  await writeFile(
+    schoolConfigurationArtifact,
+    schoolConfigurationRendered,
+    'utf8',
+  );
+  console.log('Generated docs/openapi/school-configuration.json.');
+}

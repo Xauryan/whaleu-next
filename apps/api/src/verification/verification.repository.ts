@@ -70,6 +70,28 @@ export class VerificationRepository {
       validUntil: assertion!.expires_at?.getTime() ?? null,
     };
   }
+  /** Display-only historical affiliation from an exact reviewed publication.
+   * This is not a current publication grant. No phone or student number leaves
+   * Verification; a chosen/browsing campus never supplies this institution. */
+  async recordedPublicationInstitution(
+    accountId: string,
+    assertionId: string,
+    publishedAt: Date,
+    tx: PoolClient,
+  ): Promise<string | null> {
+    const record = (
+      await tx.query<Omit<AssertionRecord, 'student_number'>>(
+        `SELECT id,account_id,fact_kind,assertion_state,coverage_state,provenance_state,method,source_reference,policy_reference,source_account_id,
+       issuer_institution_id,source_issuer_institution_id,origin_region_id,phone_binding_reference,verified_at,expiry_kind,expires_at
+       FROM whaleu_verification.assertions WHERE id=$1 AND account_id=$2 AND fact_kind='affiliation'`,
+        [assertionId, accountId],
+      )
+    ).rows[0];
+    return assertionStatus(record, accountId, 'affiliation', publishedAt) ===
+      'verified'
+      ? record!.issuer_institution_id
+      : null;
+  }
   reportEligibility(accountId: string, tx: PoolClient) {
     return readReportEligibility(accountId, tx);
   }

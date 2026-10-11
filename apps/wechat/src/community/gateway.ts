@@ -1,3 +1,7 @@
+import {
+  decodeFeedbackContacts,
+  type FeedbackContacts,
+} from './feedback-contract';
 import { batchPublicationReference } from '../media/batch-publication';
 import {
   decodeReviewCancellationResult,
@@ -83,6 +87,7 @@ import {
   exact,
   isCategory,
   uuid4,
+  type CommunitySpace,
   type Capabilities,
   type CommentCapabilities,
   type Category,
@@ -131,6 +136,13 @@ export interface FeedQuery {
   readonly cursor?: string;
 }
 export interface CommunityGateway {
+  feedbackTopic?(
+    cancel: Cancellation,
+  ): Promise<{ topic: 'feedback'; space: CommunitySpace }>;
+  feedbackContacts?(
+    postId: string,
+    cancel: Cancellation,
+  ): Promise<{ postId: string; contacts: FeedbackContacts }>;
   cancelReview?(
     attempt: PendingAttempt,
     cancel: Cancellation,
@@ -312,6 +324,44 @@ const page = (after: string | null) => {
 };
 export class HttpCommunityGateway implements CommunityGateway {
   constructor(private readonly api: ApiClient) {}
+  async feedbackTopic(
+    cancel: Cancellation,
+  ): Promise<{ topic: 'feedback'; space: CommunitySpace }> {
+    return this.api.request(
+      endpoint(
+        '/v1/community/feedback/topic',
+        (value) => {
+          exact(value, ['topic', 'space']);
+          if (value.topic !== 'feedback') invalid();
+          const spaces = decodeSpaces({
+            regional: null,
+            global: [value.space],
+          });
+          const space = spaces.global[0];
+          if (!space?.isActive) invalid();
+          return { topic: 'feedback', space };
+        },
+        'none',
+      ),
+      { cancellation: cancel },
+    );
+  }
+  async feedbackContacts(
+    postId: string,
+    cancel: Cancellation,
+  ): Promise<{ postId: string; contacts: FeedbackContacts }> {
+    return this.api.request(
+      endpoint(
+        `/v1/community/feedback/posts/${id(postId)}/contacts`,
+        (value) => {
+          exact(value, ['postId', 'contacts']);
+          if (value.postId !== postId) invalid();
+          return { postId, contacts: decodeFeedbackContacts(value.contacts) };
+        },
+      ),
+      { cancellation: cancel },
+    );
+  }
   async cancelReview(
     attempt: PendingAttempt,
     cancel: Cancellation,
@@ -362,6 +412,9 @@ export class HttpCommunityGateway implements CommunityGateway {
           authorMode: payload.authorMode,
           commentsPolicy: payload.commentsPolicy,
           imageAssetIds: [...payload.imageAssetIds],
+          ...(payload.feedback
+            ? { feedback: { contacts: { ...payload.feedback.contacts } } }
+            : {}),
           ...(payload.component
             ? { component: { kind: 'none' as const } }
             : {}),
@@ -1078,12 +1131,15 @@ export class HttpCommunityGateway implements CommunityGateway {
     cancel: Cancellation,
   ): Promise<Receipt> {
     const checked = decodePostIntent(intent);
-    const { component, trading, ...base } = checked;
+    const { component, trading, feedback, ...base } = checked;
     const result = await this.api.request(
       endpoint('/v1/community/posts', decodeReceipt, 'required', 'POST', 201),
       {
         body: {
           ...base,
+          ...(feedback
+            ? { feedback: { contacts: { ...feedback.contacts } } }
+            : {}),
           ...(trading
             ? { trading: { ...trading, contacts: { ...trading.contacts } } }
             : {}),

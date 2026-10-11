@@ -1,3 +1,5 @@
+import { feedbackInputSchema } from './feedback/contracts.js';
+import type { FeedbackView } from './feedback/contracts.js';
 import type { FormationView } from './formation/contracts.js';
 import { z } from 'zod';
 import {
@@ -13,6 +15,7 @@ import type { PublicExperienceDisplay } from '../experience/public-display.contr
 
 export const categorySchema = z.enum([
   'discussion',
+  'feedback',
   'confession',
   'companions',
   'pets',
@@ -45,7 +48,16 @@ export const publishPostSchema = z
     allowAnonymousDm: z.boolean().optional(),
     component: postComponentSchema.optional(),
     trading: tradingInputSchema.optional(),
+    feedback: feedbackInputSchema.optional(),
   })
+  .refine((body) =>
+    body.category === 'feedback'
+      ? !!body.feedback &&
+        body.allowAnonymousDm === undefined &&
+        body.commentsPolicy === 'open' &&
+        (!body.component || body.component.kind === 'none')
+      : body.feedback === undefined,
+  )
   .refine(
     (body) =>
       body.allowAnonymousDm === undefined || body.authorMode === 'named',
@@ -131,6 +143,7 @@ export type AuthorView =
       isPostAuthor: boolean;
     };
 export interface PostView {
+  feedback?: FeedbackView;
   saveCount: number;
   trading: TradingView | null;
   component:

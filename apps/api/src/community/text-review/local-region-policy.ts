@@ -11,7 +11,7 @@ const fields = {
   commentEnabled: z.boolean(),
   namedOnly: z.literal(true),
   categories: z
-    .array(categorySchema.exclude(['trading']))
+    .array(categorySchema.exclude(['trading', 'feedback']))
     .max(9)
     .refine((v) => new Set(v).size === v.length),
   validForHours: z.number().int().min(1).max(168),

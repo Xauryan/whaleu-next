@@ -1,3 +1,5 @@
+import { FeedbackNotificationsFacade } from '../notifications/feedback/facade.js';
+import { requireFeedbackSpace } from './feedback/topic.js';
 import { canonicalEnvelope } from './content-review/contracts.js';
 import { TextReviewSubmission } from './text-review/contracts.js';
 import type { TextReviewStatus } from './text-review/contracts.js';
@@ -60,6 +62,9 @@ export class PublicationService {
     @Optional()
     @Inject(TextReviewRuntime)
     private readonly reviews?: TextReviewRuntime,
+    @Optional()
+    @Inject(FeedbackNotificationsFacade)
+    private readonly feedbackNotices?: FeedbackNotificationsFacade,
   ) {}
   async approved(
     actor: string,
@@ -77,13 +82,6 @@ export class PublicationService {
     images: ApprovedAsset[];
     approval: AcceptedApproval | undefined;
   }> {
-    if (reviewOnly) {
-      if (!this.reviews || !envelope || !publication || ids.length)
-        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
-      const effective = canonicalEnvelope({ ...envelope, images: [] });
-      await this.reviews.requireEnvelope(effective, tx);
-      throw new TextReviewSubmission(effective);
-    }
     if (ids.length && !envelope)
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const images = ids.length
@@ -107,6 +105,13 @@ export class PublicationService {
       )
     )
       throw new ApplicationError('MEDIA_NOT_READY');
+    if (reviewOnly) {
+      if (!this.reviews || !envelope || !publication)
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      const effective = canonicalEnvelope({ ...envelope, images });
+      await this.reviews.requireEnvelope(effective, tx);
+      throw new TextReviewSubmission(effective);
+    }
     if (this.reviews && envelope && publication)
       await this.reviews.requireRequest(
         canonicalEnvelope({ ...envelope, images }),
@@ -191,6 +196,7 @@ export class PublicationService {
       intent,
       async (actor, tx) => {
         const space = await this.repository.space(spaceId, tx);
+        if (category === 'feedback') await requireFeedbackSpace(space, tx);
         const authority = await this.access.authority(actor, space, tx, {
           publication: true,
           managementRequired: commentsPolicy === 'restricted',
@@ -241,13 +247,6 @@ export class PublicationService {
                   }
                 : undefined,
           {
-            ...(body.allowAnonymousDm === undefined
-              ? { version: 1 as const, authorMode }
-              : {
-                  version: 2 as const,
-                  authorMode: 'named' as const,
-                  allowAnonymousDm: body.allowAnonymousDm,
-                }),
             accountId: actor,
             purpose: 'publish_post',
             spaceId,
@@ -260,6 +259,21 @@ export class PublicationService {
             component: body.component ?? { kind: 'none' },
             trading: body.trading ?? null,
             scope: this.scope(authority, space.id, space.operatingRegionId),
+            ...(body.feedback
+              ? {
+                  version: 3 as const,
+                  category: 'feedback' as const,
+                  authorMode,
+                  commentsPolicy: 'open' as const,
+                  feedback: body.feedback,
+                }
+              : body.allowAnonymousDm === undefined
+                ? { version: 1 as const, authorMode }
+                : {
+                    version: 2 as const,
+                    authorMode: 'named' as const,
+                    allowAnonymousDm: body.allowAnonymousDm,
+                  }),
           },
           {
             clientRequestId,
@@ -279,7 +293,7 @@ export class PublicationService {
         if (authorMode === 'named') await this.profiles.prepare(actor, tx);
         const id = randomUUID();
         const result = await tx.query<{ published_at: Date }>(
-          'INSERT INTO whaleu_community.posts(id,space_id,account_id,category,text,author_mode,comments_policy,publication_envelope_version,allow_anonymous_dm) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING published_at',
+          `INSERT INTO whaleu_community.posts(id,space_id,account_id,category,text,author_mode,comments_policy,publication_envelope_version,allow_anonymous_dm${body.feedback ? ',feedback' : ''}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9${body.feedback ? ',$10::jsonb' : ''}) RETURNING published_at`,
           [
             id,
             spaceId,
@@ -288,8 +302,9 @@ export class PublicationService {
             text,
             authorMode,
             commentsPolicy,
-            body.allowAnonymousDm === undefined ? 1 : 2,
+            body.feedback ? 3 : body.allowAnonymousDm === undefined ? 1 : 2,
             body.allowAnonymousDm ?? null,
+            ...(body.feedback ? [JSON.stringify(body.feedback)] : []),
           ],
         );
         if (authorMode === 'anonymous')
@@ -302,6 +317,14 @@ export class PublicationService {
           await this.formations.create(id, actor, body.component, tx);
         }
         await this.bind(approval, 'post', id, tx, images);
+        if (category === 'feedback') {
+          if (!this.feedbackNotices)
+            throw new ApplicationError('SYSTEM_NOTICES_UNAVAILABLE');
+          await this.feedbackNotices.recordPublication(
+            { postId: id, occurredAt: result.rows[0]!.published_at },
+            tx,
+          );
+        }
         await this.repository.event(
           `post:${id}:created`,
           'post_created',

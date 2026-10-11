@@ -1,4 +1,8 @@
 import {
+  HttpFeedbackNoticesGateway,
+  type FeedbackNoticesGateway,
+} from './feedback-notices-gateway';
+import {
   HttpCategoryIconPublicGateway,
   type CategoryIconPublicGateway,
 } from '../ratings/category-icon-public-gateway';
@@ -220,6 +224,7 @@ export interface CommunityRuntime {
   readonly discovery?: DiscoveryGateway;
   readonly sessions: SessionStore;
   readonly safetyChanges?: SafetyChanges;
+  readonly feedbackNotices?: FeedbackNoticesGateway;
   readonly systemNotices?: SystemNoticesGateway;
   readonly reports?: ReportGateway;
   readonly pendingReports?: PendingReportStore;
@@ -367,7 +372,10 @@ export function createCommunityRuntime(
     privateViews,
     safetyChanges: new SafetyChanges(privateViews),
     ...(identity.api
-      ? { systemNotices: new HttpSystemNoticesGateway(identity.api) }
+      ? {
+          systemNotices: new HttpSystemNoticesGateway(identity.api),
+          feedbackNotices: new HttpFeedbackNoticesGateway(identity.api),
+        }
       : {}),
     pendingReports: new PendingReportStore(storage, origin, 'report'),
     pendingJuryVotes: new PendingReportStore(storage, origin, 'vote'),

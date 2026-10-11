@@ -81,7 +81,7 @@ export class MediaRecoveryRepository {
       requestId,
       serverNow: await this.now(tx),
     };
-    if (fence?.protocol_namespace === 8)
+    if (fence?.protocol_namespace != null)
       throw new ApplicationError('MEDIA_REQUEST_CONFLICT');
     if (!fence)
       return mediaRequestRecoverySchema.parse({
@@ -333,7 +333,7 @@ export class MediaRecoveryRepository {
         [actor, requestId],
       )
     ).rows[0];
-    if (fence?.protocol_namespace === 8)
+    if (fence?.protocol_namespace != null)
       throw new ApplicationError('MEDIA_REQUEST_CONFLICT');
     if (fence && fence.request_hash !== requestHash)
       throw new ApplicationError('MEDIA_REQUEST_CONFLICT');

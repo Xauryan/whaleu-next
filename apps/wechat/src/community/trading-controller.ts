@@ -184,6 +184,7 @@ export class TradingContactsController extends CommunityController<TradingContac
     runtime: CommunityRuntime,
     render: (view: TradingContactsView) => void,
     private readonly copyText: (text: string) => Promise<void>,
+    private readonly contactKind: 'trading' | 'feedback' = 'trading',
   ) {
     super(runtime, initialTradingContactsView, render);
   }
@@ -192,7 +193,14 @@ export class TradingContactsController extends CommunityController<TradingContac
   }
   load(post: Post | null): void {
     this.stop();
-    this.postId = post?.trading?.resolution === 'open' ? post.id : null;
+    this.postId =
+      this.contactKind === 'feedback'
+        ? post?.category === 'feedback' && post.feedback?.hasContacts
+          ? post.id
+          : null
+        : post?.trading?.resolution === 'open'
+          ? post.id
+          : null;
     this.update({
       contacts: null,
       enabled: !!this.postId,
@@ -226,10 +234,10 @@ export class TradingContactsController extends CommunityController<TradingContac
     this.update({ contacts: null });
     await this.run(
       async (cancel) => {
-        const result = await this.runtime.gateway!.tradingContacts(
-          postId,
-          cancel,
-        );
+        const result =
+          this.contactKind === 'feedback'
+            ? await this.runtime.gateway!.feedbackContacts!(postId, cancel)
+            : await this.runtime.gateway!.tradingContacts(postId, cancel);
         this.runtime.sessions.assertCurrent(owner);
         if (
           cancel.isCancelled ||

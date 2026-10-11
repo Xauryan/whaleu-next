@@ -117,7 +117,7 @@ export class SearchService {
             (scope.regionalSpaceIds.includes(post.space_id) &&
               categorySchema.safeParse(post.category).success) ||
             (scope.globalSpaceIds.includes(post.space_id) &&
-              post.category === 'discussion')
+              (post.category === 'discussion' || post.category === 'feedback'))
           )) ||
       (scope.category !== null && post.category !== scope.category) ||
       (scope.postId !== null && post.id !== scope.postId) ||
@@ -366,7 +366,9 @@ export class SearchService {
         : null;
     if (
       explicit?.kind === 'global' &&
-      ((query.category !== undefined && query.category !== 'discussion') ||
+      ((query.category !== undefined &&
+        query.category !== 'discussion' &&
+        query.category !== 'feedback') ||
         query.tradingSubtype !== undefined)
     )
       throw new BadRequestException('Invalid request');
@@ -736,7 +738,8 @@ export class SearchService {
           if (
             explicitSpace?.kind === 'global' &&
             ((query.category !== undefined &&
-              query.category !== 'discussion') ||
+              query.category !== 'discussion' &&
+              query.category !== 'feedback') ||
               query.tradingSubtype !== undefined)
           )
             throw new BadRequestException('Invalid request');

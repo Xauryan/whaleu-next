@@ -6,7 +6,9 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 
 ## Current usable-flow checkpoint
 
-The non-production named-text path now connects new-account enrollment, explicit WeChat phone consent, single-region manual review, original-key post/comment/reply publication and cancellation/recovery. It is disabled by default and rejects production activation of the experimental mode. Composed local validation has passed; hosted follow-up and real AppID/HTTPS/provider/device acceptance are pending. This does not complete the whole rewrite. See [scope, setup and exact validation](COMMUNITY_TEXT_REVIEW.md). Category cover expansion is deferred while this flow is brought into actual use.
+The non-production named-text path now connects new-account enrollment, explicit WeChat phone consent, single-region manual review, original-key post/comment/reply publication and cancellation/recovery. It is disabled by default and rejects production activation of the experimental mode. Composed local validation and the hosted follow-up on `bf508da` passed: [Verify](https://github.com/Xauryan/whaleu-next/actions/runs/38140263937) reported 6,954/6,954 cases, and [Stats](https://github.com/Xauryan/whaleu-next/actions/runs/38140263939) passed on 2026-10-11. Real AppID/HTTPS/provider/device acceptance remains pending and does not block further simulated development. This does not complete the whole rewrite. See [scope, setup and exact validation](COMMUNITY_TEXT_REVIEW.md). Category cover expansion is deferred while this flow is brought into actual use.
+
+The subsequent combined simulated-journey, public-feedback and school-services increment has passed 32/32 targeted real PostgreSQL 18.6 cases, including its native QR recovery/delivery path and the existing Community/Profile/Category Media regressions. The complete API/native unit suites passed 1,788/1,788 and 2,502/2,502 cases with no skips; lint, full type checks, OpenAPI parity, native compilation and all emitted Page/WXML smoke checks have also passed. This candidate has not yet run the complete hosted CI gate; real-provider and physical-device acceptance remain separate open gates. See [school configuration](API_SCHOOL_CONFIGURATION.md) and [public feedback](PUBLIC_FEEDBACK.md).
 
 ## Accounts, schools and personal settings
 
@@ -46,9 +48,9 @@ The non-production named-text path now connects new-account enrollment, explicit
 - [ ] PARTIAL — User safety: block/unblock/list/check, reporting posts/comments/replies, report status/count/voting, restricted interactions and consistent anonymous identity protection
 - [ ] PARTIAL — Moderation: post status/category/visibility, pins/read markers, content/image review, profile moderation, bans/unbans, feature restrictions and moderation history
 - [ ] PARTIAL — School/super administration: scoped user lookup, identity changes, admin appointment/scope, roles and expiry, school changes, UID management, user/post rankings and data overview
-- [ ] NOT IMPLEMENTED — School configuration: community/official-account/admin contact settings, review channels, unverified-post settings, push configuration and authorized test delivery
+- [ ] PARTIAL — [School configuration](API_SCHOOL_CONFIGURATION.md): exact operating-region admin publication, three public groups, internal review-group isolation, official-account/admin contact settings, CAS/original-key recovery and school-owned QR Media/native preview are implemented as a simulated acceptance slice. Legacy import, production Media/Review configuration, real devices, trusted sequence-notice recipients, push configuration and authorized provider delivery remain open. Unverified-post settings remain under the existing region-policy owner.
 - [ ] PARTIAL — Announcements: public list/detail/newness/latest-popup reads and authenticated per-ID popup acknowledgement with native pages; targeting authority is explicit. Publication/admin/media/history import remain open
-- [ ] NOT IMPLEMENTED — Feedback: submission, viewing and responsible-admin notifications
+- [ ] PARTIAL — Feedback: explicit global public topic, exact same-key Review/publication with named/persona identity, optional contacts, existing Media9 integration, ordinary discussions and super-admin-only local notices. Real Media provider activation and WeChat/official-account notifications remain pending. See [public feedback scope](PUBLIC_FEEDBACK.md).
 
 ## Campus tools and service operations
 

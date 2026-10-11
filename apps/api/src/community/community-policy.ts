@@ -245,7 +245,13 @@ export function requirePublication(
   requireAction(authority, action);
   if (action === 'publish_post' && category === 'trading' && mode !== 'named')
     throw new ApplicationError('AUTHOR_MODE_NOT_ALLOWED');
-  if (space.kind === 'global' && category !== 'discussion')
+  if (category === 'feedback' && space.kind !== 'global')
+    throw new ApplicationError('COMMUNITY_SCOPE_UNAVAILABLE');
+  if (
+    space.kind === 'global' &&
+    category !== 'discussion' &&
+    category !== 'feedback'
+  )
     throw new ApplicationError('COMMUNITY_SCOPE_UNAVAILABLE');
   if (authority.runtime && authority.affiliationStatus === 'unavailable')
     throw new ApplicationError('COMMUNITY_UNAVAILABLE');

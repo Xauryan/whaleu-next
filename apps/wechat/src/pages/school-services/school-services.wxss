@@ -1,0 +1,61 @@
+.page {
+  padding: 32rpx;
+  color: #18354b;
+}
+.title {
+  font-size: 42rpx;
+  font-weight: 700;
+  margin-bottom: 12rpx;
+}
+.subtitle {
+  font-size: 30rpx;
+  margin-bottom: 16rpx;
+}
+.card {
+  background: #fff;
+  border-radius: 22rpx;
+  padding: 28rpx;
+  margin: 24rpx 0;
+}
+.card-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-bottom: 18rpx;
+}
+.name {
+  font-size: 30rpx;
+  margin-bottom: 12rpx;
+}
+.description {
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+.hint,
+.footnote {
+  font-size: 25rpx;
+  color: #61758a;
+  line-height: 1.6;
+  margin: 12rpx 0;
+}
+.error {
+  color: #a42135;
+  padding: 20rpx;
+  background: #fff0f0;
+  border-radius: 12rpx;
+}
+.link {
+  display: block;
+  color: #195a93;
+  padding: 20rpx 0;
+}
+button {
+  margin-top: 16rpx;
+  font-size: 28rpx;
+}
+
+.qr-image {
+  display: block;
+  width: 100%;
+  max-width: 560rpx;
+  margin: 20rpx auto;
+}

@@ -373,7 +373,7 @@ export async function smokeRuntimePolicy({
       path.join(dist, 'pages/community-compose/community-compose.wxml'),
       'utf8',
     );
-    assert.match(template, /可另行确认身份校区，内容审核提交流程尚未开放/);
+    assert.match(template, /需等待明确审核结果，再主动确认发布原请求/);
     assert.match(template, /pages\/identity-campus\/identity-campus/);
     assert.match(template, /返回后需再次点击发送/);
     assert.match(template, /显示身份选项不代表已取得发布资格/);

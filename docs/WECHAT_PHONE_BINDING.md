@@ -1,9 +1,11 @@
 # WeChat phone authorization, non-production acceptance slice
 
-This is an implemented, **default-disabled and not yet validated** server/native
-slice. It is not a production-readiness claim. No live provider, real account,
-phone number or secret was used during authoring. Tests described below are
-written but have not been executed under the current validation lease restriction.
+This is an implemented, **default-disabled** server/native slice with simulated
+local acceptance. It is not a production-readiness or real-provider/device claim.
+No live provider, real account, phone number or secret was used. The repeatable
+[emitted native journey](SIMULATED_NATIVE_E2E.md) now exercises actual login and
+phone HTTP routes, the production provider adapters with synthetic transports,
+explicit consent/denial, lost-response recovery and account-isolated state.
 
 ## Evidence and uncertainty
 
@@ -121,9 +123,7 @@ session callbacks; PostgreSQL duplicate dispatch, unknown replacement, ownership
 proofless forgery and a real 31-second late-completion/replace race. These tests
 use explicit test-only transport/provider substitutions, not real-account proof.
 
-Still required before declaring this slice usable: run formatting/typecheck/unit
-and PostgreSQL suites when leased, inspect generated API contract coverage,
-confirm real WeChat app eligibility/privacy/fees, then explicitly authorized
+Still required for real-account acceptance: confirm current official contracts,
+WeChat app eligibility/privacy/fees, then perform explicitly authorized
 sandbox device tests for accept/deny, code expiry, provider errors, process crash,
-reload, logout, deadline races and original-request recovery. No such tests have
-been run by this worker.
+reload, logout, deadline races and original-request recovery. The simulated journey does not establish those real-provider or device results.

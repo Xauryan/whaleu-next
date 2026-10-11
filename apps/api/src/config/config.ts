@@ -46,6 +46,7 @@ const schema = z.object({
   COMMUNITY_TEXT_REVIEW: z
     .enum(['disabled', 'local_manual'])
     .default('disabled'),
+  COMMUNITY_FEEDBACK_SPACE_ID: z.uuid().optional(),
   COMMUNITY_TEXT_REVIEW_SPACE_ID: z.uuid().optional(),
   COMMUNITY_TEXT_REVIEW_REGION_ID: z.uuid().optional(),
   COMMUNITY_TEXT_REVIEW_POLICY_ID: z.uuid().optional(),

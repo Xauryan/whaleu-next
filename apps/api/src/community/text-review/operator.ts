@@ -30,6 +30,10 @@ export const reviewOperatorCommandSchema = z.discriminatedUnion('command', [
   }),
   z.strictObject({ command: z.literal('list') }),
   z.strictObject({
+    command: z.literal('init-feedback'),
+    basis: z.string().trim().min(1).max(1000),
+  }),
+  z.strictObject({
     command: z.literal('expire'),
     limit: z.number().int().min(1).max(32),
   }),
@@ -86,6 +90,20 @@ export class TextReviewOperator {
             databaseActor,
           })
         : '';
+    if (command.command === 'init-feedback') {
+      if (!config.COMMUNITY_FEEDBACK_SPACE_ID)
+        throw new Error('Explicit feedback space configuration unavailable');
+      await lockSafetyPolicy(tx, true);
+      await tx.query(
+        `INSERT INTO whaleu_community.feedback_topic(topic,space_id,provenance,source_reference) VALUES('feedback',$1,'accepted',$2)`,
+        [config.COMMUNITY_FEEDBACK_SPACE_ID, reference],
+      );
+      return {
+        spaceId: config.COMMUNITY_FEEDBACK_SPACE_ID,
+        topic: 'feedback',
+        initialized: true,
+      };
+    }
     if (command.command === 'init-policy') {
       await lockSafetyPolicy(tx, true);
       await tx.query(
@@ -105,14 +123,14 @@ export class TextReviewOperator {
         await tx.query<TextReviewRequest>(
           `SELECT q.* FROM whaleu_community.text_review_requests q
         JOIN whaleu_community.publication_requests p USING(account_id,client_request_id)
-        WHERE q.expires_at<=clock_timestamp() AND p.receipt IS NULL AND q.envelope->>'spaceId'=$1
-        AND q.envelope->'scope'->>'originalRegionId'=$2
+        WHERE q.expires_at<=clock_timestamp() AND p.receipt IS NULL AND ((q.envelope->>'spaceId'=$1 AND q.envelope->'scope'->>'originalRegionId'=$2) OR (q.envelope->>'spaceId'=$4 AND q.envelope->>'category'='feedback' AND q.envelope->'scope'->'originalRegionId'='null'::jsonb))
         AND NOT EXISTS(SELECT 1 FROM whaleu_community.publication_cancel_fences f WHERE f.account_id=q.account_id AND f.client_request_id=q.client_request_id)
         ORDER BY q.account_id,q.client_request_id LIMIT $3`,
           [
             config.COMMUNITY_TEXT_REVIEW_SPACE_ID,
             config.COMMUNITY_TEXT_REVIEW_REGION_ID,
             command.limit,
+            config.COMMUNITY_FEEDBACK_SPACE_ID ?? null,
           ],
         )
       ).rows;
@@ -141,11 +159,11 @@ export class TextReviewOperator {
         await tx.query(
           `SELECT q.account_id,q.client_request_id,q.operation,q.digest,q.created_at
         FROM whaleu_community.text_review_requests q JOIN whaleu_community.publication_requests p USING(account_id,client_request_id)
-        WHERE q.decision_id IS NULL AND p.receipt IS NULL AND q.envelope->>'spaceId'=$1
-        AND q.envelope->'scope'->>'originalRegionId'=$2 ORDER BY q.created_at LIMIT 100`,
+        WHERE q.decision_id IS NULL AND p.receipt IS NULL AND ((q.envelope->>'spaceId'=$1 AND q.envelope->'scope'->>'originalRegionId'=$2) OR (q.envelope->>'spaceId'=$3 AND q.envelope->>'category'='feedback' AND q.envelope->'scope'->'originalRegionId'='null'::jsonb)) ORDER BY q.created_at LIMIT 100`,
           [
             config.COMMUNITY_TEXT_REVIEW_SPACE_ID,
             config.COMMUNITY_TEXT_REVIEW_REGION_ID,
+            config.COMMUNITY_FEEDBACK_SPACE_ID ?? null,
           ],
         )
       ).rows;

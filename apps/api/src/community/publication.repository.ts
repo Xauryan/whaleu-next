@@ -127,9 +127,12 @@ export class PublicationRepository {
       if (
         typeof intent === 'object' &&
         intent !== null &&
-        'imageAssetIds' in intent &&
-        Array.isArray(intent.imageAssetIds) &&
-        intent.imageAssetIds.length
+        (('imageAssetIds' in intent &&
+          Array.isArray(intent.imageAssetIds) &&
+          intent.imageAssetIds.length) ||
+          (operation === 'publish_post' &&
+            'category' in intent &&
+            intent.category === 'feedback'))
       )
         await lockSafetyPolicy(tx, true);
       // Authentication/active account lock precedes even successful replay.

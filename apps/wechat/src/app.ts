@@ -1,3 +1,7 @@
+import {
+  createSchoolQrRuntime,
+  type SchoolQrRuntime,
+} from './school-configuration/qr-runtime';
 import { connectCategoryIconNative } from './ratings/category-icon-runtime';
 import { MediaLocalFiles } from './media/local-files';
 import { WechatNativeMediaFiles } from './media/native-files';
@@ -29,6 +33,7 @@ import {
 } from './verification/runtime';
 
 export interface WhaleuApp {
+  schoolQr?: SchoolQrRuntime;
   mediaLocalFiles?: MediaLocalFiles;
   mediaRead?: MediaReadRuntime;
   profileAvatar?: ProfileAvatarRuntime;
@@ -54,6 +59,7 @@ App<WhaleuApp>({
     void this.community?.views?.foreground();
   },
   onHide() {
+    this.schoolQr?.hide();
     this.experience?.hide();
     this.profileAvatar?.hide();
     this.community?.views?.hide();
@@ -74,6 +80,19 @@ App<WhaleuApp>({
     const nativeFiles = new WechatNativeMediaFiles(wx, systemClock);
     const registry = new MediaLocalFiles(nativeFiles);
     this.mediaLocalFiles = registry;
+    if (this.identity.api && this.identity.auth)
+      this.schoolQr = createSchoolQrRuntime({
+        api: this.identity.api,
+        sessions: this.identity.sessions,
+        storage: new WechatStorage(wx),
+        origin: clientConfiguration.apiOrigin,
+        clock: systemClock,
+        newRequestId: this.community.newRequestId,
+        wx,
+        files: nativeFiles,
+        registry,
+        auth: this.identity.auth,
+      });
     this.community = connectRatingDiscussionNative(
       this.community,
       this.identity,

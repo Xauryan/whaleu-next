@@ -1,3 +1,9 @@
+import {
+  decodeFeedbackInput,
+  decodeFeedbackView,
+  type FeedbackInput,
+  type FeedbackView,
+} from './feedback-contract';
 import type { MediaAttachment } from '../media/contracts';
 import { decodeMediaAttachment } from '../media/decoders';
 import {
@@ -27,6 +33,7 @@ import {
 
 export const categories = [
   'discussion',
+  'feedback',
   'confession',
   'companions',
   'pets',
@@ -69,6 +76,7 @@ export type Author =
       readonly isPostAuthor: boolean;
     };
 export interface Post {
+  readonly feedback?: FeedbackView;
   /** Missing legacy projection is never an opt-in. */
   readonly allowAnonymousDm?: boolean;
   readonly trading: TradingView | null;
@@ -156,6 +164,7 @@ export interface Capabilities {
   };
 }
 export interface PostIntent {
+  readonly feedback?: FeedbackInput;
   readonly allowAnonymousDm?: boolean;
   readonly trading?: TradingIntent;
   readonly component?: PollComponent | FormationComponent;
@@ -355,7 +364,9 @@ export function decodePost(value: unknown): Post {
     value,
     'allowAnonymousDm',
   );
+  const hasFeedback = Object.prototype.hasOwnProperty.call(value, 'feedback');
   exact(value, [
+    ...(hasFeedback ? ['feedback'] : []),
     ...(hasAnonymousDm ? ['allowAnonymousDm'] : []),
     'trading',
     'id',
@@ -391,7 +402,12 @@ export function decodePost(value: unknown): Post {
     !['regional', 'global'].includes(String(value.space.kind)) ||
     !boundedText(value.space.name, 1, 200) ||
     !isCategory(value.category) ||
-    (value.space.kind === 'global' && value.category !== 'discussion') ||
+    (value.space.kind === 'global' &&
+      value.category !== 'discussion' &&
+      value.category !== 'feedback') ||
+    (value.category === 'feedback') !== hasFeedback ||
+    (hasFeedback &&
+      (value.space.kind !== 'global' || value.commentsPolicy !== 'open')) ||
     !boundedText(value.text, 1, 2500) ||
     !value.text.trim() ||
     !timestamp(value.publishedAt) ||
@@ -426,6 +442,7 @@ export function decodePost(value: unknown): Post {
     ...(hasAnonymousDm
       ? { allowAnonymousDm: value.allowAnonymousDm === true }
       : {}),
+    ...(hasFeedback ? { feedback: decodeFeedbackView(value.feedback) } : {}),
     trading,
     component,
     id: value.id,
@@ -692,9 +709,11 @@ export function decodePostIntent(value: unknown): PostIntent {
     value,
     'allowAnonymousDm',
   );
+  const hasFeedback = Object.prototype.hasOwnProperty.call(value, 'feedback');
   const hasTrading = Object.prototype.hasOwnProperty.call(value, 'trading');
   const hasComponent = Object.prototype.hasOwnProperty.call(value, 'component');
   exact(value, [
+    ...(hasFeedback ? ['feedback'] : []),
     'clientRequestId',
     'spaceId',
     'category',
@@ -726,6 +745,9 @@ export function decodePostIntent(value: unknown): PostIntent {
       : decodePollComponent(value.component)
     : undefined;
   if (
+    (value.category === 'feedback') !== hasFeedback ||
+    (hasFeedback &&
+      (hasComponent || hasAnonymousDm || value.commentsPolicy !== 'open')) ||
     (value.category === 'trading') !== hasTrading ||
     (hasTrading &&
       (value.authorMode !== 'named' ||
@@ -733,6 +755,7 @@ export function decodePostIntent(value: unknown): PostIntent {
   )
     invalid();
   return Object.freeze({
+    ...(hasFeedback ? { feedback: decodeFeedbackInput(value.feedback) } : {}),
     ...(hasAnonymousDm
       ? { allowAnonymousDm: value.allowAnonymousDm as boolean }
       : {}),

@@ -228,7 +228,9 @@ function decodeHit(value: unknown, requireMatch: boolean): SearchHit {
     !['regional', 'global'].includes(String(value.space.kind)) ||
     !boundedText(value.space.name, 1, 200) ||
     !isCategory(value.category) ||
-    (value.space.kind === 'global' && value.category !== 'discussion') ||
+    (value.space.kind === 'global' &&
+      value.category !== 'discussion' &&
+      value.category !== 'feedback') ||
     !(
       value.tradingSubtype === null || isTradingSubtype(value.tradingSubtype)
     ) ||

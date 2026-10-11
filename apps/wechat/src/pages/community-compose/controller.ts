@@ -1,3 +1,8 @@
+import {
+  emptyFeedbackDraft,
+  feedbackDraftInput,
+  type FeedbackDraft,
+} from '../../community/feedback-contract';
 import { batchPublicationReference } from '../../media/batch-publication';
 import {
   matchReviewCancellation,
@@ -76,6 +81,8 @@ export type ComposeTarget =
       readonly targetReplyId: string | null;
     };
 export interface ComposeView extends CommunityView {
+  readonly isFeedback: boolean;
+  readonly feedbackDraft: FeedbackDraft;
   readonly allowAnonymousDm: boolean;
   readonly canChooseAnonymousDm: boolean;
   readonly loaded: boolean;
@@ -119,6 +126,8 @@ export interface ComposeView extends CommunityView {
 }
 export const initialComposeView = (): ComposeView => ({
   ...initialCommunityView(),
+  isFeedback: false,
+  feedbackDraft: emptyFeedbackDraft(),
   allowAnonymousDm: false,
   canChooseAnonymousDm: false,
   loaded: false,
@@ -479,6 +488,8 @@ export class ComposeController extends CommunityController<ComposeView> {
             result.post.author.kind === 'anonymous');
         const trading =
           target.operation === 'publish_post' && target.category === 'trading';
+        const feedback =
+          target.operation === 'publish_post' && target.category === 'feedback';
         const remembered = trading
           ? this.runtime.drafts.loadTradingPreferences(accountId)
           : null;
@@ -514,23 +525,30 @@ export class ComposeController extends CommunityController<ComposeView> {
         this.update({
           loaded: true,
           isTrading: trading,
+          isFeedback: feedback,
+          feedbackDraft: feedback
+            ? (draft?.feedback ?? emptyFeedbackDraft())
+            : emptyFeedbackDraft(),
           tradingDraft: trading
             ? (draft?.trading ?? initialTrading)
             : emptyTradingDraft(),
           replyTargetName: result.replyTargetName,
           text: draft?.text ?? result.copiedText ?? '',
           pollDraft:
-            target.operation === 'publish_post' && !trading
+            target.operation === 'publish_post' && !trading && !feedback
               ? (draft?.poll ?? emptyPollDraft())
               : emptyPollDraft(),
-          canAddPoll: target.operation === 'publish_post' && !trading,
+          canAddPoll:
+            target.operation === 'publish_post' && !trading && !feedback,
           formationDraft:
-            target.operation === 'publish_post' && !trading
+            target.operation === 'publish_post' && !trading && !feedback
               ? (draft?.formation ?? emptyFormationDraft())
               : emptyFormationDraft(),
-          canAddFormation: target.operation === 'publish_post' && !trading,
+          canAddFormation:
+            target.operation === 'publish_post' && !trading && !feedback,
           authorMode: chosen.mode,
-          canChooseAnonymousDm: target.operation === 'publish_post',
+          canChooseAnonymousDm:
+            target.operation === 'publish_post' && !feedback,
           allowAnonymousDm:
             draft?.allowAnonymousDm ??
             result.profile.preferences.defaultAllowAnonymousDm ??
@@ -571,6 +589,13 @@ export class ComposeController extends CommunityController<ComposeView> {
       canSubmit: false,
       text: pending.payload.text,
       maxImages: pending.operation === 'publish_post' ? 9 : 3,
+      isFeedback:
+        pending.operation === 'publish_post' &&
+        pending.payload.category === 'feedback',
+      feedbackDraft:
+        pending.operation === 'publish_post' && pending.payload.feedback
+          ? { ...pending.payload.feedback.contacts, consent: true }
+          : emptyFeedbackDraft(),
       isTrading:
         pending.operation === 'publish_post' &&
         pending.payload.category === 'trading',
@@ -588,7 +613,8 @@ export class ComposeController extends CommunityController<ComposeView> {
           : emptyPollDraft(),
       canAddPoll:
         pending.operation === 'publish_post' &&
-        pending.payload.category !== 'trading',
+        pending.payload.category !== 'trading' &&
+        pending.payload.category !== 'feedback',
       formationDraft:
         pending.operation === 'publish_post' &&
         pending.payload.component?.kind === 'formation'
@@ -596,9 +622,12 @@ export class ComposeController extends CommunityController<ComposeView> {
           : emptyFormationDraft(),
       canAddFormation:
         pending.operation === 'publish_post' &&
-        pending.payload.category !== 'trading',
+        pending.payload.category !== 'trading' &&
+        pending.payload.category !== 'feedback',
       authorMode: pending.payload.authorMode,
-      canChooseAnonymousDm: pending.operation === 'publish_post',
+      canChooseAnonymousDm:
+        pending.operation === 'publish_post' &&
+        pending.payload.category !== 'feedback',
       allowAnonymousDm:
         pending.operation === 'publish_post'
           ? pending.payload.allowAnonymousDm === true
@@ -828,6 +857,29 @@ export class ComposeController extends CommunityController<ComposeView> {
     this.persistDraft();
     this.recompute();
   }
+  setFeedbackField(field: string, value: string): void {
+    if (
+      !this.editable() ||
+      !this.view.isFeedback ||
+      !['wechat', 'qq', 'phone'].includes(field)
+    )
+      return;
+    this.update({
+      feedbackDraft: {
+        ...this.view.feedbackDraft,
+        [field]: value,
+        consent: false,
+      },
+    });
+    this.persistDraft();
+    this.recompute();
+  }
+  setFeedbackConsent(consent: boolean): void {
+    if (!this.editable() || !this.view.isFeedback) return;
+    this.update({ feedbackDraft: { ...this.view.feedbackDraft, consent } });
+    this.persistDraft();
+    this.recompute();
+  }
   private persistDraft(): void {
     const accountId = this.accountId();
     if (!accountId || !this.target) return;
@@ -841,20 +893,22 @@ export class ComposeController extends CommunityController<ComposeView> {
         authorMode: this.view.authorMode,
         commentsPolicy: this.view.commentsPolicy,
         ...(this.target.operation === 'publish_post'
-          ? this.view.isTrading
-            ? { trading: this.view.tradingDraft }
-            : {
-                poll: this.view.pollDraft,
-                ...(this.view.formationDraft.enabled ||
-                this.view.formationDraft.theme ||
-                this.view.formationDraft.capacity ||
-                this.view.formationDraft.wechat ||
-                this.view.formationDraft.qq ||
-                this.view.formationDraft.phone ||
-                this.view.formationDraft.contactConsent
-                  ? { formation: this.view.formationDraft }
-                  : {}),
-              }
+          ? this.view.isFeedback
+            ? { feedback: this.view.feedbackDraft }
+            : this.view.isTrading
+              ? { trading: this.view.tradingDraft }
+              : {
+                  poll: this.view.pollDraft,
+                  ...(this.view.formationDraft.enabled ||
+                  this.view.formationDraft.theme ||
+                  this.view.formationDraft.capacity ||
+                  this.view.formationDraft.wechat ||
+                  this.view.formationDraft.qq ||
+                  this.view.formationDraft.phone ||
+                  this.view.formationDraft.contactConsent
+                    ? { formation: this.view.formationDraft }
+                    : {}),
+                }
           : {}),
       });
       this.draftSaved = true;
@@ -942,6 +996,13 @@ export class ComposeController extends CommunityController<ComposeView> {
         }
       }
     }
+    if (!blocker && this.view.isFeedback) {
+      try {
+        feedbackDraftInput(this.view.feedbackDraft);
+      } catch {
+        blocker = '联系方式每项最多 50 字节；填写后请确认联系方式展示说明';
+      }
+    }
     if (!blocker && this.view.isTrading) {
       try {
         tradingDraftIntent(this.view.tradingDraft);
@@ -999,6 +1060,9 @@ export class ComposeController extends CommunityController<ComposeView> {
     const draft = {
       ...(component.kind !== 'none' ? { component } : {}),
       ...(trading ? { trading } : {}),
+      ...(this.view.isFeedback
+        ? { feedback: feedbackDraftInput(this.view.feedbackDraft) }
+        : {}),
       allowAnonymousDm: this.view.allowAnonymousDm,
       text: this.view.text.replace(/\r\n/g, '\n'),
       authorMode: this.view.authorMode,
@@ -1032,11 +1096,12 @@ export class ComposeController extends CommunityController<ComposeView> {
                   category: target.category,
                   ...(draft.component ? { component: draft.component } : {}),
                   ...(draft.trading ? { trading: draft.trading } : {}),
+                  ...(draft.feedback ? { feedback: draft.feedback } : {}),
                   text: draft.text,
                   authorMode: draft.authorMode,
                   commentsPolicy: draft.commentsPolicy,
                   imageAssetIds,
-                  ...(draft.authorMode === 'named'
+                  ...(draft.authorMode === 'named' && !draft.feedback
                     ? { allowAnonymousDm: draft.allowAnonymousDm }
                     : {}),
                 }),
@@ -1447,6 +1512,10 @@ export class ComposeController extends CommunityController<ComposeView> {
         receipt.outcome === 'created'
           ? emptyFormationDraft()
           : this.view.formationDraft,
+      feedbackDraft:
+        receipt.outcome === 'created'
+          ? emptyFeedbackDraft()
+          : this.view.feedbackDraft,
       tradingDraft:
         receipt.outcome === 'created'
           ? emptyTradingDraft()

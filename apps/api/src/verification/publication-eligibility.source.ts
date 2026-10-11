@@ -18,6 +18,19 @@ export class LocalPublicationEligibilitySource {
     @Inject(VerificationRepository)
     private readonly repository: VerificationRepository,
   ) {}
+  recordedInstitution(
+    accountId: string,
+    assertionId: string,
+    publishedAt: Date,
+    tx: PoolClient,
+  ): Promise<string | null> {
+    return this.repository.recordedPublicationInstitution(
+      accountId,
+      assertionId,
+      publishedAt,
+      tx,
+    );
+  }
   resolve(accountId: string, tx: PoolClient): Promise<PublicationAffiliation> {
     return this.repository.publicationAffiliation(accountId, tx);
   }

@@ -48,6 +48,16 @@ export class CampusRepository {
     return { ...result.rows[0]!, page: query.page, pageSize: query.pageSize };
   }
 
+  async institutionName(id: string, tx: PoolClient): Promise<string | null> {
+    return (
+      (
+        await tx.query<{ name: string }>(
+          'SELECT name FROM whaleu_campus.institutions WHERE id=$1 FOR SHARE',
+          [id],
+        )
+      ).rows[0]?.name ?? null
+    );
+  }
   async mappedRegion(campusId: string): Promise<OperatingRegion | null> {
     const result = await this.database.query<OperatingRegion>(
       `SELECT r.id,r.name,r.is_active AS "isActive" FROM whaleu_campus.campus_region_assignments a JOIN whaleu_campus.operating_regions r ON r.id=a.operating_region_id WHERE a.campus_id=$1`,

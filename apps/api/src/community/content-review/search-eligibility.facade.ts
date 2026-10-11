@@ -901,7 +901,7 @@ export class ContentReviewSearchEligibilityFacade {
       ${v2Installed ? 'LEFT JOIN whaleu_semantic.certificates_v2 cv2 ON cv2.index_space_key=$10 AND cv2.kind=s.kind AND cv2.content_id=s.id' : ''}
       WHERE p.visibility='approved' AND p.deleted_at IS NULL AND s.kind=ANY($11::text[]) AND (($1::uuid IS NOT NULL AND p.space_id=$1)
        OR ($1::uuid IS NULL AND ((p.space_id=ANY($2::uuid[]) AND p.category=ANY($12::text[]))
-         OR (p.space_id=ANY($3::uuid[]) AND p.category='discussion'))))
+         OR (p.space_id=ANY($3::uuid[]) AND p.category IN ('discussion','feedback')))))
        AND ($4::text IS NULL OR p.category=$4)
        AND ($5::text IS NULL OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.subtype=$5))
        AND (NOT $6::boolean OR NOT EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='urgent'))

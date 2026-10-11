@@ -14,6 +14,9 @@ export class CampusService {
   constructor(
     @Inject(CampusRepository) private readonly repository: CampusRepository,
   ) {}
+  institutionName(id: string, transaction: PoolClient): Promise<string | null> {
+    return this.repository.institutionName(id, transaction);
+  }
   list(query: CampusQuery): Promise<CampusPage> {
     return this.repository.list(query);
   }

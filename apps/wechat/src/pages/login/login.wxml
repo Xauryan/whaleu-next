@@ -31,7 +31,7 @@
   <view class="card secondary-card">
     <view class="card-title">当前能力边界</view>
     <view class="detail">登录仅建立账号会话，不代表完成手机号验证、学生身份认证或资料审核。</view>
-    <view class="detail">微信隐私授权流程与手机号验证尚未接入。此页面不会请求手机号，也不会展示虚构的个人资料。</view>
+    <view class="detail">手机号授权验证有独立入口，需要服务端启用并由你主动同意微信授权。此登录页面不会请求手机号；手机号授权也不代表学生认证。</view>
     <view class="detail">社区 C1 页面已接入新 API；安全、验证与媒体未就绪时会阻止发布。其他原有功能仍在迁移。真实设备和微信开发者工具联调尚待验证。</view>
   </view>
 </view>

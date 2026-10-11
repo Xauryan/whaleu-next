@@ -32,6 +32,9 @@ await copyAssets(path.join(root, 'src'), out);
 // implementation under a relative Mini Program path (never Node's crypto entry).
 for (const relative of [
   'community/view-contract.js',
+  'school-configuration/contract.js',
+  'school-configuration/qr-contract.js',
+  'school-configuration/qr-runtime.js',
   'messaging/pending.js',
   'media/upload-contracts.js',
   'profile/avatar-contract.js',
@@ -104,5 +107,11 @@ execFileSync(
 execFileSync(
   process.execPath,
   ['--import', 'tsx', path.join(root, 'test/text-review-emitted.smoke.ts')],
+  { stdio: 'inherit', cwd: root },
+);
+
+execFileSync(
+  process.execPath,
+  [path.join(root, 'test/school-services-emitted-smoke.mjs')],
   { stdio: 'inherit', cwd: root },
 );
