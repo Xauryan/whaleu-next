@@ -91,12 +91,13 @@ export class ErrandContentReviewFacade {
       const candidate = (
         await tx.query<{ id: string }>(
           `SELECT id FROM whaleu_community.errand_approval_decisions
-         WHERE account_id=$1 AND operation=$2 AND envelope_version=1 AND digest=$3
+         WHERE account_id=$1 AND operation=$2 AND envelope_version=$4 AND digest=$3
          ORDER BY evaluated_at DESC,id DESC LIMIT 1`,
           [
             canonical.accountId,
             canonical.purpose,
             errandApprovalDigest(canonical),
+            canonical.version,
           ],
         )
       ).rows[0];
@@ -117,7 +118,9 @@ export class ErrandContentReviewFacade {
       if (
         (
           await tx.query(
-            'SELECT decision_id FROM whaleu_community.errand_approval_bindings WHERE decision_id=$1',
+            canonical.version === 1
+              ? 'SELECT decision_id FROM whaleu_community.errand_approval_bindings WHERE decision_id=$1'
+              : 'SELECT decision_id FROM whaleu_community.errand_approval_bindings WHERE decision_id=$1 UNION ALL SELECT decision_id FROM whaleu_community.errand_media_approval_bindings WHERE decision_id=$1',
             [result.value.decisionId],
           )
         ).rows[0]
@@ -142,7 +145,7 @@ export class ErrandContentReviewFacade {
     try {
       if (
         !z.uuid().safeParse(orderId).success ||
-        accepted.version !== 1 ||
+        accepted.version !== envelope.version ||
         !canonicalEqual(accepted.envelope, envelope)
       )
         throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
@@ -157,7 +160,7 @@ export class ErrandContentReviewFacade {
       await tx.query(
         `INSERT INTO whaleu_community.errand_approval_bindings
          (order_id,content_version,decision_id,account_id,operation,envelope_version,digest,envelope,scope)
-         VALUES($1,1,$2,$3,'publish_errand',1,$4,$5::jsonb,$6::jsonb)`,
+         VALUES($1,1,$2,$3,'publish_errand',$7,$4,$5::jsonb,$6::jsonb)`,
         [
           orderId,
           fresh.decisionId,
@@ -165,6 +168,7 @@ export class ErrandContentReviewFacade {
           fresh.digest,
           canonicalJson(fresh.envelope),
           canonicalJson(fresh.envelope.scope),
+          fresh.version,
         ],
       );
     } catch (error) {
@@ -175,6 +179,31 @@ export class ErrandContentReviewFacade {
         throw error;
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     }
+  }
+  /** Every audited subtraction consumes a new exact decision. The original
+   * publication binding remains immutable and cannot approve a changed set. */
+  async bindMediaRevision(
+    orderId: string,
+    envelope: ErrandContentEnvelope,
+    tx: PoolClient,
+  ) {
+    if (envelope.version !== 2 || envelope.mediaRevision < 2)
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    const fresh = await this.accepted(envelope, tx);
+    await tx.query(
+      `INSERT INTO whaleu_community.errand_media_approval_bindings
+      (order_id,media_revision,decision_id,account_id,operation,envelope_version,digest,envelope,scope)
+      VALUES($1,$2,$3,$4,'publish_errand',2,$5,$6::jsonb,$7::jsonb)`,
+      [
+        orderId,
+        envelope.mediaRevision,
+        fresh.decisionId,
+        envelope.accountId,
+        fresh.digest,
+        canonicalJson(envelope),
+        canonicalJson(envelope.scope),
+      ],
+    );
   }
   async current(
     orderId: string,
@@ -191,9 +220,12 @@ export class ErrandContentReviewFacade {
         return { kind: 'unavailable' };
       const binding = (
         await tx.query<ErrandApprovalBinding>(
-          `SELECT * FROM whaleu_community.errand_approval_bindings
-         WHERE order_id=$1 AND content_version=1 FOR SHARE`,
-          [orderId],
+          canonical.version === 2 && canonical.mediaRevision > 1
+            ? `SELECT order_id,1 AS content_version,decision_id,account_id,operation,envelope_version,digest,envelope,scope FROM whaleu_community.errand_media_approval_bindings WHERE order_id=$1 AND media_revision=$2 FOR SHARE`
+            : `SELECT * FROM whaleu_community.errand_approval_bindings WHERE order_id=$1 AND content_version=1 FOR SHARE`,
+          canonical.version === 2 && canonical.mediaRevision > 1
+            ? [orderId, canonical.mediaRevision]
+            : [orderId],
         )
       ).rows[0];
       if (!binding || !errandBindingMatches(binding, orderId, canonical))

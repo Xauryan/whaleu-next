@@ -21,7 +21,7 @@ export interface ErrandReviewFixture {
   policyRevisionId: string;
   eventId: string;
   digest: string;
-  version: 1;
+  version: 1 | 2;
   envelope: ErrandContentEnvelope;
 }
 
@@ -75,7 +75,7 @@ export async function approveErrand(
       `INSERT INTO whaleu_community.errand_approval_decisions
        (id,account_id,operation,envelope_version,digest,envelope,policy_revision_id,result,
         coverage,provenance,issuer,provenance_ref,evaluated_at,consume_until,visibility_model,visibility_until)
-       VALUES($1,$2,'publish_errand',1,$3,$4::jsonb,$5,$6,'complete','accepted',
+       VALUES($1,$2,'publish_errand',${envelope.version},$3,$4::jsonb,$5,$6,'complete','accepted',
          'synthetic-errand-review-owner','synthetic-exact-errand-review',$7,$8,$9,$10)`,
       [
         decisionId,
@@ -107,7 +107,7 @@ export async function approveErrand(
       policyRevisionId,
       eventId,
       digest,
-      version: 1,
+      version: envelope.version,
       envelope,
     };
   });

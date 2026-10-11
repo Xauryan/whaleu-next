@@ -57,7 +57,7 @@ export function validateErrandApprovalRow(
     envelope = canonicalErrandEnvelope(row.envelope);
     if (
       !canonicalEqual(envelope, row.envelope) ||
-      row.envelope_version !== 1 ||
+      row.envelope_version !== envelope.version ||
       row.account_id !== envelope.accountId ||
       row.operation !== envelope.purpose ||
       row.digest !== errandApprovalDigest(envelope)
@@ -81,7 +81,7 @@ export function validateErrandApprovalRow(
             value: Object.freeze({
               decisionId: row.id,
               digest: row.digest,
-              version: 1,
+              version: envelope.version,
               envelope,
             }),
           }
@@ -104,7 +104,7 @@ export function errandBindingMatches(
       z.uuid().safeParse(binding.decision_id).success &&
       binding.order_id === orderId &&
       binding.content_version === 1 &&
-      binding.envelope_version === 1 &&
+      binding.envelope_version === canonical.version &&
       binding.operation === 'publish_errand' &&
       binding.account_id === canonical.accountId &&
       binding.digest === errandApprovalDigest(canonical) &&

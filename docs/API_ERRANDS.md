@@ -1,12 +1,12 @@
-# Errands: text-only lifecycle and bounded administration (E1/E2A/E2B)
+# Errands: lifecycle, bounded administration and image publication (E1/E2/E3/E4a)
 
 This is a partial greenfield errand rewrite. It provides fresh, exactly reviewed
 text publication, discovery/detail, single-winner acceptance, publisher cleanup,
 owned history, remembered accepter contacts, recoverable receipts and durable
 local accepted/completed notices. E2A adds bounded historical management reads;
 E2B adds scoped deletion, account-wide feature restrictions, global audit/release
-and durable local administrative notices. E4a adds the [order-target group card, QR and account notice preference](ERRAND_TARGET_SERVICES.md). It does not implement a grant or
-coverage issuer, external provider, production import, order images or external group delivery. Reward is
+and durable local administrative notices. E3 adds [separately versioned exact public/private image publication](ERRAND_IMAGE_PUBLICATION.md). E4a adds the [order-target group card, QR and account notice preference](ERRAND_TARGET_SERVICES.md). It does not implement a grant or
+coverage issuer, external provider, production import or external group delivery. Reward is
 an offered amount, not payment or settlement. No refund or runner rating exists.
 
 ## HTTP contract
@@ -319,13 +319,15 @@ feature action is available.
 ## Explicit remaining parity
 
 E2A/E2B provide bounded historical management and text-only administrative
-mutations with local notices. Their implementation does not complete E3–E5 or
+mutations with local notices. These increments do not complete every remaining gate or
 prove deployment permissions, real administrative use, complete historical audit
 or native-device acceptance. See the acceptance record for passed versus pending
 gates. Missing current feature coverage remains unavailable.
 
-E3: public/private images, owned uploads, exact asset review and authorized delivery,
-re-review/removal and interruption recovery. Empty media is explicit in E1.
+E3 implements fresh public/private images, typed owned uploads, exact asset Review,
+authorized delivery, audited subtraction and original-key interruption recovery.
+Historical administrative byte-preview policy and live Review/provider/device
+acceptance remain open. Empty media remains explicit in the preserved E1 protocol.
 
 E4: target-region QR/customer
 service preferences, short links, per-destination durable errand-group then
@@ -336,3 +338,12 @@ mapping; complete provenance reconciliation and restore rehearsal; native-device
 and independent-account acceptance. No synthetic historical region or external
 receipt may be inferred. This increment is not full errand parity or production
 readiness.
+
+## E3 separately versioned image publication
+
+See [Errand image publication](ERRAND_IMAGE_PUBLICATION.md) for the six-slot typed
+Media14 owner, exact publication-v2 Review/recovery, persistent participant
+private image history, audited subtraction and deletion cleanup. Original v1
+text/receipt/lifecycle contracts remain supported. Administrative historical
+public-image byte policy, providers, device acceptance and authoritative legacy
+asset import are still explicit release gates.

@@ -33,3 +33,12 @@ textarea {
   width: 100%;
   min-height: 140rpx;
 }
+
+.order-image {
+  width: 100%;
+  max-height: 65vh;
+}
+.image-slot {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #ddd;
+}

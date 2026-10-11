@@ -174,6 +174,8 @@ function fakeTx(
 test('errand canonical envelope is distinct, complete, deeply frozen, and preserves decimal precision', () => {
   const value = envelope(),
     digest = errandApprovalDigest(value);
+  assert.equal(value.version, 1);
+  if (value.version !== 1) assert.fail('Expected original v1 definition');
   assert.equal(value.reward, '1.12345678901234567890123456789');
   assert.ok(
     Object.isFrozen(value) &&
@@ -220,7 +222,7 @@ test('errand canonical envelope is distinct, complete, deeply frozen, and preser
     }),
   ];
   for (const mutate of mutations) {
-    const changed = structuredClone(value);
+    const changed: ErrandContentEnvelope = structuredClone(value);
     mutate(changed);
     assert.notEqual(errandApprovalDigest(changed), digest);
     const proof = binding(row(value));

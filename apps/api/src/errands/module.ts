@@ -1,3 +1,20 @@
+import { ModuleRef } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { DatabaseService } from '../database/database.js';
+import { IdentityService } from '../identity/identity.service.js';
+import { PostgresRequestThrottlingModule } from '../request-throttling/module.js';
+import { PostgresThrottlerStorage } from '../request-throttling/postgres-storage.js';
+import { MediaDeliveryBudgetModule } from '../media/delivery-budget.module.js';
+import { MediaDeliveryBudgetPool } from '../media/delivery-budget.js';
+import { ErrandMediaService, ERRAND_MEDIA_RUNTIME } from './media/facade.js';
+import type { ErrandMediaRuntime } from './media/facade.js';
+import {
+  ErrandMediaController,
+  ErrandMultipartInterceptor,
+} from './media/controller.js';
+import { ErrandMediaRequestGuard } from './media/request-guard.js';
+import { ErrandPublicationService } from './publication-service.js';
+import { ErrandPublicationController } from './publication-controller.js';
 import { ErrandAdminCommandController } from './admin-command-controller.js';
 import { ErrandAdminCommandService } from './admin-command-service.js';
 import { ErrandRestrictionService } from './restriction-service.js';
@@ -25,6 +42,19 @@ import { ErrandRequests } from './requests.js';
 @Module({
   imports: [
     DatabaseModule,
+    MediaDeliveryBudgetModule,
+    PostgresRequestThrottlingModule,
+    ThrottlerModule.forRootAsync({
+      imports: [PostgresRequestThrottlingModule],
+      inject: [PostgresThrottlerStorage],
+      useFactory: (storage: PostgresThrottlerStorage) => ({
+        storage,
+        setHeaders: false,
+        throttlers: [
+          { name: 'default', ttl: 60000, limit: 120, blockDuration: 60000 },
+        ],
+      }),
+    }),
     SafetyErrandManagementModule,
     IdentityModule,
     VerificationModule,
@@ -39,11 +69,55 @@ import { ErrandRequests } from './requests.js';
   ],
   controllers: [
     ErrandsController,
+    ErrandPublicationController,
+    ErrandMediaController,
     ErrandAdminController,
     ErrandAdminCommandController,
   ],
-  exports: [ErrandsService],
+  exports: [ErrandsService, ErrandMediaService, ErrandPublicationService],
   providers: [
+    ErrandPublicationService,
+    ErrandMediaRequestGuard,
+    ErrandMultipartInterceptor,
+    { provide: ERRAND_MEDIA_RUNTIME, useValue: null },
+    {
+      provide: ErrandMediaService,
+      inject: [
+        DatabaseService,
+        IdentityService,
+        ModuleRef,
+        ERRAND_MEDIA_RUNTIME,
+        MediaDeliveryBudgetPool,
+      ],
+      useFactory: (
+        db: DatabaseService,
+        identity: IdentityService,
+        modules: ModuleRef,
+        runtime: ErrandMediaRuntime | null,
+        budget: MediaDeliveryBudgetPool,
+      ) =>
+        new ErrandMediaService(
+          db,
+          identity,
+          {
+            authorizePrepare: (actor, input, tx) =>
+              modules
+                .get(ErrandPublicationService, { strict: false })
+                .authorizeMediaPrepare(actor, input, tx),
+            retainDraftCurrent: async (id, tx) => {
+              await modules
+                .get(ErrandPublicationService, { strict: false })
+                .retainDraftCurrent(id, tx);
+            },
+            authorizeRead: (token, target, tx) =>
+              modules
+                .get(ErrandsService, { strict: false })
+                .mediaAuthority(token, target, tx),
+          },
+          runtime,
+          budget,
+        ),
+    },
     ErrandAdminCommandService,
     ErrandRestrictionService,
     ErrandAdminService,

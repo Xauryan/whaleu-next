@@ -96,10 +96,10 @@ test('every errand/notice route requires auth, strict output, no-store/Vary and 
     ['/v1/me/errand-notices/{noticeId}/read', 'put', errandNoticeReadSchema],
   ] as const;
   assert.equal(
-    Object.values(doc.paths).reduce(
-      (n, path) => n + Object.keys(path!).length,
-      0,
-    ),
+    Object.entries(doc.paths)
+      .filter(([path]) => path.startsWith('/v1/'))
+      .map(([, item]) => item)
+      .reduce((n, path) => n + Object.keys(path!).length, 0),
     cases.length,
   );
   for (const [path, method, schema] of cases) {
@@ -148,4 +148,45 @@ test('receipt OpenAPI exposes no private body or contact schema and runtime-only
     'token',
   ])
     assert.ok(!serialized.includes(field));
+});
+
+test('Errand v2 publication and typed Media14 are separately documented, authenticated and closed-shaped', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  for (const [path, method] of [
+    ['/v2/errand-drafts', 'post'],
+    ['/v2/errand-drafts/{draftId}/cancel', 'post'],
+    ['/v2/errand-publications/prepare', 'post'],
+    ['/v2/errand-publications/{requestId}/publish', 'post'],
+    ['/v2/errand-publications/{requestId}', 'get'],
+    ['/v3/media/errands/upload-intents', 'post'],
+    ['/v3/media/errands/orders/{orderId}/{slot}', 'get'],
+    [
+      '/v3/media/errands/orders/{orderId}/{slot}/bindings/{bindingId}/{variant}',
+      'get',
+    ],
+  ] as const) {
+    const route = doc.paths[path]?.[method];
+    assert.ok(route, path);
+    assert.ok(route.responses['200']);
+    assert.deepEqual(route.security, [{ accessToken: [] }]);
+    if (method === 'get' && path.startsWith('/v2/'))
+      assert.equal(route.requestBody, undefined);
+  }
+  const publication = JSON.stringify(
+    doc.paths['/v2/errand-publications/prepare'],
+  );
+  for (const field of [
+    'errand-publication-v2',
+    'draftId',
+    'draftRevision',
+    'publicMedia',
+    'privateMedia',
+    'manifestDigest',
+  ])
+    assert.ok(publication.includes(field));
+  assert.ok(
+    JSON.stringify(doc.paths['/v3/media/errands/upload-intents']).includes(
+      'errand-media-v1',
+    ),
+  );
 });

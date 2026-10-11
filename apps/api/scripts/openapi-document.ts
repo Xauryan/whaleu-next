@@ -405,6 +405,16 @@ export async function renderActivitiesOpenApiDocument(): Promise<string> {
 
 /** Tooling-only errand controllers. Never execute application or provider work. */
 export async function createErrandsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { ErrandPublicationController } =
+    await import('../src/errands/publication-controller.js');
+  const { ErrandPublicationService } =
+    await import('../src/errands/publication-service.js');
+  const { ErrandMediaController, ErrandMultipartInterceptor } =
+    await import('../src/errands/media/controller.js');
+  const { ErrandMediaService, ERRAND_MEDIA_RUNTIME } =
+    await import('../src/errands/media/facade.js');
+  const { ErrandMediaRequestGuard } =
+    await import('../src/errands/media/request-guard.js');
   const { ErrandAdminCommandController } =
     await import('../src/errands/admin-command-controller.js');
   const { ErrandAdminCommandService } =
@@ -451,11 +461,17 @@ export async function createErrandsOpenApiDocument(): Promise<OpenAPIObject> {
   const testing = await Test.createTestingModule({
     controllers: [
       ErrandsController,
+      ErrandPublicationController,
+      ErrandMediaController,
       ErrandNoticesController,
       ErrandAdminController,
       ErrandAdminCommandController,
     ],
     providers: [
+      { provide: ErrandPublicationService, useValue: {} },
+      { provide: ErrandMediaService, useValue: {} },
+      { provide: ERRAND_MEDIA_RUNTIME, useValue: null },
+      ErrandMultipartInterceptor,
       { provide: ErrandsService, useValue: {} },
       { provide: ErrandAdminService, useValue: {} },
       { provide: ErrandAdminCommandService, useValue: {} },
@@ -463,6 +479,8 @@ export async function createErrandsOpenApiDocument(): Promise<OpenAPIObject> {
       { provide: ErrandNoticesService, useValue: {} },
     ],
   })
+    .overrideGuard(ErrandMediaRequestGuard)
+    .useValue({ canActivate: fail })
     .overrideGuard(ErrandRequestGuard)
     .useValue({ canActivate: fail })
     .compile();
@@ -472,7 +490,7 @@ export async function createErrandsOpenApiDocument(): Promise<OpenAPIObject> {
       app,
       new DocumentBuilder()
         .setOpenAPIVersion('3.0.3')
-        .setTitle('WhaleU text-only errands')
+        .setTitle('WhaleU errands and exact image publication')
         .setVersion('1')
         .addSecurity('accessToken', {
           type: 'http',

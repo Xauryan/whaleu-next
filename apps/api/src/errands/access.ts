@@ -32,7 +32,11 @@ export class ErrandAccessService {
   }
   async common(token: string, tx: PoolClient, write = false) {
     const session = await this.authenticate(token, tx, write);
-    const phone = await this.phones.resolve(session.accountId, tx);
+    await this.actorCommon(session.accountId, tx);
+    return session;
+  }
+  async actorCommon(accountId: string, tx: PoolClient) {
+    const phone = await this.phones.resolve(accountId, tx);
     if (phone.status === 'unverified')
       throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
     if (phone.status !== 'verified')
@@ -42,8 +46,7 @@ export class ErrandAccessService {
       phone.validUntil,
       'VERIFICATION_UNAVAILABLE',
     );
-    await this.safety.requireAllowed(session.accountId, tx);
-    return session;
+    await this.safety.requireAllowed(accountId, tx);
   }
   async base(accountId: string, tx: PoolClient) {
     const affiliation = await this.affiliations.resolve(accountId, tx);

@@ -1,4 +1,15 @@
 import {
+  prepareErrandMediaSchema,
+  errandMediaRequestHash,
+  errandMediaAudience,
+  errandMediaPurpose,
+} from './contracts-errand.js';
+import type { PrepareErrandMediaInput } from './contracts-errand.js';
+import type {
+  AuthorizedErrandMediaEdit,
+  ErrandMediaDraftOwnerPort,
+} from './errand-prepare-scope.js';
+import {
   prepareVerificationEvidenceMediaSchema,
   verificationEvidenceMediaRequestHash,
 } from './contracts-verification-evidence.js';
@@ -149,6 +160,7 @@ export class MediaPrepareScopes {
         | PrepareMediaV4Input
         | PrepareProfileMediaInput
         | PrepareRatingsMediaInput
+        | PrepareErrandMediaInput
         | PrepareVerificationEvidenceMediaInput
         | PrepareAnnouncementMediaInput
         | PrepareActivityMediaInput
@@ -160,6 +172,7 @@ export class MediaPrepareScopes {
         | AuthorizedMediaDraft
         | AuthorizedProfileMediaEdit
         | AuthorizedRatingsMediaEdit
+        | AuthorizedErrandMediaEdit
         | AuthorizedVerificationEvidenceMediaEdit
         | AuthorizedAnnouncementMediaEdit
         | AuthorizedActivityMediaEdit
@@ -180,6 +193,7 @@ export class MediaPrepareScopes {
     private readonly activityOwner?: ActivityMediaDraftOwnerPort,
     private readonly announcementOwner?: AnnouncementMediaDraftOwnerPort,
     private readonly verificationEvidenceOwner?: VerificationEvidenceMediaDraftOwnerPort,
+    private readonly errandOwner?: ErrandMediaDraftOwnerPort,
   ) {}
   async authorizeRatingsDiscussionBatch(
     actor: string,
@@ -290,6 +304,47 @@ export class MediaPrepareScopes {
       !mediaIdSchema.safeParse(scope.serverScopeId).success ||
       scope.scopeRevision !==
         verificationEvidenceMediaRequestHash(actor, input) ||
+      !Number.isSafeInteger(scope.expiresAt) ||
+      transactionReadEpoch(tx) !== epoch
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+    Object.freeze(input.declaration);
+    Object.freeze(input);
+    const capability: MediaPrepareScope = Object.freeze({
+      [brand]: true as const,
+    });
+    this.issued.set(capability, {
+      tx,
+      epoch,
+      input,
+      scope: Object.freeze({ ...scope }),
+    });
+    return capability;
+  }
+  async authorizeErrand(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    const input = prepareErrandMediaSchema.parse(raw),
+      actor = mediaIdSchema.parse(actorAccountId),
+      epoch = transactionReadEpoch(tx);
+    if (!epoch || !this.errandOwner)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const scope = await this.errandOwner.authorizePrepare(actor, input, tx);
+    if (
+      scope.actorAccountId !== actor ||
+      scope.ownerKind !== 'errands' ||
+      scope.resourceKind !== 'errand_image' ||
+      scope.targetKind !== 'edit' ||
+      scope.contentVersion !== 1 ||
+      scope.audience !== errandMediaAudience(input.slot) ||
+      scope.purpose !== errandMediaPurpose(input.slot) ||
+      scope.slot !== input.slot ||
+      scope.ordinal !== 0 ||
+      !mediaIdSchema.safeParse(scope.serverScopeId).success ||
+      scope.scopeRevision !== errandMediaRequestHash(actor, input) ||
       !Number.isSafeInteger(scope.expiresAt) ||
       transactionReadEpoch(tx) !== epoch
     )
@@ -723,6 +778,7 @@ export class MediaPrepareScopes {
       | PrepareMediaV4Input
       | PrepareProfileMediaInput
       | PrepareRatingsMediaInput
+      | PrepareErrandMediaInput
       | PrepareVerificationEvidenceMediaInput
       | PrepareAnnouncementMediaInput
       | PrepareActivityMediaInput
@@ -734,6 +790,7 @@ export class MediaPrepareScopes {
       | AuthorizedMediaDraft
       | AuthorizedProfileMediaEdit
       | AuthorizedRatingsMediaEdit
+      | AuthorizedErrandMediaEdit
       | AuthorizedVerificationEvidenceMediaEdit
       | AuthorizedAnnouncementMediaEdit
       | AuthorizedActivityMediaEdit

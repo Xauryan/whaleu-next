@@ -1,3 +1,8 @@
+import { ErrandMediaService } from './media/facade.js';
+import { MediaCurrentDenied } from '../media/asset-repository.js';
+import { ErrandPublicationService } from './publication-service.js';
+import type { ErrandMediaReadTarget } from './media/access-port.js';
+import { requireErrandMediaCurrent } from './media-current-proof.js';
 import { requireErrandTargetCurrent } from './target-context-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -65,6 +70,9 @@ export class ErrandsService {
     private readonly notices: ErrandNotificationsFacade,
     @Inject(DiscoveryContinuationFacade)
     private readonly cursors: DiscoveryContinuationFacade,
+    @Inject(ErrandMediaService) private readonly media: ErrandMediaService,
+    @Inject(ErrandPublicationService)
+    private readonly publications: ErrandPublicationService,
   ) {}
   private async run<T>(operation: (tx: PoolClient) => Promise<T>) {
     try {
@@ -81,12 +89,46 @@ export class ErrandsService {
     const result = await this.reviews.current(row.id, errandEnvelope(row), tx);
     if (result.kind === 'unavailable')
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    if (result.kind === 'allow' && row.media) {
+      try {
+        await this.media.currentFacts(
+          row.id,
+          row.media.revision,
+          [...row.media.publicMedia, ...row.media.privateMedia],
+          tx,
+        );
+      } catch (error) {
+        if (!(error instanceof MediaCurrentDenied)) throw error;
+        // A proved denied sibling hides this whole order, not unrelated list
+        // candidates. Retain the negative owner/Media facts through final commit.
+        await this.media.retainCurrent(tx);
+        await requireErrandMediaCurrent('order', row.id, tx);
+        return false;
+      }
+    }
     return result.kind === 'allow';
   }
   private async summary(row: ErrandRow, tx: PoolClient) {
+    const media = row.media
+      ? await this.media.currentFacts(
+          row.id,
+          row.media.revision,
+          [...row.media.publicMedia, ...row.media.privateMedia],
+          tx,
+        )
+      : null;
+    if (row.media) await requireErrandMediaCurrent('order', row.id, tx);
     return errandSummarySchema.parse({
       id: row.id,
       revision: row.revision,
+      ...(media && row.media
+        ? {
+            mediaRevision: row.media.revision,
+            publicMedia: media.media
+              .filter((x) => x.slot.startsWith('public'))
+              .map((x) => x.descriptor),
+          }
+        : {}),
       title: row.title,
       publicText: row.public_text,
       expectedTimeText: row.expected_time_text,
@@ -192,6 +234,8 @@ export class ErrandsService {
           contacts,
           tx,
         );
+        if (operation === 'delete')
+          await this.publications.retireDeleted(id, tx);
         const event = await this.records.event(
           next,
           actor,
@@ -221,6 +265,7 @@ export class ErrandsService {
             },
             tx,
           );
+        if (next.media) await requireErrandMediaCurrent('order', id, tx);
         return {
           orderId: id,
           revision: next.revision,
@@ -268,7 +313,48 @@ export class ErrandsService {
     if (relation === 'none') await this.access.base(actor.accountId, tx);
     if (!(await this.visible(row, tx)))
       throw new ApplicationError('ERRAND_NOT_FOUND');
+    if (row.media) await requireErrandMediaCurrent('order', row.id, tx);
     return { actor, row, relation };
+  }
+  /** Media byte authority reuses the actual order-read gates. Management grants
+   * do not create a private participant relationship. */
+  async mediaAuthority(
+    token: string,
+    target: ErrandMediaReadTarget,
+    tx: PoolClient,
+  ) {
+    const { actor, row, relation } = await this.readableOrder(
+      token,
+      target.orderId,
+      tx,
+    );
+    if (
+      !row.media ||
+      row.media.revision !== target.mediaRevision ||
+      (target.slot.startsWith('private') && relation === 'none')
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const media = [...row.media.publicMedia, ...row.media.privateMedia];
+    const requested = media.find((x) => x.slot === target.slot);
+    if (
+      !requested ||
+      (target.bindingId !== undefined &&
+        target.bindingId !== requested.bindingId)
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    await this.access.recheck(token, tx);
+    const ownerRevision = await requireErrandMediaCurrent('order', row.id, tx);
+    return {
+      accountId: actor.accountId,
+      sessionId: actor.sessionId,
+      orderId: row.id,
+      mediaRevision: row.media.revision,
+      ownerRevision,
+      draftId: row.media.draftId,
+      draftRevision: row.media.draftRevision,
+      actorAccountId: row.publisher_id,
+      media,
+    };
   }
   detail(token: string, id: string) {
     return this.run(async (tx) => {
@@ -298,7 +384,20 @@ export class ErrandsService {
           delete: relation === 'publisher',
         },
       };
-      if (relation !== 'none') detail.privateText = row.private_text;
+      if (relation !== 'none') {
+        detail.privateText = row.private_text;
+        if (row.media)
+          detail.privateMedia = (
+            await this.media.currentFacts(
+              row.id,
+              row.media.revision,
+              [...row.media.publicMedia, ...row.media.privateMedia],
+              tx,
+            )
+          ).media
+            .filter((x) => x.slot.startsWith('private'))
+            .map((x) => x.descriptor);
+      }
       if (relation !== 'none' && row.state === 'accepted') {
         const opposite =
           relation === 'publisher' ? row.accepter_id! : row.publisher_id;

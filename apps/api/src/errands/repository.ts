@@ -1,3 +1,4 @@
+import { ApplicationError } from '../http/application-error.js';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { randomUUID } from 'node:crypto';
@@ -7,9 +8,12 @@ import type {
   ErrandsQuery,
   PublishErrand,
 } from './contracts.js';
+import type { ErrandImageBinding } from './publication-contracts.js';
+import { errandImageBindingSchema } from './publication-contracts.js';
 import type { ErrandContentEnvelope } from '../community/content-review/errand-contracts.js';
 export interface ErrandRow {
   id: string;
+  publication_version?: number;
   revision: string;
   publisher_id: string;
   accepter_id: string | null;
@@ -29,6 +33,13 @@ export interface ErrandRow {
   completed_at: Date | null;
   cancelled_at: Date | null;
   deleted_at: Date | null;
+  media?: {
+    draftId: string;
+    draftRevision: number;
+    revision: number;
+    publicMedia: ErrandImageBinding[];
+    privateMedia: ErrandImageBinding[];
+  };
 }
 export interface ErrandSeek {
   id: string;
@@ -43,8 +54,7 @@ export interface ErrandListPosition {
   after: ErrandSeek | null;
 }
 export function errandEnvelope(row: ErrandRow): ErrandContentEnvelope {
-  return {
-    version: 1,
+  const base = {
     accountId: row.publisher_id,
     purpose: 'publish_errand',
     title: row.title,
@@ -53,9 +63,30 @@ export function errandEnvelope(row: ErrandRow): ErrandContentEnvelope {
     expectedTimeText: row.expected_time_text,
     reward: row.reward,
     publisherContacts: row.publisher_contacts,
-    publicAssetIds: [],
-    privateAssetIds: [],
     scope: row.scope,
+  };
+  if (!row.media)
+    return {
+      ...base,
+      purpose: 'publish_errand',
+      version: 1,
+      publicAssetIds: [],
+      privateAssetIds: [],
+    };
+  const facts = (items: ErrandImageBinding[]) =>
+    items.map(({ bindingId: _binding, ...fact }) => {
+      void _binding;
+      return fact;
+    });
+  return {
+    ...base,
+    purpose: 'publish_errand',
+    version: 2,
+    draftId: row.media.draftId,
+    draftRevision: row.media.draftRevision,
+    mediaRevision: row.media.revision,
+    publicMedia: facts(row.media.publicMedia),
+    privateMedia: facts(row.media.privateMedia),
   };
 }
 @Injectable()
@@ -91,18 +122,63 @@ export class ErrandsRepository {
       )
     ).rows[0];
     if (!privateRow) throw new Error('Missing errand private definition');
-    return { ...row, ...privateRow };
+    // This optional owner table exists only in the current schema. Older
+    // historical migration harnesses still exercise unchanged v1 lifecycle.
+    const installed = (
+      await tx.query<{ installed: boolean }>(
+        "SELECT to_regclass('whaleu_errands.media_publications') IS NOT NULL installed",
+      )
+    ).rows[0]?.installed;
+    if (!installed) return { ...row, ...privateRow };
+    const media = (
+      await tx.query<{
+        draft_id: string;
+        draft_revision: string;
+        revision: string;
+        public_media: unknown;
+        private_media: unknown;
+      }>(
+        'SELECT p.draft_id,p.draft_revision,h.revision,s.public_media,s.private_media FROM whaleu_errands.media_publications p JOIN whaleu_errands.media_heads h ON h.order_id=p.order_id JOIN whaleu_errands.media_sets s ON (s.order_id,s.revision)=(h.order_id,h.revision) WHERE p.order_id=$1',
+        [id],
+      )
+    ).rows[0];
+    if (!media) {
+      if (row.publication_version === 2)
+        throw new ApplicationError('ERRAND_UNAVAILABLE');
+      return { ...row, ...privateRow };
+    }
+    return {
+      ...row,
+      ...privateRow,
+      media: {
+        draftId: media.draft_id,
+        draftRevision: Number(media.draft_revision),
+        revision: Number(media.revision),
+        publicMedia: errandImageBindingSchema
+          .array()
+          .max(3)
+          .parse(media.public_media),
+        privateMedia: errandImageBindingSchema
+          .array()
+          .max(3)
+          .parse(media.private_media),
+      },
+    };
   }
   async create(
     actor: string,
     body: PublishErrand,
     scope: ErrandContentEnvelope['scope'],
     tx: PoolClient,
+    orderId?: string,
+    publicationVersion: 1 | 2 = 1,
   ) {
-    const id = randomUUID(),
+    const id = orderId ?? randomUUID(),
       revision = randomUUID();
     await tx.query(
-      `INSERT INTO whaleu_errands.orders(id,revision,publisher_id,target_region_id,source_region_id,scope,title,public_text,expected_time_text,reward,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending')`,
+      publicationVersion === 1
+        ? `INSERT INTO whaleu_errands.orders(id,revision,publisher_id,target_region_id,source_region_id,scope,title,public_text,expected_time_text,reward,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending')`
+        : `INSERT INTO whaleu_errands.orders(id,revision,publisher_id,target_region_id,source_region_id,scope,title,public_text,expected_time_text,reward,state,publication_version) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending',2)`,
       [
         id,
         revision,

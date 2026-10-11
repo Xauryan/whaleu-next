@@ -1,3 +1,4 @@
+import { ErrandPublicationService } from './publication-service.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.js';
@@ -54,6 +55,8 @@ export class ErrandAdminCommandService {
     private readonly safety: SafetyErrandManagementFacade,
     @Inject(ErrandNotificationsFacade)
     private readonly notices: ErrandNotificationsFacade,
+    @Inject(ErrandPublicationService)
+    private readonly publications: ErrandPublicationService,
   ) {}
   delete(token: string, orderId: string, body: AdminDeleteErrand) {
     return this.execute(token, orderId, 'admin_delete', body);
@@ -230,6 +233,7 @@ export class ErrandAdminCommandService {
                   eventId,
                 ],
               );
+              await this.publications.retireDeleted(orderId, tx);
               const transitionId = randomUUID();
               await tx.query(
                 `INSERT INTO whaleu_errands.transitions(id,order_id,actor_id,operation,prior_state,next_state,request_id,revision,occurred_at) VALUES($1,$2,$3,'admin_delete',$4,$4,$5,$6,$7)`,

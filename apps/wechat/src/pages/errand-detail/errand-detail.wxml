@@ -5,6 +5,19 @@
   <view wx:if="{{loaded &amp;&amp; detail}}">
     <view class="card"><template is="errand-summary" data="{{order:detail,errandStateLabels}}" /><view class="meta">{{detail.relation === 'publisher' ? '我是发布者' : detail.relation === 'accepter' ? '我是接单者' : '尚未参与此订单'}}</view></view>
     <view wx:if="{{detail.relation !== 'none'}}" class="card private"><view class="section-title">双方私密说明</view><view class="body">{{detail.privateText || '发布者未填写私密说明'}}</view><view class="meta">已结束订单仍向原参与双方保留此说明。</view></view>
+    <view wx:if="{{detail.publicMedia &amp;&amp; detail.publicMedia.length}}" class="card">
+      <view class="section-title">公开图片</view>
+      <button wx:for="{{detail.publicMedia}}" wx:key="bindingId" data-value="{{item.slot}}" bindtap="onPreviewOrderImage" disabled="{{orderImage.status === 'loading'}}">查看公开图片 {{index + 1}}</button>
+    </view>
+    <view wx:if="{{detail.relation !== 'none' &amp;&amp; detail.privateMedia &amp;&amp; detail.privateMedia.length}}" class="card private">
+      <view class="section-title">双方私密图片</view>
+      <button wx:for="{{detail.privateMedia}}" wx:key="bindingId" data-value="{{item.slot}}" bindtap="onPreviewOrderImage" disabled="{{orderImage.status === 'loading'}}">查看私密图片 {{index + 1}}</button>
+    </view>
+    <view wx:if="{{orderImage.status !== 'idle'}}" class="card">
+      <view>{{orderImage.message}}</view>
+      <image wx:if="{{orderImage.src}}" src="{{orderImage.src}}" mode="widthFix" class="order-image" />
+      <button bindtap="onCloseOrderImage">关闭图片</button>
+    </view>
     <view wx:if="{{detail.state === 'accepted' &amp;&amp; detail.relation !== 'none' &amp;&amp; detail.oppositeContact}}" class="card private"><view class="section-title">{{detail.relation === 'publisher' ? '接单者' : '发布者'}}联系方式</view><view>{{detail.oppositeContact.display.status === 'available' ? detail.oppositeContact.display.displayName : '对方展示名称暂不可用'}}</view><view wx:if="{{detail.oppositeContact.contacts.wechat}}">微信：{{detail.oppositeContact.contacts.wechat}}</view><view wx:if="{{detail.oppositeContact.contacts.phone}}">电话：{{detail.oppositeContact.contacts.phone}}</view><view class="meta">对方为此订单填写的联系方式，不代表已认证；结束后隐藏。</view></view>
     <view wx:if="{{detail.relation !== 'none' &amp;&amp; detail.state !== 'accepted'}}" class="notice">当前状态不显示对方联系方式。</view>
     <view wx:if="{{targetServices.visible}}" class="card target-services">

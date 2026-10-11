@@ -1,3 +1,8 @@
+import {
+  createErrandMediaRuntime,
+  type ErrandMediaRuntime,
+} from './errands/media-runtime';
+import { createErrandPublicationRuntime } from './errands/publication-runtime';
 import { createVerificationEvidenceRuntime } from './verification/evidence-runtime';
 import {
   createAnnouncementMediaRuntime,
@@ -46,6 +51,8 @@ import {
 } from './verification/runtime';
 
 export interface WhaleuApp {
+  errandMedia?: ErrandMediaRuntime;
+  errandPublication?: ReturnType<typeof createErrandPublicationRuntime>;
   studentEvidence?: ReturnType<typeof createVerificationEvidenceRuntime>;
   schoolQr?: SchoolQrRuntime;
   organizationMedia?: OrganizationMediaRuntime;
@@ -76,6 +83,7 @@ App<WhaleuApp>({
     void this.community?.views?.foreground();
   },
   onHide() {
+    this.errandMedia?.hide();
     this.studentEvidence?.clear();
     this.schoolQr?.hide();
     this.organizationMedia?.hide();
@@ -140,6 +148,28 @@ App<WhaleuApp>({
         registry,
         auth: this.identity.auth,
       });
+    if (this.identity.api && this.identity.auth) {
+      this.errandMedia = createErrandMediaRuntime({
+        api: this.identity.api,
+        sessions: this.identity.sessions,
+        storage: new WechatStorage(wx),
+        origin: clientConfiguration.apiOrigin,
+        clock: systemClock,
+        newRequestId: this.community.newRequestId,
+        wx,
+        files: nativeFiles,
+        registry,
+        auth: this.identity.auth,
+      });
+      this.errandPublication = createErrandPublicationRuntime({
+        api: this.identity.api,
+        sessions: this.identity.sessions,
+        media: this.errandMedia,
+        storage: new WechatStorage(wx),
+        origin: clientConfiguration.apiOrigin,
+        newRequestId: this.community.newRequestId,
+      });
+    }
     if (this.identity.api && this.identity.auth)
       this.activityMedia = createActivityMediaRuntime({
         api: this.identity.api,

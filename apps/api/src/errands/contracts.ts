@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { errandDescriptorSchema } from '../media/contracts-errand.js';
 
 export const errandIdSchema = z
   .uuid()
@@ -182,6 +183,8 @@ export const errandSummarySchema = z
   .strictObject({
     id: publicId,
     revision: publicId,
+    mediaRevision: z.number().int().positive().safe().optional(),
+    publicMedia: z.array(errandDescriptorSchema).max(3).optional(),
     title: outputText(50),
     publicText: outputText(500),
     expectedTimeText: outputText(50),
@@ -197,6 +200,15 @@ export const errandSummarySchema = z
   })
   .refine(
     (value) =>
+      (value.publicMedia === undefined) ===
+        (value.mediaRevision === undefined) &&
+      (value.publicMedia === undefined ||
+        value.publicMedia.every(
+          (x) =>
+            x.slot.startsWith('public') &&
+            x.orderId === value.id &&
+            x.revision === value.mediaRevision,
+        )) &&
       (value.state !== 'pending' || value.acceptedAt === null) &&
       (!['accepted', 'completed'].includes(value.state) ||
         value.acceptedAt !== null) &&
@@ -221,6 +233,7 @@ export const errandDetailSchema = errandSummarySchema
   .safeExtend({
     relation: z.enum(['publisher', 'accepter', 'none']),
     privateText: outputText(200, false).optional(),
+    privateMedia: z.array(errandDescriptorSchema).max(3).optional(),
     oppositeContact: z
       .strictObject({
         display: errandParticipantDisplaySchema,
@@ -237,6 +250,15 @@ export const errandDetailSchema = errandSummarySchema
   .superRefine((value, ctx) => {
     if (
       (value.relation === 'none') !== (value.privateText === undefined) ||
+      (value.relation === 'none' && value.privateMedia !== undefined) ||
+      (value.privateMedia !== undefined &&
+        (value.mediaRevision === undefined ||
+          value.privateMedia.some(
+            (x) =>
+              !x.slot.startsWith('private') ||
+              x.orderId !== value.id ||
+              x.revision !== value.mediaRevision,
+          ))) ||
       (value.relation === 'accepter' && value.acceptedAt === null) ||
       (value.capabilities.accept &&
         (value.relation !== 'none' || value.state !== 'pending')) ||

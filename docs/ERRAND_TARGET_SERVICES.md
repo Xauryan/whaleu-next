@@ -63,6 +63,7 @@ races invalidate both a disabled entry and a deleted order before bytes escape.
 This is not physical-device or live-provider acceptance. The client currently has
 no implemented explicit native customer-service capability; that distinct legacy
 entry remains open and is not replaced by school administrator contact. E3 order
-public/private images, external group dispatch, historical import and production
-readiness remain separate work. This candidate's hosted CI status must be checked
+public/private images are covered separately in
+[Errand image publication](ERRAND_IMAGE_PUBLICATION.md); external group dispatch,
+historical import and production readiness remain unactivated. This candidate's hosted CI status must be checked
 for its own eventual source commit, not inherited from an earlier green baseline.

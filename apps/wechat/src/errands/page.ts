@@ -1,3 +1,8 @@
+import { initialErrandPublicationView } from './publication-runtime';
+import type { ErrandImageComposer } from './publication-runtime';
+import type { ErrandMediaReader, ErrandMediaReadView } from './media-runtime';
+import type { ErrandView } from './controller';
+import { errandMediaSlot } from './media-validation';
 import { HttpProfileGateway } from '../profile/gateway';
 import {
   ErrandTargetServicesController,
@@ -32,12 +37,22 @@ type Input = {
 export function registerErrandPage(mode: ErrandMode): void {
   Page({
     data: {
+      imagePublication: initialErrandPublicationView(),
+      orderImage: {
+        status: 'idle',
+        src: '',
+        message: '',
+      } as ErrandMediaReadView,
       ...initialErrandView(),
       errandStateLabels,
       adminAvailable: false,
       targetServices: initialErrandTargetServicesView(),
       targetQr: { status: 'idle', src: '', message: '' } as SchoolQrReadView,
     },
+    imageComposer: undefined as ErrandImageComposer | undefined,
+    imageReader: undefined as ErrandMediaReader | undefined,
+    currentView: null as ErrandView | null,
+    imageIdentity: '',
     targetServices: undefined as ErrandTargetServicesController | undefined,
     targetReader: undefined as SchoolQrReader | undefined,
     adminEntry: undefined as ErrandAdminEntryController | undefined,
@@ -63,11 +78,17 @@ export function registerErrandPage(mode: ErrandMode): void {
         ) {
           owner = current;
           this.navigator?.dispose();
+          this.imageComposer?.clear();
+          this.imageReader?.clear();
+          this.currentView = null;
         }
       });
       this.unsubscribeHide = runtime.privateViews?.subscribe((accountId) => {
         if (accountId === undefined) {
           this.navigator?.dispose();
+          this.imageComposer?.clear();
+          this.imageReader?.clear();
+          this.currentView = null;
           this.targetServices?.dispose();
           this.targetServices = undefined;
           this.targetReader?.dispose();
@@ -76,6 +97,12 @@ export function registerErrandPage(mode: ErrandMode): void {
       });
     },
     onShow() {
+      this.imageComposer?.dispose();
+      this.imageComposer = undefined;
+      this.imageReader?.dispose();
+      this.imageReader = undefined;
+      this.currentView = null;
+      this.imageIdentity = '';
       this.targetServices?.dispose();
       this.targetServices = undefined;
       this.targetReader?.dispose();
@@ -98,6 +125,14 @@ export function registerErrandPage(mode: ErrandMode): void {
         this.setData({ error: '暂不能打开跑腿页面，请重试' }),
       );
       const app = getApp<WhaleuApp>();
+      if (mode === 'compose')
+        this.imageComposer = app.errandPublication?.createComposer(
+          (imagePublication) => this.setData({ imagePublication }),
+        );
+      if (mode === 'detail')
+        this.imageReader = app.errandMedia?.createReader((orderImage) =>
+          this.setData({ orderImage }),
+        );
       if (mode === 'detail' && app.identity?.api) {
         this.targetReader = app.schoolQr?.createReader((targetQr) =>
           this.setData({ targetQr }),
@@ -111,6 +146,20 @@ export function registerErrandPage(mode: ErrandMode): void {
         );
       }
       this.controller = new ErrandController(runtime, mode, (view) => {
+        this.currentView = view;
+        const imageIdentity =
+          view.loaded && view.detail
+            ? JSON.stringify([
+                view.detail.id,
+                view.detail.revision,
+                view.detail.mediaRevision,
+                view.detail.relation,
+              ])
+            : '';
+        if (imageIdentity !== this.imageIdentity) {
+          this.imageReader?.clear();
+          this.imageIdentity = imageIdentity;
+        }
         this.setData({ ...view });
         this.targetServices?.sync(view.loaded ? view.detail : null);
       });
@@ -181,7 +230,63 @@ export function registerErrandPage(mode: ErrandMode): void {
       this.controller?.usePublisherContacts();
     },
     onPublish() {
-      void this.controller?.publish();
+      if (!this.currentView) return;
+      if (this.imageComposer?.hasDraft)
+        void this.imageComposer.publish(
+          this.currentView.form,
+          this.currentView.regionId,
+        );
+      else void this.controller?.publish();
+    },
+    onChooseOrderImage(event: Tap) {
+      if (this.currentView && !this.currentView.frozen)
+        void this.imageComposer?.choose(
+          event.currentTarget.dataset.value ?? '',
+          this.currentView.regionId,
+        );
+    },
+    onRecoverOrderImage(event: Tap) {
+      if (this.currentView)
+        void this.imageComposer?.choose(
+          event.currentTarget.dataset.value ?? '',
+          this.currentView.regionId,
+          true,
+        );
+    },
+    onRemoveOrderImage(event: Tap) {
+      void this.imageComposer?.remove(event.currentTarget.dataset.value ?? '');
+    },
+    onRecoverImagePublication() {
+      void this.imageComposer?.recover();
+    },
+    onRetryImagePublication() {
+      void this.imageComposer?.recover(true);
+    },
+    onCancelImageDraft() {
+      void this.imageComposer?.cancelDraft();
+    },
+    onPreviewOrderImage(event: Tap) {
+      try {
+        const slot = errandMediaSlot(event.currentTarget.dataset.value),
+          detail = this.currentView?.detail;
+        if (!this.currentView?.loaded || !detail?.mediaRevision) return;
+        if (
+          ![...(detail.publicMedia ?? []), ...(detail.privateMedia ?? [])].some(
+            (x) => x.slot === slot,
+          )
+        )
+          return;
+        void this.imageReader?.load({
+          orderId: detail.id,
+          revision: detail.mediaRevision,
+          slot,
+        });
+      } catch {
+        /* Invalid or stale native taps cannot authorize an image. */
+      }
+    },
+    onCloseOrderImage() {
+      this.imageReader?.clear();
     },
     onAccept() {
       void this.controller?.openAccept();
@@ -211,6 +316,12 @@ export function registerErrandPage(mode: ErrandMode): void {
       void this.controller?.confirmCommand();
     },
     onHide() {
+      this.imageComposer?.dispose();
+      this.imageComposer = undefined;
+      this.imageReader?.dispose();
+      this.imageReader = undefined;
+      this.currentView = null;
+      this.imageIdentity = '';
       this.targetServices?.dispose();
       this.targetServices = undefined;
       this.targetReader?.dispose();

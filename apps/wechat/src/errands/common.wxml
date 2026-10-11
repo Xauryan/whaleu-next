@@ -24,6 +24,7 @@
   <view class="section-title">{{order.title}}</view>
   <view class="badge">{{errandStateLabels[order.state]}}</view>
   <view class="body">{{order.publicText}}</view>
+  <view wx:if="{{order.publicMedia &amp;&amp; order.publicMedia.length}}" class="meta">公开图片 {{order.publicMedia.length}} 张，打开订单查看</view>
   <view>报酬 {{order.reward}} 元</view><view>期望时间：{{order.expectedTimeText}}</view>
   <view class="meta">目标：{{order.targetRegion.label}} · 来源：{{order.sourceRegion.label}} · {{order.scope === 'home' ? '本地区' : order.scope === 'related' ? '关联地区' : '跨地区'}}</view>
   <view class="meta">发布于 {{order.createdAt}}</view>

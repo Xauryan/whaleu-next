@@ -1,3 +1,5 @@
+import { decodeErrandMediaDescriptor } from './media-contract';
+import type { ErrandMediaDescriptor } from './media-contract';
 import { ClientError, isRecord } from '../api/errors';
 import { boundedText, exact } from '../community/contract';
 import { activityTimestamp } from '../activities/contract';
@@ -278,6 +280,8 @@ export interface ErrandRegion {
   readonly label: string;
 }
 export interface ErrandSummary {
+  readonly mediaRevision?: number;
+  readonly publicMedia?: readonly ErrandMediaDescriptor[];
   readonly id: string;
   readonly revision: string;
   readonly title: string;
@@ -294,6 +298,7 @@ export interface ErrandSummary {
   readonly scope: 'home' | 'related' | 'foreign';
 }
 export interface ErrandDetail extends ErrandSummary {
+  readonly privateMedia?: readonly ErrandMediaDescriptor[];
   readonly relation: 'publisher' | 'accepter' | 'none';
   readonly privateText?: string;
   readonly oppositeContact?: {
@@ -364,7 +369,13 @@ function summary(value: Record<string, unknown>): ErrandSummary {
     invalidErrand();
   const reward = exactErrandReward(value.reward);
   if (reward !== value.reward) invalidErrand();
+  const publicMedia = decodeImages(value, 'public');
+  if ((value.mediaRevision === undefined) !== (publicMedia === undefined))
+    invalidErrand();
   return Object.freeze({
+    ...(publicMedia !== undefined
+      ? { mediaRevision: value.mediaRevision as number, publicMedia }
+      : {}),
     id: value.id,
     revision: value.revision,
     title: responseText(value.title, 50),
@@ -381,14 +392,51 @@ function summary(value: Record<string, unknown>): ErrandSummary {
     scope: value.scope as ErrandSummary['scope'],
   });
 }
+function mediaKeys(value: Record<string, unknown>) {
+  return [
+    ...('mediaRevision' in value ? ['mediaRevision'] : []),
+    ...('publicMedia' in value ? ['publicMedia'] : []),
+  ];
+}
+function decodeImages(
+  value: Record<string, unknown>,
+  audience: 'public' | 'private',
+): readonly ErrandMediaDescriptor[] | undefined {
+  const raw = value[`${audience}Media`];
+  if (raw === undefined) return undefined;
+  if (
+    !Array.isArray(raw) ||
+    raw.length > 3 ||
+    typeof value.mediaRevision !== 'number' ||
+    !Number.isSafeInteger(value.mediaRevision) ||
+    value.mediaRevision < 1
+  )
+    invalidErrand();
+  const images = raw.map(decodeErrandMediaDescriptor);
+  if (
+    images.some(
+      (x) =>
+        !x.slot.startsWith(audience) ||
+        x.orderId !== value.id ||
+        x.revision !== value.mediaRevision,
+    ) ||
+    new Set(images.map((x) => x.slot)).size !== images.length ||
+    new Set(images.map((x) => x.bindingId)).size !== images.length
+  )
+    invalidErrand();
+  return Object.freeze(images);
+}
 export function decodeErrandSummary(value: unknown): ErrandSummary {
-  exact(value, summaryKeys);
+  if (!isRecord(value)) invalidErrand();
+  exact(value, [...summaryKeys, ...mediaKeys(value)]);
   return summary(value);
 }
 export function decodeErrandDetail(value: unknown): ErrandDetail {
   if (!isRecord(value)) invalidErrand();
   exact(value, [
     ...summaryKeys,
+    ...mediaKeys(value),
+    ...('privateMedia' in value ? ['privateMedia'] : []),
     'relation',
     'capabilities',
     ...('privateText' in value ? ['privateText'] : []),
@@ -398,6 +446,7 @@ export function decodeErrandDetail(value: unknown): ErrandDetail {
   if (
     !['publisher', 'accepter', 'none'].includes(String(value.relation)) ||
     (value.relation === 'none') !== !('privateText' in value) ||
+    (value.relation === 'none' && 'privateMedia' in value) ||
     (value.relation === 'accepter' && value.acceptedAt === null)
   )
     invalidErrand();
@@ -449,8 +498,10 @@ export function decodeErrandDetail(value: unknown): ErrandDetail {
       contacts,
     });
   }
+  const privateMedia = decodeImages(value, 'private');
   return Object.freeze({
     ...core,
+    ...(privateMedia !== undefined ? { privateMedia } : {}),
     relation: value.relation as ErrandDetail['relation'],
     ...('privateText' in value
       ? { privateText: responseText(value.privateText, 200, false) }

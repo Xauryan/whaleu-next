@@ -48,9 +48,18 @@ export async function verifyMediaOwnerFenceConcurrency(
         "SELECT to_regclass('whaleu_media.verification_evidence_scopes') IS NOT NULL AS present",
       )
     ).rows[0]?.present === true;
+  const errandMediaInstalled =
+    (
+      await pool.query<{ present: boolean }>(
+        "SELECT to_regclass('whaleu_media.errand_scopes') IS NOT NULL AS present",
+      )
+    ).rows[0]?.present === true;
   const sources = [
     ...historicalSources,
     ...(categoryIconInstalled ? ['category_icon_request_markers'] : []),
+    ...(errandMediaInstalled
+      ? ['errand_scopes', 'errand_appearances', 'errand_retirements']
+      : []),
     ...(verificationEvidenceInstalled
       ? [
           'verification_evidence_scopes',

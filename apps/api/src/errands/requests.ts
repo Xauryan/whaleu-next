@@ -26,6 +26,7 @@ export class ErrandRequests {
       actor: string,
       tx: PoolClient,
     ) => Promise<{ orderId: string; revision: string; occurredAt: string }>,
+    version: 1 | 2 = 1,
   ): Promise<ErrandReceipt> {
     return this.database.transaction(
       async (tx) => {
@@ -33,7 +34,8 @@ export class ErrandRequests {
           actor = session.accountId;
         const hash = createHash('sha256')
           .update(
-            'whaleu:errand-command:v1\n' + canonicalJson({ operation, intent }),
+            `whaleu:errand-command:v${version}\n` +
+              canonicalJson({ operation, intent }),
           )
           .digest('hex');
         await tx.query(
