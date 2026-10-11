@@ -66,3 +66,11 @@ anti-wraparound vacuum. Fresh, low-age disposable clusters avoid relying on that
 exception being absent in an old database; no freeze/failsafe limits are raised.
 See the [PostgreSQL 18 vacuum settings](https://www.postgresql.org/docs/18/runtime-config-vacuum.html)
 and [lock compatibility](https://www.postgresql.org/docs/18/explicit-locking.html).
+
+## Hosted compatibility follow-up
+
+The first controlled hosted run on `01d157c` passed admission, all 42 semantic cases, the 32-image and complete 1,001/2,048 Category scenarios, and both encoding optimizations. Its four failing leaf cases were older maintenance tests: two assumed ordinary autovacuum must be on even in the explicitly admitted controlled mode; two unqualified whole-database VACUUM commands spent their unchanged budget cleaning shared system catalogs accumulated during the full suite.
+
+The follow-up changes only three test files and one test helper. Default-mode tests still require autovacuum on; controlled mode requires off from command-line configuration. Actual VACUUM holding its granted maintenance lock, concurrent HTTP success, unchanged epochs and all writer/refusal assertions remain mandatory. Three unqualified VACUUM calls now enumerate only the fixture-owned application relations in the complete migration-schema whitelist, reject escaping inheritance, and verify each table's manual vacuum and analyze counters increased. They still execute one real VACUUM statement under the original timeout, without scanning unrelated system catalogs.
+
+The three affected files passed 52/52 real PostgreSQL tests with zero skips, along with type, lint and formatting checks. Only a two-line stale comment changed after that run. No production code, migrations, workflow, 10-second SQL budget or 500-millisecond recount budget changed. Hosted full follow-up remains pending.

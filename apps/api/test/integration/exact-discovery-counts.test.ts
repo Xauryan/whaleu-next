@@ -1,3 +1,4 @@
+import { vacuumFixtureRelations } from '../support/vacuum-fixture-relations.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -463,8 +464,8 @@ test(
         true,
       );
       // Finish bulk-fixture maintenance before timed quiet-window measurements.
-      // Runtime autovacuum remains enabled; explicit lock contention is tested below.
-      await pool.query('VACUUM (ANALYZE)');
+      // Maintain only this fixture's application tables; explicit contention follows.
+      await vacuumFixtureRelations(pool);
       const pgSettings = (
         await pool.query(
           'SELECT name,setting,unit FROM pg_settings WHERE name=ANY($1::text[]) ORDER BY name',

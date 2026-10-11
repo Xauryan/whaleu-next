@@ -16,7 +16,7 @@ const sqlCode = (code: string) => (error: unknown) =>
 
 // These tests use real PostgreSQL locks, real owner final proofs and disposable
 // metadata corruption rolled back with the failed request. No runtime guards,
-// autovacuum settings, proof deadlines or source authority are weakened.
+// product defaults, proof deadlines or source authority are weakened.
 test(
   'scoped epoch row fences admit real maintenance and preserve retained writer boundaries',
   { timeout: 120000 },
@@ -89,8 +89,9 @@ test(
         `${table}: actual VACUUM holds ShareUpdateExclusive while the same context stays readable`,
         async () => {
           // Ordinary registered zero-row source writes create real dead epoch
-          // versions. Autovacuum stays enabled and TRUNCATE is excluded from this
-          // VACUUM because truncation legitimately needs AccessExclusive.
+          // versions. The CI admission-controlled service may pause automatic
+          // maintenance; this actual VACUUM still runs. TRUNCATE is excluded
+          // because truncation legitimately needs AccessExclusive.
           await withCommunityScopeWriter(f.pool, async (tx) => {
             await tx.query(
               `DO $$BEGIN FOR i IN 1..5000 LOOP UPDATE whaleu_ratings.scope_protocol_versions SET id=id WHERE false; END LOOP;END$$`,
@@ -107,10 +108,19 @@ test(
           let finished = false;
           let vacuum: Promise<{ error: unknown }> | undefined;
           try {
-            assert.equal(
-              (await maintenance.query('SHOW autovacuum')).rows[0]!.autovacuum,
-              'on',
-            );
+            const automatic = (
+              await maintenance.query<{ setting: string; source: string }>(
+                "SELECT setting,source FROM pg_settings WHERE name='autovacuum'",
+              )
+            ).rows[0]!;
+            if (process.env['WHALEU_TEST_MAINTENANCE'] === 'controlled') {
+              // The CI/local wrapper already ran fresh-loopback admission before
+              // this fixture. Only its explicit process-level mode allows off.
+              assert.equal(automatic.setting, 'off');
+              assert.equal(automatic.source, 'command line');
+            } else {
+              assert.equal(automatic.setting, 'on');
+            }
             await maintenance.query(
               "SET vacuum_cost_delay='2ms'; SET vacuum_cost_limit=1",
             );

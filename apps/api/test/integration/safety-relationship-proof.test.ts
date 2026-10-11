@@ -1,3 +1,4 @@
+import { vacuumFixtureRelations } from '../support/vacuum-fixture-relations.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -137,8 +138,8 @@ test(
       )[0]!;
       observer = observeExactQueries(app);
 
-      // Tiny fresh-fixture success gate: do not confuse bulk-seed autovacuum
-      // contention with unrelated committed DML. Runtime maintenance stays on.
+      // Tiny fresh-fixture success gate separates explicit maintenance and
+      // unrelated committed DML; the suite uses its admitted maintenance mode.
       const extra = await seedExactContent(
         pool,
         policy,
@@ -206,7 +207,7 @@ test(
         'small exact counts survive unrelated committed source churn',
         async () => {
           const owner = author;
-          await pool.query('VACUUM (ANALYZE)');
+          await vacuumFixtureRelations(pool);
           let fired = false;
           let writer:
             Promise<{ durationMs: number; error?: unknown }> | undefined;
@@ -282,7 +283,7 @@ test(
         async () => {
           const owner = author,
             records = [post, ...extra];
-          await pool.query('VACUUM (ANALYZE)');
+          await vacuumFixtureRelations(pool);
           for (const maintenance of [true, false]) {
             const blocker = await pool.connect();
             const beforeFailures = lockFailures.length;
