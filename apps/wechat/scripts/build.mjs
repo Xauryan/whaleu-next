@@ -42,6 +42,10 @@ for (const relative of [
   'platform/wechat-upload.js',
   'ratings/scoped-contract.js',
   'ratings/category-scoped-contract.js',
+  'ratings/category-icon-media-contract.js',
+  'ratings/category-icon-upload-scope.js',
+  'ratings/category-icon-contract.js',
+  'ratings/category-icon-pending.js',
   'ratings/target-cover-contract.js',
   'ratings/target-cover-media-contract.js',
   'ratings/target-cover-upload-scope.js',
@@ -88,5 +92,11 @@ execFileSync(
 execFileSync(
   process.execPath,
   [path.join(root, 'test/rating-discussion-media-page-smoke.mjs')],
+  { stdio: 'inherit', cwd: root },
+);
+
+execFileSync(
+  process.execPath,
+  ['--import', 'tsx', path.join(root, 'test/category-icon-emitted.smoke.ts')],
   { stdio: 'inherit', cwd: root },
 );

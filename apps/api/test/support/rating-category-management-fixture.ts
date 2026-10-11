@@ -282,9 +282,10 @@ export async function ratingCategoryManagementFixture(
     multiBases?: boolean;
     legacyBridge?: boolean;
     reviewPreview?: boolean;
+    maximumMigration?: number;
   } = {},
 ) {
-  const f = await ratingScopedFixture();
+  const f = await ratingScopedFixture(options.maximumMigration);
   try {
     const admin = f.creator;
     await f.grant(admin, 'super_admin');

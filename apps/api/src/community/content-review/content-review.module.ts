@@ -1,3 +1,4 @@
+import { RatingCategoryIconReviewFacade } from './rating-category-icon-review.facade.js';
 import { ProfileAvatarReviewFacade } from './profile-avatar-review.facade.js';
 import {
   MediaContentSnapshotFacade,
@@ -23,6 +24,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
 @Module({
   imports: [CampusModule],
   providers: [
+    RatingCategoryIconReviewFacade,
     ProfileAvatarReviewFacade,
     {
       provide: MediaContentSnapshotFacade,
@@ -41,6 +43,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
     LocalApprovedContentVisibility,
   ],
   exports: [
+    RatingCategoryIconReviewFacade,
     ProfileAvatarReviewFacade,
     MediaContentSnapshotFacade,
     DmContentReviewFacade,

@@ -11,6 +11,26 @@
     <view wx:if="{{status}}" class="notice" aria-role="status">{{status}}</view>
     <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
     <view wx:if="{{receiptStatus}}" class="card">{{receiptStatus}}</view>
+    <view wx:if="{{iconRetirement}}" class="card">
+      <view class="section-title">原请求的旧图标清理</view>
+      <view class="meta">{{iconRetirement.requestId}}</view>
+      <view class="notice">{{iconRetirement.status}}</view>
+      <view class="notice">清理须重新核验原账号与全部原影响范围。仍被引用的图标会保留；清理排队或引用退役都不等于文件已物理删除。</view>
+      <button bindtap="onIconRetirementInspect" disabled="{{busy}}">查询此原请求的旧图状态</button>
+      <view wx:for="{{iconRetirement.items}}" wx:key="appearanceId" class="history-row">
+        <view class="meta">{{item.appearanceId}}</view><view>{{item.label}}</view>
+        <button wx:if="{{item.canCleanup}}" data-id="{{item.appearanceId}}" bindtap="onIconRetirementCleanup" disabled="{{busy}}">明确请求清理此旧图</button>
+      </view>
+      <view class="meta">旧图记录 {{iconRetirement.from}}–{{iconRetirement.to}} / {{iconRetirement.count}}</view>
+      <button wx:if="{{iconRetirement.canPrevious}}" data-direction="-1" bindtap="onIconRetirementPage" disabled="{{busy}}">上一页旧图</button>
+      <button wx:if="{{iconRetirement.canNext}}" data-direction="1" bindtap="onIconRetirementPage" disabled="{{busy}}">下一页旧图</button>
+    </view>
+    <view wx:if="{{hasSession &amp;&amp; configured}}" class="card">
+      <view class="section-title">恢复原分类图标清理</view>
+      <view class="notice">重启或丢失清理响应后，可填写已知原请求编号。先查询原回执，再读取服务器保留的旧图记录；不会换编号重发分类变更。</view>
+      <input value="{{iconRetirementRecoveryRequestId}}" bindinput="onIconRetirementRequestId" maxlength="36" placeholder="原分类变更请求编号" disabled="{{busy}}" />
+      <button bindtap="onIconRetirementRecover" disabled="{{busy}}">按原请求恢复旧图状态</button>
+    </view>
     <button wx:if="{{!hasSession}}" bindtap="onLogin">登录后管理分类</button>
     <button wx:if="{{hasSession &amp;&amp; !frozen}}" bindtap="onRefresh" disabled="{{busy}}">重新核验管理范围</button>
     <button wx:if="{{busy}}" bindtap="onStop">停止等待</button>
@@ -37,6 +57,13 @@
         <button bindtap="onDismissCancel" disabled="{{busy}}">保留原请求</button>
       </view>
     </view>
+    <view wx:if="{{iconFrozen &amp;&amp; iconSlots.length}}" class="card">
+      <view class="section-title">冻结的全部图标槽位 · {{iconSlots.length}} / 32</view>
+      <view class="notice">每次只选择并上传一个节点。释放本地文件后才处理下一张；全部图标与文字在同一次发布中生效。</view>
+      <view wx:for="{{iconSlots}}" wx:key="key"><view>{{item.label}} · {{item.selection}} · {{item.status}}</view><button wx:if="{{item.selection === 'replace' &amp;&amp; item.status !== 'ready'}}" data-key="{{item.key}}" bindtap="onIconUpload" disabled="{{busy}}">选择原图并上传此节点</button></view>
+      <view>{{iconUploadStatus}} · {{iconProgress}}%</view>
+    </view>
+    <view wx:if="{{iconRead.state !== 'idle'}}" class="card"><image wx:if="{{iconRead.localSrc}}" src="{{iconRead.localSrc}}" mode="aspectFit" class="category-icon-preview" /><view wx:else>{{iconRead.state === 'loading' ? '正在核验并读取当前图标' : '图标暂不可用（不是无图）'}}</view><button bindtap="onIconClose">关闭图标</button></view>
     <block wx:if="{{loaded &amp;&amp; !frozen &amp;&amp; !pickerOpen}}">
       <block wx:if="{{!editorPage}}">
         <view class="card"><view class="section-title">管理分类与状态</view>
@@ -63,11 +90,11 @@
         <view class="meta">{{detailSystemKey ? '系统 key：' + detailSystemKey + '（不可修改或回收）' : '普通分类'}}</view>
         <view class="section-title">共享基础</view><view>{{baseName}}</view><view class="body">{{baseDescription}}</view>
         <view class="section-title">本校园覆盖</view><view>{{overrideName}}</view><view class="body">{{overrideDescription}}</view>
-        <view class="section-title">当前有效正文</view><view>{{effectiveName}}</view><view class="body">{{effectiveDescription}}</view>
+        <block wx:if="{{iconEnabled}}"><view>共享基础图标：{{iconBaseLabel}}</view><button data-value="base" bindtap="onIconOpen" disabled="{{busy}}">核验基础图标</button><view>本校园图标：{{iconOverrideLabel}}</view><button data-value="override" bindtap="onIconOpen" disabled="{{busy}}">核验本校园设置</button><view>有效图标：{{iconEffectiveLabel}}</view><button data-value="effective" bindtap="onIconOpen" disabled="{{busy}}">查看当前有效图标</button></block><view class="section-title">当前有效正文</view><view>{{effectiveName}}</view><view class="body">{{effectiveDescription}}</view>
         <view wx:if="{{detailUnavailable}}" class="notice">{{detailUnavailable}}</view>
         <view class="notice">停用、归档或移出校园会阻止新互动；既有评分对象、评论、订阅与通知历史保留，原作者清理走原入口。</view>
         <button bindtap="onHistory" disabled="{{busy}}">读取管理变更历史</button>
-        <view wx:for="{{history}}" wx:key="requestId" class="history-row"><view>{{item.label}}</view><view class="meta">{{item.occurredAt}} · {{item.requestId}}</view></view>
+        <view wx:for="{{history}}" wx:key="requestId" class="history-row"><view>{{item.label}}</view><view class="meta">{{item.occurredAt}} · {{item.requestId}}</view><button wx:if="{{iconEnabled}}" data-id="{{item.requestId}}" bindtap="onIconRetirementRecover" disabled="{{busy}}">核验此原请求的旧图清理状态</button></view>
         <button wx:if="{{canMoreHistory}}" bindtap="onMoreHistory" disabled="{{busy}}">继续读取历史</button>
       </view>
       <block wx:if="{{editorPage}}">
@@ -83,7 +110,7 @@
             <input wx:if="{{operation !== 'set_category_override_scoped' || nameMode === 'set'}}" value="{{name}}" data-field="name" bindinput="onText" maxlength="-1" placeholder="名称（1–100 字）" disabled="{{busy}}" />
             <block wx:if="{{operation === 'set_category_override_scoped'}}"><button data-field="descriptionMode" data-value="inherit" bindtap="onChoice">简介：{{descriptionMode === 'inherit' ? '已选' : ''}}继承基础</button><button data-field="descriptionMode" data-value="set" bindtap="onChoice">简介：{{descriptionMode === 'set' ? '已选' : ''}}单独覆盖（可空）</button></block>
             <textarea wx:if="{{operation !== 'set_category_override_scoped' || descriptionMode === 'set'}}" value="{{description}}" data-field="description" bindinput="onText" maxlength="-1" placeholder="简介（0–500 字）" disabled="{{busy}}" />
-            <button wx:if="{{operation === 'set_category_override_scoped'}}" bindtap="onResetOverride">两个字段都恢复继承</button>
+            <button wx:if="{{operation === 'set_category_override_scoped'}}" bindtap="onResetOverride">{{iconEnabled ? '名称、简介和图标都恢复继承' : '两个字段都恢复继承'}}</button>
           </block>
           <block wx:if="{{operation === 'set_category_visibility_scoped'}}"><view class="notice">仅改变当前明确视图的展示状态，不改变共享启用状态。</view><button data-field="visibility" data-value="shown" bindtap="onChoice">{{visibility === 'shown' ? '已选：' : ''}}显示</button><button data-field="visibility" data-value="hidden" bindtap="onChoice">{{visibility === 'hidden' ? '已选：' : ''}}隐藏</button></block>
           <block wx:if="{{operation === 'set_category_lifecycle_scoped'}}"><view class="notice">归档后恢复到停用，再单独启用。启用父项不会覆盖子项各自的停用或隐藏。</view><button wx:for="{{lifecycleActions}}" wx:key="value" data-field="lifecycleAction" data-value="{{item.value}}" bindtap="onChoice" disabled="{{!item.allowed}}">{{lifecycleAction === item.value ? '已选：' : ''}}{{item.label}}</button></block>
@@ -94,13 +121,14 @@
           </block>
           <block wx:if="{{operation === 'create_system_category_scoped'}}"><view class="section-title">已注册且有消费能力的系统类型</view><button wx:for="{{systemOptions}}" wx:key="systemKey" data-key="{{item.systemKey}}" bindtap="onSystemKey" disabled="{{!item.available}}">{{systemKey === item.systemKey ? '已选：' : ''}}{{item.systemKey}} · {{item.kind}} · 最多 {{item.maximumDepth}} 级</button><view class="section-title">系统最大层数（后续通过批量子分类添加节点）</view><button data-field="levelCount" data-value="1" bindtap="onChoice">{{levelCount === 1 ? '已选：' : ''}}一级</button><button data-field="levelCount" data-value="2" bindtap="onChoice">{{levelCount === 2 ? '已选：' : ''}}二级</button><button data-field="levelCount" data-value="3" bindtap="onChoice">{{levelCount === 3 ? '已选：' : ''}}三级</button><view wx:if="{{!systemOptions.length}}" class="notice">当前没有可用系统注册选项；不能创建未知专用评分体系。</view></block>
           <block wx:if="{{operation === 'create_categories_scoped' || operation === 'batch_update_subcategories_scoped'}}">
-            <view class="section-title">本次新增节点 · {{nodes.length}} / 32</view><view class="notice">{{detailId ? '新增项连接到当前分类（批量只新增直接子项）' : '新建根分类树'}}。图片与 AI 简介尚未接入，可手工编辑文字。</view>
+            <view class="section-title">本次新增节点 · {{nodes.length}} / 32</view><view class="notice">{{detailId ? '新增项连接到当前分类（批量只新增直接子项）' : '新建根分类树'}}。每个新节点可独立选择图标；封面与 AI 简介仍未接入。</view>
             <view wx:for="{{nodes}}" wx:key="key" class="category-node"><view class="meta">{{item.key}} · 第 {{item.level}} 级{{item.parentKey ? ' · 上级 ' + item.parentKey : ''}}</view><input value="{{item.name}}" data-key="{{item.key}}" data-field="name" bindinput="onNodeText" maxlength="-1" placeholder="新分类名称" /><textarea value="{{item.description}}" data-key="{{item.key}}" data-field="description" bindinput="onNodeText" maxlength="-1" placeholder="新分类简介（可空）" /><button wx:if="{{operation !== 'batch_update_subcategories_scoped' &amp;&amp; item.level &lt; 3}}" data-key="{{item.key}}" bindtap="onAddChild">添加子节点</button><button data-key="{{item.key}}" bindtap="onRemoveNode">移除此草稿节点</button></view>
             <button wx:if="{{operation === 'batch_update_subcategories_scoped' || !nodes.length}}" bindtap="onAddNode">添加新分类草稿</button>
           </block>
           <block wx:if="{{operation === 'batch_update_subcategories_scoped'}}"><view class="section-title">直接子项的同一笔变更</view><view class="notice">新增、停用、恢复和顺序一起提交；任一失败都不应部分生效。</view><view wx:for="{{batchChildren}}" wx:key="id" class="category-node"><view>{{item.label}} · {{item.state}}</view><button data-id="{{item.id}}" data-action="retain" bindtap="onBatchAction">{{item.action === 'retain' ? '已选：' : ''}}保留</button><button data-id="{{item.id}}" data-action="disable" bindtap="onBatchAction" disabled="{{item.state !== 'enabled'}}">{{item.action === 'disable' ? '已选：' : ''}}停用</button><button data-id="{{item.id}}" data-action="restore" bindtap="onBatchAction" disabled="{{item.state !== 'archived'}}">{{item.action === 'restore' ? '已选：' : ''}}恢复为停用</button><button data-id="{{item.id}}" data-action="enable" bindtap="onBatchAction" disabled="{{item.state !== 'disabled'}}">{{item.action === 'enable' ? '已选：' : ''}}启用</button></view><button wx:if="{{canPreviousBatch}}" data-direction="-1" bindtap="onPageBatch">上一页子项</button><button wx:if="{{canNextBatch}}" data-direction="1" bindtap="onPageBatch">下一页子项</button></block>
           <block wx:if="{{operation === 'reorder_categories_scoped' || operation === 'batch_update_subcategories_scoped'}}"><view class="section-title">完整同级顺序</view><view class="notice">包含当前隐藏、停用和归档项；不能只提交当前分页或跨父分类 ID。</view><button wx:if="{{operation === 'reorder_categories_scoped'}}" data-field="orderMode" data-value="set" bindtap="onChoice">{{orderMode === 'set' ? '已选：' : ''}}保存当前排列</button><button wx:if="{{operation === 'reorder_categories_scoped'}}" data-field="orderMode" data-value="inherit" bindtap="onChoice">{{orderMode === 'inherit' ? '已选：' : ''}}恢复继承顺序</button><view wx:for="{{order}}" wx:key="key" class="order-row"><view>{{orderOffset + index + 1}}. {{item.label}}</view><button data-key="{{item.key}}" data-direction="up" bindtap="onMove" disabled="{{orderOffset + index === 0}}">上移</button><button data-key="{{item.key}}" data-direction="down" bindtap="onMove" disabled="{{orderOffset + index === orderCount - 1}}">下移</button></view><view class="meta">完整集合 {{orderCount}} 项，本页显示 {{order.length}} 项</view><button wx:if="{{canPreviousOrder}}" data-direction="-1" bindtap="onPageOrder">上一页顺序</button><button wx:if="{{canNextOrder}}" data-direction="1" bindtap="onPageOrder">下一页顺序</button></block>
-          <button bindtap="onPrepare" disabled="{{busy}}" loading="{{busy}}">准备并核对完整变更预览</button>
+          <view wx:if="{{iconEnabled &amp;&amp; iconSlots.length}}"><view class="section-title">图标选择与来源</view><view class="notice">先完成文字、范围和所有图标模式，再冻结草稿并依次选择图片。继承会跟随基础；明确无图会遮蔽基础。</view><view wx:for="{{iconSlots}}" wx:key="key" class="category-node"><view>{{item.label}} · 已选 {{item.selection}}</view><button wx:if="{{item.canKeep}}" data-key="{{item.key}}" data-value="keep" bindtap="onIconChoice">保留当前图标</button><button wx:if="{{item.isOverride}}" data-key="{{item.key}}" data-value="inherit" bindtap="onIconChoice">继承共享基础</button><button wx:if="{{item.isOverride}}" data-key="{{item.key}}" data-value="set-empty" bindtap="onIconChoice">本校园明确无图</button><button wx:else data-key="{{item.key}}" data-value="clear" bindtap="onIconChoice">清空图标 / 新节点无图</button><button data-key="{{item.key}}" data-value="replace" bindtap="onIconChoice">冻结后选择新图</button></view></view>
+          <button bindtap="onPrepare" disabled="{{busy}}" loading="{{busy}}">{{iconEnabled ? '冻结文字与全部图标槽位，继续上传 / 预览' : '准备并核对完整变更预览'}}</button>
           <button bindtap="onDiscardDraft" disabled="{{busy}}">取消未保存的本地改动</button>
         </view>
       </block>
@@ -113,7 +141,7 @@
       <button bindtap="onCommit" disabled="{{busy}}" loading="{{busy}}">确认发布这笔完整变更</button>
       <button bindtap="onClosePreview" disabled="{{busy}}">关闭预览并保留原请求</button>
     </view>
-    <view class="notice">当前提供文字管理。图片上传、图标封面和 AI 简介尚未接入；未知专用评分类型不能替代为通用评分。</view>
+    <view class="notice">{{iconEnabled ? '本范围支持独立图标协议，封面和 AI 简介仍未接入。' : '当前文字协议不提供图标上传。'}}未知专用评分类型不能替代为通用评分。</view>
     <navigator url="/pages/rating-recovery/rating-recovery">独立查询历史评分回执</navigator>
     <button bindtap="onReturnCatalog">返回当前范围评分目录</button>
   </view>

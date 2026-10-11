@@ -1,5 +1,6 @@
 import * as ratingsDiscussion from '../src/media/contracts-ratings-discussion.js';
 import * as ratingsMedia from '../src/media/contracts-ratings.js';
+import * as categoryIconMedia from '../src/media/contracts-category-icon.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -471,6 +472,60 @@ const ratingsDiscussionCases = [
   ],
 ] as const;
 const ratingsDiscussionDeliveryPath = '/v3/media/ratings-discussion/images';
+const categoryIconCases = [
+  [
+    '/v3/media/ratings-category-icon/upload-scopes',
+    'post',
+    categoryIconMedia.prepareCategoryIconMediaSchema,
+    categoryIconMedia.categoryIconMediaStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-category-icon/upload-requests/{id}',
+    'get',
+    undefined,
+    categoryIconMedia.categoryIconMediaRecoverySchema,
+  ],
+  [
+    '/v3/media/ratings-category-icon/upload-requests/{id}/cancel',
+    'post',
+    categoryIconMedia.cancelCategoryIconMediaRequestSchema,
+    categoryIconMedia.categoryIconMediaRecoverySchema,
+  ],
+  [
+    '/v3/media/ratings-category-icon/upload-scopes/{id}',
+    'get',
+    undefined,
+    categoryIconMedia.categoryIconMediaStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-category-icon/upload-scopes/{id}/grant',
+    'post',
+    z.strictObject({}),
+    categoryIconMedia.categoryIconMediaGrantSchema,
+  ],
+  [
+    '/v3/media/ratings-category-icon/upload-scopes/{id}/finalize',
+    'post',
+    z.strictObject({}),
+    categoryIconMedia.categoryIconMediaStatusSchema,
+  ],
+  [
+    '/v3/media/ratings-category-icon/upload-scopes/{id}/cancel',
+    'post',
+    z.strictObject({}),
+    categoryIconMedia.categoryIconMediaCancelSchema,
+  ],
+  [
+    '/v3/media/ratings-category-icon/upload-scopes/{id}/uploads/{grantId}',
+    'post',
+    undefined,
+    categoryIconMedia.categoryIconMediaUploadObservedSchema,
+  ],
+] as const;
+const categoryIconDescriptorPath =
+  '/v3/media/ratings-category-icon/categories/{categoryId}/appearances/{appearanceId}/descriptor';
+const categoryIconDeliveryPath =
+  '/v3/media/ratings-category-icon/categories/{categoryId}/appearances/{appearanceId}/{variant}';
 const ratingsDeliveryPath =
   '/v3/media/ratings-target/targets/{targetId}/appearances/{appearanceId}/{variant}';
 
@@ -496,6 +551,9 @@ test('Media operations require bearer auth and private sanitized responses', asy
       ...v4cases,
       ...ratingsCases,
       ...ratingsDiscussionCases,
+      ...categoryIconCases,
+      [categoryIconDescriptorPath],
+      [categoryIconDeliveryPath],
       [ratingsDeliveryPath],
       [ratingsDiscussionDeliveryPath],
     ]
@@ -622,7 +680,7 @@ test('Media binary delivery and v1 descriptor expose no storage address or origi
   );
 });
 
-test('Media v2, v3 and v4 export exact strict recovery, batch, member and shared multipart contracts', async () => {
+test('Media v2, v3, v4 and category icons export exact strict recovery, batch, member and shared multipart contracts', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   for (const [path, method, input, output] of [
     ...v2cases,
@@ -630,6 +688,7 @@ test('Media v2, v3 and v4 export exact strict recovery, batch, member and shared
     ...v4cases,
     ...ratingsCases,
     ...ratingsDiscussionCases,
+    ...categoryIconCases,
   ]) {
     assert.deepEqual(Object.keys(doc.paths[path]!), [method]);
     const operation = doc.paths[path]![method]!;
@@ -789,6 +848,106 @@ test('Ratings derived bytes require bearer and never expose range or redirect', 
   const response = op.responses['200']!;
   assert.ok(!('$ref' in response));
   assert.ok(response.content?.['image/jpeg']);
+});
+
+test('Category icon descriptors and derived bytes require exact current context and sanitized private responses', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  for (const path of [categoryIconDescriptorPath, categoryIconDeliveryPath]) {
+    assert.deepEqual(Object.keys(doc.paths[path]!), ['get']);
+    const operation = doc.paths[path]!.get!;
+    assert.equal(
+      operation.operationId,
+      path === categoryIconDescriptorPath
+        ? 'readCategoryIconDescriptor'
+        : 'readCategoryIconCoverVariant',
+    );
+    assert.deepEqual(operation.security, [{ accessToken: [] }]);
+    assert.equal(operation.requestBody, undefined);
+    assert.equal(operation.responses['206'], undefined);
+    assert.equal(operation.responses['302'], undefined);
+    for (const code of [
+      '400',
+      '401',
+      '403',
+      '404',
+      '409',
+      '413',
+      '415',
+      '429',
+      '500',
+      '503',
+    ]) {
+      const error = operation.responses[code];
+      assert.ok(error && !('$ref' in error));
+      assert.deepEqual(error.headers, mediaResponseHeaders);
+      assert.deepEqual(error.content!['application/json']!.schema, {
+        $ref: '#/components/schemas/SafeErrorResponse',
+      });
+    }
+    const response = operation.responses['200']!;
+    assert.ok(!('$ref' in response));
+    if (path === categoryIconDescriptorPath) {
+      assert.deepEqual(response.headers, mediaResponseHeaders);
+      assert.deepEqual(
+        response.content!['application/json']!.schema,
+        z.toJSONSchema(categoryIconMedia.categoryIconMediaDescriptorSchema, {
+          target: 'openapi-3.0',
+          io: 'output',
+        }),
+      );
+    } else {
+      assert.deepEqual(response.headers, mediaBinaryResponseHeaders);
+      assert.deepEqual(response.content, {
+        'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+        'image/png': { schema: { type: 'string', format: 'binary' } },
+      });
+    }
+    const parameters = operation.parameters ?? [];
+    const queries = parameters.filter(
+      (p) => !('$ref' in p) && p.in === 'query',
+    );
+    assert.deepEqual(
+      queries.map((p) => (!('$ref' in p) ? p.name : '')).sort(),
+      ['contextId', 'contextToken', 'purpose'],
+    );
+    for (const [name, schema, required] of [
+      ['contextId', mediaV2IdSchema, true],
+      ['contextToken', z.string().regex(/^[A-Za-z0-9_-]{43}$/), true],
+      [
+        'purpose',
+        path === categoryIconDescriptorPath
+          ? z.enum(['direct-content', 'management-preview'])
+          : z.enum(['download', 'management-preview']),
+        false,
+      ],
+    ] as const) {
+      const parameter = queries.find((p) => !('$ref' in p) && p.name === name);
+      assert.ok(parameter && !('$ref' in parameter));
+      assert.equal(parameter.required, required);
+      assert.deepEqual(
+        parameter.schema,
+        z.toJSONSchema(schema, { target: 'openapi-3.0', io: 'input' }),
+      );
+    }
+    for (const name of ['categoryId', 'appearanceId', 'variant']) {
+      if (!path.includes(`{${name}}`)) continue;
+      const parameter = parameters.find(
+        (p) => !('$ref' in p) && p.in === 'path' && p.name === name,
+      );
+      assert.ok(parameter && !('$ref' in parameter));
+      assert.equal(parameter.required, true);
+      assert.deepEqual(
+        parameter.schema,
+        z.toJSONSchema(
+          name === 'variant' ? mediaVariantSchema : mediaV2IdSchema,
+          {
+            target: 'openapi-3.0',
+            io: 'input',
+          },
+        ),
+      );
+    }
+  }
 });
 
 test('Ratings discussion binary route carries exact current descriptor fields without URL authority', async () => {

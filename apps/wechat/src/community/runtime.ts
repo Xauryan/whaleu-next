@@ -1,4 +1,19 @@
 import {
+  HttpCategoryIconPublicGateway,
+  type CategoryIconPublicGateway,
+} from '../ratings/category-icon-public-gateway';
+import {
+  HttpRatingCategoryIconGateway,
+  type RatingCategoryIconGateway,
+} from '../ratings/category-icon-gateway';
+import {
+  HttpCategoryIconMediaGateway,
+  type CategoryIconMediaGateway,
+} from '../ratings/category-icon-media-gateway';
+import { PendingRatingCategoryIconStore } from '../ratings/category-icon-pending';
+import type { CategoryIconUploadTransfer } from '../ratings/category-icon-upload';
+import type { CategoryIconReadTransfer } from '../ratings/category-icon-download';
+import {
   HttpRatingDiscussionMediaGateway,
   type RatingDiscussionMediaGateway,
 } from '../ratings/discussion-media-gateway';
@@ -149,6 +164,12 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly ratingCategoryIconPublic?: CategoryIconPublicGateway;
+  readonly ratingCategoryIcon?: RatingCategoryIconGateway;
+  readonly ratingCategoryIconMedia?: CategoryIconMediaGateway;
+  readonly pendingRatingCategoryIcon?: PendingRatingCategoryIconStore;
+  readonly ratingCategoryIconUpload?: CategoryIconUploadTransfer;
+  readonly ratingCategoryIconDownload?: CategoryIconReadTransfer;
   readonly ratingDiscussionMedia?: RatingDiscussionMediaGateway;
   readonly pendingRatingDiscussionMedia?: PendingRatingDiscussionMediaStore;
   /** Real native adapters are assembled by App using its single shared registry. */
@@ -233,12 +254,29 @@ export function createCommunityRuntime(
   );
   // Lifetime journal owner: account changes still scrub when no discussion page is mounted.
   pendingRatingDiscussionMedia.watchSession(identity.sessions);
+  const pendingRatingCategoryIcon = new PendingRatingCategoryIconStore(
+    storage,
+    origin,
+  );
+  pendingRatingCategoryIcon.watchSession(identity.sessions);
   const privateViews = new PrivateViewLifecycle();
   const browsingScopeChanges = new PrivateViewLifecycle();
   const runtime: CommunityRuntime = {
     sessions: identity.sessions,
+    pendingRatingCategoryIcon,
     ...(identity.api
       ? {
+          ratingCategoryIconPublic: new HttpCategoryIconPublicGateway(
+            identity.api,
+            identity.sessions,
+          ),
+          ratingCategoryIcon: new HttpRatingCategoryIconGateway(
+            identity.api,
+            identity.sessions,
+          ),
+          ratingCategoryIconMedia: new HttpCategoryIconMediaGateway(
+            identity.api,
+          ),
           ratingCategoryScoped: new HttpRatingCategoryScopedGateway(
             identity.api,
             identity.sessions,

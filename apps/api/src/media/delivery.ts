@@ -68,22 +68,46 @@ export class ExactMediaDeliveryService {
     authorize: (tx: PoolClient) => Promise<Plan>,
     budgetKeyOf: (plan: Plan) => string,
     range?: string,
+    /** Optional owner bookkeeping only, never read authority. Called once after
+     * the provider effect and both streams are quiet, not at the caller deadline.
+     * A rejected notification must leave any durable owner hold open. */
+    onQuiet?: (plan: Plan) => void | Promise<void>,
   ): Promise<AuthorizedMediaStream> {
     if (range !== undefined) throw new ApplicationError('MEDIA_UNAVAILABLE');
     const plan = await this.database.transaction(authorize, {
       isolationLevel: 'read committed',
     });
-    if (
-      !Number.isSafeInteger(plan.bytes) ||
-      plan.bytes < 1 ||
-      plan.bytes > 5 * 1024 * 1024 ||
-      !/^[a-f0-9]{64}$/.test(plan.attachmentSetRevision) ||
-      !/^[a-f0-9]{64}$/.test(plan.sha256) ||
-      !['image/jpeg', 'image/png'].includes(plan.mime) ||
-      !exactObjectSchema.safeParse(plan.object).success
-    )
-      throw new ApplicationError('MEDIA_UNAVAILABLE');
-    const release = this.budget.acquire(budgetKeyOf(plan));
+    let quietNotified = false;
+    const notifyQuiet = () => {
+      if (!onQuiet || quietNotified) return;
+      quietNotified = true;
+      // Closure persistence is fail-closed. Never turn a rejected close into a
+      // success, a timer-based expiry, an unhandled rejection or a stream error.
+      try {
+        void Promise.resolve(onQuiet(plan)).catch(() => undefined);
+      } catch {
+        // Synchronous bookkeeping failures retain the owner's durable hold too.
+      }
+    };
+    let release: () => void;
+    try {
+      if (
+        !Number.isSafeInteger(plan.bytes) ||
+        plan.bytes < 1 ||
+        plan.bytes > 5 * 1024 * 1024 ||
+        !/^[a-f0-9]{64}$/.test(plan.attachmentSetRevision) ||
+        !/^[a-f0-9]{64}$/.test(plan.sha256) ||
+        !['image/jpeg', 'image/png'].includes(plan.mime) ||
+        !exactObjectSchema.safeParse(plan.object).success
+      )
+        throw new ApplicationError('MEDIA_UNAVAILABLE');
+      release = this.budget.acquire(budgetKeyOf(plan));
+    } catch (error) {
+      // Authorization may have committed an owner hold, but no provider effect
+      // or stream has started, so this is already physically quiet.
+      notifyQuiet();
+      throw error;
+    }
     let source: Readable | undefined;
     let output: Transform | undefined;
     let closed = false,
@@ -92,7 +116,10 @@ export class ExactMediaDeliveryService {
       sourceClosed = true,
       outputClosed = true;
     const releaseIfQuiet = () => {
-      if (!opening && !setupPending && sourceClosed && outputClosed) release();
+      if (!opening && !setupPending && sourceClosed && outputClosed) {
+        release();
+        notifyQuiet();
+      }
     };
     const abort = () => {
       if (!closed) {

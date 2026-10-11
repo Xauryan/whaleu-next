@@ -1,3 +1,9 @@
+import { prepareCategoryIconMediaSchema } from './contracts-category-icon.js';
+import type { PrepareCategoryIconMediaInput } from './contracts-category-icon.js';
+import type {
+  AuthorizedCategoryIconMediaEdit,
+  CategoryIconMediaDraftOwnerPort,
+} from './category-icon-prepare-scope.js';
 import {
   ratingsDiscussionMemberPrepareSchema,
   ratingsDiscussionBatchIdentitySchema,
@@ -98,11 +104,13 @@ export class MediaPrepareScopes {
         | PrepareMediaV4Input
         | PrepareProfileMediaInput
         | PrepareRatingsMediaInput
+        | PrepareCategoryIconMediaInput
         | RatingsDiscussionMemberPrepare;
       scope:
         | AuthorizedMediaDraft
         | AuthorizedProfileMediaEdit
         | AuthorizedRatingsMediaEdit
+        | AuthorizedCategoryIconMediaEdit
         | AuthorizedRatingsDiscussionDraft;
     }
   >();
@@ -111,6 +119,7 @@ export class MediaPrepareScopes {
     private readonly profileOwner?: ProfileMediaDraftOwnerPort,
     private readonly ratingsOwner?: RatingsMediaDraftOwnerPort,
     private readonly ratingsDiscussionOwner?: RatingsDiscussionMediaDraftOwnerPort,
+    private readonly categoryIconOwner?: CategoryIconMediaDraftOwnerPort,
   ) {}
   async authorizeRatingsDiscussionBatch(
     actor: string,
@@ -192,6 +201,51 @@ export class MediaPrepareScopes {
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+  }
+  async authorizeCategoryIcon(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    const input = prepareCategoryIconMediaSchema.parse(raw);
+    const actor = mediaIdSchema.parse(actorAccountId);
+    const epoch = transactionReadEpoch(tx);
+    if (!epoch || !this.categoryIconOwner)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const scope = await this.categoryIconOwner.authorizePrepare(
+      actor,
+      input,
+      tx,
+    );
+    if (
+      scope.actorAccountId !== actor ||
+      scope.ownerKind !== 'ratings' ||
+      scope.resourceKind !== 'category_icon' ||
+      scope.targetKind !== 'edit' ||
+      scope.contentVersion !== 1 ||
+      scope.audience !== 'content-gated' ||
+      scope.purpose !== 'ratings-category-icon-image' ||
+      scope.slot !== 'icon' ||
+      scope.ordinal !== 0 ||
+      scope.scopeRevision !== input.scopeRevision ||
+      scope.serverScopeId !== input.editScopeId ||
+      !Number.isSafeInteger(scope.expiresAt) ||
+      transactionReadEpoch(tx) !== epoch
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+    Object.freeze(input.declaration);
+    Object.freeze(input);
+    const capability: MediaPrepareScope = Object.freeze({
+      [brand]: true as const,
+    });
+    this.issued.set(capability, {
+      tx,
+      epoch,
+      input,
+      scope: Object.freeze({ ...scope }),
+    });
+    return capability;
   }
   async authorizeRatings(
     actorAccountId: string,
@@ -391,11 +445,13 @@ export class MediaPrepareScopes {
       | PrepareMediaV4Input
       | PrepareProfileMediaInput
       | PrepareRatingsMediaInput
+      | PrepareCategoryIconMediaInput
       | RatingsDiscussionMemberPrepare;
     scope:
       | AuthorizedMediaDraft
       | AuthorizedProfileMediaEdit
       | AuthorizedRatingsMediaEdit
+      | AuthorizedCategoryIconMediaEdit
       | AuthorizedRatingsDiscussionDraft;
   } {
     const issued = this.issued.get(capability);

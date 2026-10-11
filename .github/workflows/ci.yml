@@ -16,9 +16,10 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    # Scheduling headroom for the full suite, including real persisted lease waits.
+    # Category local PG: 88m05; prior hosted/local ratio: 79m22 / 67m48 (~1.17).
+    # The projected ~103m exceeds 100m; allow 120m PG plus other verification.
     # This does not change individual tests, SQL/proof limits or resource capacity.
-    timeout-minutes: 120
+    timeout-minutes: 150
     services:
       postgres:
         image: postgres:18.6-bookworm
@@ -47,7 +48,7 @@ jobs:
       - run: npm run check
       - run: npm run format:check
       - name: Real PostgreSQL integration tests
-        run: timeout 6000 npm run test:integration
+        run: timeout 7200 npm run test:integration
         env:
           WHALEU_RATINGS_CI_DIAGNOSTICS: '1'
           WHALEU_SCALABLE_PROFILE_CI_DIAGNOSTICS: '1'

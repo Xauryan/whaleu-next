@@ -1,4 +1,10 @@
 import {
+  prepareCategoryIconPublication,
+  writeCategoryIconPublication,
+  finishCategoryIconPublication,
+  type CategoryIconPublicationInput,
+} from '../category-management/icon-publication.js';
+import {
   boundedOwnerProof,
   ownerFingerprint,
 } from '../../database/required-owner-proof.js';
@@ -69,7 +75,10 @@ export type ScopedReleaseCause =
       issuanceSourceRevision: string;
     }
   | {
-      kind: 'create_target_scoped' | 'category_management';
+      kind:
+        | 'create_target_scoped'
+        | 'category_management'
+        | 'category_icon_management';
       accountId: string;
       requestId: string;
     }
@@ -103,6 +112,7 @@ export class RatingScopedReleaseRepository {
     proofs: readonly RatingScopedCampusProof[],
     cause: ScopedReleaseCause,
     tx: PoolClient,
+    categoryIcon?: CategoryIconPublicationInput,
   ) {
     if (!proofs.length || proofs.length > 1001)
       throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
@@ -125,7 +135,7 @@ export class RatingScopedReleaseRepository {
     await tx.query(
       'LOCK TABLE whaleu_ratings.scoped_source_epoch,whaleu_ratings.scope_protocol_epoch,whaleu_ratings.random_pool_epoch,whaleu_ratings.navigation_epoch IN ROW EXCLUSIVE MODE',
     );
-    const budget = new RatingScopedCompilationBudget();
+    const budget = categoryIcon?.budget ?? new RatingScopedCompilationBudget();
     // compilerInputs validates each original owner-branded proof. An object
     // spread cannot mint authority for a combined or inferred domain.
     const inputs = [];
@@ -134,6 +144,14 @@ export class RatingScopedReleaseRepository {
     inputs.sort((a, b) => a.scopeKey.localeCompare(b.scopeKey));
     const outputs = new RatingScopedCatalogCompiler().compile(inputs, budget),
       releaseId = randomUUID();
+    const iconPublication = await prepareCategoryIconPublication(
+      releaseId,
+      outputs,
+      tx,
+      budget,
+      categoryIcon,
+      cause,
+    );
     const sourceVector = (
       await tx.query<{ vector: unknown[] }>(
         'SELECT whaleu_ratings.scoped_current_source_vector($1::text[]) vector',
@@ -157,6 +175,13 @@ export class RatingScopedReleaseRepository {
         cause.kind,
         JSON.stringify({
           ...cause,
+          ...(iconPublication
+            ? {
+                categoryIconExtension: 'ratings-category-icon-v1',
+                categoryIconDigest: iconPublication.digest,
+                categoryIconScopeKeys: iconPublication.scopeKeys,
+              }
+            : {}),
           sourceDigest,
           topologySnapshotId: proof.topologySnapshotId,
           inventoryFingerprint: proof.inventoryFingerprint,
@@ -246,6 +271,13 @@ export class RatingScopedReleaseRepository {
       if (changed.rowCount !== 1)
         throw new ApplicationError('RATING_SCOPED_CONTEXT_CHANGED');
     }
+    if (iconPublication)
+      await writeCategoryIconPublication(
+        releaseId,
+        iconPublication,
+        tx,
+        budget,
+      );
     if (cause.kind === 'protocol_activation')
       await tx.query('SELECT whaleu_ratings.activate_rating_scopes($1)', [
         releaseId,
@@ -258,6 +290,7 @@ export class RatingScopedReleaseRepository {
       await tx.query('SELECT whaleu_ratings.publish_scoped_compat($1)', [
         releaseId,
       ]);
+    await finishCategoryIconPublication(iconPublication, tx);
     const logicalKeys = [
       ...new Set(outputs.map((o) => o.regionId ?? 'global')),
     ].sort();
@@ -272,6 +305,14 @@ export class RatingScopedReleaseRepository {
         fingerprint: await publicationSnapshot(scopeKeys, logicalKeys, tx),
       }),
     );
-    return { releaseId, sourceDigest, outputs, budget: budget.snapshot() };
+    return {
+      releaseId,
+      sourceDigest,
+      outputs,
+      budget: budget.snapshot(),
+      ...(iconPublication
+        ? { mediaReleaseDigest: iconPublication.digest }
+        : {}),
+    };
   }
 }

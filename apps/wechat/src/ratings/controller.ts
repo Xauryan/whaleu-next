@@ -331,6 +331,23 @@ export class RatingController extends CommunityController<RatingView> {
     try {
       this.pending = this.runtime.pendingRatings!.load(this.accountId()!);
       if (this.pending) this.showPending(this.pending);
+      else if (this.runtime.pendingRatingCategoryIcon) {
+        const store = this.runtime.pendingRatingCategoryIcon,
+          actor = this.accountId()!;
+        const pending = store.isOpaque(actor)
+          ? store.opaqueRecovery(actor)
+          : store.load(actor);
+        if (pending.command || pending.uploads) {
+          this.clearCurrent();
+          this.update({
+            frozen: true,
+            recoveryOperation: '分类图标原请求',
+            status:
+              '分类图标请求仍受保护，请打开下方分类图标恢复入口查询原回执或取消',
+          });
+          return false;
+        }
+      }
       return true;
     } catch (error) {
       this.clearCurrent();

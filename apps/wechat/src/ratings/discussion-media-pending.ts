@@ -1,4 +1,5 @@
 import type { SessionStore } from '../auth/session';
+import { assertRatingCategoryIconJournalsClear } from './category-icon-journal-guard';
 import {
   decodeDiscussionBatchStatus,
   decodeDiscussionBatchRecovery,
@@ -604,6 +605,11 @@ export class PendingRatingDiscussionMediaStore {
   start(raw: PendingRatingDiscussionBatch): PendingRatingDiscussionBatch {
     const value = decodePendingRatingDiscussionBatch(raw, raw.accountId),
       old = this.load(value.accountId);
+    assertRatingCategoryIconJournalsClear(
+      this.storage,
+      this.origin,
+      value.accountId,
+    );
     if (
       old.command ||
       old.batch ||
@@ -706,6 +712,7 @@ export class PendingRatingDiscussionMediaStore {
       if (!same(old.command.intent, intent)) throw unavailable();
       return old.command;
     }
+    assertRatingCategoryIconJournalsClear(this.storage, this.origin, actor);
     if (intent.payload.images.length > 0) {
       if (!old.batch) throw unavailable();
       this.match(old.batch, intent);

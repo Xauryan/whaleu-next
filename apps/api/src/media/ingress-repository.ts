@@ -1,3 +1,9 @@
+import { CategoryIconMediaRequiredProof } from './category-icon-required-proof.js';
+import {
+  prepareCategoryIconMediaSchema,
+  categoryIconMediaRequestHash,
+} from './contracts-category-icon.js';
+import type { PrepareCategoryIconMediaInput } from './contracts-category-icon.js';
 import {
   ratingsDiscussionMemberPrepareSchema,
   ratingsDiscussionMemberHash,
@@ -111,11 +117,15 @@ export interface MediaIngressGrantBlocked {
   readonly blocked: 'MEDIA_UPLOAD_IN_FLIGHT' | 'MEDIA_RECONCILE_NEEDED';
 }
 export class MediaIngressRepository {
-  private readonly proof = new MediaRequiredProof();
+  private readonly proof: MediaRequiredProof;
   constructor(
     readonly planning: MediaIngressPlanningPort,
-    private readonly protocolVersion: 2 | 3 | 4 | 5 | 6 | 7 = 2,
+    private readonly protocolVersion: 2 | 3 | 4 | 5 | 6 | 7 | 8 = 2,
   ) {
+    this.proof =
+      protocolVersion === 8
+        ? new CategoryIconMediaRequiredProof()
+        : new MediaRequiredProof();
     mediaIdSchema.parse(planning.writerInstanceId);
   }
   /** Nonlocking routing hint only; authority is re-established by scopes and the
@@ -129,7 +139,8 @@ export class MediaIngressRepository {
     if (
       this.protocolVersion === 5 ||
       this.protocolVersion === 6 ||
-      this.protocolVersion === 7
+      this.protocolVersion === 7 ||
+      this.protocolVersion === 8
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const row = (
@@ -204,6 +215,36 @@ export class MediaIngressRepository {
     ).rows[0];
     if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
     return ratingsDiscussionMemberPrepareSchema.parse(row.input);
+  }
+  async originalCategoryIconInput(
+    actor: string,
+    id: string,
+    tx: PoolClient,
+  ): Promise<PrepareCategoryIconMediaInput> {
+    this.managed(tx);
+    if (this.protocolVersion !== 8)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const row = (
+      await tx.query<Intent>(
+        `SELECT i.* FROM whaleu_media.upload_intents i JOIN whaleu_ratings.category_icon_upload_scopes s
+       ON s.id=i.resource_id AND s.actor_id=i.actor_id AND s.scope_revision=i.scope_revision
+       WHERE i.id=$1 AND i.actor_id=$2 AND i.protocol_version=8 AND i.owner_kind='ratings'`,
+        [mediaIdSchema.parse(id), actor],
+      )
+    ).rows[0];
+    if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return prepareCategoryIconMediaSchema.parse({
+      protocol: 'ratings-category-icon-media-v1',
+      clientRequestId: row.client_request_id,
+      editScopeId: row.resource_id,
+      scopeRevision: row.scope_revision,
+      slot: 'icon',
+      declaration: {
+        bytes: Number(row.declared_bytes),
+        mime: row.declared_mime,
+        sha256: row.declared_sha256,
+      },
+    });
   }
   async originalRatingsInput(
     actor: string,
@@ -732,17 +773,19 @@ export class MediaIngressRepository {
       )
     ).rows[0];
     const input =
-      this.protocolVersion === 7
-        ? ratingsDiscussionMemberPrepareSchema.parse(issued.input)
-        : this.protocolVersion === 6
-          ? prepareRatingsMediaSchema.parse(issued.input)
-          : this.protocolVersion === 5
-            ? prepareProfileMediaSchema.parse(issued.input)
-            : this.protocolVersion === 4
-              ? prepareMediaV4Schema.parse(issued.input)
-              : this.protocolVersion === 3
-                ? prepareMediaV3Schema.parse(issued.input)
-                : prepareMediaV2Schema.parse(issued.input);
+      this.protocolVersion === 8
+        ? prepareCategoryIconMediaSchema.parse(issued.input)
+        : this.protocolVersion === 7
+          ? ratingsDiscussionMemberPrepareSchema.parse(issued.input)
+          : this.protocolVersion === 6
+            ? prepareRatingsMediaSchema.parse(issued.input)
+            : this.protocolVersion === 5
+              ? prepareProfileMediaSchema.parse(issued.input)
+              : this.protocolVersion === 4
+                ? prepareMediaV4Schema.parse(issued.input)
+                : this.protocolVersion === 3
+                  ? prepareMediaV3Schema.parse(issued.input)
+                  : prepareMediaV2Schema.parse(issued.input);
     if (
       !row ||
       row.state !== 'prepared' ||
@@ -770,6 +813,12 @@ export class MediaIngressRepository {
           row.ordinal !== input.sourceSlot ||
           row.request_hash !==
             ratingsDiscussionMemberHash(session.accountId, input))) ||
+      ('protocol' in input &&
+        input.protocol === 'ratings-category-icon-media-v1' &&
+        (issued.scope.ownerKind !== 'ratings' ||
+          issued.scope.resourceKind !== 'category_icon' ||
+          row.request_hash !==
+            categoryIconMediaRequestHash(session.accountId, input))) ||
       ('protocol' in input &&
         input.protocol === 'ratings-target-media-v1' &&
         (issued.scope.ownerKind !== 'ratings' ||

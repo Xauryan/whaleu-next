@@ -1,3 +1,12 @@
+import {
+  CategoryIconReader,
+  type CategoryIconReadView,
+} from './category-icon-reader';
+import {
+  matchCategoryIconPublicContext,
+  type CategoryIconPublicContext,
+} from './category-icon-public-contract';
+import type { CategoryIconDescriptor } from './category-icon-media-contract';
 import { discussionMediaPath } from './discussion-media-page-controller';
 import {
   RatingTargetCoverContextLease,
@@ -236,7 +245,10 @@ export interface RatingScopedView extends CommunityView {
   readonly identityCampusId: string | null;
   readonly viewCampusId: string | null;
   readonly categoryId: string | null;
-  readonly categories: readonly RatingCategory[];
+  readonly categories: readonly (RatingCategory & {
+    readonly hasIcon?: boolean;
+  })[];
+  readonly categoryIcon: CategoryIconReadView;
   readonly targets: readonly RatingTarget[];
   readonly detail: RatingTarget | null;
   readonly myScore: RatingMyScore | null;
@@ -284,6 +296,7 @@ export const initialRatingScopedView = (): RatingScopedView => ({
   identityCampusId: null,
   viewCampusId: null,
   categoryId: null,
+  categoryIcon: { key: '', localSrc: '', state: 'idle' },
   categories: [],
   targets: [],
   detail: null,
@@ -366,6 +379,11 @@ export class RatingScopedController extends CommunityController<RatingScopedView
   private readonly subscriptionsToChanges: (() => void)[];
   private pending: PendingRating | null = null;
   private category: RatingCategory | null = null;
+  private iconPublicContext: CategoryIconPublicContext | null = null;
+  private iconLegacyContext: RatingScopedContext | null = null;
+  private iconContextExpiry: (() => void) | null = null;
+  private readonly iconDescriptors = new Map<string, CategoryIconDescriptor>();
+  private readonly iconReader: CategoryIconReader;
   private editing: RatingScopedEditContext | null = null;
   private replyTo: {
     readonly replyId: string;
@@ -387,6 +405,12 @@ export class RatingScopedController extends CommunityController<RatingScopedView
   ) {
     super(runtime, initialRatingScopedView, render);
     this.coverClock = clock;
+    this.iconReader = new CategoryIconReader(
+      runtime.sessions,
+      runtime.ratingCategoryIconDownload,
+      clock,
+      (categoryIcon) => this.update({ categoryIcon }),
+    );
     this.coverReadLease = new RatingTargetCoverContextLease(
       runtime.sessions,
       () => this.invalidate(),
@@ -448,6 +472,7 @@ export class RatingScopedController extends CommunityController<RatingScopedView
     return true;
   }
   protected override resetPrivate(): void {
+    this.clearCategoryIcons();
     this.coverUploader?.hide();
     this.coverReader?.clear();
     this.randomCoverContext = null;
@@ -470,6 +495,7 @@ export class RatingScopedController extends CommunityController<RatingScopedView
     this.invalidate();
   }
   private clearContent(): void {
+    this.clearCategoryIcons();
     this.coverUploader?.hide();
     this.coverReader?.clear();
     this.randomCoverContext = null;
@@ -544,6 +570,22 @@ export class RatingScopedController extends CommunityController<RatingScopedView
     try {
       this.pending = this.runtime.pendingRatings!.load(this.accountId()!);
       if (this.pending) this.showPending(this.pending);
+      else if (this.runtime.pendingRatingCategoryIcon) {
+        const store = this.runtime.pendingRatingCategoryIcon,
+          actor = this.accountId()!;
+        const pending = store.isOpaque(actor)
+          ? store.opaqueRecovery(actor)
+          : store.load(actor);
+        if (pending.command || pending.uploads) {
+          this.clearContent();
+          this.update({
+            frozen: true,
+            recoveryOperation: '分类图标原请求',
+            status: '分类图标请求仍受保护，请打开分类管理原请求恢复入口',
+          });
+          return false;
+        }
+      }
       return true;
     } catch (error) {
       try {
@@ -765,6 +807,118 @@ export class RatingScopedController extends CommunityController<RatingScopedView
     )
       throw new ClientError('cancelled', 'Scoped page changed during read');
   }
+  private clearCategoryIcons(): void {
+    this.iconReader?.clear();
+    this.iconDescriptors?.clear();
+    this.iconPublicContext = null;
+    this.iconLegacyContext = null;
+    this.iconContextExpiry?.();
+    this.iconContextExpiry = null;
+  }
+  private async categoryPage(
+    context: RatingScopedContext,
+    parentId: string | null,
+    cursor: string | null,
+    cancel: Cancellation,
+    limit = 20,
+  ) {
+    const gateway = this.runtime.ratingCategoryIconPublic;
+    if (!gateway)
+      return this.runtime.ratingScoped!.categories(
+        context,
+        parentId,
+        cursor,
+        cancel,
+        limit,
+      );
+    if (!this.iconPublicContext && !this.iconLegacyContext) {
+      if (context.purpose !== 'read' || context.mode !== 'public')
+        invalidRating();
+      const entry = await gateway.entryContext(
+        { purpose: 'read', mode: 'public', selector: context.selector },
+        cancel,
+      );
+      this.assertRead(cancel, context);
+      if (entry.kind === 'icon') {
+        matchCategoryIconPublicContext(context, entry.context);
+        this.iconPublicContext = entry.context;
+      } else {
+        const other = entry.context;
+        if (
+          other.actorId !== context.actorId ||
+          other.sessionGeneration !== context.sessionGeneration ||
+          other.sourceDigest !== context.sourceDigest ||
+          other.protocolGeneration !== context.protocolGeneration ||
+          JSON.stringify(other.heads) !== JSON.stringify(context.heads) ||
+          JSON.stringify(other.selector) !== JSON.stringify(context.selector)
+        )
+          invalidRating();
+        this.iconLegacyContext = other;
+      }
+      const expires = Date.parse(entry.context.expiresAt);
+      if (expires <= this.coverClock.now()) invalidRating();
+      this.iconContextExpiry = this.coverClock.schedule(
+        () => this.invalidate(),
+        expires - this.coverClock.now(),
+      );
+    }
+    if (this.iconLegacyContext)
+      return this.runtime.ratingScoped!.categories(
+        this.iconLegacyContext,
+        parentId,
+        cursor,
+        cancel,
+        limit,
+      );
+    const iconContext = this.iconPublicContext!;
+    matchCategoryIconPublicContext(context, iconContext);
+    if (Date.parse(iconContext.expiresAt) <= this.coverClock.now())
+      invalidRating();
+    const page = await gateway.categories(
+      iconContext,
+      parentId,
+      cursor,
+      cancel,
+      limit,
+    );
+    this.assertRead(cancel, context);
+    if (this.iconPublicContext !== iconContext)
+      throw new ClientError('cancelled', 'Category icon context changed');
+    return {
+      ...page,
+      items: page.items.map(({ icon, ...body }) => {
+        if (icon) this.iconDescriptors.set(body.id, icon);
+        else this.iconDescriptors.delete(body.id);
+        return { ...body, hasIcon: icon !== null };
+      }),
+    };
+  }
+  async openCategoryIcon(categoryId: string): Promise<void> {
+    const descriptor = this.iconDescriptors.get(categoryId),
+      context = this.iconPublicContext;
+    if (
+      !descriptor ||
+      !context ||
+      !this.view.loaded ||
+      this.view.frozen ||
+      this.inactive
+    )
+      return;
+    try {
+      matchCategoryIconPublicContext(this.lease.current(), context);
+      await this.iconReader.open(categoryId, descriptor, context);
+    } catch {
+      if (
+        !this.inactive &&
+        this.iconPublicContext === context &&
+        this.accountId() === context.actorId
+      )
+        this.update({ error: '当前分类图标暂不可用，请重新核验' });
+    }
+  }
+  closeCategoryIcon(): void {
+    this.iconReader.clear();
+  }
   private async findCategory(
     context: RatingScopedContext,
     categoryId: string,
@@ -777,7 +931,7 @@ export class RatingScopedController extends CommunityController<RatingScopedView
       let cursor: string | null = null;
       const visited = new Set<string>();
       do {
-        const page = await this.runtime.ratingScoped!.categories(
+        const page = await this.categoryPage(
           context,
           queue[index]!,
           cursor,
@@ -850,7 +1004,7 @@ export class RatingScopedController extends CommunityController<RatingScopedView
         };
         if (route.mode === 'catalog') {
           const [categories, targets] = await Promise.all([
-            gateway.categories(context, route.categoryId ?? null, null, cancel),
+            this.categoryPage(context, route.categoryId ?? null, null, cancel),
             route.categoryId
               ? coverRead && this.runtime.ratingTargetCover
                 ? this.runtime.ratingTargetCover.targets(
@@ -1052,6 +1206,10 @@ export class RatingScopedController extends CommunityController<RatingScopedView
       (result) => {
         this.assertContextPair();
         this.update(result);
+        const firstIcon = this.view.categories.find(
+          (item) => 'hasIcon' in item && item.hasIcon,
+        );
+        if (firstIcon) void this.openCategoryIcon(firstIcon.id);
         if (this.view.detail && this.runtime.ratingTargetCover)
           void this.openCover(undefined, false);
       },
@@ -1087,7 +1245,7 @@ export class RatingScopedController extends CommunityController<RatingScopedView
         const context = this.lease.current(),
           gateway = this.runtime.ratingScoped!;
         if (kind === 'categories') {
-          const page = await gateway.categories(
+          const page = await this.categoryPage(
             context,
             this.route.categoryId ?? null,
             cursor,
@@ -2460,6 +2618,8 @@ export class RatingScopedController extends CommunityController<RatingScopedView
   override dispose(): void {
     if (this.inactive) return;
     this.inactive = true;
+    this.clearCategoryIcons();
+    this.iconReader.dispose();
     this.coverUploader?.dispose();
     this.coverReader?.dispose();
     this.clearCoverThumbnails();

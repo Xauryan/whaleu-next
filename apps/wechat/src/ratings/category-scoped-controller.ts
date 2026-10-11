@@ -1,3 +1,26 @@
+import { CategoryIconCoordinator } from './category-icon-coordinator';
+import {
+  CategoryIconReader,
+  type CategoryIconReadView,
+} from './category-icon-reader';
+import {
+  categoryIconDraftSlots,
+  type CategoryIconSelection,
+} from './category-icon-draft';
+import {
+  decodeRatingManagedIconCategories,
+  decodeRatingManagedIconCategory,
+  type RatingCategoryIconContext,
+  type RatingCategoryIconPreparation,
+  type RatingCategoryIconReceipt,
+  type RatingManagedIconCategory,
+  type CategoryIconState,
+} from './category-icon-contract';
+import {
+  ratingCategoryIconRetirementCandidates,
+  type RatingCategoryIconRetirementStatusRequest,
+  type RatingCategoryIconRetirementStatus,
+} from './category-icon-contract';
 import { ClientError, isRecord } from '../api/errors';
 import {
   CommunityController,
@@ -8,7 +31,7 @@ import type { Clock } from '../platform/contracts';
 import { systemClock } from '../platform/clock';
 import type { CommunityRuntime } from '../community/runtime';
 import { decodeCampusPage, type Campus } from '../profile/contract';
-import { canonicalRatingText, invalidRating } from './contract';
+import { canonicalRatingText, invalidRating, ratingId } from './contract';
 import { ratingCategoryError } from './category-management-controller';
 import {
   RATING_CATEGORY_SCOPED_DRAFT_BODY_BUDGET,
@@ -150,7 +173,46 @@ interface PreviewView {
   readonly canPrevious: boolean;
   readonly canNext: boolean;
 }
+interface IconRetirementItem {
+  readonly appearanceId: string;
+  readonly state:
+    | 'unknown'
+    | 'cleanup_pending'
+    | RatingCategoryIconRetirementStatus['items'][number]['state'];
+}
+interface IconRetirementView {
+  readonly requestId: string;
+  readonly status: string;
+  readonly items: readonly {
+    readonly appearanceId: string;
+    readonly label: string;
+    readonly canCleanup: boolean;
+  }[];
+  readonly count: number;
+  readonly from: number;
+  readonly to: number;
+  readonly canPrevious: boolean;
+  readonly canNext: boolean;
+}
 export interface RatingCategoryScopedView extends CommunityView {
+  readonly iconEnabled: boolean;
+  readonly iconFrozen: boolean;
+  readonly iconProgress: number;
+  readonly iconUploadStatus: string;
+  readonly iconRead: CategoryIconReadView;
+  readonly iconBaseLabel: string;
+  readonly iconOverrideLabel: string;
+  readonly iconEffectiveLabel: string;
+  readonly iconRetirement: IconRetirementView | null;
+  readonly iconRetirementRecoveryRequestId: string;
+  readonly iconSlots: readonly {
+    key: string;
+    label: string;
+    selection: CategoryIconSelection;
+    status: string;
+    canKeep: boolean;
+    isOverride: boolean;
+  }[];
   readonly editorPage: boolean;
   readonly loaded: boolean;
   readonly scopeLabel: string;
@@ -241,6 +303,17 @@ export interface RatingCategoryScopedView extends CommunityView {
 export const initialRatingCategoryScopedView =
   (): RatingCategoryScopedView => ({
     ...initialCommunityView(),
+    iconEnabled: false,
+    iconFrozen: false,
+    iconProgress: 0,
+    iconUploadStatus: '',
+    iconRead: { key: '', localSrc: '', state: 'idle' },
+    iconBaseLabel: '',
+    iconOverrideLabel: '',
+    iconEffectiveLabel: '',
+    iconSlots: [],
+    iconRetirement: null,
+    iconRetirementRecoveryRequestId: '',
     editorPage: false,
     loaded: false,
     scopeLabel: '请明确选择管理视图',
@@ -351,7 +424,17 @@ const sortCategories = (
  * journal precedes every current read; late callbacks cannot publish drafts across owners. */
 export class RatingCategoryScopedController extends CommunityController<RatingCategoryScopedView> {
   private route: RatingCategoryScopedRoute | null = null;
-  private context: RatingCategoryScopedContext | null = null;
+  private context:
+    RatingCategoryScopedContext | RatingCategoryIconContext | null = null;
+  private readonly iconChoices = new Map<string, CategoryIconSelection>();
+  private readonly iconCoordinator: CategoryIconCoordinator;
+  private readonly iconReader: CategoryIconReader;
+  private iconPrepared: RatingCategoryIconPreparation | null = null;
+  private iconPreviewOffset = 0;
+  private iconRetirementScope: RatingCategoryIconRetirementStatusRequest | null =
+    null;
+  private iconRetirementItems: readonly IconRetirementItem[] = [];
+  private iconRetirementOffset = 0;
   private all: readonly RatingManagedCategory[] = [];
   private detail: RatingManagedCategory | null = null;
   private pending: PendingRating | null = null;
@@ -377,6 +460,18 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
       runtime,
       () => ({ ...initialRatingCategoryScopedView(), editorPage }),
       render,
+    );
+    this.iconCoordinator = new CategoryIconCoordinator(runtime, clock, (view) =>
+      this.update({
+        iconProgress: view.progress,
+        iconUploadStatus: view.status,
+      }),
+    );
+    this.iconReader = new CategoryIconReader(
+      runtime.sessions,
+      runtime.ratingCategoryIconDownload,
+      clock,
+      (iconRead) => this.update({ iconRead }),
     );
     const invalidate = (accountId?: string) => {
       if (accountId !== undefined && accountId !== this.accountId()) return;
@@ -407,6 +502,13 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     return true;
   }
   protected override resetPrivate(): void {
+    this.iconCoordinator?.hide();
+    this.iconReader?.clear();
+    this.iconChoices?.clear();
+    this.iconPrepared = null;
+    this.iconRetirementScope = null;
+    this.iconRetirementItems = [];
+    this.iconRetirementOffset = 0;
     this.expiry?.();
     this.expiry = null;
     this.context = null;
@@ -449,6 +551,13 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
   private journal(): boolean {
     if (!this.available()) return false;
     try {
+      if (
+        this.runtime.pendingRatingCategoryIcon &&
+        this.iconCoordinator.state()
+      ) {
+        this.showIconPending();
+        return true;
+      }
       const pending = this.runtime.pendingRatings!.load(this.accountId()!);
       this.pending = pending;
       if (pending) this.showPending(pending);
@@ -516,7 +625,7 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     });
     // Recovery deliberately precedes route and current authority/source validation.
     if (!this.journal()) return;
-    if (this.pending) {
+    if (this.pending || this.view.iconFrozen) {
       await this.recover();
       return;
     }
@@ -538,26 +647,49 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     await this.run(
       async (cancel) => {
         const gateway = this.runtime.ratingCategoryScoped!,
-          context = decodeRatingCategoryScopedContext(
-            await gateway.context(route.selector, cancel),
-          );
+          context = this.runtime.ratingCategoryIcon
+            ? (
+                await this.runtime.ratingCategoryIcon.entryContext(
+                  route.selector,
+                  cancel,
+                )
+              ).context
+            : decodeRatingCategoryScopedContext(
+                await gateway.context(route.selector, cancel),
+              );
         if (
           ratingNavigationKey(context.commandContext.selector) !==
             ratingNavigationKey(route.selector) ||
           Date.parse(context.expiresAt) <= this.clock.now()
         )
           invalidRating();
-        const catalog = decodeRatingManagedCategories(
-          await gateway.categories(context, cancel),
-        );
+        const catalog =
+          context.protocolVersion === 5
+            ? decodeRatingManagedIconCategories(
+                await this.runtime.ratingCategoryIcon!.categories(
+                  context,
+                  cancel,
+                ),
+              )
+            : decodeRatingManagedCategories(
+                await gateway.categories(context, cancel),
+              );
         if (catalog.snapshotRevision !== context.snapshotRevision)
           invalidRating();
         const detail =
           route.categoryId === null
             ? null
-            : decodeRatingManagedCategory(
-                await gateway.category(context, route.categoryId, cancel),
-              );
+            : context.protocolVersion === 5
+              ? decodeRatingManagedIconCategory(
+                  await this.runtime.ratingCategoryIcon!.category(
+                    context,
+                    route.categoryId,
+                    cancel,
+                  ),
+                )
+              : decodeRatingManagedCategory(
+                  await gateway.category(context, route.categoryId, cancel),
+                );
         if (
           detail &&
           (!catalog.items.some(
@@ -573,7 +705,14 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
           detail?.systemKey
         ) {
           try {
-            options = (await gateway.systemOptions(context, cancel)).items;
+            options = (
+              context.protocolVersion === 5
+                ? await this.runtime.ratingCategoryIcon!.systemOptions(
+                    context,
+                    cancel,
+                  )
+                : await gateway.systemOptions(context, cancel)
+            ).items;
           } catch (error) {
             if (
               cancel.isCancelled ||
@@ -605,6 +744,7 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
         );
         this.update({
           loaded: true,
+          iconEnabled: context.protocolVersion === 5,
           needsRefresh: false,
           systemOptions: options.map((option) => ({
             ...option,
@@ -616,6 +756,7 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
         });
         this.showCategories();
         this.showDetail();
+        this.showIconDetail();
         this.showOperations();
       },
       (error) => {
@@ -783,6 +924,7 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     )
       return;
     this.draftGeneration++;
+    this.iconChoices.clear();
     this.nextNode = 1;
     this.batchActions.clear();
     this.prepared = null;
@@ -876,6 +1018,7 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
       });
     this.showOrder();
     this.showBatch();
+    this.refreshIconSlots();
   }
   setText(field: string, value: string): void {
     if (
@@ -928,6 +1071,18 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
         name: '',
         description: '',
       });
+    if (
+      this.editable() &&
+      this.view.iconEnabled &&
+      this.detail &&
+      this.context?.commandContext.selector.kind === 'campus'
+    ) {
+      this.iconChoices.set(
+        `override:${this.detail.id}:${this.context.commandContext.selector.campusId}`,
+        'inherit',
+      );
+      this.refreshIconSlots();
+    }
   }
   selectSystemKey(value: string): void {
     if (
@@ -987,6 +1142,7 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
       level: depth,
     };
     this.update({ nodes: [...this.view.nodes, node], error: '' });
+    this.refreshIconSlots();
     if (batch) {
       this.order = [
         ...this.order,
@@ -1007,6 +1163,9 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     this.order = this.order.filter(
       (entry) => entry.kind !== 'new' || !removed.has(entry.key),
     );
+    for (const removedKey of removed)
+      this.iconChoices.delete(`new:${removedKey}`);
+    this.refreshIconSlots();
     this.showOrder();
   }
   private showOrder(offset = this.view.orderOffset): void {
@@ -1091,6 +1250,539 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
       preview: null,
       status: '未保存的本地改动已清空，未创建服务端请求',
     });
+  }
+  private iconStateLabel(value: CategoryIconState): string {
+    return value.state === 'image'
+      ? '已设置图标'
+      : value.state === 'absent'
+        ? '明确无图'
+        : value.state === 'inherit'
+          ? '继承共享基础'
+          : '不可用（不代表无图）';
+  }
+  private showIconDetail(): void {
+    const detail = this.detail as RatingManagedIconCategory | null;
+    if (!detail?.icon) return;
+    this.update({
+      iconBaseLabel: this.iconStateLabel(detail.icon.base),
+      iconOverrideLabel:
+        detail.icon.override.mode === 'inherit'
+          ? '继承共享基础'
+          : `本校园设置：${this.iconStateLabel(detail.icon.override.state)}`,
+      iconEffectiveLabel: this.iconStateLabel(detail.icon.effective),
+    });
+  }
+  private refreshIconSlots(): void {
+    if (!this.view.iconEnabled) return;
+    const operation = this.view.operation,
+      detail = this.detail as RatingManagedIconCategory | null,
+      campus = this.context?.commandContext.selector;
+    const values: {
+      key: string;
+      label: string;
+      selection: CategoryIconSelection;
+      status: string;
+      canKeep: boolean;
+      isOverride: boolean;
+    }[] = [];
+    const add = (
+      key: string,
+      label: string,
+      fallback: CategoryIconSelection,
+      canKeep = false,
+      isOverride = false,
+    ) =>
+      values.push({
+        key,
+        label,
+        selection: this.iconChoices.get(key) ?? fallback,
+        status: '尚未冻结',
+        canKeep,
+        isOverride,
+      });
+    if (
+      operation === 'create_categories_scoped' ||
+      operation === 'batch_update_subcategories_scoped'
+    )
+      for (const node of this.view.nodes)
+        add(
+          `new:${node.key}`,
+          `节点 ${node.key} · ${node.name || '未填写名称'}`,
+          'clear',
+        );
+    else if (operation === 'create_system_category_scoped')
+      add('new:root', '系统根分类图标', 'clear');
+    else if (operation === 'edit_category_base_scoped' && detail)
+      add(`base:${detail.id}`, '共享基础图标', 'keep', true);
+    else if (
+      operation === 'set_category_override_scoped' &&
+      detail &&
+      campus?.kind === 'campus'
+    ) {
+      const value = detail.icon?.override;
+      add(
+        `override:${detail.id}:${campus.campusId}`,
+        '本校园图标',
+        value?.mode === 'set'
+          ? value.state.state === 'absent'
+            ? 'set-empty'
+            : 'keep'
+          : 'inherit',
+        value?.mode === 'set',
+        true,
+      );
+    }
+    this.update({ iconSlots: values });
+  }
+  chooseIcon(key: string, selection: string): void {
+    if (!this.editable() || !this.view.iconEnabled) return;
+    const slot = this.view.iconSlots.find((s) => s.key === key);
+    if (!slot) return;
+    const allowed = slot.isOverride
+      ? ['inherit', 'set-empty', 'replace', ...(slot.canKeep ? ['keep'] : [])]
+      : ['clear', 'replace', ...(slot.canKeep ? ['keep'] : [])];
+    if (!allowed.includes(selection)) return;
+    this.iconChoices.set(key, selection as CategoryIconSelection);
+    this.refreshIconSlots();
+  }
+  private showIconPending(): void {
+    const state = this.iconCoordinator.state();
+    if (!state) return;
+    this.expiry?.();
+    this.expiry = null;
+    this.pending = null;
+    this.prepared = null;
+    this.context = null;
+    this.detail = null;
+    this.all = [];
+    this.iconReader.clear();
+    const text = state.command?.intent ?? state.uploads?.identity.textIntent;
+    if (text) {
+      const p = text.payload;
+      this.route = {
+        selector: text.context.selector,
+        categoryId:
+          'categoryId' in p
+            ? p.categoryId
+            : 'parentId' in p
+              ? p.parentId
+              : null,
+      };
+    }
+    this.update({
+      frozen: true,
+      iconFrozen: true,
+      iconEnabled: true,
+      isCategoryPending: true,
+      requestId: state.requestId,
+      recoveryOperation: state.opaque
+        ? '原分类图标请求'
+        : ratingCommandLabels[state.operation],
+      iconSlots:
+        state.uploads?.identity.slots.map((slot) => ({
+          key: slot.key,
+          label: slot.nodeKey
+            ? `节点 ${slot.nodeKey}`
+            : slot.kind === 'base'
+              ? '共享基础图标'
+              : '本校园图标',
+          selection: slot.selection,
+          status:
+            slot.selection !== 'replace'
+              ? '无需上传'
+              : (state.uploads!.members.find((m) => m.slotKey === slot.key)
+                  ?.state ?? '等待选择原图'),
+          canKeep: false,
+          isOverride: slot.kind === 'override',
+        })) ?? [],
+      status: state.opaque
+        ? '原账号请求已保留最小恢复信息；先核对业务回执，再关闭未完成的上传'
+        : '文字、范围及全部图标槽位已冻结。逐个上传选定图标后核对同一笔完整变更。',
+    });
+  }
+  private async prepareIconDraft(): Promise<void> {
+    if (
+      !this.editable() ||
+      this.context?.protocolVersion !== 5 ||
+      !this.view.operation
+    )
+      return;
+    const context = this.context,
+      generation = this.draftGeneration,
+      owner = this.runtime.sessions.snapshot();
+    await this.run(
+      async (cancel) => {
+        if (this.iconCoordinator.state())
+          throw new ClientError(
+            'storage',
+            'Original Category icon request remains',
+          );
+        const requestId = await this.runtime.newRequestId(),
+          draftRevision = await this.runtime.newRequestId();
+        this.runtime.sessions.assertCurrent(owner);
+        if (
+          cancel.isCancelled ||
+          generation !== this.draftGeneration ||
+          context !== this.context
+        )
+          throw new ClientError('cancelled', 'Category draft changed');
+        const text = this.makeIntent(requestId),
+          choices = new Map(
+            this.view.iconSlots.map((slot) => [slot.key, slot.selection]),
+          ),
+          slots = categoryIconDraftSlots(text, choices);
+        this.iconCoordinator.start(
+          text,
+          context.mediaSnapshot,
+          draftRevision,
+          slots,
+        );
+        this.showIconPending();
+        return slots.some((slot) => slot.selection === 'replace')
+          ? null
+          : this.iconCoordinator.prepare(cancel);
+      },
+      (result) => {
+        if (result) {
+          if ('outcome' in result) this.iconSettled(result);
+          else this.acceptIconPreview(result);
+        } else this.showIconPending();
+      },
+      (error) => this.failure(error),
+    );
+  }
+  async uploadIcon(key: string): Promise<void> {
+    if (this.view.busy || !this.view.iconFrozen) return;
+    await this.run(
+      (cancel) => this.iconCoordinator.append(key, cancel),
+      () => {
+        this.showIconPending();
+        this.update({
+          status: '该节点图标已就绪并释放本地文件；继续其他节点或核对完整预览',
+        });
+      },
+      (error) => this.failure(error),
+    );
+  }
+  private async prepareIconPending(): Promise<void> {
+    if (this.view.busy) return;
+    await this.run(
+      (cancel) => this.iconCoordinator.prepare(cancel),
+      (result) => {
+        if ('outcome' in result) this.iconSettled(result);
+        else this.acceptIconPreview(result);
+      },
+      (error) => this.failure(error),
+    );
+  }
+  private acceptIconPreview(prepared: RatingCategoryIconPreparation): void {
+    const command = this.iconCoordinator.state()?.command;
+    if (!command) invalidRating();
+    this.iconPrepared = prepared;
+    this.expiry?.();
+    this.expiry = this.clock.schedule(
+      () => this.invalidate(),
+      Math.max(0, Date.parse(prepared.expiresAt) - this.clock.now()),
+    );
+    this.showIconPreview(0);
+    this.update({
+      status:
+        '全部正文和图标已准备，尚未发布。确认绑定完整预览摘要与所有影响范围。',
+      error: '',
+    });
+  }
+  private showIconPreview(offset: number): void {
+    const p = this.iconPrepared,
+      state = this.iconCoordinator.state();
+    if (!p || !state) return;
+    const entries = [
+      ...p.affectedScopeKeys.map(
+        (scope) => `影响范围：${previewScopeLabel(scope)}`,
+      ),
+      ...p.changes.map(
+        (change) =>
+          `${change.categoryId} · ${previewFieldLabels[change.field]} · ${change.scopeKeys.map(previewScopeLabel).join('、')}：${previewValue(change.field, change.before, change.beforeStatus)} → ${previewValue(change.field, change.after, change.afterStatus)}`,
+      ),
+      ...p.iconChanges.map(
+        (change) =>
+          `${change.categoryId} · ${change.kind === 'base' ? '共享基础图标' : `校园 ${change.campusId} 图标`}：${this.iconStateLabel(change.before)} → ${this.iconStateLabel(change.after)}`,
+      ),
+    ];
+    this.iconPreviewOffset = Math.min(
+      offset,
+      Math.max(0, Math.floor((entries.length - 1) / 20) * 20),
+    );
+    this.update({
+      preview: {
+        operationLabel: ratingCommandLabels[state.operation],
+        validUntil: p.expiresAt,
+        lines: [
+          p.summary,
+          `完整预览摘要：${p.previewDigest}`,
+          `涉及分类 ${p.categoryIds.length} 项、范围 ${p.affectedScopeKeys.length} 个、图标变更 ${p.changedIconCount} 项、受影响对象 ${p.affectedTargetCount} 个。`,
+          ...entries.slice(this.iconPreviewOffset, this.iconPreviewOffset + 20),
+        ],
+        changeCount: entries.length,
+        from: Math.min(this.iconPreviewOffset + 1, entries.length),
+        to: Math.min(this.iconPreviewOffset + 20, entries.length),
+        canPrevious: this.iconPreviewOffset > 0,
+        canNext: this.iconPreviewOffset + 20 < entries.length,
+      },
+    });
+  }
+  private iconSettled(receipt: RatingCategoryIconReceipt | null): void {
+    const prepared = this.iconPrepared;
+    this.settling = true;
+    try {
+      if (receipt && receipt.outcome !== 'closed' && receipt.result.releaseId)
+        this.runtime.ratingCatalogChanges?.publish({
+          releaseId: receipt.result.releaseId,
+          catalogs: [],
+          scopedHeads: receipt.result.heads,
+        });
+    } finally {
+      this.settling = false;
+    }
+    this.resetPrivate();
+    this.update({
+      ...initialRatingCategoryScopedView(),
+      editorPage: this.editorPage,
+      configured: this.configured(),
+      hasSession: !!this.accountId(),
+      needsRefresh: true,
+      receiptStatus: receipt
+        ? receipt.outcome === 'closed'
+          ? '原分类请求已关闭，上传恢复义务已核验'
+          : `${ratingCommandLabels[receipt.operation]}回执及图标绑定已确认`
+        : '未提交的图标草稿与上传已确认关闭',
+      status: '历史回执不代表当前可见性。重新加载后可开始新的变更。',
+    });
+    if (receipt?.outcome === 'applied')
+      this.beginIconRetirement(receipt, prepared);
+  }
+  private beginIconRetirement(
+    receipt: RatingCategoryIconReceipt,
+    prepared: RatingCategoryIconPreparation | null,
+  ): void {
+    if (receipt.outcome !== 'applied') return;
+    const ids =
+      prepared?.requestId === receipt.requestId
+        ? ratingCategoryIconRetirementCandidates(prepared)
+        : [];
+    this.iconRetirementScope =
+      ids.length > 0 && ids.length <= 256
+        ? { requestId: receipt.requestId, appearanceIds: ids }
+        : { requestId: receipt.requestId };
+    this.iconRetirementItems = ids.map((appearanceId) => ({
+      appearanceId,
+      state: 'unknown',
+    }));
+    this.iconRetirementOffset = 0;
+    this.showIconRetirement(
+      '原分类变更已应用。旧图尚未清理；请先查询，再明确选择可清理项。',
+    );
+  }
+  private showIconRetirement(status?: string): void {
+    const scope = this.iconRetirementScope;
+    if (!scope) return;
+    const labels: Record<IconRetirementItem['state'], string> = {
+      unknown: '尚未核验',
+      eligible: '当前可请求清理',
+      held: '仍被引用或保留，暂不能清理',
+      retired: '旧图引用已退役（不代表文件已物理删除）',
+      cleanup_pending: '清理已排队，等待再次核验',
+    };
+    this.iconRetirementOffset = Math.min(
+      this.iconRetirementOffset,
+      Math.max(0, Math.floor((this.iconRetirementItems.length - 1) / 20) * 20),
+    );
+    const offset = this.iconRetirementOffset;
+    this.update({
+      iconRetirement: {
+        requestId: scope.requestId,
+        status:
+          status ??
+          this.view.iconRetirement?.status ??
+          '查询此原请求的旧图状态',
+        items: this.iconRetirementItems
+          .slice(offset, offset + 20)
+          .map((item) => ({
+            appearanceId: item.appearanceId,
+            label: labels[item.state],
+            canCleanup: item.state === 'eligible',
+          })),
+        count: this.iconRetirementItems.length,
+        from: Math.min(offset + 1, this.iconRetirementItems.length),
+        to: Math.min(offset + 20, this.iconRetirementItems.length),
+        canPrevious: offset > 0,
+        canNext: offset + 20 < this.iconRetirementItems.length,
+      },
+    });
+  }
+  setIconRetirementRecoveryRequestId(value: string): void {
+    if (!this.view.busy)
+      this.update({ iconRetirementRecoveryRequestId: value.slice(0, 64) });
+  }
+  async recoverIconRetirement(rawRequestId?: string): Promise<void> {
+    if (!this.available() || this.view.busy) return;
+    if (!this.runtime.ratingCategoryIcon) {
+      this.update({ error: '当前构建未配置分类图标恢复服务' });
+      return;
+    }
+    const requestId = (
+      rawRequestId ?? this.view.iconRetirementRecoveryRequestId
+    ).trim();
+    if (!ratingId(requestId)) {
+      this.update({ error: '请填写原分类变更的完整请求编号' });
+      return;
+    }
+    this.iconRetirementScope = { requestId };
+    this.iconRetirementItems = [];
+    this.iconRetirementOffset = 0;
+    this.showIconRetirement(
+      '先查询原分类回执，再核验原请求记录的旧图；不会重新提交分类变更。',
+    );
+    await this.inspectIconRetirement();
+  }
+  async inspectIconRetirement(): Promise<void> {
+    if (!this.available() || this.view.busy || !this.iconRetirementScope)
+      return;
+    const scope = this.iconRetirementScope,
+      status = this.view.status;
+    await this.run(
+      (cancel) =>
+        this.iconCoordinator.inspectRetirement(scope, cancel, (receipt) =>
+          this.update({
+            receiptStatus: `原请求 ${receipt.requestId} 的分类变更已应用`,
+          }),
+        ),
+      (result) => {
+        this.iconRetirementItems = result.status.items;
+        this.showIconRetirement(
+          result.status.items.length
+            ? '旧图状态已核验。只有标为可清理的项目可明确发起清理；分类原回执不变。'
+            : '服务器未返回此原请求的旧图清理记录；这不表示文件已物理删除。',
+        );
+        this.update({
+          receiptStatus: `原请求 ${result.receipt.requestId} 的分类变更已应用`,
+          status,
+        });
+      },
+      (error) => this.iconRetirementFailure(error, status),
+    );
+  }
+  async cleanupIconRetirement(appearanceId: string): Promise<void> {
+    if (!this.available() || this.view.busy || !this.iconRetirementScope)
+      return;
+    // The event may only select an exact, currently displayed eligible row.
+    if (
+      !this.view.iconRetirement?.items.some(
+        (item) => item.appearanceId === appearanceId && item.canCleanup,
+      )
+    )
+      return;
+    const requestId = this.iconRetirementScope.requestId,
+      status = this.view.status;
+    await this.run(
+      (cancel) =>
+        this.iconCoordinator.cleanupRetirement(
+          { requestId, appearanceIds: [appearanceId] },
+          cancel,
+        ),
+      (result) => {
+        const pending = new Set(result.appearanceIds);
+        this.iconRetirementItems = this.iconRetirementItems.map((item) =>
+          pending.has(item.appearanceId)
+            ? { ...item, state: 'cleanup_pending' }
+            : item,
+        );
+        this.showIconRetirement(
+          '清理请求已排队。请再次查询；原分类回执不变，尚未确认文件已物理删除。',
+        );
+        this.update({ status });
+      },
+      (error) => this.iconRetirementFailure(error, status),
+    );
+  }
+  private iconRetirementFailure(error: unknown, status: string): void {
+    this.iconRetirementItems = this.iconRetirementItems.map((item) =>
+      item.state === 'retired' ? item : { ...item, state: 'unknown' },
+    );
+    const code = error instanceof ClientError ? error.details.serverCode : null;
+    const message =
+      code === 'CATEGORY_ICON_RETIREMENT_HELD'
+        ? '旧图仍被保留或状态已变化，请重新查询。'
+        : code === 'CATEGORY_ICON_RETIREMENT_NOT_APPLIED'
+          ? '原请求尚未确认应用，不能清理旧图。'
+          : `旧图状态或清理结果暂不能确认：${ratingCategoryScopedError(error)}`;
+    this.showIconRetirement(
+      `${message} 原分类回执不变；已发送的清理仍可能排队，请查询同一原请求。`,
+    );
+    this.update({ status, error: '' });
+  }
+  pageIconRetirement(direction: number): void {
+    if (
+      this.view.busy ||
+      (direction !== 1 && direction !== -1) ||
+      !this.iconRetirementScope
+    )
+      return;
+    this.iconRetirementOffset = Math.max(
+      0,
+      this.iconRetirementOffset + direction * 20,
+    );
+    this.showIconRetirement();
+  }
+  async openIcon(source: string): Promise<void> {
+    if (
+      this.view.busy ||
+      this.context?.protocolVersion !== 5 ||
+      !this.detail ||
+      !this.runtime.ratingCategoryIconMedia
+    )
+      return;
+    const context = this.context,
+      detail = this.detail as RatingManagedIconCategory;
+    const state =
+      source === 'base'
+        ? detail.icon.base
+        : source === 'override'
+          ? detail.icon.override.state
+          : source === 'effective'
+            ? detail.icon.effective
+            : null;
+    if (!state || state.state !== 'image' || !state.appearanceId) return;
+    const appearanceId = state.appearanceId;
+    await this.run(
+      async (cancel) => {
+        const owner = this.runtime.sessions.snapshot(),
+          session = {
+            current: () => {
+              this.runtime.sessions.assertCurrent(owner);
+              if (cancel.isCancelled)
+                throw new ClientError('cancelled', 'Icon selection changed');
+              return this.runtime.sessions.snapshot();
+            },
+          };
+        const descriptor =
+          await this.runtime.ratingCategoryIconMedia!.descriptor(
+            detail.id,
+            appearanceId,
+            context.commandContext.id,
+            context.commandContext.token,
+            'management-preview',
+            session,
+            cancel,
+          );
+        session.current();
+        await this.iconReader.open(source, descriptor, context);
+      },
+      () => undefined,
+      (error) => this.failure(error),
+    );
+  }
+  closeIcon(): void {
+    this.iconReader.clear();
   }
   private placement(): RatingCategoryPlacement {
     return this.view.scopeKind === 'global'
@@ -1242,6 +1934,10 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     });
   }
   async prepare(): Promise<void> {
+    if (this.view.iconEnabled) {
+      await this.prepareIconDraft();
+      return;
+    }
     if (!this.editable() || !this.view.operation) return;
     // Check the single slot again immediately before issuing a new ID.
     const context = this.context,
@@ -1359,6 +2055,13 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     });
   }
   pagePreview(direction: number): void {
+    if (this.iconPrepared) {
+      if (!this.view.busy && (direction === 1 || direction === -1))
+        this.showIconPreview(
+          Math.max(0, this.iconPreviewOffset + direction * 20),
+        );
+      return;
+    }
     if (
       (direction === 1 || direction === -1) &&
       !this.view.busy &&
@@ -1371,12 +2074,18 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
   closePreview(): void {
     if (this.view.busy) return;
     this.prepared = null;
+    this.iconPrepared = null;
+    this.iconReader.clear();
     this.update({
       preview: null,
       status: '预览已关闭，原请求仍受保护；可恢复预览或明确取消原请求',
     });
   }
   async preparePending(): Promise<void> {
+    if (this.view.iconFrozen) {
+      await this.prepareIconPending();
+      return;
+    }
     if (
       this.view.busy ||
       !this.journal() ||
@@ -1405,6 +2114,16 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     );
   }
   async commit(): Promise<void> {
+    if (this.view.iconFrozen) {
+      if (this.view.busy || !this.iconPrepared) return;
+      const prepared = this.iconPrepared;
+      await this.run(
+        (cancel) => this.iconCoordinator.commit(prepared, cancel),
+        (receipt) => this.iconSettled(receipt),
+        (error) => this.failure(error),
+      );
+      return;
+    }
     if (
       this.inactive ||
       this.view.busy ||
@@ -1440,6 +2159,34 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     );
   }
   async recover(): Promise<void> {
+    let hasIconPending: boolean;
+    try {
+      hasIconPending =
+        !!this.runtime.pendingRatingCategoryIcon &&
+        !!this.iconCoordinator.state();
+    } catch (error) {
+      this.failure(error);
+      return;
+    }
+    if (hasIconPending) {
+      if (this.view.busy) return;
+      this.showIconPending();
+      await this.run(
+        (cancel) => this.iconCoordinator.recover(cancel),
+        (receipt) => {
+          if (receipt) this.iconSettled(receipt);
+          else {
+            this.showIconPending();
+            this.update({
+              status:
+                '暂未查到业务回执；原上传与请求仍保留，请继续原图或明确取消',
+            });
+          }
+        },
+        (error) => this.failure(error),
+      );
+      return;
+    }
     if (this.view.busy || !this.journal() || !this.pending) return;
     const attempt = this.pending;
     await this.run(
@@ -1449,6 +2196,10 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     );
   }
   requestCancel(): void {
+    if (this.view.iconFrozen && !this.view.busy) {
+      this.update({ cancelConfirmation: true });
+      return;
+    }
     if (
       !this.inactive &&
       !this.view.busy &&
@@ -1461,6 +2212,17 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     if (!this.view.busy) this.update({ cancelConfirmation: false });
   }
   async confirmCancel(): Promise<void> {
+    if (this.view.iconFrozen) {
+      if (this.view.busy || !this.view.cancelConfirmation) return;
+      this.iconPrepared = null;
+      this.update({ cancelConfirmation: false, preview: null });
+      await this.run(
+        (cancel) => this.iconCoordinator.cancel(cancel),
+        (receipt) => this.iconSettled(receipt),
+        (error) => this.failure(error),
+      );
+      return;
+    }
     if (
       this.view.busy ||
       !this.view.cancelConfirmation ||
@@ -1511,6 +2273,20 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     });
   }
   private failure(error: unknown): void {
+    if (
+      this.view.iconFrozen &&
+      error instanceof ClientError &&
+      (error.details.httpStatus === 429 ||
+        error.details.serverCode === 'MEDIA_RATE_LIMITED' ||
+        error.details.serverCode === 'RATE_LIMITED')
+    ) {
+      this.update({
+        error: '图标操作已限流，请等待限流窗口恢复后继续原请求。',
+        status:
+          '原草稿、上传编号和已完成图标均已保留。稍后可“查询原回执”核验，或“选择原图并上传此节点”继续；全部图标就绪后再恢复原意图并核对预览。等待不会延长原管理上下文和上传范围最多 5 分钟的有效期，原资格也可能更早失效；若已过期，须先明确取消并确认原请求关闭，再重新编辑。',
+      });
+      return;
+    }
     const storage = error instanceof ClientError && error.kind === 'storage';
     if (storage) {
       this.context = null;
@@ -1526,6 +2302,17 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
         hasSession: !!this.accountId(),
         frozen: true,
       });
+      if (this.runtime.pendingRatingCategoryIcon) {
+        try {
+          if (this.iconCoordinator.state()) this.showIconPending();
+        } catch {
+          this.update({
+            iconFrozen: true,
+            isCategoryPending: true,
+            recoveryOperation: '原分类图标请求',
+          });
+        }
+      }
     }
     this.update({
       error: ratingCategoryScopedError(error),
@@ -1548,12 +2335,19 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
       cursor = more ? this.historyCursor : null;
     await this.run(
       (cancel) =>
-        this.runtime.ratingCategoryScoped!.history(
-          context,
-          categoryId,
-          cursor,
-          cancel,
-        ),
+        context.protocolVersion === 5
+          ? this.runtime.ratingCategoryIcon!.history(
+              context,
+              categoryId,
+              cursor,
+              cancel,
+            )
+          : this.runtime.ratingCategoryScoped!.history(
+              context,
+              categoryId,
+              cursor,
+              cancel,
+            ),
       (result) => {
         if (!more) {
           this.seenHistory.clear();
@@ -1723,6 +2517,8 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
   override dispose(): void {
     if (this.inactive) return;
     this.inactive = true;
+    this.iconCoordinator.dispose();
+    this.iconReader.dispose();
     for (const unsubscribe of this.unsubscriptions) unsubscribe();
     super.dispose();
   }

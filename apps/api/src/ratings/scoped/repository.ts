@@ -1,3 +1,7 @@
+import {
+  currentCategoryIcons,
+  hasCurrentCategoryIconExtension,
+} from '../category-management/icon-current.js';
 import { retainRatingDiscussionScope } from '../discussion-media-current.js';
 import { requireCurrentTargetCoverScope } from './target-cover-capability.js';
 import { retainRatingReadBytes } from '../target-cover-current.js';
@@ -444,7 +448,24 @@ export class RatingScopedRepository {
       });
       if (!row.active || row.hidden) allowed = false;
     }
+    const icons = await currentCategoryIcons(scope, rows, tx);
+    if (icons.some((decision) => decision === 'deny')) allowed = false;
     return { leaf, allowed };
+  }
+  /** A saved text preparation is not current Category-media authority. This
+   * conditional recheck leaves unmarked heads and pre-extension schemas on
+   * their original text-only path. */
+  async recheckPreparedCategoryIcons(
+    scope: ResolvedRatingReadScope,
+    categoryId: string,
+    expectedRevision: string,
+    tx: PoolClient,
+  ): Promise<void> {
+    assertResolvedRatingScope(scope, tx);
+    if (!(await hasCurrentCategoryIconExtension(scope, tx))) return;
+    const category = await this.category(scope, categoryId, tx, true);
+    if (category.revision !== expectedRevision)
+      throw new ApplicationError('RATING_REVISION_CONFLICT');
   }
   async category(
     scope: ResolvedRatingReadScope,

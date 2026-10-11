@@ -1,4 +1,11 @@
 import {
+  categoryIconCapabilities,
+  requireCategoryIconCapabilities,
+  categoryIconSnapshot,
+} from '../category-management/icon-capability.js';
+import { categoryIconDigest } from '../category-management/icon-extension.js';
+import { negotiateCategoryIconProtocol } from '../category-management/icon-negotiation.js';
+import {
   ratingDiscussionContextSchema,
   type RatingDiscussionContext,
 } from './discussion-media-contracts.js';
@@ -60,8 +67,16 @@ import {
   RATING_SCOPED_BYTE_LIMIT,
 } from './constants.js';
 
+type RatingCategoryIconPublicContext = z.infer<
+  typeof import('../category-management/icon-public-contracts.js').ratingCategoryIconPublicContextSchema
+>;
 type RatingCurrentContext =
-  RatingScopedContext | RatingTargetCoverContext | RatingDiscussionContext;
+  | RatingScopedContext
+  | RatingTargetCoverContext
+  | RatingDiscussionContext
+  | RatingCategoryIconPublicContext;
+type ContextProtocol = 2 | 3 | 4 | 5;
+type RequestedContextProtocol = ContextProtocol | 'category-icon-entry';
 
 export interface RatingScopedCatalog {
   readonly id: string;
@@ -372,6 +387,8 @@ interface CatalogRead {
   valid: boolean;
 }
 interface AuthorityCapture {
+  protocolVersion: ContextProtocol;
+  mediaSnapshot: string | null;
   campus: RatingScopedCampusProof;
   catalogs: CatalogRead[];
   protocols: RatingScopedProtocolTuple[];
@@ -435,7 +452,7 @@ export class RatingScopedContextService {
     accountId: string,
     request: RatingScopedContextRequest,
     tx: PoolClient,
-    protocolVersion: 2 | 3 | 4 = 2,
+    requestedProtocolVersion: RequestedContextProtocol = 2,
   ): Promise<AuthorityCapture> {
     const base = await this.access.resolveAccount(accountId, null, tx, {
       phone: true,
@@ -607,6 +624,29 @@ export class RatingScopedContextService {
       }),
     );
     const sourceDigest = ratingScopedDigest('vector', source.vector);
+    const protocolVersion =
+      requestedProtocolVersion === 'category-icon-entry'
+        ? (await negotiateCategoryIconProtocol(
+            protocols.map((p) => p.versionId),
+            campus.scopeKeys,
+            tx,
+          )) === 'icon'
+          ? 5
+          : 2
+        : requestedProtocolVersion;
+    const iconCapabilities =
+      protocolVersion === 5
+        ? await categoryIconCapabilities(
+            protocols.map((p) => p.versionId),
+            campus.scopeKeys,
+            tx,
+          )
+        : null;
+    if (iconCapabilities) requireCategoryIconCapabilities(iconCapabilities);
+    const mediaSnapshot =
+      protocolVersion === 5
+        ? await categoryIconSnapshot(campus.scopeKeys, tx)
+        : null;
     const coverCapabilities =
       protocolVersion === 3 || protocolVersion === 4
         ? await targetCoverCapabilities(
@@ -639,6 +679,12 @@ export class RatingScopedContextService {
       grantFingerprint,
       sourceVector: source.vector,
       creationPolicy,
+      ...(protocolVersion === 5
+        ? {
+            contextAuthority: 'ratings-category-icon-context-v1',
+            categoryIconCapabilities: iconCapabilities,
+          }
+        : {}),
       ...(protocolVersion === 3 || protocolVersion === 4
         ? {
             contextAuthority:
@@ -656,6 +702,9 @@ export class RatingScopedContextService {
       campus.validUntil ?? Infinity,
       source.validUntil,
       ...(discussionCapabilities ?? []).map((c) => Date.parse(c.validUntil)),
+      ...(iconCapabilities ?? []).flatMap((c) =>
+        c.current && 'validUntil' in c ? [Date.parse(c.validUntil!)] : [],
+      ),
       ...catalogs.map((c) => c.valid_until.getTime()),
       ...protocolRows.map((r) => r.valid_until.getTime()),
       ...(coverCapabilities ?? []).flatMap((capability) =>
@@ -685,12 +734,20 @@ export class RatingScopedContextService {
     const observedBytes =
       source.budget.snapshot().bytes +
       Buffer.byteLength(
-        canonicalJson({ campus, catalogs, protocols, authority }),
+        canonicalJson({
+          campus,
+          catalogs,
+          protocols,
+          authority,
+          ...(protocolVersion === 5 ? { mediaSnapshot } : {}),
+        }),
         'utf8',
       );
     if (observedBytes > RATING_SCOPED_BYTE_LIMIT) unavailable();
     retainRatingReadByteCount(tx, observedBytes);
     return {
+      protocolVersion,
+      mediaSnapshot,
       campus,
       catalogs,
       protocols,
@@ -706,25 +763,30 @@ export class RatingScopedContextService {
     token: string,
     request: RatingScopedContextRequest,
     tx: PoolClient,
-    protocolVersion: 2 | 3 | 4 = 2,
+    requestedProtocolVersion: RequestedContextProtocol = 2,
   ): Promise<Capture> {
     const session = await this.access.authenticate(token, tx);
     const captured = await this.captureAuthority(
       session.accountId,
       request,
       tx,
-      protocolVersion,
+      requestedProtocolVersion,
     );
+    const protocolVersion = captured.protocolVersion;
     const authority = {
       ...captured.authority,
       sessionGeneration: this.sessionGeneration(token, session),
     };
-    const scopeRevision = ratingScopedDigest(
-      protocolVersion === 4
-        ? 'discussion-media-context'
-        : protocolVersion === 3
-          ? 'target-cover-context'
-          : 'context',
+    const scopeRevision = (
+      protocolVersion === 5 ? categoryIconDigest : ratingScopedDigest
+    )(
+      protocolVersion === 5
+        ? 'context'
+        : protocolVersion === 4
+          ? 'discussion-media-context'
+          : protocolVersion === 3
+            ? 'target-cover-context'
+            : 'context',
       {
         actorId: session.accountId,
         purpose: request.purpose,
@@ -834,12 +896,16 @@ export class RatingScopedContextService {
     tx: PoolClient,
   ): void {
     enableRequiredTransactionProof(tx, contextProof);
-    const digest = ratingScopedDigest(
-      context.protocolVersion === 4
-        ? 'discussion-media-context-record'
-        : context.protocolVersion === 3
-          ? 'target-cover-context-record'
-          : 'context-record',
+    const digest = (
+      context.protocolVersion === 5 ? categoryIconDigest : ratingScopedDigest
+    )(
+      context.protocolVersion === 5
+        ? 'context-record'
+        : context.protocolVersion === 4
+          ? 'discussion-media-context-record'
+          : context.protocolVersion === 3
+            ? 'target-cover-context-record'
+            : 'context-record',
       {
         context: row.context,
         authority: row.authority,
@@ -868,10 +934,16 @@ export class RatingScopedContextService {
     token: string,
     input: RatingScopedContextRequest,
     tx: PoolClient,
-    protocolVersion: 2 | 3 | 4 = 2,
+    requestedProtocolVersion: RequestedContextProtocol = 2,
   ): Promise<RatingCurrentContext> {
     const request = ratingScopedContextRequestSchema.parse(input),
-      captured = await this.capture(token, request, tx, protocolVersion);
+      captured = await this.capture(
+        token,
+        request,
+        tx,
+        requestedProtocolVersion,
+      );
+    const protocolVersion = captured.protocolVersion;
     const instant = (
       await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
     ).rows[0]?.now;
@@ -882,14 +954,21 @@ export class RatingScopedContextService {
       expiresAt = Math.min(instant.getTime() + 300000, captured.deadline);
     if (expiresAt <= instant.getTime()) unavailable();
     const generation = this.protocolGeneration(request.selector, captured);
+    // Lazy import avoids the public page schema's existing dependency on reads.
     const context = (
-      protocolVersion === 4
-        ? ratingDiscussionContextSchema
-        : protocolVersion === 3
-          ? ratingTargetCoverContextSchema
-          : ratingScopedContextSchema
+      protocolVersion === 5
+        ? (await import('../category-management/icon-public-contracts.js'))
+            .ratingCategoryIconPublicContextSchema
+        : protocolVersion === 4
+          ? ratingDiscussionContextSchema
+          : protocolVersion === 3
+            ? ratingTargetCoverContextSchema
+            : ratingScopedContextSchema
     ).parse({
       protocolVersion,
+      ...(protocolVersion === 5
+        ? { mediaSnapshot: captured.mediaSnapshot }
+        : {}),
       ...(protocolVersion === 4
         ? {
             discussionMedia: (() => {
@@ -927,33 +1006,38 @@ export class RatingScopedContextService {
       issuedAt: instant.toISOString(),
       expiresAt: new Date(expiresAt).toISOString(),
       capabilities:
-        protocolVersion === 4
+        protocolVersion === 5
           ? [
               request.mode === 'admin_preview' ? 'read' : request.purpose,
-              'discussion_images',
-              ...((
-                captured.authority['targetCoverCapabilities'] as {
-                  current: boolean;
-                }[]
-              ).every((c) => c.current)
-                ? ['target_cover']
-                : []),
+              'category_icon',
             ]
-          : request.mode === 'admin_preview'
-            ? ['read']
-            : request.purpose === 'random'
-              ? ['random']
-              : [
-                  request.purpose,
-                  ...(protocolVersion === 3 &&
-                  (
-                    captured.authority['targetCoverCapabilities'] as {
-                      current: boolean;
-                    }[]
-                  ).every((c) => c.current)
-                    ? ['target_cover']
-                    : []),
-                ],
+          : protocolVersion === 4
+            ? [
+                request.mode === 'admin_preview' ? 'read' : request.purpose,
+                'discussion_images',
+                ...((
+                  captured.authority['targetCoverCapabilities'] as {
+                    current: boolean;
+                  }[]
+                ).every((c) => c.current)
+                  ? ['target_cover']
+                  : []),
+              ]
+            : request.mode === 'admin_preview'
+              ? ['read']
+              : request.purpose === 'random'
+                ? ['random']
+                : [
+                    request.purpose,
+                    ...(protocolVersion === 3 &&
+                    (
+                      captured.authority['targetCoverCapabilities'] as {
+                        current: boolean;
+                      }[]
+                    ).every((c) => c.current)
+                      ? ['target_cover']
+                      : []),
+                  ],
     });
     const row = (
       await tx.query<ContextRow>(
@@ -1034,12 +1118,54 @@ export class RatingScopedContextService {
       ? run(tx)
       : this.db.transaction(run, { isolationLevel: 'read committed' });
   }
+  createCategoryIcon(
+    token: string,
+    request: RatingScopedContextRequest,
+    tx?: PoolClient,
+  ): Promise<RatingCategoryIconPublicContext> {
+    const run = async (client: PoolClient) => {
+      const { ratingCategoryIconPublicContextSchema } =
+        await import('../category-management/icon-public-contracts.js');
+      return ratingCategoryIconPublicContextSchema.parse(
+        await this.issue(token, request, client, 5),
+      );
+    };
+    return tx
+      ? run(tx)
+      : this.db.transaction(run, { isolationLevel: 'read committed' });
+  }
+  createCategoryIconEntry(
+    token: string,
+    request: RatingScopedContextRequest,
+    tx?: PoolClient,
+  ): Promise<
+    | { kind: 'icon'; context: RatingCategoryIconPublicContext }
+    | { kind: 'legacy'; context: RatingScopedContext }
+  > {
+    const run = async (client: PoolClient) => {
+      const context = await this.issue(
+        token,
+        request,
+        client,
+        'category-icon-entry',
+      );
+      if (context.protocolVersion === 5)
+        return { kind: 'icon' as const, context };
+      return {
+        kind: 'legacy' as const,
+        context: ratingScopedContextSchema.parse(context),
+      };
+    };
+    return tx
+      ? run(tx)
+      : this.db.transaction(run, { isolationLevel: 'read committed' });
+  }
   private async load(
     token: string,
     query: { contextId: string; contextToken: string },
     tx: PoolClient,
     write: boolean,
-    expectedProtocol: 2 | 3 | 4 = 2,
+    expectedProtocol: ContextProtocol = 2,
   ) {
     // Route-specific strict schemas already validate pagination/filter fields.
     // This owner consumes only the authentication tuple, never those filters.
@@ -1062,13 +1188,22 @@ export class RatingScopedContextService {
       const storedVersion = (row.context as { protocolVersion?: unknown })
         .protocolVersion;
       context = (
-        storedVersion === 4
-          ? ratingDiscussionContextSchema
-          : storedVersion === 3
-            ? ratingTargetCoverContextSchema
-            : ratingScopedContextSchema
+        storedVersion === 5
+          ? (await import('../category-management/icon-public-contracts.js'))
+              .ratingCategoryIconPublicContextSchema
+          : storedVersion === 4
+            ? ratingDiscussionContextSchema
+            : storedVersion === 3
+              ? ratingTargetCoverContextSchema
+              : ratingScopedContextSchema
       ).parse(row.context);
       if (context.protocolVersion !== expectedProtocol) changed();
+      if (
+        context.protocolVersion === 5 &&
+        (row.authority as Record<string, unknown>)['contextAuthority'] !==
+          'ratings-category-icon-context-v1'
+      )
+        unavailable();
       if (
         context.protocolVersion === 4 &&
         (row.authority as Record<string, unknown>)['contextAuthority'] !==
@@ -1117,6 +1252,8 @@ export class RatingScopedContextService {
       this.sessionGeneration(token, captured.session) !==
         context.sessionGeneration ||
       captured.scopeRevision !== context.scopeRevision ||
+      (context.protocolVersion === 5 &&
+        captured.mediaSnapshot !== context.mediaSnapshot) ||
       captured.sourceDigest !== context.sourceDigest ||
       !canonicalEqual(captured.authority, row.authority) ||
       !canonicalEqual(captured.protocols, row.protocol_tuples) ||
@@ -1216,7 +1353,7 @@ export class RatingScopedContextService {
     options: {
       purpose?: RatingScopedContextRequest['purpose'];
       write?: boolean;
-      protocolVersion?: 2 | 3 | 4;
+      protocolVersion?: ContextProtocol;
     } = {},
   ): Promise<ResolvedRatingScope> {
     const loaded = await this.load(
@@ -1244,7 +1381,7 @@ export class RatingScopedContextService {
     token: string,
     query: { contextId: string; contextToken: string },
     tx: PoolClient,
-    protocolVersion: 2 | 3 | 4 = 2,
+    protocolVersion: ContextProtocol = 2,
   ): Promise<ResolvedRatingRandomScope> {
     const loaded = await this.load(token, query, tx, false, protocolVersion);
     if (loaded.context.purpose !== 'random' || loaded.context.mode !== 'public')

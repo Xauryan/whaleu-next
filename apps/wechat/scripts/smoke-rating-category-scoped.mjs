@@ -147,7 +147,9 @@ export async function smokeRatingCategoryScoped({ app, dist }) {
         pathname = url.pathname;
       requests.push({ method: request.method, path: pathname });
       let body;
-      if (pathname.endsWith('/category-management/contexts'))
+      if (pathname.endsWith('/category-management/entry-context'))
+        body = { kind: 'legacy', context: context(request.body.selector) };
+      else if (pathname.endsWith('/category-management/contexts'))
         body = context(request.body.selector);
       else if (pathname.endsWith('/category-management/categories'))
         body = {

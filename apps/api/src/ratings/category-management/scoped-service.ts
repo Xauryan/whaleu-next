@@ -125,8 +125,12 @@ export class RatingCategoryScopedManagementService {
       );
     return { authority, domain };
   }
-  context(token: string, input: { selector: RatingNavigationSelector }) {
-    return this.run(async (tx) => {
+  context(
+    token: string,
+    input: { selector: RatingNavigationSelector },
+    transaction?: PoolClient,
+  ) {
+    const work = async (tx: PoolClient) => {
       const session = await this.enter(token, tx),
         { authority, domain } = await this.management(
           session.accountId,
@@ -236,7 +240,8 @@ export class RatingCategoryScopedManagementService {
         canManageGlobal: authority.global,
         operations,
       });
-    });
+    };
+    return transaction ? work(transaction) : this.run(work);
   }
   private async load(
     token: string,

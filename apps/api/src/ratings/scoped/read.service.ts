@@ -1,3 +1,4 @@
+import { currentCategoryIconDescriptor } from '../category-management/icon-current.js';
 import {
   ratingDiscussionMediaRootSchema,
   ratingDiscussionMediaReplySchema,
@@ -261,7 +262,7 @@ export class RatingScopedReadService {
     token: string,
     query: ReadQuery,
     operation: (scope: ResolvedRatingScope, tx: PoolClient) => Promise<T>,
-    protocolVersion: 2 | 3 | 4 = 2,
+    protocolVersion: 2 | 3 | 4 | 5 = 2,
   ): Promise<T> {
     try {
       return await this.database.transaction(
@@ -338,52 +339,94 @@ export class RatingScopedReadService {
     await this.projection.qualifyTarget(target.row, tx);
     return target;
   }
-  categories(token: string, query: CategoryQuery) {
-    return this.run(token, query, async (scope, tx) => {
-      const parentId = query.parentId ?? null;
-      if (parentId) await this.scoped.category(scope, parentId, tx);
-      const cursorScope = await this.cursorScope(
-        scope,
-        'categories',
-        { parentId, limit: query.limit },
-        tx,
-      );
-      const after = query.cursor
-        ? await this.cursors.get(query.cursor, cursorScope, tx)
-        : null;
-      const rows = await this.scoped.categories(
+  categories(token: string, query: CategoryQuery, includeIcon = false) {
+    return this.run(
+      token,
+      query,
+      async (scope, tx) => {
+        const parentId = query.parentId ?? null;
+        if (parentId) await this.scoped.category(scope, parentId, tx);
+        const cursorScope = await this.cursorScope(
           scope,
-          parentId,
-          after,
-          query.limit,
+          'categories',
+          { parentId, limit: query.limit },
           tx,
-        ),
-        more = rows.length > query.limit,
-        chosen = rows.slice(0, query.limit);
-      const nextCursor = more
-        ? await this.cursors.create(
-            scope.actor,
-            cursorScope,
-            chosen.at(-1)!.ordinal,
+        );
+        const after = query.cursor
+          ? await this.cursors.get(query.cursor, cursorScope, tx)
+          : null;
+        const rows = await this.scoped.categories(
+            scope,
+            parentId,
+            after,
+            query.limit,
             tx,
-          )
-        : null;
-      return ratingScopedCategoryPageSchema.parse({
-        context: { ...this.pageContext(scope), parentId },
-        items: chosen.map((r) => ({
-          id: r.id,
-          parentId: r.parent_id,
-          level: r.level,
-          kind: r.kind,
-          systemKey: r.system_key,
-          name: r.name,
-          description: r.description,
-          revision: r.revision,
-        })),
-        nextCursor,
-        continuation: more ? 'more' : 'end',
-      });
-    });
+          ),
+          more = rows.length > query.limit,
+          chosen = rows.slice(0, query.limit);
+        const nextCursor = more
+          ? await this.cursors.create(
+              scope.actor,
+              cursorScope,
+              chosen.at(-1)!.ordinal,
+              tx,
+            )
+          : null;
+        const schema = includeIcon
+          ? (await import('../category-management/icon-public-contracts.js'))
+              .ratingCategoryIconPageSchema
+          : ratingScopedCategoryPageSchema;
+        return schema.parse({
+          context: { ...this.pageContext(scope), parentId },
+          items: chosen.map((r) => ({
+            id: r.id,
+            parentId: r.parent_id,
+            level: r.level,
+            kind: r.kind,
+            systemKey: r.system_key,
+            name: r.name,
+            description: r.description,
+            revision: r.revision,
+            ...(includeIcon
+              ? {
+                  icon: currentCategoryIconDescriptor(
+                    scope,
+                    r.id,
+                    scope.context,
+                    tx,
+                  ),
+                }
+              : {}),
+          })),
+          nextCursor,
+          continuation: more ? 'more' : 'end',
+        });
+      },
+      includeIcon ? 5 : 2,
+    );
+  }
+  categoryIcon(token: string, id: string, query: ReadQuery) {
+    return this.run(
+      token,
+      query,
+      async (scope, tx) => {
+        const row = await this.scoped.category(scope, id, tx);
+        const { ratingCategoryWithIconSchema } =
+          await import('../category-management/icon-public-contracts.js');
+        return ratingCategoryWithIconSchema.parse({
+          id: row.id,
+          parentId: row.parent_id,
+          level: row.level,
+          kind: row.kind,
+          systemKey: row.system_key,
+          name: row.name,
+          description: row.description,
+          revision: row.revision,
+          icon: currentCategoryIconDescriptor(scope, row.id, scope.context, tx),
+        });
+      },
+      5,
+    );
   }
   targets(token: string, query: TargetQuery, includeCover = false) {
     return this.run(

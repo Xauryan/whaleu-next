@@ -6,7 +6,7 @@ import { inTransaction } from '../../../src/database/database.js';
 import { checkTransactionDeadlines } from '../../../src/database/transaction-deadlines.js';
 import { MediaRequiredProof } from '../../../src/media/required-proof.js';
 
-const sources = [
+const historicalSources = [
   'upload_intents',
   'quota_reservations',
   'object_attempts',
@@ -36,6 +36,16 @@ export async function verifyMediaOwnerFenceConcurrency(
   t: TestContext,
   pool: Pool,
 ) {
+  const categoryIconInstalled =
+    (
+      await pool.query<{ present: boolean }>(
+        "SELECT to_regclass('whaleu_media.category_icon_request_markers') IS NOT NULL AS present",
+      )
+    ).rows[0]?.present === true;
+  const sources = [
+    ...historicalSources,
+    ...(categoryIconInstalled ? ['category_icon_request_markers'] : []),
+  ];
   const prove = () =>
     inTransaction(pool, (tx) => new MediaRequiredProof().capture(tx), {
       isolationLevel: 'read committed',

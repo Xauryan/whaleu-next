@@ -497,6 +497,14 @@ export async function renderErrandsOpenApiDocument(): Promise<string> {
 
 /** Tooling-only rating routes. No live database, issuer or provider. */
 export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
+  const {
+    RatingCategoryIconManagementController,
+    RatingCategoryIconRequestController,
+  } = await import('../src/ratings/category-management/icon-controller.js');
+  const { RatingCategoryIconPublicController } =
+    await import('../src/ratings/category-management/icon-public-controller.js');
+  const { RatingCategoryIconManagementService } =
+    await import('../src/ratings/category-management/icon-service.js');
   const { RatingDiscussionMediaController } =
     await import('../src/ratings/scoped/discussion-media-controller.js');
   const { RatingTargetCoverController } =
@@ -571,6 +579,41 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
     await import('../src/notifications/ratings/like-read.service.js');
   const { RatingRequestGuard } =
     await import('../src/request-throttling/rating-request.guard.js');
+  for (const [controller, methods] of [
+    [
+      RatingCategoryIconManagementController,
+      [
+        'retirementStatus',
+        'retirementCleanup',
+        'entryContext',
+        'context',
+        'list',
+        'detail',
+        'history',
+        'systemOptions',
+        'uploadScope',
+        'recoverUploadScope',
+        'cancelUploadScope',
+        'prepare',
+        'commit',
+        'cancel',
+        'cancelByHash',
+      ],
+    ],
+    [RatingCategoryIconRequestController, ['request']],
+    [
+      RatingCategoryIconPublicController,
+      ['entryContext', 'context', 'categories', 'category'],
+    ],
+  ] as const) {
+    for (const method of methods)
+      if (
+        !Reflect.hasMetadata(PARAMTYPES_METADATA, controller.prototype, method)
+      )
+        throw new Error(
+          'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+        );
+  }
   for (const method of [
     'context',
     'prepare',
@@ -647,6 +690,9 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
   };
   const testing = await Test.createTestingModule({
     controllers: [
+      RatingCategoryIconManagementController,
+      RatingCategoryIconRequestController,
+      RatingCategoryIconPublicController,
       RatingDiscussionMediaController,
       RatingTargetCoverController,
       RatingScopedController,
@@ -667,10 +713,37 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       RatingLikeUpdatesController,
     ],
     providers: [
+      {
+        provide: RatingCategoryIconManagementService,
+        useValue: {
+          retirementStatus: fail,
+          cleanupRetirement: fail,
+          entryContext: fail,
+          context: fail,
+          list: fail,
+          detail: fail,
+          history: fail,
+          systemOptions: fail,
+          uploadScope: fail,
+          recoverUploadScope: fail,
+          cancelUploadScope: fail,
+          prepare: fail,
+          commit: fail,
+          cancel: fail,
+          cancelByHash: fail,
+          recover: fail,
+        },
+      },
       { provide: RatingTargetCoverMediaService, useValue: {} },
-      { provide: RatingScopedContextService, useValue: {} },
+      {
+        provide: RatingScopedContextService,
+        useValue: { createCategoryIconEntry: fail, createCategoryIcon: fail },
+      },
       { provide: RatingScopedCommands, useValue: {} },
-      { provide: RatingScopedReadService, useValue: {} },
+      {
+        provide: RatingScopedReadService,
+        useValue: { categories: fail, categoryIcon: fail },
+      },
       { provide: RatingScopedRandomService, useValue: {} },
       { provide: RatingScopedNoticeService, useValue: {} },
       { provide: RatingRandomService, useValue: {} },
@@ -779,6 +852,10 @@ export async function renderMessagingOpenApiDocument() {
 
 /** Offline-only Media contract: no runtime module, database or provider graph. */
 export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
+  const { CategoryIconMediaController, CategoryIconMultipartInterceptor } =
+    await import('../src/media/controller-category-icon.js');
+  const { CategoryIconUploadApplication, CATEGORY_ICON_MEDIA_OWNER } =
+    await import('../src/media/application-category-icon.js');
   const {
     RatingsDiscussionMediaController,
     RatingsDiscussionMultipartInterceptor,
@@ -814,6 +891,21 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
     await import('../src/media/contracts.js');
   const { z } = await import('zod');
   for (const [controller, methods] of [
+    [
+      CategoryIconMediaController,
+      [
+        'prepare',
+        'recover',
+        'cancelRequest',
+        'status',
+        'grant',
+        'upload',
+        'finalize',
+        'cancel',
+        'describe',
+        'open',
+      ],
+    ],
     [
       RatingsDiscussionMediaController,
       [
@@ -901,6 +993,7 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
   };
   const testing = await Test.createTestingModule({
     controllers: [
+      CategoryIconMediaController,
       RatingsDiscussionMediaController,
       RatingsTargetMediaController,
       MediaController,
@@ -909,6 +1002,32 @@ export async function createMediaOpenApiDocument(): Promise<OpenAPIObject> {
       MediaDiscussionBatchController,
     ],
     providers: [
+      CategoryIconMultipartInterceptor,
+      {
+        provide: CategoryIconUploadApplication,
+        useValue: {
+          prepare: fail,
+          recover: fail,
+          cancelRequest: fail,
+          status: fail,
+          grant: fail,
+          admit: fail,
+          observe: fail,
+          observed: fail,
+          finalize: fail,
+          cancel: fail,
+          retire: fail,
+        },
+      },
+      {
+        provide: CATEGORY_ICON_MEDIA_OWNER,
+        useValue: {
+          runtime: null,
+          delivery: null,
+          describe: fail,
+          authorized: fail,
+        },
+      },
       RatingsDiscussionMultipartInterceptor,
       { provide: RatingsDiscussionUploadApplication, useValue: {} },
       { provide: RATINGS_DISCUSSION_MEDIA_OWNER, useValue: { runtime: null } },

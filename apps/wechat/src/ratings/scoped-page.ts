@@ -94,6 +94,14 @@ export function registerRatingScopedPage(): void {
       });
       void this.controller.load(this.route);
     },
+    onCategoryIcon(event: Tap) {
+      void this.controller?.openCategoryIcon(
+        event.currentTarget.dataset.id ?? '',
+      );
+    },
+    onCloseCategoryIcon() {
+      this.controller?.closeCategoryIcon();
+    },
     async onCategoryManagement() {
       const controller = this.controller,
         navigator = this.navigator;

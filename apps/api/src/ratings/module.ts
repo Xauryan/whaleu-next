@@ -1,3 +1,26 @@
+import { RatingCategoryIconRetirementOwner } from './category-management/icon-retirement.js';
+import {
+  RatingCategoryIconManagementController,
+  RatingCategoryIconRequestController,
+} from './category-management/icon-controller.js';
+import { RatingCategoryIconPublicController } from './category-management/icon-public-controller.js';
+import { RatingCategoryIconManagementService } from './category-management/icon-service.js';
+import { RatingCategoryIconRepository } from './category-management/icon-repository.js';
+import { RatingCategoryIconAuthority } from './category-management/icon-authority.js';
+import { RatingCategoryIconMediaService } from './category-management/icon-media.service.js';
+import {
+  CategoryIconMediaCredentials,
+  RATINGS_CATEGORY_ICON_MEDIA_AUTHORITY,
+  RATINGS_CATEGORY_ICON_MEDIA_RUNTIME,
+} from './category-management/icon-media-authority.js';
+import {
+  CategoryIconMediaController,
+  CategoryIconMultipartInterceptor,
+} from '../media/controller-category-icon.js';
+import {
+  CategoryIconUploadApplication,
+  CATEGORY_ICON_MEDIA_OWNER,
+} from '../media/application-category-icon.js';
 import { RatingDiscussionMediaController } from './scoped/discussion-media-controller.js';
 import {
   RatingDiscussionMediaService,
@@ -124,6 +147,10 @@ import { RatingsCursors } from './cursor.js';
     RatingRequestThrottlingModule,
   ],
   controllers: [
+    RatingCategoryIconManagementController,
+    RatingCategoryIconRequestController,
+    RatingCategoryIconPublicController,
+    CategoryIconMediaController,
     RatingDiscussionMediaController,
     RatingsDiscussionMediaController,
     RatingTargetCoverController,
@@ -143,6 +170,29 @@ import { RatingsCursors } from './cursor.js';
     RatingLikesController,
   ],
   providers: [
+    RatingCategoryIconRetirementOwner,
+    RatingCategoryIconRepository,
+    RatingCategoryIconAuthority,
+    CategoryIconMediaCredentials,
+    RatingCategoryIconManagementService,
+    {
+      provide: RATINGS_CATEGORY_ICON_MEDIA_AUTHORITY,
+      useExisting: RatingCategoryIconAuthority,
+    },
+    { provide: RATINGS_CATEGORY_ICON_MEDIA_RUNTIME, useValue: null },
+    RatingCategoryIconMediaService,
+    {
+      provide: CATEGORY_ICON_MEDIA_OWNER,
+      useExisting: RatingCategoryIconMediaService,
+    },
+    {
+      provide: CategoryIconUploadApplication,
+      inject: [RatingCategoryIconMediaService],
+      useFactory: (owner: RatingCategoryIconMediaService) =>
+        new CategoryIconUploadApplication(owner),
+    },
+    CategoryIconMultipartInterceptor,
+
     { provide: RATINGS_DISCUSSION_MEDIA_RUNTIME, useValue: null },
     {
       provide: RatingDiscussionMediaService,

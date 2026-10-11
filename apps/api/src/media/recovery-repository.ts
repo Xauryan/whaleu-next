@@ -37,6 +37,8 @@ interface Intent {
   resource_id: string;
 }
 interface Fence {
+  /** Present only after Media8; undefined keeps frozen old-schema behavior. */
+  protocol_namespace?: number | null;
   request_hash: string;
   intent_id: string | null;
   state: string;
@@ -79,6 +81,8 @@ export class MediaRecoveryRepository {
       requestId,
       serverNow: await this.now(tx),
     };
+    if (fence?.protocol_namespace === 8)
+      throw new ApplicationError('MEDIA_REQUEST_CONFLICT');
     if (!fence)
       return mediaRequestRecoverySchema.parse({
         ...base,
@@ -329,6 +333,8 @@ export class MediaRecoveryRepository {
         [actor, requestId],
       )
     ).rows[0];
+    if (fence?.protocol_namespace === 8)
+      throw new ApplicationError('MEDIA_REQUEST_CONFLICT');
     if (fence && fence.request_hash !== requestHash)
       throw new ApplicationError('MEDIA_REQUEST_CONFLICT');
     if (!fence) {

@@ -1,3 +1,8 @@
+import { hasCurrentCategoryIconExtension } from '../category-management/icon-current.js';
+import {
+  beginCategoryIconTargetMutation,
+  finishCategoryIconMutation,
+} from '../category-management/icon-proof.js';
 import {
   beginRatingsMediaMutation,
   finishRatingsMediaMutation,
@@ -247,11 +252,32 @@ export class RatingScopedCommands {
     token: string,
     i: RatingScopedIntent,
     tx: PoolClient,
+    executing = false,
   ) {
     const scope = await this.scope(token, i, tx),
       actor = scope.actor,
       hash = ratingScopedCommandHash(i),
       old = await this.preparation(actor, i.payload.clientRequestId, tx);
+    const categoryMutation =
+      executing &&
+      (i.operation === 'create_target_scoped' ||
+        i.operation === 'edit_target_scoped') &&
+      (await hasCurrentCategoryIconExtension(scope, tx))
+        ? await beginCategoryIconTargetMutation(
+            {
+              actor,
+              request: i.payload.clientRequestId,
+              hash,
+              operation: i.operation,
+              scopeKeys: scope.campusProof.scopeKeys,
+            },
+            tx,
+          )
+        : null;
+    const categoryMediaMutation =
+      categoryMutation && i.protocolVersion === 3
+        ? beginRatingsMediaMutation(tx)
+        : null;
     if (old) {
       if (
         old.intent_hash !== hash ||
@@ -259,6 +285,13 @@ export class RatingScopedCommands {
         old.session_id !== scope.session.sessionId
       )
         throw new ApplicationError('REQUEST_CONFLICT');
+      if (i.protocolVersion === 2 || i.operation === 'create_target_scoped')
+        await this.scoped.recheckPreparedCategoryIcons(
+          scope,
+          i.payload.categoryId,
+          i.payload.expectedCategoryRevision,
+          tx,
+        );
       // A stored preparation is immutable intent, not a fresh CAS grant. Lock
       // and recheck before inserting the SQL execution cause (and before noop).
       if (i.protocolVersion === 3 && i.operation === 'edit_target_scoped') {
@@ -345,7 +378,7 @@ export class RatingScopedCommands {
           }
         }
       }
-      return { p: old, scope };
+      return { p: old, scope, categoryMutation, categoryMediaMutation };
     }
     const cat = await this.scoped.category(
       scope,
@@ -738,7 +771,7 @@ export class RatingScopedCommands {
         ],
       )
     ).rows[0]!;
-    return { p, scope };
+    return { p, scope, categoryMutation, categoryMediaMutation };
   }
   private async coverUploadScope(
     actor: string,
@@ -1259,7 +1292,7 @@ export class RatingScopedCommands {
         const checkpoint = checkpointTransactionDeadlines(tx);
         await tx.query('SAVEPOINT scoped_command');
         let result: RatingScopedReceipt;
-        const mediaMutation =
+        let mediaMutation =
           i.protocolVersion === 4 ? beginRatingsMediaMutation(tx) : null;
         try {
           if (
@@ -1271,7 +1304,9 @@ export class RatingScopedCommands {
             ))
           )
             throw new ApplicationError('RATING_SCOPED_CONTEXT_CHANGED');
-          const { p, scope } = await this.makePreparation(token, i, tx);
+          const { p, scope, categoryMutation, categoryMediaMutation } =
+            await this.makePreparation(token, i, tx, true);
+          mediaMutation ??= categoryMediaMutation;
           if (
             (i.protocolVersion === 4 ||
               i.operation === 'create_target_scoped' ||
@@ -1304,6 +1339,8 @@ export class RatingScopedCommands {
           const applied = await this.apply(scope, p, tx);
           result = await this.outcome(scope.actor, i, applied, tx);
           await this.scoped.retainAfter(scope, tx);
+          if (categoryMutation)
+            await finishCategoryIconMutation(categoryMutation, tx);
           const discussionSet = this.discussionSets.get(tx);
           if (discussionSet) {
             await this.discussionMedia.assets.finish(discussionSet, tx);

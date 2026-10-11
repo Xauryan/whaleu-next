@@ -5,6 +5,10 @@ import * as cover from '../src/ratings/scoped/target-cover-contracts.js';
 import * as coverController from '../src/ratings/scoped/target-cover-controller.js';
 import { ratingsMediaDescriptorSchema } from '../src/media/contracts-ratings.js';
 import * as scopedCategories from '../src/ratings/category-management/scoped-contracts.js';
+import * as categoryIcons from '../src/ratings/category-management/icon-contracts.js';
+import * as categoryIconController from '../src/ratings/category-management/icon-controller.js';
+import * as categoryIconPublic from '../src/ratings/category-management/icon-public-contracts.js';
+import * as categoryIconPublicController from '../src/ratings/category-management/icon-public-controller.js';
 import { ratingScopedRequestReceiptSchema } from '../src/ratings/scoped/request-receipt.js';
 import * as scoped from '../src/ratings/scoped/contracts.js';
 import * as scopedRead from '../src/ratings/scoped/read.service.js';
@@ -23,7 +27,10 @@ import * as likes from '../src/ratings/likes/contracts.js';
 import * as likeUpdates from '../src/notifications/ratings/like-contracts.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { test } from 'node:test';
@@ -33,25 +40,58 @@ import * as contracts from '../src/ratings/contracts.js';
 import * as discussion from '../src/ratings/discussion-contracts.js';
 import * as updates from '../src/notifications/ratings/contracts.js';
 const execute = promisify(execFile);
-const probe = `import assert from 'node:assert/strict';import net from 'node:net';import pg from 'pg';import {NestApplication} from '@nestjs/core';const fail=()=>{throw new Error('OpenAPI attempted live work');};net.Server.prototype.listen=fail;net.Socket.prototype.connect=fail;pg.Pool.prototype.connect=fail;pg.Pool.prototype.query=fail;globalThis.setInterval=fail;globalThis.setTimeout=fail;NestApplication.prototype.init=fail;NestApplication.prototype.listen=fail;const {renderRatingsOpenApiDocument}=await import('./.openapi-build/scripts/openapi-document.js');const first=await renderRatingsOpenApiDocument();assert.equal(await renderRatingsOpenApiDocument(),first);process.stdout.write(first);`;
+const probe = `import assert from 'node:assert/strict';
+import {writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import net from 'node:net';
+import pg from 'pg';
+import {NestApplication} from '@nestjs/core';
+const fail=()=>{throw new Error('OpenAPI attempted live work');};
+net.Server.prototype.listen=fail;
+net.Socket.prototype.connect=fail;
+pg.Pool.prototype.connect=fail;
+pg.Pool.prototype.query=fail;
+globalThis.fetch=fail;
+globalThis.setInterval=fail;
+globalThis.setTimeout=fail;
+NestApplication.prototype.init=fail;
+NestApplication.prototype.listen=fail;
+const {renderRatingsOpenApiDocument}=await import('./.openapi-build/scripts/openapi-document.js');
+const first=await renderRatingsOpenApiDocument();
+assert.equal(await renderRatingsOpenApiDocument(),first);
+writeFileSync(process.env['RATINGS_OPENAPI_RESULT'],first,{flag:'wx'});
+process.stdout.write(createHash('sha256').update(first).digest('hex'));`;
 async function render() {
-  const r = await execute(
-    process.execPath,
-    ['--input-type=module', '-e', probe],
-    {
-      cwd: fileURLToPath(new URL('../', import.meta.url)),
-      timeout: 30000,
-      // Additional strict category intent unions expand this offline document.
-      maxBuffer: 4 * 1024 * 1024,
-      env: {
-        ...process.env,
-        DATABASE_URL: 'invalid:offline-only',
-        NODE_ENV: 'production',
+  const directory = await mkdtemp(join(tmpdir(), 'whaleu-ratings-openapi-'));
+  const generated = join(directory, 'generated.json');
+  try {
+    const result = await execute(
+      process.execPath,
+      ['--input-type=module', '-e', probe],
+      {
+        cwd: fileURLToPath(new URL('../', import.meta.url)),
+        timeout: 30000,
+        // Compare complete documents offline; only the digest crosses stdout.
+        maxBuffer: 4 * 1024 * 1024,
+        env: {
+          ...process.env,
+          RATINGS_OPENAPI_RESULT: generated,
+          DATABASE_URL: 'invalid:offline-only',
+          NODE_ENV: 'production',
+        },
       },
-    },
-  );
-  assert.equal(r.stderr, '');
-  return r.stdout;
+    );
+    assert.equal(result.stderr, '');
+    assert.match(result.stdout, /^[a-f0-9]{64}$/);
+    const bytes = await readFile(generated, 'utf8');
+    assert.equal(
+      createHash('sha256').update(bytes).digest('hex'),
+      result.stdout,
+    );
+    return bytes;
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 }
 test('ratings OpenAPI is deterministic offline and artifact-current', async () =>
   assert.equal(
@@ -61,7 +101,7 @@ test('ratings OpenAPI is deterministic offline and artifact-current', async () =
       'utf8',
     ),
   ));
-test('all 66 legacy, 39 scoped and eight category management operations have exact schemas and safe auth/error metadata', async () => {
+test('legacy, scoped, category management and category icon operations have exact schemas and safe auth/error metadata', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
   const cases = [
     [
@@ -777,12 +817,138 @@ test('all 66 legacy, 39 scoped and eight category management operations have exa
       likes.ratingLikeStateSchema,
     ],
   ] as const;
+  const categoryIconCases = [
+    [
+      '/v5/ratings/category-management/retirement/status',
+      'post',
+      categoryIcons.categoryIconRetirementStatusSchema,
+      'ratingCategoryIconManagementRetirementStatus',
+    ],
+    [
+      '/v5/ratings/category-management/retirement/cleanup',
+      'post',
+      categoryIcons.categoryIconRetirementCleanupSchema,
+      'ratingCategoryIconManagementRetirementCleanup',
+    ],
+    [
+      '/v5/ratings/category-management/entry-context',
+      'post',
+      categoryIconController.ratingCategoryIconManagementEntrySchema,
+      'ratingCategoryIconManagementEntryContext',
+    ],
+    [
+      '/v5/ratings/category-management/contexts',
+      'post',
+      categoryIcons.ratingCategoryIconContextSchema,
+      'ratingCategoryIconManagementContext',
+    ],
+    [
+      '/v5/ratings/category-management/categories',
+      'get',
+      categoryIcons.ratingManagedCategoryIconsSchema,
+      'ratingCategoryIconManagementList',
+    ],
+    [
+      '/v5/ratings/category-management/categories/{categoryId}',
+      'get',
+      categoryIcons.ratingManagedCategoryIconSchema,
+      'ratingCategoryIconManagementDetail',
+    ],
+    [
+      '/v5/ratings/category-management/categories/{categoryId}/history',
+      'get',
+      scopedCategories.ratingCategoryManagementHistorySchema,
+      'ratingCategoryIconManagementHistory',
+    ],
+    [
+      '/v5/ratings/category-management/system-options',
+      'get',
+      scopedCategories.ratingCategorySystemOptionsSchema,
+      'ratingCategoryIconManagementSystemOptions',
+    ],
+    [
+      '/v5/ratings/category-management/upload-scopes',
+      'post',
+      categoryIcons.ratingCategoryIconUploadScopeResultSchema,
+      'ratingCategoryIconManagementUploadScope',
+    ],
+    [
+      '/v5/ratings/category-management/upload-scopes/recover',
+      'post',
+      categoryIconController.ratingCategoryIconUploadScopeRecoveryResultSchema,
+      'ratingCategoryIconManagementRecoverUploadScope',
+    ],
+    [
+      '/v5/ratings/category-management/upload-scopes/cancel',
+      'post',
+      categoryIconController.ratingCategoryIconUploadScopeRecoveryResultSchema,
+      'ratingCategoryIconManagementCancelUploadScope',
+    ],
+    [
+      '/v5/ratings/category-management/prepare',
+      'post',
+      categoryIcons.ratingCategoryIconPrepareResultSchema,
+      'ratingCategoryIconManagementPrepare',
+    ],
+    [
+      '/v5/ratings/category-management/commit',
+      'post',
+      categoryIcons.ratingCategoryIconReceiptSchema,
+      'ratingCategoryIconManagementCommit',
+    ],
+    [
+      '/v5/ratings/category-management/cancel',
+      'post',
+      categoryIcons.ratingCategoryIconReceiptSchema,
+      'ratingCategoryIconManagementCancel',
+    ],
+    [
+      '/v5/ratings/category-management/cancel-by-hash',
+      'post',
+      categoryIcons.ratingCategoryIconReceiptSchema,
+      'ratingCategoryIconManagementCancelByHash',
+    ],
+    [
+      '/v5/ratings/requests/{requestId}',
+      'get',
+      categoryIcons.ratingCategoryIconReceiptSchema,
+      'ratingCategoryIconManagementGetRequest',
+    ],
+    [
+      '/v5/ratings/entry-context',
+      'post',
+      categoryIconPublicController.ratingCategoryIconEntrySchema,
+      'ratingCategoryIconEntryContext',
+    ],
+    [
+      '/v5/ratings/contexts',
+      'post',
+      categoryIconPublic.ratingCategoryIconPublicContextSchema,
+      'ratingCategoryIconPublicContext',
+    ],
+    [
+      '/v5/ratings/categories',
+      'get',
+      categoryIconPublic.ratingCategoryIconPageSchema,
+      'ratingCategoryIconPublicCategories',
+    ],
+    [
+      '/v5/ratings/categories/{id}',
+      'get',
+      categoryIconPublic.ratingCategoryWithIconSchema,
+      'ratingCategoryIconPublicCategory',
+    ],
+  ] as const;
+  assert.equal(categoryIconCases.length, 20);
+  for (const [path, method, , operationId] of categoryIconCases)
+    assert.equal(doc.paths[path]![method]!.operationId, operationId);
   const allCases = [
     ...cases,
     ...scopedCases,
     ...categoryCases,
     ...coverCases,
     ...discussionMediaCases,
+    ...categoryIconCases,
   ] as const;
   assert.equal(
     Object.values(doc.paths).reduce((n, p) => n + Object.keys(p!).length, 0),
@@ -816,6 +982,66 @@ test('all 66 legacy, 39 scoped and eight category management operations have exa
       assert.ok(response.headers?.['cache-control']);
       assert.ok(response.headers?.['vary']);
     }
+  }
+});
+
+test('category icon management and negotiated public entry publish exact independent input contracts', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  for (const [path, schema] of [
+    [
+      'category-management/retirement/status',
+      categoryIcons.categoryIconRetirementStatusRequestSchema,
+    ],
+    [
+      'category-management/retirement/cleanup',
+      categoryIcons.categoryIconRetirementRequestSchema,
+    ],
+    [
+      'category-management/entry-context',
+      scopedCategories.ratingCategoryManagementContextRequestSchema,
+    ],
+    [
+      'category-management/contexts',
+      scopedCategories.ratingCategoryManagementContextRequestSchema,
+    ],
+    [
+      'category-management/upload-scopes',
+      categoryIcons.ratingCategoryIconUploadScopeSchema,
+    ],
+    [
+      'category-management/upload-scopes/recover',
+      categoryIcons.ratingCategoryIconUploadScopeRecoverySchema,
+    ],
+    [
+      'category-management/upload-scopes/cancel',
+      categoryIcons.ratingCategoryIconUploadScopeRecoverySchema,
+    ],
+    [
+      'category-management/prepare',
+      categoryIcons.ratingCategoryIconIntentSchema,
+    ],
+    [
+      'category-management/commit',
+      categoryIcons.ratingCategoryIconCommitSchema,
+    ],
+    [
+      'category-management/cancel',
+      categoryIcons.ratingCategoryIconIntentSchema,
+    ],
+    [
+      'category-management/cancel-by-hash',
+      categoryIcons.ratingCategoryIconRecoveryClosureSchema,
+    ],
+    ['entry-context', scoped.ratingScopedContextRequestSchema],
+    ['contexts', scoped.ratingScopedContextRequestSchema],
+  ] as const) {
+    const body = doc.paths[`/v5/ratings/${path}`]!.post!.requestBody!;
+    assert.ok(!('$ref' in body));
+    assert.equal(body.required, true);
+    assert.deepEqual(
+      body.content['application/json']!.schema,
+      z.toJSONSchema(schema, { target: 'openapi-3.0', io: 'input' }),
+    );
   }
 });
 

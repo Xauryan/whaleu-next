@@ -1,4 +1,5 @@
 import { assertRatingDiscussionJournalsClear } from './discussion-media-journal-guard';
+import { assertRatingCategoryIconJournalsClear } from './category-icon-journal-guard';
 import {
   decodeRatingCoverRecovery,
   ratingCoverPrepareHash,
@@ -188,7 +189,11 @@ export type PendingRating =
 export function isRatingCategoryScopedIntent(
   intent: RatingCommandIntent,
 ): intent is RatingCategoryScopedIntent {
-  return isRatingCategoryScopedOperation(intent.operation);
+  return (
+    'protocolVersion' in intent &&
+    intent.protocolVersion === 2 &&
+    isRatingCategoryScopedOperation(intent.operation)
+  );
 }
 export function isRatingScopedIntent(
   intent: RatingCommandIntent,
@@ -457,6 +462,11 @@ export class PendingRatingStore {
         this.origin,
         value.accountId,
       );
+      assertRatingCategoryIconJournalsClear(
+        this.storage,
+        this.origin,
+        value.accountId,
+      );
       this.storage.set(this.key(value.accountId, 11), value);
       if (!equal(this.loadCoverUpload(value.accountId), value))
         throw unavailable();
@@ -681,6 +691,11 @@ export class PendingRatingStore {
         !old11
       ) {
         assertRatingDiscussionJournalsClear(
+          this.storage,
+          this.origin,
+          attempt.accountId,
+        );
+        assertRatingCategoryIconJournalsClear(
           this.storage,
           this.origin,
           attempt.accountId,

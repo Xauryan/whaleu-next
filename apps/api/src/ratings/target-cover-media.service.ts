@@ -1,3 +1,4 @@
+import { withRatingsMediaMutation } from '../media/ratings-discussion-mutation-proof.js';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import type { DatabaseService } from '../database/database.js';
@@ -151,10 +152,15 @@ export class RatingTargetCoverMediaService {
         );
         this.credentials.set(tx, { token, session });
         try {
-          const result = await run(session, tx);
-          await retainRatingTargetCoverMediaAfter(tx);
-          await this.access.recheck(token, tx);
-          return result;
+          const work = async () => {
+            const result = await run(session, tx);
+            await retainRatingTargetCoverMediaAfter(tx);
+            await this.access.recheck(token, tx);
+            return result;
+          };
+          return write
+            ? await withRatingsMediaMutation(tx, work)
+            : await work();
         } finally {
           this.credentials.delete(tx);
         }

@@ -1,3 +1,9 @@
+import {
+  CategoryIconMediaContentSnapshotFacade,
+  categoryIconMediaContentKey,
+  type CategoryIconMediaContentReference,
+  type CategoryIconMediaContentFact,
+} from './category-icon-content-snapshot.facade.js';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -35,8 +41,13 @@ export interface RatingsMediaMutation {
   readonly [brand]: true;
 }
 type Reference =
-  RatingsMediaContentReference | RatingsDiscussionMediaContentReference;
-type Fact = RatingsMediaContentFact | RatingsDiscussionMediaContentFact;
+  | RatingsMediaContentReference
+  | RatingsDiscussionMediaContentReference
+  | CategoryIconMediaContentReference;
+type Fact =
+  | RatingsMediaContentFact
+  | RatingsDiscussionMediaContentFact
+  | CategoryIconMediaContentFact;
 interface Obligation {
   reference: Reference;
   fingerprint: string;
@@ -56,15 +67,25 @@ function fail(): never {
   throw new ApplicationError('MEDIA_UNAVAILABLE');
 }
 const keyOf = (reference: Reference) =>
-  reference.parent.resourceKind === 'target_cover'
-    ? `6:${ratingsMediaContentKey(reference.parent)}`
-    : `7:${ratingsDiscussionMediaContentKey(reference.parent)}`;
+  reference.parent.resourceKind === 'category_icon'
+    ? `8:${categoryIconMediaContentKey(reference.parent)}`
+    : reference.parent.resourceKind === 'target_cover'
+      ? `6:${ratingsMediaContentKey(reference.parent)}`
+      : `7:${ratingsDiscussionMediaContentKey(reference.parent)}`;
 const completion: RequiredTransactionProof<State> = {
   maximumFacts: 8,
   failureCode: 'MEDIA_UNAVAILABLE',
   validate: (facts, tx) =>
     boundedOwnerProof(tx, 'MEDIA_UNAVAILABLE', async (read) => {
       if (!(await mediaCountProofOwner.fence(read))) fail();
+      if (
+        facts.some((state) =>
+          [...state.obligations.keys()].some((key) => key.startsWith('8:')),
+        )
+      )
+        await read.query(
+          'LOCK TABLE whaleu_media.category_icon_request_markers IN SHARE MODE NOWAIT',
+        );
       const current = ownerFingerprint(
         await mediaCountProofOwner.capture(read),
       );
@@ -163,7 +184,7 @@ export function collectRatingsMediaMutationRead(
   }
   return true;
 }
-/** Re-read at most two bounded batches after all own writes, compare the whole
+/** Re-read at most three bounded batches after all own writes, compare the whole
  * ordered fact including negative/absence/Review-independent safety head, then
  * capture after. No business/remote read is deferred into final validators. */
 export async function finishRatingsMediaMutation(
@@ -183,10 +204,13 @@ export async function finishRatingsMediaMutation(
   state.phase = 'checking';
   const obligations = [...state.obligations.values()],
     covers: RatingsMediaContentReference[] = [],
-    discussion: RatingsDiscussionMediaContentReference[] = [];
+    discussion: RatingsDiscussionMediaContentReference[] = [],
+    categories: CategoryIconMediaContentReference[] = [];
   for (const { reference } of obligations) {
     if (reference.parent.resourceKind === 'target_cover')
       covers.push(reference as RatingsMediaContentReference);
+    else if (reference.parent.resourceKind === 'category_icon')
+      categories.push(reference as CategoryIconMediaContentReference);
     else discussion.push(reference as RatingsDiscussionMediaContentReference);
   }
   if (obligations.length && !state.budget) fail();
@@ -211,6 +235,16 @@ export async function finishRatingsMediaMutation(
       state.budget!,
     ))
       current.set(`7:${key}`, fact);
+  if (categories.length)
+    for (const [
+      key,
+      fact,
+    ] of await new CategoryIconMediaContentSnapshotFacade().readBatch(
+      categories,
+      tx,
+      state.budget!,
+    ))
+      current.set(`8:${key}`, fact);
   for (const [key, obligation] of state.obligations)
     if (
       !current.has(key) ||

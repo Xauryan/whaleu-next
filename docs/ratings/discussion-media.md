@@ -1,6 +1,6 @@
 # Generic Ratings discussion images
 
-Status: complete frozen-tree local acceptance passed; hosted verification is pending. Production providers and device transports remain unavailable. Generic Ratings and specialist parity are not declared complete.
+Status: complete frozen-tree local acceptance passed; subsequent hosted verification passed 6,444 cases on `a2b8b097`. Production providers and device transports remain unavailable. Generic Ratings and specialist parity are not declared complete.
 
 ## Independent protocols and legacy evidence
 
@@ -136,3 +136,5 @@ The next hosted run on `f7628266` completed all 2,451 PostgreSQL cases in 80m32s
 Only that expiry test now isolates its two setup publications with the same ordered SHARE epoch locks, acquired after its existing policy gate and before source writes; its original ten-second deadline starts after acquiring setup locks. Commit releases them before the original context and HTTP full-pool sampling assertions. No production/shared-fixture code, retry, statement/proof deadline or maintenance setting changes.
 
 A separate real PostgreSQL regression deliberately holds a conflicting lock and exercises the original unisolated publication. It requires the actual 55P03, `RATING_UNAVAILABLE`/503, one rollback and no commit, unchanged application tables/sequences, and successful later publication with the same source identity after release. The unchanged full scale assertions and the strengthened contention regression passed nine distinct cases; complete API typecheck and changed-file lint/format checks passed. This targeted correction still requires the replacement complete hosted gate; it is not a new local full-suite claim.
+
+The third hosted run, on signed commit `a2b8b097`, passed all 6,444 cases: 3,950 cheap checks, 2,452 main PostgreSQL cases and 42 semantic cases, with zero failures, cancellations, skips or todo cases. Main PostgreSQL took 79m21.899s. Both the original expiry/full-pool leaf and the new deterministic publication-contention regression executed successfully; Statistics and Pages publication also passed. Previous failure records remain above. This does not establish the identity of the historical lock holder or activate real providers.

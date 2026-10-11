@@ -13,3 +13,5 @@
 </view>
 
 <navigator url="/pages/rating-discussion-media/rating-discussion-media?recovery=1">评分图片原请求恢复（旧版本未决优先）</navigator>
+
+<navigator url="/pages/rating-category-manage/rating-category-manage?scope=global">分类图标原请求恢复：先查回执，再核验上传与取消</navigator>

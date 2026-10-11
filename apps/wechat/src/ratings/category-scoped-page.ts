@@ -237,6 +237,44 @@ export function registerRatingCategoryScopedPage(editorPage = false): void {
         Number(event.currentTarget.dataset.direction),
       );
     },
+    onIconChoice(event: Event) {
+      this.controller?.chooseIcon(
+        event.currentTarget.dataset.key ?? '',
+        event.currentTarget.dataset.value ?? '',
+      );
+    },
+    onIconUpload(event: Event) {
+      void this.controller?.uploadIcon(event.currentTarget.dataset.key ?? '');
+    },
+    onIconOpen(event: Event) {
+      void this.controller?.openIcon(
+        event.currentTarget.dataset.value ?? 'effective',
+      );
+    },
+    onIconClose() {
+      this.controller?.closeIcon();
+    },
+    onIconRetirementRequestId(event: Event) {
+      this.controller?.setIconRetirementRecoveryRequestId(event.detail.value);
+    },
+    onIconRetirementRecover(event: Event) {
+      void this.controller?.recoverIconRetirement(
+        event.currentTarget.dataset.id,
+      );
+    },
+    onIconRetirementInspect() {
+      void this.controller?.inspectIconRetirement();
+    },
+    onIconRetirementCleanup(event: Event) {
+      void this.controller?.cleanupIconRetirement(
+        event.currentTarget.dataset.id ?? '',
+      );
+    },
+    onIconRetirementPage(event: Event) {
+      this.controller?.pageIconRetirement(
+        Number(event.currentTarget.dataset.direction),
+      );
+    },
     onPrepare() {
       void this.controller?.prepare();
     },

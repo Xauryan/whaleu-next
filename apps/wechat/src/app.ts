@@ -1,3 +1,4 @@
+import { connectCategoryIconNative } from './ratings/category-icon-runtime';
 import { MediaLocalFiles } from './media/local-files';
 import { WechatNativeMediaFiles } from './media/native-files';
 import { connectRatingDiscussionNative } from './ratings/discussion-media-runtime';
@@ -74,6 +75,15 @@ App<WhaleuApp>({
     const registry = new MediaLocalFiles(nativeFiles);
     this.mediaLocalFiles = registry;
     this.community = connectRatingDiscussionNative(
+      this.community,
+      this.identity,
+      wx,
+      clientConfiguration.apiOrigin,
+      nativeFiles,
+      registry,
+      systemClock,
+    );
+    this.community = connectCategoryIconNative(
       this.community,
       this.identity,
       wx,
