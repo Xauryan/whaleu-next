@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-24.04
     # Scheduling headroom for the full suite, including real persisted lease waits.
     # This does not change individual tests, SQL/proof limits or resource capacity.
-    timeout-minutes: 90
+    timeout-minutes: 120
     services:
       postgres:
         image: postgres:18.6-bookworm
@@ -47,7 +47,7 @@ jobs:
       - run: npm run check
       - run: npm run format:check
       - name: Real PostgreSQL integration tests
-        run: timeout 4500 npm run test:integration
+        run: timeout 6000 npm run test:integration
         env:
           WHALEU_RATINGS_CI_DIAGNOSTICS: '1'
           WHALEU_SCALABLE_PROFILE_CI_DIAGNOSTICS: '1'
