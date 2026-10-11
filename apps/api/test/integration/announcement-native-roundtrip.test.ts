@@ -265,7 +265,7 @@ test(
               view = value;
             },
           );
-          await list.load({});
+          await list.load({ source: 'accepted' });
           assert.equal(view.loaded, true);
           assert.equal(view.items.length, 20);
           assert.equal(view.canNext, true);
@@ -288,7 +288,7 @@ test(
               detail = value;
             },
           );
-          await page.load({ announcementId: latest.id });
+          await page.load({ announcementId: latest.id, source: 'accepted' });
           assert.equal(detail.detail?.bodyText, latest.bodyText);
           assert.equal(
             await announcementMarkerCount(f.pool, actor.accountId),
@@ -301,7 +301,7 @@ test(
           assert.equal(view.canNext, false);
           assert.equal(view.canPrevious, false);
           assert.equal(list.detailPath(latest.id), null);
-          await list.load({});
+          await list.load({ source: 'accepted' });
           transport.failNext = '/v1/announcements';
           await list.refresh();
           assert.deepEqual(view.items, []);
@@ -329,7 +329,7 @@ test(
           ] as const) {
             member.sessions.completeLogin(member.sessions.beginLogin(), actor);
             const held = transport.holdNext('/v1/announcements');
-            const pending = controller.load({});
+            const pending = controller.load({ source: 'accepted' });
             await held.arrived;
             if (mode === 'hide') controller.cancel();
             if (mode === 'scope')

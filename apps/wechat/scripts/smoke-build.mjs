@@ -237,6 +237,8 @@ for (const route of config.pages.filter(
     [
       'pages/activity-list/activity-list',
       'pages/activity-publish/activity-publish',
+      'pages/announcement-edit/announcement-edit',
+      'pages/announcement-manage/announcement-manage',
       'pages/activity-native/activity-native',
       'pages/activity-native-detail/activity-native-detail',
       'pages/rating-updates/rating-updates',
@@ -353,6 +355,8 @@ for (const route of config.pages.filter(
   } else if (
     [
       'pages/activity-publish/activity-publish',
+      'pages/announcement-edit/announcement-edit',
+      'pages/announcement-manage/announcement-manage',
       'pages/activity-native/activity-native',
       'pages/activity-native-detail/activity-native-detail',
     ].includes(route)
@@ -365,6 +369,13 @@ for (const route of config.pages.filter(
       assert.deepEqual(current.data.items, []);
     if (route === 'pages/activity-native-detail/activity-native-detail')
       assert.equal(current.data.activity, null);
+    if (
+      route === 'pages/announcement-edit/announcement-edit' ||
+      route === 'pages/announcement-manage/announcement-manage'
+    ) {
+      assert.equal(current.data.form.bodyText, '');
+      assert.equal(current.data.pending, false);
+    }
     if (route === 'pages/activity-publish/activity-publish') {
       assert.equal(current.data.pending, false);
       assert.equal(current.data.id, '');

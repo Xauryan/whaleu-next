@@ -1,3 +1,5 @@
+import type { AnnouncementMediaReader } from '../../media/announcement-runtime';
+import type { AnnouncementMediaSlot } from '../../media/announcement-validation';
 import {
   NamedAvatarController,
   initialNamedAvatarView,
@@ -38,6 +40,7 @@ import type { WhaleuApp } from '../../app';
 import { FeedController, initialFeedView } from './controller';
 Page({
   data: {
+    announcementImageView: { status: 'idle', src: '', message: '' },
     namedAvatar: initialNamedAvatarView(),
     announcementPopup: initialAnnouncementPopupView(),
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
@@ -64,6 +67,7 @@ Page({
     ],
   },
   namedAvatarController: undefined as NamedAvatarController | undefined,
+  announcementImage: undefined as AnnouncementMediaReader | undefined,
   announcementPopup: undefined as AnnouncementPopupController | undefined,
   reportMutations: undefined as ReportMutationController | undefined,
   blockMutations: undefined as BlockMutationController | undefined,
@@ -81,6 +85,8 @@ Page({
       getApp<WhaleuApp>().profileAvatar,
       (view) => this.setData({ namedAvatar: view }),
     );
+    this.announcementImage?.dispose();
+    this.announcementImage = undefined;
     this.announcementPopup?.dispose();
     this.announcementPopup = undefined;
     this.viewObserver?.dispose();
@@ -108,8 +114,19 @@ Page({
       this.setData({ error: '环境未初始化，请重新打开小程序' });
       return;
     }
-    this.announcementPopup = new AnnouncementPopupController(runtime, (view) =>
-      this.setData({ announcementPopup: view }),
+    this.announcementImage =
+      getApp<WhaleuApp>().announcementMedia?.createReader((image) =>
+        this.setData({ announcementImageView: image }),
+      );
+    this.announcementPopup = new AnnouncementPopupController(
+      runtime,
+      (view) => {
+        if (
+          this.data.announcementPopup.popup?.revision !== view.popup?.revision
+        )
+          this.announcementImage?.clear();
+        this.setData({ announcementPopup: view });
+      },
     );
     if (runtime.views)
       this.viewObserver = new ViewObserver(
@@ -202,6 +219,22 @@ Page({
       },
     );
     void this.controller.load();
+  },
+  onAnnouncementImage(event: {
+    currentTarget: { dataset: { slot: AnnouncementMediaSlot } };
+  }) {
+    const popup = this.data.announcementPopup.popup;
+    if (popup?.media.status !== 'available') return;
+    const ref = popup.media.items.find(
+      (i) => i.slot === event.currentTarget.dataset.slot,
+    );
+    if (ref)
+      void this.announcementImage?.load({
+        ...ref,
+        slot: event.currentTarget.dataset.slot,
+        audience: 'public',
+        campusId: this.data.announcementPopup.campusId,
+      });
   },
   onCloseAnnouncement() {
     void this.announcementPopup?.close();
@@ -330,6 +363,8 @@ Page({
   onHide() {
     this.namedAvatarController?.dispose();
     this.namedAvatarController = undefined;
+    this.announcementImage?.dispose();
+    this.announcementImage = undefined;
     this.announcementPopup?.dispose();
     this.announcementPopup = undefined;
     this.viewObserver?.dispose();
@@ -353,6 +388,8 @@ Page({
   onUnload() {
     this.namedAvatarController?.dispose();
     this.namedAvatarController = undefined;
+    this.announcementImage?.dispose();
+    this.announcementImage = undefined;
     this.announcementPopup?.dispose();
     this.announcementPopup = undefined;
     this.viewObserver?.dispose();

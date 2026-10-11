@@ -56,7 +56,13 @@ function query(campusId: string | null): Record<string, string | number> {
   return campusId === null ? {} : { campusId };
 }
 export class HttpAnnouncementsGateway implements AnnouncementsGateway {
-  constructor(private readonly api: ApiClient) {}
+  constructor(
+    private readonly api: ApiClient,
+    private readonly source: 'accepted' | 'native' = 'accepted',
+  ) {}
+  private path(owner = false) {
+    return `/v1/${owner ? 'me/' : ''}${this.source === 'native' ? 'native-announcements' : 'announcements'}`;
+  }
   private read<T>(
     path: string,
     decode: (value: unknown) => T,
@@ -91,7 +97,7 @@ export class HttpAnnouncementsGateway implements AnnouncementsGateway {
     )
       invalidAnnouncement();
     const result = await this.read(
-      '/v1/announcements',
+      this.path(),
       decodeAnnouncementPage,
       cancel,
       { ...scope, limit, ...(cursor === null ? {} : { cursor }) },
@@ -115,7 +121,7 @@ export class HttpAnnouncementsGateway implements AnnouncementsGateway {
   ): Promise<AnnouncementDetail> {
     if (!announcementUuid(id)) invalidAnnouncement();
     const result = await this.read(
-      `/v1/announcements/${id}`,
+      `${this.path()}/${id}`,
       decodeAnnouncementDetail,
       cancel,
       query(campusId),
@@ -128,7 +134,7 @@ export class HttpAnnouncementsGateway implements AnnouncementsGateway {
     cancel: Cancellation,
   ): Promise<AnnouncementPublicPopup> {
     const result = await this.read(
-      '/v1/announcements/popup',
+      `${this.path()}/popup`,
       decodeAnnouncementPublicPopup,
       cancel,
       query(campusId),
@@ -143,7 +149,7 @@ export class HttpAnnouncementsGateway implements AnnouncementsGateway {
   ): Promise<AnnouncementChanges> {
     if (since !== null && !announcementTimestamp(since)) invalidAnnouncement();
     const result = await this.read(
-      '/v1/announcements/changes',
+      `${this.path()}/changes`,
       decodeAnnouncementChanges,
       cancel,
       { ...query(campusId), ...(since === null ? {} : { since }) },
@@ -156,7 +162,7 @@ export class HttpAnnouncementsGateway implements AnnouncementsGateway {
     cancel: Cancellation,
   ): Promise<AnnouncementOwnerPopup> {
     const result = await this.read(
-      '/v1/me/announcements/popup',
+      `${this.path(true)}/popup`,
       decodeAnnouncementOwnerPopup,
       cancel,
       query(campusId),
@@ -176,7 +182,7 @@ export class HttpAnnouncementsGateway implements AnnouncementsGateway {
       invalidAnnouncement();
     const result = await this.api.request(
       {
-        path: `/v1/me/announcements/${id}/popup-acknowledgement`,
+        path: `${this.path(true)}/${id}/popup-acknowledgement`,
         method: 'PUT',
         authentication: 'required',
         authReplay: 'never',

@@ -1,3 +1,5 @@
+import type { AnnouncementMediaReader } from '../../media/announcement-runtime';
+import type { AnnouncementMediaSlot } from '../../media/announcement-validation';
 import type { WhaleuApp } from '../../app';
 import {
   AnnouncementReadController,
@@ -7,7 +9,11 @@ import {
 } from '../../announcements/controller';
 import { AnnouncementNavigator } from '../../announcements/navigation';
 Page({
-  data: { ...initialAnnouncementReadView() },
+  data: {
+    ...initialAnnouncementReadView(),
+    image: { status: 'idle', src: '', message: '' },
+  },
+  reader: undefined as AnnouncementMediaReader | undefined,
   route: null as AnnouncementRoute | null,
   controller: undefined as AnnouncementReadController | undefined,
   navigator: undefined as AnnouncementNavigator | undefined,
@@ -66,6 +72,10 @@ Page({
       );
   },
   onShow() {
+    this.reader?.dispose();
+    this.reader = getApp<WhaleuApp>().announcementMedia?.createReader((image) =>
+      this.setData({ image }),
+    );
     this.controller?.dispose();
     this.controller = undefined;
     this.navigator?.dispose();
@@ -84,9 +94,29 @@ Page({
     this.controller = new AnnouncementReadController(
       runtime,
       'detail',
-      (view) => this.setData({ ...view }),
+      (view) => {
+        if (this.data.detail?.revision !== view.detail?.revision)
+          this.reader?.clear();
+        this.setData({ ...view });
+      },
     );
     void this.controller.load(this.route);
+  },
+  onImage(event: {
+    currentTarget: { dataset: { slot: AnnouncementMediaSlot } };
+  }) {
+    const detail = this.data.detail;
+    if (detail?.media.status !== 'available') return;
+    const ref = detail.media.items.find(
+      (i) => i.slot === event.currentTarget.dataset.slot,
+    );
+    if (ref)
+      void this.reader?.load({
+        ...ref,
+        slot: event.currentTarget.dataset.slot,
+        audience: 'public',
+        campusId: this.data.campusId,
+      });
   },
   onRefresh() {
     this.onShow();
@@ -109,6 +139,8 @@ Page({
     }
   },
   onHide() {
+    this.reader?.dispose();
+    this.reader = undefined;
     this.controller?.dispose();
     this.controller = undefined;
     this.navigator?.dispose();

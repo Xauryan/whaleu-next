@@ -215,6 +215,7 @@ export interface CommunityRuntime {
   readonly activities?: ActivitiesGateway;
   readonly pendingActivityVisits?: PendingActivityVisitStore;
   readonly announcements?: AnnouncementsGateway;
+  readonly nativeAnnouncements?: AnnouncementsGateway;
   readonly browsingScopeChanges?: PrivateViewLifecycle;
   readonly hot?: HotGateway;
   readonly directory?: DirectoryGateway;
@@ -358,7 +359,13 @@ export function createCommunityRuntime(
     pendingActivityVisits: new PendingActivityVisitStore(storage, origin),
     browsingScopeChanges,
     ...(identity.api
-      ? { announcements: new HttpAnnouncementsGateway(identity.api) }
+      ? {
+          announcements: new HttpAnnouncementsGateway(identity.api),
+          nativeAnnouncements: new HttpAnnouncementsGateway(
+            identity.api,
+            'native',
+          ),
+        }
       : {}),
     ...(identity.api ? { hot: new HttpHotGateway(identity.api) } : {}),
     directoryScopeChanges: new PrivateViewLifecycle(),

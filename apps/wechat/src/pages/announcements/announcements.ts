@@ -86,6 +86,19 @@ Page({
     );
     void this.controller.load(this.route);
   },
+  onSource(event: { currentTarget: { dataset: { source: string } } }) {
+    const source = event.currentTarget.dataset.source;
+    if (source !== 'native' && source !== 'accepted') return;
+    this.route = { campusId: this.route?.campusId ?? null, source };
+    this.onShow();
+  },
+  onManage() {
+    wx.navigateTo?.({
+      url: '/pages/announcement-manage/announcement-manage',
+      success() {},
+      fail() {},
+    });
+  },
   onRefresh() {
     this.onShow();
   },

@@ -7,7 +7,16 @@ export interface AnnouncementContext {
 }
 export type AnnouncementMedia =
   | { readonly status: 'known_empty'; readonly items: readonly [] }
-  | { readonly status: 'unavailable'; readonly items: null };
+  | { readonly status: 'unavailable'; readonly items: null }
+  | {
+      readonly status: 'available';
+      readonly items: readonly {
+        announcementId: string;
+        revision: number;
+        slot: string;
+        bindingId: string;
+      }[];
+    };
 export interface AnnouncementSummary {
   readonly id: string;
   readonly revision: string;
@@ -134,9 +143,51 @@ function media(value: unknown): AnnouncementMedia {
       items: Object.freeze([]) as readonly [],
     });
   }
+  if (value.status === 'available') {
+    if (
+      !Array.isArray(value.items) ||
+      value.items.length < 1 ||
+      value.items.length > 9
+    )
+      invalidAnnouncement();
+    const items = value.items.map((item) => {
+      exact(item, ['announcementId', 'revision', 'slot', 'bindingId']);
+      if (
+        !announcementUuid(item.announcementId) ||
+        !announcementUuid(item.bindingId) ||
+        typeof item.revision !== 'number' ||
+        !Number.isSafeInteger(item.revision) ||
+        item.revision < 1 ||
+        typeof item.slot !== 'string' ||
+        !/^gallery[0-8]$/.test(item.slot)
+      )
+        invalidAnnouncement();
+      return Object.freeze({
+        announcementId: item.announcementId,
+        revision: item.revision,
+        slot: item.slot,
+        bindingId: item.bindingId,
+      });
+    });
+    if (
+      new Set(items.map((i) => i.slot)).size !== items.length ||
+      new Set(items.map((i) => i.bindingId)).size !== items.length
+    )
+      invalidAnnouncement();
+    return Object.freeze({ status: 'available', items: Object.freeze(items) });
+  }
   if (value.status !== 'unavailable' || value.items !== null)
     invalidAnnouncement();
   return Object.freeze({ status: 'unavailable', items: null });
+}
+function boundMedia(value: unknown, id: unknown) {
+  const result = media(value);
+  if (
+    result.status === 'available' &&
+    result.items.some((i) => i.announcementId !== id)
+  )
+    invalidAnnouncement();
+  return result;
 }
 const text = (value: unknown): value is string =>
   typeof value === 'string' &&
@@ -201,7 +252,7 @@ export function decodeAnnouncementDetail(value: unknown): AnnouncementDetail {
     ...summary(value),
     bodyText: value.bodyText,
     updatedAt: value.updatedAt as string | null,
-    media: media(value.media),
+    media: boundMedia(value.media, value.id),
   });
 }
 export function decodeAnnouncementPopup(value: unknown): AnnouncementPopup {
@@ -230,7 +281,7 @@ export function decodeAnnouncementPopup(value: unknown): AnnouncementPopup {
     title: value.title,
     announcementDate: value.announcementDate,
     bodyText: value.bodyText,
-    media: media(value.media),
+    media: boundMedia(value.media, value.id),
   });
 }
 export function decodeAnnouncementPage(value: unknown): AnnouncementPage {

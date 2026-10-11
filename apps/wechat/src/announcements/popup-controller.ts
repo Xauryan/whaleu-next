@@ -21,6 +21,7 @@ export const initialAnnouncementPopupView = (): AnnouncementPopupView => ({
 export class AnnouncementPopupController extends AnnouncementController<AnnouncementPopupView> {
   private selectedCampus: string | null | undefined;
   private closed = false;
+  private source: 'native' | 'accepted' = 'accepted';
   constructor(
     runtime: CommunityRuntime,
     render: (value: AnnouncementPopupView) => void,
@@ -30,6 +31,23 @@ export class AnnouncementPopupController extends AnnouncementController<Announce
   protected override reset(): void {
     this.selectedCampus = undefined;
     this.closed = false;
+  }
+  private async candidate(
+    campusId: string | null,
+    cancel: import('../platform/contracts').Cancellation,
+  ) {
+    if (this.runtime.nativeAnnouncements) {
+      const native = await this.runtime.nativeAnnouncements.ownerPopup(
+        campusId,
+        cancel,
+      );
+      if (native.candidate)
+        return { source: 'native' as const, result: native };
+    }
+    return {
+      source: 'accepted' as const,
+      result: await this.runtime.announcements!.ownerPopup(campusId, cancel),
+    };
   }
   prepareScope(): void {
     this.clear();
@@ -49,10 +67,7 @@ export class AnnouncementPopupController extends AnnouncementController<Announce
         if (profile.accountId !== this.owner.credentials?.accountId)
           throw new ClientError('protocol', 'Profile owner mismatch');
         const campusId = profile.selectedCampus?.id ?? null;
-        const result = await this.runtime.announcements!.ownerPopup(
-          campusId,
-          cancel,
-        );
+        const result = await this.candidate(campusId, cancel);
         assertCurrent();
         return { campusId, result };
       },
@@ -76,17 +91,17 @@ export class AnnouncementPopupController extends AnnouncementController<Announce
     this.closed = false;
     if (!this.available(true)) return;
     await this.run(
-      (cancel) => this.runtime.announcements!.ownerPopup(campusId, cancel),
+      (cancel) => this.candidate(campusId, cancel),
       (result) => this.apply(result, campusId),
     );
   }
   private apply(
-    result: Awaited<
-      ReturnType<NonNullable<CommunityRuntime['announcements']>['ownerPopup']>
-    >,
+    found: Awaited<ReturnType<AnnouncementPopupController['candidate']>>,
     campusId: string | null,
   ): void {
     if (this.closed) return;
+    const result = found.result;
+    this.source = found.source;
     this.update({
       campusId,
       popup:
@@ -124,12 +139,10 @@ export class AnnouncementPopupController extends AnnouncementController<Announce
     });
     await this.run(
       (cancel) =>
-        this.runtime.announcements!.acknowledge(
-          campusId,
-          popup.id,
-          popup.revision,
-          cancel,
-        ),
+        (this.source === 'native'
+          ? this.runtime.nativeAnnouncements!
+          : this.runtime.announcements!
+        ).acknowledge(campusId, popup.id, popup.revision, cancel),
       () =>
         this.update({
           acknowledgement: 'confirmed',

@@ -14,6 +14,7 @@
     <text wx:if="{{detail.versionLabel}}" class="meta" selectable="true">版本：{{detail.versionLabel}}</text>
     <view class="meta">公告日期：{{detail.announcementDate === null ? '时间未知' : detail.announcementDate}}</view>
     <text class="announcement-body" selectable="true" space="nbsp">{{detail.bodyText}}</text>
+    <view wx:if="{{detail.media.status === 'available'}}"><button wx:for="{{detail.media.items}}" wx:key="bindingId" data-slot="{{item.slot}}" bindtap="onImage">查看图片 {{index + 1}}</button><view>{{image.message}}</view><image wx:if="{{image.src}}" src="{{image.src}}" mode="widthFix"/></view>
     <view wx:if="{{detail.media.status === 'unavailable'}}" class="notice">公告图片暂不可用</view>
     <view class="meta">创建时间：{{detail.createdAt === null ? '时间未知' : detail.createdAt}}</view>
     <view class="meta">更新时间：{{detail.updatedAt === null ? '时间未知' : detail.updatedAt}}</view>

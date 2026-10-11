@@ -64,7 +64,9 @@
     "pages/organization-editor/organization-editor",
     "pages/activity-publish/activity-publish",
     "pages/activity-native/activity-native",
-    "pages/activity-native-detail/activity-native-detail"
+    "pages/activity-native-detail/activity-native-detail",
+    "pages/announcement-manage/announcement-manage",
+    "pages/announcement-edit/announcement-edit"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

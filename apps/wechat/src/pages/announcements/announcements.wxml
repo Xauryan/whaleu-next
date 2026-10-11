@@ -1,6 +1,9 @@
 <view class="screen">
   <view class="eyebrow">WHALEU · 公告</view>
-  <view class="title">公告</view>
+  <view class="title">{{source === 'native' ? '新发布公告' : '历史公告'}}</view>
+  <view class="actions"><button data-source="native" bindtap="onSource" disabled="{{busy}}">新发布公告</button><button data-source="accepted" bindtap="onSource" disabled="{{busy}}">历史公告</button></view>
+  <view class="meta">两个来源分别展示；历史资料不可用不代表没有历史公告。</view>
+  <button wx:if="{{hasSession}}" bindtap="onManage">公告管理</button>
   <view class="scope">{{scopeLabel}}</view>
   <view wx:if="{{campusId}}" class="meta">浏览校区编号：{{campusId}}</view>
   <view class="meta">浏览范围不代表身份认证。查看公告不会记录弹窗确认。</view>

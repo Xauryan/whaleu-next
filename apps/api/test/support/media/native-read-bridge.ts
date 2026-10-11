@@ -90,7 +90,11 @@ export class NativeMediaReadBridge {
     readonly port: number,
     private readonly root: string,
     private readonly owner:
-      'community' | 'school-configuration' | 'organizations' | 'activities',
+      | 'community'
+      | 'school-configuration'
+      | 'organizations'
+      | 'activities'
+      | 'announcements',
   ) {}
   static async create(
     port: number,
@@ -98,7 +102,8 @@ export class NativeMediaReadBridge {
       | 'community'
       | 'school-configuration'
       | 'organizations'
-      | 'activities' = 'community',
+      | 'activities'
+      | 'announcements' = 'community',
   ): Promise<NativeMediaReadBridge> {
     return new NativeMediaReadBridge(
       port,
@@ -150,15 +155,41 @@ export class NativeMediaReadBridge {
     assert.equal(url.origin, nativeOrigin);
     assert.match(
       url.pathname,
-      this.owner === 'activities'
-        ? /^\/v3\/media\/activities\/(public|management)\/activities\/[a-f0-9-]{36}\/slots\/(cover|gallery[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-        : this.owner === 'organizations'
-          ? /^\/v3\/media\/organizations\/(public|management)\/organizations\/[a-f0-9-]{36}\/slots\/(avatar|mainQr|managerContact|linkedOfficialQr|introImage[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-          : this.owner === 'school-configuration'
-            ? /^\/v3\/media\/school-configuration\/entries\/(treehole|trading|errand|official_account|admin)\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-            : /^\/v1\/media\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i,
+      this.owner === 'announcements'
+        ? /^\/v3\/media\/announcements\/(public|management)\/announcements\/[a-f0-9-]{36}\/slots\/gallery[0-8]\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+        : this.owner === 'activities'
+          ? /^\/v3\/media\/activities\/(public|management)\/activities\/[a-f0-9-]{36}\/slots\/(cover|gallery[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+          : this.owner === 'organizations'
+            ? /^\/v3\/media\/organizations\/(public|management)\/organizations\/[a-f0-9-]{36}\/slots\/(avatar|mainQr|managerContact|linkedOfficialQr|introImage[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+            : this.owner === 'school-configuration'
+              ? /^\/v3\/media\/school-configuration\/entries\/(treehole|trading|errand|official_account|admin)\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+              : /^\/v1\/media\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i,
     );
-    if (this.owner === 'school-configuration') {
+    if (this.owner === 'announcements') {
+      const publicRead = url.pathname.startsWith(
+        '/v3/media/announcements/public/',
+      );
+      assert.deepEqual(
+        [...url.searchParams.keys()].sort(),
+        publicRead && url.searchParams.has('campusId')
+          ? ['campusId', 'revision']
+          : ['revision'],
+      );
+      assert.match(url.searchParams.get('revision') ?? '', /^[1-9][0-9]*$/);
+      if (url.searchParams.has('campusId'))
+        assert.match(
+          url.searchParams.get('campusId') ?? '',
+          /^[a-f0-9-]{36}$/i,
+        );
+      if (!publicRead)
+        assert.deepEqual(Object.keys(input.header), ['Authorization']);
+      else
+        assert.ok(
+          Object.keys(input.header).length === 0 ||
+            (Object.keys(input.header).length === 1 &&
+              typeof input.header['Authorization'] === 'string'),
+        );
+    } else if (this.owner === 'school-configuration') {
       assert.deepEqual([...url.searchParams.keys()].sort(), [
         'campusId',
         'entryRevision',

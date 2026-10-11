@@ -56,6 +56,30 @@ export const announcementMediaSchema = z.discriminatedUnion('status', [
     items: z.array(z.never()).length(0),
   }),
   z.strictObject({ status: z.literal('unavailable'), items: z.null() }),
+  z.strictObject({
+    status: z.literal('available'),
+    items: z
+      .array(
+        z.strictObject({
+          announcementId: publicId,
+          revision: z.number().int().positive().safe(),
+          slot: z.enum([
+            'gallery0',
+            'gallery1',
+            'gallery2',
+            'gallery3',
+            'gallery4',
+            'gallery5',
+            'gallery6',
+            'gallery7',
+            'gallery8',
+          ]),
+          bindingId: publicId,
+        }),
+      )
+      .min(1)
+      .max(9),
+  }),
 ]);
 const summary = {
   id: publicId,

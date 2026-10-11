@@ -182,6 +182,14 @@ const conditions = {
     status: 409,
     message: 'Activity visit request conflicts',
   },
+  ANNOUNCEMENT_COMMAND_CANCELLED: {
+    status: 409,
+    message: 'Announcement command was cancelled',
+  },
+  ANNOUNCEMENT_CONTENT_REQUIRED: {
+    status: 400,
+    message: 'Announcement version and body are required',
+  },
   ANNOUNCEMENTS_UNAVAILABLE: {
     status: 503,
     message: 'Announcements are unavailable',

@@ -529,3 +529,13 @@ request. The API adapter is real, fixed to WeChat's official destination and
 default-disabled; provider qualification, privacy requirements, fees and actual
 device/provider acceptance remain unverified. No test/provider substitution is a
 claim of real-user availability. See `docs/WECHAT_PHONE_BINDING.md`.
+
+## Native announcement management
+
+Registered announcement management/edit pages publish the server's current
+fixed-school or explicit global audience, edit own announcements, and toggle
+published visibility. Separate new/historical source tabs preserve unknown
+history. The home popup uses documented native-first selection and explicit
+acknowledgement only. Independent optional-guest Media supports 0–9 images and
+account-scoped original-key recovery, including abandoned upload preparations.
+See [contracts and acceptance boundaries](../../docs/ANNOUNCEMENT_AUTHORING.md).

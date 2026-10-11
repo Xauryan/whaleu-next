@@ -21,6 +21,12 @@ export interface WxIntersectionObserver {
   disconnect(): void;
 }
 export interface WxApi extends WxMediaApi {
+  showModal?(options: {
+    title: string;
+    content: string;
+    success: (result: { confirm: boolean; cancel: boolean }) => void;
+    fail?: (error: unknown) => void;
+  }): void;
   nextTick?(callback: () => void): void;
   createIntersectionObserver?(
     page: object,

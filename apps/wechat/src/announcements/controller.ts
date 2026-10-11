@@ -15,6 +15,7 @@ import {
 export type AnnouncementMode = 'list' | 'detail';
 export interface AnnouncementRoute {
   readonly campusId: string | null;
+  readonly source?: 'native' | 'accepted';
   readonly announcementId?: string;
 }
 export function decodeAnnouncementRoute(
@@ -26,7 +27,9 @@ export function decodeAnnouncementRoute(
     Object.keys(value).some(
       (key) =>
         !(
-          mode === 'list' ? ['campusId'] : ['campusId', 'announcementId']
+          mode === 'list'
+            ? ['campusId', 'source']
+            : ['campusId', 'announcementId', 'source']
         ).includes(key),
     )
   )
@@ -37,10 +40,17 @@ export function decodeAnnouncementRoute(
     !announcementUuid(value.campusId)
   )
     invalidAnnouncement();
+  if (
+    value.source !== undefined &&
+    value.source !== 'native' &&
+    value.source !== 'accepted'
+  )
+    invalidAnnouncement();
   if (mode === 'detail' && !announcementUuid(value.announcementId))
     invalidAnnouncement();
   return Object.freeze({
     campusId: (value.campusId ?? null) as string | null,
+    ...(value.source ? { source: value.source as 'native' | 'accepted' } : {}),
     ...(mode === 'detail'
       ? { announcementId: value.announcementId as string }
       : {}),
@@ -48,6 +58,7 @@ export function decodeAnnouncementRoute(
 }
 export interface AnnouncementReadView extends AnnouncementView {
   readonly loaded: boolean;
+  readonly source: 'native' | 'accepted';
   readonly campusId: string | null;
   readonly scopeLabel: string;
   readonly items: readonly AnnouncementSummary[];
@@ -62,6 +73,7 @@ export interface AnnouncementReadView extends AnnouncementView {
 export const initialAnnouncementReadView = (): AnnouncementReadView => ({
   ...initialAnnouncementView(),
   loaded: false,
+  source: 'native',
   campusId: null,
   scopeLabel: '未选择浏览校区，仅查看全体公告',
   items: [],
@@ -125,12 +137,22 @@ export class AnnouncementReadController extends AnnouncementController<Announcem
     if (this.current() && !this.view.busy && this.view.loaded && this.index > 0)
       await this.read(this.cursors[this.index - 1]!, this.index - 1);
   }
+  private gateway() {
+    return (
+      this.route?.source === 'accepted'
+        ? this.runtime.announcements
+        : (this.runtime.nativeAnnouncements ?? this.runtime.announcements)
+    )!;
+  }
   private async read(cursor: string | null, index: number): Promise<void> {
     const route = this.route;
     this.clear('正在读取当前公告');
     if (!route || !this.available()) return;
     this.update({
       campusId: route.campusId,
+      source:
+        route.source ??
+        (this.runtime.nativeAnnouncements ? 'native' : 'accepted'),
       scopeLabel: route.campusId
         ? '当前浏览校区的公告与全体公告'
         : '未选择浏览校区，仅查看全体公告',
@@ -139,7 +161,7 @@ export class AnnouncementReadController extends AnnouncementController<Announcem
       async (cancel) => {
         if (this.mode === 'detail')
           return {
-            detail: await this.runtime.announcements!.detail(
+            detail: await this.gateway().detail(
               route.campusId,
               route.announcementId!,
               cancel,
@@ -148,9 +170,9 @@ export class AnnouncementReadController extends AnnouncementController<Announcem
             changes: null,
           };
         const [page, changes] = await Promise.all([
-          this.runtime.announcements!.list(route.campusId, cursor, cancel),
-          this.runtime
-            .announcements!.changes(route.campusId, null, cancel)
+          this.gateway().list(route.campusId, cursor, cancel),
+          this.gateway()
+            .changes(route.campusId, null, cancel)
             .catch((error) => {
               const failure = clientError(error);
               if (failure.kind === 'network' || failure.kind === 'timeout')
@@ -224,6 +246,6 @@ export class AnnouncementReadController extends AnnouncementController<Announcem
       !this.view.items.some((item) => item.id === id)
     )
       return null;
-    return `/pages/announcement-detail/announcement-detail?announcementId=${id}${this.route.campusId ? '&campusId=' + this.route.campusId : ''}`;
+    return `/pages/announcement-detail/announcement-detail?announcementId=${id}${this.route.campusId ? '&campusId=' + this.route.campusId : ''}${this.route.source || this.runtime.nativeAnnouncements ? '&source=' + this.view.source : ''}`;
   }
 }

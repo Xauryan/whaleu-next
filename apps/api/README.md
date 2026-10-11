@@ -285,3 +285,13 @@ creation/media/admin/provider, enrollment or badge functionality is implied.
 ## Independent ratings R1 development slice
 
 [Ratings API](../../docs/API_RATINGS.md) describes trusted bounded catalog reads, independent scores with transactional bucket summaries, named or target-scoped-persona text roots, own deletion and minimal durable recovery. Default AppModule uses canonical owner facades and exact review sidecars. Migrations add empty storage only; accepted catalog content does not establish fresh score coverage. No real source importer, review issuer, media, notifications, experience or target-management flow is enabled.
+
+## Native announcement administration
+
+[Native announcement authoring](../../docs/ANNOUNCEMENT_AUTHORING.md) adds
+current real-school/global-super administrator publication, creator editing,
+disable/enable and independent optional-guest 0–9 image Media. New native and
+accepted historical sources remain explicitly separate; no legacy completeness
+is fabricated. Exact operation receipts, stable ID popup markers and private
+upload-preparation closure remain recoverable. Local simulated acceptance is
+separate from physical-device/provider and production acceptance.

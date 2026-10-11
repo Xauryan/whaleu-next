@@ -313,7 +313,7 @@ export class MediaLifecycleRepository {
       `SELECT i.id,i.state FROM whaleu_media.upload_intents i
       WHERE (i.state IN ('prepared','upload_observed','sealing','processing','awaiting_review')
         AND i.expires_at<=clock_timestamp())
-      OR (i.state='ready' AND ((i.protocol_version IN (8,9,10,11) AND i.expires_at<=clock_timestamp()) OR EXISTS (SELECT 1 FROM whaleu_media.assets a
+      OR (i.state='ready' AND ((i.protocol_version IN (8,9,10,11,12) AND i.expires_at<=clock_timestamp()) OR EXISTS (SELECT 1 FROM whaleu_media.assets a
         WHERE a.intent_id=i.id AND a.created_at<=clock_timestamp()-interval '24 hours')
         OR EXISTS (SELECT 1 FROM whaleu_media.assets a JOIN whaleu_community.media_drafts d
           ON d.id=a.resource_id AND d.actor_id=a.actor_id WHERE a.intent_id=i.id AND a.owner_kind='community' AND d.expires_at<=clock_timestamp())

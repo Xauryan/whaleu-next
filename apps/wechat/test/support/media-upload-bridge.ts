@@ -45,7 +45,11 @@ export class NativeMediaUploadBridge {
     readonly origin: string,
     private readonly root: string,
     private readonly owner:
-      'community' | 'school-configuration' | 'organizations' | 'activities',
+      | 'community'
+      | 'school-configuration'
+      | 'organizations'
+      | 'activities'
+      | 'announcements',
   ) {}
   static async create(
     port: number,
@@ -54,7 +58,8 @@ export class NativeMediaUploadBridge {
       | 'community'
       | 'school-configuration'
       | 'organizations'
-      | 'activities' = 'community',
+      | 'activities'
+      | 'announcements' = 'community',
   ): Promise<NativeMediaUploadBridge> {
     return new NativeMediaUploadBridge(
       port,
@@ -171,13 +176,15 @@ export class NativeMediaUploadBridge {
     assert.equal(url.origin, this.origin);
     assert.match(
       url.pathname,
-      this.owner === 'activities'
-        ? /^\/v3\/media\/activities\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
-        : this.owner === 'organizations'
-          ? /^\/v3\/media\/organizations\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
-          : this.owner === 'school-configuration'
-            ? /^\/v3\/media\/school-configuration\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
-            : /^\/v2\/media\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i,
+      this.owner === 'announcements'
+        ? /^\/v3\/media\/announcements\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+        : this.owner === 'activities'
+          ? /^\/v3\/media\/activities\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+          : this.owner === 'organizations'
+            ? /^\/v3\/media\/organizations\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+            : this.owner === 'school-configuration'
+              ? /^\/v3\/media\/school-configuration\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+              : /^\/v2\/media\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i,
     );
     assert.equal(url.search, '');
     assert.equal(url.hash, '');

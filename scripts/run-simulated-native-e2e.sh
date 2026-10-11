@@ -29,4 +29,10 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/activity-read.test.ts \
   test/integration/activity-authority.test.ts \
   test/integration/activity-concurrency.test.ts \
-  test/integration/activity-native-roundtrip.test.ts
+  test/integration/activity-native-roundtrip.test.ts \
+  test/integration/announcement-authoring.test.ts \
+  test/integration/announcement-authoring-native-roundtrip.test.ts \
+  test/integration/announcement-media.test.ts \
+  test/integration/announcement-read.test.ts \
+  test/integration/announcement-concurrency.test.ts \
+  test/integration/announcement-native-roundtrip.test.ts

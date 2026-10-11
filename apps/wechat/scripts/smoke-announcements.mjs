@@ -341,10 +341,9 @@ export async function smokeAnnouncements({ app, dist, mountPage, flush }) {
         'utf8',
       );
       assert.match(source, /selectable="true"/);
-      assert.doesNotMatch(
-        source,
-        /<image|rich-text|previewImage|https?:\/\/|未读/,
-      );
+      assert.doesNotMatch(source, /rich-text|previewImage|https?:\/\/|未读/);
+      for (const tag of source.matchAll(/<image\b[^>]*>/g))
+        assert.match(tag[0], /src="\{\{image\.src\}\}"/);
       for (const match of source.matchAll(/bindtap="([^"]+)"/g))
         assert.equal(
           typeof (name === 'announcements' ? list : detail)[match[1]],
@@ -363,7 +362,9 @@ export async function smokeAnnouncements({ app, dist, mountPage, flush }) {
     );
     assert.match(popupTemplate, /bindtap="onCloseAnnouncement"/);
     assert.match(popupTemplate, /\{\{popup.bodyText\}\}/);
-    assert.doesNotMatch(popupTemplate, /<image|rich-text|previewImage/);
+    assert.doesNotMatch(popupTemplate, /rich-text|previewImage|https?:\/\//);
+    for (const tag of popupTemplate.matchAll(/<image\b[^>]*>/g))
+      assert.match(tag[0], /src="\{\{image\.src\}\}"/);
     assert.match(
       readFileSync(path.join(dist, 'announcements/announcements.wxss'), 'utf8'),
       /white-space: pre-wrap/,

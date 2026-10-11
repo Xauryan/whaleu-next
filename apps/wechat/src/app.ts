@@ -1,4 +1,8 @@
 import {
+  createAnnouncementMediaRuntime,
+  type AnnouncementMediaRuntime,
+} from './media/announcement-runtime';
+import {
   createActivityMediaRuntime,
   type ActivityMediaRuntime,
 } from './activities/media-runtime';
@@ -44,6 +48,7 @@ export interface WhaleuApp {
   schoolQr?: SchoolQrRuntime;
   organizationMedia?: OrganizationMediaRuntime;
   activityMedia?: ActivityMediaRuntime;
+  announcementMedia?: AnnouncementMediaRuntime;
   mediaLocalFiles?: MediaLocalFiles;
   mediaRead?: MediaReadRuntime;
   profileAvatar?: ProfileAvatarRuntime;
@@ -72,6 +77,7 @@ App<WhaleuApp>({
     this.schoolQr?.hide();
     this.organizationMedia?.hide();
     this.activityMedia?.hide();
+    this.announcementMedia?.hide();
     this.experience?.hide();
     this.profileAvatar?.hide();
     this.community?.views?.hide();
@@ -120,6 +126,19 @@ App<WhaleuApp>({
       });
     if (this.identity.api && this.identity.auth)
       this.activityMedia = createActivityMediaRuntime({
+        api: this.identity.api,
+        sessions: this.identity.sessions,
+        storage: new WechatStorage(wx),
+        origin: clientConfiguration.apiOrigin,
+        clock: systemClock,
+        newRequestId: this.community.newRequestId,
+        wx,
+        files: nativeFiles,
+        registry,
+        auth: this.identity.auth,
+      });
+    if (this.identity.api && this.identity.auth)
+      this.announcementMedia = createAnnouncementMediaRuntime({
         api: this.identity.api,
         sessions: this.identity.sessions,
         storage: new WechatStorage(wx),

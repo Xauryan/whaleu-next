@@ -153,3 +153,22 @@ estimates excluding installation, not new hosted results or guarantees. Local
 allocator/command/YAML checks establish selection and wiring only. All four
 real PostgreSQL shards on the final commit must pass in hosted CI before the
 sharded integration gate is considered verified.
+
+### Hosted four-shard verification on 2026-10-11
+
+[Verify 38162875745](https://github.com/Xauryan/whaleu-next/actions/runs/38162875745)
+completed successfully on baseline `754e140eef0062c0805d7e973746800126d8b752`
+in 38 minutes 36 seconds. All four ordinary PostgreSQL shards passed:
+596 + 788 + 689 + 634 = 2,707 tests. Semantic PostgreSQL passed 42 tests;
+API and native units passed 1,820 and 2,549 respectively. Including stats/search,
+admission/shard guards and the foundation-emitted tests, the main reported
+suite total was 7,164. Repeated emitted smoke checks in each of the four shards
+and the separate successful Stats workflow are additional checks, not added to
+that total. This is actual hosted evidence replacing the projection for this
+baseline, and verifies the repaired functional regressions and complete sharded
+gate; the earlier `cddc675` failure remains recorded above.
+
+The later native announcement-authoring/Media12 increment is not covered by this
+baseline run. Its local verification is recorded in
+[announcement authoring](ANNOUNCEMENT_AUTHORING.md); its own hosted run remains
+pending until performed on that increment's final tree.
