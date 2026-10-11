@@ -42,9 +42,22 @@ export async function verifyMediaOwnerFenceConcurrency(
         "SELECT to_regclass('whaleu_media.category_icon_request_markers') IS NOT NULL AS present",
       )
     ).rows[0]?.present === true;
+  const verificationEvidenceInstalled =
+    (
+      await pool.query<{ present: boolean }>(
+        "SELECT to_regclass('whaleu_media.verification_evidence_scopes') IS NOT NULL AS present",
+      )
+    ).rows[0]?.present === true;
   const sources = [
     ...historicalSources,
     ...(categoryIconInstalled ? ['category_icon_request_markers'] : []),
+    ...(verificationEvidenceInstalled
+      ? [
+          'verification_evidence_scopes',
+          'verification_evidence_bindings',
+          'verification_evidence_retirements',
+        ]
+      : []),
   ];
   const prove = () =>
     inTransaction(pool, (tx) => new MediaRequiredProof().capture(tx), {
