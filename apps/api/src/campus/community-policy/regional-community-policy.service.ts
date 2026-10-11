@@ -25,7 +25,8 @@ interface PolicyRecord extends PolicyProvenance {
 
 /** Community-owned configuration companion, deliberately separate from identity.
  * Do not call it for verified ordinary publication or phone-only interactions
- * that do not depend on the regional unverified exception. No runtime writer. */
+ * that do not depend on the regional unverified exception. The school posting
+ * policy owner appends current-grant commands to this same ledger. */
 @Injectable()
 export class RegionalCommunityPolicyService {
   async resolve(

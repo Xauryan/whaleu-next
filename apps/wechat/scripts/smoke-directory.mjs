@@ -255,9 +255,18 @@ export async function smokeDirectory({ app, dist, mountPage, flush }) {
   const route = () => ({ regionId, kind: state.kind, categoryId, entryId });
   for (const mode of ['hub', 'list', 'detail']) {
     const source = pageSource(mode);
+    const legacySource =
+      mode === 'detail'
+        ? source.split('<view class="screen" wx:if="{{managed}}">')[0]
+        : source;
+    if (mode === 'detail') {
+      assert.ok(source.includes('<view class="screen" wx:if="{{managed}}">'));
+      assert.ok(source.includes('<image src="{{nativeImage.src}}"'));
+      assert.equal(/<image(?! src="{{nativeImage.src}}")/.test(source), false);
+    }
     assert.equal(
       /<image|previewImage|rich-text|https?:\/\/|data-(?:number|contact)|apply|managebutton/i.test(
-        source,
+        legacySource,
       ),
       false,
     );

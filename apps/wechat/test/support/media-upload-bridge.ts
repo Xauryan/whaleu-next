@@ -44,12 +44,13 @@ export class NativeMediaUploadBridge {
     readonly port: number,
     readonly origin: string,
     private readonly root: string,
-    private readonly owner: 'community' | 'school-configuration',
+    private readonly owner:
+      'community' | 'school-configuration' | 'organizations',
   ) {}
   static async create(
     port: number,
     origin = 'https://native-experience.invalid',
-    owner: 'community' | 'school-configuration' = 'community',
+    owner: 'community' | 'school-configuration' | 'organizations' = 'community',
   ): Promise<NativeMediaUploadBridge> {
     return new NativeMediaUploadBridge(
       port,
@@ -166,9 +167,11 @@ export class NativeMediaUploadBridge {
     assert.equal(url.origin, this.origin);
     assert.match(
       url.pathname,
-      this.owner === 'school-configuration'
-        ? /^\/v3\/media\/school-configuration\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
-        : /^\/v2\/media\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i,
+      this.owner === 'organizations'
+        ? /^\/v3\/media\/organizations\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+        : this.owner === 'school-configuration'
+          ? /^\/v3\/media\/school-configuration\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+          : /^\/v2\/media\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i,
     );
     assert.equal(url.search, '');
     assert.equal(url.hash, '');

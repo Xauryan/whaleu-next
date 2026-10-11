@@ -1,3 +1,5 @@
+import { OrganizationManagementModule } from './organizations/management/module.js';
+import { SchoolPostingPolicyModule } from './school-posting-policy/module.js';
 import { SchoolConfigurationModule } from './school-configuration/module.js';
 import { MessagingModule } from './messaging/module.js';
 import { RatingUpdatesModule } from './notifications/ratings/module.js';
@@ -67,6 +69,8 @@ export class AppModule {
         RatingsModule,
         MessagingModule,
         SchoolConfigurationModule,
+        SchoolPostingPolicyModule,
+        OrganizationManagementModule,
         RatingUpdatesModule,
         SafetyModule,
         NotificationsModule,

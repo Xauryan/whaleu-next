@@ -11,9 +11,15 @@ npm run build -w @whaleu/wechat
 cd apps/api
 # Timeout stays inside the cluster wrapper, so normal cleanup also runs on expiry.
 bash ../../scripts/run-controlled-test-postgres.sh \
-  timeout 600 node --import tsx --test --test-concurrency=1 \
+  timeout 1200 node --import tsx --test --test-concurrency=1 \
   test/integration/community-text-review-native-roundtrip.test.ts \
   test/integration/community-feedback.test.ts \
   test/integration/school-configuration-native-roundtrip.test.ts \
   test/integration/school-qr-media.test.ts \
-  test/integration/school-qr-native-roundtrip.test.ts
+  test/integration/school-qr-native-roundtrip.test.ts \
+  test/integration/school-posting-policy.test.ts \
+  test/integration/school-posting-policy-native-roundtrip.test.ts \
+  test/integration/organization-management.test.ts \
+  test/integration/organization-media.test.ts \
+  test/integration/organization-media-native-roundtrip.test.ts \
+  test/integration/organization-management-native-roundtrip.test.ts

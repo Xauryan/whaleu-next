@@ -1,4 +1,8 @@
 <view class="page">
+  <view wx:if="{{management !== 'none' &amp;&amp; !busy &amp;&amp; !pending}}">
+    <navigator wx:if="{{regionId}}" url="/pages/school-posting-policy/school-posting-policy?regionId={{regionId}}">管理学校发帖权限</navigator>
+    <navigator wx:else url="/pages/school-posting-policy/school-posting-policy">管理学校发帖权限</navigator>
+  </view>
   <view class="title">学校服务管理</view>
   <view class="hint">{{regionName || '管理范围由真实授权决定'}}</view>
   <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>

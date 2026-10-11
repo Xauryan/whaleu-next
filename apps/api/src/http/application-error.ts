@@ -182,6 +182,46 @@ const conditions = {
     message: 'Announcement changed; refresh before acknowledging',
   },
   HOT_FEED_UNAVAILABLE: { status: 503, message: 'Hot feed is unavailable' },
+  ORGANIZATION_UNAVAILABLE: {
+    status: 503,
+    message: 'Organization authority is unavailable',
+  },
+  ORGANIZATION_NOT_FOUND: {
+    status: 404,
+    message: 'Organization is unavailable',
+  },
+  ORGANIZATION_REVISION_CONFLICT: {
+    status: 409,
+    message: 'Organization changed; reload before continuing',
+  },
+  ORGANIZATION_REQUEST_CONFLICT: {
+    status: 409,
+    message: 'Organization command conflicts',
+  },
+  ORGANIZATION_CANCELLED: {
+    status: 409,
+    message: 'Organization command was cancelled',
+  },
+  ORGANIZATION_STATE_CONFLICT: {
+    status: 409,
+    message: 'Organization transition is not permitted',
+  },
+  ORGANIZATION_MEDIA_REQUIRED: {
+    status: 422,
+    message: 'Required organization images are missing',
+  },
+  ORGANIZATION_MEMBER_NOT_FOUND: {
+    status: 404,
+    message: 'Verified organization-region member is unavailable',
+  },
+  ORGANIZATION_OWNER_PROTECTED: {
+    status: 409,
+    message: 'Transfer ownership instead of removing the owner',
+  },
+  ORGANIZATION_MEMBER_LIMIT: {
+    status: 409,
+    message: 'Organization manager limit reached',
+  },
   DIRECTORY_UNAVAILABLE: { status: 503, message: 'Directory is unavailable' },
   DIRECTORY_NOT_FOUND: {
     status: 404,
@@ -360,6 +400,27 @@ const conditions = {
   SEMANTIC_SEARCH_DISABLED: {
     status: 503,
     message: 'Semantic search is disabled',
+  },
+  SCHOOL_POSTING_POLICY_UNAVAILABLE: {
+    status: 503,
+    message: 'School posting policy is unavailable',
+  },
+  SCHOOL_POSTING_POLICY_REVISION_CONFLICT: {
+    status: 409,
+    message: 'School posting policy changed; reload before saving',
+  },
+  SCHOOL_POSTING_POLICY_REQUEST_CONFLICT: {
+    status: 409,
+    message: 'School posting policy command conflicts',
+  },
+  SCHOOL_POSTING_POLICY_CANCELLED: {
+    status: 409,
+    message: 'School posting policy command was cancelled',
+  },
+  SCHOOL_POSTING_POLICY_SOURCE_UNRESOLVED: {
+    status: 409,
+    message:
+      'Resolve the existing policy provenance and related-campus synchronization before changing this policy',
   },
   COMMUNITY_UNAVAILABLE: { status: 503, message: 'Community is unavailable' },
   COMMUNITY_SCOPE_UNAVAILABLE: {

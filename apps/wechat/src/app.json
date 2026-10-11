@@ -58,7 +58,10 @@
     "pages/school-configuration/school-configuration",
     "pages/feedback/feedback",
     "pages/feedback-notices/feedback-notices",
-    "pages/feedback-contacts/feedback-contacts"
+    "pages/feedback-contacts/feedback-contacts",
+    "pages/school-posting-policy/school-posting-policy",
+    "pages/organizations/organizations",
+    "pages/organization-editor/organization-editor"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

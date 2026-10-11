@@ -1,5 +1,5 @@
 <import src="../../directory/common.wxml" />
-<view class="screen">
+<view class="screen" wx:if="{{!managed}}">
   <view class="eyebrow">WHALEU · 目录详情</view>
   <template is="directory-feedback" data="{{status,error,hasSession}}" />
   <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">重新核验并加载详情</button><button wx:if="{{busy}}" bindtap="onCancel">停止读取</button>
@@ -19,4 +19,9 @@
     <view class="card"><view class="meta">创建时间：{{detail.createdAt || '时间未知'}}</view><view class="meta">更新时间：{{detail.updatedAt || '时间未知'}}</view><view class="meta">访问次数：暂不可用</view><view class="meta">管理员资料：暂不可用</view><view class="meta">管理功能：暂不可用</view></view>
   </block>
   <navigator class="link" url="/pages/directory-hub/directory-hub?kind={{kind}}">返回目录首页 →</navigator>
+</view>
+
+<view class="screen" wx:if="{{managed}}"><view class="eyebrow">WHALEU · 本平台审核通过</view><view class="title">组织详情</view><view wx:if="{{nativeDetail.error}}" class="notice">{{nativeDetail.error}}</view><button bindtap="onRefresh" disabled="{{nativeDetail.busy}}">重新核验并加载</button>
+ <view wx:if="{{nativeDetail.publicDetail}}" class="card"><view class="section-title">{{nativeDetail.publicDetail.data.name}}</view><view>{{nativeDetail.publicDetail.data.introText}}</view><view wx:if="{{nativeDetail.publicDetail.data.platform === 'qq'}}">QQ群号：{{nativeDetail.publicDetail.data.qqGroupNumber}}</view><navigator wx:if="{{nativeDetail.publicDetail.management.available}}" url="/pages/organization-editor/organization-editor?id={{nativeDetail.id}}">管理此组织 →</navigator></view>
+ <view wx:for="{{nativeDetail.slots}}" wx:key="slot" class="card"><view>{{item.label}}</view><button data-slot="{{item.slot}}" bindtap="onNativePreview">查看已审核图片</button></view><view wx:if="{{nativeImage.message}}" class="notice">{{nativeImage.message}}</view><view wx:if="{{nativeImage.src}}"><image src="{{nativeImage.src}}" mode="widthFix"/><button bindtap="onNativeClose">关闭图片</button></view>
 </view>

@@ -1,0 +1,7 @@
+@import '../../directory/common.wxss';
+.error {
+  color: #a33;
+}
+.card {
+  white-space: pre-wrap;
+}

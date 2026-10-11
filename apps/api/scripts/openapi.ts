@@ -1,3 +1,5 @@
+import { writeOrganizationManagementOpenApi } from './organization-management-openapi-document.js';
+import { writeSchoolPostingPolicyOpenApi } from './school-posting-policy-openapi-document.js';
 import { renderActivitiesOpenApiDocument } from './openapi-document.js';
 import { renderAnnouncementsOpenApiDocument } from './openapi-document.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -289,3 +291,8 @@ if (args[0] === '--check') {
   );
   console.log('Generated docs/openapi/school-configuration.json.');
 }
+
+// Run added owner artifacts after the canonical output directory is created
+// and the primary missing/stale check retains its established cold-CLI behavior.
+await writeSchoolPostingPolicyOpenApi(args[0] === '--check');
+await writeOrganizationManagementOpenApi(args[0] === '--check');

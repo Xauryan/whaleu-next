@@ -1,0 +1,642 @@
+{
+  "components": {
+    "schemas": {},
+    "securitySchemes": {
+      "accessToken": {
+        "description": "Current opaque WhaleU access token; school management checks true current grants.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "",
+    "title": "WhaleU school posting policy",
+    "version": "1"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/v1/me/school-posting-policy": {
+      "get": {
+        "description": "Current original regional ledger; missing and expired evidence remain distinct. True school-admin fixed scope or explicit active super-admin target only. Unknown provenance or existing related-campus synchronization is read-only.",
+        "operationId": "readSchoolPostingPolicy",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "regionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "blocker": {
+                      "enum": ["untrusted_source", "related_sync_unsupported"],
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "context": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "management": {
+                          "enum": ["fixed", "global"],
+                          "type": "string"
+                        },
+                        "regionId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "regionName": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["regionId", "regionName", "management"],
+                      "type": "object"
+                    },
+                    "editable": {
+                      "type": "boolean"
+                    },
+                    "policy": {
+                      "additionalProperties": false,
+                      "nullable": true,
+                      "properties": {
+                        "effectiveAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "expiry": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": ["policy_exempt"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": ["at"],
+                                  "type": "string"
+                                },
+                                "validUntil": {
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind", "validUntil"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "unverifiedCategories": {
+                          "items": {
+                            "enum": [
+                              "discussion",
+                              "confession",
+                              "companions",
+                              "pets",
+                              "internships",
+                              "scenery",
+                              "dorms",
+                              "research",
+                              "deep_sea"
+                            ],
+                            "type": "string"
+                          },
+                          "maxItems": 9,
+                          "type": "array"
+                        },
+                        "unverifiedCommentEnabled": {
+                          "type": "boolean"
+                        },
+                        "unverifiedPostEnabled": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "unverifiedPostEnabled",
+                        "unverifiedCommentEnabled",
+                        "unverifiedCategories",
+                        "expiry",
+                        "effectiveAt"
+                      ],
+                      "type": "object"
+                    },
+                    "revision": {
+                      "maximum": 2147483647,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "revisionId": {
+                      "format": "uuid",
+                      "nullable": true,
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "unconfigured",
+                        "active",
+                        "expired",
+                        "unavailable"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "context",
+                    "revision",
+                    "revisionId",
+                    "state",
+                    "editable",
+                    "blocker",
+                    "policy"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["School posting policy"]
+      }
+    },
+    "/v1/me/school-posting-policy/requests/{requestId}": {
+      "get": {
+        "description": "Authenticated owner-only historical receipt, even after grant revocation. Does not authorize a new write or disclose current policy content.",
+        "operationId": "recoverSchoolPostingPolicy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["not_recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "requestId"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "receipt": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "outcome": {
+                              "enum": ["saved"],
+                              "type": "string"
+                            },
+                            "regionId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "requestHash": {
+                              "pattern": "^[a-f0-9]{64}$",
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                              "type": "string"
+                            },
+                            "revision": {
+                              "maximum": 2147483647,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "revisionId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "requestId",
+                            "requestHash",
+                            "regionId",
+                            "revision",
+                            "revisionId",
+                            "outcome"
+                          ],
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "requestId", "receipt"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["cancelled"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "requestId", "requestHash"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["School posting policy"]
+      }
+    },
+    "/v1/me/school-posting-policy/requests/{requestId}/cancel": {
+      "post": {
+        "description": "Owner exact-key/hash fence serialized with publication. Never reverses a committed revision; reports its original receipt when publication already won.",
+        "operationId": "cancelSchoolPostingPolicy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "requestHash": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  }
+                },
+                "required": ["requestHash"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["not_recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "requestId"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "receipt": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "outcome": {
+                              "enum": ["saved"],
+                              "type": "string"
+                            },
+                            "regionId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "requestHash": {
+                              "pattern": "^[a-f0-9]{64}$",
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                              "type": "string"
+                            },
+                            "revision": {
+                              "maximum": 2147483647,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "revisionId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "requestId",
+                            "requestHash",
+                            "regionId",
+                            "revision",
+                            "revisionId",
+                            "outcome"
+                          ],
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "requestId", "receipt"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["cancelled"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "requestId", "requestHash"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["School posting policy"]
+      }
+    },
+    "/v1/me/school-posting-policy/{regionId}": {
+      "post": {
+        "description": "Explicit current administrator CAS publication into the same immutable region policy ledger. Preserves exact request key/hash; generates accepted provenance server-side. Only nine ordinary categories; named author, phone, known affiliation and exact Review remain mandatory. Related-campus sync is not enabled by this command.",
+        "operationId": "saveSchoolPostingPolicy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "regionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "clientRequestId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                    "type": "string"
+                  },
+                  "expectedRevision": {
+                    "maximum": 2147483646,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "policy": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "expiry": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "kind": {
+                                "enum": ["policy_exempt"],
+                                "type": "string"
+                              }
+                            },
+                            "required": ["kind"],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "kind": {
+                                "enum": ["at"],
+                                "type": "string"
+                              },
+                              "validUntil": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                "type": "string"
+                              }
+                            },
+                            "required": ["kind", "validUntil"],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "unverifiedCategories": {
+                        "items": {
+                          "enum": [
+                            "discussion",
+                            "confession",
+                            "companions",
+                            "pets",
+                            "internships",
+                            "scenery",
+                            "dorms",
+                            "research",
+                            "deep_sea"
+                          ],
+                          "type": "string"
+                        },
+                        "maxItems": 9,
+                        "type": "array"
+                      },
+                      "unverifiedCommentEnabled": {
+                        "type": "boolean"
+                      },
+                      "unverifiedPostEnabled": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "unverifiedPostEnabled",
+                      "unverifiedCommentEnabled",
+                      "unverifiedCategories",
+                      "expiry"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": ["clientRequestId", "expectedRevision", "policy"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "outcome": {
+                      "enum": ["saved"],
+                      "type": "string"
+                    },
+                    "regionId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "requestHash": {
+                      "pattern": "^[a-f0-9]{64}$",
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                      "type": "string"
+                    },
+                    "revision": {
+                      "maximum": 2147483647,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "revisionId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "requestId",
+                    "requestHash",
+                    "regionId",
+                    "revision",
+                    "revisionId",
+                    "outcome"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["School posting policy"]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

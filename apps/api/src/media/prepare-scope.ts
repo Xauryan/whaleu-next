@@ -1,4 +1,13 @@
 import {
+  prepareOrganizationMediaSchema,
+  organizationMediaRequestHash,
+} from './contracts-organization.js';
+import type { PrepareOrganizationMediaInput } from './contracts-organization.js';
+import type {
+  AuthorizedOrganizationMediaEdit,
+  OrganizationMediaDraftOwnerPort,
+} from './organization-prepare-scope.js';
+import {
   prepareSchoolQrMediaSchema,
   schoolQrMediaRequestHash,
 } from './contracts-school-qr.js';
@@ -113,6 +122,7 @@ export class MediaPrepareScopes {
         | PrepareMediaV4Input
         | PrepareProfileMediaInput
         | PrepareRatingsMediaInput
+        | PrepareOrganizationMediaInput
         | PrepareSchoolQrMediaInput
         | PrepareCategoryIconMediaInput
         | RatingsDiscussionMemberPrepare;
@@ -120,6 +130,7 @@ export class MediaPrepareScopes {
         | AuthorizedMediaDraft
         | AuthorizedProfileMediaEdit
         | AuthorizedRatingsMediaEdit
+        | AuthorizedOrganizationMediaEdit
         | AuthorizedSchoolQrMediaEdit
         | AuthorizedCategoryIconMediaEdit
         | AuthorizedRatingsDiscussionDraft;
@@ -132,6 +143,7 @@ export class MediaPrepareScopes {
     private readonly ratingsDiscussionOwner?: RatingsDiscussionMediaDraftOwnerPort,
     private readonly categoryIconOwner?: CategoryIconMediaDraftOwnerPort,
     private readonly schoolQrOwner?: SchoolQrMediaDraftOwnerPort,
+    private readonly organizationOwner?: OrganizationMediaDraftOwnerPort,
   ) {}
   async authorizeRatingsDiscussionBatch(
     actor: string,
@@ -213,6 +225,51 @@ export class MediaPrepareScopes {
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+  }
+  async authorizeOrganization(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    const input = prepareOrganizationMediaSchema.parse(raw),
+      actor = mediaIdSchema.parse(actorAccountId),
+      epoch = transactionReadEpoch(tx);
+    if (!epoch || !this.organizationOwner)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const scope = await this.organizationOwner.authorizePrepare(
+      actor,
+      input,
+      tx,
+    );
+    if (
+      scope.actorAccountId !== actor ||
+      scope.ownerKind !== 'organizations' ||
+      scope.resourceKind !== 'organization_image' ||
+      scope.targetKind !== 'edit' ||
+      scope.contentVersion !== 1 ||
+      scope.audience !== 'organization-gated' ||
+      scope.purpose !== 'organization-image' ||
+      scope.slot !== input.slot ||
+      scope.ordinal !== 0 ||
+      !mediaIdSchema.safeParse(scope.serverScopeId).success ||
+      scope.scopeRevision !== organizationMediaRequestHash(actor, input) ||
+      !Number.isSafeInteger(scope.expiresAt) ||
+      transactionReadEpoch(tx) !== epoch
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+    Object.freeze(input.declaration);
+    Object.freeze(input);
+    const capability: MediaPrepareScope = Object.freeze({
+      [brand]: true as const,
+    });
+    this.issued.set(capability, {
+      tx,
+      epoch,
+      input,
+      scope: Object.freeze({ ...scope }),
+    });
+    return capability;
   }
   async authorizeSchoolQr(
     actorAccountId: string,
@@ -498,6 +555,7 @@ export class MediaPrepareScopes {
       | PrepareMediaV4Input
       | PrepareProfileMediaInput
       | PrepareRatingsMediaInput
+      | PrepareOrganizationMediaInput
       | PrepareSchoolQrMediaInput
       | PrepareCategoryIconMediaInput
       | RatingsDiscussionMemberPrepare;
@@ -505,6 +563,7 @@ export class MediaPrepareScopes {
       | AuthorizedMediaDraft
       | AuthorizedProfileMediaEdit
       | AuthorizedRatingsMediaEdit
+      | AuthorizedOrganizationMediaEdit
       | AuthorizedSchoolQrMediaEdit
       | AuthorizedCategoryIconMediaEdit
       | AuthorizedRatingsDiscussionDraft;

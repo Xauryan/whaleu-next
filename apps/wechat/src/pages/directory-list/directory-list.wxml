@@ -7,11 +7,18 @@
   </view>
   <template is="directory-feedback" data="{{status,error,hasSession}}" />
   <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">{{restartRequired ? '重新加载首批结果' : '刷新结果'}}</button><button wx:if="{{busy}}" bindtap="onCancel">停止读取</button>
+  <view class="section-title">已核验历史目录</view>
   <view wx:for="{{entries}}" wx:key="id" class="card">
     <view class="section-title">{{item.name}}</view><template is="directory-entry-labels" data="{{item,directoryPlatformLabels}}" />
     <view class="directory-text">{{item.introPreview}}</view><button class="secondary" bindtap="onEntry" data-id="{{item.id}}" disabled="{{busy}}">查看详情 →</button>
   </view>
   <view wx:if="{{loaded &amp;&amp; !entries.length &amp;&amp; pageNumber === 1}}" class="empty">{{submittedQuery ? '没有匹配的名称' : '当前分类暂无条目'}}</view>
   <view wx:if="{{loaded}}" class="pagination"><button bindtap="onPrevious" disabled="{{busy || !canPrevious}}">上一页</button><text>第 {{pageNumber}} 页</text><button bindtap="onNext" disabled="{{busy || !canNext}}">下一页</button></view>
+  <view class="section-title">本平台审核通过</view><view class="meta">独立可信来源，单独分页；不与历史目录合并计数。</view>
+  <view wx:if="{{nativeDirectory.error}}" class="notice">{{nativeDirectory.error}}</view>
+  <button bindtap="onNativeRefresh" disabled="{{nativeDirectory.busy}}">刷新本平台组织</button>
+  <view wx:for="{{nativeDirectory.items}}" wx:key="id" class="card"><view class="section-title">{{item.data.name}}</view><view>{{directoryPlatformLabels[item.data.platform]}}</view><view>{{item.data.introText}}</view><button data-id="{{item.id}}" bindtap="onNativeEntry">查看详情 →</button></view>
+  <view wx:if="{{nativeDirectory.loaded &amp;&amp; !nativeDirectory.items.length}}" class="notice">当前条件下暂无本平台批准的组织。</view>
+  <button wx:if="{{nativeDirectory.more}}" bindtap="onNativeMore" disabled="{{nativeDirectory.busy}}">下一批本平台组织</button>
   <navigator class="link" url="/pages/directory-hub/directory-hub?kind={{kind}}">返回目录首页 →</navigator>
 </view>

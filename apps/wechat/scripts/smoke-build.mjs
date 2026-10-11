@@ -239,6 +239,9 @@ for (const route of config.pages.filter(
       'pages/rating-updates/rating-updates',
       'pages/school-services/school-services',
       'pages/school-configuration/school-configuration',
+      'pages/school-posting-policy/school-posting-policy',
+      'pages/organizations/organizations',
+      'pages/organization-editor/organization-editor',
     ].includes(route)
       ? {}
       : {
@@ -306,7 +309,14 @@ for (const route of config.pages.filter(
   current.onShow();
   if (route === 'pages/phone-binding/phone-binding')
     assert.equal(current.phone, undefined);
-  else if (
+  else if (route === 'pages/school-posting-policy/school-posting-policy') {
+    assert.equal(current.controller, undefined);
+    assert.equal(current.data.loaded, false);
+    assert.equal(current.data.form, null);
+    assert.equal(current.data.pending, false);
+    assert.equal(current.data.sourceState, '');
+    assert.ok(current.data.error);
+  } else if (
     [
       'pages/school-services/school-services',
       'pages/school-configuration/school-configuration',
@@ -319,6 +329,24 @@ for (const route of config.pages.filter(
     assert.equal(current.reader, undefined);
     if (route === 'pages/school-configuration/school-configuration')
       assert.equal(current.uploader, undefined);
+  } else if (
+    [
+      'pages/organizations/organizations',
+      'pages/organization-editor/organization-editor',
+    ].includes(route)
+  ) {
+    assert.equal(current.controller, undefined);
+    assert.equal(current.data.loaded, false);
+    assert.ok(current.data.error);
+    if (route === 'pages/organization-editor/organization-editor') {
+      assert.equal(current.data.detail, null);
+      assert.equal(current.data.publicDetail, null);
+      assert.equal(current.data.form, null);
+      assert.equal(current.data.pending, false);
+      assert.deepEqual(current.data.slots, []);
+      assert.equal(current.uploader, undefined);
+      assert.equal(current.reader, undefined);
+    } else assert.deepEqual(current.data.items, []);
   } else assert.ok(current.controller);
   current.onUnload();
   if (route === 'pages/rating-create/rating-create') {

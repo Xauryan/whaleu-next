@@ -1,4 +1,4 @@
-<import src="../../directory/common.wxml" />
+<import src="../../directory/common.wxml" /><navigator class="link" url="/pages/organizations/organizations">我管理的组织与学校审核 →</navigator>
 <view class="screen"><navigator class="link" url="/pages/rating-scoped/rating-scoped?mode=catalog&amp;scope=global">校园范围评分：明确选择校园 →</navigator>
   <view class="eyebrow">WHALEU · 校园目录</view><view class="title">发现身边的群与组织</view>
   <view class="kind-tabs"><button wx:for="{{directoryKinds}}" wx:key="*this" class="{{kind === item ? 'active' : 'secondary'}}" data-kind="{{item}}" bindtap="onKind">{{directoryKindLabels[item]}}</button></view>

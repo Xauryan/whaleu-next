@@ -99,3 +99,7 @@ The same controlled runner also executes the public feedback roundtrip in a fres
 sequential fixture: anonymous native exact-key recovery, public contacts/school
 projection, real synthetic Media9 and local super-admin notices. See
 [feedback boundaries](PUBLIC_FEEDBACK.md); real providers remain disabled.
+
+The controlled runner also includes the [school posting-policy](SCHOOL_POSTING_POLICY.md) journey: an actual native administrator publication and same-key lost-response recovery, a newly logged-in phone-authorized unverified user, exact Review post/comment/reply, then changed-revision conflict/cancellation and disabled-policy terminal rejection. A parallel focused PostgreSQL file covers CAS and cancellation races, provenance/synchronization blockers and grant/policy expiry after deferred work. These use the same original regional ledger and preserve prior journey tests.
+
+The controlled runner also includes the [organization management](ORGANIZATION_MANAGEMENT.md) and [independent Media10](ORGANIZATION_MEDIA.md) owner journeys. Actual emitted Pages/WXML cover applicant drafts, independently reviewed required images, school rejection/resubmission/first approval, target-scoped membership and ownership transfer, two-source directory discovery and original-key response-loss recovery. Synthetic loopback provider boundaries do not establish device/provider or production acceptance.

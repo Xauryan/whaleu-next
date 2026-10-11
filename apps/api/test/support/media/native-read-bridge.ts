@@ -89,11 +89,12 @@ export class NativeMediaReadBridge {
   private constructor(
     readonly port: number,
     private readonly root: string,
-    private readonly owner: 'community' | 'school-configuration',
+    private readonly owner:
+      'community' | 'school-configuration' | 'organizations',
   ) {}
   static async create(
     port: number,
-    owner: 'community' | 'school-configuration' = 'community',
+    owner: 'community' | 'school-configuration' | 'organizations' = 'community',
   ): Promise<NativeMediaReadBridge> {
     return new NativeMediaReadBridge(
       port,
@@ -145,9 +146,11 @@ export class NativeMediaReadBridge {
     assert.equal(url.origin, nativeOrigin);
     assert.match(
       url.pathname,
-      this.owner === 'school-configuration'
-        ? /^\/v3\/media\/school-configuration\/entries\/(treehole|trading|errand|official_account|admin)\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-        : /^\/v1\/media\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i,
+      this.owner === 'organizations'
+        ? /^\/v3\/media\/organizations\/(public|management)\/organizations\/[a-f0-9-]{36}\/slots\/(avatar|mainQr|managerContact|linkedOfficialQr|introImage[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+        : this.owner === 'school-configuration'
+          ? /^\/v3\/media\/school-configuration\/entries\/(treehole|trading|errand|official_account|admin)\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+          : /^\/v1\/media\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i,
     );
     if (this.owner === 'school-configuration') {
       assert.deepEqual([...url.searchParams.keys()].sort(), [
@@ -159,6 +162,13 @@ export class NativeMediaReadBridge {
         url.searchParams.get('entryRevision') ?? '',
         /^[1-9][0-9]*$/,
       );
+    } else if (this.owner === 'organizations') {
+      assert.deepEqual([...url.searchParams.keys()], ['applicationRevision']);
+      assert.match(
+        url.searchParams.get('applicationRevision') ?? '',
+        /^[1-9][0-9]*$/,
+      );
+      assert.ok(input.header['Authorization']);
     } else assert.equal(url.search, '');
     assert.equal(url.hash, '');
     let onHeader: HeaderListener | undefined;

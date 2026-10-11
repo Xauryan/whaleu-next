@@ -33,6 +33,10 @@ await copyAssets(path.join(root, 'src'), out);
 for (const relative of [
   'community/view-contract.js',
   'school-configuration/contract.js',
+  'organizations/contract.js',
+  'organizations/media-contract.js',
+  'organizations/media-runtime.js',
+  'school-posting-policy/contract.js',
   'school-configuration/qr-contract.js',
   'school-configuration/qr-runtime.js',
   'messaging/pending.js',

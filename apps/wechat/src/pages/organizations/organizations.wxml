@@ -1,0 +1,10 @@
+<view class="screen"><view class="eyebrow">WHALEU · 组织</view><view class="title">我管理的组织</view>
+ <navigator class="link" url="/pages/organization-editor/organization-editor">申请新组织、群聊或公众号 →</navigator>
+ <button bindtap="onMine">我的管理与申请</button><button wx:if="{{management !== 'none'}}" bindtap="onReviews">学校待审申请</button>
+ <view wx:if="{{mode === 'review'}}" class="notice">学校：{{regionName || '尚未选择'}}。仅显示当前实际管理地区的待审申请。</view>
+ <view wx:if="{{mode === 'review' &amp;&amp; management === 'global'}}" class="card"><input value="{{campusQuery}}" bindinput="onCampusInput" placeholder="搜索要管理的学校" /><button bindtap="onFindCampus" disabled="{{selecting}}">搜索学校</button><button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bindtap="onChooseCampus" disabled="{{selecting}}">{{item.fullName}}</button></view>
+ <view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{status}}" class="notice">{{status}}</view><button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新</button>
+ <view wx:for="{{items}}" wx:key="id" class="card"><view class="section-title">{{item.data.name}}</view><view>{{organizationStateLabels[item.state]}} · {{organizationRoleLabels[item.role]}}</view><view>{{item.data.introText}}</view><navigator url="/pages/organization-editor/organization-editor?id={{item.id}}">{{mode === 'review' ? '查看申请与审核' : '查看和管理'}} →</navigator></view>
+ <view wx:if="{{loaded &amp;&amp; !items.length}}" class="notice">当前没有{{mode === 'review' ? '待审申请' : '组织或申请'}}。</view><button wx:if="{{more}}" bindtap="onMore" disabled="{{busy}}">下一批</button>
+ <navigator url="/pages/directory-hub/directory-hub">返回校园目录 →</navigator>
+</view>
