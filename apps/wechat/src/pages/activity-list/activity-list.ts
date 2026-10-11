@@ -73,6 +73,27 @@ Page({
     void this.controller.load();
     void this.preferences.load();
   },
+  onNative() {
+    wx.navigateTo?.({
+      success: () => undefined,
+      fail: () => this.setData({ error: '无法打开活动页面，请重试' }),
+      url: '/pages/activity-native/activity-native',
+    });
+  },
+  onPublish() {
+    wx.navigateTo?.({
+      success: () => undefined,
+      fail: () => this.setData({ error: '无法打开活动页面，请重试' }),
+      url: '/pages/activity-publish/activity-publish',
+    });
+  },
+  onMine() {
+    wx.navigateTo?.({
+      success: () => undefined,
+      fail: () => this.setData({ error: '无法打开活动页面，请重试' }),
+      url: '/pages/activity-native/activity-native?mode=mine',
+    });
+  },
   onRefresh() {
     void this.controller?.refresh();
   },

@@ -14,14 +14,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  foundation:
     runs-on: ubuntu-24.04
-    # Category local PG: 88m05; prior hosted/local ratio: 79m22 / 67m48 (~1.17).
-    # The projected ~103m exceeds 100m; allow 120m PG plus other verification.
-    # This does not change individual tests, SQL/proof limits or resource capacity.
-    timeout-minutes: 150
+    timeout-minutes: 30
     env:
-      MAIN_PG_CONTAINER: whaleu-main-${{ github.run_id }}-${{ github.run_attempt }}
       WHALEU_TEST_MAINTENANCE: controlled
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -40,6 +36,42 @@ jobs:
       - run: npm run format:check
       - name: Verify disposable database admission guards
         run: node --test scripts/verify-test-postgres.test.mjs
+      - name: Verify complete integration shard coverage
+        run: |
+          node --test scripts/run-integration-shard.test.mjs
+          node scripts/run-integration-shard.mjs --verify 4
+
+  main-integration:
+    name: Main PostgreSQL (${{ matrix.shard }}/4)
+    needs: foundation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    strategy:
+      # Collect every shard's result even when another fails.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      MAIN_PG_CONTAINER: whaleu-main-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+      WHALEU_TEST_MAINTENANCE: controlled
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24.19.0
+          cache: npm
+      - name: Install pinned package manager
+        run: npm install --global npm@11.9.0 --ignore-scripts --no-audit --no-fund
+      - name: Verify package manager
+        run: test "$(npm --version)" = "11.9.0"
+      - run: npm ci --ignore-scripts
+      - name: Verify shard manifest before database creation
+        run: node scripts/run-integration-shard.mjs --shard ${{ matrix.shard }}/4 --list
+      - name: Build native artifacts required by integration workers
+        # Separate jobs do not inherit apps/wechat/dist from foundation's check.
+        run: npm run build -w @whaleu/wechat
       - name: Start fresh controlled-maintenance PostgreSQL
         shell: bash
         run: |
@@ -67,7 +99,7 @@ jobs:
           NODE_ENV: test
           TEST_DATABASE_URL: postgresql://whaleu_test:local_ci_only@127.0.0.1:5432/whaleu_test
       - name: Real PostgreSQL integration tests
-        run: timeout 7200 npm run test:integration
+        run: timeout 7200 node scripts/run-integration-shard.mjs --shard ${{ matrix.shard }}/4
         env:
           WHALEU_RATINGS_CI_DIAGNOSTICS: '1'
           WHALEU_SCALABLE_PROFILE_CI_DIAGNOSTICS: '1'
@@ -176,3 +208,20 @@ jobs:
           if docker inspect "$SEMANTIC_PG_CONTAINER" >/dev/null 2>&1; then
             docker rm --force --volumes "$SEMANTIC_PG_CONTAINER"
           fi
+
+  verify:
+    # Keep the existing required-check name as an all-jobs success gate.
+    if: always()
+    needs: [foundation, main-integration, semantic-integration]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every verification job to succeed
+        env:
+          FOUNDATION_RESULT: ${{ needs.foundation.result }}
+          MAIN_RESULT: ${{ needs.main-integration.result }}
+          SEMANTIC_RESULT: ${{ needs.semantic-integration.result }}
+        run: |
+          test "$FOUNDATION_RESULT" = success
+          test "$MAIN_RESULT" = success
+          test "$SEMANTIC_RESULT" = success

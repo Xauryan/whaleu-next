@@ -228,7 +228,12 @@ test(
             'Explicit no-category urgent exclusion remains unchanged',
           );
           const ordinary = categorySchema.options.filter(
-            (category) => category !== 'trading' && category !== 'discussion',
+            // Feedback is an explicitly bound global topic with Review v3;
+            // its real publication/search coverage is in community-feedback.
+            (category) =>
+              category !== 'trading' &&
+              category !== 'discussion' &&
+              category !== 'feedback',
           );
           for (const category of ordinary) {
             const base = await w.envelope({

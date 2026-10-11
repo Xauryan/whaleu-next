@@ -103,3 +103,15 @@ projection, real synthetic Media9 and local super-admin notices. See
 The controlled runner also includes the [school posting-policy](SCHOOL_POSTING_POLICY.md) journey: an actual native administrator publication and same-key lost-response recovery, a newly logged-in phone-authorized unverified user, exact Review post/comment/reply, then changed-revision conflict/cancellation and disabled-policy terminal rejection. A parallel focused PostgreSQL file covers CAS and cancellation races, provenance/synchronization blockers and grant/policy expiry after deferred work. These use the same original regional ledger and preserve prior journey tests.
 
 The controlled runner also includes the [organization management](ORGANIZATION_MANAGEMENT.md) and [independent Media10](ORGANIZATION_MEDIA.md) owner journeys. Actual emitted Pages/WXML cover applicant drafts, independently reviewed required images, school rejection/resubmission/first approval, target-scoped membership and ownership transfer, two-source directory discovery and original-key response-loss recovery. Synthetic loopback provider boundaries do not establish device/provider or production acceptance.
+
+The controlled runner also includes [Activity publication](ACTIVITY_PUBLICATION.md)
+and [independent Media11](ACTIVITY_MEDIA.md). Actual emitted App/Page/WXML and native
+transport submit cover/gallery content to the real AppModule and disposable PG,
+wait for the explicit simulation queue processor, recover the original publication
+key after a lost response, decode immutable public cover/gallery/organizer QR,
+and clear hidden/account-switched views. Focused PG cases cover exact review/media
+binding, target grants and organization revisions, cancellation/unfinished-draft
+closure races, final deferred-wait proofs, bounded known-denial catalog continuation,
+and real shared Media quota windows. The processor consumes actual submitted jobs;
+no fixture inserts an approved Activity content-review result to bypass that flow.
+Default runtime remains closed and no real WeChat/COS/model request is made.

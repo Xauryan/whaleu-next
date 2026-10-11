@@ -18,6 +18,7 @@ export interface ErrorDetails {
   readonly httpStatus?: number;
   readonly serverCode?: string;
   readonly requestId?: string;
+  readonly retryAfterSeconds?: number;
 }
 
 /** Deliberately excludes request payloads, raw platform errors, credentials and server messages. */

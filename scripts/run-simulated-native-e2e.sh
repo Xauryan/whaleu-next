@@ -22,4 +22,11 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/organization-management.test.ts \
   test/integration/organization-media.test.ts \
   test/integration/organization-media-native-roundtrip.test.ts \
-  test/integration/organization-management-native-roundtrip.test.ts
+  test/integration/organization-management-native-roundtrip.test.ts \
+  test/integration/activity-publication.test.ts \
+  test/integration/activity-media.test.ts \
+  test/integration/activity-publication-native-roundtrip.test.ts \
+  test/integration/activity-read.test.ts \
+  test/integration/activity-authority.test.ts \
+  test/integration/activity-concurrency.test.ts \
+  test/integration/activity-native-roundtrip.test.ts

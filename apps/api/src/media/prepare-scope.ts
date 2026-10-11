@@ -1,4 +1,13 @@
 import {
+  prepareActivityMediaSchema,
+  activityMediaRequestHash,
+} from './contracts-activity.js';
+import type { PrepareActivityMediaInput } from './contracts-activity.js';
+import type {
+  AuthorizedActivityMediaEdit,
+  ActivityMediaDraftOwnerPort,
+} from './activity-prepare-scope.js';
+import {
   prepareOrganizationMediaSchema,
   organizationMediaRequestHash,
 } from './contracts-organization.js';
@@ -122,6 +131,7 @@ export class MediaPrepareScopes {
         | PrepareMediaV4Input
         | PrepareProfileMediaInput
         | PrepareRatingsMediaInput
+        | PrepareActivityMediaInput
         | PrepareOrganizationMediaInput
         | PrepareSchoolQrMediaInput
         | PrepareCategoryIconMediaInput
@@ -130,6 +140,7 @@ export class MediaPrepareScopes {
         | AuthorizedMediaDraft
         | AuthorizedProfileMediaEdit
         | AuthorizedRatingsMediaEdit
+        | AuthorizedActivityMediaEdit
         | AuthorizedOrganizationMediaEdit
         | AuthorizedSchoolQrMediaEdit
         | AuthorizedCategoryIconMediaEdit
@@ -144,6 +155,7 @@ export class MediaPrepareScopes {
     private readonly categoryIconOwner?: CategoryIconMediaDraftOwnerPort,
     private readonly schoolQrOwner?: SchoolQrMediaDraftOwnerPort,
     private readonly organizationOwner?: OrganizationMediaDraftOwnerPort,
+    private readonly activityOwner?: ActivityMediaDraftOwnerPort,
   ) {}
   async authorizeRatingsDiscussionBatch(
     actor: string,
@@ -225,6 +237,47 @@ export class MediaPrepareScopes {
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+  }
+  async authorizeActivity(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    const input = prepareActivityMediaSchema.parse(raw),
+      actor = mediaIdSchema.parse(actorAccountId),
+      epoch = transactionReadEpoch(tx);
+    if (!epoch || !this.activityOwner)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const scope = await this.activityOwner.authorizePrepare(actor, input, tx);
+    if (
+      scope.actorAccountId !== actor ||
+      scope.ownerKind !== 'activities' ||
+      scope.resourceKind !== 'activity_image' ||
+      scope.targetKind !== 'edit' ||
+      scope.contentVersion !== 1 ||
+      scope.audience !== 'activity-gated' ||
+      scope.purpose !== 'activity-image' ||
+      scope.slot !== input.slot ||
+      scope.ordinal !== 0 ||
+      !mediaIdSchema.safeParse(scope.serverScopeId).success ||
+      scope.scopeRevision !== activityMediaRequestHash(actor, input) ||
+      !Number.isSafeInteger(scope.expiresAt) ||
+      transactionReadEpoch(tx) !== epoch
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+    Object.freeze(input.declaration);
+    Object.freeze(input);
+    const capability: MediaPrepareScope = Object.freeze({
+      [brand]: true as const,
+    });
+    this.issued.set(capability, {
+      tx,
+      epoch,
+      input,
+      scope: Object.freeze({ ...scope }),
+    });
+    return capability;
   }
   async authorizeOrganization(
     actorAccountId: string,
@@ -555,6 +608,7 @@ export class MediaPrepareScopes {
       | PrepareMediaV4Input
       | PrepareProfileMediaInput
       | PrepareRatingsMediaInput
+      | PrepareActivityMediaInput
       | PrepareOrganizationMediaInput
       | PrepareSchoolQrMediaInput
       | PrepareCategoryIconMediaInput
@@ -563,6 +617,7 @@ export class MediaPrepareScopes {
       | AuthorizedMediaDraft
       | AuthorizedProfileMediaEdit
       | AuthorizedRatingsMediaEdit
+      | AuthorizedActivityMediaEdit
       | AuthorizedOrganizationMediaEdit
       | AuthorizedSchoolQrMediaEdit
       | AuthorizedCategoryIconMediaEdit

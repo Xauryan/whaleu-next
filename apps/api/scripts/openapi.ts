@@ -1,3 +1,4 @@
+import { writeActivityPublicationOpenApi } from './activity-publication-openapi-document.js';
 import { writeOrganizationManagementOpenApi } from './organization-management-openapi-document.js';
 import { writeSchoolPostingPolicyOpenApi } from './school-posting-policy-openapi-document.js';
 import { renderActivitiesOpenApiDocument } from './openapi-document.js';
@@ -296,3 +297,5 @@ if (args[0] === '--check') {
 // and the primary missing/stale check retains its established cold-CLI behavior.
 await writeSchoolPostingPolicyOpenApi(args[0] === '--check');
 await writeOrganizationManagementOpenApi(args[0] === '--check');
+
+await writeActivityPublicationOpenApi(args[0] === '--check');

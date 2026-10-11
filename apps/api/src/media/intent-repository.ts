@@ -1,3 +1,4 @@
+import { activityMediaRequestHash } from './contracts-activity.js';
 import { organizationMediaRequestHash } from './contracts-organization.js';
 import { schoolQrMediaRequestHash } from './contracts-school-qr.js';
 import { reserveCategoryIconRequestMarker } from './category-icon-request-marker.js';
@@ -19,7 +20,10 @@ import {
 import { profileMediaRequestHash } from './contracts-profile.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
-import { ApplicationError } from '../http/application-error.js';
+import {
+  ApplicationError,
+  MediaRequestRateLimited,
+} from '../http/application-error.js';
 import { mediaRequestHash } from './contracts-v2.js';
 import { mediaMemberRequestHash } from './contracts-v3.js';
 import { mediaMemberRequestHash as discussionMemberHash } from './contracts-v4.js';
@@ -63,6 +67,8 @@ export class MediaIntentRepository {
     const v2 = declaredSha256 !== null;
     const profile =
       'protocol' in input && input.protocol === 'profile-media-v1';
+    const activity =
+      'protocol' in input && input.protocol === 'activity-media-v1';
     const organization =
       'protocol' in input && input.protocol === 'organization-media-v1';
     const schoolQr =
@@ -76,51 +82,55 @@ export class MediaIntentRepository {
     const ratings =
       'protocol' in input && input.protocol === 'ratings-target-media-v1';
     const v3 = 'protocolVersion' in input;
-    const protocol = organization
-      ? 10
-      : schoolQr
-        ? 9
-        : categoryIcon
-          ? 8
-          : ratingsDiscussion
-            ? 7
-            : ratings
-              ? 6
-              : profile
-                ? 5
-                : v3
-                  ? input.protocolVersion
-                  : v2
-                    ? 2
-                    : 1;
-    const requestHash = organization
-      ? organizationMediaRequestHash(scope.actorAccountId, input)
-      : schoolQr
-        ? schoolQrMediaRequestHash(scope.actorAccountId, input)
-        : categoryIcon
-          ? categoryIconMediaRequestHash(scope.actorAccountId, input)
-          : ratingsDiscussion
-            ? ratingsDiscussionMemberHash(scope.actorAccountId, input)
-            : ratings
-              ? ratingsMediaRequestHash(scope.actorAccountId, input)
-              : profile
-                ? profileMediaRequestHash(scope.actorAccountId, input)
-                : v3
-                  ? (input.protocolVersion === 4
-                      ? discussionMemberHash
-                      : mediaMemberRequestHash)(
-                      scope.actorAccountId,
-                      input.batchIdentity,
-                      {
-                        clientRequestId: input.clientRequestId,
-                        memberId: input.memberId,
-                        sourceSlot: input.ordinal,
-                        declaration: input.declaration,
-                      },
-                    )
-                  : v2
-                    ? mediaRequestHash(scope.actorAccountId, input)
-                    : null;
+    const protocol = activity
+      ? 11
+      : organization
+        ? 10
+        : schoolQr
+          ? 9
+          : categoryIcon
+            ? 8
+            : ratingsDiscussion
+              ? 7
+              : ratings
+                ? 6
+                : profile
+                  ? 5
+                  : v3
+                    ? input.protocolVersion
+                    : v2
+                      ? 2
+                      : 1;
+    const requestHash = activity
+      ? activityMediaRequestHash(scope.actorAccountId, input)
+      : organization
+        ? organizationMediaRequestHash(scope.actorAccountId, input)
+        : schoolQr
+          ? schoolQrMediaRequestHash(scope.actorAccountId, input)
+          : categoryIcon
+            ? categoryIconMediaRequestHash(scope.actorAccountId, input)
+            : ratingsDiscussion
+              ? ratingsDiscussionMemberHash(scope.actorAccountId, input)
+              : ratings
+                ? ratingsMediaRequestHash(scope.actorAccountId, input)
+                : profile
+                  ? profileMediaRequestHash(scope.actorAccountId, input)
+                  : v3
+                    ? (input.protocolVersion === 4
+                        ? discussionMemberHash
+                        : mediaMemberRequestHash)(
+                        scope.actorAccountId,
+                        input.batchIdentity,
+                        {
+                          clientRequestId: input.clientRequestId,
+                          memberId: input.memberId,
+                          sourceSlot: input.ordinal,
+                          declaration: input.declaration,
+                        },
+                      )
+                    : v2
+                      ? mediaRequestHash(scope.actorAccountId, input)
+                      : null;
     if (ratingsDiscussion) {
       const batch = await tx.query(
         `SELECT id FROM whaleu_media.ratings_discussion_batches WHERE id=$1 AND actor_id=$2 AND state='editing' AND server_scope_id=$3 AND scope_revision=$4 AND identity_hash=$5 FOR UPDATE NOWAIT`,
@@ -203,7 +213,8 @@ export class MediaIntentRepository {
       );
     const hash = createHash('sha256')
       .update(
-        organization ||
+        activity ||
+          organization ||
           schoolQr ||
           categoryIcon ||
           profile ||
@@ -232,15 +243,21 @@ export class MediaIntentRepository {
                   editScopeId: input.editScopeId,
                   scopeRevision: input.scopeRevision,
                 }
-              : 'applicationRevision' in input
+              : 'activityId' in input
                 ? {
-                    organizationId: input.organizationId,
-                    applicationRevision: input.applicationRevision,
+                    activityId: input.activityId,
+                    revision: input.revision,
                     slot: input.slot,
                   }
-                : 'expectedRevision' in input
-                  ? { expectedRevision: input.expectedRevision }
-                  : { draftId: input.draftId, spaceId: input.spaceId }),
+                : 'applicationRevision' in input
+                  ? {
+                      organizationId: input.organizationId,
+                      applicationRevision: input.applicationRevision,
+                      slot: input.slot,
+                    }
+                  : 'expectedRevision' in input
+                    ? { expectedRevision: input.expectedRevision }
+                    : { draftId: input.draftId, spaceId: input.spaceId }),
           serverScopeId: scope.serverScopeId,
           scopeRevision: scope.scopeRevision,
           audience: scope.audience,
@@ -309,7 +326,7 @@ export class MediaIntentRepository {
       await tx.query<IntentRow>(
         `INSERT INTO whaleu_media.upload_intents
       (id,actor_id,client_request_id,canonical_intent_hash,purpose,audience,owner_kind,resource_kind,target_kind,resource_id,content_version,scope_revision,slot,ordinal,policy_revision,declared_bytes,declared_mime,expires_at,protocol_version,request_hash,declared_sha256)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,${organization ? '(SELECT expires_at FROM whaleu_organizations.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : schoolQr ? '(SELECT expires_at FROM whaleu_school_configuration.qr_upload_scopes WHERE id=$10 AND actor_id=$2)' : categoryIcon ? '(SELECT expires_at FROM whaleu_ratings.category_icon_upload_scopes WHERE id=$10 AND actor_id=$2)' : ratingsDiscussion ? '(SELECT expires_at FROM whaleu_media.ratings_discussion_batches WHERE server_scope_id=$10 AND actor_id=$2)' : scope.ownerKind === 'ratings' ? '(SELECT expires_at FROM whaleu_ratings.target_cover_upload_scopes WHERE id=$10 AND actor_id=$2)' : scope.ownerKind === 'profile' ? '(SELECT expires_at FROM whaleu_profile.avatar_edits WHERE id=$10 AND actor_id=$2)' : "clock_timestamp()+interval '30 minutes'"},$18,$19,$20) RETURNING *`,
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,${activity ? '(SELECT expires_at FROM whaleu_activities.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : organization ? '(SELECT expires_at FROM whaleu_organizations.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : schoolQr ? '(SELECT expires_at FROM whaleu_school_configuration.qr_upload_scopes WHERE id=$10 AND actor_id=$2)' : categoryIcon ? '(SELECT expires_at FROM whaleu_ratings.category_icon_upload_scopes WHERE id=$10 AND actor_id=$2)' : ratingsDiscussion ? '(SELECT expires_at FROM whaleu_media.ratings_discussion_batches WHERE server_scope_id=$10 AND actor_id=$2)' : scope.ownerKind === 'ratings' ? '(SELECT expires_at FROM whaleu_ratings.target_cover_upload_scopes WHERE id=$10 AND actor_id=$2)' : scope.ownerKind === 'profile' ? '(SELECT expires_at FROM whaleu_profile.avatar_edits WHERE id=$10 AND actor_id=$2)' : "clock_timestamp()+interval '30 minutes'"},$18,$19,$20) RETURNING *`,
         [
           id,
           scope.actorAccountId,
@@ -341,8 +358,8 @@ export class MediaIntentRepository {
     );
     if (v2)
       await tx.query(
-        `INSERT INTO whaleu_media.upload_request_fences(actor_id,client_request_id,request_hash,intent_id,state${organization || schoolQr || categoryIcon ? ',protocol_namespace' : ''})
-       VALUES($1,$2,$3,$4,'active'${organization ? ',10' : schoolQr ? ',9' : categoryIcon ? ',8' : ''})`,
+        `INSERT INTO whaleu_media.upload_request_fences(actor_id,client_request_id,request_hash,intent_id,state${activity || organization || schoolQr || categoryIcon ? ',protocol_namespace' : ''})
+       VALUES($1,$2,$3,$4,'active'${activity ? ',11' : organization ? ',10' : schoolQr ? ',9' : categoryIcon ? ',8' : ''})`,
         [scope.actorAccountId, input.clientRequestId, requestHash, id],
       );
     return this.receipt(created, tx);
@@ -427,16 +444,34 @@ export async function reserveMediaRequestKey(
     ? '(SELECT actor_id,created_at FROM whaleu_media.upload_request_fences UNION ALL SELECT actor_id,created_at FROM whaleu_media.ratings_discussion_batch_request_fences) requests'
     : 'whaleu_media.upload_request_fences';
   const row = (
-    await tx.query<{ daily: number; recent: number }>(
-      `SELECT count(*)::integer daily,
-       count(*) FILTER (WHERE created_at>clock_timestamp()-interval '1 minute')::integer recent
-     FROM ${requests} WHERE actor_id=$1
-       AND created_at >= date_trunc('day',clock_timestamp() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
+    await tx.query<{
+      daily: number;
+      recent: number;
+      minute_wait_seconds: number;
+      daily_wait_seconds: number;
+    }>(
+      `WITH quota_clock AS MATERIALIZED (SELECT clock_timestamp() observed_at),
+       counts AS (
+         SELECT count(*)::integer daily,
+           count(*) FILTER (WHERE created_at>observed_at-interval '1 minute')::integer recent,
+           min(created_at) FILTER (WHERE created_at>observed_at-interval '1 minute') oldest_recent
+         FROM ${requests} CROSS JOIN quota_clock WHERE actor_id=$1
+           AND created_at >= date_trunc('day',observed_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+       )
+       SELECT daily,recent,
+         greatest(1,ceil(extract(epoch FROM (oldest_recent+interval '1 minute'-observed_at))))::integer minute_wait_seconds,
+         greatest(1,ceil(extract(epoch FROM (((date_trunc('day',observed_at AT TIME ZONE 'UTC')+interval '1 day') AT TIME ZONE 'UTC')-observed_at))))::integer daily_wait_seconds
+       FROM counts CROSS JOIN quota_clock`,
       [actor],
     )
   ).rows[0];
-  if (!row || row.daily >= 100 || row.recent >= 10)
-    throw new ApplicationError('MEDIA_RATE_LIMITED');
+  if (!row) throw new ApplicationError('MEDIA_RATE_LIMITED');
+  if (row.daily >= 100 || row.recent >= 10)
+    throw new MediaRequestRateLimited(
+      row.daily >= 100
+        ? row.daily_wait_seconds
+        : Math.min(row.minute_wait_seconds, row.daily_wait_seconds),
+    );
 }
 
 /** Profile uses the shared reservations and exact intent foundation; its issuer

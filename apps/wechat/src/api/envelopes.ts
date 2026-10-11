@@ -37,12 +37,29 @@ export function responseError(response: HttpResponse): ClientError | null {
     /^[a-f0-9-]{36}$/i.test(error.requestId)
       ? error.requestId
       : undefined;
+  // Only bounded delta-seconds on a real 429. Never trust arbitrary header text,
+  // conflicting case-variant headers, dates or a server body retry instruction.
+  const retryHeaders = Object.entries(response.headers).filter(
+    ([key]) => key.toLowerCase() === 'retry-after',
+  );
+  const rawRetry = retryHeaders.length === 1 ? retryHeaders[0]?.[1] : undefined;
+  const retryAfterSeconds =
+    response.status === 429 &&
+    typeof rawRetry === 'string' &&
+    /^[1-9][0-9]{0,4}$/.test(rawRetry) &&
+    Number(rawRetry) <= 86400
+      ? Number(rawRetry)
+      : undefined;
   const details: ErrorDetails = {
     httpStatus: response.status,
     ...(serverCode ? { serverCode } : {}),
     ...(requestId ? { requestId } : {}),
+    ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
   };
   const expectedStatus: Readonly<Record<string, number>> = {
+    ACTIVITY_PUBLICATION_CONFLICT: 409,
+    ACTIVITY_PUBLICATION_CANCELLED: 409,
+    ACTIVITY_COVER_REQUIRED: 422,
     ORGANIZATION_UNAVAILABLE: 503,
     ORGANIZATION_NOT_FOUND: 404,
     ORGANIZATION_REVISION_CONFLICT: 409,
@@ -112,6 +129,7 @@ export function responseError(response: HttpResponse): ClientError | null {
     CONTENT_REJECTED: 422,
     CONTENT_REVIEW_UNAVAILABLE: 503,
     MEDIA_NOT_READY: 409,
+    MEDIA_RATE_LIMITED: 429,
     MEDIA_UNAVAILABLE: 503,
     POST_NOT_FOUND: 404,
     POST_BLOCKED_BY_YOU: 404,

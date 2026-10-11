@@ -36,6 +36,9 @@ for (const relative of [
   'organizations/contract.js',
   'organizations/media-contract.js',
   'organizations/media-runtime.js',
+  'activities/media-contract.js',
+  'activities/media-runtime.js',
+  'activities/publication/contract.js',
   'school-posting-policy/contract.js',
   'school-configuration/qr-contract.js',
   'school-configuration/qr-runtime.js',
@@ -66,7 +69,10 @@ for (const relative of [
     throw new Error('Missing native SHA-256 import');
   await writeFile(
     cryptoModule,
-    compiled.replace('require("js-sha256")', 'require("../vendor/sha256")'),
+    compiled.replace(
+      'require("js-sha256")',
+      `require("${path.posix.relative(path.posix.dirname(relative), 'vendor/sha256')}")`,
+    ),
   );
 }
 await mkdir(path.join(out, 'vendor'), { recursive: true });

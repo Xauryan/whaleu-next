@@ -624,3 +624,16 @@ Category single-icon C1 local acceptance passed 6,889 cases on one frozen correc
 Discussion hosted acceptance subsequently passed all 6,444 cases on `a2b8b097`, including the original full-pool expiry checks and a real publication-lock rollback regression. Earlier timeout and setup-lock failures remain documented in its acceptance record.
 
 Native organization management now has a separately sourced applicant/revision ledger, first school approval, unique target-scoped owner/admin authority, member management and atomic old-owner demotion, original-key recovery and independent 13-slot Media10. The existing directory displays accepted legacy and native approved sources as separately paginated sections. This is a bounded organization slice, not completed Activities publication, legacy authority migration or real-provider/device acceptance. See [organization contract](ORGANIZATION_MANAGEMENT.md).
+
+Native Activity publication now connects current approved target organization selection,
+required independent Media11 cover plus up to nine detail images, typed queued content
+review, original-key publication/recovery, a distinct native catalog/detail and
+immutable-original-publisher history. The old accepted read-only catalog remains
+separate and retains its existing routes. Types, free-text time/place, unspecified
+end time and the explicit public organizer-QR choice follow the evidenced old form,
+with its type-loss and preview-only QR bugs corrected. Original owners can explicitly
+close unfinished drafts after organization authority changes without deleting a
+published activity. This local simulation slice does not establish editing/deletion,
+sign-up, legacy authority migration, real provider/device acceptance or overall
+Activity parity. See [publication contract](ACTIVITY_PUBLICATION.md) and
+[Activity Media](ACTIVITY_MEDIA.md).

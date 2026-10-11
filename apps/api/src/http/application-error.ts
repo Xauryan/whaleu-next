@@ -3,6 +3,19 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  ACTIVITY_PUBLICATION_CONFLICT: {
+    status: 409,
+    message:
+      'Activity request or revision changed; recover the original request',
+  },
+  ACTIVITY_PUBLICATION_CANCELLED: {
+    status: 409,
+    message: 'Activity publication was cancelled',
+  },
+  ACTIVITY_COVER_REQUIRED: {
+    status: 422,
+    message: 'An accepted activity cover is required',
+  },
   SCHOOL_CONFIGURATION_CANCELLED: {
     status: 409,
     message: 'The school service command was cancelled',
@@ -553,6 +566,22 @@ export class ApplicationError extends HttpException {
     const condition = conditions[code];
     super(condition.message, condition.status);
     this.code = code;
+  }
+}
+
+/** Only the shared Media request-key quota supplies its observed retry window. */
+export class MediaRequestRateLimited extends ApplicationError {
+  readonly retryAfterSeconds: number;
+
+  constructor(retryAfterSeconds: number) {
+    super('MEDIA_RATE_LIMITED');
+    if (
+      !Number.isSafeInteger(retryAfterSeconds) ||
+      retryAfterSeconds < 1 ||
+      retryAfterSeconds > 86400
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 

@@ -1,3 +1,9 @@
+import { ActivityMediaRequiredProof } from './activity-required-proof.js';
+import {
+  prepareActivityMediaSchema,
+  activityMediaRequestHash,
+} from './contracts-activity.js';
+import type { PrepareActivityMediaInput } from './contracts-activity.js';
 import { OrganizationMediaRequiredProof } from './organization-required-proof.js';
 import {
   prepareOrganizationMediaSchema,
@@ -132,20 +138,42 @@ export class MediaIngressRepository {
   private readonly proof: MediaRequiredProof;
   constructor(
     readonly planning: MediaIngressPlanningPort,
-    private readonly protocolVersion: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 = 2,
+    private readonly protocolVersion:
+      2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 = 2,
   ) {
     this.proof =
-      protocolVersion === 10
-        ? new OrganizationMediaRequiredProof()
-        : protocolVersion === 9
-          ? new SchoolQrMediaRequiredProof()
-          : protocolVersion === 8
-            ? new CategoryIconMediaRequiredProof()
-            : new MediaRequiredProof();
+      protocolVersion === 11
+        ? new ActivityMediaRequiredProof()
+        : protocolVersion === 10
+          ? new OrganizationMediaRequiredProof()
+          : protocolVersion === 9
+            ? new SchoolQrMediaRequiredProof()
+            : protocolVersion === 8
+              ? new CategoryIconMediaRequiredProof()
+              : new MediaRequiredProof();
     mediaIdSchema.parse(planning.writerInstanceId);
   }
   /** Nonlocking routing hint only; authority is re-established by scopes and the
    * locked canonical intent is matched below before granting anything. */
+  async originalActivityInput(
+    actor: string,
+    id: string,
+    tx: PoolClient,
+  ): Promise<PrepareActivityMediaInput> {
+    this.managed(tx);
+    if (this.protocolVersion !== 11)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const row = (
+      await tx.query<{ input: unknown }>(
+        `SELECT s.input FROM whaleu_media.upload_intents i
+      JOIN whaleu_activities.media_upload_scopes s ON s.id=i.resource_id AND s.actor_id=i.actor_id
+      WHERE i.id=$1 AND i.actor_id=$2 AND i.protocol_version=11 AND i.owner_kind='activities'`,
+        [mediaIdSchema.parse(id), actor],
+      )
+    ).rows[0];
+    if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return prepareActivityMediaSchema.parse(row.input);
+  }
   async originalOrganizationInput(
     actor: string,
     id: string,
@@ -196,7 +224,8 @@ export class MediaIngressRepository {
       this.protocolVersion === 7 ||
       this.protocolVersion === 8 ||
       this.protocolVersion === 9 ||
-      this.protocolVersion === 10
+      this.protocolVersion === 10 ||
+      this.protocolVersion === 11
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const row = (
@@ -829,23 +858,25 @@ export class MediaIngressRepository {
       )
     ).rows[0];
     const input =
-      this.protocolVersion === 10
-        ? prepareOrganizationMediaSchema.parse(issued.input)
-        : this.protocolVersion === 9
-          ? prepareSchoolQrMediaSchema.parse(issued.input)
-          : this.protocolVersion === 8
-            ? prepareCategoryIconMediaSchema.parse(issued.input)
-            : this.protocolVersion === 7
-              ? ratingsDiscussionMemberPrepareSchema.parse(issued.input)
-              : this.protocolVersion === 6
-                ? prepareRatingsMediaSchema.parse(issued.input)
-                : this.protocolVersion === 5
-                  ? prepareProfileMediaSchema.parse(issued.input)
-                  : this.protocolVersion === 4
-                    ? prepareMediaV4Schema.parse(issued.input)
-                    : this.protocolVersion === 3
-                      ? prepareMediaV3Schema.parse(issued.input)
-                      : prepareMediaV2Schema.parse(issued.input);
+      this.protocolVersion === 11
+        ? prepareActivityMediaSchema.parse(issued.input)
+        : this.protocolVersion === 10
+          ? prepareOrganizationMediaSchema.parse(issued.input)
+          : this.protocolVersion === 9
+            ? prepareSchoolQrMediaSchema.parse(issued.input)
+            : this.protocolVersion === 8
+              ? prepareCategoryIconMediaSchema.parse(issued.input)
+              : this.protocolVersion === 7
+                ? ratingsDiscussionMemberPrepareSchema.parse(issued.input)
+                : this.protocolVersion === 6
+                  ? prepareRatingsMediaSchema.parse(issued.input)
+                  : this.protocolVersion === 5
+                    ? prepareProfileMediaSchema.parse(issued.input)
+                    : this.protocolVersion === 4
+                      ? prepareMediaV4Schema.parse(issued.input)
+                      : this.protocolVersion === 3
+                        ? prepareMediaV3Schema.parse(issued.input)
+                        : prepareMediaV2Schema.parse(issued.input);
     if (
       !row ||
       row.state !== 'prepared' ||
@@ -873,6 +904,13 @@ export class MediaIngressRepository {
           row.ordinal !== input.sourceSlot ||
           row.request_hash !==
             ratingsDiscussionMemberHash(session.accountId, input))) ||
+      ('protocol' in input &&
+        input.protocol === 'activity-media-v1' &&
+        (issued.scope.ownerKind !== 'activities' ||
+          issued.scope.resourceKind !== 'activity_image' ||
+          issued.scope.slot !== input.slot ||
+          row.request_hash !==
+            activityMediaRequestHash(session.accountId, input))) ||
       ('protocol' in input &&
         input.protocol === 'organization-media-v1' &&
         (issued.scope.ownerKind !== 'organizations' ||

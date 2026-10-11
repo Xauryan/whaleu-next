@@ -1,3 +1,4 @@
+<view><button bindtap="onNative">新发布活动</button><button bindtap="onPublish">发布活动</button><button bindtap="onMine">本人发布历史</button><text>以下为旧版已核验活动目录</text></view>
 <import src="../../activities/facts.wxml" />
 <view class="screen">
   <view class="title">校园活动</view>

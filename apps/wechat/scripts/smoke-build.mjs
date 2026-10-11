@@ -236,6 +236,9 @@ for (const route of config.pages.filter(
   current.onLoad?.(
     [
       'pages/activity-list/activity-list',
+      'pages/activity-publish/activity-publish',
+      'pages/activity-native/activity-native',
+      'pages/activity-native-detail/activity-native-detail',
       'pages/rating-updates/rating-updates',
       'pages/school-services/school-services',
       'pages/school-configuration/school-configuration',
@@ -347,6 +350,26 @@ for (const route of config.pages.filter(
       assert.equal(current.uploader, undefined);
       assert.equal(current.reader, undefined);
     } else assert.deepEqual(current.data.items, []);
+  } else if (
+    [
+      'pages/activity-publish/activity-publish',
+      'pages/activity-native/activity-native',
+      'pages/activity-native-detail/activity-native-detail',
+    ].includes(route)
+  ) {
+    assert.equal(current.controller, undefined);
+    assert.equal(current.data.busy, false);
+    assert.ok(current.data.error);
+    assert.equal(current.reader, undefined);
+    if (route === 'pages/activity-native/activity-native')
+      assert.deepEqual(current.data.items, []);
+    if (route === 'pages/activity-native-detail/activity-native-detail')
+      assert.equal(current.data.activity, null);
+    if (route === 'pages/activity-publish/activity-publish') {
+      assert.equal(current.data.pending, false);
+      assert.equal(current.data.id, '');
+      assert.equal(current.uploader, undefined);
+    }
   } else assert.ok(current.controller);
   current.onUnload();
   if (route === 'pages/rating-create/rating-create') {

@@ -243,7 +243,7 @@ test(
             [global.id],
           );
           for (const category of categorySchema.options.filter(
-            (value) => value !== 'discussion',
+            (value) => value !== 'discussion' && value !== 'feedback',
           ))
             failure(
               await w.search({ spaceId: w.scope.global.spaceId, category }),
@@ -307,7 +307,9 @@ test(
             'Contacts never participate',
           );
           for (const category of categorySchema.options.filter(
-            (value) => value !== 'trading',
+            // Feedback requires the explicit global topic and Review v3;
+            // community-feedback tests its normal publication/search owners.
+            (value) => value !== 'trading' && value !== 'feedback',
           )) {
             const envelope = await w.envelope({
               category,

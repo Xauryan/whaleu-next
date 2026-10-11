@@ -74,3 +74,82 @@ The first controlled hosted run on `01d157c` passed admission, all 42 semantic c
 The follow-up changes only three test files and one test helper. Default-mode tests still require autovacuum on; controlled mode requires off from command-line configuration. Actual VACUUM holding its granted maintenance lock, concurrent HTTP success, unchanged epochs and all writer/refusal assertions remain mandatory. Three unqualified VACUUM calls now enumerate only the fixture-owned application relations in the complete migration-schema whitelist, reject escaping inheritance, and verify each table's manual vacuum and analyze counters increased. They still execute one real VACUUM statement under the original timeout, without scanning unrelated system catalogs.
 
 The three affected files passed 52/52 real PostgreSQL tests with zero skips, along with type, lint and formatting checks. Only a two-line stale comment changed after that run. No production code, migrations, workflow, 10-second SQL budget or 500-millisecond recount budget changed. Hosted full follow-up remains pending.
+
+## Complete file-sharded CI
+
+The `foundation` job runs the existing cheap checks, database admission unit
+checks, and the shard allocator's unit/coverage checks once. Its success admits
+four `main-integration` matrix jobs. Each job starts its own fresh PostgreSQL
+18.6 container on its own hosted runner, with the same controlled-maintenance
+configuration, read-only freshness admission, diagnostics and unconditional
+container/volume cleanup as before. No database is shared across shards. The
+optional semantic job remains independent and unchanged. Each main job performs
+only the required WeChat build after installation, because emitted native-worker
+tests load `apps/wechat/dist` and a fresh job does not inherit foundation's build
+outputs. It does not repeat the full cheap test/type/lint/OpenAPI suite.
+
+The existing required-check name `verify` is now the final aggregate. It uses
+`always()` and requires `foundation`, the whole main matrix, and
+`semantic-integration` to report `success`. A failure, cancellation or skipped
+dependency cannot produce a green aggregate. Matrix `fail-fast: false` lets the
+other shards finish after one fails; it does not turn that failure into success.
+Check every job for the exact commit and the final workflow conclusion. An older
+run cancelled by workflow concurrency is cancelled, not successfully verified.
+
+`scripts/run-integration-shard.mjs` discovers exactly
+`apps/api/test/integration/*.test.ts`. It sorts the files and assigns each by the
+first unsigned 32 bits of SHA-256 of its filename, modulo the shard count. With a
+fixed count, adding files automatically includes them without moving existing
+files. Before spawning tests, it rejects invalid indices/counts, duplicates,
+non-files, empty shards, and any partition whose union differs from the complete
+glob. No case list or historical timing file controls coverage. Every invocation
+logs the complete corpus count/digest, selected count and exact selected paths.
+The foundation log includes all four manifests for comparison.
+
+Each shard runs the original Node test command and `--test-concurrency=1` from
+`apps/api`, with the inherited environment and only its assigned file arguments.
+The outer `timeout 7200` remains unchanged, as do all individual test, SQL,
+clock, media and proof budgets. The ordinary unsharded `npm run test:integration`
+command remains available. These commands inspect allocation without loading
+`tsx`, opening a database, or executing integration tests:
+
+```sh
+node --test scripts/run-integration-shard.test.mjs
+node scripts/run-integration-shard.mjs --verify 4
+node scripts/run-integration-shard.mjs --shard 1/4 --list
+```
+
+For totals, use each Node process's terminal `tests`, `pass`, `fail`, `cancelled`,
+`skipped` and `todo` summary once, across all four main shards. Do not add the
+individual child/parent failure lines again: one failing leaf can also fail its
+parent. Main coverage is only complete when all manifests cover the same corpus,
+all four processes finish successfully, and their terminal summaries have no
+unexpected cancellations/skips. Report semantic and cheap-suite totals separately.
+
+### Timing evidence and verification limit
+
+[Hosted run 38140263937](https://github.com/Xauryan/whaleu-next/actions/runs/38140263937)
+(`bf508da`) completed 263 main files and 2,640 tests in 90.98 minutes.
+[Hosted run 38151758064](https://github.com/Xauryan/whaleu-next/actions/runs/38151758064)
+(`cddc675`) finished 252 of 267 files, with useful progress until 17:40:04 UTC,
+then hit the unchanged 7,200-second process timeout on 2026-10-11. Its terminal
+summary was 2,490 tests: 2,471 pass, four fail (two failing leaves and their two
+parents), and 15 cancelled. This is failed, incomplete evidence, not a pass or
+proof of an open-handle hang. The functional failures require their own fixes.
+
+Mapping top-level completion names to each run's source files, and measuring
+consecutive file completion boundaries, gives a longest completed file of
+264.53 seconds (`rating-category-icon-management.test.ts`). The 248 common
+completed files grew from 87.45 to 118.88 minutes; the four new completed files
+added only 65.4 seconds. The common-file median increase was 4.58 seconds and
+median ratio 1.60. These observational runs do not isolate migration 0099,
+runner performance or accumulated catalog costs as the cause.
+
+For the 273-file `aaf9cc8` tree, using the latest observed file durations, old
+unreached files scaled by that 1.60 ratio, and median estimates for unpublished
+files gives four projected shard times of 36.6, 30.4, 35.7 and 25.0 minutes
+(three shards would project 31.6, 45.3 and 50.9 minutes). These are planning
+estimates excluding installation, not new hosted results or guarantees. Local
+allocator/command/YAML checks establish selection and wiring only. All four
+real PostgreSQL shards on the final commit must pass in hosted CI before the
+sharded integration gate is considered verified.

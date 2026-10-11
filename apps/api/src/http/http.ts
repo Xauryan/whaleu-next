@@ -17,6 +17,7 @@ import helmet from 'helmet';
 import { AppLogger } from '../observability/logger.js';
 import {
   ApplicationError,
+  MediaRequestRateLimited,
   TitleMaintenanceContinuationConflict,
 } from './application-error.js';
 import { safeHttpErrorDescription } from './error-contracts.js';
@@ -47,7 +48,12 @@ export class SafeExceptionFilter implements ExceptionFilter {
       typeof existingRequestId === 'string' ? existingRequestId : randomUUID();
     if (!response.headersSent) response.setHeader('x-request-id', requestId);
     if (status === 429 && !response.headersSent)
-      response.setHeader('retry-after', '60');
+      response.setHeader(
+        'retry-after',
+        exception instanceof MediaRequestRateLimited
+          ? String(exception.retryAfterSeconds)
+          : '60',
+      );
     if (status >= 500) {
       this.logger.structured.error({ event: 'http_error', status, requestId });
     }

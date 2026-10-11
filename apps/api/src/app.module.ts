@@ -1,3 +1,4 @@
+import { ActivityPublicationModule } from './activities/publication/module.js';
 import { OrganizationManagementModule } from './organizations/management/module.js';
 import { SchoolPostingPolicyModule } from './school-posting-policy/module.js';
 import { SchoolConfigurationModule } from './school-configuration/module.js';
@@ -65,6 +66,7 @@ export class AppModule {
         DirectoryModule,
         AnnouncementsModule,
         ActivitiesModule,
+        ActivityPublicationModule,
         ErrandsModule,
         RatingsModule,
         MessagingModule,

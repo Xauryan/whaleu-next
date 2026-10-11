@@ -19,6 +19,7 @@ import { publicationHash } from '../../src/community/publication.repository.js';
 import { postIntent } from '../../src/community/publication-intent.js';
 import { publishPostSchema } from '../../src/community/contracts.js';
 import { withCommunityScopeWriter } from '../support/community-scope-fixtures.js';
+import type { SearchPage } from '../../src/community/search/contracts.js';
 const checkpoint = (child: ChildProcess, expected: string) =>
   new Promise<Record<string, unknown>>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -146,7 +147,11 @@ test(
         );
         return row;
       };
-      let nativePostId = '';
+      let nativePostId = '',
+        nativeRequestId = '',
+        nativeDigest = '',
+        mediaPostId = '',
+        nativeCommentId = '';
       await t.test(
         'real native anonymous compose -> pending -> reloaded same-key publication -> public feed/contact/detail and local notice navigation',
         async () => {
@@ -178,6 +183,8 @@ test(
           assert.equal(typeof message['requestId'], 'string');
           const reviewed = await decide(String(message['requestId']));
           assert.equal((reviewed.envelope as { version: number }).version, 3);
+          nativeRequestId = String(message['requestId']);
+          nativeDigest = reviewed.digest;
           const done = checkpoint(child, 'done');
           child.send({ event: 'approved' });
           const result = await done;
@@ -210,11 +217,23 @@ test(
             f.scope.global.spaceId,
             f.scope.home.spaceId,
           ]) {
-            const r = await request(http)
-              .post('/v1/community/reviews/posts')
-              .set('Authorization', auth)
-              .send({ ...body, clientRequestId: randomUUID(), spaceId });
-            assert.notEqual(r.status, 200);
+            for (const route of [
+              '/v1/community/reviews/posts',
+              '/v1/community/posts',
+            ]) {
+              const r = await request(http)
+                .post(route)
+                .set('Authorization', auth)
+                .send({ ...body, clientRequestId: randomUUID(), spaceId });
+              if (route === '/v1/community/reviews/posts') {
+                responseOk(r, 409);
+                assert.equal(r.body.error.code, 'COMMUNITY_SCOPE_UNAVAILABLE');
+              } else {
+                responseOk(r, 201);
+                assert.equal(r.body.outcome, 'rejected');
+                assert.equal(r.body.code, 'COMMUNITY_SCOPE_UNAVAILABLE');
+              }
+            }
           }
           responseOk(
             await request(http)
@@ -312,6 +331,7 @@ test(
             .send(body);
           responseOk(published, 201);
           assert.equal(published.body.outcome, 'created');
+          mediaPostId = published.body.resourceId as string;
           const replay = await request(http)
             .post('/v1/community/posts')
             .set('Authorization', auth)
@@ -367,6 +387,7 @@ test(
             .send(body);
           responseOk(published, 201);
           assert.equal(published.body.outcome, 'created');
+          nativeCommentId = published.body.resourceId as string;
           const cancelBody = publishPostSchema.parse({
             clientRequestId: randomUUID(),
             spaceId: feedbackSpaceId,
@@ -410,6 +431,140 @@ test(
               [nativePostId],
             ),
           );
+        },
+      );
+      await t.test(
+        'explicit and federated search include exact v3 global feedback, exclude contacts and recheck parent Review',
+        async () => {
+          const bindings = await f.pool.query<{
+            id: string;
+            publication_envelope_version: number;
+            envelope_version: number;
+            matches: boolean;
+          }>(
+            `SELECT p.id,p.publication_envelope_version,b.envelope_version,
+              b.envelope->'feedback'=p.feedback AS matches
+             FROM whaleu_community.posts p
+             JOIN whaleu_community.content_approval_bindings b
+               ON b.content_kind='post' AND b.content_id=p.id
+             JOIN whaleu_community.feedback_topic t
+               ON t.space_id=p.space_id AND t.provenance='accepted'
+             WHERE p.id=ANY($1::uuid[]) AND p.category='feedback'`,
+            [[nativePostId, mediaPostId]],
+          );
+          assert.equal(bindings.rows.length, 2);
+          for (const binding of bindings.rows) {
+            assert.equal(binding.publication_envelope_version, 3);
+            assert.equal(binding.envelope_version, 3);
+            assert.equal(binding.matches, true);
+          }
+          const search = async (
+            query: Record<string, unknown>,
+            authenticated = true,
+          ): Promise<SearchPage> => {
+            const call = request(http)
+              .get('/v1/community/search')
+              .query({ q: 'feedback', type: 'post', ...query });
+            const result = await (authenticated
+              ? call.set('Authorization', adminAuth)
+              : call);
+            responseOk(result);
+            for (const contact of ['native-contact', 'exact-contact'])
+              assert.equal(
+                JSON.stringify(result.body).includes(contact),
+                false,
+              );
+            assert.equal(
+              JSON.stringify(result.body).includes('"123456"'),
+              false,
+            );
+            assert.equal(
+              JSON.stringify(result.body).includes(actor.accountId),
+              false,
+            );
+            return result.body as SearchPage;
+          };
+          const selectors = [
+            { spaceId: feedbackSpaceId },
+            { spaceId: feedbackSpaceId, category: 'feedback' },
+            { scope: 'all' },
+            { scope: 'global' },
+          ];
+          for (const selector of selectors) {
+            for (const authenticated of [true, false]) {
+              const page = await search(selector, authenticated);
+              assert.deepEqual(
+                new Set(page.items.map((item) => item.contentId)),
+                new Set([nativePostId, mediaPostId]),
+              );
+              assert.deepEqual(page.effectiveTypes, ['post']);
+              assert.equal(page.continuation, 'end');
+              assert.equal(page.nextCursor, null);
+              for (const item of page.items) {
+                assert.equal(item.space.id, feedbackSpaceId);
+                assert.equal(item.space.kind, 'global');
+                assert.equal(item.category, 'feedback');
+                assert.equal(
+                  item.author.kind,
+                  item.contentId === nativePostId ? 'anonymous' : 'named',
+                );
+              }
+            }
+            for (const q of ['native-contact', 'exact-contact', '123456'])
+              assert.deepEqual((await search({ ...selector, q })).items, []);
+          }
+          for (const selector of [
+            { scope: 'regional' },
+            { spaceId: f.scope.home.spaceId },
+            { spaceId: f.scope.global.spaceId, category: 'feedback' },
+            { spaceId: feedbackSpaceId, category: 'discussion' },
+          ])
+            assert.deepEqual((await search(selector)).items, []);
+          for (const selector of selectors) {
+            const page = await search({
+              ...selector,
+              type: 'comment',
+              postId: nativePostId,
+              q: 'Anonymous author follow-up',
+            });
+            assert.deepEqual(
+              page.items.map((item) => item.contentId),
+              [nativeCommentId],
+            );
+            assert.equal(page.items[0]!.author.kind, 'anonymous');
+          }
+          await inTransaction(f.pool, (tx) =>
+            operator.run(
+              {
+                command: 'withdraw',
+                accountId: actor.accountId,
+                requestId: nativeRequestId,
+                digest: nativeDigest,
+                state: 'revoked',
+                basis: 'Search must recheck exact feedback parent Review',
+              },
+              tx,
+            ),
+          );
+          for (const selector of selectors) {
+            const page = await search(selector);
+            assert.deepEqual(
+              page.items.map((item) => item.contentId),
+              [mediaPostId],
+            );
+            assert.deepEqual(
+              (
+                await search({
+                  ...selector,
+                  type: 'comment',
+                  postId: nativePostId,
+                  q: 'Anonymous author follow-up',
+                })
+              ).items,
+              [],
+              'A currently denied feedback parent hides its otherwise reviewed child',
+            );
+          }
         },
       );
       await t.test(
