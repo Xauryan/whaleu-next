@@ -1,3 +1,4 @@
+import { withOwnerFixtureWindow } from '../support/owner-fixture-window.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -69,6 +70,15 @@ test(
       assetId: string;
       requestId: string;
     }> = [];
+    const finalizeWindows = {
+      windows: 0,
+      transactions: 0,
+      prelocks: 0,
+      finalNowaitAttempts: 0,
+      commits: 0,
+      rollbacks: 0,
+    };
+    let unisolatedFinalizeRefusals = 0;
     // Four subjects per actor: four batch keys + four member keys = eight/minute,
     // below the unchanged shared ten/minute admission limit. No waiting or refill.
     for (let ordinal = 0; ordinal < 20; ordinal++) {
@@ -81,10 +91,89 @@ test(
               expectedRevision: subjects[4]!.revision,
             }
           : null;
+      const draft = await f.draft(actor, reply ? anchor : undefined, quote);
       const upload = await f.ready(
         actor,
-        await f.draft(actor, reply ? anchor : undefined, quote),
+        draft,
         [bytes],
+        '',
+        ordinal === 0
+          ? async (memberId) => {
+              const snapshot = async () =>
+                (
+                  await f.pool.query(
+                    `SELECT jsonb_build_object(
+            'member',to_jsonb(m),'intent',to_jsonb(i),
+            'attempts',(SELECT coalesce(jsonb_agg(to_jsonb(a) ORDER BY a.id),'[]'::jsonb) FROM whaleu_media.object_attempts a WHERE a.intent_id=i.id),
+            'ingress',(SELECT coalesce(jsonb_agg(to_jsonb(g) ORDER BY g.object_attempt_id),'[]'::jsonb) FROM whaleu_media.upload_ingress g WHERE g.intent_id=i.id),
+            'jobs',(SELECT coalesce(jsonb_agg(to_jsonb(j) ORDER BY j.id),'[]'::jsonb) FROM whaleu_media.jobs j WHERE j.intent_id=i.id),
+            'assets',(SELECT coalesce(jsonb_agg(to_jsonb(a) ORDER BY a.id),'[]'::jsonb) FROM whaleu_media.assets a WHERE a.intent_id=i.id),
+            'quota',(SELECT to_jsonb(q) FROM whaleu_media.quota_reservations q WHERE q.intent_id=i.id),
+            'requests',(SELECT coalesce(jsonb_agg(to_jsonb(r) ORDER BY r.request_id),'[]'::jsonb) FROM whaleu_ratings.requests r WHERE r.account_id=m.actor_id AND r.request_id=$2),
+            'comments',(SELECT coalesce(jsonb_agg(to_jsonb(c) ORDER BY c.id),'[]'::jsonb) FROM whaleu_ratings.comments c WHERE c.account_id=m.actor_id AND c.request_id=$2)
+          ) state FROM whaleu_media.ratings_discussion_members m JOIN whaleu_media.upload_intents i ON i.id=m.intent_id WHERE m.member_id=$1`,
+                    [memberId, draft.payload.clientRequestId],
+                  )
+                ).rows[0]!.state;
+              const before = await snapshot();
+              const holder = await f.pool.connect();
+              try {
+                await holder.query('BEGIN');
+                // A real unrelated relation owner conflicts with final SHARE NOWAIT,
+                // while permitting normal ROW EXCLUSIVE lifecycle writes. This
+                // deliberate refusal is OUTSIDE the healthy finalize fixture window.
+                await holder.query(
+                  'LOCK TABLE whaleu_media.jobs IN SHARE UPDATE EXCLUSIVE MODE',
+                );
+                const denied = await f
+                  .auth(
+                    request(f.http).post(
+                      `/v3/media/ratings-discussion/members/${memberId}/finalize`,
+                    ),
+                    actor,
+                  )
+                  .send({});
+                assert.equal(denied.status, 503, JSON.stringify(denied.body));
+                assert.equal(denied.body.error.code, 'MEDIA_UNAVAILABLE');
+                assert.equal(denied.body.status, undefined);
+                assert.deepEqual(
+                  await snapshot(),
+                  before,
+                  'original member/intent/jobs/receipt remain unchanged after the refused transaction',
+                );
+                unisolatedFinalizeRefusals++;
+              } finally {
+                await holder.query('ROLLBACK');
+                holder.release();
+              }
+            }
+          : undefined,
+        undefined, // Do not opt into or broaden budgetSetupFinalize recovery.
+        async (sendOriginal) => {
+          const window = await withOwnerFixtureWindow(
+            f.app,
+            ['whaleu_media.jobs'],
+            sendOriginal,
+          );
+          // RatingsDiscussionUploadApplication.finalize first reads status and
+          // then invokes the original authorized write. Both original transactions
+          // prelock on their own connection and still run the final Media fence.
+          assert.equal(window.transactions, 2);
+          assert.equal(window.prelocks, 2);
+          assert.ok(window.finalNowaitAttempts >= window.transactions);
+          assert.equal(window.commits, 2);
+          assert.equal(window.rollbacks, 0);
+          finalizeWindows.windows++;
+          for (const key of [
+            'transactions',
+            'prelocks',
+            'finalNowaitAttempts',
+            'commits',
+            'rollbacks',
+          ] as const)
+            finalizeWindows[key] += window[key];
+          return window.result;
+        },
       );
       const published = await f.execute(actor, upload.intent),
         receipt = published.receipt;
@@ -104,6 +193,13 @@ test(
         requestId: upload.intent.payload.clientRequestId,
       });
     }
+    assert.equal(unisolatedFinalizeRefusals, 1);
+    assert.equal(finalizeWindows.windows, 20);
+    assert.equal(finalizeWindows.transactions, 40);
+    assert.equal(finalizeWindows.prelocks, 40);
+    assert.ok(finalizeWindows.finalNowaitAttempts >= 40);
+    assert.equal(finalizeWindows.commits, 40);
+    assert.equal(finalizeWindows.rollbacks, 0);
     const quota = (
       await f.pool.query<{ actor_id: string; keys: number }>(
         `SELECT actor_id,count(*)::int keys FROM (

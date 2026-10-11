@@ -1,3 +1,6 @@
+import { APP_CONFIG } from '../config/config.js';
+import type { RuntimeConfig } from '../config/config.js';
+import { initializeNativeVerificationAccount } from '../verification/lifecycle.js';
 import {
   boundedOwnerProof,
   ownerFingerprint,
@@ -11,7 +14,7 @@ import { initializeNativeExperienceAccount } from '../experience/lifecycle.js';
 import { registerTransactionDeadline } from '../database/transaction-deadlines.js';
 import { initializeNativeSafetyAccount } from '../safety/lifecycle.js';
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.js';
 import { ApplicationError } from '../http/application-error.js';
@@ -98,6 +101,7 @@ const dmAccountProof: RequiredTransactionProof<DmAccountFact> = {
 export class IdentityRepository {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
+    @Optional() @Inject(APP_CONFIG) private readonly config?: RuntimeConfig,
   ) {}
 
   /** DM commands can retain an authoritative negative receipt after rolling back
@@ -201,6 +205,21 @@ export class IdentityRepository {
     );
   }
 
+  async wechatAppAccount(
+    accountId: string,
+    appId: string,
+    tx: PoolClient,
+  ): Promise<boolean> {
+    return (
+      (
+        await tx.query(
+          "SELECT 1 FROM whaleu_identity.provider_identities WHERE account_id=$1 AND provider='wechat' AND app_id=$2 FOR SHARE",
+          [accountId, appId],
+        )
+      ).rows.length > 0
+    );
+  }
+
   async createSession(
     identity: ProviderIdentity,
     tokens: TokenHashes,
@@ -233,6 +252,12 @@ export class IdentityRepository {
             identity.unionSubject ?? null,
           ],
         );
+        if (this.config?.NATIVE_VERIFICATION_ENROLLMENT === 'enabled')
+          await initializeNativeVerificationAccount(
+            accountId,
+            identity.appId,
+            client,
+          );
       }
       const account = await client.query<{ status: string }>(
         'SELECT status FROM whaleu_identity.accounts WHERE id=$1 FOR UPDATE',

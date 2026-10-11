@@ -1,3 +1,4 @@
+import { TextReviewController } from './text-review/controller.js';
 import { CommunityMediaCleanupFacade } from './media/cleanup-facade.js';
 import { CommunityMediaCleanupWorker } from './media/cleanup-worker.js';
 import { MediaDiscussionBatchController } from '../media/controller-v4.js';
@@ -294,6 +295,7 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    TextReviewController,
     MediaController,
     MediaUploadControllerV2,
     MediaBatchController,

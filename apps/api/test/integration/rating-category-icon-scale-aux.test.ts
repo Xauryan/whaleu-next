@@ -12,6 +12,7 @@ import {
   setCategoryScaleAssetState,
 } from '../support/category-icon-scale-fixture.js';
 import { categoryIconHttpOk } from '../support/category-icon-management-fixtures.js';
+import { assertCategoryDigestAcceptance } from '../support/category-digest-acceptance.js';
 import {
   scopedCommandContext,
   scopedCommandRoute,
@@ -87,8 +88,14 @@ test(
   'C1 1001/2048 real multi-campus random pools and original auxiliary intents qualify every current ancestor icon',
   { timeout: 900000 },
   async (t) => {
+    const fixtureStarted = performance.now();
     const f = await categoryIconScaleFixture();
     t.after(() => f.close());
+    const digestFacts = await assertCategoryDigestAcceptance(f.pool);
+    assert.equal(digestFacts.largest_membership, 2048);
+    t.diagnostic(
+      `Real 1001/2048 fixture and original C1 publications: ${Math.round(performance.now() - fixtureStarted)} ms; unchanged 15s SQL limit`,
+    );
     const owner = f.creator,
       reader = await f.actor(),
       target = f.targets.find((row) => row.categoryId === f.childId)!;

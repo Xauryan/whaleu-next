@@ -198,3 +198,12 @@ pipeline and exact minimal receipts. Source-version 4 deletion effects create no
 Experience, notice or fan-out reward. No roles, original-campus facts, historical
 rewrites or production imports are seeded. See [R3A contract](../../../docs/API_RATINGS_ADMIN.md)
 and [passed local integrated acceptance](../../../docs/acceptance/ratings-r3a.md).
+
+`0093_community_text_review_requests.sql` adds a private, exact original-request
+queue for explicitly enabled non-production manual text review. Pending review is
+not a publication receipt: only a paired immutable snapshot from the same submit
+transaction allows a null receipt. Existing receipt bytes and original hashes are
+unchanged. Queue admission is bounded; original-owner cancellation fences remain
+irrevocable and retain their existing quota. See
+[local text review](../../../docs/COMMUNITY_TEXT_REVIEW.md). This migration seeds
+no policy, decision, account, school or operating region.

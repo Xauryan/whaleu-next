@@ -64,8 +64,10 @@
   <view wx:if="{{continuation === 'scan_pending'}}" class="notice">本批尚未查完，暂时没有显示匹配项也不代表没有结果。</view>
   <view wx:if="{{continuation === 'login_required'}}" class="notice">访客可预览本次首批结果；继续查找还需登录及手机号验证。这里不表示后面一定有匹配项。</view>
   <navigator wx:if="{{continuation === 'login_required'}}" class="link" url="/pages/login/login">前往登录 →</navigator>
-  <view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">当前版本尚未接入手机号验证流程，无法继续查找。验证状态更新后请重新搜索。</view>
+  <view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">继续查找需要手机号验证。可前往授权验证；服务需环境单独启用，完成后请重新搜索。</view>
   <view wx:if="{{loaded &amp;&amp; mode === 'keyword'}}" class="meta">第 {{pageNumber}} 页 · 翻页会重新核验当前可查看内容</view>
   <view class="actions"><button wx:if="{{canPrevious}}" class="secondary" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{canNext}}" class="secondary" bindtap="onNext" disabled="{{busy}}">{{continuation === 'scan_pending' ? '继续查找' : '下一页'}}</button></view>
   <view class="notice">{{mode === 'keyword' ? '关键词按原文字面搜索，仅按最新排序。' : '语义服务默认未开启；不可用时不会自动改用关键词搜索。'}}不会保存搜索历史。</view>
 </view>
+
+<navigator wx:if="{{continuation === 'phone_verification_required'}}" class="text-link" url="/pages/phone-binding/phone-binding">前往手机号授权验证</navigator>

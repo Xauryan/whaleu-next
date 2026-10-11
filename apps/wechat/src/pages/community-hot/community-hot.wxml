@@ -35,7 +35,9 @@
   <view wx:if="{{continuation === 'scan_pending'}}" class="notice">本批尚未查完，暂时没有显示帖子也不代表已到末尾。请继续查看。</view>
   <view wx:if="{{continuation === 'login_required'}}" class="notice">访客可预览首批帖子；继续查看需要登录及手机号验证。这不表示后面一定有可查看的帖子。</view>
   <navigator wx:if="{{continuation === 'login_required'}}" class="link" url="/pages/login/login">前往登录 →</navigator>
-  <view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">当前版本尚未接入手机号验证流程，无法继续查看。验证状态更新后请刷新热门。</view>
+  <view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">继续查看需要手机号验证。可前往授权验证；服务需环境单独启用，完成后请刷新热门。</view>
   <view wx:if="{{loaded}}" class="meta">翻页会重新核验当前可查看内容；刷新会从当前热门开头重新查看。</view>
   <view class="actions"><button wx:if="{{canPrevious}}" class="secondary" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{canNext}}" class="secondary" bindtap="onNext" disabled="{{busy}}">{{continuation === 'scan_pending' ? '继续查看' : '下一页'}}</button></view>
 </view>
+
+<navigator wx:if="{{continuation === 'phone_verification_required'}}" class="text-link" url="/pages/phone-binding/phone-binding">前往手机号授权验证</navigator>

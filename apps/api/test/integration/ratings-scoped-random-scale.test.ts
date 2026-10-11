@@ -1,3 +1,4 @@
+import { withOwnerFixtureWindow } from '../support/owner-fixture-window.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
@@ -364,7 +365,56 @@ test(
           affected.approval.decisionId,
           'allow',
         );
-        assert.equal((await sample(await context())).body.candidateCount, 2048);
+        const recoveredContext = await context();
+        const epochState = async () =>
+          (
+            await f.pool.query(`SELECT
+          (SELECT jsonb_agg(to_jsonb(e) ORDER BY e.singleton) FROM whaleu_ratings.navigation_epoch e) navigation,
+          (SELECT jsonb_agg(to_jsonb(e) ORDER BY e.singleton) FROM whaleu_ratings.random_pool_epoch e) pool`)
+          ).rows;
+        const beforeBlockedRead = await epochState();
+        const holder = await f.pool.connect();
+        try {
+          await holder.query('BEGIN');
+          await holder.query(
+            'LOCK TABLE whaleu_ratings.navigation_epoch IN SHARE UPDATE EXCLUSIVE MODE',
+          );
+          // Unisolated real negative: the original final NOWAIT must refuse a
+          // competing relation holder rather than return a partial pool/item.
+          const blocked = await sample(recoveredContext);
+          assert.equal(blocked.status, 503, JSON.stringify(blocked.body));
+          assert.equal(blocked.body.error?.code, 'RATING_UNAVAILABLE');
+          assert.equal(blocked.body.candidateCount, undefined);
+          assert.equal(blocked.body.item, undefined);
+          assert.deepEqual(await epochState(), beforeBlockedRead);
+        } finally {
+          await holder.query('ROLLBACK');
+          holder.release();
+        }
+        // Only this final restored healthy request gets a scheduling window.
+        // Unknown/denied/full-domain mutation cases above and below stay raw.
+        const healthy = await withOwnerFixtureWindow(
+          f.app,
+          [
+            'whaleu_ratings.navigation_epoch',
+            'whaleu_ratings.random_pool_epoch',
+          ],
+          async () => sample(recoveredContext),
+          'rate_limit', // Leave the original HTTP PostgreSQL rate-limit transaction untouched.
+        );
+        assert.equal(
+          healthy.result.status,
+          200,
+          JSON.stringify(healthy.result.body),
+        );
+        assert.equal(healthy.result.body.candidateCount, 2048);
+        assert.equal(healthy.skippedTransactions, 1);
+        assert.equal(healthy.transactions, 1);
+        assert.equal(healthy.prelocks, 1);
+        assert.equal(healthy.commits, 1);
+        assert.equal(healthy.rollbacks, 0);
+        assert.ok(healthy.finalNowaitAttempts >= 1);
+        assert.deepEqual(await epochState(), beforeBlockedRead);
       },
     );
 

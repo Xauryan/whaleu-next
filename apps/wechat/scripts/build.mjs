@@ -100,3 +100,9 @@ execFileSync(
   ['--import', 'tsx', path.join(root, 'test/category-icon-emitted.smoke.ts')],
   { stdio: 'inherit', cwd: root },
 );
+
+execFileSync(
+  process.execPath,
+  ['--import', 'tsx', path.join(root, 'test/text-review-emitted.smoke.ts')],
+  { stdio: 'inherit', cwd: root },
+);

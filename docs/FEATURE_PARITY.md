@@ -4,6 +4,10 @@ The rewrite target is full feature parity, with NestJS, PostgreSQL 18 and platfo
 
 **Status meanings:** NOT IMPLEMENTED means the capability is not delivered; PARTIAL means a tested subset exists with explicit remaining work. Check a row only after the whole capability and its relevant native-client flows are verified. A framework scaffold, placeholder screen or endpoint stub is not an implemented feature. Features shown in older source but not proven active remain in scope for clarification rather than silently being discarded.
 
+## Current usable-flow checkpoint
+
+The non-production named-text path now connects new-account enrollment, explicit WeChat phone consent, single-region manual review, original-key post/comment/reply publication and cancellation/recovery. It is disabled by default and rejects production activation of the experimental mode. Composed local validation has passed; hosted follow-up and real AppID/HTTPS/provider/device acceptance are pending. This does not complete the whole rewrite. See [scope, setup and exact validation](COMMUNITY_TEXT_REVIEW.md). Category cover expansion is deferred while this flow is brought into actual use.
+
 ## Accounts, schools and personal settings
 
 - [ ] PARTIAL — Login/session: WeChat login, account creation/profile loading, access/refresh lifecycle, retry recovery, account switching, sign-out and session-scoped client state. The new server login/refresh/session/logout flow and native login controller have passed synthetic and PostgreSQL tests; real provider/device acceptance and complete profile loading remain outstanding

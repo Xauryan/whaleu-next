@@ -46,6 +46,13 @@ export class IdentityService {
   ): Promise<boolean> {
     return this.repository.canonicalWechatTitleEligibility(accountId, tx);
   }
+  wechatAppAccount(
+    accountId: string,
+    appId: string,
+    tx: PoolClient,
+  ): Promise<boolean> {
+    return this.repository.wechatAppAccount(accountId, appId, tx);
+  }
   async login(code: string): Promise<SessionCredentials> {
     const identity = await this.provider.exchange(code);
     const accessToken = mintToken('access');

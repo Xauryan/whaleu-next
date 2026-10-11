@@ -1,5 +1,12 @@
 # Canonical community runtime policy, increment 1
 
+A separate, default-disabled [non-production local text workflow](COMMUNITY_TEXT_REVIEW.md)
+now adds explicit manual review issuance and an existing single-region policy
+preview/apply CLI. It does not replace any authorization/read rules below or turn
+test fixtures into runtime configuration. [Native enrollment](NATIVE_VERIFICATION_ENROLLMENT.md)
+and [WeChat phone authorization](WECHAT_PHONE_BINDING.md) are separately opt-in;
+real-provider/device acceptance remains unverified.
+
 This increment enables local text publication and reads through the normal
 `AppModule` providers when explicit canonical facts and an exact accepted review
 exist. Empty migrations, login, successful historical receipts and rows labelled

@@ -26,6 +26,16 @@ const schema = z.object({
     .max(256)
     .regex(/^[A-Za-z0-9_-]+$/)
     .optional(),
+  NATIVE_VERIFICATION_ENROLLMENT: z
+    .enum(['disabled', 'enabled'])
+    .default('disabled'),
+  WECHAT_PHONE_BINDING: z.enum(['disabled', 'enabled']).default('disabled'),
+  WECHAT_PHONE_PROOF_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(60)
+    .max(31536000)
+    .optional(),
   AUTH_RATE_LIMIT_KEY: z
     .string()
     .regex(/^[a-fA-F0-9]{64}$/)
@@ -33,6 +43,13 @@ const schema = z.object({
   RATINGS_UPDATES_PROCESSING: z
     .enum(['disabled', 'manual'])
     .default('disabled'),
+  COMMUNITY_TEXT_REVIEW: z
+    .enum(['disabled', 'local_manual'])
+    .default('disabled'),
+  COMMUNITY_TEXT_REVIEW_SPACE_ID: z.uuid().optional(),
+  COMMUNITY_TEXT_REVIEW_REGION_ID: z.uuid().optional(),
+  COMMUNITY_TEXT_REVIEW_POLICY_ID: z.uuid().optional(),
+  COMMUNITY_TEXT_REVIEW_OPERATOR: z.string().min(1).max(200).optional(),
   COMMUNITY_SEMANTIC_SEARCH: z
     .enum(['disabled', 'enabled'])
     .default('disabled'),
@@ -114,6 +131,17 @@ export function loadConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
   }
   const config = result.data;
   if (
+    config.COMMUNITY_TEXT_REVIEW === 'local_manual' &&
+    (config.NODE_ENV === 'production' ||
+      !config.COMMUNITY_TEXT_REVIEW_SPACE_ID ||
+      !config.COMMUNITY_TEXT_REVIEW_REGION_ID ||
+      !config.COMMUNITY_TEXT_REVIEW_POLICY_ID ||
+      !config.COMMUNITY_TEXT_REVIEW_OPERATOR)
+  )
+    throw new Error(
+      'Local text review requires a non-production single scope, policy and operator',
+    );
+  if (
     config.COMMUNITY_SEMANTIC_SEARCH === 'enabled' &&
     (config.COMMUNITY_SEMANTIC_TRANSMISSION !== 'approved' ||
       [
@@ -139,6 +167,29 @@ export function loadConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
   )
     throw new Error(
       'Automatic hot feed requires automatic subscription, like and comment components',
+    );
+  if (
+    config.NATIVE_VERIFICATION_ENROLLMENT === 'enabled' &&
+    config.NODE_ENV === 'production'
+  )
+    throw new Error(
+      'Native verification enrollment is limited to non-production experience environments',
+    );
+  if (
+    config.WECHAT_PHONE_BINDING === 'enabled' &&
+    config.NODE_ENV === 'production'
+  )
+    throw new Error(
+      'Phone binding is limited to non-production experience environments pending provider acceptance',
+    );
+  if (
+    config.WECHAT_PHONE_BINDING === 'enabled' &&
+    (!config.WECHAT_APP_ID ||
+      !config.WECHAT_APP_SECRET ||
+      !config.WECHAT_PHONE_PROOF_TTL_SECONDS)
+  )
+    throw new Error(
+      'Phone binding requires WeChat configuration and an explicit proof lifetime',
     );
   const authFields = [
     config.WECHAT_APP_ID,

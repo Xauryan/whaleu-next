@@ -5,6 +5,7 @@
     "pages/profile/profile",
     "pages/experience/experience",
     "pages/verification/verification",
+    "pages/phone-binding/phone-binding",
     "pages/identity-campus/identity-campus",
     "pages/campus/campus",
     "pages/community-feed/community-feed",

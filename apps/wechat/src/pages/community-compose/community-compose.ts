@@ -182,6 +182,9 @@ Page({
   onReceipt() {
     void this.controller?.recover();
   },
+  onCancelReview() {
+    void this.controller?.cancelReview();
+  },
   onRetry() {
     void this.controller?.recover(true);
   },

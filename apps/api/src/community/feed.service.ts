@@ -1,6 +1,7 @@
+import { TextReviewRuntime } from './text-review/runtime.js';
 import { enableSafetyRelationshipProof } from '../safety/relationship-proof.js';
 import { lockSafetyPolicy } from '../safety/locks.js';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ApplicationError } from '../http/application-error.js';
 import { CommunityRepository } from './community.repository.js';
 import type {
@@ -36,6 +37,9 @@ export class FeedService {
     private readonly access: CommunityAccessService,
     @Inject(CommunitySerializer)
     private readonly serializer: CommunitySerializer,
+    @Optional()
+    @Inject(TextReviewRuntime)
+    private readonly reviews?: TextReviewRuntime,
   ) {}
   spaces(campusId: string) {
     return this.repository.spaces(campusId);
@@ -93,16 +97,25 @@ export class FeedService {
             };
           else throw error;
         }
+      const reviewAvailable =
+        category !== 'trading' &&
+        result.authorModes.includes('named') &&
+        !!this.reviews &&
+        (await this.reviews.available(space, tx));
+      if (decision.value.runtime && reviewAvailable)
+        result.authorModes = ['named'];
       if (result.authorModes.length)
-        result.publish = decision.value.runtime
-          ? {
-              availability: 'unavailable',
-              reason: 'CONTENT_REVIEW_UNAVAILABLE',
-            }
-          : { availability: 'allowed', reason: null };
+        result.publish =
+          decision.value.runtime && !reviewAvailable
+            ? {
+                availability: 'unavailable',
+                reason: 'CONTENT_REVIEW_UNAVAILABLE',
+              }
+            : { availability: 'allowed', reason: null };
       result.canDisableComments =
         result.authorModes.length > 0 &&
-        (decision.value.canDisableComments ?? decision.value.canManage);
+        (decision.value.canDisableComments ?? decision.value.canManage) &&
+        !(decision.value.runtime && reviewAvailable);
       return result;
     });
   }
@@ -259,13 +272,22 @@ export class FeedService {
             } else throw error;
           }
         }
+        const reviewAvailable =
+          result.authorModes.includes('named') &&
+          post.comments_policy === 'open' &&
+          !!this.reviews &&
+          (await this.reviews.available(space, tx));
+        if (decision.value.runtime && reviewAvailable)
+          result.authorModes = ['named'];
         if (result.authorModes.length) {
-          result.availability = decision.value.runtime
-            ? 'unavailable'
-            : 'allowed';
-          result.reason = decision.value.runtime
-            ? 'CONTENT_REVIEW_UNAVAILABLE'
-            : null;
+          result.availability =
+            decision.value.runtime && !reviewAvailable
+              ? 'unavailable'
+              : 'allowed';
+          result.reason =
+            decision.value.runtime && !reviewAvailable
+              ? 'CONTENT_REVIEW_UNAVAILABLE'
+              : null;
         }
         return result;
       },

@@ -33,6 +33,9 @@ export async function readyDiscussionBatch(
   target: import('../../../src/community/discussion/publication-target.js').DiscussionPublicationTarget,
   size: number,
   files: readonly { mime: string; bytes: Buffer }[],
+  prepareWindow?: (
+    sendOriginal: () => Promise<request.Response>,
+  ) => Promise<request.Response>,
 ) {
   const http = f.app.getHttpServer(),
     auth = `Bearer ${actor.accessToken}`;
@@ -54,10 +57,16 @@ export async function readyDiscussionBatch(
           purpose: 'community-reply-images',
           target,
         };
-  const prepared = await request(http)
-    .post('/v4/media/batches/prepare')
-    .set('Authorization', auth)
-    .send(identity);
+  const sendPrepare = async () =>
+    request(http)
+      .post('/v4/media/batches/prepare')
+      .set('Authorization', auth)
+      .send(identity);
+  // Explicit caller-selected prepare-only fixture scheduling. Upload, worker,
+  // finalize, publication and all default callers retain their original path.
+  const prepared = prepareWindow
+    ? await prepareWindow(sendPrepare)
+    : await sendPrepare();
   responseOk(prepared);
   let status: MediaBatchStatus = mediaBatchStatusSchema.parse(prepared.body);
   assert.ok(status.batchId);

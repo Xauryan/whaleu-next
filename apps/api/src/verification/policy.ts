@@ -9,7 +9,7 @@ type AssertionPolicyRecord = Omit<
   AssertionRecord,
   'id' | 'origin_region_id' | 'student_number'
 > &
-  Partial<Pick<AssertionRecord, 'student_number'>>;
+  Partial<Pick<AssertionRecord, 'student_number' | 'origin_region_id'>>;
 
 export function safeStudentNumber(value: unknown): value is string {
   return (
@@ -42,6 +42,23 @@ export function assertionStatus(
     return 'unavailable';
   if (record.issuer_institution_id !== record.source_issuer_institution_id)
     return 'unavailable';
+  // Identity-created covered absence is not an authentication/provider proof.
+  // It can never confer a verified/revoked/expired fact or carry private values.
+  if (record.method === 'native_enrollment')
+    return record.assertion_state === 'unverified' &&
+      record.source_reference === `native_enrollment:${accountId}` &&
+      record.policy_reference === 'native-account-absence/v1' &&
+      record.issuer_institution_id === null &&
+      record.source_issuer_institution_id === null &&
+      (record.origin_region_id === null ||
+        record.origin_region_id === undefined) &&
+      record.phone_binding_reference === null &&
+      (record.student_number === null || record.student_number === undefined) &&
+      record.verified_at === null &&
+      record.expiry_kind === 'policy_exempt' &&
+      record.expires_at === null
+      ? 'unverified'
+      : 'unavailable';
   const methodAllowed =
     kind === 'phone'
       ? ['phone_provider', 'reconciled_import'].includes(record.method)

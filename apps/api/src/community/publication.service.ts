@@ -1,3 +1,7 @@
+import { canonicalEnvelope } from './content-review/contracts.js';
+import { TextReviewSubmission } from './text-review/contracts.js';
+import type { TextReviewStatus } from './text-review/contracts.js';
+import { TextReviewRuntime } from './text-review/runtime.js';
 import { withDiscussionMediaMutation } from './../media/discussion-ancestor-proof.js';
 import { authorizeDiscussionPublication } from './discussion/publication-target.js';
 import type {
@@ -10,7 +14,7 @@ import { PollRepository } from './polls/poll.repository.js';
 import { postIntent } from './publication-intent.js';
 import { publicationHash } from './publication.repository.js';
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import { AuthorDisplayService } from '../profile/author-display.service.js';
@@ -53,6 +57,9 @@ export class PublicationService {
     @Inject(CONTENT_PUBLICATION_GATE)
     private readonly content: ContentPublicationGate,
     @Inject(MEDIA_ATTACHMENT) private readonly media: MediaAttachmentPort,
+    @Optional()
+    @Inject(TextReviewRuntime)
+    private readonly reviews?: TextReviewRuntime,
   ) {}
   async approved(
     actor: string,
@@ -65,10 +72,18 @@ export class PublicationService {
     >[0]['structuredContent'],
     envelope?: EffectiveContentEnvelopeDraft,
     publication?: import('../media/batch-repository.js').PublicationMediaContext,
+    reviewOnly = false,
   ): Promise<{
     images: ApprovedAsset[];
     approval: AcceptedApproval | undefined;
   }> {
+    if (reviewOnly) {
+      if (!this.reviews || !envelope || !publication || ids.length)
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      const effective = canonicalEnvelope({ ...envelope, images: [] });
+      await this.reviews.requireEnvelope(effective, tx);
+      throw new TextReviewSubmission(effective);
+    }
     if (ids.length && !envelope)
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const images = ids.length
@@ -92,6 +107,12 @@ export class PublicationService {
       )
     )
       throw new ApplicationError('MEDIA_NOT_READY');
+    if (this.reviews && envelope && publication)
+      await this.reviews.requireRequest(
+        canonicalEnvelope({ ...envelope, images }),
+        publication,
+        tx,
+      );
     const approval = requireDecision(
       await this.content.check(
         {
@@ -106,6 +127,13 @@ export class PublicationService {
       ),
       'CONTENT_REVIEW_UNAVAILABLE',
     );
+    if (this.reviews && envelope && publication)
+      await this.reviews.requireBinding(
+        canonicalEnvelope({ ...envelope, images }),
+        publication,
+        approval,
+        tx,
+      );
     return { images, approval };
   }
   async bind(
@@ -135,7 +163,17 @@ export class PublicationService {
       }
     );
   }
-  post(token: string, body: PublishPost): Promise<PublicationReceipt> {
+  post(
+    token: string,
+    body: PublishPost,
+    reviewOnly: true,
+  ): Promise<TextReviewStatus>;
+  post(token: string, body: PublishPost): Promise<PublicationReceipt>;
+  post(
+    token: string,
+    body: PublishPost,
+    reviewOnly = false,
+  ): Promise<PublicationReceipt | TextReviewStatus> {
     const {
       clientRequestId,
       spaceId,
@@ -228,6 +266,7 @@ export class PublicationService {
             operation: 'publish_post',
             intentHash: publicationHash('publish_post', intent),
           },
+          reviewOnly,
         );
         if (
           body.allowAnonymousDm !== undefined &&
@@ -282,13 +321,26 @@ export class PublicationService {
           createdAt: result.rows[0]!.published_at.toISOString(),
         };
       },
+      reviewOnly,
     );
   }
   comment(
     token: string,
     postId: string,
     body: PublishComment,
-  ): Promise<PublicationReceipt> {
+    reviewOnly: true,
+  ): Promise<TextReviewStatus>;
+  comment(
+    token: string,
+    postId: string,
+    body: PublishComment,
+  ): Promise<PublicationReceipt>;
+  comment(
+    token: string,
+    postId: string,
+    body: PublishComment,
+    reviewOnly = false,
+  ): Promise<PublicationReceipt | TextReviewStatus> {
     const { clientRequestId, text, imageAssetIds, authorMode } = body;
     return this.publications.execute(
       token,
@@ -343,6 +395,7 @@ export class PublicationService {
                 authorMode,
               }),
             },
+            reviewOnly,
           );
           if (effectiveMode === 'named') await this.profiles.prepare(actor, tx);
           const id = randomUUID();
@@ -386,6 +439,7 @@ export class PublicationService {
           ? withDiscussionMediaMutation(tx, { actor, body }, publish)
           : publish();
       },
+      reviewOnly,
     );
   }
 }

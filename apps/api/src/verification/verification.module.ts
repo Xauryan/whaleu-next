@@ -1,3 +1,10 @@
+import { APP_CONFIG, type RuntimeConfig } from '../config/config.js';
+import { PhoneBindingController } from './phone-binding.controller.js';
+import { PhoneBindingService } from './phone-binding.service.js';
+import {
+  WECHAT_PHONE_PROVIDER,
+  WechatPhoneProvider,
+} from './wechat-phone-provider.js';
 import { DmVerificationFacade } from './dm-eligibility.facade.js';
 import { RatingVerificationFacade } from './rating-eligibility.facade.js';
 import { LocalErrandBaseEligibilitySource } from './errand-base.source.js';
@@ -35,8 +42,14 @@ export class VerificationController {
 
 @Module({
   imports: [DatabaseModule, IdentityModule],
-  controllers: [VerificationController],
+  controllers: [VerificationController, PhoneBindingController],
   providers: [
+    PhoneBindingService,
+    {
+      provide: WECHAT_PHONE_PROVIDER,
+      inject: [APP_CONFIG],
+      useFactory: (config: RuntimeConfig) => new WechatPhoneProvider(config),
+    },
     DmVerificationFacade,
     RatingVerificationFacade,
     LocalErrandBaseEligibilitySource,

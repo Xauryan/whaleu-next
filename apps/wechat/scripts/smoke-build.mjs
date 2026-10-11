@@ -262,11 +262,20 @@ for (const route of config.pages.filter(
     assertColdTargetOwnerEditing(current);
   else if (route === 'pages/rating-discussion-media/rating-discussion-media')
     assertColdRatingDiscussionMedia(current);
-  else assert.equal(current.data.loaded, false);
-  assert.ok(current.data.error);
+  else if (route === 'pages/phone-binding/phone-binding') {
+    assert.equal(current.data.busy, false);
+    assert.equal(current.data.hasSession, false);
+    assert.equal(current.data.configured, false);
+    assert.equal(current.data.phase, 'idle');
+    assert.equal(current.data.requestId, '');
+    assert.ok(current.data.message);
+    assert.equal(current.phone, undefined);
+  } else assert.equal(current.data.loaded, false);
+  if (route !== 'pages/phone-binding/phone-binding')
+    assert.ok(current.data.error);
   const template = readFileSync(path.join(dist, `${route}.wxml`), 'utf8');
   for (const match of template.matchAll(
-    /(?:bind|catch)(?:tap|input|change|confirm)="([^"]+)"/g,
+    /(?:bind|catch)(?:tap|input|change|confirm|getphonenumber)="([^"]+)"/g,
   ))
     assert.equal(typeof current[match[1]], 'function', `${route}: ${match[1]}`);
   assert.equal(/accessToken|refreshToken/.test(template), false);
@@ -287,9 +296,15 @@ for (const route of config.pages.filter(
     assertColdTargetOwnerEditing(current);
   else if (route === 'pages/rating-discussion-media/rating-discussion-media')
     assertColdRatingDiscussionMedia(current);
-  else assert.equal(current.data.loaded, false);
+  else if (route === 'pages/phone-binding/phone-binding') {
+    assert.equal(current.data.requestId, '');
+    assert.equal(current.data.hasSession, false);
+    assert.equal(current.phone, undefined);
+  } else assert.equal(current.data.loaded, false);
   current.onShow();
-  assert.ok(current.controller);
+  if (route === 'pages/phone-binding/phone-binding')
+    assert.equal(current.phone, undefined);
+  else assert.ok(current.controller);
   current.onUnload();
   if (route === 'pages/rating-create/rating-create') {
     assertColdRatingCreation(current);

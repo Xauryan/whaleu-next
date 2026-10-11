@@ -28,7 +28,9 @@ notices and native same-key recovery. Media, group delivery and authoritative
 migration remain open. The remaining business modules and complete
 end-to-end onboarding/provider integration are still being implemented. Normal
 runtime text access now consumes canonical policy and exact review records;
-review issuance and configuration controls remain unfinished.
+default-disabled non-production manual text review and existing-region configuration
+controls are implemented in the [local text workflow](docs/COMMUNITY_TEXT_REVIEW.md).
+Their validation and real-account/device acceptance remain separate release gates.
 This is **not the completed rewrite** and is **not production-ready**. Remaining
 business modules, real-provider and native-device acceptance, production schema
 mapping, and reconciled data migration are still required. No production rollout

@@ -1256,3 +1256,70 @@ export async function createProfileAvatarOpenApiDocument(): Promise<OpenAPIObjec
 export async function renderProfileAvatarOpenApiDocument(): Promise<string> {
   return renderDocument(await createProfileAvatarOpenApiDocument());
 }
+
+import { TextReviewController } from '../src/community/text-review/controller.js';
+import { PublicationService } from '../src/community/publication.service.js';
+import { PublicationRepository } from '../src/community/publication.repository.js';
+import { ReplyPublicationService } from '../src/community/discussion/publication.service.js';
+import { PhoneBindingController } from '../src/verification/phone-binding.controller.js';
+import { PhoneBindingService } from '../src/verification/phone-binding.service.js';
+/** Tooling-only graph; never initializes a database, provider or review operator. */
+export async function createUsableTextOpenApiDocument(): Promise<OpenAPIObject> {
+  for (const [controller, methods] of [
+    [TextReviewController, ['post', 'comment', 'reply', 'cancel', 'status']],
+    [PhoneBindingController, ['reserve', 'read', 'authorize', 'close']],
+  ] as const) {
+    for (const method of methods)
+      if (
+        !Reflect.hasMetadata(PARAMTYPES_METADATA, controller.prototype, method)
+      )
+        throw new Error(
+          'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+        );
+  }
+  const fail = () => {
+    throw new Error('OpenAPI must not execute application work');
+  };
+  const testing = await Test.createTestingModule({
+    controllers: [TextReviewController, PhoneBindingController],
+    providers: [
+      { provide: PublicationService, useValue: { post: fail, comment: fail } },
+      {
+        provide: PublicationRepository,
+        useValue: { reviewStatus: fail, cancelReview: fail },
+      },
+      { provide: ReplyPublicationService, useValue: { create: fail } },
+      {
+        provide: PhoneBindingService,
+        useValue: { reserve: fail, read: fail, authorize: fail, close: fail },
+      },
+    ],
+  }).compile();
+  const app = testing.createNestApplication({ logger: false });
+  try {
+    return SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setOpenAPIVersion('3.0.3')
+        .setTitle('WhaleU non-production named text and phone authorization')
+        .setVersion('1')
+        .addSecurity('accessToken', {
+          type: 'http',
+          scheme: 'bearer',
+          description:
+            'Current opaque WhaleU access token; every operation is private to the owner.',
+        })
+        .build(),
+      {
+        deepScanRoutes: false,
+        autoTagControllers: false,
+        excludeDynamicDefaults: true,
+      },
+    );
+  } finally {
+    await app.close();
+  }
+}
+export async function renderUsableTextOpenApiDocument(): Promise<string> {
+  return renderDocument(await createUsableTextOpenApiDocument());
+}

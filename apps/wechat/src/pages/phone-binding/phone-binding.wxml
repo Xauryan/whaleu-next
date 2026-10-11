@@ -1,0 +1,16 @@
+<view class="screen">
+ <view class="title">手机号授权验证</view>
+ <view class="notice">仅在你主动同意微信授权后，服务端才会把本次授权码发送至微信官方接口，确认手机号授权事实。不会保存或展示手机号，也不会将其作为学生认证。原请求编号保存在设备上，用于恢复结果。</view>
+ <view class="notice">此能力需服务端单独启用，并具备微信所要求的账号资格和隐私声明；当前版本尚未完成真机验收。</view>
+ <view class="notice" aria-role="status">{{message}}</view>
+ <view wx:if="{{requestId}}" selectable="true">原请求：{{requestId}}</view>
+ <button wx:if="{{phase === 'idle' || phase === 'not_found'}}" bindtap="onPrepare" disabled="{{busy || !hasSession || !configured}}">同意上述用途并准备授权</button>
+ <button wx:if="{{phase === 'unknown' || phase === 'expired' || phase === 'closed'}}" bindtap="onPrepare" disabled="{{busy || !hasSession}}">结束原请求，重新准备新授权</button>
+ <button wx:if="{{phase === 'verified'}}" bindtap="onPrepare" disabled="{{busy || !hasSession}}">另行准备新的微信授权验证</button>
+ <button wx:if="{{phase === 'reserved'}}" open-type="getPhoneNumber" bindgetphonenumber="onPhone" disabled="{{busy || !hasSession}}">同意微信手机号授权并验证</button>
+ <button wx:if="{{requestId}}" bindtap="onRecover" disabled="{{busy || !hasSession}}">只查询原请求结果</button>
+ <button wx:if="{{phase === 'reserved' || phase === 'unknown' || phase === 'expired'}}" bindtap="onClose" disabled="{{busy}}">关闭原请求</button>
+ <view wx:if="{{phase === 'processing'}}" class="notice">处理中不能重新授权。请稍后查询原请求；结果未知时也不会自动重发授权码。</view>
+ <navigator url="/pages/verification/verification">返回认证状态</navigator>
+ <navigator wx:if="{{!hasSession}}" url="/pages/login/login" open-type="reLaunch">前往登录</navigator>
+</view>

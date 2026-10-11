@@ -1,3 +1,12 @@
+import { CommunityMediaBatchPublicationProof } from './media/batch-publication-proof.js';
+import type { MediaBatchPublicationCancellation } from '../media/batch-protocol.js';
+import { TextReviewSubmission } from './text-review/contracts.js';
+import type {
+  TextReviewStatus,
+  TextReviewCancellation,
+} from './text-review/contracts.js';
+import { TextReviewRuntime } from './text-review/runtime.js';
+import { canonicalJson } from './content-review/contracts.js';
 import {
   lockPublicationCommand,
   requirePublicationNotCancelled,
@@ -13,7 +22,7 @@ import {
   restoreTransactionDeadlines,
 } from '../database/transaction-deadlines.js';
 import { createHash } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import type { ApplicationErrorCode } from '../http/application-error.js';
@@ -63,6 +72,9 @@ export class PublicationRepository {
     private readonly views: CommunityViewEnrollment,
     @Inject(CommunityCommentEnrollment)
     private readonly comments: CommunityCommentEnrollment,
+    @Optional()
+    @Inject(TextReviewRuntime)
+    private readonly reviews?: TextReviewRuntime,
   ) {}
   execute(
     token: string,
@@ -73,7 +85,42 @@ export class PublicationRepository {
       actor: string,
       tx: PoolClient,
     ) => Promise<{ resourceId: string; createdAt: string }>,
-  ): Promise<PublicationReceipt> {
+  ): Promise<PublicationReceipt>;
+  execute(
+    token: string,
+    requestId: string,
+    operation: PublicationOperation,
+    intent: unknown,
+    create: (
+      actor: string,
+      tx: PoolClient,
+    ) => Promise<{ resourceId: string; createdAt: string }>,
+    reviewOnly: true,
+  ): Promise<TextReviewStatus>;
+  execute(
+    token: string,
+    requestId: string,
+    operation: PublicationOperation,
+    intent: unknown,
+    create: (
+      actor: string,
+      tx: PoolClient,
+    ) => Promise<{ resourceId: string; createdAt: string }>,
+    reviewOnly: boolean,
+  ): Promise<PublicationReceipt | TextReviewStatus>;
+  execute(
+    token: string,
+    requestId: string,
+    operation: PublicationOperation,
+    intent: unknown,
+    create: (
+      actor: string,
+      tx: PoolClient,
+    ) => Promise<{ resourceId: string; createdAt: string }>,
+    reviewOnly = false,
+  ): Promise<PublicationReceipt | TextReviewStatus> {
+    if (reviewOnly && !this.reviews?.configured())
+      return Promise.reject(new ApplicationError('CONTENT_REVIEW_UNAVAILABLE'));
     return this.repository.database.transaction(async (tx) => {
       // Nonempty Media publication writes the Media owner and must take its
       // outer writer gate before actor/business locks, never upgrade afterwards.
@@ -96,10 +143,16 @@ export class PublicationRepository {
         hash,
         tx,
       );
-      await tx.query(
-        'INSERT INTO whaleu_community.publication_requests(account_id,client_request_id,payload_hash,operation) VALUES ($1,$2,$3,$4) ON CONFLICT(account_id,client_request_id) DO NOTHING',
-        [actor, requestId, hash, operation],
-      );
+      if (reviewOnly)
+        await tx.query(
+          'INSERT INTO whaleu_community.publication_requests(account_id,client_request_id,payload_hash,operation,review_submission_transaction) VALUES ($1,$2,$3,$4,pg_current_xact_id()) ON CONFLICT(account_id,client_request_id) DO NOTHING',
+          [actor, requestId, hash, operation],
+        );
+      else
+        await tx.query(
+          'INSERT INTO whaleu_community.publication_requests(account_id,client_request_id,payload_hash,operation) VALUES ($1,$2,$3,$4) ON CONFLICT(account_id,client_request_id) DO NOTHING',
+          [actor, requestId, hash, operation],
+        );
       const result = await tx.query<RequestRow>(
         'SELECT payload_hash,operation,receipt FROM whaleu_community.publication_requests WHERE account_id=$1 AND client_request_id=$2 FOR UPDATE',
         [actor, requestId],
@@ -109,7 +162,9 @@ export class PublicationRepository {
         throw new ApplicationError('REQUEST_CONFLICT');
       if (row.receipt) {
         await this.access.actor(token, tx);
-        return row.receipt;
+        return reviewOnly
+          ? { requestId, operation, status: 'settled' as const }
+          : row.receipt;
       }
       const deadlineCheckpoint = checkpointTransactionDeadlines(tx);
       await tx.query('SAVEPOINT publication_work');
@@ -121,7 +176,46 @@ export class PublicationRepository {
           outcome: 'created',
           ...(await create(actor, tx)),
         };
+        if (reviewOnly)
+          throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
       } catch (error) {
+        if (
+          reviewOnly &&
+          error instanceof TextReviewSubmission &&
+          this.reviews
+        ) {
+          await tx.query('ROLLBACK TO SAVEPOINT publication_work');
+          restoreTransactionDeadlines(tx, deadlineCheckpoint);
+          // The rollback released preparation locks and its required facts. Re-run
+          // the exact preparation, retaining the fresh locks through queue commit.
+          // Review-only preparation always stops before content/effect writes.
+          await this.access.actor(token, tx);
+          let current: TextReviewSubmission | null = null;
+          try {
+            await create(actor, tx);
+          } catch (second) {
+            if (!(second instanceof TextReviewSubmission)) throw second;
+            current = second;
+          }
+          if (
+            !current ||
+            canonicalJson(current.envelope) !== canonicalJson(error.envelope)
+          )
+            throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+          const status = await this.reviews.submit(
+            current.envelope,
+            {
+              clientRequestId: requestId,
+              operation,
+              intentHash: hash,
+            },
+            tx,
+          );
+          await this.access.actor(token, tx);
+          await tx.query('RELEASE SAVEPOINT publication_work');
+          return status;
+        }
+        if (reviewOnly) throw error;
         if (
           !(error instanceof ApplicationError) ||
           !terminalCodes.has(error.code)
@@ -193,6 +287,49 @@ export class PublicationRepository {
       }
       await this.access.actor(token, tx);
       return receipt;
+    });
+  }
+  cancelReview(
+    token: string,
+    requestId: string,
+    reference: TextReviewCancellation,
+  ): Promise<MediaBatchPublicationCancellation> {
+    return this.repository.database.transaction(async (tx) => {
+      const actor = await this.access.actor(token, tx);
+      await lockPublicationCommand(actor, requestId, tx);
+      if (!this.reviews)
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      const row = await this.reviews.request(actor, requestId, tx);
+      if (
+        row &&
+        (row.operation !== reference.operation ||
+          row.intent_hash !== reference.intentHash)
+      )
+        throw new ApplicationError('REQUEST_CONFLICT');
+      const result =
+        await new CommunityMediaBatchPublicationProof().fenceNonCreated(
+          actor,
+          {
+            clientRequestId: requestId,
+            operation: reference.operation,
+            intentHash: reference.intentHash,
+          },
+          tx,
+        );
+      await this.access.actor(token, tx);
+      return result;
+    });
+  }
+  reviewStatus(token: string, requestId: string): Promise<TextReviewStatus> {
+    return this.repository.database.transaction(async (tx) => {
+      const actor = await this.access.actor(token, tx);
+      if (!this.reviews)
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      const row = await this.reviews.request(actor, requestId, tx);
+      if (!row) throw new ApplicationError('REQUEST_NOT_FOUND');
+      const result = await this.reviews.status(row, tx);
+      await this.access.actor(token, tx);
+      return result;
     });
   }
   receipt(token: string, requestId: string): Promise<PublicationReceipt> {

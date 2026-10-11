@@ -1,3 +1,4 @@
+import type { TextReviewStatus } from '../text-review/contracts.js';
 import { withDiscussionMediaMutation } from '../../media/discussion-ancestor-proof.js';
 import { authorizeDiscussionPublication } from './publication-target.js';
 import { randomUUID } from 'node:crypto';
@@ -51,7 +52,19 @@ export class ReplyPublicationService {
     token: string,
     rootId: string,
     body: PublishReply,
-  ): Promise<PublicationReceipt> {
+    reviewOnly: true,
+  ): Promise<TextReviewStatus>;
+  create(
+    token: string,
+    rootId: string,
+    body: PublishReply,
+  ): Promise<PublicationReceipt>;
+  create(
+    token: string,
+    rootId: string,
+    body: PublishReply,
+    reviewOnly = false,
+  ): Promise<PublicationReceipt | TextReviewStatus> {
     return this.publications.execute(
       token,
       body.clientRequestId,
@@ -120,6 +133,7 @@ export class ReplyPublicationService {
                 replyIntent(rootId, body),
               ),
             },
+            reviewOnly,
           );
           if (mode === 'named') await this.profiles.prepare(actor, tx);
           else await this.repository.persona(post.id, actor, tx);
@@ -164,6 +178,7 @@ export class ReplyPublicationService {
           ? withDiscussionMediaMutation(tx, { actor, body }, publish)
           : publish();
       },
+      reviewOnly,
     );
   }
 }

@@ -174,3 +174,15 @@ environment allowlist, provider call or bootstrap grant. Local synthetic success
 is not evidence of live verification coverage. Actual source-data migration,
 private-media transfer, provider activation, real reviewer grants and device QA
 are separate approval/release gates.
+
+## Non-production opt-in lifecycle and phone authorization
+
+Migration 0094 and the default-disabled `NATIVE_VERIFICATION_ENROLLMENT` flag add
+provable new-account covered absence. A separate default-disabled
+`WECHAT_PHONE_BINDING` slice adds explicit native phone-code authorization,
+protected minimal proof, and original-request recovery. Both flags reject
+production. These changes have not yet been validated; they do not claim real
+account or device acceptance. See [native enrollment](NATIVE_VERIFICATION_ENROLLMENT.md)
+and [phone binding](WECHAT_PHONE_BINDING.md) for exact configuration, limits and
+unverified external prerequisites. The earlier status-only student flow remains
+unchanged; no student application or institutional proof provider was added.

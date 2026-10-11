@@ -1,3 +1,11 @@
+import { batchPublicationReference } from '../../media/batch-publication';
+import {
+  matchReviewCancellation,
+  type ReviewCancellationResult,
+  matchPublicationReview,
+  supportsTextReview,
+  type PublicationReview,
+} from '../../community/review-contract';
 import type { BatchTarget } from '../../media/batch-engine-contracts';
 import type {
   MediaBatchController,
@@ -93,6 +101,8 @@ export interface ComposeView extends CommunityView {
   readonly mediaCanEdit: boolean;
   readonly mediaBusy: boolean;
   readonly maxText: number;
+  readonly canCancelReview: boolean;
+  readonly reviewStatus: PublicationReview['status'] | '';
   readonly receiptStatus: string;
   readonly resourceId: string;
   readonly resourcePostId: string;
@@ -134,6 +144,8 @@ export const initialComposeView = (): ComposeView => ({
   mediaCanEdit: false,
   mediaBusy: false,
   maxText: 2500,
+  canCancelReview: false,
+  reviewStatus: '',
   receiptStatus: '',
   resourceId: '',
   resourcePostId: '',
@@ -551,6 +563,9 @@ export class ComposeController extends CommunityController<ComposeView> {
   private showPending(pending: PendingAttempt): void {
     this.pending = pending;
     this.update({
+      canCancelReview:
+        supportsTextReview(pending) && !!this.runtime.gateway?.cancelReview,
+      reviewStatus: '',
       loaded: true,
       frozen: true,
       canSubmit: false,
@@ -673,6 +688,7 @@ export class ComposeController extends CommunityController<ComposeView> {
       return;
     this.update({ allowAnonymousDm: value });
     this.persistDraft();
+    this.recompute();
   }
   setRestricted(restricted: boolean): void {
     if (!this.editable() || !this.view.canDisableComments) return;
@@ -890,6 +906,19 @@ export class ComposeController extends CommunityController<ComposeView> {
       blocker = isComment
         ? `请填写不超过 ${this.view.maxText} 字的正文或添加 1–3 张图片`
         : `请输入 1–${this.view.maxText} 个有效字符，保留你输入的空格与换行`;
+    if (
+      !blocker &&
+      this.runtime.gateway?.submitReview &&
+      modes?.length === 1 &&
+      modes[0] === 'named' &&
+      (isComment || cap?.mediaAvailability === 'unavailable') &&
+      (this.view.pollDraft.enabled ||
+        this.view.formationDraft.enabled ||
+        (!isComment && this.view.allowAnonymousDm) ||
+        this.view.mediaSelected > 0)
+    )
+      blocker =
+        '当前仅开放实名纯文字审核。请明确关闭投票、组队和匿名私信，并移除图片；不会自动改动原草稿';
     if (!blocker && this.view.pollDraft.enabled) {
       try {
         pollDraftComponent(this.view.pollDraft);
@@ -1057,12 +1086,14 @@ export class ComposeController extends CommunityController<ComposeView> {
           throw error;
         }
         this.showPending(frozen);
+        if (this.usesTextReview(frozen))
+          return this.submitReview(frozen, cancel);
         const receipt = await this.dispatch(frozen, cancel);
         return this.useBatch()
           ? this.runtime.mediaBatch!.verifyReceipt(frozen, receipt, cancel)
           : receipt;
       },
-      (receipt) => this.settle(receipt),
+      (result) => this.acceptPublicationResult(result),
       () => {
         if (this.pending)
           this.update({
@@ -1073,6 +1104,224 @@ export class ComposeController extends CommunityController<ComposeView> {
           });
       },
     );
+  }
+  private usesTextReview(attempt: PendingAttempt): boolean {
+    return (
+      !!this.runtime.gateway?.submitReview &&
+      !!this.runtime.gateway.reviewStatus &&
+      supportsTextReview(attempt)
+    );
+  }
+  private async submitReview(
+    attempt: PendingAttempt,
+    cancel: Cancellation,
+  ): Promise<PublicationReview | ReviewCancellationResult> {
+    // Recovery can outlive the original capability snapshot; never infer eligibility from a review.
+    const capability =
+      attempt.operation === 'publish_post'
+        ? (
+            await this.runtime.gateway!.capabilities(
+              attempt.payload.spaceId,
+              attempt.payload.category,
+              cancel,
+            )
+          ).publish
+        : await this.runtime.gateway!.commentCapabilities(
+            attempt.postId,
+            cancel,
+          );
+    if (capability.availability !== 'allowed')
+      throw new ClientError('business', 'Review unavailable', {
+        serverCode: capability.reason ?? 'COMMUNITY_UNAVAILABLE',
+      });
+    this.assertOriginalAttempt(attempt);
+    const review = matchPublicationReview(
+      attempt,
+      await this.runtime.gateway!.submitReview!(attempt, cancel),
+    );
+    this.assertOriginalAttempt(attempt);
+    return review.status === 'cancelled'
+      ? this.requestReviewCancellation(attempt, cancel)
+      : review;
+  }
+  private assertOriginalAttempt(attempt: PendingAttempt): void {
+    if (attempt.accountId !== this.accountId())
+      throw new ClientError('stale-session', 'Account changed');
+    if (
+      JSON.stringify(this.runtime.pending.load(attempt.accountId)) !==
+      JSON.stringify(attempt)
+    )
+      throw new ClientError('storage', 'Pending request changed');
+  }
+  private acceptPublicationResult(
+    result: ReviewCancellationResult | PublicationReview,
+  ): void {
+    if (!('status' in result)) {
+      if (result.outcome === 'cancelled') this.settleReviewCancellation(result);
+      else this.settle(result);
+      return;
+    }
+    if (!this.pending)
+      throw new ClientError('protocol', 'Missing original request');
+    const review = matchPublicationReview(this.pending, result);
+    const messages = {
+      pending: '原内容正在审核，可查询审核状态；尚未发布',
+      approved: '原内容审核已通过，请明确重试完全相同的原请求以发布',
+      rejected: '原内容审核未通过，请重试原请求取得拒绝回执后再修改',
+      unavailable: '审核暂不可用，原请求已保留；可查询或重试原内容审核',
+      settled: '原请求已有回执，请查询原请求结果',
+      cancelled: '原请求已取消，请查询服务器取消凭据以确认解除冻结',
+    };
+    this.update({
+      reviewStatus: review.status,
+      frozen: true,
+      canSubmit: false,
+      status: messages[review.status],
+      receiptStatus: '',
+      blocker: messages[review.status],
+      error: '',
+    });
+  }
+  private async recoverReview(
+    attempt: PendingAttempt,
+    retry: boolean,
+    cancel: Cancellation,
+  ): Promise<ReviewCancellationResult | PublicationReview> {
+    this.assertOriginalAttempt(attempt);
+    try {
+      const receipt = await this.runtime.gateway!.receipt(
+        attempt.payload.clientRequestId,
+        cancel,
+      );
+      return this.useBatch()
+        ? this.runtime.mediaBatch!.verifyReceipt(attempt, receipt, cancel)
+        : receipt;
+    } catch (error) {
+      if (
+        !(error instanceof ClientError) ||
+        error.kind === 'protocol' ||
+        error.details.httpStatus !== 404 ||
+        error.details.serverCode !== 'REQUEST_NOT_FOUND'
+      )
+        throw error;
+    }
+    this.assertOriginalAttempt(attempt);
+    let review: PublicationReview;
+    try {
+      review = matchPublicationReview(
+        attempt,
+        await this.runtime.gateway!.reviewStatus!(attempt, cancel),
+      );
+    } catch (error) {
+      if (
+        !retry ||
+        !(error instanceof ClientError) ||
+        error.kind === 'protocol' ||
+        error.details.httpStatus !== 404 ||
+        error.details.serverCode !== 'REQUEST_NOT_FOUND'
+      )
+        throw error;
+      return this.submitReview(attempt, cancel);
+    }
+    this.assertOriginalAttempt(attempt);
+    if (review.status === 'cancelled')
+      return this.requestReviewCancellation(attempt, cancel);
+    if (review.status === 'settled') {
+      const receipt = await this.runtime.gateway!.receipt(
+        attempt.payload.clientRequestId,
+        cancel,
+      );
+      return this.useBatch()
+        ? this.runtime.mediaBatch!.verifyReceipt(attempt, receipt, cancel)
+        : receipt;
+    }
+    if (
+      retry &&
+      (review.status === 'approved' || review.status === 'rejected')
+    ) {
+      const receipt = await this.dispatch(attempt, cancel);
+      return this.useBatch()
+        ? this.runtime.mediaBatch!.verifyReceipt(attempt, receipt, cancel)
+        : receipt;
+    }
+    return retry && review.status === 'unavailable'
+      ? this.submitReview(attempt, cancel)
+      : review;
+  }
+  private async requestReviewCancellation(
+    attempt: PendingAttempt,
+    cancel: Cancellation,
+  ): Promise<ReviewCancellationResult> {
+    this.assertOriginalAttempt(attempt);
+    if (!supportsTextReview(attempt) || !this.runtime.gateway?.cancelReview)
+      throw new ClientError('configuration', 'Review cancellation unavailable');
+    const result = matchReviewCancellation(
+      attempt,
+      await this.runtime.gateway.cancelReview(attempt, cancel),
+    );
+    this.assertOriginalAttempt(attempt);
+    return result.outcome !== 'cancelled' && this.useBatch()
+      ? this.runtime.mediaBatch!.verifyReceipt(attempt, result, cancel)
+      : result;
+  }
+  async cancelReview(): Promise<void> {
+    if (this.view.busy || !this.available()) return;
+    let attempt: PendingAttempt | null;
+    try {
+      attempt = this.runtime.pending.load(this.accountId()!);
+      if (
+        !attempt ||
+        !supportsTextReview(attempt) ||
+        !this.runtime.gateway?.cancelReview
+      )
+        return;
+      this.showPending(attempt);
+    } catch (error) {
+      this.update({
+        frozen: true,
+        canSubmit: false,
+        error: communityError(error),
+      });
+      return;
+    }
+    const original = attempt;
+    await this.run(
+      (cancel) => this.requestReviewCancellation(original, cancel),
+      (result) => this.acceptPublicationResult(result),
+      () =>
+        this.update({
+          frozen: true,
+          canSubmit: false,
+          status: '取消尚未确认，原请求仍被冻结',
+        }),
+    );
+  }
+  private settleReviewCancellation(raw: ReviewCancellationResult): void {
+    const attempt = this.pending;
+    if (!attempt || !supportsTextReview(attempt))
+      throw new ClientError('protocol', 'Missing original text review');
+    this.assertOriginalAttempt(attempt);
+    const result = matchReviewCancellation(attempt, raw);
+    if (result.outcome !== 'cancelled')
+      throw new ClientError('protocol', 'Missing cancellation fence');
+    this.runtime.pending.settleCancelled(
+      attempt,
+      result,
+      batchPublicationReference(attempt).intentHash,
+    );
+    this.pending = null;
+    this.update({
+      frozen: false,
+      loaded: false,
+      canSubmit: false,
+      canCancelReview: false,
+      reviewStatus: '',
+      receiptStatus: '服务器已确认取消，原请求不能再发布',
+      status: '原请求已取消，草稿已保留',
+      blocker: '重新加载草稿，检查并明确提交后才会建立新请求',
+      recoveryOperation: '',
+      error: '',
+    });
   }
   private async dispatch(
     attempt: PendingAttempt,
@@ -1117,6 +1366,8 @@ export class ComposeController extends CommunityController<ComposeView> {
     const attempt = pending;
     await this.run(
       async (cancel) => {
+        if (this.usesTextReview(attempt))
+          return this.recoverReview(attempt, retry, cancel);
         let receipt: Receipt;
         if (this.useBatch()) {
           try {
@@ -1146,7 +1397,7 @@ export class ComposeController extends CommunityController<ComposeView> {
               cancel,
             );
       },
-      (receipt) => this.settle(receipt),
+      (result) => this.acceptPublicationResult(result),
       () =>
         this.update({
           frozen: true,
@@ -1186,6 +1437,8 @@ export class ComposeController extends CommunityController<ComposeView> {
     this.pending = null;
     this.update({
       frozen: false,
+      canCancelReview: false,
+      reviewStatus: '',
       loaded: false,
       text: receipt.outcome === 'created' ? '' : this.view.text,
       pollDraft:

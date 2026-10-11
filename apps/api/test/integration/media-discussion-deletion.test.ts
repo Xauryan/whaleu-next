@@ -1,3 +1,4 @@
+import { withOwnerFixtureWindow } from '../support/owner-fixture-window.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -69,10 +70,16 @@ async function imageContent(
   actor: BatchActor,
   target: Parameters<typeof readyDiscussionBatch>[2],
   bytes: Buffer,
+  prepareWindow?: Parameters<typeof readyDiscussionBatch>[5],
 ) {
-  const ready = await readyDiscussionBatch(f, actor, target, 3, [
-    { mime: 'image/png', bytes },
-  ]);
+  const ready = await readyDiscussionBatch(
+    f,
+    actor,
+    target,
+    3,
+    [{ mime: 'image/png', bytes }],
+    prepareWindow,
+  );
   const sealed = await sealDiscussionBatch(f, actor, ready.status, '');
   const result = await request(f.app.getHttpServer())
     .post(sealed.path)
@@ -387,6 +394,58 @@ test(
           },
         );
 
+      await t.test(
+        'unisolated prepare refuses a real object-attempt relation conflict with no durable batch leak',
+        async () => {
+          const actor = await f.actor();
+          const postId = await publishDiscussionPost(f, actor);
+          const identity = {
+            version: 2,
+            batchRequestId: randomUUID(),
+            draftId: randomUUID(),
+            spaceId: f.scope.home.spaceId,
+            purpose: 'community-comment-images',
+            target: { kind: 'comment', postId },
+          };
+          const state = async () =>
+            (
+              await f.pool.query(
+                `SELECT jsonb_build_object(
+          'batches',(SELECT coalesce(jsonb_agg(to_jsonb(b) ORDER BY b.id),'[]'::jsonb) FROM whaleu_media.publication_batches b WHERE b.actor_id=$1),
+          'intents',(SELECT coalesce(jsonb_agg(to_jsonb(i) ORDER BY i.id),'[]'::jsonb) FROM whaleu_media.upload_intents i WHERE i.actor_id=$1),
+          'members',(SELECT coalesce(jsonb_agg(to_jsonb(m) ORDER BY m.member_id),'[]'::jsonb) FROM whaleu_media.publication_batch_members m JOIN whaleu_media.publication_batches b ON b.id=m.batch_id WHERE b.actor_id=$1),
+          'jobs',(SELECT coalesce(jsonb_agg(to_jsonb(j) ORDER BY j.id),'[]'::jsonb) FROM whaleu_media.jobs j JOIN whaleu_media.upload_intents i ON i.id=j.intent_id WHERE i.actor_id=$1),
+          'quota',(SELECT coalesce(jsonb_agg(to_jsonb(q) ORDER BY q.intent_id),'[]'::jsonb) FROM whaleu_media.quota_reservations q JOIN whaleu_media.upload_intents i ON i.id=q.intent_id WHERE i.actor_id=$1),
+          'receipts',(SELECT coalesce(jsonb_agg(to_jsonb(p) ORDER BY p.client_request_id),'[]'::jsonb) FROM whaleu_community.publication_requests p WHERE p.account_id=$1),
+          'fences',(SELECT coalesce(jsonb_agg(to_jsonb(r) ORDER BY r.client_request_id),'[]'::jsonb) FROM whaleu_media.upload_request_fences r WHERE r.actor_id=$1)
+        ) state`,
+                [actor.accountId],
+              )
+            ).rows[0]!.state;
+          const before = await state();
+          const holder = await f.pool.connect();
+          try {
+            await holder.query('BEGIN');
+            // SUE permits ordinary row writers but conflicts with the mandatory
+            // final SHARE NOWAIT. Do not wrap this refusal in a fixture window.
+            await holder.query(
+              'LOCK TABLE whaleu_media.object_attempts IN SHARE UPDATE EXCLUSIVE MODE',
+            );
+            const denied = await request(http)
+              .post('/v4/media/batches/prepare')
+              .set('Authorization', authorization(actor))
+              .send(identity);
+            assert.equal(denied.status, 503, JSON.stringify(denied.body));
+            assert.equal(denied.body.error.code, 'MEDIA_UNAVAILABLE');
+            assert.equal(denied.body.batchId, undefined);
+            assert.deepEqual(await state(), before);
+          } finally {
+            await holder.query('ROLLBACK');
+            holder.release();
+          }
+        },
+      );
+
       for (const ancestor of ['root', 'post'] as const)
         for (const state of ['hidden', 'deleted'] as const)
           await t.test(
@@ -401,6 +460,22 @@ test(
                 actor,
                 { kind: 'comment', postId },
                 bytes,
+                ancestor === 'root' && state === 'deleted'
+                  ? async (sendOriginal) => {
+                      const window = await withOwnerFixtureWindow(
+                        f.app,
+                        ['whaleu_media.object_attempts'],
+                        sendOriginal,
+                      );
+                      // prepareBatch delegates to exactly one authorized transaction.
+                      assert.equal(window.transactions, 1);
+                      assert.equal(window.prelocks, 1);
+                      assert.ok(window.finalNowaitAttempts >= 1);
+                      assert.equal(window.commits, 1);
+                      assert.equal(window.rollbacks, 0);
+                      return window.result;
+                    }
+                  : undefined,
               );
               const reply = await imageContent(
                 f,

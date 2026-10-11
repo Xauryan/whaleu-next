@@ -23,6 +23,7 @@ export interface AssertionRecord {
     | 'institutional_email'
     | 'institutional_sso'
     | 'phone_provider'
+    | 'native_enrollment'
     | 'reconciled_import'
     | 'unknown';
   readonly source_reference: string | null;

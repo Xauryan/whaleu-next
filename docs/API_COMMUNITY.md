@@ -1,5 +1,11 @@
 # Community C1 + C2A + C2B + C2C API and safety boundary
 
+The additive [non-production manual text workflow](COMMUNITY_TEXT_REVIEW.md)
+provides separate review submit/status/cancel endpoints and controlled local
+issuance. It preserves the original publication request hash and terminal receipt
+contracts documented here. Its runtime switches default to disabled; real-account,
+provider and device acceptance remain separate gates.
+
 C1, C2A polls, C2B discussion and C2C trading are **partial development slices**, not production-ready community parity.
 It implements explicit operating-region mapping, chronological regional/global
 feeds, detail, text publication, thread-local anonymous personas, root comments,

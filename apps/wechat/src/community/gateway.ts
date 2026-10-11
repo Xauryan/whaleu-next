@@ -1,3 +1,14 @@
+import { batchPublicationReference } from '../media/batch-publication';
+import {
+  decodeReviewCancellationResult,
+  matchReviewCancellation,
+  type ReviewCancellationResult,
+  decodePublicationReview,
+  matchPublicationReview,
+  supportsTextReview,
+  type PublicationReview,
+} from './review-contract';
+import type { PendingAttempt } from './pending-attempt';
 import {
   decodePostLikeIntent,
   decodePostLikeReceipt,
@@ -120,6 +131,18 @@ export interface FeedQuery {
   readonly cursor?: string;
 }
 export interface CommunityGateway {
+  cancelReview?(
+    attempt: PendingAttempt,
+    cancel: Cancellation,
+  ): Promise<ReviewCancellationResult>;
+  submitReview?(
+    attempt: PendingAttempt,
+    cancel: Cancellation,
+  ): Promise<PublicationReview>;
+  reviewStatus?(
+    attempt: PendingAttempt,
+    cancel: Cancellation,
+  ): Promise<PublicationReview>;
   updates(
     after: string | null,
     cancel: Cancellation,
@@ -289,6 +312,94 @@ const page = (after: string | null) => {
 };
 export class HttpCommunityGateway implements CommunityGateway {
   constructor(private readonly api: ApiClient) {}
+  async cancelReview(
+    attempt: PendingAttempt,
+    cancel: Cancellation,
+  ): Promise<ReviewCancellationResult> {
+    if (!uuid4(attempt.payload.clientRequestId) || !supportsTextReview(attempt))
+      invalid();
+    const reference = batchPublicationReference(attempt);
+    return matchReviewCancellation(
+      attempt,
+      await this.api.request(
+        endpoint(
+          `/v1/community/reviews/requests/${attempt.payload.clientRequestId}/cancel`,
+          decodeReviewCancellationResult,
+          'required',
+          'POST',
+        ),
+        // This identifies the original command even if submission never arrived.
+        // It can only fence that owner key, never authorize publication or review.
+        {
+          body: {
+            operation: reference.operation,
+            intentHash: reference.intentHash,
+          },
+          cancellation: cancel,
+        },
+      ),
+    );
+  }
+  async submitReview(
+    attempt: PendingAttempt,
+    cancel: Cancellation,
+  ): Promise<PublicationReview> {
+    if (!supportsTextReview(attempt)) invalid();
+    const path =
+      attempt.operation === 'publish_post'
+        ? '/v1/community/reviews/posts'
+        : attempt.operation === 'publish_comment'
+          ? `/v1/community/reviews/posts/${id(attempt.postId)}/comments`
+          : `/v1/community/reviews/comments/${id(attempt.rootCommentId)}/replies`;
+    const body = (() => {
+      if (attempt.operation === 'publish_post') {
+        const payload = decodePostIntent(attempt.payload);
+        return {
+          clientRequestId: payload.clientRequestId,
+          spaceId: payload.spaceId,
+          category: payload.category,
+          text: payload.text,
+          authorMode: payload.authorMode,
+          commentsPolicy: payload.commentsPolicy,
+          imageAssetIds: [...payload.imageAssetIds],
+          ...(payload.component
+            ? { component: { kind: 'none' as const } }
+            : {}),
+          ...(payload.allowAnonymousDm !== undefined
+            ? { allowAnonymousDm: payload.allowAnonymousDm }
+            : {}),
+        };
+      }
+      const payload =
+        attempt.operation === 'publish_comment'
+          ? decodeCommentIntent(attempt.payload)
+          : decodeReplyIntent(attempt.payload);
+      return { ...payload, imageAssetIds: [...payload.imageAssetIds] };
+    })();
+    return matchPublicationReview(
+      attempt,
+      await this.api.request(
+        endpoint(path, decodePublicationReview, 'required', 'POST'),
+        { body, cancellation: cancel },
+      ),
+    );
+  }
+  async reviewStatus(
+    attempt: PendingAttempt,
+    cancel: Cancellation,
+  ): Promise<PublicationReview> {
+    if (!uuid4(attempt.payload.clientRequestId)) invalid();
+    return matchPublicationReview(
+      attempt,
+      await this.api.request(
+        endpoint(
+          `/v1/community/reviews/requests/${attempt.payload.clientRequestId}`,
+          decodePublicationReview,
+        ),
+        { cancellation: cancel },
+      ),
+    );
+  }
   async updates(
     after: string | null,
     cancel: Cancellation,

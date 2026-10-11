@@ -247,3 +247,21 @@ if (args[0] === '--check') {
   await writeFile(profileAvatarArtifact, profileAvatarRendered, 'utf8');
   console.log('Generated docs/openapi/profile-avatars.json.');
 }
+
+const { renderUsableTextOpenApiDocument } =
+  await import('./openapi-document.js');
+const usableTextArtifact = new URL(
+  '../../../../docs/openapi/usable-text-workflow.json',
+  import.meta.url,
+);
+const usableTextRendered = await renderUsableTextOpenApiDocument();
+if (args[0] === '--check') {
+  if ((await readFile(usableTextArtifact, 'utf8')) !== usableTextRendered)
+    throw new Error(
+      'Usable text OpenAPI artifact stale; run npm run openapi:generate.',
+    );
+  console.log('Usable text OpenAPI artifact is current.');
+} else {
+  await writeFile(usableTextArtifact, usableTextRendered, 'utf8');
+  console.log('Generated docs/openapi/usable-text-workflow.json.');
+}

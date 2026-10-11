@@ -1,3 +1,7 @@
+import {
+  WECHAT_PHONE_PROVIDER,
+  type PhoneProvider,
+} from '../../src/verification/wechat-phone-provider.js';
 /** Disposable real-AppModule fixture. No runtime authorization replacement. */
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
@@ -25,6 +29,8 @@ import { migrationSchemaNames } from './migration-schemas.js';
 
 export const maintenancePath = '/v1/admin/experience/title-maintenance';
 export interface HotFeedFixtureOptions {
+  nativeVerificationEnrollment?: boolean;
+  phoneProvider?: PhoneProvider;
   hotFeedProcessing?: 'disabled' | 'manual_only' | 'automatic';
   httpRuntime?: boolean;
 }
@@ -39,6 +45,18 @@ export async function maintenanceFixture(options: HotFeedFixtureOptions = {}) {
   assert.equal(url.pathname, '/whaleu_test');
   const config = loadConfig({
     NODE_ENV: 'test',
+    NATIVE_VERIFICATION_ENROLLMENT: options.nativeVerificationEnrollment
+      ? 'enabled'
+      : 'disabled',
+    ...(options.phoneProvider
+      ? {
+          WECHAT_PHONE_BINDING: 'enabled',
+          WECHAT_PHONE_PROOF_TTL_SECONDS: '3600',
+          WECHAT_APP_ID: 'wx0000000000000000',
+          WECHAT_APP_SECRET: 'synthetic-phone-provider-only-value',
+          AUTH_RATE_LIMIT_KEY: '0'.repeat(64),
+        }
+      : {}),
     DATABASE_URL: urlString,
     PG_SSL_MODE: 'disable',
     LOG_LEVEL: 'silent',
@@ -109,13 +127,18 @@ export async function maintenanceFixture(options: HotFeedFixtureOptions = {}) {
       { mode: 'up' },
     );
     await pool.query('CREATE SCHEMA whaleu_maintenance_test');
-    const module = await Test.createTestingModule({
+    const builder = Test.createTestingModule({
       imports: [
         AppModule.register(config, {
           httpRuntime: options.httpRuntime ?? false,
         }),
       ],
-    }).compile();
+    });
+    if (options.phoneProvider)
+      builder
+        .overrideProvider(WECHAT_PHONE_PROVIDER)
+        .useValue(options.phoneProvider);
+    const module = await builder.compile();
     const app = module.createNestApplication({ logger: false });
     configureHttp(app);
     await app.init();

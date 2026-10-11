@@ -1,10 +1,11 @@
+import { TextReviewRuntime } from './text-review/runtime.js';
 import { mediaAttachmentDescriptorSchema } from '../media/contracts.js';
 import { SavedRepository } from './saved/repository.js';
 import { FormationService } from './formation/service.js';
 import { TradingRepository } from './trading/repository.js';
 import { encodeDiscussionCursor, replyCursor } from './discussion/cursor.js';
 import { PollReadService } from './polls/poll-read.service.js';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import { AuthorDisplayService } from '../profile/author-display.service.js';
@@ -51,6 +52,9 @@ export class CommunitySerializer {
     @Inject(PollReadService) private readonly polls: PollReadService,
     @Inject(FormationService) private readonly formations: FormationService,
     @Inject(TradingRepository) private readonly trading: TradingRepository,
+    @Optional()
+    @Inject(TextReviewRuntime)
+    private readonly reviews?: TextReviewRuntime,
   ) {}
   async author(
     content: StoredPost | StoredComment,
@@ -145,8 +149,14 @@ export class CommunitySerializer {
           throw new ApplicationError('COMMUNITY_UNAVAILABLE');
       }
     let canComment = false;
-    if (authority && !authority.runtime)
+    const reviewAvailable =
+      authority?.runtime &&
+      post.comments_policy === 'open' &&
+      !!this.reviews &&
+      (await this.reviews.available(space, tx));
+    if (authority && (!authority.runtime || reviewAvailable))
       for (const mode of ['named', 'anonymous'] as const) {
+        if (authority.runtime && mode !== 'named') continue;
         if (
           post.author_mode === 'anonymous' &&
           viewer === post.account_id &&

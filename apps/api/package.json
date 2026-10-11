@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "review:text": "node --import tsx src/community/text-review/cli.ts",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run openapi:build && node --import tsx --test test/*.test.ts",

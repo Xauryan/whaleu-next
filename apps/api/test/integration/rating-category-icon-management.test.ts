@@ -23,6 +23,7 @@ import {
 } from '../../src/ratings/category-management/icon-contracts.js';
 import type { CategoryIconMediaDescriptor } from '../../src/media/contracts-category-icon.js';
 import type { RatingNavigationSelector } from '../../src/ratings/scoped/contracts.js';
+import { assertCategoryDigestAcceptance } from '../support/category-digest-acceptance.js';
 
 const globalSelector = { kind: 'global' } as const;
 const node = (key = 'root') => ({
@@ -948,7 +949,12 @@ test(
       0,
       'Uploads never publish a partial tree',
     );
+    const publicationStarted = performance.now();
     const published = await f.execute(input);
+    t.diagnostic(
+      `32-icon original atomic prepare/approve/commit: ${Math.round(performance.now() - publicationStarted)} ms; unchanged 15s SQL limit`,
+    );
+    await assertCategoryDigestAcceptance(f.pool);
     assert.equal(published.receipt.outcome, 'applied');
     assert.equal(published.receipt.result.categoryIds.length, 32);
     assert.equal(published.text.length, 32);

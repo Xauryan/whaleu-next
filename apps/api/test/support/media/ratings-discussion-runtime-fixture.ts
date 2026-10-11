@@ -234,7 +234,14 @@ export async function syntheticRatingDiscussionFixture(
         memberId: string,
         sendOriginal: () => Promise<request.Response>,
       ) => Promise<request.Response>,
+      finalizeWindow?: (
+        sendOriginal: () => Promise<request.Response>,
+      ) => Promise<request.Response>,
     ) => {
+      assert.ok(
+        !(budgetSetupFinalize && finalizeWindow),
+        'A fixture must choose one explicit finalize path',
+      );
       const batchRequestId = randomUUID();
       const identity = ratingsDiscussionBatchIdentitySchema.parse({
         protocol: 'ratings-discussion-media-v1',
@@ -312,9 +319,13 @@ export async function syntheticRatingDiscussionFixture(
             ),
             actor,
           ).send({});
-        response = budgetSetupFinalize
-          ? await budgetSetupFinalize(memberId, sendOriginal)
-          : await sendOriginal();
+        // Separate from the existing budget-recovery hook: this window schedules
+        // one original HTTP finalize, without retries or changed failure handling.
+        response = finalizeWindow
+          ? await finalizeWindow(sendOriginal)
+          : budgetSetupFinalize
+            ? await budgetSetupFinalize(memberId, sendOriginal)
+            : await sendOriginal();
         discussionHttpOk(response);
         assert.ok(
           worker,
