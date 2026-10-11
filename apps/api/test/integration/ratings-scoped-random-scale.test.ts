@@ -390,16 +390,26 @@ test(
                   kind: 'region_compat' as const,
                   regionId: f.scope.related.regionId,
                 };
-          const deadline = new Date(Date.now() + 10000);
+          let deadline!: Date;
           await f.atomicChange(
-            (tx) =>
-              writeRatingScopedSource(tx, {
+            async (tx) => {
+              // Isolate only this expiry setup from unrelated epoch writers.
+              // The fixture already owns the policy gate; take the publication
+              // epochs in production order before any source write. The normal
+              // statement timeout still bounds this wait. COMMIT releases these
+              // locks before context/HTTP, whose final NOWAIT proof is unchanged.
+              await tx.query(
+                'LOCK TABLE whaleu_ratings.scoped_source_epoch,whaleu_ratings.scope_protocol_epoch,whaleu_ratings.random_pool_epoch,whaleu_ratings.navigation_epoch IN SHARE MODE',
+              );
+              deadline = new Date(Date.now() + 10000);
+              return writeRatingScopedSource(tx, {
                 kind: 'scope_absence',
                 key: scopeKey,
                 scopeKeys: [scopeKey],
                 payload: current.payload,
                 validUntil: deadline,
-              }),
+              });
+            },
             { domain },
           );
           const captured = await context();
@@ -409,13 +419,18 @@ test(
           );
           unavailable(await sample(captured));
           await f.atomicChange(
-            (tx) =>
-              writeRatingScopedSource(tx, {
+            async (tx) => {
+              // Restoration is setup too, and releases its locks before HTTP.
+              await tx.query(
+                'LOCK TABLE whaleu_ratings.scoped_source_epoch,whaleu_ratings.scope_protocol_epoch,whaleu_ratings.random_pool_epoch,whaleu_ratings.navigation_epoch IN SHARE MODE',
+              );
+              return writeRatingScopedSource(tx, {
                 kind: 'scope_absence',
                 key: scopeKey,
                 scopeKeys: [scopeKey],
                 payload: current.payload,
-              }),
+              });
+            },
             { domain },
           );
           assert.equal(
