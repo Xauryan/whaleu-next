@@ -1,1 +1,8 @@
 @import '../../errands/errands.wxss';
+
+.target-qr {
+  display: block;
+  width: 420rpx;
+  max-width: 100%;
+  margin: 20rpx auto;
+}

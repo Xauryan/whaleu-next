@@ -13,13 +13,21 @@ export type SchoolQrPrincipal =
       readonly accountId: string | null;
     }
   | {
+      readonly kind: 'authenticated-errand-target';
+      readonly orderId: string;
+      readonly requestId: string;
+      readonly accountId: string;
+      readonly sessionId: string;
+    }
+  | {
       readonly kind: 'authenticated-school-management';
       readonly accountId: string;
       readonly sessionId: string;
     };
 export interface SchoolQrReadRequest {
   readonly reference: SchoolQrReference;
-  readonly audience: 'public' | 'management';
+  readonly audience: 'public' | 'management' | 'errand-order';
+  readonly orderId?: string;
   readonly campusId: string | null;
   readonly requestId: string;
 }
@@ -70,11 +78,21 @@ export class SchoolQrOwnerProofRegistry {
     mediaV2IdSchema.parse(request.requestId);
     if (request.audience === 'public') {
       if (
+        request.orderId !== undefined ||
         request.reference.entryKey === 'review' ||
         !mediaV2IdSchema.safeParse(request.campusId).success
       )
         throw new ApplicationError('MEDIA_UNAVAILABLE');
+    } else if (request.audience === 'errand-order') {
+      if (
+        credential === null ||
+        request.campusId !== null ||
+        request.reference.entryKey !== 'errand' ||
+        !mediaV2IdSchema.safeParse(request.orderId).success
+      )
+        throw new ApplicationError('MEDIA_UNAVAILABLE');
     } else if (
+      request.orderId !== undefined ||
       request.audience !== 'management' ||
       credential === null ||
       request.campusId !== null
@@ -101,6 +119,15 @@ export class SchoolQrOwnerProofRegistry {
         throw new ApplicationError('MEDIA_UNAVAILABLE');
       if (value.principal.accountId !== null)
         mediaV2IdSchema.parse(value.principal.accountId);
+    } else if (request.audience === 'errand-order') {
+      if (
+        value.principal.kind !== 'authenticated-errand-target' ||
+        value.principal.orderId !== request.orderId ||
+        value.principal.requestId !== request.requestId
+      )
+        throw new ApplicationError('MEDIA_UNAVAILABLE');
+      mediaV2IdSchema.parse(value.principal.accountId);
+      mediaV2IdSchema.parse(value.principal.sessionId);
     } else {
       if (value.principal.kind !== 'authenticated-school-management')
         throw new ApplicationError('MEDIA_UNAVAILABLE');

@@ -7,6 +7,21 @@
     <view wx:if="{{detail.relation !== 'none'}}" class="card private"><view class="section-title">双方私密说明</view><view class="body">{{detail.privateText || '发布者未填写私密说明'}}</view><view class="meta">已结束订单仍向原参与双方保留此说明。</view></view>
     <view wx:if="{{detail.state === 'accepted' &amp;&amp; detail.relation !== 'none' &amp;&amp; detail.oppositeContact}}" class="card private"><view class="section-title">{{detail.relation === 'publisher' ? '接单者' : '发布者'}}联系方式</view><view>{{detail.oppositeContact.display.status === 'available' ? detail.oppositeContact.display.displayName : '对方展示名称暂不可用'}}</view><view wx:if="{{detail.oppositeContact.contacts.wechat}}">微信：{{detail.oppositeContact.contacts.wechat}}</view><view wx:if="{{detail.oppositeContact.contacts.phone}}">电话：{{detail.oppositeContact.contacts.phone}}</view><view class="meta">对方为此订单填写的联系方式，不代表已认证；结束后隐藏。</view></view>
     <view wx:if="{{detail.relation !== 'none' &amp;&amp; detail.state !== 'accepted'}}" class="notice">当前状态不显示对方联系方式。</view>
+    <view wx:if="{{targetServices.visible}}" class="card target-services">
+      <view class="section-title">{{targetServices.regionName}}跑腿互助群</view>
+      <view wx:if="{{targetServices.name}}">{{targetServices.name}}</view>
+      <view wx:if="{{targetServices.description}}" class="body">{{targetServices.description}}</view>
+      <view class="meta">{{targetServices.message}}</view>
+      <button wx:if="{{targetServices.canPreview}}" bindtap="onPreviewTargetQr" disabled="{{targetServices.busy || targetQr.status === 'loading'}}">查看目标地区群二维码</button>
+      <button bindtap="onDismissTargetNotice" disabled="{{targetServices.busy}}" loading="{{targetServices.busy}}">不再显示跑腿群提示</button>
+      <view class="meta">此设置适用于当前账号，可在偏好设置中重新开启。</view>
+    </view>
+    <view wx:if="{{targetServices.error}}" class="error">{{targetServices.error}}</view>
+    <view wx:if="{{targetQr.status !== 'idle'}}" class="card">
+      <view>{{targetQr.message}}</view>
+      <image wx:if="{{targetQr.src}}" src="{{targetQr.src}}" mode="widthFix" class="target-qr" />
+      <button bindtap="onCloseTargetQr">关闭群二维码</button>
+    </view>
     <button wx:if="{{detail.capabilities.accept}}" bindtap="onAccept" disabled="{{busy || frozen}}">接取此订单</button>
     <button wx:if="{{detail.capabilities.cancel}}" data-action="cancel" bindtap="onConfirm" disabled="{{busy || frozen}}">取消订单</button>
     <button wx:if="{{detail.capabilities.complete}}" data-action="complete" bindtap="onConfirm" disabled="{{busy || frozen}}">确认完成</button>

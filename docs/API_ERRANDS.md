@@ -5,8 +5,8 @@ text publication, discovery/detail, single-winner acceptance, publisher cleanup,
 owned history, remembered accepter contacts, recoverable receipts and durable
 local accepted/completed notices. E2A adds bounded historical management reads;
 E2B adds scoped deletion, account-wide feature restrictions, global audit/release
-and durable local administrative notices. It does not implement a grant or
-coverage issuer, external provider, production import, media or group delivery. Reward is
+and durable local administrative notices. E4a adds the [order-target group card, QR and account notice preference](ERRAND_TARGET_SERVICES.md). It does not implement a grant or
+coverage issuer, external provider, production import, order images or external group delivery. Reward is
 an offered amount, not payment or settlement. No refund or runner rating exists.
 
 ## HTTP contract

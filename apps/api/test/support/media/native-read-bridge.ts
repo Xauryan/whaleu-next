@@ -166,7 +166,7 @@ export class NativeMediaReadBridge {
             : this.owner === 'organizations'
               ? /^\/v3\/media\/organizations\/(public|management)\/organizations\/[a-f0-9-]{36}\/slots\/(avatar|mainQr|managerContact|linkedOfficialQr|introImage[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
               : this.owner === 'school-configuration'
-                ? /^\/v3\/media\/school-configuration\/entries\/(treehole|trading|errand|official_account|admin)\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+                ? /^\/v3\/media\/school-configuration\/(entries\/(treehole|trading|errand|official_account|admin)|errands\/[a-f0-9-]{36})\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
                 : /^\/v1\/media\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i,
     );
     if (this.owner === 'verification-evidence') {
@@ -209,11 +209,18 @@ export class NativeMediaReadBridge {
               typeof input.header['Authorization'] === 'string'),
         );
     } else if (this.owner === 'school-configuration') {
-      assert.deepEqual([...url.searchParams.keys()].sort(), [
-        'campusId',
-        'entryRevision',
-      ]);
-      assert.match(url.searchParams.get('campusId') ?? '', /^[a-f0-9-]{36}$/i);
+      const orderRead = url.pathname.includes('/errands/');
+      assert.deepEqual(
+        [...url.searchParams.keys()].sort(),
+        orderRead ? ['entryRevision'] : ['campusId', 'entryRevision'],
+      );
+      if (orderRead)
+        assert.deepEqual(Object.keys(input.header), ['Authorization']);
+      else
+        assert.match(
+          url.searchParams.get('campusId') ?? '',
+          /^[a-f0-9-]{36}$/i,
+        );
       assert.match(
         url.searchParams.get('entryRevision') ?? '',
         /^[1-9][0-9]*$/,

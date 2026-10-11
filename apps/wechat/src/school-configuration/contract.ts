@@ -445,3 +445,22 @@ export function decodeSchoolRecovery(value: unknown): SchoolRecovery {
   if (receipt.requestId !== requestId) invalidSchool();
   return { state: 'recorded', requestId, receipt };
 }
+
+export interface ErrandSchoolService {
+  context: { orderId: string; targetRegion: { id: string; name: string } };
+  entry: SchoolEntry;
+}
+export function decodeErrandSchoolService(value: unknown): ErrandSchoolService {
+  exact(value, ['context', 'entry']);
+  exact(value.context, ['orderId', 'targetRegion']);
+  const target = region(value.context.targetRegion),
+    group = entry(value.entry, false);
+  if (!target || group.entryKey !== 'errand') invalidSchool();
+  return {
+    context: {
+      orderId: schoolUuid(value.context.orderId),
+      targetRegion: target,
+    },
+    entry: group,
+  };
+}

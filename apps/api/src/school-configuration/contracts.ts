@@ -203,3 +203,12 @@ export const schoolCapabilitiesSchema = z.strictObject({
   management: z.enum(['none', 'fixed', 'global']),
   region: z.strictObject({ id: schoolIdSchema, name: z.string() }).nullable(),
 });
+
+/** An order-scoped public errand group. No physical-campus mapping is fabricated. */
+export const errandSchoolServiceSchema = z.strictObject({
+  context: z.strictObject({
+    orderId: schoolIdSchema,
+    targetRegion: z.strictObject({ id: schoolIdSchema, name: z.string() }),
+  }),
+  entry: schoolEntryViewSchema.extend({ entryKey: z.literal('errand') }),
+});

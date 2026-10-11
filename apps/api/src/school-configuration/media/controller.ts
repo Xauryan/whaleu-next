@@ -283,6 +283,79 @@ export class SchoolQrMediaController {
       query.entryRevision,
     );
   }
+  @Get('errands/:orderId/descriptor')
+  @MediaPrivateResponse()
+  @ApiOperation({
+    operationId: 'readErrandTargetQrDescriptor',
+    description:
+      'Exact enabled errand group revision at a currently readable order target. Authenticated order read grants no school management authority.',
+  })
+  @ApiOkResponse({
+    standardSchema: schoolQrDescriptorSchema,
+    headers: mediaResponseHeaders,
+  })
+  errandDescriptor(
+    @Headers('authorization') auth: unknown,
+    @Param('orderId', idOptions) orderId: string,
+    @Query({
+      schema: managementQuery,
+      pipes: [new SchemaValidationPipe(managementQuery)],
+    })
+    query: z.infer<typeof managementQuery>,
+    @Body(emptyBodyOptions) _body: unknown,
+  ) {
+    return this.media.descriptor(
+      bearerToken(auth),
+      { orderId },
+      'errand',
+      query.entryRevision,
+    );
+  }
+  @Get('errands/:orderId/bindings/:bindingId/:variant')
+  @MediaPrivateResponse()
+  @ApiOperation({
+    operationId: 'readErrandTargetQrVariant',
+    description:
+      'Revalidates readable order, immutable target, exact enabled entry revision, binding and Safety before and after object open.',
+  })
+  @ApiOkResponse({
+    content: {
+      'image/png': { schema: { type: 'string', format: 'binary' } },
+      'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+    },
+    headers: mediaBinaryResponseHeaders,
+  })
+  async errandOpen(
+    @Headers('authorization') auth: unknown,
+    @Headers('range') range: string | undefined,
+    @Param('orderId', idOptions) orderId: string,
+    @Param('bindingId', idOptions) bindingId: string,
+    @Param('variant', {
+      schema: mediaVariantSchema,
+      pipes: [new SchemaValidationPipe(mediaVariantSchema)],
+    })
+    variant: MediaVariantName,
+    @Query({
+      schema: managementQuery,
+      pipes: [new SchemaValidationPipe(managementQuery)],
+    })
+    query: z.infer<typeof managementQuery>,
+    @Body(emptyBodyOptions) _body: unknown,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    return this.stream(
+      bearerToken(auth),
+      { orderId },
+      'errand',
+      query.entryRevision,
+      bindingId,
+      variant,
+      range,
+      request,
+      response,
+    );
+  }
   @Get('management/regions/:regionId/entries/:key/descriptor')
   @MediaPrivateResponse()
   @ApiOperation({ operationId: 'readManagedSchoolQrDescriptor' })
@@ -401,7 +474,7 @@ export class SchoolQrMediaController {
   }
   private async stream(
     token: string | null,
-    target: { campusId: string } | { regionId: string },
+    target: { campusId: string } | { regionId: string } | { orderId: string },
     key: SchoolQrEntryKey,
     revision: number,
     bindingId: string,

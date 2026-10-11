@@ -11,7 +11,9 @@ import {
   type SchoolQrDescriptor,
 } from './qr-contract';
 export type SchoolQrReadTarget =
-  { readonly campusId: string } | { readonly regionId: string };
+  | { readonly campusId: string }
+  | { readonly regionId: string }
+  | { readonly orderId: string; readonly targetRegionId: string };
 export interface SchoolQrDownloadInput {
   readonly descriptor: SchoolQrDescriptor;
   readonly target: SchoolQrReadTarget;
@@ -40,6 +42,22 @@ export class SchoolQrDownload extends OwnerImageDownload<SchoolQrDownloadInput> 
             target: { campusId: schoolUuid(raw.target.campusId) },
           };
         }
+        if ('orderId' in raw.target) {
+          exact(raw.target, ['orderId', 'targetRegionId']);
+          if (
+            descriptor.entryKey !== 'errand' ||
+            !('targetRegionId' in raw.target) ||
+            schoolUuid(raw.target.targetRegionId) !== descriptor.regionId
+          )
+            invalidSchool();
+          return {
+            descriptor,
+            target: {
+              orderId: schoolUuid(raw.target.orderId),
+              targetRegionId: descriptor.regionId,
+            },
+          };
+        }
         exact(raw.target, ['regionId']);
         if (schoolUuid(raw.target.regionId) !== descriptor.regionId)
           invalidSchool();
@@ -47,7 +65,9 @@ export class SchoolQrDownload extends OwnerImageDownload<SchoolQrDownloadInput> 
       },
       shape: (value) => value.descriptor,
       path: ({ descriptor: d, target }, variant) =>
-        `/v3/media/school-configuration/${'campusId' in target ? '' : `management/regions/${target.regionId}/`}entries/${d.entryKey}/bindings/${d.bindingId}/${variant}`,
+        'orderId' in target
+          ? `/v3/media/school-configuration/errands/${target.orderId}/bindings/${d.bindingId}/${variant}`
+          : `/v3/media/school-configuration/${'campusId' in target ? '' : `management/regions/${target.regionId}/`}entries/${d.entryKey}/bindings/${d.bindingId}/${variant}`,
       query: ({ descriptor: d, target }) => ({
         entryRevision: d.entryRevision,
         ...('campusId' in target ? { campusId: target.campusId } : {}),

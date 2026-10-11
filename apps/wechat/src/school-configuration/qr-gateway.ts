@@ -180,10 +180,16 @@ export class HttpSchoolQrMediaGateway {
     schoolKey(key);
     if (!schoolRevision(entryRevision)) invalidSchool();
     const publicRead = 'campusId' in target;
-    if (publicRead && key === 'review') invalidSchool();
+    if (
+      (publicRead && key === 'review') ||
+      ('orderId' in target && key !== 'errand')
+    )
+      invalidSchool();
     const path = publicRead
       ? `${prefix}/entries/${key}/descriptor`
-      : `${prefix}/management/regions/${schoolUuid(target.regionId)}/entries/${key}/descriptor`;
+      : 'orderId' in target
+        ? `${prefix}/errands/${schoolUuid(target.orderId)}/descriptor`
+        : `${prefix}/management/regions/${schoolUuid(target.regionId)}/entries/${key}/descriptor`;
     const result = await this.call(
       path,
       'GET',
@@ -200,7 +206,11 @@ export class HttpSchoolQrMediaGateway {
     if (
       result.entryKey !== key ||
       result.entryRevision !== entryRevision ||
-      (!publicRead && result.regionId !== target.regionId)
+      (!publicRead &&
+        result.regionId !==
+          ('orderId' in target
+            ? schoolUuid(target.targetRegionId)
+            : target.regionId))
     )
       invalidSchool();
     return result;

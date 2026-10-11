@@ -1,3 +1,4 @@
+import { requireErrandTargetCurrent } from './target-context-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { z, ZodError } from 'zod';
@@ -241,21 +242,37 @@ export class ErrandsService {
       );
     });
   }
+  /** Read-only owner boundary for services attached to a currently readable order.
+   * The target is the immutable order target, never a browsing campus or a grant. */
+  async targetContext(token: string, id: string, tx: PoolClient) {
+    const { actor, row } = await this.readableOrder(token, id, tx);
+    const { targetRegion } = await this.campuses.project(
+      row.source_region_id,
+      row.target_region_id,
+      tx,
+    );
+    await this.access.recheck(token, tx);
+    await requireErrandTargetCurrent(row.id, tx);
+    return { session: actor, orderId: row.id, targetRegion };
+  }
+  private async readableOrder(token: string, id: string, tx: PoolClient) {
+    const actor = await this.access.common(token, tx),
+      row = await this.records.read(id, tx);
+    if (!row || row.deleted_at) throw new ApplicationError('ERRAND_NOT_FOUND');
+    const relation =
+      row.publisher_id === actor.accountId
+        ? ('publisher' as const)
+        : row.accepter_id === actor.accountId
+          ? ('accepter' as const)
+          : ('none' as const);
+    if (relation === 'none') await this.access.base(actor.accountId, tx);
+    if (!(await this.visible(row, tx)))
+      throw new ApplicationError('ERRAND_NOT_FOUND');
+    return { actor, row, relation };
+  }
   detail(token: string, id: string) {
     return this.run(async (tx) => {
-      const actor = await this.access.common(token, tx),
-        row = await this.records.read(id, tx);
-      if (!row || row.deleted_at)
-        throw new ApplicationError('ERRAND_NOT_FOUND');
-      const relation =
-        row.publisher_id === actor.accountId
-          ? ('publisher' as const)
-          : row.accepter_id === actor.accountId
-            ? ('accepter' as const)
-            : ('none' as const);
-      if (relation === 'none') await this.access.base(actor.accountId, tx);
-      if (!(await this.visible(row, tx)))
-        throw new ApplicationError('ERRAND_NOT_FOUND');
+      const { actor, row, relation } = await this.readableOrder(token, id, tx);
       const summary = await this.summary(row, tx);
       let accept = relation === 'none' && row.state === 'pending';
       if (accept)

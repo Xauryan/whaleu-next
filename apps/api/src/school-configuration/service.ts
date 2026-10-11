@@ -1,3 +1,4 @@
+import { ErrandsService } from '../errands/service.js';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ZodError } from 'zod';
@@ -10,6 +11,7 @@ import type { SchoolEntryRow } from './repository.js';
 import { SchoolQrMediaService } from './media/facade.js';
 import { lockSchoolConfigurationEntry } from './current-proof.js';
 import {
+  errandSchoolServiceSchema,
   schoolEntryKeys,
   publicSchoolEntryKeys,
   assertSchoolEntryKind,
@@ -60,6 +62,7 @@ export function projectSchoolEntry(
 @Injectable()
 export class SchoolConfigurationService {
   constructor(
+    @Inject(ErrandsService) private readonly errands: ErrandsService,
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(SchoolConfigurationAccess)
     private readonly access: SchoolConfigurationAccess,
@@ -116,6 +119,25 @@ export class SchoolConfigurationService {
             : null,
         },
         entries,
+      });
+    });
+  }
+  errandOrder(token: string, orderId: string) {
+    return this.run(async (tx) => {
+      const context = await this.errands.targetContext(token, orderId, tx),
+        regionId = context.targetRegion.id;
+      await lockSchoolConfigurationEntry(regionId, 'errand', tx, false);
+      const entry = projectSchoolEntry(
+        'errand',
+        await this.records.entry(regionId, 'errand', tx),
+      );
+      await this.records.prove(regionId, 'errand', tx);
+      return errandSchoolServiceSchema.parse({
+        context: {
+          orderId,
+          targetRegion: { id: regionId, name: context.targetRegion.label },
+        },
+        entry,
       });
     });
   }

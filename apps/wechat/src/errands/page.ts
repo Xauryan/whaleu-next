@@ -1,3 +1,13 @@
+import { HttpProfileGateway } from '../profile/gateway';
+import {
+  ErrandTargetServicesController,
+  HttpErrandTargetServicesGateway,
+  initialErrandTargetServicesView,
+} from './target-services';
+import type {
+  SchoolQrReader,
+  SchoolQrReadView,
+} from '../school-configuration/qr-runtime';
 import { ErrandAdminEntryController } from './admin-entry';
 import type { WhaleuApp } from '../app';
 import { DirectoryNavigator } from '../directory/navigation';
@@ -21,7 +31,15 @@ type Input = {
 /** Native controls only; route intent may survive hide, never private content or form values. */
 export function registerErrandPage(mode: ErrandMode): void {
   Page({
-    data: { ...initialErrandView(), errandStateLabels, adminAvailable: false },
+    data: {
+      ...initialErrandView(),
+      errandStateLabels,
+      adminAvailable: false,
+      targetServices: initialErrandTargetServicesView(),
+      targetQr: { status: 'idle', src: '', message: '' } as SchoolQrReadView,
+    },
+    targetServices: undefined as ErrandTargetServicesController | undefined,
+    targetReader: undefined as SchoolQrReader | undefined,
     adminEntry: undefined as ErrandAdminEntryController | undefined,
     route: null as ErrandRoute | null,
     controller: undefined as ErrandController | undefined,
@@ -48,10 +66,20 @@ export function registerErrandPage(mode: ErrandMode): void {
         }
       });
       this.unsubscribeHide = runtime.privateViews?.subscribe((accountId) => {
-        if (accountId === undefined) this.navigator?.dispose();
+        if (accountId === undefined) {
+          this.navigator?.dispose();
+          this.targetServices?.dispose();
+          this.targetServices = undefined;
+          this.targetReader?.dispose();
+          this.targetReader = undefined;
+        }
       });
     },
     onShow() {
+      this.targetServices?.dispose();
+      this.targetServices = undefined;
+      this.targetReader?.dispose();
+      this.targetReader = undefined;
       this.adminEntry?.dispose();
       this.adminEntry = undefined;
       this.controller?.dispose();
@@ -69,9 +97,23 @@ export function registerErrandPage(mode: ErrandMode): void {
       this.navigator = new DirectoryNavigator(wx, () =>
         this.setData({ error: '暂不能打开跑腿页面，请重试' }),
       );
-      this.controller = new ErrandController(runtime, mode, (view) =>
-        this.setData({ ...view }),
-      );
+      const app = getApp<WhaleuApp>();
+      if (mode === 'detail' && app.identity?.api) {
+        this.targetReader = app.schoolQr?.createReader((targetQr) =>
+          this.setData({ targetQr }),
+        );
+        this.targetServices = new ErrandTargetServicesController(
+          runtime.sessions,
+          new HttpErrandTargetServicesGateway(app.identity.api),
+          new HttpProfileGateway(app.identity.api),
+          () => this.targetReader?.clear(),
+          (targetServices) => this.setData({ targetServices }),
+        );
+      }
+      this.controller = new ErrandController(runtime, mode, (view) => {
+        this.setData({ ...view });
+        this.targetServices?.sync(view.loaded ? view.detail : null);
+      });
       void this.controller.load(this.route);
       if (mode === 'list') {
         this.adminEntry = new ErrandAdminEntryController(runtime, (view) =>
@@ -82,6 +124,16 @@ export function registerErrandPage(mode: ErrandMode): void {
     },
     onRefresh() {
       void this.controller?.reload();
+    },
+    onPreviewTargetQr() {
+      const target = this.targetServices?.previewContext();
+      if (target && this.targetReader) void this.targetReader.load(target);
+    },
+    onCloseTargetQr() {
+      this.targetReader?.clear();
+    },
+    onDismissTargetNotice() {
+      void this.targetServices?.dismiss();
     },
     onMore() {
       void this.controller?.more();
@@ -159,6 +211,10 @@ export function registerErrandPage(mode: ErrandMode): void {
       void this.controller?.confirmCommand();
     },
     onHide() {
+      this.targetServices?.dispose();
+      this.targetServices = undefined;
+      this.targetReader?.dispose();
+      this.targetReader = undefined;
       this.adminEntry?.dispose();
       this.adminEntry = undefined;
       this.controller?.dispose();

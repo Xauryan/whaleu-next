@@ -22,6 +22,7 @@ import { bearerToken } from '../identity/tokens.js';
 import { SchoolConfigurationService } from './service.js';
 import { SchoolConfigurationRequestGuard } from './request-guard.js';
 import {
+  errandSchoolServiceSchema,
   schoolIdSchema,
   schoolEntryKeySchema,
   schoolBrowseQuerySchema,
@@ -70,6 +71,32 @@ export class SchoolServicesController {
       auth === undefined ? null : bearerToken(auth),
       query.campusId,
     );
+  }
+  @Get('errands/:orderId')
+  @ApiBearerAuth('accessToken')
+  @Header('Cache-Control', 'no-store')
+  @Header('Vary', 'Authorization')
+  @ApiOperation({
+    operationId: 'readErrandTargetSchoolService',
+    description:
+      'The public errand group at the immutable target of a currently readable order. No campus selection or management authority is inferred.',
+  })
+  @ApiOkResponse({ standardSchema: errandSchoolServiceSchema })
+  errandOrder(
+    @Headers('authorization') auth: unknown,
+    @Param('orderId', {
+      schema: schoolIdSchema,
+      pipes: [new SchemaValidationPipe(schoolIdSchema)],
+    })
+    orderId: string,
+    @Query({
+      schema: schoolEmptyQuerySchema,
+      pipes: [new SchemaValidationPipe(schoolEmptyQuerySchema)],
+    })
+    _query: unknown,
+    @Body(new SchemaValidationPipe(schoolEmptyBodySchema)) _body: unknown,
+  ) {
+    return this.service.errandOrder(bearerToken(auth), orderId);
   }
 }
 @ApiTags('School configuration')

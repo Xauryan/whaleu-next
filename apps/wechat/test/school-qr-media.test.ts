@@ -274,3 +274,64 @@ test('School QR rejects a response missing the controlled nosniff header and rem
     h.principals.dispose();
   }
 });
+
+test('Errand target QR uses authenticated order path, rejects foreign region, and expires its inline lease after 30 seconds', async () => {
+  const h = harness(),
+    transport = new ScriptedTransport();
+  h.sessions.completeLogin(h.sessions.beginLogin(), credentials(id(8)));
+  const api = new ApiClient('https://school.invalid', transport, h.sessions, {
+    refresh: async () => h.sessions.snapshot(),
+  });
+  let view = { status: '', src: '', message: '' };
+  const reader = new SchoolQrReader(
+    h.sessions,
+    h.principals,
+    new HttpSchoolQrMediaGateway(api),
+    h.transfer,
+    h.clock,
+    (next) => {
+      view = next;
+    },
+  );
+  const target = {
+    orderId: id(9),
+    targetRegionId: id(1),
+    entryKey: 'errand' as const,
+    entryRevision: 7,
+  };
+  try {
+    transport.reply({ ...descriptor, entryKey: 'errand' });
+    const loading = reader.load(target);
+    for (let i = 0; i < 4; i++) await flush();
+    const call = h.calls[0]!,
+      path = 'wxfile://tmp/errand-target-qr.png';
+    assert.equal(
+      transport.requests[0]!.url,
+      `https://school.invalid/v3/media/school-configuration/errands/${id(9)}/descriptor?entryRevision=7`,
+    );
+    assert.equal(
+      call.options.url,
+      `https://school.invalid/v3/media/school-configuration/errands/${id(9)}/bindings/${id(2)}/display-v1?entryRevision=7`,
+    );
+    assert.ok(call.options.header.Authorization);
+    h.files.put(path);
+    call.headers({ ...imageHeaders(), 'x-content-type-options': 'nosniff' });
+    call.success(path);
+    call.complete();
+    await loading;
+    assert.equal(view.src, path);
+    h.clock.advance(29999);
+    assert.equal(view.src, path);
+    h.clock.advance(1);
+    await flush();
+    assert.equal(view.src, '');
+    assert.ok(h.files.deleted.includes(path));
+    transport.reply({ ...descriptor, entryKey: 'errand', regionId: id(20) });
+    await reader.load(target);
+    assert.equal(view.status, 'unavailable');
+    assert.equal(h.calls.length, 1);
+  } finally {
+    reader.dispose();
+    h.principals.dispose();
+  }
+});

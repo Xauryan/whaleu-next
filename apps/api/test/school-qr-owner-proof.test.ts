@@ -124,3 +124,61 @@ test('School media proof cannot accept a public-only principal for authenticated
     clearTransactionDeadlines(tx);
   }
 });
+
+test('Errand target QR has exact order principal and cannot borrow campus or management authority', async () => {
+  const tx = {} as PoolClient;
+  startTransactionDeadlines(tx);
+  const request: SchoolQrReadRequest = {
+    reference: {
+      regionId: randomUUID(),
+      entryKey: 'errand',
+      entryRevision: 2,
+      bindingId: randomUUID(),
+    },
+    audience: 'errand-order',
+    campusId: null,
+    orderId: randomUUID(),
+    requestId: randomUUID(),
+  };
+  const value: SchoolQrReadAuthority = {
+    principal: {
+      kind: 'authenticated-errand-target',
+      orderId: request.orderId!,
+      requestId: request.requestId,
+      accountId: randomUUID(),
+      sessionId: randomUUID(),
+    },
+    reference: request.reference,
+    appearanceId: randomUUID(),
+    assetId: randomUUID(),
+    manifestDigest: 'a'.repeat(64),
+    ownerRevision: 'b'.repeat(64),
+  };
+  const registry = new SchoolQrOwnerProofRegistry({
+    authorizeCurrent: async () => value,
+  });
+  try {
+    const proof = await registry.authorize('session', request, tx);
+    assert.equal(
+      registry.require(proof, request, tx).principal.kind,
+      'authenticated-errand-target',
+    );
+    for (const bad of [
+      { ...request, audience: 'public' as const, campusId: randomUUID() },
+      { ...request, audience: 'management' as const },
+      { ...request, orderId: randomUUID() },
+      { ...request, campusId: randomUUID() },
+      {
+        ...request,
+        reference: { ...request.reference, entryKey: 'review' as const },
+      },
+    ])
+      await assert.rejects(registry.authorize('session', bad, tx));
+    await assert.rejects(registry.authorize(null, request, tx));
+    assert.throws(() =>
+      registry.require(proof, { ...request, orderId: randomUUID() }, tx),
+    );
+  } finally {
+    clearTransactionDeadlines(tx);
+  }
+});

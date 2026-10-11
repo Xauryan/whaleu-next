@@ -17,6 +17,7 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/school-configuration-native-roundtrip.test.ts \
   test/integration/school-qr-media.test.ts \
   test/integration/school-qr-native-roundtrip.test.ts \
+  test/integration/errand-target-services-native-roundtrip.test.ts \
   test/integration/school-posting-policy.test.ts \
   test/integration/school-posting-policy-native-roundtrip.test.ts \
   test/integration/organization-management.test.ts \

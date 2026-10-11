@@ -97,3 +97,19 @@ public redaction, CAS/replay/cancellation, original-key lost-response recovery,
 copy-time currentness, campus/account changes, and Media ownership/currentness.
 The real PostgreSQL/native simulated journey is distinct from physical WeChat
 acceptance. Do not describe this slice as a completed rewrite or production-ready.
+
+## Errand order target (E4a)
+
+`GET /v1/school-services/errands/:orderId` is authenticated and returns only the
+public `errand` entry at that currently readable order's immutable target region.
+The Errands owner performs the same session, phone, Safety, relation/base and
+exact Review checks as detail. The caller supplies no campus or region override;
+this path neither chooses a representative campus nor grants school management.
+
+`GET /v3/media/school-configuration/errands/:orderId/descriptor?entryRevision=N`
+and `GET /v3/media/school-configuration/errands/:orderId/bindings/:bindingId/:variant?entryRevision=N`
+use the distinct authenticated order-target principal. Each byte authorization
+rechecks the readable order and exact enabled School Configuration revision,
+binding and image Safety. Both object-open guards retain final owner proofs.
+Only `errand` is reachable; management and internal `review` remain separate.
+See [scope, native lifecycle and simulation evidence](ERRAND_TARGET_SERVICES.md).

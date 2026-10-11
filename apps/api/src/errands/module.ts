@@ -42,6 +42,7 @@ import { ErrandRequests } from './requests.js';
     ErrandAdminController,
     ErrandAdminCommandController,
   ],
+  exports: [ErrandsService],
   providers: [
     ErrandAdminCommandService,
     ErrandRestrictionService,

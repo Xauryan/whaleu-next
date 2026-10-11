@@ -1067,6 +1067,210 @@
         "tags": ["School configuration"]
       }
     },
+    "/v1/school-services/errands/{orderId}": {
+      "get": {
+        "description": "The public errand group at the immutable target of a currently readable order. No campus selection or management authority is inferred.",
+        "operationId": "readErrandTargetSchoolService",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "context": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "orderId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "targetRegion": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "type": "object"
+                        }
+                      },
+                      "required": ["orderId", "targetRegion"],
+                      "type": "object"
+                    },
+                    "entry": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "nullable": true,
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "description": {
+                                  "maxLength": 500,
+                                  "type": "string"
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "joinUrl": {
+                                  "maxLength": 1000,
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": ["group"],
+                                  "type": "string"
+                                },
+                                "maxGroupNumber": {
+                                  "maximum": 999,
+                                  "minimum": 1,
+                                  "nullable": true,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "maxLength": 100,
+                                  "type": "string"
+                                },
+                                "qqGroupNumber": {
+                                  "pattern": "^(?:[1-9][0-9]{4,31})?$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "enabled",
+                                "name",
+                                "description",
+                                "joinUrl",
+                                "qqGroupNumber",
+                                "maxGroupNumber"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "description": {
+                                  "maxLength": 500,
+                                  "type": "string"
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "kind": {
+                                  "enum": ["official_account"],
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "maxLength": 100,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "enabled",
+                                "name",
+                                "description"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "kind": {
+                                  "enum": ["admin"],
+                                  "type": "string"
+                                },
+                                "wechatId": {
+                                  "maxLength": 100,
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind", "enabled", "wechatId"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "entryKey": {
+                          "enum": ["errand"],
+                          "type": "string"
+                        },
+                        "qrcode": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "status": {
+                              "enum": ["none", "configured"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["status"],
+                          "type": "object"
+                        },
+                        "revision": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "state": {
+                          "enum": [
+                            "unconfigured",
+                            "disabled",
+                            "partial",
+                            "configured"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "entryKey",
+                        "revision",
+                        "state",
+                        "data",
+                        "qrcode"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["context", "entry"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["School configuration"]
+      }
+    },
     "/v3/media/school-configuration/entries/{key}/bindings/{bindingId}/{variant}": {
       "get": {
         "description": "Exact current school configuration revision and enabled slot, two checks around storage, no redirect or public cache. Public review QR is prohibited.",
@@ -1457,6 +1661,742 @@
           {
             "in": "query",
             "name": "campusId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entryRevision",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]*$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "bindingId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "entryKey": {
+                      "enum": [
+                        "treehole",
+                        "trading",
+                        "errand",
+                        "review",
+                        "official_account",
+                        "admin"
+                      ],
+                      "type": "string"
+                    },
+                    "entryRevision": {
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "height": {
+                      "exclusiveMinimum": true,
+                      "maximum": 2048,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "kind": {
+                      "enum": ["school-configuration-qr"],
+                      "type": "string"
+                    },
+                    "protocol": {
+                      "enum": ["school-configuration-qr-media-v1"],
+                      "type": "string"
+                    },
+                    "regionId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "variants": {
+                      "items": {
+                        "anyOf": [
+                          {
+                            "enum": ["thumb-v1"],
+                            "type": "string"
+                          },
+                          {
+                            "enum": ["display-v1"],
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "type": "array"
+                    },
+                    "width": {
+                      "exclusiveMinimum": true,
+                      "maximum": 2048,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "regionId",
+                    "entryKey",
+                    "entryRevision",
+                    "bindingId",
+                    "protocol",
+                    "kind",
+                    "width",
+                    "height",
+                    "variants"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict validation rejects unknown query/body keys and invalid identifiers or variants.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current valid opaque bearer session required; no anonymous access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current owner or parent authority denies access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or inaccessible intent/binding; no hidden parent or storage disclosure.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_NOT_READY or command conflict; refresh intent status.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Request exceeds body size limit.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported request format.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_RATE_LIMITED: bounded new request-key or actual-transfer budget exhausted; preserve the original journal and retry later.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_UNAVAILABLE: default runtime is disabled. Missing storage, transform, safety or owner authority fails closed. Range requests are unsupported and return MEDIA_UNAVAILABLE; no partial content or redirect.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": ["School configuration QR media"]
+      }
+    },
+    "/v3/media/school-configuration/errands/{orderId}/bindings/{bindingId}/{variant}": {
+      "get": {
+        "description": "Revalidates readable order, immutable target, exact enabled entry revision, binding and Safety before and after object open.",
+        "operationId": "readErrandTargetQrVariant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bindingId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "variant",
+            "required": true,
+            "schema": {
+              "enum": ["thumb-v1", "display-v1"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entryRevision",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]*$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "accept-ranges": {
+                "schema": {
+                  "enum": ["none"],
+                  "type": "string"
+                }
+              },
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "content-length": {
+                "schema": {
+                  "pattern": "^[1-9][0-9]*$",
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              },
+              "x-content-type-options": {
+                "schema": {
+                  "enum": ["nosniff"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict validation rejects unknown query/body keys and invalid identifiers or variants.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current valid opaque bearer session required; no anonymous access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current owner or parent authority denies access.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or inaccessible intent/binding; no hidden parent or storage disclosure.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_NOT_READY or command conflict; refresh intent status.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Request exceeds body size limit.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported request format.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_RATE_LIMITED: bounded new request-key or actual-transfer budget exhausted; preserve the original journal and retry later.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected failure is sanitized.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "MEDIA_UNAVAILABLE: default runtime is disabled. Missing storage, transform, safety or owner authority fails closed. Range requests are unsupported and return MEDIA_UNAVAILABLE; no partial content or redirect.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["private, no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": ["School configuration QR media"]
+      }
+    },
+    "/v3/media/school-configuration/errands/{orderId}/descriptor": {
+      "get": {
+        "description": "Exact enabled errand group revision at a currently readable order target. Authenticated order read grants no school management authority.",
+        "operationId": "readErrandTargetQrDescriptor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderId",
             "required": true,
             "schema": {
               "format": "uuid",

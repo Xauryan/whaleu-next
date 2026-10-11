@@ -4,7 +4,7 @@ import { PostgresRequestThrottlingModule } from '../request-throttling/module.js
 import { PostgresThrottlerStorage } from '../request-throttling/postgres-storage.js';
 import { StudentVerificationNotices } from './student/notices.js';
 import { CampusModule } from '../campus/campus.module.js';
-import { SchoolConfigurationModule } from '../school-configuration/module.js';
+import { SchoolConfigurationAccessModule } from '../school-configuration/access.module.js';
 import { SafetyPolicyModule } from '../safety/policy.module.js';
 import { MediaDeliveryBudgetModule } from '../media/delivery-budget.module.js';
 import { StudentVerificationAccess } from './student/access.js';
@@ -66,7 +66,7 @@ export class VerificationController {
     IdentityModule,
     AuthorizationModule,
     CampusModule,
-    SchoolConfigurationModule,
+    SchoolConfigurationAccessModule,
     SafetyPolicyModule,
     MediaDeliveryBudgetModule,
     PostgresRequestThrottlingModule,

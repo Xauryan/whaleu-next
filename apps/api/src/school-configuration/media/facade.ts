@@ -1,3 +1,4 @@
+import type { ErrandsService } from '../../errands/service.js';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import type { DatabaseService } from '../../database/database.js';
@@ -74,6 +75,7 @@ export class SchoolQrMediaService {
     readonly database: DatabaseService,
     readonly identity: IdentityService,
     readonly access: SchoolConfigurationAccess,
+    readonly errands: Pick<ErrandsService, 'targetContext'>,
     readonly runtime: SchoolQrMediaRuntime | null,
     budget: MediaDeliveryBudgetPool,
   ) {
@@ -390,7 +392,7 @@ export class SchoolQrMediaService {
   }
   async descriptor(
     token: string | null,
-    target: { campusId: string } | { regionId: string },
+    target: { campusId: string } | { regionId: string } | { orderId: string },
     entryKey: SchoolQrEntryKey,
     revision: number,
   ) {
@@ -412,7 +414,7 @@ export class SchoolQrMediaService {
   }
   open(
     token: string | null,
-    target: { campusId: string } | { regionId: string },
+    target: { campusId: string } | { regionId: string } | { orderId: string },
     entryKey: SchoolQrEntryKey,
     revision: number,
     bindingId: string,
@@ -461,7 +463,7 @@ export class SchoolQrMediaService {
   }
   private async resolveRead(
     token: string | null,
-    target: { campusId: string } | { regionId: string },
+    target: { campusId: string } | { regionId: string } | { orderId: string },
     entryKey: SchoolQrEntryKey,
     revision: number,
     bindingId: string | null,
@@ -480,6 +482,16 @@ export class SchoolQrMediaService {
       );
       if (!scope.region) throw new ApplicationError('MEDIA_UNAVAILABLE');
       regionId = scope.region.id;
+    } else if ('orderId' in target) {
+      if (token === null || entryKey !== 'errand')
+        throw new ApplicationError('MEDIA_UNAVAILABLE');
+      regionId = (
+        await this.errands.targetContext(
+          token,
+          mediaV2IdSchema.parse(target.orderId),
+          tx,
+        )
+      ).targetRegion.id;
     } else {
       if (token === null) throw new ApplicationError('MEDIA_UNAVAILABLE');
       regionId = (
@@ -507,7 +519,13 @@ export class SchoolQrMediaService {
         entryRevision: revision,
         bindingId: row.qr_binding_id,
       }),
-      audience: 'campusId' in target ? 'public' : 'management',
+      audience:
+        'campusId' in target
+          ? 'public'
+          : 'orderId' in target
+            ? 'errand-order'
+            : 'management',
+      ...('orderId' in target ? { orderId: target.orderId } : {}),
       campusId: 'campusId' in target ? target.campusId : null,
       requestId,
     };
@@ -530,6 +548,23 @@ export class SchoolQrMediaService {
         campusId: request.campusId,
         requestId: request.requestId,
         accountId: scope.session?.accountId ?? null,
+      };
+    } else if (request.audience === 'errand-order') {
+      if (token === null || !request.orderId || ref.entryKey !== 'errand')
+        throw new ApplicationError('MEDIA_UNAVAILABLE');
+      const scope = await this.errands.targetContext(
+        token,
+        request.orderId,
+        tx,
+      );
+      if (scope.targetRegion.id !== ref.regionId)
+        throw new ApplicationError('MEDIA_UNAVAILABLE');
+      principal = {
+        kind: 'authenticated-errand-target',
+        orderId: request.orderId,
+        requestId: request.requestId,
+        accountId: scope.session.accountId,
+        sessionId: scope.session.sessionId,
       };
     } else {
       if (token === null) throw new ApplicationError('MEDIA_UNAVAILABLE');

@@ -407,11 +407,18 @@ export async function smokeErrands({ app, dist, flush }) {
   };
   const input = (page, field, value) =>
     page.onForm({ currentTarget: { dataset: { field } }, detail: { value } });
-  for (const mode of ['list', 'mine', 'detail', 'compose', 'notices'])
+  for (const mode of ['list', 'mine', 'detail', 'compose', 'notices']) {
+    // E4a admits only the School QR owner's bounded inline image. Order-media
+    // pickers, arbitrary image slots, payment and external group dispatch stay absent.
+    const markup = source(mode);
+    const targetQr =
+      '<image wx:if="{{targetQr.src}}" src="{{targetQr.src}}" mode="widthFix" class="target-qr" />';
+    if (mode === 'detail') assert.equal(markup.split(targetQr).length, 2);
     assert.doesNotMatch(
-      source(mode),
+      mode === 'detail' ? markup.replace(targetQr, '') : markup,
       /<image|rich-text|chooseImage|requestPayment|subscribeMessage|eventChannel/i,
     );
+  }
   const feed = readFileSync(
     path.join(dist, 'pages/community-feed/community-feed.wxml'),
     'utf8',

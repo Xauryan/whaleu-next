@@ -439,7 +439,12 @@ export class SchoolQrReader {
           target:
             'campusId' in target
               ? { campusId: target.campusId }
-              : { regionId: target.regionId },
+              : 'orderId' in target
+                ? {
+                    orderId: target.orderId,
+                    targetRegionId: target.targetRegionId,
+                  }
+                : { regionId: target.regionId },
         },
         'display-v1',
         this.owner,

@@ -1,3 +1,6 @@
+import { SchoolConfigurationAccessModule } from './access.module.js';
+import { ErrandsService } from '../errands/service.js';
+import { ErrandsModule } from '../errands/module.js';
 import { SchoolQrRequestGuard } from './media/request-guard.js';
 import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -31,6 +34,8 @@ import {
 @Module({
   imports: [
     DatabaseModule,
+    ErrandsModule,
+    SchoolConfigurationAccessModule,
     IdentityModule,
     CampusModule,
     AuthorizationModule,
@@ -55,7 +60,6 @@ import {
     SchoolQrMediaController,
   ],
   providers: [
-    SchoolConfigurationAccess,
     SchoolConfigurationRepository,
     SchoolConfigurationService,
     SchoolConfigurationRequestGuard,
@@ -68,6 +72,7 @@ import {
         DatabaseService,
         IdentityService,
         SchoolConfigurationAccess,
+        ErrandsService,
         SCHOOL_QR_MEDIA_RUNTIME,
         MediaDeliveryBudgetPool,
       ],
@@ -75,15 +80,23 @@ import {
         database: DatabaseService,
         identity: IdentityService,
         access: SchoolConfigurationAccess,
+        errands: ErrandsService,
         runtime: SchoolQrMediaRuntime | null,
         budget: MediaDeliveryBudgetPool,
       ) =>
-        new SchoolQrMediaService(database, identity, access, runtime, budget),
+        new SchoolQrMediaService(
+          database,
+          identity,
+          access,
+          errands,
+          runtime,
+          budget,
+        ),
     },
   ],
   exports: [
     SchoolConfigurationService,
-    SchoolConfigurationAccess,
+    SchoolConfigurationAccessModule,
     SchoolQrMediaService,
   ],
 })
