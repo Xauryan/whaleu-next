@@ -21,6 +21,7 @@ import { ErrandAccessService } from '../../src/errands/access.js';
 import { publishErrandSchema } from '../../src/errands/contracts.js';
 import { lockSafetyPolicy } from '../../src/safety/locks.js';
 import { ErrandGroupWorker } from '../../src/notifications/errand-group/worker.js';
+import type { SyntheticAck } from '../../src/notifications/errand-group/contracts.js';
 import {
   seedErrandFeature,
   syntheticErrandRestriction,
@@ -219,6 +220,442 @@ async function confirmDiscoveredGroups(
     }
   }
 }
+
+interface MalformedAckProgress {
+  variant: string;
+  delivery?: {
+    id: string;
+    eventId: string;
+    key: string;
+    destination: string;
+    fence: string;
+    businessNow: number;
+    dueAt: Date;
+    originalAckAt: string;
+    mutatedAckAt: string;
+  };
+  status: string;
+  reason: string | null;
+  attempts: number;
+  identityUnchanged: boolean;
+  sourceUnchanged: boolean;
+  sourceReads: number;
+  finalProofs: number;
+  dispatchCalls: number;
+  senderAttempts: number;
+  mutations: number;
+  mutationValid: boolean;
+  acknowledgementCalls: number;
+  malformedRejections: number;
+  receipts: number;
+  anchorEmpty: boolean;
+  leaseEmpty: boolean;
+  reconciliations: number;
+}
+/** This is only the malformed-ACK fixture precondition, never an unknown-work
+ * recovery driver. In particular, a cap/exception-produced unknown is not an ACK. */
+function malformedAckComplete(progress: MalformedAckProgress) {
+  const diagnostic = `Malformed ACK precondition: ${JSON.stringify(progress)}`;
+  assert.ok(
+    progress.identityUnchanged &&
+      progress.sourceUnchanged &&
+      progress.attempts >= 1 &&
+      progress.attempts <= 8 &&
+      progress.sourceReads === progress.attempts &&
+      progress.finalProofs === progress.attempts &&
+      progress.receipts === 0 &&
+      progress.anchorEmpty &&
+      progress.leaseEmpty &&
+      progress.reconciliations === 0,
+    diagnostic,
+  );
+  if (progress.mutations === 1) {
+    assert.ok(
+      progress.dispatchCalls === 1 &&
+        progress.senderAttempts === 1 &&
+        progress.mutationValid &&
+        progress.acknowledgementCalls === 1 &&
+        progress.malformedRejections === 1 &&
+        progress.status === 'unknown' &&
+        progress.reason === 'unknown',
+      diagnostic,
+    );
+    return true;
+  }
+  assert.ok(
+    progress.mutations === 0 &&
+      progress.dispatchCalls === 0 &&
+      progress.senderAttempts === 0 &&
+      progress.acknowledgementCalls === 0 &&
+      progress.malformedRejections === 0 &&
+      progress.status === 'retryable' &&
+      progress.reason === 'permit_expired' &&
+      progress.attempts < 8,
+    diagnostic,
+  );
+  return false;
+}
+
+async function returnMalformedAck(
+  f: Fixture,
+  publication: Awaited<ReturnType<typeof publish>>,
+  variant: number | 'wrong-key' | 'wrong-destination',
+) {
+  const read = async () =>
+    (
+      await f.pool.query(
+        `SELECT d.*,p.order_id,p.target_region_id,p.published_at,p.first_confirmed_at,p.first_confirmed_delivery_id,
+        (SELECT count(*)::integer FROM whaleu_notifications.errand_group_receipts r WHERE r.delivery_id=d.id) receipts
+       FROM whaleu_notifications.errand_group_deliveries d
+       JOIN whaleu_notifications.errand_group_publications p ON p.event_id=d.event_id WHERE p.order_id=$1`,
+        [publication.id],
+      )
+    ).rows;
+  const initial = await read();
+  assert.equal(initial.length, 1);
+  const first = initial[0];
+  assert.equal(first.stage, 'errand');
+  assert.equal(first.status, 'pending');
+  assert.equal(first.reason, null);
+  assert.equal(first.attempts, 0);
+  assert.equal(first.published_at.getTime(), publication.publishedAt);
+  const identity = (row: typeof first) =>
+    JSON.stringify([
+      row.id,
+      row.event_id,
+      row.stage,
+      row.destination_id,
+      row.idempotency_key,
+      row.order_id,
+      row.target_region_id,
+      row.published_at,
+    ]);
+  const prepare = f.sender.prepare.bind(f.sender);
+  const source = f.source.current.bind(f.source);
+  const confirmed = f.records.confirmed.bind(f.records);
+  const attemptsBefore = f.sender.attempts.length;
+  const reconciledBefore = f.sender.reconciled.length;
+  const sources: string[] = [];
+  const preparations: string[] = [];
+  let finalProofs = 0,
+    dispatchCalls = 0;
+  const mutations: {
+    original: Extract<SyntheticAck, { status: 'confirmed' }>;
+    changed: Extract<SyntheticAck, { status: 'confirmed' }>;
+    now: number;
+    attemptId: string;
+    fence: string;
+  }[] = [];
+  let acknowledgementCalls = 0,
+    malformedRejections = 0;
+  f.records.confirmed = async (...args) => {
+    acknowledgementCalls++;
+    try {
+      return await confirmed(...args);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === 'Unproven synthetic ACK' &&
+        args[1] === mutations[0]?.changed &&
+        args[2] === mutations[0]?.now
+      )
+        malformedRejections++;
+      throw error;
+    }
+  };
+  const proof: RequiredTransactionProof<string> = {
+    maximumFacts: 1,
+    failureCode: 'ERRAND_UNAVAILABLE',
+    validate: async () => {
+      finalProofs++;
+    },
+  };
+  f.source.current = async (...args) => {
+    const payload = await source(...args);
+    sources.push(JSON.stringify([args[0], args[1], payload]));
+    enableRequiredTransactionProof(args[2], proof);
+    registerRequiredTransactionFact(
+      args[2],
+      proof,
+      'malformed-ack',
+      'malformed-ack',
+    );
+    return payload;
+  };
+  f.sender.prepare = async (key, destination) => {
+    const prepared = await prepare(key, destination);
+    preparations.push(
+      JSON.stringify([
+        key,
+        destination.id,
+        prepared.key,
+        prepared.destinationId,
+      ]),
+    );
+    return {
+      ...prepared,
+      dispatch: (permit) => {
+        dispatchCalls++;
+        const original = prepared.dispatch(permit);
+        if (original.status !== 'confirmed') return original;
+        const now = f.runtime.now();
+        const changed = {
+          ...original,
+          confirmedAt:
+            variant === 1
+              ? now + 1
+              : typeof variant === 'number'
+                ? publication.publishedAt + variant
+                : original.confirmedAt,
+          key: variant === 'wrong-key' ? '0'.repeat(64) : original.key,
+          destinationId:
+            variant === 'wrong-destination'
+              ? 'synthetic:wrong'
+              : original.destinationId,
+        };
+        // Record the actual returned confirmed ACK before assertions, which must
+        // live outside dispatch: the worker catches errors thrown by this callback.
+        mutations.push({
+          original,
+          changed,
+          now,
+          attemptId: permit.attemptId,
+          fence: permit.fence,
+        });
+        return changed;
+      },
+    };
+  };
+  try {
+    let before = first;
+    for (let attempt = 1; attempt <= 8; attempt++) {
+      assert.equal(await f.groups.runOne(), true);
+      const rows = await read();
+      assert.equal(rows.length, 1);
+      const row = rows[0];
+      const mutation = mutations[0];
+      const attempts = (
+        await f.pool.query(
+          'SELECT id,fence,idempotency_key,operation FROM whaleu_notifications.errand_group_attempts WHERE delivery_id=$1 ORDER BY fence',
+          [first.id],
+        )
+      ).rows;
+      const sameKeyAttempts = f.sender.attempts
+        .slice(attemptsBefore)
+        .filter((p) => p.key === first.idempotency_key);
+      const progress: MalformedAckProgress = {
+        variant: String(variant),
+        delivery: {
+          id: row.id,
+          eventId: row.event_id,
+          key: row.idempotency_key,
+          destination: row.destination_id,
+          fence: row.fence,
+          businessNow: f.runtime.now(),
+          dueAt: row.next_attempt_at,
+          originalAckAt: String(mutation?.original.confirmedAt),
+          mutatedAckAt: String(mutation?.changed.confirmedAt),
+        },
+        status: row.status,
+        reason: row.reason,
+        attempts: row.attempts,
+        identityUnchanged:
+          identity(row) === identity(first) &&
+          preparations.length === attempt &&
+          preparations.every(
+            (p) =>
+              p ===
+              JSON.stringify([
+                first.idempotency_key,
+                first.destination_id,
+                first.idempotency_key,
+                first.destination_id,
+              ]),
+          ) &&
+          row.attempts === attempt &&
+          BigInt(row.fence) === BigInt(first.fence) + BigInt(attempt) &&
+          attempts.length === attempt &&
+          attempts.every(
+            (a, i) =>
+              a.operation === 'send' &&
+              a.idempotency_key === first.idempotency_key &&
+              BigInt(a.fence) === BigInt(first.fence) + BigInt(i + 1),
+          ),
+        sourceUnchanged: sources.every((s) => s === sources[0]),
+        sourceReads: sources.length,
+        finalProofs,
+        dispatchCalls,
+        senderAttempts: sameKeyAttempts.length,
+        mutations: mutations.length,
+        acknowledgementCalls,
+        malformedRejections,
+        mutationValid:
+          !!mutation &&
+          mutation.original.key === first.idempotency_key &&
+          mutation.original.destinationId === first.destination_id &&
+          mutation.original.confirmedAt === mutation.now &&
+          mutation.now >= publication.publishedAt &&
+          mutation.now <= publication.publishedAt + 960000 &&
+          /^synthetic:[a-zA-Z0-9:_-]{1,120}$/.test(
+            mutation.original.receiptId,
+          ) &&
+          mutation.changed.receiptId === mutation.original.receiptId &&
+          mutation.changed.key ===
+            (variant === 'wrong-key'
+              ? '0'.repeat(64)
+              : first.idempotency_key) &&
+          mutation.changed.destinationId ===
+            (variant === 'wrong-destination'
+              ? 'synthetic:wrong'
+              : first.destination_id) &&
+          Object.is(
+            mutation.changed.confirmedAt,
+            variant === 1
+              ? mutation.now + 1
+              : typeof variant === 'number'
+                ? publication.publishedAt + variant
+                : mutation.now,
+          ) &&
+          mutation.attemptId === attempts.at(-1)?.id &&
+          mutation.fence === row.fence &&
+          f.sender.attempts.length === attemptsBefore + 1 &&
+          (variant !== 1 ||
+            (mutation.changed.confirmedAt > f.runtime.now() &&
+              mutation.now > publication.publishedAt)),
+        receipts: row.receipts,
+        anchorEmpty:
+          row.first_confirmed_at === null &&
+          row.first_confirmed_delivery_id === null,
+        leaseEmpty: row.attempt_id === null && row.lease_until === null,
+        reconciliations:
+          row.reconciliations + f.sender.reconciled.length - reconciledBefore,
+      };
+      if (malformedAckComplete(progress)) return { row, progress };
+      assert.equal(
+        f.sender.attempts.length,
+        attemptsBefore,
+        JSON.stringify(progress),
+      );
+      assert.equal(
+        row.next_attempt_at.getTime(),
+        f.runtime.now() + Math.min(60000, 1000 * 2 ** Math.min(attempt - 1, 6)),
+        JSON.stringify(progress),
+      );
+      assert.ok(
+        row.next_attempt_at.getTime() > before.next_attempt_at.getTime(),
+        JSON.stringify(progress),
+      );
+      // Only business scheduling moves. Each claim gets a new source proof,
+      // preparation and original 100ms permit; unknown work is never reconciled.
+      f.setTime(row.next_attempt_at.getTime());
+      before = row;
+    }
+    assert.fail(
+      'Malformed ACK was never returned within the original eight attempts',
+    );
+  } finally {
+    f.sender.prepare = prepare;
+    f.source.current = source;
+    f.records.confirmed = confirmed;
+  }
+}
+
+test('malformed ACK precondition rejects unproven outcomes and preserves the eight-attempt cap', () => {
+  const retry: MalformedAckProgress = {
+    variant: 'future',
+    status: 'retryable',
+    reason: 'permit_expired',
+    attempts: 1,
+    identityUnchanged: true,
+    sourceUnchanged: true,
+    sourceReads: 1,
+    finalProofs: 1,
+    dispatchCalls: 0,
+    senderAttempts: 0,
+    mutations: 0,
+    mutationValid: false,
+    acknowledgementCalls: 0,
+    malformedRejections: 0,
+    receipts: 0,
+    anchorEmpty: true,
+    leaseEmpty: true,
+    reconciliations: 0,
+  };
+  assert.equal(malformedAckComplete(retry), false);
+  const completed = {
+    ...retry,
+    status: 'unknown',
+    reason: 'unknown',
+    dispatchCalls: 1,
+    senderAttempts: 1,
+    mutations: 1,
+    mutationValid: true,
+    acknowledgementCalls: 1,
+    malformedRejections: 1,
+  };
+  assert.equal(malformedAckComplete(completed), true);
+  assert.equal(
+    malformedAckComplete({
+      ...completed,
+      attempts: 8,
+      sourceReads: 8,
+      finalProofs: 8,
+    }),
+    true,
+  );
+  for (const patch of [
+    { status: 'unknown', reason: 'unknown' },
+    { reason: 'unavailable' },
+    { reason: 'not_accepted' },
+    { status: 'suppressed', reason: 'source_or_authority' },
+    {
+      status: 'suppressed',
+      reason: 'budget',
+      attempts: 8,
+      sourceReads: 8,
+      finalProofs: 8,
+    },
+    {
+      status: 'unknown',
+      reason: 'unknown',
+      attempts: 8,
+      sourceReads: 8,
+      finalProofs: 8,
+    },
+    { attempts: 8, sourceReads: 8, finalProofs: 8 },
+    { dispatchCalls: 1 },
+    { senderAttempts: 1 },
+    { mutations: 1 },
+    { identityUnchanged: false },
+    { sourceUnchanged: false },
+    { sourceReads: 0 },
+    { finalProofs: 0 },
+    { acknowledgementCalls: 1 },
+    { malformedRejections: 1 },
+    { receipts: 1 },
+    { anchorEmpty: false },
+    { leaseEmpty: false },
+    { reconciliations: 1 },
+  ])
+    assert.throws(
+      () => malformedAckComplete({ ...retry, ...patch }),
+      /Malformed ACK precondition:/,
+    );
+  for (const patch of [
+    { mutationValid: false },
+    { acknowledgementCalls: 0 },
+    { malformedRejections: 0 },
+    { mutations: 2 },
+    { dispatchCalls: 2 },
+    { senderAttempts: 0 },
+    { reason: 'budget' },
+    { status: 'confirmed' },
+  ])
+    assert.throws(
+      () => malformedAckComplete({ ...completed, ...patch }),
+      /Malformed ACK precondition:/,
+    );
+});
 
 test(
   'E4 partial destination failure, durable restart, exact first ACK forum windows and private allowlist',
@@ -913,7 +1350,38 @@ test(
     assert.equal(expired.status, 'expired');
     assert.equal(await f.groups.runOne(), false);
     assert.equal(f.sender.attempts.length, 1);
-    const originalPrepare = f.sender.prepare.bind(f.sender);
+    // Existing controlled monotonic-clock pattern: expire the original permit
+    // in its final proof, without freezing/rewinding time or extending a budget.
+    const monotonicNow = performance.now.bind(performance);
+    let elapsed = 0,
+      expireNext = false;
+    t.mock.method(performance, 'now', () => monotonicNow() + elapsed);
+    const originalSource = f.source.current.bind(f.source);
+    const expirePermit: RequiredTransactionProof<string> = {
+      maximumFacts: 1,
+      failureCode: 'ERRAND_UNAVAILABLE',
+      validate: async () => {
+        if (expireNext) {
+          elapsed += 101;
+          expireNext = false;
+        }
+      },
+    };
+    t.mock.method(
+      f.source,
+      'current',
+      async (...args: Parameters<typeof originalSource>) => {
+        const payload = await originalSource(...args);
+        enableRequiredTransactionProof(args[2], expirePermit);
+        registerRequiredTransactionFact(
+          args[2],
+          expirePermit,
+          'expire-malformed-ack',
+          'expire-malformed-ack',
+        );
+        return payload;
+      },
+    );
     for (const offset of [
       1,
       -1,
@@ -923,29 +1391,10 @@ test(
     ] as const) {
       const next = await publish(f);
       await f.groups.discover();
-      f.sender.prepare = async (key, destination) => {
-        const prepared = await originalPrepare(key, destination);
-        return {
-          ...prepared,
-          dispatch: (permit) => {
-            const ack = prepared.dispatch(permit);
-            return ack.status === 'confirmed'
-              ? {
-                  ...ack,
-                  confirmedAt:
-                    next.publishedAt +
-                    (typeof offset === 'number' ? offset : 0),
-                  key: offset === 'wrong-key' ? '0'.repeat(64) : ack.key,
-                  destinationId:
-                    offset === 'wrong-destination'
-                      ? 'synthetic:wrong'
-                      : ack.destinationId,
-                }
-              : ack;
-          },
-        };
-      };
-      await f.groups.runOne();
+      expireNext = true;
+      const { progress } = await returnMalformedAck(f, next, offset);
+      assert.ok(progress.attempts >= 2, JSON.stringify(progress));
+      t.diagnostic(JSON.stringify(progress));
       const enrolled = (
         await f.pool.query(
           'SELECT * FROM whaleu_notifications.errand_group_publications WHERE order_id=$1',
@@ -977,7 +1426,6 @@ test(
         [enrolled.event_id],
       );
     }
-    f.sender.prepare = originalPrepare;
   },
 );
 
