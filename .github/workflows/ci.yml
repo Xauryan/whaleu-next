@@ -14,11 +14,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  foundation:
+  plan:
+    name: Verify CI inventory and guards
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    env:
-      WHALEU_TEST_MAINTENANCE: controlled
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -26,52 +27,116 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 24.19.0
-          cache: npm
-      - name: Install pinned package manager
-        run: npm install --global npm@11.9.0 --ignore-scripts --no-audit --no-fund
-      - name: Verify package manager
-        run: test "$(npm --version)" = "11.9.0"
-      - run: npm ci --ignore-scripts
-      - run: npm run check
+          package-manager-cache: false
+      - name: Verify exact inventory, runner, artifact and workflow guards
+        run: node --test scripts/run-integration-shard.test.mjs scripts/run-integration-module.test.mjs scripts/ci-native-artifact.test.mjs scripts/ci-workflow.test.mjs
+      - name: Log complete integration module inventory
+        run: node scripts/run-integration-module.mjs --verify
+      - name: Generate the complete module matrix
+        id: matrix
+        run: echo "matrix=$(node scripts/run-integration-module.mjs --matrix)" >> "$GITHUB_OUTPUT"
+
+  foundation:
+    name: Repository quality
+    env:
+      WHALEU_TEST_MAINTENANCE: controlled
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-ci
+      - run: npm run lint
       - run: npm run format:check
+      - run: npm run stats:test
+      - run: npm run search:eval:test
       - name: Verify disposable database admission guards
         run: node --test scripts/verify-test-postgres.test.mjs
-      - name: Verify complete integration shard coverage
+
+  api-checks:
+    name: API types, contracts and build
+    env:
+      WHALEU_TEST_MAINTENANCE: controlled
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-ci
+      - run: npm run typecheck -w @whaleu/api
+      - run: npm run openapi:check
+      - run: npm run test -w @whaleu/api
+      - run: npm run build -w @whaleu/api
+
+  native-checks:
+    name: Native types, contracts and build
+    env:
+      WHALEU_TEST_MAINTENANCE: controlled
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      artifact-attempt: ${{ steps.provenance.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-ci
+      - run: npm run typecheck -w @whaleu/wechat
+      - run: npm run test -w @whaleu/wechat
+      - name: Build native artifacts and run emitted smoke checks once
+        run: npm run build -w @whaleu/wechat
+      - name: Stage only native output with exact build provenance
+        id: provenance
         run: |
-          node --test scripts/run-integration-shard.test.mjs
-          node scripts/run-integration-shard.mjs --verify 4
+          node scripts/ci-native-artifact.mjs create "$RUNNER_TEMP/native-artifact"
+          echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - name: Upload immutable same-run native artifact
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: native-dist-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/native-artifact
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 1
 
   main-integration:
-    name: Main PostgreSQL (${{ matrix.shard }}/4)
-    needs: foundation
+    name: PostgreSQL · ${{ matrix.label }} (${{ matrix.shard }})
+    needs: [plan, native-checks]
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     strategy:
       # Collect every shard's result even when another fails.
       fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
+      # Eight standard runners; never parallelize destructive files in one DB.
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
-      MAIN_PG_CONTAINER: whaleu-main-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+      MAIN_PG_CONTAINER: whaleu-main-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.id }}
       WHALEU_TEST_MAINTENANCE: controlled
+      CI_MODULE: ${{ matrix.module }}
+      CI_SHARD: ${{ matrix.shard }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: 24.19.0
-          cache: npm
-      - name: Install pinned package manager
-        run: npm install --global npm@11.9.0 --ignore-scripts --no-audit --no-fund
-      - name: Verify package manager
-        run: test "$(npm --version)" = "11.9.0"
-      - run: npm ci --ignore-scripts
+      - uses: ./.github/actions/setup-ci
       - name: Verify shard manifest before database creation
-        run: node scripts/run-integration-shard.mjs --shard ${{ matrix.shard }}/4 --list
-      - name: Build native artifacts required by integration workers
-        # Separate jobs do not inherit apps/wechat/dist from foundation's check.
-        run: npm run build -w @whaleu/wechat
+        run: node scripts/run-integration-module.mjs --module "$CI_MODULE" --shard "$CI_SHARD" --list
+      - name: Download only the successful native build artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.native-checks.outputs.artifact-id }}
+          path: ${{ runner.temp }}/native-artifact
+          merge-multiple: true
+      - name: Verify source, run, build attempt, lockfile and every native byte
+        run: node scripts/ci-native-artifact.mjs restore "$RUNNER_TEMP/native-artifact"
+        env:
+          # A failed-job retry may reuse its successful producer's immutable ID.
+          WHALEU_ARTIFACT_ATTEMPT: ${{ needs.native-checks.outputs.artifact-attempt }}
       - name: Start fresh controlled-maintenance PostgreSQL
         shell: bash
         run: |
@@ -99,7 +164,7 @@ jobs:
           NODE_ENV: test
           TEST_DATABASE_URL: postgresql://whaleu_test:local_ci_only@127.0.0.1:5432/whaleu_test
       - name: Real PostgreSQL integration tests
-        run: timeout 7200 node scripts/run-integration-shard.mjs --shard ${{ matrix.shard }}/4
+        run: timeout 7200 node scripts/run-integration-module.mjs --module "$CI_MODULE" --shard "$CI_SHARD"
         env:
           WHALEU_RATINGS_CI_DIAGNOSTICS: '1'
           WHALEU_SCALABLE_PROFILE_CI_DIAGNOSTICS: '1'
@@ -124,15 +189,7 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: 24.19.0
-          cache: npm
-      - name: Install pinned package manager
-        run: npm install --global npm@11.9.0 --ignore-scripts --no-audit --no-fund
-      - name: Verify package manager
-        run: test "$(npm --version)" = "11.9.0"
-      - run: npm ci --ignore-scripts
+      - uses: ./.github/actions/setup-ci
       - name: Start isolated PostgreSQL with optional pgvector
         shell: bash
         run: |
@@ -210,18 +267,32 @@ jobs:
           fi
 
   verify:
-    # Keep the existing required-check name as an all-jobs success gate.
+    # Keep the existing required-check name; skipped/cancelled jobs are failures.
     if: always()
-    needs: [foundation, main-integration, semantic-integration]
+    needs:
+      [
+        plan,
+        foundation,
+        api-checks,
+        native-checks,
+        main-integration,
+        semantic-integration,
+      ]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Require every verification job to succeed
         env:
+          PLAN_RESULT: ${{ needs.plan.result }}
           FOUNDATION_RESULT: ${{ needs.foundation.result }}
+          API_RESULT: ${{ needs.api-checks.result }}
+          NATIVE_RESULT: ${{ needs.native-checks.result }}
           MAIN_RESULT: ${{ needs.main-integration.result }}
           SEMANTIC_RESULT: ${{ needs.semantic-integration.result }}
         run: |
+          test "$PLAN_RESULT" = success
           test "$FOUNDATION_RESULT" = success
+          test "$API_RESULT" = success
+          test "$NATIVE_RESULT" = success
           test "$MAIN_RESULT" = success
           test "$SEMANTIC_RESULT" = success

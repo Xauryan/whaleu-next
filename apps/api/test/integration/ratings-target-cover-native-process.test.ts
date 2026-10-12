@@ -154,8 +154,13 @@ test(
       return child;
     };
     const kill = async (child: ChildProcess) => {
+      // Let the child's event loop become idle after the IPC acknowledgement.
+      // It must remain suspended, not exit successfully before our SIGKILL.
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      assert.equal(child.exitCode, null, 'Suspended native child exited early');
+      assert.equal(child.signalCode, null);
       const exited = exitOf(child);
-      child.kill('SIGKILL');
+      assert.equal(child.kill('SIGKILL'), true);
       assert.deepEqual(await exited, { code: null, signal: 'SIGKILL' });
     };
     const run = async (

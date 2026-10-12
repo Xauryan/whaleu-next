@@ -39,6 +39,13 @@ process.once(
     targetId,
   }) => {
     try {
+      if (mode === 'commit-and-stop' || mode === 'freeze-and-stop') {
+        // The once('message') listener is already removed here. An unresolved
+        // Promise does not keep Node alive; retain IPC until the supervisor
+        // actually kills this intentionally suspended native process.
+        assert.ok(process.channel);
+        process.channel.ref();
+      }
       const read = () => {
         try {
           return JSON.parse(readFileSync(journalPath, 'utf8'));
