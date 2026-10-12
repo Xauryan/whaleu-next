@@ -1,3 +1,11 @@
+import { WindowDiscussionNoticeModule } from '../../notifications/window-discussion/owner.js';
+import { ProfileModule } from '../../profile/profile.module.js';
+import {
+  WindowDiscussionController,
+  WindowDiscussionNoticesController,
+} from './discussion/controller.js';
+import { WindowDiscussionService } from './discussion/service.js';
+import { WindowDiscussionCursors } from './discussion/cursor.js';
 import { ContentReviewModule } from '../../community/content-review/content-review.module.js';
 import { DishRecommendationsController } from './dishes/controller.js';
 import { DishRecommendationsService } from './dishes/service.js';
@@ -16,6 +24,8 @@ import { WindowCursors } from './cursor.js';
 @Module({
   imports: [
     DatabaseModule,
+    ProfileModule,
+    WindowDiscussionNoticeModule,
     ContentReviewModule,
     IdentityModule,
     VerificationModule,
@@ -23,9 +33,16 @@ import { WindowCursors } from './cursor.js';
     DiscoveryContinuationModule,
     RatingRequestThrottlingModule,
   ],
-  controllers: [WindowRatingsController, DishRecommendationsController],
+  controllers: [
+    WindowRatingsController,
+    DishRecommendationsController,
+    WindowDiscussionController,
+    WindowDiscussionNoticesController,
+  ],
   providers: [
     WindowRatingsService,
+    WindowDiscussionService,
+    WindowDiscussionCursors,
     WindowRepository,
     WindowCursors,
     DishRecommendationsService,

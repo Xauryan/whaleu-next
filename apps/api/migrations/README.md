@@ -229,3 +229,11 @@ pins, independent accepted-empty history, immutable renewal/read/closure/command
 lineage and exact scoped authority. No scopes, histories, accounts or roles are
 seeded. Related-campus and aggregate distribution and legacy import remain open.
 See [scoped post pins](../../../docs/SCOPED_POST_PINS.md).
+
+0119 adds independent Window text-discussion population/like history, exact
+root/reply Review purposes, immutable named publications, flat addressed replies,
+reversible CAS like events/heads, original-key receipts/cancellation and atomic
+per-transition local notice obligations. Root-to-creator notices remain gated
+without an accepted creator mapping. Images and image-only publications remain a
+separate Media/Review follow-on. No source history, creator mapping, Review
+policy/decision or production data is seeded. See [W3](../../../docs/WINDOW_DISCUSSION.md).

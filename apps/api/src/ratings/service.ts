@@ -535,13 +535,13 @@ export class RatingsService {
       command.clientRequestId,
       'set_score',
       { targetId: id, ...command },
-      async (actor, tx) => {
+      (actor, tx) => this.records.setScore(id, actor, command, tx),
+      async (_actor, tx) => {
         this.records.enable(tx);
         await this.access.resolve(token, command.regionId, tx, { phone: true });
         const catalog = await this.records.catalog(command.regionId, tx),
           { row } = await this.currentTarget(catalog, id, tx, true);
         this.revision(row, command.expectedTargetRevision);
-        return this.records.setScore(id, actor, command, tx);
       },
     );
   }

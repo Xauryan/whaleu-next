@@ -29,6 +29,7 @@
       <button bindtap="onCloseConfirmation" disabled="{{busy || frozen}}">返回调整</button>
     </view>
   </block>
+  <button bindtap="onOpenDiscussion" disabled="{{busy}}">显示昵称的文字讨论与回复 →</button>
   <button bindtap="onOpenRecommendations" disabled="{{busy}}">菜品推荐与独立撤回 →</button>
   <navigator class="link" url="/pages/window-ratings/window-ratings">窗口目录与独立回执恢复 →</navigator>
 </view>

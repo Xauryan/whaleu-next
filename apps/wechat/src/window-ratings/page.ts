@@ -139,6 +139,12 @@ export function registerWindowRatingPage(mode: WindowMode): void {
           null,
       );
     },
+    onOpenDiscussion() {
+      if (mode === 'detail' && this.windowId && this.validRoute)
+        this.navigator?.open(
+          `/pages/window-discussion/window-discussion?windowId=${this.windowId}`,
+        );
+    },
     onOpenRecommendations() {
       if (mode === 'detail' && this.windowId && this.validRoute)
         this.navigator?.open(

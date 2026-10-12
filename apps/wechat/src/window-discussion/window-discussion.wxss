@@ -1,0 +1,25 @@
+@import '../course-ratings/course-ratings.wxss';
+.body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.confirmation {
+  border: 2rpx solid #2878cb;
+}
+.focused {
+  border: 3rpx solid #2878cb;
+}
+.actions {
+  display: flex;
+  gap: 12rpx;
+}
+textarea {
+  width: 100%;
+  min-height: 200rpx;
+  box-sizing: border-box;
+}
+input {
+  border: 1rpx solid #cbd5e1;
+  padding: 16rpx;
+  margin: 14rpx 0;
+}

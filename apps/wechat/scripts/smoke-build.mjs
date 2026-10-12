@@ -233,46 +233,90 @@ for (const route of config.pages.filter(
       current.onHide();
     }
   }
+  if (route.startsWith('pages/window-discussion')) {
+    const sampleId = '11111111-1111-4111-8111-111111111111';
+    const invalidRoutes =
+      route === 'pages/window-discussion/window-discussion'
+        ? [{}, { windowId: 'not-a-uuid' }, { windowId: sampleId, extra: 'x' }]
+        : route === 'pages/window-discussion-thread/window-discussion-thread'
+          ? [
+              {},
+              { windowId: sampleId },
+              { windowId: sampleId, rootId: 'not-a-uuid' },
+              { windowId: sampleId, rootId: sampleId, noticeId: sampleId },
+            ]
+          : [{ windowId: sampleId }];
+    for (const invalidRoute of invalidRoutes) {
+      current.onLoad(invalidRoute);
+      current.onShow();
+      assert.equal(current.validRoute, false, `${route}: invalid route`);
+      assert.equal(current.controller, undefined);
+      assert.equal(current.data.loaded, false);
+      assert.deepEqual(current.data.items, []);
+      assert.ok(current.data.error);
+      current.onHide();
+    }
+  }
   current.onLoad?.(
     [
       'pages/window-rating-detail/window-rating-detail',
       'pages/window-dishes/window-dishes',
+      'pages/window-discussion/window-discussion',
     ].includes(route)
       ? { windowId: '11111111-1111-4111-8111-111111111111' }
-      : route === 'pages/course-rating-detail/course-rating-detail'
-        ? { courseId: '11111111-1111-4111-8111-111111111111' }
-        : [
-              'pages/window-ratings/window-ratings',
-              'pages/course-ratings/course-ratings',
-              'pages/course-comments/course-comments',
-              'pages/activity-list/activity-list',
-              'pages/activity-publish/activity-publish',
-              'pages/announcement-edit/announcement-edit',
-              'pages/announcement-manage/announcement-manage',
-              'pages/activity-native/activity-native',
-              'pages/activity-native-detail/activity-native-detail',
-              'pages/rating-updates/rating-updates',
-              'pages/school-services/school-services',
-              'pages/school-configuration/school-configuration',
-              'pages/school-posting-policy/school-posting-policy',
-              'pages/organizations/organizations',
-              'pages/organization-editor/organization-editor',
-            ].includes(route)
-          ? {}
-          : {
-              postId: '66666666-6666-4666-8666-666666666666',
-              spaceId: '55555555-5555-4555-8555-555555555555',
-              category: 'discussion',
-              ...(route.endsWith('community-thread')
-                ? { rootCommentId: '88888888-8888-4888-8888-888888888888' }
-                : {}),
-              ...(route ===
-              'pages/private-message-detail/private-message-detail'
-                ? { conversationId: '77777777-7777-4777-8777-777777777777' }
-                : {}),
-            },
+      : route === 'pages/window-discussion-thread/window-discussion-thread'
+        ? {
+            windowId: '11111111-1111-4111-8111-111111111111',
+            rootId: '22222222-2222-4222-8222-222222222222',
+          }
+        : route === 'pages/course-rating-detail/course-rating-detail'
+          ? { courseId: '11111111-1111-4111-8111-111111111111' }
+          : [
+                'pages/window-ratings/window-ratings',
+                'pages/window-discussion-recovery/window-discussion-recovery',
+                'pages/window-discussion-notices/window-discussion-notices',
+                'pages/course-ratings/course-ratings',
+                'pages/course-comments/course-comments',
+                'pages/activity-list/activity-list',
+                'pages/activity-publish/activity-publish',
+                'pages/announcement-edit/announcement-edit',
+                'pages/announcement-manage/announcement-manage',
+                'pages/activity-native/activity-native',
+                'pages/activity-native-detail/activity-native-detail',
+                'pages/rating-updates/rating-updates',
+                'pages/school-services/school-services',
+                'pages/school-configuration/school-configuration',
+                'pages/school-posting-policy/school-posting-policy',
+                'pages/organizations/organizations',
+                'pages/organization-editor/organization-editor',
+              ].includes(route)
+            ? {}
+            : {
+                postId: '66666666-6666-4666-8666-666666666666',
+                spaceId: '55555555-5555-4555-8555-555555555555',
+                category: 'discussion',
+                ...(route.endsWith('community-thread')
+                  ? { rootCommentId: '88888888-8888-4888-8888-888888888888' }
+                  : {}),
+                ...(route ===
+                'pages/private-message-detail/private-message-detail'
+                  ? { conversationId: '77777777-7777-4777-8777-777777777777' }
+                  : {}),
+              },
   );
   current.onShow();
+  if (route.startsWith('pages/window-discussion')) {
+    assert.equal(current.validRoute, true, `${route}: valid W3 route`);
+    assert.ok(current.controller);
+    assert.equal(current.data.loaded, false);
+    assert.deepEqual(current.data.items, []);
+    if (route !== 'pages/window-discussion-notices/window-discussion-notices') {
+      assert.equal(current.data.body, '');
+      assert.equal(current.data.own, null);
+      assert.deepEqual(current.data.ownReferences, []);
+      assert.equal(current.data.frozen, false);
+    } else assert.equal(current.data.unreadCount, null);
+  }
   if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
   else if (route === 'pages/rating-category-create/rating-category-create')

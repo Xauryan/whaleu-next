@@ -109,7 +109,8 @@
           "ratings-scoped-publication-contention.test.ts",
           "ratings-scoped-random-scale.test.ts",
           "ratings-scoped-reverse-boundaries.test.ts",
-          "ratings-scoped-upgrade.test.ts"
+          "ratings-scoped-upgrade.test.ts",
+          "ratings-score-bridge-races.test.ts"
         ]
       ]
     },
@@ -166,6 +167,9 @@
           "organization-management.test.ts",
           "organization-media-native-roundtrip.test.ts",
           "organization-media.test.ts",
+          "window-discussion-concurrency.test.ts",
+          "window-discussion-native-roundtrip.test.ts",
+          "window-discussion.test.ts",
           "window-ratings-native-roundtrip.test.ts",
           "window-ratings.test.ts"
         ]

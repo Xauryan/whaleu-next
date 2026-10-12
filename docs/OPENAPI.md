@@ -101,3 +101,7 @@ be regenerated and checked during M3C acceptance; source registration alone is
 not an executed drift check. See the
 [M3C API](API_RATINGS_CATEGORY_SCOPED.md) and
 [validation status](acceptance/ratings-m3c.md).
+
+The specialist Window W3 text-discussion and local-notice surface is separately
+recorded in `docs/openapi/window-discussion.json`; its typed metadata and generated
+artifact are part of the same generation/check CLI. See [W3](WINDOW_DISCUSSION.md).

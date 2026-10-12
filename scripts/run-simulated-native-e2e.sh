@@ -9,9 +9,11 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 npm run build -w @whaleu/wechat
 cd apps/api
+# The complete manifest includes deliberate 30/60/120-second proof waits.
+# Its aggregate ceiling is 30 minutes; per-file bounds and serial execution remain.
 # Timeout stays inside the cluster wrapper, so normal cleanup also runs on expiry.
 bash ../../scripts/run-controlled-test-postgres.sh \
-  timeout 1200 node --import tsx --test --test-concurrency=1 \
+  timeout 1800 node --import tsx --test --test-concurrency=1 \
   test/integration/private-message-images-native-roundtrip.test.ts \
   test/integration/course-ratings.test.ts \
   test/integration/course-ratings-native-roundtrip.test.ts \
@@ -21,6 +23,9 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/scoped-post-pins.test.ts \
   test/integration/scoped-post-pin-proofs.test.ts \
   test/integration/scoped-post-pins-native-roundtrip.test.ts \
+  test/integration/window-discussion.test.ts \
+  test/integration/window-discussion-concurrency.test.ts \
+  test/integration/window-discussion-native-roundtrip.test.ts \
   test/integration/community-text-review-native-roundtrip.test.ts \
   test/integration/community-feedback.test.ts \
   test/integration/school-configuration-native-roundtrip.test.ts \

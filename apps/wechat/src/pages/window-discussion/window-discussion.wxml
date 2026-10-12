@@ -1,0 +1,7 @@
+<import src="../../window-discussion/common.wxml" />
+<view class="screen"><view class="eyebrow">WHALEU · 窗口讨论</view><view class="title">窗口文字讨论</view>
+<template is="discussion-status" data="{{status,error,receiptStatus,hasSession,busy,frozen,recoveryWindowId,recoveryOperation,recoveryCommentId,recoveryPhase,confirming}}" />
+<view class="actions"><button data-sort="likes" bindtap="onSort" disabled="{{busy}}">赞数优先 {{sort === 'likes' ? '✓' : ''}}</button><button data-sort="time" bindtap="onSort" disabled="{{busy}}">最新优先 {{sort === 'time' ? '✓' : ''}}</button></view>
+<block wx:if="{{loaded}}"><view class="meta">共 {{totalCount}} 条评论 · 第 {{pageNumber}} 页</view><template wx:for="{{items}}" wx:key="id" is="discussion-item" data="{{item,mode,busy,frozen,confirming,focusCommentId}}" /><button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button></block>
+<template is="discussion-form" data="{{loaded,frozen,mode,busy,confirming,replyTarget,body,bodyBytes,canPublish,selectedComment}}" />
+<navigator class="link" url="/pages/window-discussion-recovery/window-discussion-recovery">独立回执恢复与自己的点赞 →</navigator><navigator class="link" url="/pages/window-discussion-notices/window-discussion-notices">窗口回复 / 赞通知 →</navigator><view class="notice">仅显示公开昵称的文字；图片、匿名、删除、所属机构标签与奖励不在本次功能范围内。窗口创建者身份未确认，不发送根评论创建者通知。</view></view>

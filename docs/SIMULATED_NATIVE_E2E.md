@@ -21,12 +21,15 @@ npm run test:simulated:e2e
 
 The command rebuilds the native bundle and runs its emitted smoke checks, creates
 an isolated loopback cluster through the existing controlled-maintenance wrapper,
-and runs only `community-text-review-native-roundtrip.test.ts`. The 300-second
-process timeout is inside the wrapper so PostgreSQL is stopped normally on exit.
-No existing database is adopted. PostgreSQL diagnostic files are retained at the
-reported disposable path. The ordinary full CI already builds the native bundle
-before running this same integration test. Running the integration file directly
-requires that build output first.
+and runs the 45 integration files explicitly listed in
+`scripts/run-simulated-native-e2e.sh` serially. The 1,800-second aggregate process
+timeout is inside the wrapper so PostgreSQL is stopped normally on exit. This
+budget includes deliberate proof-expiry waits; individual test bounds remain in
+force. No existing database is adopted. PostgreSQL diagnostic files are retained
+at the reported disposable path. Modular CI runs these files within its complete
+integration inventory and verifies a shared native build artifact before use.
+Running an emitted-native integration file directly requires that build output
+first.
 
 ## What is simulated
 
@@ -130,3 +133,44 @@ emitted builds. Hidden-slot management uses the same exact unpin recovery engine
 This differential run did not execute every other runner entry again; see the
 [executed pin acceptance](SCOPED_POST_PINS.md#executed-local-acceptance-2026-10-12)
 for the exact scope and remaining gates.
+
+## W3 Window text discussion
+
+The combined runner now includes `window-discussion.test.ts`,
+`window-discussion-concurrency.test.ts` and
+`window-discussion-native-roundtrip.test.ts`, preserving existing PM3/W1/W2/C2
+and other simulation entries. The emitted native W3 journey crosses real App and
+registered Pages/WXML through the production gateway, ordinary AppModule and
+disposable PostgreSQL. It exercises named roots, flat addressed replies, reversible
+likes, per-transition local notices, fresh notice targets, cold original-key
+recovery/cancellation, account/lifecycle/storage interruption, and own-unlike
+closure after source/phone/Safety withdrawal.
+
+Creator notices require an absent accepted creator crosswalk and remain explicitly
+unavailable. Images and image-only comment/reply publication, live Review/Media
+providers, real nonempty import, physical devices and production remain distinct
+follow-ons. See [W3 contract](WINDOW_DISCUSSION.md) and the exact final evidence.
+
+### W3 local execution record (2026-10-12)
+
+Against baseline `285d984` plus W3, all 42 files in that baseline runner's manifest
+were executed through ordinary AppModule and controlled PostgreSQL 18. The original
+1,200-second aggregate ceiling stopped the first invocation after 36 completed
+files: 221 tests passed, zero tests failed, and six files were cancelled. This
+invocation is recorded as incomplete, not a passed full run. Only the interrupted
+student-verification native file and the five remaining files were resumed against
+unchanged application/test source; all 43 tests in that continuation passed. The
+exact split therefore covers all 42 files and 264 passed tests. Both disposable
+servers shut down normally. Completed expensive files were not repeated.
+
+The observed accumulated time includes intentional 30/60/120-second retention and
+proof waits rather than a hung test. The aggregate ceiling is now 1,800 seconds;
+serial execution, per-file bounds, every prior entry, and timeout placement inside
+the controlled-cluster wrapper remain unchanged. This budget increase does not
+retroactively turn the first invocation into a pass. Per-file manifests, logs and
+source hashes accompany the W3 handoff.
+
+The subsequent composition on `21b3422` preserves all three scoped-pin entries,
+so the combined manifest has 45 files. The 42-file split record above remains
+historical evidence for the original W3 source, not execution evidence for this
+newly composed manifest. Its exact aggregate validation is recorded separately.

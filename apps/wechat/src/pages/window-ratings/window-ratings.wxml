@@ -1,5 +1,6 @@
 <import src="../../window-ratings/common.wxml" />
 <view class="screen">
+  <navigator class="link" url="/pages/window-discussion-recovery/window-discussion-recovery">窗口讨论独立恢复与取消点赞 →</navigator>
   <navigator class="link" url="/pages/window-dishes/window-dishes">菜品推荐原请求：独立查询回执与取消 →</navigator>
   <view class="eyebrow">WHALEU · 窗口评分</view>
   <view class="title">找食堂窗口</view>

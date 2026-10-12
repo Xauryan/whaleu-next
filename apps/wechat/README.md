@@ -578,3 +578,13 @@ activation remains closed. This is separate from numeric window scores. See
 [the W2 contract](../../docs/DISH_RECOMMENDATIONS.md) for identity, coverage, privacy and local-test limits.
 
 See [PM3 image lifecycle and compatibility gates](../../docs/PRIVATE_MESSAGE_IMAGES.md).
+
+## W3 window text discussion
+
+Window details now link to named text root discussion and flat replies, with
+server likes/time ordering, reversible CAS likes and explicit local reply/like
+notice reads. A separately reachable account/origin recovery surface preserves
+uncertain original requests and confirmed cancellation decisions, and can query
+or unlike owned memberships after public source withdrawal. Minimal historical
+receipts never become current content or heart snapshots. See
+[the native W3 contract and acceptance boundaries](docs/window-discussion.md).

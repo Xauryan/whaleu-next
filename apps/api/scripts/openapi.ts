@@ -1,4 +1,5 @@
 import { writeScopedPostPinsOpenApi } from './scoped-post-pins-openapi-document.js';
+import { writeWindowDiscussionOpenApi } from './window-discussion-openapi-document.js';
 import { writeStudentVerificationOpenApi } from './student-verification-openapi-document.js';
 import { writeActivityPublicationOpenApi } from './activity-publication-openapi-document.js';
 import { writeOrganizationManagementOpenApi } from './organization-management-openapi-document.js';
@@ -305,3 +306,4 @@ await writeActivityPublicationOpenApi(args[0] === '--check');
 await writeStudentVerificationOpenApi(args[0] === '--check');
 
 await writeScopedPostPinsOpenApi(args[0] === '--check');
+await writeWindowDiscussionOpenApi(args[0] === '--check');

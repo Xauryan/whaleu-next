@@ -38,6 +38,7 @@ export class RatingsRequests {
       revision: string;
       occurredAt: string;
     }>,
+    beforeBridge?: (actor: string, tx: PoolClient) => Promise<void>,
   ): Promise<RatingReceipt> {
     return this.database.transaction(
       async (tx) => {
@@ -82,6 +83,10 @@ export class RatingsRequests {
         let receipt: RatingReceipt;
         let bridge: LegacyRatingBridge | null = null;
         try {
+          // A score's original proof includes its mutable predecessor. Acquire
+          // the existing owner locks before SQL captures/rechecks scoreBefore,
+          // while keeping recovery and savepoint rejection behavior unchanged.
+          await beforeBridge?.(actor, tx);
           if (operation !== 'delete_comment')
             bridge = await this.bridges.begin(actor, requestId, intent, tx);
           receipt = ratingReceiptSchema.parse({

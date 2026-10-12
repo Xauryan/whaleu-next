@@ -1,4 +1,9 @@
 import {
+  HttpWindowDiscussionGateway,
+  type WindowDiscussionGateway,
+} from '../window-discussion/gateway';
+import { PendingWindowDiscussionStore } from '../window-discussion/pending';
+import {
   HttpPostPinsGateway,
   type PostPinsGateway,
 } from '../post-pins/gateway';
@@ -193,6 +198,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly windowDiscussion?: WindowDiscussionGateway;
+  readonly pendingWindowDiscussion?: PendingWindowDiscussionStore;
   readonly postPins?: PostPinsGateway;
   readonly pendingPostPins?: PendingPostPinStore;
   readonly dishRecommendations?: DishRecommendationsGateway;
@@ -363,6 +370,10 @@ export function createCommunityRuntime(
           ratingDiscussion: new HttpRatingDiscussionGateway(identity.api),
           ratingUpdates: new HttpRatingUpdatesGateway(identity.api),
         }
+      : {}),
+    pendingWindowDiscussion: new PendingWindowDiscussionStore(storage, origin),
+    ...(identity.api
+      ? { windowDiscussion: new HttpWindowDiscussionGateway(identity.api) }
       : {}),
     pendingPostPins: new PendingPostPinStore(storage, origin),
     ...(identity.api

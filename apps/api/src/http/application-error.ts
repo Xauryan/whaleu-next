@@ -20,6 +20,22 @@ const conditions = {
     message: 'Original post pin command was cancelled',
   },
 
+  WINDOW_DISCUSSION_HISTORY_UNAVAILABLE: {
+    status: 503,
+    message: 'Window discussion history is unavailable',
+  },
+  WINDOW_DISCUSSION_BUDGET_UNAVAILABLE: {
+    status: 503,
+    message: 'Window discussion complete visibility budget exceeded',
+  },
+  WINDOW_DISCUSSION_NOT_FOUND: {
+    status: 404,
+    message: 'Window discussion is not available',
+  },
+  WINDOW_DISCUSSION_NOTICE_NOT_FOUND: {
+    status: 404,
+    message: 'Window discussion notice was not found',
+  },
   DISH_HISTORY_UNAVAILABLE: {
     status: 503,
     message: 'Dish recommendation history is unavailable',
