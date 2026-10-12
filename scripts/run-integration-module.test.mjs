@@ -39,14 +39,14 @@ const mutate = (fn) => {
 test('real module inventory equals the old complete glob exactly once, with shared owners', () => {
   const inventory = discoverFiles();
   const plan = createModulePlan(inventory, readModules());
-  assert.equal(plan.totalShards, 9);
+  assert.equal(plan.totalShards, 10);
   assert.equal(plan.totalFiles, inventory.length);
   assert.equal(plan.filesSha256, createShardPlan(inventory, 4).filesSha256);
   assert.deepEqual(
     plan.shards.flatMap((shard) => shard.files).sort(),
     inventory,
   );
-  assert.equal(new Set(plan.shards.map((shard) => shard.id)).size, 9);
+  assert.equal(new Set(plan.shards.map((shard) => shard.id)).size, 10);
   assert.ok(
     plan.shards.find((shard) => shard.module === 'shared-foundation').owners
       .length > 1,
@@ -66,7 +66,7 @@ test('scoped category SQL and emitted journey retain explicit Community ownershi
     assert.ok(community.files.includes(`test/integration/${name}`));
 });
 
-test('nine-job matrix leaves both stable Campus shards after the other seven jobs', () => {
+test('ten-job matrix preserves the first eight jobs and Campus ninth, then appends Media runtime', () => {
   const plan = createModulePlan(discoverFiles(), readModules());
   assert.deepEqual(
     plan.shards.map((shard) => shard.id),
@@ -80,9 +80,10 @@ test('nine-job matrix leaves both stable Campus shards after the other seven job
       'identity-messaging-1',
       'campus-services-1',
       'campus-services-2',
+      'media-runtime-1',
     ],
   );
-  const campus = plan.shards.slice(-2);
+  const campus = plan.shards.slice(7, 9);
   assert.deepEqual(
     campus.map((shard) => shard.shard),
     ['1/2', '2/2'],
@@ -110,6 +111,52 @@ test('nine-job matrix leaves both stable Campus shards after the other seven job
     'window-discussion-media.test.ts',
   ])
     assert.ok(campus[1].files.includes(`test/integration/${name}`));
+});
+
+test('Media runtime moves exactly twelve complete files and retains Community publication ownership', () => {
+  const plan = createModulePlan(discoverFiles(), readModules());
+  const community = plan.shards.find(
+    (shard) => shard.id === 'community-media-1',
+  );
+  const runtime = plan.shards.find((shard) => shard.id === 'media-runtime-1');
+  assert.ok(community);
+  assert.ok(runtime);
+  assert.deepEqual(community.owners, ['community', 'media']);
+  assert.deepEqual(runtime.owners, ['media', 'community']);
+  assert.equal(runtime.shard, '1/1');
+  assert.deepEqual(
+    runtime.files,
+    [
+      'media-batch-process.test.ts',
+      'media-deadline-v2.test.ts',
+      'media-discussion-process.test.ts',
+      'media-discussion-server-process.test.ts',
+      'media-foundation.test.ts',
+      'media-multipart-stream.test.ts',
+      'media-native-process.test.ts',
+      'media-native-read.test.ts',
+      'media-native-upload.test.ts',
+      'media-pipeline.test.ts',
+      'media-recovery-v2.test.ts',
+      'media-upload-v2.test.ts',
+    ].map((name) => `test/integration/${name}`),
+  );
+  assert.deepEqual(
+    community.files.filter((file) =>
+      file.startsWith('test/integration/media-'),
+    ),
+    [
+      'media-batch-budget.test.ts',
+      'media-batch-publication.test.ts',
+      'media-discovery.test.ts',
+      'media-discussion-cleanup.test.ts',
+      'media-discussion-deletion.test.ts',
+      'media-discussion-proof.test.ts',
+      'media-discussion-publication.test.ts',
+      'media-publication.test.ts',
+    ].map((name) => `test/integration/${name}`),
+  );
+  assert.ok(runtime.files.every((file) => !community.files.includes(file)));
 });
 
 test('mapping is deterministic and explicit; new tests, stale entries and duplicates fail closed', () => {

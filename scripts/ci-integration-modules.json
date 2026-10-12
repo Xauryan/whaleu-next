@@ -31,25 +31,13 @@
           "like-component-proof.test.ts",
           "liked-history.test.ts",
           "media-batch-budget.test.ts",
-          "media-batch-process.test.ts",
           "media-batch-publication.test.ts",
-          "media-deadline-v2.test.ts",
           "media-discovery.test.ts",
           "media-discussion-cleanup.test.ts",
           "media-discussion-deletion.test.ts",
-          "media-discussion-process.test.ts",
           "media-discussion-proof.test.ts",
           "media-discussion-publication.test.ts",
-          "media-discussion-server-process.test.ts",
-          "media-foundation.test.ts",
-          "media-multipart-stream.test.ts",
-          "media-native-process.test.ts",
-          "media-native-read.test.ts",
-          "media-native-upload.test.ts",
-          "media-pipeline.test.ts",
           "media-publication.test.ts",
-          "media-recovery-v2.test.ts",
-          "media-upload-v2.test.ts",
           "owner-post-visibility-commands.test.ts",
           "owner-post-visibility-native-roundtrip.test.ts",
           "owner-post-visibility.test.ts",
@@ -429,6 +417,27 @@
           "window-discussion.test.ts",
           "window-ratings-native-roundtrip.test.ts",
           "window-ratings.test.ts"
+        ]
+      ]
+    },
+    {
+      "id": "media-runtime",
+      "label": "Media binary lifecycle and process recovery",
+      "owners": ["media", "community"],
+      "shards": [
+        [
+          "media-batch-process.test.ts",
+          "media-deadline-v2.test.ts",
+          "media-discussion-process.test.ts",
+          "media-discussion-server-process.test.ts",
+          "media-foundation.test.ts",
+          "media-multipart-stream.test.ts",
+          "media-native-process.test.ts",
+          "media-native-read.test.ts",
+          "media-native-upload.test.ts",
+          "media-pipeline.test.ts",
+          "media-recovery-v2.test.ts",
+          "media-upload-v2.test.ts"
         ]
       ]
     }
