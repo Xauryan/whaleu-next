@@ -1,3 +1,10 @@
+import {
+  PinFeedController,
+  PinDetailController,
+  initialPinDetailView,
+  initialPinFeedView,
+} from '../../post-pins/controller';
+import type { Post } from '../../community/contract';
 import type { AnnouncementMediaReader } from '../../media/announcement-runtime';
 import type { AnnouncementMediaSlot } from '../../media/announcement-validation';
 import {
@@ -40,6 +47,8 @@ import type { WhaleuApp } from '../../app';
 import { FeedController, initialFeedView } from './controller';
 Page({
   data: {
+    postPin: initialPinFeedView(),
+    postPinManagement: initialPinDetailView(),
     announcementImageView: { status: 'idle', src: '', message: '' },
     namedAvatar: initialNamedAvatarView(),
     announcementPopup: initialAnnouncementPopupView(),
@@ -79,7 +88,81 @@ Page({
   overlayTargets: '',
   authorNavigator: undefined as AuthorNavigator | undefined,
   viewObserver: undefined as ViewObserver | undefined,
+  pinController: undefined as PinFeedController | undefined,
+  pinManager: undefined as PinDetailController | undefined,
+  pinScope: '',
+  pinRenderRevision: 0,
+  pinRenderedId: '',
+  ordinaryPosts: [] as readonly Post[],
+  renderOrdinaryPins() {
+    const visibleId = this.pinRenderedId;
+    const posts = this.ordinaryPosts.filter((post) => post.id !== visibleId);
+    // Preserve ordinary viewport exposure semantics after de-duplication.
+    // The separate pin card itself never manufactures an exposure event.
+    const presented = this.viewObserver?.render(
+      this.data.loaded && this.data.hasSession
+        ? posts.map((post) => post.id)
+        : [],
+      `${this.data.space?.id ?? ''}:${this.data.campusId}:${this.data.category}:${this.data.tradingSubtype}`,
+    );
+    this.setData({ posts }, presented);
+  },
+  onSlotUnpin() {
+    this.pinManager?.confirm('unpin');
+  },
+  onSlotSubmit() {
+    void this.pinManager?.submit();
+  },
+  onSlotClose() {
+    this.pinManager?.closeConfirmation();
+  },
+  onSlotRecover() {
+    void this.pinManager?.recover();
+  },
+  onSlotRetry() {
+    void this.pinManager?.recover(true);
+  },
+  onSlotCancel() {
+    this.pinManager?.requestCancellation();
+  },
+  onSlotConfirmCancel() {
+    void this.pinManager?.confirmCancellation();
+  },
+  onPinOpen() {
+    const route = this.pinController?.route();
+    if (!route) return;
+    if (!wx.navigateTo) {
+      this.setData({ error: '当前环境无法打开置顶详情' });
+      return;
+    }
+    wx.navigateTo({
+      url: route,
+      success: () => undefined,
+      fail: () => this.setData({ error: '无法打开置顶详情，请重试' }),
+    });
+  },
+  onPinExpand() {
+    this.pinController?.expand();
+  },
+  onPinDismiss() {
+    this.pinController?.dismiss();
+  },
+  onPinConfirmDismiss() {
+    this.pinController?.confirmDismiss();
+  },
+  onPinCloseDismiss() {
+    this.pinController?.closeDismiss();
+  },
   onShow() {
+    this.pinManager?.dispose();
+    this.pinManager = undefined;
+    this.pinController?.dispose();
+    this.pinController = undefined;
+    this.pinScope = '';
+    this.pinRenderRevision++;
+    this.pinRenderedId = '';
+    this.ordinaryPosts = [];
+
     this.namedAvatarController?.dispose();
     this.namedAvatarController = new NamedAvatarController(
       getApp<WhaleuApp>().profileAvatar,
@@ -114,6 +197,22 @@ Page({
       this.setData({ error: '环境未初始化，请重新打开小程序' });
       return;
     }
+    this.pinManager = new PinDetailController(
+      runtime,
+      (view) => this.setData({ postPinManagement: view }),
+      () => {
+        void this.controller?.refresh();
+      },
+    );
+    if (runtime.sessions.snapshot().credentials) this.pinManager.loadRecovery();
+    this.pinController = new PinFeedController(runtime, (view) => {
+      const revision = ++this.pinRenderRevision;
+      this.setData({ postPin: view }, () => {
+        if (revision !== this.pinRenderRevision) return;
+        this.pinRenderedId = view.item?.post.id ?? '';
+        this.renderOrdinaryPins();
+      });
+    });
     this.announcementImage =
       getApp<WhaleuApp>().announcementMedia?.createReader((image) =>
         this.setData({ announcementImageView: image }),
@@ -183,7 +282,41 @@ Page({
           `${view.space?.id ?? ''}:${view.campusId}:${view.category}:${view.tradingSubtype}`,
         );
         if (view.busy || !view.loaded) this.namedAvatarController?.clear();
+        this.ordinaryPosts = view.posts;
         this.setData({ ...view }, presented);
+        this.renderOrdinaryPins();
+        if (!view.loaded) {
+          this.pinScope = '';
+          this.pinController?.clear();
+          this.pinManager?.clear();
+        } else if (view.space && !view.busy) {
+          const query = {
+            spaceId: view.space.id,
+            ...(view.category !== 'all' ? { category: view.category } : {}),
+            ...(view.tradingSubtype
+              ? { tradingSubtype: view.tradingSubtype }
+              : {}),
+          };
+          const key = JSON.stringify(query);
+          if (key !== this.pinScope) {
+            this.pinScope = key;
+            // Both reads retain mandatory nonblocking owner fences. Avoid
+            // making this page's own projection race its management proof.
+            const reader = this.pinController,
+              manager = this.pinManager;
+            const spaceId = view.space.id;
+            void reader?.load(query).then(() => {
+              if (
+                this.pinScope === key &&
+                this.pinController === reader &&
+                this.pinManager === manager &&
+                view.hasSession
+              )
+                void manager?.loadSlot(spaceId);
+            });
+          }
+        }
+
         const key = view.posts
           .map((item) => item.id + ':' + item.author.kind)
           .join(',');
@@ -361,6 +494,15 @@ Page({
     this.namedAvatarController?.clear();
   },
   onHide() {
+    this.pinRenderRevision++;
+    this.pinRenderedId = '';
+    this.ordinaryPosts = [];
+    this.pinScope = '';
+    this.pinManager?.dispose();
+    this.pinManager = undefined;
+    this.pinController?.dispose();
+    this.pinController = undefined;
+
     this.namedAvatarController?.dispose();
     this.namedAvatarController = undefined;
     this.announcementImage?.dispose();
@@ -386,6 +528,15 @@ Page({
     this.identityOverlay = undefined;
   },
   onUnload() {
+    this.pinRenderRevision++;
+    this.pinRenderedId = '';
+    this.ordinaryPosts = [];
+    this.pinScope = '';
+    this.pinManager?.dispose();
+    this.pinManager = undefined;
+    this.pinController?.dispose();
+    this.pinController = undefined;
+
     this.namedAvatarController?.dispose();
     this.namedAvatarController = undefined;
     this.announcementImage?.dispose();

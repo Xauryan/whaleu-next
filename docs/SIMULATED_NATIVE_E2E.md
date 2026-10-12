@@ -115,3 +115,18 @@ closure races, final deferred-wait proofs, bounded known-denial catalog continua
 and real shared Media quota windows. The processor consumes actual submitted jobs;
 no fixture inserts an approved Activity content-review result to bypass that flow.
 Default runtime remains closed and no real WeChat/COS/model request is made.
+
+Scoped post pins add `scoped-post-pins.test.ts`,
+`scoped-post-pin-proofs.test.ts`, and
+`scoped-post-pins-native-roundtrip.test.ts` to the explicit runner. The native
+journey drives the emitted App and current community feed/detail WXML through
+ordinary AppModule/loopback PostgreSQL. It is synthetic platform/owner-fixture
+coverage, not production, historical import, related-campus/aggregate feed, or
+physical WeChat acceptance. Detailed boundaries: [scoped pins](SCOPED_POST_PINS.md).
+
+The 2026-10-12 pin acceptance passed its three suites within a 128/128-test serial
+shared PostgreSQL batch, plus the 1,886 API / 2,713 native unit full check and
+emitted builds. Hidden-slot management uses the same exact unpin recovery engine.
+This differential run did not execute every other runner entry again; see the
+[executed pin acceptance](SCOPED_POST_PINS.md#executed-local-acceptance-2026-10-12)
+for the exact scope and remaining gates.

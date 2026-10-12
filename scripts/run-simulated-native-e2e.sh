@@ -18,6 +18,9 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/course-comments-native-roundtrip.test.ts \
   test/integration/window-ratings-native-roundtrip.test.ts \
   test/integration/dish-recommendations-native-roundtrip.test.ts \
+  test/integration/scoped-post-pins.test.ts \
+  test/integration/scoped-post-pin-proofs.test.ts \
+  test/integration/scoped-post-pins-native-roundtrip.test.ts \
   test/integration/community-text-review-native-roundtrip.test.ts \
   test/integration/community-feedback.test.ts \
   test/integration/school-configuration-native-roundtrip.test.ts \

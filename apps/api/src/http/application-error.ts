@@ -3,6 +3,23 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  POST_PIN_UNAVAILABLE: {
+    status: 503,
+    message: 'Accepted post pin scope or history is unavailable',
+  },
+  POST_PIN_CONFLICT: {
+    status: 409,
+    message: 'This scope already has a live pinned post',
+  },
+  POST_PIN_STALE: {
+    status: 409,
+    message: 'The exact post pin is no longer current',
+  },
+  POST_PIN_CANCELLED: {
+    status: 409,
+    message: 'Original post pin command was cancelled',
+  },
+
   DISH_HISTORY_UNAVAILABLE: {
     status: 503,
     message: 'Dish recommendation history is unavailable',

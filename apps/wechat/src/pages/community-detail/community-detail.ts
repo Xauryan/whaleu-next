@@ -1,4 +1,8 @@
 import {
+  PinDetailController,
+  initialPinDetailView,
+} from '../../post-pins/controller';
+import {
   NamedAvatarController,
   initialNamedAvatarView,
 } from '../../profile/named-avatar';
@@ -71,6 +75,7 @@ import {
 } from '../../community/poll-controller';
 Page({
   data: {
+    postPin: initialPinDetailView(),
     namedAvatar: initialNamedAvatarView(),
     mediaRead: initialMediaReadView(),
     mediaGallery: initialDiscussionGalleryView(),
@@ -136,7 +141,44 @@ Page({
   authorNavigator: undefined as AuthorNavigator | undefined,
   viewObserver: undefined as ViewObserver | undefined,
   messagingEntry: undefined as MessagingEntryNavigator | undefined,
+  pinController: undefined as PinDetailController | undefined,
+  onPinCreate() {
+    this.pinController?.confirm('pin');
+  },
+  onPinUnpin() {
+    this.pinController?.confirm('unpin');
+  },
+  onPinDuration(event: { currentTarget: { dataset: { hours: string } } }) {
+    this.pinController?.duration(String(event.currentTarget.dataset.hours));
+  },
+  onPinHours(event: { detail: { value: string } }) {
+    this.pinController?.duration(event.detail.value);
+  },
+  onPinLevel(event: { currentTarget: { dataset: { level: string } } }) {
+    this.pinController?.level(String(event.currentTarget.dataset.level));
+  },
+  onPinSubmit() {
+    void this.pinController?.submit();
+  },
+  onPinClose() {
+    this.pinController?.closeConfirmation();
+  },
+  onPinRecover() {
+    void this.pinController?.recover();
+  },
+  onPinRetry() {
+    void this.pinController?.recover(true);
+  },
+  onPinCancel() {
+    this.pinController?.requestCancellation();
+  },
+  onPinConfirmCancel() {
+    void this.pinController?.confirmCancellation();
+  },
   onShow() {
+    this.pinController?.dispose();
+    this.pinController = undefined;
+
     this.namedAvatarController?.dispose();
     this.namedAvatarController = new NamedAvatarController(
       getApp<WhaleuApp>().profileAvatar,
@@ -403,6 +445,10 @@ Page({
           });
         }),
     );
+    this.pinController = new PinDetailController(runtime, (view) =>
+      this.setData({ postPin: view }),
+    );
+    this.pinController.loadRecovery();
     this.controller = new DetailController(
       runtime,
       this.postId,
@@ -494,6 +540,21 @@ Page({
         }
       },
       (post, readGeneration) => {
+        if (post) {
+          const pins = this.pinController;
+          // Read acknowledgement follows a committed current native detail
+          // render, rather than a successful network fetch alone.
+          this.setData({}, () => {
+            if (
+              this.pinController === pins &&
+              this.controller?.readGeneration === readGeneration &&
+              this.data.loaded &&
+              this.data.post?.id === post.id
+            )
+              void pins?.load(post.id);
+          });
+        } else this.pinController?.clear();
+
         if (post)
           void this.mediaGalleryController?.select({
             kind: 'post',
@@ -1030,6 +1091,8 @@ Page({
     this.savedMutations?.cancel();
   },
   onHide() {
+    this.pinController?.dispose();
+    this.pinController = undefined;
     this.namedAvatarController?.dispose();
     this.namedAvatarController = undefined;
     this.mediaGalleryController?.dispose();
@@ -1075,6 +1138,8 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.pinController?.dispose();
+    this.pinController = undefined;
     this.namedAvatarController?.dispose();
     this.namedAvatarController = undefined;
     this.mediaGalleryController?.dispose();

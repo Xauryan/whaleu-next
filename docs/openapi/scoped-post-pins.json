@@ -1,0 +1,2154 @@
+{
+  "components": {
+    "schemas": {
+      "PinnedPostView": {
+        "additionalProperties": false,
+        "properties": {
+          "allowAnonymousDm": {
+            "type": "boolean"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "avatar": {
+                    "additionalProperties": false,
+                    "nullable": true,
+                    "properties": {
+                      "assetId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "bindingId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "height": {
+                        "exclusiveMinimum": true,
+                        "maximum": 2048,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "kind": {
+                        "enum": ["authenticated-media"],
+                        "type": "string"
+                      },
+                      "variants": {
+                        "items": {
+                          "anyOf": [
+                            {
+                              "enum": ["thumb-v1"],
+                              "type": "string"
+                            },
+                            {
+                              "enum": ["display-v1"],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
+                      },
+                      "version": {
+                        "enum": [1],
+                        "type": "number"
+                      },
+                      "width": {
+                        "exclusiveMinimum": true,
+                        "maximum": 2048,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "kind",
+                      "assetId",
+                      "bindingId",
+                      "width",
+                      "height",
+                      "variants"
+                    ],
+                    "type": "object"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "experienceDisplay": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "color": {
+                        "anyOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": ["known"],
+                                "type": "string"
+                              },
+                              "value": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "nullable": true,
+                                "type": "integer"
+                              }
+                            },
+                            "required": ["status", "value"],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": ["unavailable"],
+                                "type": "string"
+                              },
+                              "value": {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": ["status", "value"],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "level": {
+                        "anyOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": ["known"],
+                                "type": "string"
+                              },
+                              "value": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": ["status", "value"],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": ["unavailable"],
+                                "type": "string"
+                              },
+                              "value": {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": ["status", "value"],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "title": {
+                        "anyOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": ["known"],
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "nullable": true,
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["key", "name"],
+                                "type": "object"
+                              }
+                            },
+                            "required": ["status", "value"],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": ["unavailable"],
+                                "type": "string"
+                              },
+                              "value": {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": ["status", "value"],
+                            "type": "object"
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["title", "color", "level"],
+                    "type": "object"
+                  },
+                  "kind": {
+                    "enum": ["named"],
+                    "type": "string"
+                  },
+                  "profileId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "profileId",
+                  "displayName",
+                  "avatar",
+                  "experienceDisplay"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "avatar": {
+                    "additionalProperties": false,
+                    "nullable": true,
+                    "properties": {
+                      "assetId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "bindingId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "height": {
+                        "exclusiveMinimum": true,
+                        "maximum": 2048,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "kind": {
+                        "enum": ["authenticated-media"],
+                        "type": "string"
+                      },
+                      "variants": {
+                        "items": {
+                          "anyOf": [
+                            {
+                              "enum": ["thumb-v1"],
+                              "type": "string"
+                            },
+                            {
+                              "enum": ["display-v1"],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
+                      },
+                      "version": {
+                        "enum": [1],
+                        "type": "number"
+                      },
+                      "width": {
+                        "exclusiveMinimum": true,
+                        "maximum": 2048,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "kind",
+                      "assetId",
+                      "bindingId",
+                      "width",
+                      "height",
+                      "variants"
+                    ],
+                    "type": "object"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "isPostAuthor": {
+                    "type": "boolean"
+                  },
+                  "kind": {
+                    "enum": ["anonymous"],
+                    "type": "string"
+                  },
+                  "personaId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "personaId",
+                  "displayName",
+                  "avatar",
+                  "isPostAuthor"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "category": {
+            "enum": [
+              "discussion",
+              "feedback",
+              "confession",
+              "companions",
+              "pets",
+              "internships",
+              "scenery",
+              "dorms",
+              "research",
+              "deep_sea",
+              "trading"
+            ],
+            "type": "string"
+          },
+          "commentCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "commentsPolicy": {
+            "enum": ["open", "restricted"],
+            "type": "string"
+          },
+          "component": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": ["none"],
+                    "type": "string"
+                  }
+                },
+                "required": ["kind"],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": ["poll"],
+                    "type": "string"
+                  },
+                  "poll": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "deadline": {
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "expired": {
+                        "type": "boolean"
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "options": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "count": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "position": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": ["id", "label", "position", "count"],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "postId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "question": {
+                        "type": "string"
+                      },
+                      "selectionCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "selectionMode": {
+                        "enum": ["single", "multiple"],
+                        "type": "string"
+                      },
+                      "viewer": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "canVote": {
+                            "type": "boolean"
+                          },
+                          "hasVoted": {
+                            "type": "boolean"
+                          },
+                          "reason": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "selectedOptionIds": {
+                            "items": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "hasVoted",
+                          "selectedOptionIds",
+                          "canVote",
+                          "reason"
+                        ],
+                        "type": "object"
+                      },
+                      "voterCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "postId",
+                      "question",
+                      "selectionMode",
+                      "options",
+                      "deadline",
+                      "expired",
+                      "voterCount",
+                      "selectionCount",
+                      "viewer"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": ["kind", "poll"],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "formation": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "capacity": {
+                        "maximum": 20,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "memberCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "members": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "author": {
+                              "anyOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "avatar": {
+                                      "additionalProperties": false,
+                                      "nullable": true,
+                                      "properties": {
+                                        "assetId": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "bindingId": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "height": {
+                                          "exclusiveMinimum": true,
+                                          "maximum": 2048,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        "kind": {
+                                          "enum": ["authenticated-media"],
+                                          "type": "string"
+                                        },
+                                        "variants": {
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "enum": ["thumb-v1"],
+                                                "type": "string"
+                                              },
+                                              {
+                                                "enum": ["display-v1"],
+                                                "type": "string"
+                                              }
+                                            ]
+                                          },
+                                          "maxItems": 2,
+                                          "minItems": 2,
+                                          "type": "array"
+                                        },
+                                        "version": {
+                                          "enum": [1],
+                                          "type": "number"
+                                        },
+                                        "width": {
+                                          "exclusiveMinimum": true,
+                                          "maximum": 2048,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "version",
+                                        "kind",
+                                        "assetId",
+                                        "bindingId",
+                                        "width",
+                                        "height",
+                                        "variants"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "displayName": {
+                                      "type": "string"
+                                    },
+                                    "experienceDisplay": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "color": {
+                                          "anyOf": [
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "status": {
+                                                  "enum": ["known"],
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "maximum": 9007199254740991,
+                                                  "minimum": -9007199254740991,
+                                                  "nullable": true,
+                                                  "type": "integer"
+                                                }
+                                              },
+                                              "required": ["status", "value"],
+                                              "type": "object"
+                                            },
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "status": {
+                                                  "enum": ["unavailable"],
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "enum": [null],
+                                                  "nullable": true,
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["status", "value"],
+                                              "type": "object"
+                                            }
+                                          ]
+                                        },
+                                        "level": {
+                                          "anyOf": [
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "status": {
+                                                  "enum": ["known"],
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "maximum": 9007199254740991,
+                                                  "minimum": 0,
+                                                  "type": "integer"
+                                                }
+                                              },
+                                              "required": ["status", "value"],
+                                              "type": "object"
+                                            },
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "status": {
+                                                  "enum": ["unavailable"],
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "enum": [null],
+                                                  "nullable": true,
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["status", "value"],
+                                              "type": "object"
+                                            }
+                                          ]
+                                        },
+                                        "title": {
+                                          "anyOf": [
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "status": {
+                                                  "enum": ["known"],
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "additionalProperties": false,
+                                                  "nullable": true,
+                                                  "properties": {
+                                                    "key": {
+                                                      "type": "string"
+                                                    },
+                                                    "name": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": ["key", "name"],
+                                                  "type": "object"
+                                                }
+                                              },
+                                              "required": ["status", "value"],
+                                              "type": "object"
+                                            },
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "status": {
+                                                  "enum": ["unavailable"],
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "enum": [null],
+                                                  "nullable": true,
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["status", "value"],
+                                              "type": "object"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": ["title", "color", "level"],
+                                      "type": "object"
+                                    },
+                                    "kind": {
+                                      "enum": ["named"],
+                                      "type": "string"
+                                    },
+                                    "profileId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "profileId",
+                                    "displayName",
+                                    "avatar",
+                                    "experienceDisplay"
+                                  ],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "avatar": {
+                                      "additionalProperties": false,
+                                      "nullable": true,
+                                      "properties": {
+                                        "assetId": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "bindingId": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "height": {
+                                          "exclusiveMinimum": true,
+                                          "maximum": 2048,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        "kind": {
+                                          "enum": ["authenticated-media"],
+                                          "type": "string"
+                                        },
+                                        "variants": {
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "enum": ["thumb-v1"],
+                                                "type": "string"
+                                              },
+                                              {
+                                                "enum": ["display-v1"],
+                                                "type": "string"
+                                              }
+                                            ]
+                                          },
+                                          "maxItems": 2,
+                                          "minItems": 2,
+                                          "type": "array"
+                                        },
+                                        "version": {
+                                          "enum": [1],
+                                          "type": "number"
+                                        },
+                                        "width": {
+                                          "exclusiveMinimum": true,
+                                          "maximum": 2048,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "version",
+                                        "kind",
+                                        "assetId",
+                                        "bindingId",
+                                        "width",
+                                        "height",
+                                        "variants"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "displayName": {
+                                      "type": "string"
+                                    },
+                                    "isPostAuthor": {
+                                      "type": "boolean"
+                                    },
+                                    "kind": {
+                                      "enum": ["anonymous"],
+                                      "type": "string"
+                                    },
+                                    "personaId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "personaId",
+                                    "displayName",
+                                    "avatar",
+                                    "isPostAuthor"
+                                  ],
+                                  "type": "object"
+                                }
+                              ]
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "isCreator": {
+                              "type": "boolean"
+                            },
+                            "joinedAt": {
+                              "type": "string"
+                            },
+                            "viewer": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "isSelf": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["isSelf"],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "author",
+                            "isCreator",
+                            "joinedAt",
+                            "viewer"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "postId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "status": {
+                        "enum": ["open", "full", "unavailable"],
+                        "type": "string"
+                      },
+                      "theme": {
+                        "type": "string"
+                      },
+                      "viewer": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "canJoin": {
+                            "type": "boolean"
+                          },
+                          "canReadContacts": {
+                            "type": "boolean"
+                          },
+                          "isCreator": {
+                            "type": "boolean"
+                          },
+                          "isMember": {
+                            "type": "boolean"
+                          },
+                          "reason": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "isMember",
+                          "isCreator",
+                          "canJoin",
+                          "reason",
+                          "canReadContacts"
+                        ],
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "postId",
+                      "capacity",
+                      "theme",
+                      "status",
+                      "memberCount",
+                      "members",
+                      "viewer"
+                    ],
+                    "type": "object"
+                  },
+                  "kind": {
+                    "enum": ["formation"],
+                    "type": "string"
+                  }
+                },
+                "required": ["kind", "formation"],
+                "type": "object"
+              }
+            ]
+          },
+          "discussionCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "feedback": {
+            "additionalProperties": false,
+            "properties": {
+              "authorSchool": {
+                "nullable": true,
+                "type": "string"
+              },
+              "hasContacts": {
+                "type": "boolean"
+              }
+            },
+            "required": ["authorSchool", "hasContacts"],
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "assetId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "bindingId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "height": {
+                  "exclusiveMinimum": true,
+                  "maximum": 2048,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": ["authenticated-media"],
+                  "type": "string"
+                },
+                "variants": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "enum": ["thumb-v1"],
+                        "type": "string"
+                      },
+                      {
+                        "enum": ["display-v1"],
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "version": {
+                  "enum": [1],
+                  "type": "number"
+                },
+                "width": {
+                  "exclusiveMinimum": true,
+                  "maximum": 2048,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "version",
+                "kind",
+                "assetId",
+                "bindingId",
+                "width",
+                "height",
+                "variants"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "likeCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "publishedAt": {
+            "type": "string"
+          },
+          "replyCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "saveCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "space": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "kind": {
+                "enum": ["regional", "global"],
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": ["id", "kind", "name"],
+            "type": "object"
+          },
+          "text": {
+            "type": "string"
+          },
+          "trading": {
+            "additionalProperties": false,
+            "nullable": true,
+            "properties": {
+              "location": {
+                "type": "string"
+              },
+              "price": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "amount": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": ["exact"],
+                        "type": "string"
+                      },
+                      "legacyText": {
+                        "nullable": true,
+                        "type": "string"
+                      }
+                    },
+                    "required": ["kind", "amount", "legacyText"],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": ["legacy"],
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["kind", "text"],
+                    "type": "object"
+                  }
+                ]
+              },
+              "resolution": {
+                "enum": ["open", "resolved"],
+                "type": "string"
+              },
+              "subtype": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "key": {
+                        "enum": [
+                          "qiugou",
+                          "shuma",
+                          "shujia",
+                          "yifu",
+                          "meizhuang",
+                          "yundong",
+                          "riyong",
+                          "shipin",
+                          "kaquan",
+                          "xiangbao",
+                          "zixingche",
+                          "diandongche",
+                          "xianshiqi"
+                        ],
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": ["known"],
+                        "type": "string"
+                      },
+                      "legacyText": {
+                        "nullable": true,
+                        "type": "string"
+                      }
+                    },
+                    "required": ["kind", "key", "legacyText"],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": ["legacy"],
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["kind", "text"],
+                    "type": "object"
+                  }
+                ]
+              },
+              "urgency": {
+                "enum": ["normal", "urgent"],
+                "type": "string"
+              },
+              "viewer": {
+                "additionalProperties": false,
+                "properties": {
+                  "canSetResolution": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["canSetResolution"],
+                "type": "object"
+              }
+            },
+            "required": [
+              "subtype",
+              "price",
+              "urgency",
+              "location",
+              "resolution",
+              "viewer"
+            ],
+            "type": "object"
+          },
+          "viewer": {
+            "additionalProperties": false,
+            "properties": {
+              "canComment": {
+                "type": "boolean"
+              },
+              "canDelete": {
+                "type": "boolean"
+              },
+              "canSave": {
+                "type": "boolean"
+              },
+              "canSetUpdatePreference": {
+                "type": "boolean"
+              },
+              "isLiked": {
+                "type": "boolean"
+              },
+              "isSaved": {
+                "type": "boolean"
+              },
+              "isSelf": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "isSelf",
+              "isLiked",
+              "canDelete",
+              "canComment",
+              "isSaved",
+              "canSave",
+              "canSetUpdatePreference"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "space",
+          "category",
+          "text",
+          "images",
+          "author",
+          "publishedAt",
+          "likeCount",
+          "commentCount",
+          "replyCount",
+          "discussionCount",
+          "saveCount",
+          "trading",
+          "component",
+          "viewer",
+          "commentsPolicy",
+          "allowAnonymousDm"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "accessToken": {
+        "description": "Current opaque WhaleU access token; school management checks true current grants.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "",
+    "title": "WhaleU scoped post pins",
+    "version": "1"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/v1/community/post-pin-commands": {
+      "post": {
+        "operationId": "PostPinsController_command",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "clientRequestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "durationHours": {
+                        "default": 24,
+                        "maximum": 168,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "level": {
+                        "anyOf": [
+                          {
+                            "enum": [1],
+                            "type": "number"
+                          },
+                          {
+                            "enum": [2],
+                            "type": "number"
+                          }
+                        ],
+                        "default": 2
+                      },
+                      "operation": {
+                        "enum": ["pin"],
+                        "type": "string"
+                      },
+                      "postId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["clientRequestId", "operation", "postId"],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "clientRequestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "operation": {
+                        "enum": ["unpin"],
+                        "type": "string"
+                      },
+                      "pinId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "postId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "clientRequestId",
+                      "operation",
+                      "postId",
+                      "pinId"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "clientRequestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "operation": {
+                        "enum": ["read"],
+                        "type": "string"
+                      },
+                      "pinId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "postId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "clientRequestId",
+                      "operation",
+                      "postId",
+                      "pinId"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "operation": {
+                          "enum": ["pin", "unpin", "read"],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied"],
+                          "type": "string"
+                        },
+                        "pinId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "postId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "operation",
+                        "postId",
+                        "outcome",
+                        "pinId",
+                        "recordedAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "POST_PIN_CONFLICT",
+                            "POST_PIN_STALE",
+                            "POST_PIN_CANCELLED"
+                          ],
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": ["pin", "unpin", "read"],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "postId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "operation",
+                        "postId",
+                        "outcome",
+                        "code"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "tags": ["Scoped post pins"]
+      }
+    },
+    "/v1/community/post-pin-slot": {
+      "get": {
+        "operationId": "PostPinsController_slot",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "spaceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "canUnpin": {
+                      "type": "boolean"
+                    },
+                    "pin": {
+                      "additionalProperties": false,
+                      "nullable": true,
+                      "properties": {
+                        "level": {
+                          "anyOf": [
+                            {
+                              "enum": [1],
+                              "type": "number"
+                            },
+                            {
+                              "enum": [2],
+                              "type": "number"
+                            }
+                          ]
+                        },
+                        "pinId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "pinnedUntil": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "postId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["pinId", "postId", "level", "pinnedUntil"],
+                      "type": "object"
+                    },
+                    "spaceId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": ["available", "unavailable"],
+                      "type": "string"
+                    }
+                  },
+                  "required": ["spaceId", "status", "canUnpin", "pin"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "tags": ["Scoped post pins"]
+      }
+    },
+    "/v1/community/post-pins": {
+      "get": {
+        "operationId": "postPinPage",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "spaceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "enum": [
+                "discussion",
+                "feedback",
+                "confession",
+                "companions",
+                "pets",
+                "internships",
+                "scenery",
+                "dorms",
+                "research",
+                "deep_sea",
+                "trading"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tradingSubtype",
+            "required": false,
+            "schema": {
+              "enum": [
+                "qiugou",
+                "shuma",
+                "shujia",
+                "yifu",
+                "meizhuang",
+                "yundong",
+                "riyong",
+                "shipin",
+                "kaquan",
+                "xiangbao",
+                "zixingche",
+                "diandongche",
+                "xianshiqi"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "pin": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "level": {
+                                "anyOf": [
+                                  {
+                                    "enum": [1],
+                                    "type": "number"
+                                  },
+                                  {
+                                    "enum": [2],
+                                    "type": "number"
+                                  }
+                                ]
+                              },
+                              "pinId": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "pinnedAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                "type": "string"
+                              },
+                              "pinnedUntil": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                "type": "string"
+                              },
+                              "postId": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "readAt": {
+                                "format": "date-time",
+                                "nullable": true,
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                "type": "string"
+                              },
+                              "readState": {
+                                "enum": ["read", "unread", "guest"],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "pinId",
+                              "postId",
+                              "level",
+                              "pinnedAt",
+                              "pinnedUntil",
+                              "readState",
+                              "readAt"
+                            ],
+                            "type": "object"
+                          },
+                          "post": {
+                            "$ref": "#/components/schemas/PinnedPostView"
+                          }
+                        },
+                        "required": ["pin", "post"],
+                        "type": "object"
+                      },
+                      "maxItems": 1,
+                      "type": "array"
+                    },
+                    "spaceId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": ["available", "unavailable"],
+                      "type": "string"
+                    }
+                  },
+                  "required": ["spaceId", "status", "items"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": ["Scoped post pins"]
+      }
+    },
+    "/v1/community/posts/{postId}/pin": {
+      "get": {
+        "operationId": "PostPinsController_detail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "postId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "canPin": {
+                      "type": "boolean"
+                    },
+                    "canUnpin": {
+                      "type": "boolean"
+                    },
+                    "pin": {
+                      "additionalProperties": false,
+                      "nullable": true,
+                      "properties": {
+                        "level": {
+                          "anyOf": [
+                            {
+                              "enum": [1],
+                              "type": "number"
+                            },
+                            {
+                              "enum": [2],
+                              "type": "number"
+                            }
+                          ]
+                        },
+                        "pinId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "pinnedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "pinnedUntil": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "postId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "readAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "readState": {
+                          "enum": ["read", "unread", "guest"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "pinId",
+                        "postId",
+                        "level",
+                        "pinnedAt",
+                        "pinnedUntil",
+                        "readState",
+                        "readAt"
+                      ],
+                      "type": "object"
+                    },
+                    "postId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": ["available", "unavailable"],
+                      "type": "string"
+                    }
+                  },
+                  "required": ["postId", "status", "pin", "canPin", "canUnpin"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "tags": ["Scoped post pins"]
+      }
+    },
+    "/v1/me/community/post-pin-requests/{requestId}": {
+      "get": {
+        "operationId": "PostPinRecoveryController_receipt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "operation": {
+                          "enum": ["pin", "unpin", "read"],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied"],
+                          "type": "string"
+                        },
+                        "pinId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "postId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "operation",
+                        "postId",
+                        "outcome",
+                        "pinId",
+                        "recordedAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "POST_PIN_CONFLICT",
+                            "POST_PIN_STALE",
+                            "POST_PIN_CANCELLED"
+                          ],
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": ["pin", "unpin", "read"],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "postId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "operation",
+                        "postId",
+                        "outcome",
+                        "code"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "tags": ["Scoped post pin recovery"]
+      }
+    },
+    "/v1/me/community/post-pin-requests/{requestId}/cancel": {
+      "post": {
+        "operationId": "PostPinRecoveryController_cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "clientRequestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "durationHours": {
+                        "default": 24,
+                        "maximum": 168,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "level": {
+                        "anyOf": [
+                          {
+                            "enum": [1],
+                            "type": "number"
+                          },
+                          {
+                            "enum": [2],
+                            "type": "number"
+                          }
+                        ],
+                        "default": 2
+                      },
+                      "operation": {
+                        "enum": ["pin"],
+                        "type": "string"
+                      },
+                      "postId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["clientRequestId", "operation", "postId"],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "clientRequestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "operation": {
+                        "enum": ["unpin"],
+                        "type": "string"
+                      },
+                      "pinId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "postId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "clientRequestId",
+                      "operation",
+                      "postId",
+                      "pinId"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "clientRequestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "operation": {
+                        "enum": ["read"],
+                        "type": "string"
+                      },
+                      "pinId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "postId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "clientRequestId",
+                      "operation",
+                      "postId",
+                      "pinId"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "operation": {
+                          "enum": ["pin", "unpin", "read"],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied"],
+                          "type": "string"
+                        },
+                        "pinId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "postId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "operation",
+                        "postId",
+                        "outcome",
+                        "pinId",
+                        "recordedAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "POST_PIN_CONFLICT",
+                            "POST_PIN_STALE",
+                            "POST_PIN_CANCELLED"
+                          ],
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": ["pin", "unpin", "read"],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "postId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "operation",
+                        "postId",
+                        "outcome",
+                        "code"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "tags": ["Scoped post pin recovery"]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

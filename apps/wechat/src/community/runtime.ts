@@ -1,4 +1,9 @@
 import {
+  HttpPostPinsGateway,
+  type PostPinsGateway,
+} from '../post-pins/gateway';
+import { PendingPostPinStore } from '../post-pins/pending';
+import {
   HttpDishRecommendationsGateway,
   type DishRecommendationsGateway,
 } from '../dish-recommendations/gateway';
@@ -188,6 +193,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly postPins?: PostPinsGateway;
+  readonly pendingPostPins?: PendingPostPinStore;
   readonly dishRecommendations?: DishRecommendationsGateway;
   readonly pendingDishRecommendations?: PendingDishRecommendationStore;
   readonly windowRatings?: WindowRatingsGateway;
@@ -356,6 +363,10 @@ export function createCommunityRuntime(
           ratingDiscussion: new HttpRatingDiscussionGateway(identity.api),
           ratingUpdates: new HttpRatingUpdatesGateway(identity.api),
         }
+      : {}),
+    pendingPostPins: new PendingPostPinStore(storage, origin),
+    ...(identity.api
+      ? { postPins: new HttpPostPinsGateway(identity.api) }
       : {}),
     pendingDishRecommendations: new PendingDishRecommendationStore(
       storage,

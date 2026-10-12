@@ -1,0 +1,22 @@
+<template name="post-pin-management">
+  <view wx:if="{{management.slot}}" class="card">
+    <view class="section-title">当前范围置顶管理</view>
+    <view wx:if="{{management.slot.pin}}">
+      <view>置顶编号 {{management.slot.pin.pinId}}</view>
+      <view>帖子编号 {{management.slot.pin.postId}}</view>
+      <view>优先级 {{management.slot.pin.level}} · 至 {{management.slot.pin.pinnedUntil}}</view>
+      <view class="notice">这里只核验当前管理权限和置顶位，不展示隐藏内容。取消只影响这一次置顶。</view>
+      <button bindtap="onSlotUnpin" disabled="{{management.busy || management.frozen}}">取消当前置顶占位</button>
+    </view>
+    <view wx:else>{{management.slot.status === 'unavailable' ? '置顶范围或历史待核验' : '当前范围没有有效置顶占位'}}</view>
+  </view>
+  <view wx:if="{{management.confirming === 'unpin'}}" class="card">确认取消此编号的置顶占位？
+    <button bindtap="onSlotSubmit" disabled="{{management.busy || management.frozen}}">确认取消这次置顶</button><button bindtap="onSlotClose" disabled="{{management.busy}}">返回</button>
+  </view>
+  <view wx:if="{{management.frozen}}" class="card">
+    <view>原置顶请求待确认：{{management.pendingOperation}} · {{management.pendingPostId}} · {{management.pendingPhase}}</view>
+    <button bindtap="onSlotRecover" disabled="{{management.busy}}">查询原置顶回执</button><button bindtap="onSlotRetry" disabled="{{management.busy}}">重试原置顶请求</button><button bindtap="onSlotCancel" disabled="{{management.busy}}">取消原置顶请求</button>
+  </view>
+  <view wx:if="{{management.confirming === 'cancel'}}" class="card">已完成的操作仍返回原回执。确认取消原请求？<button bindtap="onSlotConfirmCancel" disabled="{{management.busy}}">确认取消原请求</button><button bindtap="onSlotClose">返回</button></view>
+  <view wx:if="{{management.error || management.receiptStatus}}" class="meta">{{management.error || management.receiptStatus}}</view>
+</template>

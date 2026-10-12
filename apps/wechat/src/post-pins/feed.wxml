@@ -1,0 +1,20 @@
+<template name="scoped-post-pin">
+  <view wx:if="{{postPin.item}}" class="card">
+    <view class="section-title">置顶 · {{postPin.item.pin.readState === 'guest' ? '登录后记录阅读' : postPin.item.pin.readState === 'read' ? '已读' : '未读'}} · 优先级 {{postPin.item.pin.level}}</view>
+    <view wx:if="{{postPin.collapsed}}" class="meta" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">已读 · {{postPin.item.post.text}}</view>
+    <view wx:else>
+      <view class="author">{{postPin.item.post.author.displayName}} · {{postPin.item.post.author.kind === 'anonymous' ? '分身' : '公开身份'}}</view>
+      <view class="body">{{postPin.item.post.text}}</view>
+      <view wx:if="{{postPin.item.post.trading}}" class="scope">{{postPin.item.post.trading.price.kind === 'exact' ? postPin.item.post.trading.price.amount + ' 元' : '历史价格原文：' + postPin.item.post.trading.price.text}} · {{postPin.item.post.trading.urgency === 'urgent' ? '低价急出' : '普通交易'}} · {{postPin.item.post.trading.resolution === 'resolved' ? '已售出／已解决' : '未解决'}}</view>
+      <view wx:if="{{postPin.item.post.feedback &amp;&amp; postPin.item.post.feedback.authorSchool}}" class="meta">认证学校：{{postPin.item.post.feedback.authorSchool}}</view>
+      <view wx:if="{{postPin.item.post.images.length}}" class="meta">{{postPin.item.post.images.length}} 张图片，进入详情安全查看</view>
+      <view class="meta">{{postPin.item.post.publishedAt}} · {{postPin.item.post.likeCount}} 赞 · {{postPin.item.post.discussionCount}} 条讨论</view>
+    </view>
+    <view class="meta">置顶至 {{postPin.item.pin.pinnedUntil}}</view>
+    <button wx:if="{{postPin.collapsed}}" bindtap="onPinExpand">展开置顶</button>
+    <button wx:if="{{hasSession}}" bindtap="onPinOpen">打开置顶与讨论</button>
+    <button bindtap="onPinDismiss">仅在此设备隐藏此置顶</button>
+    <view wx:if="{{postPin.confirmDismiss}}" class="notice">此操作不会标记已读。确定隐藏这条未读置顶？<button bindtap="onPinConfirmDismiss">确认本地隐藏</button><button bindtap="onPinCloseDismiss">返回</button></view>
+  </view>
+  <view wx:if="{{postPin.error || postPin.status}}" class="meta">{{postPin.error || postPin.status}}</view>
+</template>

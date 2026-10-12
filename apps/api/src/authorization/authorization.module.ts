@@ -1,3 +1,4 @@
+import { PostPinAuthorityFacade } from './post-pin-authority.facade.js';
 import { RatingCategoryManagementAuthorityFacade } from './rating-category-management.facade.js';
 import { RatingAuthorizationFacade } from './rating-grants.facade.js';
 import { AuthorizationReportWeightSource } from './report-weight.source.js';
@@ -34,6 +35,7 @@ export class AuthorizationController {
   imports: [DatabaseModule, IdentityModule, CampusModule],
   controllers: [AuthorizationController],
   providers: [
+    PostPinAuthorityFacade,
     RatingAuthorizationFacade,
     RatingCategoryManagementAuthorityFacade,
     AuthorizationRepository,
@@ -41,6 +43,7 @@ export class AuthorizationController {
     AuthorizationReportWeightSource,
   ],
   exports: [
+    PostPinAuthorityFacade,
     RatingAuthorizationFacade,
     RatingCategoryManagementAuthorityFacade,
     AuthorizationService,

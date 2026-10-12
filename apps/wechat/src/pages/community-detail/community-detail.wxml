@@ -35,7 +35,7 @@
   <view wx:if="{{post}}" class="card"><view class="section-title">收藏与此帖更新偏好</view><view class="meta">{{post.saveCount}} 人收藏 · {{post.viewer.isSaved ? '你已收藏' : '尚未收藏'}}</view><button bindtap="onSavedToggle" disabled="{{busy || needsReload || savedMutation.busy || savedMutation.frozen || !post.viewer.canSave}}">{{post.viewer.isSaved ? '取消收藏' : '收藏帖子'}}</button><view class="notice">收藏自己或已解决的帖子也可以；实际权限以服务端为准。取消后保留本帖的两项偏好，重新收藏不会重置。</view><view wx:if="{{savedMutation.preferences}}"><label><switch data-channel="saved" bindchange="onSavedPreference" checked="{{savedMutation.preferences.savedUpdatesEnabled}}" disabled="{{busy || needsReload || savedMutation.busy || savedMutation.frozen || !savedMutation.preferences.canSetPreference || !post.viewer.canSetUpdatePreference}}" />收藏帖新评论更新（关闭后仅作书签）</label><view class="notice">只控制收藏帖新根评论的更新分支，不影响直接回复你的站内通知。{{savedMutation.processingStatus}}。设置表示偏好，不证明某条通知已生成或送达。</view><label><switch data-channel="external" bindchange="onSavedPreference" checked="{{savedMutation.preferences.externalUpdatesEnabled}}" disabled="{{busy || needsReload || savedMutation.busy || savedMutation.frozen || !savedMutation.preferences.canSetPreference || !post.viewer.canSetUpdatePreference}}" />此帖外部通知意向</label><view class="notice">外部通知尚不可用；开启仅保存偏好，不代表订阅同意、模板额度或设备授权。关闭同时排除此帖直接评论／回复及收藏更新的外部通知，不改变站内偏好。</view></view><view wx:else class="notice">{{savedMutation.busy ? '正在读取本帖偏好' : '偏好尚未确认，请重新加载帖子'}}</view><navigator class="link" url="/pages/community-updates/community-updates">查看社区更新 →</navigator><navigator class="link" url="/pages/community-saved/community-saved">查看我的收藏 →</navigator></view>
   <template is="post-like-recovery" data="{{postLikeMutation}}" />
   <template is="saved-recovery" data="{{savedMutation}}" />
-  <view wx:if="{{post.trading}}" class="card">
+  <view wx:if="{{post &amp;&amp; post.trading}}" class="card">
     <template is="trading-summary" data="{{listing:post.trading,tradingLabels}}" />
     <view class="notice">急出与售出／解决是独立状态。撤销已解决会保留原急出模式。当前仅作者可修改状态，群推送与付款、担保、配送均未接入。</view>
     <button wx:if="{{post.trading.viewer.canSetResolution}}" bindtap="onTradingResolution" disabled="{{busy || needsReload || tradingMutation.busy || tradingMutation.frozen}}">{{post.trading.resolution === 'resolved' ? '撤销已解决／恢复出售' : '标记售出／已解决'}}</button>
@@ -130,3 +130,26 @@
   </view>
 <template is="named-avatar-preview" data="{{avatar:namedAvatar}}" />
 </view>
+
+<view wx:if="{{loaded &amp;&amp; postPin.loaded}}" class="card">
+  <view wx:if="{{postPin.detail.pin}}" class="meta">当前置顶 · {{postPin.detail.pin.readState === 'read' ? '已读' : '未读'}} · 至 {{postPin.detail.pin.pinnedUntil}}</view>
+  <button wx:if="{{postPin.detail.canPin}}" bindtap="onPinCreate" disabled="{{postPin.busy || postPin.frozen}}">{{postPin.detail.pin ? '续期为新的置顶' : '置顶此帖'}}</button>
+  <button wx:if="{{postPin.detail.canUnpin}}" bindtap="onPinUnpin" disabled="{{postPin.busy || postPin.frozen}}">取消当前这次置顶</button>
+</view>
+<view wx:if="{{postPin.confirming === 'pin' || postPin.confirming === 'unpin'}}" class="card">
+  <view class="section-title">{{postPin.confirming === 'pin' ? '确认新置顶' : '确认取消这次置顶'}}</view>
+  <view wx:if="{{postPin.confirming === 'pin'}}">
+    <view>时长 1–168 小时，当前 {{postPin.durationHours}} 小时</view>
+    <button data-hours="1" bindtap="onPinDuration">1 小时</button><button data-hours="6" bindtap="onPinDuration">6 小时</button><button data-hours="12" bindtap="onPinDuration">12 小时</button><button data-hours="24" bindtap="onPinDuration">24 小时</button>
+    <input type="number" value="{{postPin.durationHours}}" bindinput="onPinHours" maxlength="3" />
+    <view>优先级 {{postPin.level}}</view><button data-level="1" bindtap="onPinLevel">1</button><button data-level="2" bindtap="onPinLevel">2</button>
+    <view>同范围只有一个置顶位。续期会创建新的置顶和独立已读状态。</view>
+  </view>
+  <button bindtap="onPinSubmit" disabled="{{postPin.busy || postPin.frozen}}">确认执行置顶操作</button><button bindtap="onPinClose" disabled="{{postPin.busy}}">返回</button>
+</view>
+<view wx:if="{{postPin.frozen}}" class="card">
+  <view>原置顶请求待确认：{{postPin.pendingOperation}} · {{postPin.pendingPostId}} · {{postPin.pendingPhase}}</view>
+  <button bindtap="onPinRecover" disabled="{{postPin.busy}}">查询原置顶回执</button><button bindtap="onPinRetry" disabled="{{postPin.busy}}">重试原置顶请求</button><button bindtap="onPinCancel" disabled="{{postPin.busy}}">取消原置顶请求</button>
+</view>
+<view wx:if="{{postPin.confirming === 'cancel'}}" class="card">取消会保留原编号；已完成的操作仍返回原结果。<button bindtap="onPinConfirmCancel" disabled="{{postPin.busy}}">确认取消原请求</button><button bindtap="onPinClose">返回</button></view>
+<view wx:if="{{postPin.error || postPin.receiptStatus || postPin.status}}" class="meta">{{postPin.error || postPin.receiptStatus || postPin.status}}</view>

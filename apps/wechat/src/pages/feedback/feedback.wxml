@@ -1,3 +1,5 @@
+<import src="../../post-pins/management.wxml" />
+<import src="../../post-pins/feed.wxml" />
 <view class="screen">
   <view class="eyebrow">WHALEU · 全站公开专题</view><view class="title">意见与建议</view>
   <view class="subtitle">每所学校都能看到。正文、审核通过的图片、实名或分身与认证学校公开展示。</view>
@@ -6,6 +8,7 @@
   <navigator wx:if="{{hasSession}}" class="link" url="/pages/feedback-notices/feedback-notices">超级管理员反馈提醒（本地） →</navigator>
   <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后参与讨论 →</navigator>
   <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新意见列表</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
+  <template is="scoped-post-pin" data="{{postPin,hasSession}}" />
   <view wx:for="{{posts}}" wx:key="id" class="card">
     <view class="author">{{item.author.displayName}} · {{item.author.kind === 'anonymous' ? '分身' : '实名'}}{{item.viewer.isSelf ? ' · 我' : ''}}</view>
     <view wx:if="{{item.feedback.authorSchool}}" class="meta">认证学校：{{item.feedback.authorSchool}}</view>
@@ -19,3 +22,5 @@
   <navigator wx:if="{{continuation === 'phone_verification_required'}}" class="link" url="/pages/phone-binding/phone-binding">验证手机号后继续 →</navigator>
   <view class="notice">本地审核与提醒用于开发验证。真实图片提供方、微信订阅或公众号通知未启用，不代表已向管理员发送微信。</view>
 </view>
+
+<template is="post-pin-management" data="{{management:postPinManagement}}" />

@@ -653,3 +653,15 @@ Activity parity. See [publication contract](ACTIVITY_PUBLICATION.md) and
   physical device/provider/import/release and remaining window comments/admin
 
 See [W2 contract](DISH_RECOMMENDATIONS.md); local simulation is not full parity.
+
+### Scoped post pins (bounded local development)
+
+Source-backed original-region shared slots, independent canonical global
+university-city/feedback slots, 1–168h/level1–2, renewal-new-pin identity, per-pin
+read markers, exact unpin, immutable original-key recovery/cancellation and
+native feed/detail read/collapse/device-local dismissal are implemented in the
+new owner. Explicit accepted mappings/history are required. Related-campus and
+aggregate feeds, nonempty legacy pin/read reconciliation, production activation
+and physical-device acceptance remain open. Existing feed cursors, comment pins,
+announcement acknowledgements and exposure semantics stay independent.
+See [scope and evidence](SCOPED_POST_PINS.md).

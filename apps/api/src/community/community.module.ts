@@ -1,3 +1,8 @@
+import { PostPinsService } from './post-pins/service.js';
+import {
+  PostPinsController,
+  PostPinRecoveryController,
+} from './post-pins/controller.js';
 import { FeedbackProjectionService } from './feedback/projection.js';
 import { FeedbackNotificationsModule } from '../notifications/feedback/module.js';
 import { FeedbackNoticesController } from '../notifications/feedback/controller.js';
@@ -304,6 +309,8 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    PostPinsController,
+    PostPinRecoveryController,
     FeedbackNoticesController,
     FeedbackController,
     TextReviewController,
@@ -343,6 +350,7 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    PostPinsService,
     FeedbackNoticesService,
     CommunityFeedbackNoticeTargetSource,
     {
