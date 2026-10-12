@@ -53,7 +53,7 @@ export function validateDmApprovalRow(
     envelope = canonicalDmEnvelope(row.envelope);
     if (
       !canonicalEqual(envelope, row.envelope) ||
-      row.envelope_version !== 1 ||
+      row.envelope_version !== envelope.version ||
       row.account_id !== envelope.accountId ||
       row.operation !== envelope.purpose ||
       row.digest !== dmApprovalDigest(envelope)
@@ -83,7 +83,7 @@ export function validateDmApprovalRow(
             value: Object.freeze({
               decisionId: row.id,
               digest: row.digest,
-              version: 1,
+              version: envelope.version,
               envelope,
             }),
           }
@@ -108,7 +108,7 @@ export function dmBindingMatches(
       envelope.senderSlot === descriptor.senderSlot &&
       binding.message_seq === descriptor.sequence &&
       binding.content_version === 1 &&
-      binding.envelope_version === 1 &&
+      binding.envelope_version === envelope.version &&
       binding.account_id === envelope.accountId &&
       binding.operation === envelope.purpose &&
       binding.digest === dmApprovalDigest(envelope) &&

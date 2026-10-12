@@ -1,3 +1,4 @@
+import { privateMessageMediaRequestHash } from './contracts-private-message.js';
 import { errandMediaRequestHash } from './contracts-errand.js';
 import { verificationEvidenceMediaRequestHash } from './contracts-verification-evidence.js';
 import { announcementMediaRequestHash } from './contracts-announcement.js';
@@ -68,6 +69,8 @@ export class MediaIntentRepository {
     const declaredSha256 =
       'sha256' in input.declaration ? input.declaration.sha256 : null;
     const v2 = declaredSha256 !== null;
+    const privateMessage =
+      'protocol' in input && input.protocol === 'private-message-media-v1';
     const errand = 'protocol' in input && input.protocol === 'errand-media-v1';
     const verificationEvidence =
       'protocol' in input &&
@@ -91,67 +94,71 @@ export class MediaIntentRepository {
     const ratings =
       'protocol' in input && input.protocol === 'ratings-target-media-v1';
     const v3 = 'protocolVersion' in input;
-    const protocol = errand
-      ? 14
-      : verificationEvidence
-        ? 13
-        : announcement
-          ? 12
-          : activity
-            ? 11
-            : organization
-              ? 10
-              : schoolQr
-                ? 9
-                : categoryIcon
-                  ? 8
-                  : ratingsDiscussion
-                    ? 7
-                    : ratings
-                      ? 6
-                      : profile
-                        ? 5
-                        : v3
-                          ? input.protocolVersion
-                          : v2
-                            ? 2
-                            : 1;
-    const requestHash = errand
-      ? errandMediaRequestHash(scope.actorAccountId, input)
-      : verificationEvidence
-        ? verificationEvidenceMediaRequestHash(scope.actorAccountId, input)
-        : announcement
-          ? announcementMediaRequestHash(scope.actorAccountId, input)
-          : activity
-            ? activityMediaRequestHash(scope.actorAccountId, input)
-            : organization
-              ? organizationMediaRequestHash(scope.actorAccountId, input)
-              : schoolQr
-                ? schoolQrMediaRequestHash(scope.actorAccountId, input)
-                : categoryIcon
-                  ? categoryIconMediaRequestHash(scope.actorAccountId, input)
-                  : ratingsDiscussion
-                    ? ratingsDiscussionMemberHash(scope.actorAccountId, input)
-                    : ratings
-                      ? ratingsMediaRequestHash(scope.actorAccountId, input)
-                      : profile
-                        ? profileMediaRequestHash(scope.actorAccountId, input)
-                        : v3
-                          ? (input.protocolVersion === 4
-                              ? discussionMemberHash
-                              : mediaMemberRequestHash)(
-                              scope.actorAccountId,
-                              input.batchIdentity,
-                              {
-                                clientRequestId: input.clientRequestId,
-                                memberId: input.memberId,
-                                sourceSlot: input.ordinal,
-                                declaration: input.declaration,
-                              },
-                            )
-                          : v2
-                            ? mediaRequestHash(scope.actorAccountId, input)
-                            : null;
+    const protocol = privateMessage
+      ? 15
+      : errand
+        ? 14
+        : verificationEvidence
+          ? 13
+          : announcement
+            ? 12
+            : activity
+              ? 11
+              : organization
+                ? 10
+                : schoolQr
+                  ? 9
+                  : categoryIcon
+                    ? 8
+                    : ratingsDiscussion
+                      ? 7
+                      : ratings
+                        ? 6
+                        : profile
+                          ? 5
+                          : v3
+                            ? input.protocolVersion
+                            : v2
+                              ? 2
+                              : 1;
+    const requestHash = privateMessage
+      ? privateMessageMediaRequestHash(scope.actorAccountId, input)
+      : errand
+        ? errandMediaRequestHash(scope.actorAccountId, input)
+        : verificationEvidence
+          ? verificationEvidenceMediaRequestHash(scope.actorAccountId, input)
+          : announcement
+            ? announcementMediaRequestHash(scope.actorAccountId, input)
+            : activity
+              ? activityMediaRequestHash(scope.actorAccountId, input)
+              : organization
+                ? organizationMediaRequestHash(scope.actorAccountId, input)
+                : schoolQr
+                  ? schoolQrMediaRequestHash(scope.actorAccountId, input)
+                  : categoryIcon
+                    ? categoryIconMediaRequestHash(scope.actorAccountId, input)
+                    : ratingsDiscussion
+                      ? ratingsDiscussionMemberHash(scope.actorAccountId, input)
+                      : ratings
+                        ? ratingsMediaRequestHash(scope.actorAccountId, input)
+                        : profile
+                          ? profileMediaRequestHash(scope.actorAccountId, input)
+                          : v3
+                            ? (input.protocolVersion === 4
+                                ? discussionMemberHash
+                                : mediaMemberRequestHash)(
+                                scope.actorAccountId,
+                                input.batchIdentity,
+                                {
+                                  clientRequestId: input.clientRequestId,
+                                  memberId: input.memberId,
+                                  sourceSlot: input.ordinal,
+                                  declaration: input.declaration,
+                                },
+                              )
+                            : v2
+                              ? mediaRequestHash(scope.actorAccountId, input)
+                              : null;
     if (ratingsDiscussion) {
       const batch = await tx.query(
         `SELECT id FROM whaleu_media.ratings_discussion_batches WHERE id=$1 AND actor_id=$2 AND state='editing' AND server_scope_id=$3 AND scope_revision=$4 AND identity_hash=$5 FOR UPDATE NOWAIT`,
@@ -234,7 +241,8 @@ export class MediaIntentRepository {
       );
     const hash = createHash('sha256')
       .update(
-        errand ||
+        privateMessage ||
+          errand ||
           verificationEvidence ||
           announcement ||
           activity ||
@@ -255,51 +263,59 @@ export class MediaIntentRepository {
           actor: scope.actorAccountId,
           requestId: input.clientRequestId,
           purpose: scope.purpose,
-          ...('batchIdentityHash' in input
+          ...('messageRequestId' in input
             ? {
-                batchId: input.batchId,
-                batchIdentityHash: input.batchIdentityHash,
-                memberId: input.memberId,
-                sourceSlot: input.sourceSlot,
+                conversationId: input.conversationId,
+                messageRequestId: input.messageRequestId,
               }
-            : 'editScopeId' in input
+            : 'batchIdentityHash' in input
               ? {
-                  editScopeId: input.editScopeId,
-                  scopeRevision: input.scopeRevision,
+                  batchId: input.batchId,
+                  batchIdentityHash: input.batchIdentityHash,
+                  memberId: input.memberId,
+                  sourceSlot: input.sourceSlot,
                 }
-              : 'draftRevision' in input
+              : 'editScopeId' in input
                 ? {
-                    draftId: input.draftId,
-                    draftRevision: input.draftRevision,
-                    targetRegionId: input.targetRegionId,
-                    slot: input.slot,
+                    editScopeId: input.editScopeId,
+                    scopeRevision: input.scopeRevision,
                   }
-                : 'applicationId' in input
+                : 'draftRevision' in input
                   ? {
-                      applicationId: input.applicationId,
-                      revision: input.revision,
+                      draftId: input.draftId,
+                      draftRevision: input.draftRevision,
+                      targetRegionId: input.targetRegionId,
+                      slot: input.slot,
                     }
-                  : 'announcementId' in input
+                  : 'applicationId' in input
                     ? {
-                        announcementId: input.announcementId,
+                        applicationId: input.applicationId,
                         revision: input.revision,
-                        slot: input.slot,
                       }
-                    : 'activityId' in input
+                    : 'announcementId' in input
                       ? {
-                          activityId: input.activityId,
+                          announcementId: input.announcementId,
                           revision: input.revision,
                           slot: input.slot,
                         }
-                      : 'applicationRevision' in input
+                      : 'activityId' in input
                         ? {
-                            organizationId: input.organizationId,
-                            applicationRevision: input.applicationRevision,
+                            activityId: input.activityId,
+                            revision: input.revision,
                             slot: input.slot,
                           }
-                        : 'expectedRevision' in input
-                          ? { expectedRevision: input.expectedRevision }
-                          : { draftId: input.draftId, spaceId: input.spaceId }),
+                        : 'applicationRevision' in input
+                          ? {
+                              organizationId: input.organizationId,
+                              applicationRevision: input.applicationRevision,
+                              slot: input.slot,
+                            }
+                          : 'expectedRevision' in input
+                            ? { expectedRevision: input.expectedRevision }
+                            : {
+                                draftId: input.draftId,
+                                spaceId: input.spaceId,
+                              }),
           serverScopeId: scope.serverScopeId,
           scopeRevision: scope.scopeRevision,
           audience: scope.audience,
@@ -368,7 +384,7 @@ export class MediaIntentRepository {
       await tx.query<IntentRow>(
         `INSERT INTO whaleu_media.upload_intents
       (id,actor_id,client_request_id,canonical_intent_hash,purpose,audience,owner_kind,resource_kind,target_kind,resource_id,content_version,scope_revision,slot,ordinal,policy_revision,declared_bytes,declared_mime,expires_at,protocol_version,request_hash,declared_sha256)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,${errand ? '(SELECT expires_at FROM whaleu_media.errand_scopes WHERE id=$10 AND actor_id=$2)' : verificationEvidence ? '(SELECT expires_at FROM whaleu_media.verification_evidence_scopes WHERE id=$10 AND actor_id=$2)' : announcement ? '(SELECT expires_at FROM whaleu_announcements.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : activity ? '(SELECT expires_at FROM whaleu_activities.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : organization ? '(SELECT expires_at FROM whaleu_organizations.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : schoolQr ? '(SELECT expires_at FROM whaleu_school_configuration.qr_upload_scopes WHERE id=$10 AND actor_id=$2)' : categoryIcon ? '(SELECT expires_at FROM whaleu_ratings.category_icon_upload_scopes WHERE id=$10 AND actor_id=$2)' : ratingsDiscussion ? '(SELECT expires_at FROM whaleu_media.ratings_discussion_batches WHERE server_scope_id=$10 AND actor_id=$2)' : scope.ownerKind === 'ratings' ? '(SELECT expires_at FROM whaleu_ratings.target_cover_upload_scopes WHERE id=$10 AND actor_id=$2)' : scope.ownerKind === 'profile' ? '(SELECT expires_at FROM whaleu_profile.avatar_edits WHERE id=$10 AND actor_id=$2)' : "clock_timestamp()+interval '30 minutes'"},$18,$19,$20) RETURNING *`,
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,${privateMessage ? '(SELECT expires_at FROM whaleu_media.private_message_scopes WHERE id=$10 AND actor_id=$2)' : errand ? '(SELECT expires_at FROM whaleu_media.errand_scopes WHERE id=$10 AND actor_id=$2)' : verificationEvidence ? '(SELECT expires_at FROM whaleu_media.verification_evidence_scopes WHERE id=$10 AND actor_id=$2)' : announcement ? '(SELECT expires_at FROM whaleu_announcements.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : activity ? '(SELECT expires_at FROM whaleu_activities.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : organization ? '(SELECT expires_at FROM whaleu_organizations.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : schoolQr ? '(SELECT expires_at FROM whaleu_school_configuration.qr_upload_scopes WHERE id=$10 AND actor_id=$2)' : categoryIcon ? '(SELECT expires_at FROM whaleu_ratings.category_icon_upload_scopes WHERE id=$10 AND actor_id=$2)' : ratingsDiscussion ? '(SELECT expires_at FROM whaleu_media.ratings_discussion_batches WHERE server_scope_id=$10 AND actor_id=$2)' : scope.ownerKind === 'ratings' ? '(SELECT expires_at FROM whaleu_ratings.target_cover_upload_scopes WHERE id=$10 AND actor_id=$2)' : scope.ownerKind === 'profile' ? '(SELECT expires_at FROM whaleu_profile.avatar_edits WHERE id=$10 AND actor_id=$2)' : "clock_timestamp()+interval '30 minutes'"},$18,$19,$20) RETURNING *`,
         [
           id,
           scope.actorAccountId,
@@ -400,8 +416,8 @@ export class MediaIntentRepository {
     );
     if (v2)
       await tx.query(
-        `INSERT INTO whaleu_media.upload_request_fences(actor_id,client_request_id,request_hash,intent_id,state${errand || verificationEvidence || announcement || activity || organization || schoolQr || categoryIcon ? ',protocol_namespace' : ''})
-       VALUES($1,$2,$3,$4,'active'${errand ? ',14' : verificationEvidence ? ',13' : announcement ? ',12' : activity ? ',11' : organization ? ',10' : schoolQr ? ',9' : categoryIcon ? ',8' : ''})`,
+        `INSERT INTO whaleu_media.upload_request_fences(actor_id,client_request_id,request_hash,intent_id,state${privateMessage || errand || verificationEvidence || announcement || activity || organization || schoolQr || categoryIcon ? ',protocol_namespace' : ''})
+       VALUES($1,$2,$3,$4,'active'${privateMessage ? ',15' : errand ? ',14' : verificationEvidence ? ',13' : announcement ? ',12' : activity ? ',11' : organization ? ',10' : schoolQr ? ',9' : categoryIcon ? ',8' : ''})`,
         [scope.actorAccountId, input.clientRequestId, requestHash, id],
       );
     return this.receipt(created, tx);

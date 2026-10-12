@@ -94,7 +94,10 @@ export abstract class MessagingController<V extends BaseView> {
   }
   protected pending(): boolean {
     const account = this.account();
-    return account ? !!this.runtime.pending.load(account) : false;
+    return account
+      ? !!this.runtime.pending.load(account) ||
+          !!this.runtime.images?.pending.load(account)
+      : false;
   }
   protected available(): boolean {
     if (this.disposed || !this.active) return false;

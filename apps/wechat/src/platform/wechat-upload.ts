@@ -31,6 +31,7 @@ export interface WxUploadApi {
     count: 1;
     mediaType: ['image'];
     sizeType: ['original'];
+    sourceType?: ['album'] | ['camera'];
     success(value: {
       tempFiles: readonly {
         tempFilePath: string;

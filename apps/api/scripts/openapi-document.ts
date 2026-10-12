@@ -885,6 +885,12 @@ import { MessagingMutationService } from '../src/messaging/mutation.service.js';
 import { MessagingRequests } from '../src/messaging/requests.js';
 import { MessagingRequestGuard } from '../src/messaging/request.guard.js';
 export async function createMessagingOpenApiDocument(): Promise<OpenAPIObject> {
+  const { PrivateMessageMediaController, PrivateMessageMultipartInterceptor } =
+    await import('../src/messaging/media/controller.js');
+  const { PrivateMessageMediaService, PRIVATE_MESSAGE_MEDIA_RUNTIME } =
+    await import('../src/messaging/media/facade.js');
+  const { PrivateMessageMediaRequestGuard } =
+    await import('../src/messaging/media/request-guard.js');
   if (
     !Reflect.hasMetadata(
       PARAMTYPES_METADATA,
@@ -897,13 +903,18 @@ export async function createMessagingOpenApiDocument(): Promise<OpenAPIObject> {
     throw new Error('OpenAPI must not execute application work');
   };
   const testing = await Test.createTestingModule({
-    controllers: [MessagingController],
+    controllers: [MessagingController, PrivateMessageMediaController],
     providers: [
+      { provide: PrivateMessageMediaService, useValue: {} },
+      { provide: PRIVATE_MESSAGE_MEDIA_RUNTIME, useValue: null },
+      PrivateMessageMultipartInterceptor,
       { provide: MessagingReadService, useValue: {} },
       { provide: MessagingMutationService, useValue: {} },
       { provide: MessagingRequests, useValue: {} },
     ],
   })
+    .overrideGuard(PrivateMessageMediaRequestGuard)
+    .useValue({ canActivate: fail })
     .overrideGuard(MessagingRequestGuard)
     .useValue({ canActivate: fail })
     .compile();
@@ -913,7 +924,7 @@ export async function createMessagingOpenApiDocument(): Promise<OpenAPIObject> {
       app,
       new DocumentBuilder()
         .setOpenAPIVersion('3.0.3')
-        .setTitle('WhaleU private messages local text')
+        .setTitle('WhaleU private messages local text and exact private images')
         .setVersion('1')
         .addBearerAuth(undefined, 'accessToken')
         .build(),

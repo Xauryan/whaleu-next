@@ -1,3 +1,5 @@
+import { MessagingImageAuthority } from './image-authority.js';
+import { PrivateMessageMediaService } from './media/facade.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.js';
@@ -47,6 +49,10 @@ const inboxProof: RequiredTransactionProof<{ actor: string; epoch: string }> = {
 @Injectable()
 export class MessagingReadService {
   constructor(
+    @Inject(PrivateMessageMediaService)
+    private readonly media: PrivateMessageMediaService,
+    @Inject(MessagingImageAuthority)
+    private readonly imageAuthority: MessagingImageAuthority,
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(MessagingAccess) private readonly access: MessagingAccess,
     @Inject(MessagingRepository) private readonly records: MessagingRepository,
@@ -158,17 +164,20 @@ export class MessagingReadService {
     });
   }
   private async message(m: Message, self: Participant, tx: PoolClient) {
-    let state: 'text' | 'recalled' | 'unavailable' = m.recalled_at
+    const envelope = canonicalDmEnvelope(m.envelope);
+    let state: 'text' | 'image' | 'recalled' | 'unavailable' = m.recalled_at
       ? 'recalled'
-      : 'text';
-    if (state === 'text') {
+      : envelope.version === 2
+        ? 'image'
+        : 'text';
+    if (state === 'text' || state === 'image') {
       const decision = await this.review.current(
         {
           messageId: m.id,
           conversationId: m.conversation_id,
           senderSlot: m.sender_slot,
           sequence: m.message_seq,
-          envelope: canonicalDmEnvelope(m.envelope),
+          envelope,
         },
         tx,
       );
@@ -188,6 +197,17 @@ export class MessagingReadService {
       sender: m.sender_slot === self.slot ? 'self' : 'peer',
       state,
       text: state === 'text' ? m.body : null,
+      ...(state === 'image'
+        ? {
+            image: (
+              await this.media.currentFacts(
+                m.id,
+                await this.imageAuthority.imageBinding(m, tx),
+                tx,
+              )
+            ).image.descriptor,
+          }
+        : {}),
       createdAt: m.created_at.toISOString(),
       canRecall:
         m.sender_slot === self.slot && !m.recalled_at && row?.allowed === true,

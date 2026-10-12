@@ -16,6 +16,10 @@ Page({
     this.route = readDetailRoute(query);
   },
   onShow() {
+    if (this.controller?.keepPicker) {
+      this.controller.resumePicker();
+      return;
+    }
     this.controller?.dispose();
     const runtime = messagingRuntime(getApp<WhaleuApp>().community);
     if (!runtime || !this.route) {
@@ -81,6 +85,15 @@ Page({
   onText(event: { detail: { value: string } }) {
     this.controller?.setText(event.detail.value);
   },
+  onImageAlbum() {
+    void this.controller?.pickImage('album');
+  },
+  onImageCamera() {
+    void this.controller?.pickImage('camera');
+  },
+  onShowImage(event: { currentTarget: { dataset: { id: string } } }) {
+    void this.controller?.showImage(event.currentTarget.dataset.id);
+  },
   onSend() {
     void this.controller?.send();
   },
@@ -139,10 +152,16 @@ Page({
     this.observeGeneration++;
     this.visibilityObserver?.disconnect();
     this.visibilityObserver = undefined;
+    if (this.controller?.keepPicker) {
+      this.controller.hide();
+      return;
+    }
     this.controller?.dispose();
     this.controller = undefined;
   },
   onUnload() {
+    this.controller?.dispose();
+    this.controller = undefined;
     this.onHide();
   },
 });

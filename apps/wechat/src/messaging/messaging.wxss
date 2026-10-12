@@ -71,3 +71,8 @@
 .meta {
   overflow-wrap: anywhere;
 }
+
+.private-message-image {
+  width: 100%;
+  max-width: 560rpx;
+}

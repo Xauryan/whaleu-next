@@ -1,3 +1,4 @@
+import type { PendingImage } from './image-pending';
 import { ClientError } from '../api/errors';
 import { cancelPending, dispatch, recover } from './commands';
 import {
@@ -37,6 +38,7 @@ export const initialRecoveryView = (): RecoveryView => ({
 });
 export class MessagingRecoveryController extends MessagingController<RecoveryView> {
   private attempt: Pending | null = null;
+  private imageAttempt: PendingImage | null = null;
   private dialogRevision = 0;
   private rejectedDraft: {
     readonly conversationId: string;
@@ -50,12 +52,34 @@ export class MessagingRecoveryController extends MessagingController<RecoveryVie
   }
   protected override clearPrivate(): void {
     this.attempt = null;
+    this.imageAttempt = null;
     this.rejectedDraft = null;
     this.dialogRevision++;
   }
   load(): void {
     if (!this.available()) return;
     try {
+      this.imageAttempt =
+        this.runtime.images?.pending.load(this.account()!) ?? null;
+      if (this.imageAttempt) {
+        this.attempt = this.runtime.pending.load(this.account()!);
+        this.update({
+          loaded: true,
+          pending: true,
+          operation: 'send_image',
+          requestId: this.imageAttempt.messageRequestId,
+          pendingText: '',
+          conversationId: this.imageAttempt.conversationId,
+          canRetry: true,
+          confirmCancel: false,
+          canReedit: false,
+          editing: false,
+          draftText: '',
+          status:
+            '原图片请求待确认。查询仅取回回执；继续发送只使用原图片和原编号。原文件已丢失时请先查询或安全取消。',
+        });
+        return;
+      }
       this.attempt = this.runtime.pending.load(this.account()!);
       this.rejectedDraft = null;
       const attempt = this.attempt,
@@ -119,6 +143,38 @@ export class MessagingRecoveryController extends MessagingController<RecoveryVie
     });
   }
   async recover(retry = false): Promise<void> {
+    if (this.imageAttempt && this.runtime.images) {
+      const record = this.imageAttempt,
+        images = this.runtime.images;
+      if (this.view.confirmCancel) return;
+      await this.run(async (cancel, current) => {
+        const receipt = await images.recover(
+          this.runtime,
+          record,
+          cancel,
+          current,
+          (text) => {
+            current();
+            this.update({ status: text });
+          },
+          retry,
+        );
+        current();
+        if (receipt) {
+          this.imageAttempt = null;
+          this.settled(receipt, null, false);
+        } else if (!images.pending.load(record.accountId)) {
+          this.imageAttempt = null;
+          this.update({
+            pending: false,
+            canRetry: false,
+            confirmCancel: false,
+            status: '原图片请求已终结',
+          });
+        }
+      });
+      return;
+    }
     const attempt = this.attempt;
     if (!attempt || this.view.confirmCancel || (retry && !attempt.intent))
       return;
@@ -219,7 +275,7 @@ export class MessagingRecoveryController extends MessagingController<RecoveryVie
     });
   }
   requestCancel(): void {
-    if (!this.attempt || this.view.busy) return;
+    if ((!this.attempt && !this.imageAttempt) || this.view.busy) return;
     this.dialogRevision++;
     this.update({ confirmCancel: true });
   }
@@ -228,6 +284,31 @@ export class MessagingRecoveryController extends MessagingController<RecoveryVie
     this.update({ confirmCancel: false });
   }
   async confirmCancel(): Promise<void> {
+    if (this.imageAttempt && this.runtime.images) {
+      if (!this.view.confirmCancel || this.view.busy) return;
+      const record = this.imageAttempt,
+        images = this.runtime.images;
+      await this.run(async (cancel, current) => {
+        const receipt = await images.cancel(
+          this.runtime,
+          record,
+          cancel,
+          current,
+        );
+        current();
+        this.imageAttempt = null;
+        this.attempt = null;
+        if (receipt) this.settled(receipt, null, false);
+        else
+          this.update({
+            pending: false,
+            confirmCancel: false,
+            canRetry: false,
+            status: '原图片请求已安全取消，稍后的上传不能重新发送',
+          });
+      });
+      return;
+    }
     const attempt = this.attempt,
       revision = this.dialogRevision;
     if (!attempt || !this.view.confirmCancel || this.view.busy) return;

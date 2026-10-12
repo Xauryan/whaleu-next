@@ -1,3 +1,4 @@
+import { privateMessageDescriptorSchema } from '../media/contracts-private-message.js';
 import { z } from 'zod';
 import { textSchema } from '../community/text.js';
 export const dmId = z.uuid().refine((v) => v === v.toLowerCase());
@@ -32,10 +33,17 @@ export const dmOpenSchema = dmCommandSchema.extend({
   initiationMode: dmMode,
 });
 export const dmSendSchema = dmCommandSchema.extend({ text: dmText });
+export const dmSendImageSchema = dmCommandSchema.extend({
+  image: z.strictObject({
+    assetId: dmId,
+    manifestDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
+});
 export const dmReadSchema = dmCommandSchema.extend({ observationId: dmId });
 export const dmOperation = z.enum([
   'open',
   'send',
+  'send_image',
   'read',
   'hide',
   'reopen',
@@ -135,12 +143,19 @@ export const dmMessageSchema = z
     id: dmId,
     sequence: dmSequence,
     sender: z.enum(['self', 'peer']),
-    state: z.enum(['text', 'recalled', 'unavailable']),
+    state: z.enum(['text', 'image', 'recalled', 'unavailable']),
+    image: privateMessageDescriptorSchema.optional(),
     text: z.string().nullable(),
     createdAt: z.iso.datetime(),
     canRecall: z.boolean(),
   })
-  .refine((v) => (v.state === 'text' ? v.text !== null : v.text === null));
+  .refine(
+    (v) =>
+      (v.state === 'text' ? v.text !== null : v.text === null) &&
+      (v.state === 'image'
+        ? v.image !== undefined && v.image.messageId === v.id
+        : v.image === undefined),
+  );
 export type DmMessage = z.infer<typeof dmMessageSchema>;
 export const dmCoverage = z.enum(['local', 'complete']);
 export const dmListSchema = z.strictObject({

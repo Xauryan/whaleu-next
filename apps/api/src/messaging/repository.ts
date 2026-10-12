@@ -52,7 +52,7 @@ export interface Message {
   sender_slot: 0 | 1;
   sender_id: string;
   request_id: string;
-  body: string;
+  body: string | null;
   envelope: unknown;
   created_at: Date;
   recalled_at: Date | null;

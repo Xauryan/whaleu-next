@@ -269,6 +269,37 @@ export class MessagingController {
     void query;
     return this.writes.send(bearerToken(auth), id, body);
   }
+  @Post('conversations/:id/images')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @Header('Vary', 'Authorization')
+  @ApiOperation({
+    operationId: 'privateMessageSendImage',
+    description:
+      'Private owner-scoped local text contract. Missing authority fails closed; no production delivery claim.',
+  })
+  @ApiOkResponse({
+    standardSchema: c.dmReceiptSchema,
+    description: 'Strict private-message response',
+    headers: dmResponseHeaders,
+  })
+  sendImage(
+    @Headers('authorization') auth: unknown,
+    @Param('id', new SchemaValidationPipe(c.dmId)) id: string,
+    @Query({
+      schema: c.dmEmptySchema,
+      pipes: [new SchemaValidationPipe(c.dmEmptySchema)],
+    })
+    query: z.infer<typeof c.dmEmptySchema>,
+    @Body({
+      schema: c.dmSendImageSchema,
+      pipes: [new SchemaValidationPipe(c.dmSendImageSchema)],
+    })
+    body: z.infer<typeof c.dmSendImageSchema>,
+  ) {
+    void query;
+    return this.writes.sendImage(bearerToken(auth), id, body);
+  }
   @Post('conversations/:id/read')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')

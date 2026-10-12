@@ -489,7 +489,7 @@ The historical receipt never installs a new current projection. There are no
 new rewards, subscriptions, pushes or notice kinds. See
 [native M3A boundaries and acceptance coverage](docs/ratings-m3a.md).
 
-## Private messages PM0–PM2: local text
+## Private messages PM0–PM3: local text and private single images
 
 Registered `private-message-list`, `private-message-detail` and
 `private-message-recovery` pages provide exact profile/post/comment/reply entry,
@@ -514,7 +514,7 @@ A client stop-wait action does not cancel the server command and keeps uncertain
 state frozen for recovery.
 
 The emitted Page/WXML smoke and focused unit tests are synthetic native evidence,
-not physical-device or provider acceptance. Private images, real Review issuance,
+not physical-device or provider acceptance. PM3 reuses these pages and shared MediaLocalFiles for one static JPEG/PNG, album/camera, private authenticated viewing and original-request recovery. Image bytes, paths, descriptors and asset facts never persist. Real Review issuance,
 provider delivery and authoritative legacy-history migration remain unavailable.
 See the [local text API contract](../../docs/API_PRIVATE_MESSAGES.md) and
 [acceptance boundary](../../docs/acceptance/private-messages-pm012.md).
@@ -576,3 +576,5 @@ private own-state closure, versioned CAS and durable original-request recovery.
 Fresh public names use a distinct Review purpose; source/history/provider
 activation remains closed. This is separate from numeric window scores. See
 [the W2 contract](../../docs/DISH_RECOMMENDATIONS.md) for identity, coverage, privacy and local-test limits.
+
+See [PM3 image lifecycle and compatibility gates](../../docs/PRIVATE_MESSAGE_IMAGES.md).

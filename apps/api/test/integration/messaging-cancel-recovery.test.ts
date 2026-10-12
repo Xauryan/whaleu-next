@@ -128,7 +128,7 @@ test('PM012 logout original-intent recovery and irreversible cancellation race c
           intent: { conversationId, ...body },
         });
       await f.approval(a, conversationId, body);
-      // Hold the actual unique request key until both HTTP transactions are waiting
+      // Hold the actual shared text/image request key until both HTTP transactions are waiting
       // in PostgreSQL; Promise.all scheduling alone would not prove overlap.
       const gate = await f.pool.connect();
       await gate.query('BEGIN');
@@ -147,7 +147,7 @@ test('PM012 logout original-intent recovery and irreversible cancellation race c
         const deadline = Date.now() + 10000;
         for (;;) {
           const waiting = await f.pool.query<{ count: string }>(
-            "SELECT count(*)::text AS count FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE 'INSERT INTO whaleu_messaging.requests%' ",
+            "SELECT count(*)::text AS count FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query='SELECT pg_advisory_xact_lock(hashtextextended($1,0))'",
           );
           if (Number(waiting.rows[0]!.count) >= 2) break;
           assert.ok(

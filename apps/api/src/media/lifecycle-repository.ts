@@ -313,7 +313,7 @@ export class MediaLifecycleRepository {
       `SELECT i.id,i.state FROM whaleu_media.upload_intents i
       WHERE (i.state IN ('prepared','upload_observed','sealing','processing','awaiting_review')
         AND i.expires_at<=clock_timestamp())
-      OR (i.state='ready' AND ((i.protocol_version IN (8,9,10,11,12,13,14) AND i.expires_at<=clock_timestamp()) OR EXISTS (SELECT 1 FROM whaleu_media.assets a
+      OR (i.state='ready' AND ((i.protocol_version IN (8,9,10,11,12,13,14,15) AND i.expires_at<=clock_timestamp()) OR EXISTS (SELECT 1 FROM whaleu_media.assets a
         WHERE a.intent_id=i.id AND a.created_at<=clock_timestamp()-interval '24 hours')
         OR EXISTS (SELECT 1 FROM whaleu_media.assets a JOIN whaleu_community.media_drafts d
           ON d.id=a.resource_id AND d.actor_id=a.actor_id WHERE a.intent_id=i.id AND a.owner_kind='community' AND d.expires_at<=clock_timestamp())
@@ -421,9 +421,13 @@ export class MediaLifecycleRepository {
     // Fence cleanup against attachment using the same intent-first order as
     // cancellation. This narrow collector intentionally handles terminal intents
     // only; retention cleanup for live assets needs a different owner protocol.
-    const candidate = await this.lockCandidate<{ id: string }>(
-      `SELECT i.id FROM whaleu_media.upload_intents i
-      WHERE i.state IN ('cancelled','expired','rejected','cleanup_pending','deleting','deleted')
+    // Keep historical Media070 candidate scans independent of Media15 tables
+    // and even the later protocol_version column. Private images use the same
+    // collector only after a separately authorized fallback finds a quiet intent.
+    const candidateSql = (
+      ownerFilter: string,
+    ) => `SELECT i.id FROM whaleu_media.upload_intents i
+      WHERE ${ownerFilter} AND i.state IN ('cancelled','expired','rejected','cleanup_pending','deleting','deleted')
       AND NOT EXISTS(SELECT 1 FROM whaleu_media.assets a JOIN whaleu_media.bindings b ON b.asset_id=a.id
         WHERE a.intent_id=i.id AND b.detached_at IS NULL)
       AND EXISTS(SELECT 1 FROM whaleu_media.cleanup_obligations c
@@ -435,10 +439,63 @@ export class MediaLifecycleRepository {
         WHERE coalesce(o.intent_id,a.intent_id,d.intent_id,wa.intent_id)=i.id AND c.attempt<$1 AND
           ((c.state IN ('pending','retryable') AND c.not_before<=clock_timestamp()) OR
            (c.state='deleting' AND c.lease_until<=clock_timestamp())))
-      ORDER BY i.id FOR UPDATE OF i SKIP LOCKED LIMIT 1`,
+      ORDER BY i.id FOR UPDATE OF i SKIP LOCKED LIMIT 1`;
+    let candidate = await this.lockCandidate<{ id: string }>(
+      candidateSql(
+        "NOT(i.owner_kind='messaging' AND i.resource_kind='private_message_image')",
+      ),
       [MAX_ATTEMPTS],
       tx,
     );
+    if (
+      !candidate &&
+      (
+        await tx.query<{ installed: boolean }>(
+          "SELECT to_regprocedure('whaleu_media.private_message_cleanup_allowed(uuid)') IS NOT NULL installed",
+        )
+      ).rows[0]?.installed
+    ) {
+      await tx.query(
+        'LOCK TABLE whaleu_media.private_message_delivery_holds,whaleu_media.private_message_cleanup_authorizations,whaleu_media.private_message_retention_policies IN SHARE MODE NOWAIT',
+      );
+      const eligible = (
+        await tx.query<{ intent_id: string; valid_until: Date }>(
+          `SELECT pm_auth.intent_id,least(pm_auth.valid_until,policy.valid_until) valid_until
+         FROM whaleu_media.private_message_cleanup_authorizations pm_auth
+         JOIN whaleu_media.private_message_retention_policies policy ON policy.id=pm_auth.policy_id
+         WHERE whaleu_media.private_message_cleanup_allowed(pm_auth.intent_id)
+         AND EXISTS(SELECT 1 FROM whaleu_media.cleanup_obligations c
+           LEFT JOIN whaleu_media.object_attempts o ON o.id=c.object_attempt_id
+           LEFT JOIN whaleu_media.assets a ON a.id=c.asset_id
+           LEFT JOIN whaleu_media.derived_object_attempts d ON d.id=c.derived_attempt_id
+           LEFT JOIN whaleu_media.upload_ingress_writers w ON w.writer_token=c.ingress_writer_id
+           LEFT JOIN whaleu_media.object_attempts wa ON wa.id=w.object_attempt_id
+           WHERE coalesce(o.intent_id,a.intent_id,d.intent_id,wa.intent_id)=pm_auth.intent_id
+             AND c.attempt<$1 AND ((c.state IN ('pending','retryable') AND c.not_before<=clock_timestamp())
+               OR (c.state='deleting' AND c.lease_until<=clock_timestamp())))
+         ORDER BY pm_auth.intent_id LIMIT 100`,
+          [MAX_ATTEMPTS],
+        )
+      ).rows;
+      if (eligible.length) {
+        candidate = await this.lockCandidate<{ id: string }>(
+          candidateSql('i.id=ANY($2::uuid[])'),
+          [MAX_ATTEMPTS, eligible.map((row) => row.intent_id)],
+          tx,
+        );
+        if (candidate) {
+          const authority = eligible.find(
+            (row) => row.intent_id === candidate!.id,
+          );
+          if (!authority) throw new ApplicationError('MEDIA_UNAVAILABLE');
+          registerTransactionDeadline(
+            tx,
+            authority.valid_until.getTime(),
+            'MEDIA_UNAVAILABLE',
+          );
+        }
+      }
+    }
     if (!candidate) return null;
     await this.lockUnboundAssets(candidate.id, true, tx);
     const token = randomUUID();

@@ -1,3 +1,7 @@
+import {
+  decodePrivateMessageMediaDescriptor,
+  type PrivateMessageMediaDescriptor,
+} from './image-contract';
 import { ClientError, isRecord } from '../api/errors';
 
 export type Mode = 'named' | 'anonymous';
@@ -17,8 +21,24 @@ export type Entry =
       readonly replyId: string;
     };
 export type Operation =
-  'open' | 'send' | 'read' | 'hide' | 'reopen' | 'recall' | 'block';
+  | 'open'
+  | 'send'
+  | 'send_image'
+  | 'read'
+  | 'hide'
+  | 'reopen'
+  | 'recall'
+  | 'block';
 export type Intent =
+  | {
+      readonly operation: 'send_image';
+      readonly clientRequestId: string;
+      readonly conversationId: string;
+      readonly image: {
+        readonly assetId: string;
+        readonly manifestDigest: string;
+      };
+    }
   | {
       readonly operation: 'open';
       readonly clientRequestId: string;
@@ -88,7 +108,8 @@ export interface Message {
   readonly id: string;
   readonly sequence: string;
   readonly sender: 'self' | 'peer';
-  readonly state: 'text' | 'recalled' | 'unavailable';
+  readonly state: 'text' | 'image' | 'recalled' | 'unavailable';
+  readonly image?: PrivateMessageMediaDescriptor;
   readonly text: string | null;
   readonly createdAt: string;
   readonly canRecall: boolean;
@@ -231,6 +252,24 @@ export function decodeIntent(v: unknown): Intent {
   if (!id(v.conversationId)) invalid();
   const conversationId = v.conversationId;
   switch (v.operation) {
+    case 'send_image':
+      exact(v, ['operation', 'clientRequestId', 'conversationId', 'image']);
+      exact(v.image, ['assetId', 'manifestDigest']);
+      if (
+        !id(v.image.assetId) ||
+        typeof v.image.manifestDigest !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(v.image.manifestDigest)
+      )
+        invalid();
+      return Object.freeze({
+        operation: 'send_image',
+        clientRequestId,
+        conversationId,
+        image: Object.freeze({
+          assetId: v.image.assetId,
+          manifestDigest: v.image.manifestDigest,
+        }),
+      });
     case 'send':
       exact(v, ['operation', 'clientRequestId', 'conversationId', 'text']);
       if (typeof v.text !== 'string') invalid();
@@ -293,9 +332,16 @@ export function decodeReceipt(v: unknown): Receipt {
   if (
     !isRecord(v) ||
     !id(v.requestId) ||
-    !['open', 'send', 'read', 'hide', 'reopen', 'recall', 'block'].includes(
-      String(v.operation),
-    )
+    ![
+      'open',
+      'send',
+      'send_image',
+      'read',
+      'hide',
+      'reopen',
+      'recall',
+      'block',
+    ].includes(String(v.operation))
   )
     invalid();
   const operation = v.operation as Operation;
@@ -346,7 +392,8 @@ export function matchReceipt(intent: Intent, receipt: Receipt): void {
       intent.conversationId !== receipt.conversationId) ||
       (intent.operation === 'recall' &&
         intent.messageId !== receipt.messageId) ||
-      (intent.operation === 'send' && !receipt.messageId))
+      ((intent.operation === 'send' || intent.operation === 'send_image') &&
+        !receipt.messageId))
   )
     invalid();
 }
@@ -436,16 +483,22 @@ export function decodeMessage(v: unknown): Message {
     'text',
     'createdAt',
     'canRecall',
+    ...(isRecord(v) && v.state === 'image' ? ['image'] : []),
   ]);
   if (
     !id(v.id) ||
     !sequence(v.sequence) ||
     (v.sender !== 'self' && v.sender !== 'peer') ||
-    !['text', 'recalled', 'unavailable'].includes(String(v.state)) ||
+    !['text', 'image', 'recalled', 'unavailable'].includes(String(v.state)) ||
     !date(v.createdAt) ||
     typeof v.canRecall !== 'boolean' ||
     (v.state === 'text' ? typeof v.text !== 'string' : v.text !== null) ||
     (v.canRecall && (v.sender !== 'self' || v.state === 'recalled'))
+  )
+    invalid();
+  if (
+    v.state === 'image' &&
+    decodePrivateMessageMediaDescriptor(v.image).messageId !== v.id
   )
     invalid();
   return Object.freeze({
@@ -456,6 +509,9 @@ export function decodeMessage(v: unknown): Message {
     text: v.text as string | null,
     createdAt: v.createdAt,
     canRecall: v.canRecall,
+    ...(v.state === 'image'
+      ? { image: decodePrivateMessageMediaDescriptor(v.image) }
+      : {}),
   });
 }
 function messages(v: unknown): readonly Message[] {

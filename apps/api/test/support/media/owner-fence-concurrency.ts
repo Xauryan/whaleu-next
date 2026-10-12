@@ -54,11 +54,25 @@ export async function verifyMediaOwnerFenceConcurrency(
         "SELECT to_regclass('whaleu_media.errand_scopes') IS NOT NULL AS present",
       )
     ).rows[0]?.present === true;
+  const privateMessageMediaInstalled =
+    (
+      await pool.query<{ present: boolean }>(
+        "SELECT to_regclass('whaleu_media.private_message_scopes') IS NOT NULL AS present",
+      )
+    ).rows[0]?.present === true;
   const sources = [
     ...historicalSources,
     ...(categoryIconInstalled ? ['category_icon_request_markers'] : []),
     ...(errandMediaInstalled
       ? ['errand_scopes', 'errand_appearances', 'errand_retirements']
+      : []),
+    ...(privateMessageMediaInstalled
+      ? [
+          'private_message_scopes',
+          'private_message_cancel_scopes',
+          'private_message_appearances',
+          'private_message_retirements',
+        ]
       : []),
     ...(verificationEvidenceInstalled
       ? [

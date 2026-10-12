@@ -111,12 +111,19 @@ export class HttpMessagingGateway implements MessagingGateway {
     cancel: Cancellation,
   ): Promise<History> {
     if (!id(conversationId)) invalid();
-    return this.read(
+    const result = await this.read(
       `/conversations/${conversationId}/messages`,
       decodeHistory,
       cancel,
       this.page(cursorValue),
     );
+    if (
+      result.items.some(
+        (m) => m.image && m.image.conversationId !== conversationId,
+      )
+    )
+      invalid();
+    return result;
   }
   async events(
     conversationId: string,
@@ -130,6 +137,13 @@ export class HttpMessagingGateway implements MessagingGateway {
       cancel,
       this.page(cursorValue),
     );
+    if (
+      result.items.some(
+        (e) =>
+          e.message.image && e.message.image.conversationId !== conversationId,
+      )
+    )
+      invalid();
     if (result.items.length && result.nextCursor === cursorValue) invalid();
     return result;
   }
@@ -147,11 +161,15 @@ export class HttpMessagingGateway implements MessagingGateway {
     } else {
       const base = `/conversations/${intent.conversationId}`;
       path =
-        intent.operation === 'send'
-          ? base + '/messages'
-          : intent.operation === 'recall'
-            ? base + `/messages/${intent.messageId}/recall`
-            : base + '/' + intent.operation;
+        intent.operation === 'send_image'
+          ? base + '/images'
+          : intent.operation === 'send'
+            ? base + '/messages'
+            : intent.operation === 'recall'
+              ? base + `/messages/${intent.messageId}/recall`
+              : base + '/' + intent.operation;
+      if (intent.operation === 'send_image')
+        body = { ...body, image: { ...intent.image } };
       if (intent.operation === 'send') body = { ...body, text: intent.text };
       if (intent.operation === 'read')
         body = { ...body, observationId: intent.observationId };
@@ -179,9 +197,16 @@ export class HttpMessagingGateway implements MessagingGateway {
     if (
       !id(requestId) ||
       !/^[a-f0-9]{64}$/.test(intentHash) ||
-      !['open', 'send', 'read', 'hide', 'reopen', 'recall', 'block'].includes(
-        operation,
-      )
+      ![
+        'open',
+        'send',
+        'send_image',
+        'read',
+        'hide',
+        'reopen',
+        'recall',
+        'block',
+      ].includes(operation)
     )
       invalid();
     const result = await this.api.request(

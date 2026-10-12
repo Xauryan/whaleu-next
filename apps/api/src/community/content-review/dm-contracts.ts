@@ -4,7 +4,7 @@ import { textSchema } from '../text.js';
 import { canonicalJson } from './contracts.js';
 const id = z.uuid().refine((value) => value === value.toLowerCase());
 const mode = z.enum(['named', 'anonymous']);
-export const dmContentEnvelopeSchema = z.strictObject({
+export const dmTextEnvelopeSchema = z.strictObject({
   version: z.literal(1),
   purpose: z.literal('send_private_message'),
   accountId: id,
@@ -19,11 +19,26 @@ export const dmContentEnvelopeSchema = z.strictObject({
   ),
   assetIds: z.tuple([]),
 });
+/** PM3 is a distinct exact-content version. The text-v1 shape and digest stay unchanged. */
+export const dmImageEnvelopeSchema = dmTextEnvelopeSchema
+  .omit({ version: true, text: true, assetIds: true })
+  .extend({
+    version: z.literal(2),
+    kind: z.literal('image'),
+    image: z.strictObject({
+      assetId: id,
+      manifestDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    }),
+  });
+export const dmContentEnvelopeSchema = z.discriminatedUnion('version', [
+  dmTextEnvelopeSchema,
+  dmImageEnvelopeSchema,
+]);
 export type DmContentEnvelope = z.infer<typeof dmContentEnvelopeSchema>;
 export interface AcceptedDmApproval {
   readonly decisionId: string;
   readonly digest: string;
-  readonly version: 1;
+  readonly version: 1 | 2;
   readonly envelope: DmContentEnvelope;
 }
 export interface DmMessageDescriptor {
@@ -33,16 +48,19 @@ export interface DmMessageDescriptor {
   sequence: string;
   envelope: DmContentEnvelope;
 }
+export function canonicalDmEnvelope<T extends DmContentEnvelope>(value: T): T;
+export function canonicalDmEnvelope(value: unknown): DmContentEnvelope;
 export function canonicalDmEnvelope(value: unknown): DmContentEnvelope {
   const envelope = dmContentEnvelopeSchema.parse(value);
   Object.freeze(envelope.participantModes);
-  Object.freeze(envelope.assetIds);
+  if (envelope.version === 1) Object.freeze(envelope.assetIds);
+  else Object.freeze(envelope.image);
   return Object.freeze(envelope);
 }
 export function dmApprovalDigest(value: DmContentEnvelope): string {
   return createHash('sha256')
     .update(
-      `whaleu-dm-content-approval:v1\n${canonicalJson(canonicalDmEnvelope(value))}`,
+      `whaleu-dm-content-approval:v${value.version}\n${canonicalJson(canonicalDmEnvelope(value))}`,
     )
     .digest('hex');
 }

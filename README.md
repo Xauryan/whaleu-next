@@ -172,3 +172,5 @@ private own-state closure, versioned CAS and durable original-request recovery.
 Fresh public names use a distinct Review purpose; source/history/provider
 activation remains closed. This is separate from numeric window scores. See
 [the W2 contract](docs/DISH_RECOMMENDATIONS.md) for identity, coverage, privacy and local-test limits.
+
+PM3 adds bounded private single-image Messaging through shared Media15, exact image Review and authenticated participant bytes. [Contract and remaining gates](docs/PRIVATE_MESSAGE_IMAGES.md).

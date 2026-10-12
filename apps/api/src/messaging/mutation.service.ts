@@ -1,3 +1,5 @@
+import { canonicalDmEnvelope } from '../community/content-review/dm-contracts.js';
+import { PrivateMessageMediaService } from './media/facade.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -7,7 +9,11 @@ import { MessagingAccess } from './access.js';
 import { MessagingRequests } from './requests.js';
 import { MessagingRepository, dmDigest } from './repository.js';
 import type { Conversation, Message } from './repository.js';
-import type { dmOpenSchema, dmSendSchema } from './contracts.js';
+import type {
+  dmOpenSchema,
+  dmSendSchema,
+  dmSendImageSchema,
+} from './contracts.js';
 import { CommunityDmEntryFacade } from '../community/dm-entry.facade.js';
 import { DmContentReviewFacade } from '../community/content-review/dm-content-review.facade.js';
 import {
@@ -43,6 +49,8 @@ const result = (
 @Injectable()
 export class MessagingMutationService {
   constructor(
+    @Inject(PrivateMessageMediaService)
+    private readonly media: PrivateMessageMediaService,
     @Inject(MessagingAccess) private readonly access: MessagingAccess,
     @Inject(MessagingRequests) private readonly requests: MessagingRequests,
     @Inject(MessagingRepository) private readonly records: MessagingRepository,
@@ -267,6 +275,128 @@ export class MessagingMutationService {
       },
     );
   }
+  sendImage(
+    token: string,
+    id: string,
+    body: z.infer<typeof dmSendImageSchema>,
+  ) {
+    return this.requests.execute(
+      token,
+      body.clientRequestId,
+      'send_image',
+      { conversationId: id, ...body },
+      async (actor, tx) => {
+        await this.records.coverage(actor, tx);
+        await this.records.quota(actor, 'send_actor', 20, 60, tx);
+        const {
+          conversation: c,
+          self,
+          peer,
+        } = await this.records.member(id, actor, tx);
+        if (
+          !(await this.access.identity.dmActiveAccount(peer.account_id, tx)) ||
+          self.blocked_at ||
+          peer.blocked_at
+        )
+          throw new ApplicationError('DM_SEND_UNAVAILABLE');
+        if (
+          c.mode0 === 'named' &&
+          c.mode1 === 'named' &&
+          !(await this.access.safety.namedAllowed(actor, peer.account_id, tx))
+        )
+          throw new ApplicationError('DM_SEND_UNAVAILABLE');
+        if (peer.lifetime_sent === '0' && self.lifetime_sent !== '0')
+          throw new ApplicationError('DM_FIRST_CONTACT_LIMIT');
+        await this.records.quota(id, 'send_conversation', 10, 60, tx);
+        const envelope = {
+          version: 2 as const,
+          purpose: 'send_private_message' as const,
+          accountId: actor,
+          clientRequestId: body.clientRequestId,
+          conversationId: id,
+          contextDigest: c.context_digest,
+          senderSlot: self.slot,
+          participantModes: [c.mode0, c.mode1] as [
+            'named' | 'anonymous',
+            'named' | 'anonymous',
+          ],
+          kind: 'image' as const,
+          image: body.image,
+        };
+        await this.media.draftFacts(
+          actor,
+          id,
+          body.clientRequestId,
+          c.context_digest,
+          body.image,
+          tx,
+          true,
+        );
+        const accepted = await this.review.accepted(envelope, tx),
+          messageId = randomUUID();
+        const updated = (
+          await tx.query<Conversation>(
+            'UPDATE whaleu_messaging.conversations SET next_message_seq=next_message_seq+1,next_event_seq=next_event_seq+1,updated_at=clock_timestamp() WHERE id=$1 RETURNING *',
+            [id],
+          )
+        ).rows[0]!;
+        const message = (
+          await tx.query<Message>(
+            'INSERT INTO whaleu_messaging.messages(id,conversation_id,message_seq,sender_slot,sender_id,request_id,body,envelope) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb) RETURNING *',
+            [
+              messageId,
+              id,
+              updated.next_message_seq,
+              self.slot,
+              actor,
+              body.clientRequestId,
+              null,
+              JSON.stringify(envelope),
+            ],
+          )
+        ).rows[0]!;
+        await this.media.acceptAndBind(
+          messageId,
+          actor,
+          id,
+          body.clientRequestId,
+          c.context_digest,
+          body.image,
+          tx,
+        );
+        await this.review.bind(
+          accepted,
+          {
+            messageId,
+            conversationId: id,
+            senderSlot: self.slot,
+            sequence: message.message_seq,
+            envelope,
+          },
+          tx,
+        );
+        await tx.query(
+          'UPDATE whaleu_messaging.participants SET lifetime_sent=lifetime_sent+1 WHERE conversation_id=$1 AND slot=$2',
+          [id, self.slot],
+        );
+        await tx.query(
+          'UPDATE whaleu_messaging.participants SET hidden_at=NULL WHERE conversation_id=$1 AND slot=$2',
+          [id, peer.slot],
+        );
+        await this.records.recount(id, tx);
+        await tx.query(
+          "INSERT INTO whaleu_messaging.events(conversation_id,event_seq,kind,message_id) VALUES($1,$2,'sent',$3)",
+          [id, updated.next_event_seq, messageId],
+        );
+        await tx.query(
+          'INSERT INTO whaleu_messaging.outbox(id,message_id,recipient_id) VALUES($1,$2,$3)',
+          [randomUUID(), messageId, peer.account_id],
+        );
+        await this.records.bump(c, tx);
+        return result(id, messageId, 'applied', message.created_at);
+      },
+    );
+  }
   read(token: string, id: string, requestId: string, observationId: string) {
     return this.requests.execute(
       token,
@@ -396,6 +526,8 @@ export class MessagingMutationService {
             [messageId],
           )
         ).rows[0]!.recalled_at;
+        if (canonicalDmEnvelope(m.envelope).version === 2)
+          await this.media.retireMessage(messageId, tx);
         await tx.query(
           "INSERT INTO whaleu_messaging.events(conversation_id,event_seq,kind,message_id) VALUES($1,$2,'recalled',$3)",
           [id, updated.next_event_seq, messageId],

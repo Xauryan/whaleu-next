@@ -57,7 +57,7 @@ export async function writeDmApproval(
       ],
     );
   await tx.query(
-    `INSERT INTO whaleu_community.dm_approval_decisions(id,account_id,operation,envelope_version,digest,envelope,policy_revision_id,result,coverage,provenance,issuer,provenance_ref,evaluated_at,consume_until,visibility_model,visibility_until) VALUES($1,$2,'send_private_message',1,$3,$4::jsonb,$5,$6,'complete','accepted','synthetic-dm-review','synthetic-exact-dm-approval',$7,$8,$9,$10)`,
+    `INSERT INTO whaleu_community.dm_approval_decisions(id,account_id,operation,envelope_version,digest,envelope,policy_revision_id,result,coverage,provenance,issuer,provenance_ref,evaluated_at,consume_until,visibility_model,visibility_until) VALUES($1,$2,'send_private_message',$11,$3,$4::jsonb,$5,$6,'complete','accepted','synthetic-dm-review','synthetic-exact-dm-approval',$7,$8,$9,$10)`,
     [
       decisionId,
       envelope.accountId,
@@ -69,6 +69,7 @@ export async function writeDmApproval(
       options.consumeUntil ?? new Date(now + 3600000),
       options.visibilityUntil ? 'until' : 'durable',
       options.visibilityUntil ?? null,
+      envelope.version,
     ],
   );
   await tx.query(

@@ -94,6 +94,7 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
   async pick(
     session: MediaSession,
     cancel: Cancellation,
+    source?: 'album' | 'camera',
   ): Promise<LocalMediaFile> {
     const ticket = this.current(session, cancel);
     if (
@@ -152,6 +153,9 @@ export class AuthenticatedMediaUpload implements UploadTransfer {
             count: 1,
             mediaType: ['image'],
             sizeType: ['original'],
+            ...(source
+              ? { sourceType: [source] as ['album'] | ['camera'] }
+              : {}),
             success: (value) => {
               const output = value.tempFiles?.[0]?.tempFilePath;
               if (isNativeTemporaryPath(output)) {

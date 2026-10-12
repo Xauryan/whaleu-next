@@ -1,3 +1,4 @@
+import { lockImageCommand } from './image-authority.js';
 import { retainDmDenial } from './denial-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -35,9 +36,28 @@ export class MessagingRequests {
         const { accountId: actor } = await this.access.authenticate(
             token,
             tx,
-            operation === 'block',
+            operation === 'block' ||
+              operation === 'send_image' ||
+              operation === 'recall',
           ),
           hash = dmDigest({ operation, intent });
+        await lockImageCommand(actor, requestId, tx);
+        const imageSlot = (
+          await tx.query<{ conversation_id: string }>(
+            'SELECT conversation_id FROM whaleu_messaging.image_command_reservations WHERE account_id=$1 AND request_id=$2 UNION ALL SELECT conversation_id FROM whaleu_messaging.image_command_fences WHERE account_id=$1 AND request_id=$2',
+            [actor, requestId],
+          )
+        ).rows;
+        if (
+          imageSlot.length &&
+          (operation !== 'send_image' ||
+            imageSlot.some(
+              (row) =>
+                row.conversation_id !==
+                (intent as { conversationId?: string }).conversationId,
+            ))
+        )
+          throw new ApplicationError('REQUEST_CONFLICT');
         await tx.query(
           'INSERT INTO whaleu_messaging.requests(account_id,request_id,operation,intent_hash) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',
           [actor, requestId, operation, hash],
@@ -61,6 +81,16 @@ export class MessagingRequests {
         await tx.query('SAVEPOINT dm_command');
         let receipt: DmReceipt;
         try {
+          if (
+            operation === 'send_image' &&
+            (
+              await tx.query(
+                'SELECT 1 FROM whaleu_messaging.image_command_fences WHERE account_id=$1 AND request_id=$2',
+                [actor, requestId],
+              )
+            ).rowCount
+          )
+            throw new ApplicationError('DM_COMMAND_CANCELLED');
           await this.access.require(actor, tx);
           receipt = dmReceiptSchema.parse({
             requestId,
@@ -116,6 +146,17 @@ export class MessagingRequests {
     return this.database.transaction(
       async (tx) => {
         const { accountId: actor } = await this.access.authenticate(token, tx);
+        await lockImageCommand(actor, id, tx);
+        if (
+          operation !== 'send_image' &&
+          (
+            await tx.query(
+              'SELECT 1 FROM whaleu_messaging.image_command_reservations WHERE account_id=$1 AND request_id=$2 UNION ALL SELECT 1 FROM whaleu_messaging.image_command_fences WHERE account_id=$1 AND request_id=$2',
+              [actor, id],
+            )
+          ).rowCount
+        )
+          throw new ApplicationError('REQUEST_CONFLICT');
         await tx.query(
           'INSERT INTO whaleu_messaging.requests(account_id,request_id,operation,intent_hash) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',
           [actor, id, operation, intentHash],

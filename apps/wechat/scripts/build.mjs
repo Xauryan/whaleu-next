@@ -53,6 +53,7 @@ for (const relative of [
   'school-configuration/qr-contract.js',
   'school-configuration/qr-runtime.js',
   'messaging/pending.js',
+  'messaging/image-contract.js',
   'media/upload-contracts.js',
   'profile/avatar-contract.js',
   'media/upload-runtime.js',

@@ -221,3 +221,5 @@ Review-owned name decisions, reversible actor/name lineage and original command
 receipts. Earlier migrations remain unchanged. Only synthetic tests issue
 accepted-empty population/membership baselines; there is no production seed or
 nonempty historical adoption. See [W2](../../../docs/DISH_RECOMMENDATIONS.md).
+
+0116 introduces typed Media15 private-image scopes, single-use appearances, recall retirement, quiet delivery holds and empty policy-gated cleanup authorization. 0117 adds Messaging image commands/fences and exact Review-v2/causal checks while retaining text-v1 behavior. No issuer, real retention policy, provider access or history is seeded. All earlier SQL files are unchanged. See [PM3](../../../docs/PRIVATE_MESSAGE_IMAGES.md).

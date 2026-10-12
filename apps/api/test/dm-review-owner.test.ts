@@ -96,6 +96,7 @@ function binding(d = descriptor()): DmApprovalBinding {
 }
 test('DM envelope normalization is exact, frozen, purpose-bound and privately contextual', () => {
   const e = envelope();
+  if (e.version !== 1) assert.fail('Expected unchanged text-v1 fixture');
   assert.ok(Object.isFrozen(e));
   assert.ok(Object.isFrozen(e.participantModes));
   assert.ok(Object.isFrozen(e.assetIds));

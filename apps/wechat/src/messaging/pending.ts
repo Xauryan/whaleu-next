@@ -80,9 +80,16 @@ function decode(v: unknown): Pending {
     v.version !== 2 ||
     !id(v.accountId) ||
     !id(v.requestId) ||
-    !['open', 'send', 'read', 'hide', 'reopen', 'recall', 'block'].includes(
-      String(v.operation),
-    ) ||
+    ![
+      'open',
+      'send',
+      'send_image',
+      'read',
+      'hide',
+      'reopen',
+      'recall',
+      'block',
+    ].includes(String(v.operation)) ||
     typeof v.intentHash !== 'string' ||
     !/^[a-f0-9]{64}$/.test(v.intentHash)
   )
@@ -120,6 +127,7 @@ function registry(v: unknown): Registry {
 /** Bounded account-isolated request commitments survive logout. Only explicit pending bodies
  * are scrubbed. Unknown requests are never evicted or given a replacement key. */
 export class PendingMessagingStore {
+  private readonly imageIntents = new Map<string, Intent>();
   private readonly key: string;
   private readonly legacyKey: string;
   constructor(
@@ -130,7 +138,12 @@ export class PendingMessagingStore {
     this.legacyKey = `whaleu.private-messages.pending.v1:${namespace}`;
   }
   private write(value: Registry): void {
-    const checked = registry(value);
+    const checked = registry({
+      version: 2,
+      entries: value.entries.map((e) =>
+        e.intent?.operation === 'send_image' ? { ...e, intent: null } : e,
+      ),
+    });
     this.storage.set(this.key, checked);
     if (!same(registry(this.storage.get(this.key)), checked))
       throw unavailable();
@@ -171,7 +184,15 @@ export class PendingMessagingStore {
   }
   load(accountId: string): Pending | null {
     if (!id(accountId)) throw unavailable();
-    return this.read().entries.find((e) => e.accountId === accountId) ?? null;
+    const saved =
+      this.read().entries.find((e) => e.accountId === accountId) ?? null;
+    const ephemeral = this.imageIntents.get(accountId);
+    return saved &&
+      ephemeral &&
+      intentHash(ephemeral) === saved.intentHash &&
+      ephemeral.clientRequestId === saved.requestId
+      ? Object.freeze({ ...saved, intent: ephemeral })
+      : saved;
   }
   assertStored(attempt: Pending): void {
     const current = this.load(attempt.accountId);
@@ -182,8 +203,21 @@ export class PendingMessagingStore {
       const checked = raw.version === 1 ? original(raw) : decode(raw);
       if (!checked.intent) throw unavailable();
       const current = this.read(),
-        old = current.entries.find((e) => e.accountId === checked.accountId);
-      if (old && !same(old, checked)) throw unavailable();
+        old = this.load(checked.accountId);
+      if (
+        old &&
+        !same(old, checked) &&
+        !(
+          checked.intent.operation === 'send_image' &&
+          old.intent === null &&
+          old.requestId === checked.requestId &&
+          old.intentHash === checked.intentHash &&
+          old.operation === checked.operation
+        )
+      )
+        throw unavailable();
+      if (checked.intent.operation === 'send_image')
+        this.imageIntents.set(checked.accountId, checked.intent);
       if (!old) {
         if (current.entries.length >= maximumAccounts)
           throw new ClientError(
@@ -217,6 +251,7 @@ export class PendingMessagingStore {
           (e) => e.accountId !== attempt.accountId,
         ),
       });
+      this.imageIntents.delete(attempt.accountId);
       if (this.load(attempt.accountId)) throw unavailable();
     } catch {
       throw unavailable();
@@ -225,6 +260,7 @@ export class PendingMessagingStore {
   }
   /** With an active account at relaunch, retain only that account's explicit original body. */
   scrubBodies(exceptAccountId?: string): void {
+    this.imageIntents.clear();
     try {
       const current = this.read();
       const entries = current.entries.map((entry) =>

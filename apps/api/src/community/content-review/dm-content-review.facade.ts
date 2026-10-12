@@ -227,8 +227,8 @@ export class DmContentReviewFacade {
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     const candidate = (
       await tx.query<{ id: string }>(
-        `SELECT id FROM whaleu_community.dm_approval_decisions WHERE account_id=$1 AND operation='send_private_message' AND envelope_version=1 AND digest=$2 ORDER BY evaluated_at DESC,id DESC LIMIT 1`,
-        [canonical.accountId, dmApprovalDigest(canonical)],
+        `SELECT id FROM whaleu_community.dm_approval_decisions WHERE account_id=$1 AND operation='send_private_message' AND envelope_version=$3 AND digest=$2 ORDER BY evaluated_at DESC,id DESC LIMIT 1`,
+        [canonical.accountId, dmApprovalDigest(canonical), canonical.version],
       )
     ).rows[0];
     const row = candidate ? await this.row(candidate.id, true, tx) : null;
@@ -277,7 +277,7 @@ export class DmContentReviewFacade {
       decision_id: approval.decisionId,
       account_id: approval.envelope.accountId,
       operation: 'send_private_message',
-      envelope_version: 1,
+      envelope_version: approval.envelope.version,
       digest: approval.digest,
       envelope: approval.envelope,
     };
@@ -290,7 +290,7 @@ export class DmContentReviewFacade {
     )
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     await tx.query(
-      `INSERT INTO whaleu_community.dm_approval_bindings(message_id,conversation_id,sender_slot,message_seq,content_version,decision_id,account_id,operation,envelope_version,digest,envelope) VALUES($1,$2,$3,$4,1,$5,$6,'send_private_message',1,$7,$8::jsonb)`,
+      `INSERT INTO whaleu_community.dm_approval_bindings(message_id,conversation_id,sender_slot,message_seq,content_version,decision_id,account_id,operation,envelope_version,digest,envelope) VALUES($1,$2,$3,$4,1,$5,$6,'send_private_message',$9,$7,$8::jsonb)`,
       [
         descriptor.messageId,
         descriptor.conversationId,
@@ -300,6 +300,7 @@ export class DmContentReviewFacade {
         approval.envelope.accountId,
         approval.digest,
         canonicalJson(approval.envelope),
+        approval.envelope.version,
       ],
     );
     handle.used = true;

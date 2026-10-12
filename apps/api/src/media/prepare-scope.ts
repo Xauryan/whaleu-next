@@ -1,4 +1,13 @@
 import {
+  preparePrivateMessageMediaSchema,
+  privateMessageMediaRequestHash,
+} from './contracts-private-message.js';
+import type { PreparePrivateMessageMediaInput } from './contracts-private-message.js';
+import type {
+  AuthorizedPrivateMessageMediaEdit,
+  PrivateMessageMediaDraftOwnerPort,
+} from './private-message-prepare-scope.js';
+import {
   prepareErrandMediaSchema,
   errandMediaRequestHash,
   errandMediaAudience,
@@ -160,6 +169,7 @@ export class MediaPrepareScopes {
         | PrepareMediaV4Input
         | PrepareProfileMediaInput
         | PrepareRatingsMediaInput
+        | PreparePrivateMessageMediaInput
         | PrepareErrandMediaInput
         | PrepareVerificationEvidenceMediaInput
         | PrepareAnnouncementMediaInput
@@ -172,6 +182,7 @@ export class MediaPrepareScopes {
         | AuthorizedMediaDraft
         | AuthorizedProfileMediaEdit
         | AuthorizedRatingsMediaEdit
+        | AuthorizedPrivateMessageMediaEdit
         | AuthorizedErrandMediaEdit
         | AuthorizedVerificationEvidenceMediaEdit
         | AuthorizedAnnouncementMediaEdit
@@ -194,6 +205,7 @@ export class MediaPrepareScopes {
     private readonly announcementOwner?: AnnouncementMediaDraftOwnerPort,
     private readonly verificationEvidenceOwner?: VerificationEvidenceMediaDraftOwnerPort,
     private readonly errandOwner?: ErrandMediaDraftOwnerPort,
+    private readonly privateMessageOwner?: PrivateMessageMediaDraftOwnerPort,
   ) {}
   async authorizeRatingsDiscussionBatch(
     actor: string,
@@ -304,6 +316,51 @@ export class MediaPrepareScopes {
       !mediaIdSchema.safeParse(scope.serverScopeId).success ||
       scope.scopeRevision !==
         verificationEvidenceMediaRequestHash(actor, input) ||
+      !Number.isSafeInteger(scope.expiresAt) ||
+      transactionReadEpoch(tx) !== epoch
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+    Object.freeze(input.declaration);
+    Object.freeze(input);
+    const capability: MediaPrepareScope = Object.freeze({
+      [brand]: true as const,
+    });
+    this.issued.set(capability, {
+      tx,
+      epoch,
+      input,
+      scope: Object.freeze({ ...scope }),
+    });
+    return capability;
+  }
+  async authorizePrivateMessage(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    const input = preparePrivateMessageMediaSchema.parse(raw),
+      actor = mediaIdSchema.parse(actorAccountId),
+      epoch = transactionReadEpoch(tx);
+    if (!epoch || !this.privateMessageOwner)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const scope = await this.privateMessageOwner.authorizePrepare(
+      actor,
+      input,
+      tx,
+    );
+    if (
+      scope.actorAccountId !== actor ||
+      scope.ownerKind !== 'messaging' ||
+      scope.resourceKind !== 'private_message_image' ||
+      scope.targetKind !== 'edit' ||
+      scope.contentVersion !== 1 ||
+      scope.audience !== 'conversation-private' ||
+      scope.purpose !== 'private-message-image' ||
+      scope.slot !== 'image' ||
+      scope.ordinal !== 0 ||
+      !mediaIdSchema.safeParse(scope.serverScopeId).success ||
+      scope.scopeRevision !== privateMessageMediaRequestHash(actor, input) ||
       !Number.isSafeInteger(scope.expiresAt) ||
       transactionReadEpoch(tx) !== epoch
     )
@@ -778,6 +835,7 @@ export class MediaPrepareScopes {
       | PrepareMediaV4Input
       | PrepareProfileMediaInput
       | PrepareRatingsMediaInput
+      | PreparePrivateMessageMediaInput
       | PrepareErrandMediaInput
       | PrepareVerificationEvidenceMediaInput
       | PrepareAnnouncementMediaInput
@@ -790,6 +848,7 @@ export class MediaPrepareScopes {
       | AuthorizedMediaDraft
       | AuthorizedProfileMediaEdit
       | AuthorizedRatingsMediaEdit
+      | AuthorizedPrivateMessageMediaEdit
       | AuthorizedErrandMediaEdit
       | AuthorizedVerificationEvidenceMediaEdit
       | AuthorizedAnnouncementMediaEdit

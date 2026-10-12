@@ -1,3 +1,4 @@
+import type { LocalMediaFile } from '../media/contracts';
 import { ClientError } from '../api/errors';
 import type { Cancellation } from '../platform/contracts';
 import { dispatch } from './commands';
@@ -40,6 +41,9 @@ export interface DetailView extends BaseView {
   readonly coverage: Coverage | null;
   readonly text: string;
   readonly canSend: boolean;
+  readonly imagePath: string;
+  readonly imageMessageId: string;
+  readonly imageStatus: string;
   readonly canMore: boolean;
   readonly anchor: string;
   readonly confirm: Confirmation | null;
@@ -58,6 +62,9 @@ export const initialDetailView = (): DetailView => ({
   coverage: null,
   text: '',
   canSend: false,
+  imagePath: '',
+  imageMessageId: '',
+  imageStatus: '',
   canMore: false,
   anchor: '',
   confirm: null,
@@ -82,6 +89,128 @@ const sendReason = (conversation: Conversation): string =>
         : '对方回复前仅可发送一条消息；撤回和隐藏不会恢复额度';
 export class MessagingDetailController extends MessagingController<DetailView> {
   private readonly route: DetailRoute;
+  private imageFile: LocalMediaFile | null = null;
+  private readonly imageOwner = {};
+  private picker = false;
+  private foreground = true;
+  private returnFromPicker: (() => void) | null = null;
+  get keepPicker() {
+    return this.picker;
+  }
+  resumePicker() {
+    this.foreground = true;
+    this.returnFromPicker?.();
+    this.returnFromPicker = null;
+  }
+  private clearImage() {
+    const file = this.imageFile;
+    this.imageFile = null;
+    if (file) void this.runtime.images?.release(file);
+    this.update({ imagePath: '', imageMessageId: '' });
+  }
+  override hide(): void {
+    if (this.picker) {
+      this.foreground = false;
+      this.clearImage();
+      this.update({
+        messages: [],
+        conversation: null,
+        text: '',
+        imagePath: '',
+        imageMessageId: '',
+      });
+      return;
+    }
+    super.hide();
+  }
+  async pickImage(source: 'album' | 'camera'): Promise<void> {
+    if (
+      !this.view.canSend ||
+      this.view.pending ||
+      this.view.busy ||
+      !this.conversationId ||
+      !this.runtime.images
+    )
+      return;
+    const media = this.runtime.images;
+    await this.run(async (cancel, current) => {
+      let file: LocalMediaFile | undefined;
+      try {
+        this.clearImage();
+        this.picker = true;
+        this.update({ imageStatus: '请选择一张原图，JPEG / PNG，最多 5 MiB' });
+        file = await media.select(source, cancel, current);
+        current();
+        if (!this.foreground)
+          await new Promise<void>((resolve) => {
+            this.returnFromPicker = resolve;
+            cancel.subscribe(resolve);
+          });
+        current();
+        this.picker = false;
+        const receipt = await media.sendSelected(
+          this.runtime,
+          this.conversationId!,
+          file,
+          cancel,
+          current,
+          (text) => {
+            current();
+            this.update({ imageStatus: text });
+          },
+        );
+        current();
+        if (receipt) {
+          this.update({
+            imageStatus:
+              receipt.outcome === 'rejected'
+                ? reason(receipt.code)
+                : '图片已发送',
+          });
+          await this.refresh(cancel, current);
+        }
+      } finally {
+        this.picker = false;
+        this.returnFromPicker = null;
+        if (file) await media.upload.remove(file);
+      }
+    });
+    this.schedule(() => this.load(), 3000);
+  }
+  async showImage(messageId: string): Promise<void> {
+    const message = this.view.messages.find((m) => m.id === messageId);
+    if (
+      !message?.image ||
+      message.state !== 'image' ||
+      !this.runtime.images ||
+      this.view.busy
+    )
+      return;
+    const media = this.runtime.images,
+      descriptor = message.image;
+    await this.run(async (cancel, current) => {
+      this.clearImage();
+      const result = await media.read(
+        descriptor,
+        this.imageOwner,
+        cancel,
+        current,
+      );
+      try {
+        current();
+        this.imageFile = result.file;
+        this.update({
+          imagePath: result.path,
+          imageMessageId: messageId,
+          imageStatus: '私密图片仅在当前页面临时显示',
+        });
+      } catch (error) {
+        await media.release(result.file);
+        throw error;
+      }
+    });
+  }
+
   private conversationId: string | null = null;
   private nextHistory: string | null = null;
   private historyStarts: (string | null)[] = [null];
@@ -123,6 +252,7 @@ export class MessagingDetailController extends MessagingController<DetailView> {
     void this.load();
   }
   protected override clearPrivate(): void {
+    this.clearImage();
     this.nextHistory = null;
     this.historyStarts = [null];
     this.eventCursor = null;
@@ -224,6 +354,25 @@ export class MessagingDetailController extends MessagingController<DetailView> {
       this.observedSequence = throughSequence;
       const pending = this.pending();
       const messages = sorted(all);
+      const prior = this.view.conversation;
+      // A newly observed block/hide first revokes presentation. Retained history
+      // remains readable only after a later explicit, freshly authorized view.
+      const presentationChanged =
+        !!prior &&
+        (prior.hidden !== conversation.hidden ||
+          prior.blockedByYou !== conversation.blockedByYou ||
+          (prior.sendAvailability !== conversation.sendAvailability &&
+            ['unavailable', 'blocked_by_you'].includes(
+              conversation.sendAvailability,
+            )));
+      if (
+        presentationChanged ||
+        (this.view.imageMessageId &&
+          !messages.some(
+            (m) => m.id === this.view.imageMessageId && m.state === 'image',
+          ))
+      )
+        this.clearImage();
       const anchor = this.view.loaded
         ? this.view.anchor
         : messages.length
@@ -256,6 +405,7 @@ export class MessagingDetailController extends MessagingController<DetailView> {
       await this.acknowledge(cancel, current);
     } catch (error) {
       current();
+      this.clearImage();
       this.update({
         conversation: null,
         messages: [],
@@ -463,6 +613,7 @@ export class MessagingDetailController extends MessagingController<DetailView> {
     this.update({ confirm: null });
   }
   async confirm(): Promise<void> {
+    this.clearImage();
     const confirm = this.view.confirm,
       revision = this.dialogRevision;
     if (!confirm || this.view.busy || this.view.pending) return;
@@ -534,6 +685,10 @@ export class MessagingDetailController extends MessagingController<DetailView> {
     return this.active && !this.view.busy && source?.available
       ? `/pages/community-detail/community-detail?postId=${source.postId}`
       : null;
+  }
+  override dispose(): void {
+    this.picker = false;
+    super.dispose();
   }
   override cancel(): void {
     this.dismiss();

@@ -20,10 +20,19 @@ export async function dispatch(
   const accountId = runtime.sessions.snapshot().credentials?.accountId;
   if (!accountId || !runtime.gateway)
     throw new ClientError('auth-required', 'Login is required');
+  const intent = decodeIntent(raw);
+  const image = runtime.images?.pending.load(accountId);
+  if (
+    image &&
+    (intent.operation !== 'send_image' ||
+      intent.clientRequestId !== image.messageRequestId ||
+      intent.conversationId !== image.conversationId)
+  )
+    throw new ClientError('storage', '请先恢复或安全取消原图片请求');
   const attempt = runtime.pending.freeze({
     version: 1,
     accountId,
-    intent: decodeIntent(raw),
+    intent,
   });
   assertCurrent();
   if (cancel.isCancelled) throw new ClientError('cancelled', 'Cancelled');

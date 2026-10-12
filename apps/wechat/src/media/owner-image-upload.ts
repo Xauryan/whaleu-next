@@ -73,8 +73,12 @@ export class OwnerImageUpload<
       clock,
     );
   }
-  pick(session: MediaSession, cancel: Cancellation): Promise<LocalMediaFile> {
-    return this.selection.pick(session, cancel);
+  pick(
+    session: MediaSession,
+    cancel: Cancellation,
+    source?: 'album' | 'camera',
+  ): Promise<LocalMediaFile> {
+    return this.selection.pick(session, cancel, source);
   }
   async inspect(
     file: LocalMediaFile,
