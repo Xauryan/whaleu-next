@@ -398,3 +398,37 @@ test('terminal owner authentication rejection clears notice list and badge and i
     assert.equal(s.badgeView().unreadCount, 0);
   }
 });
+
+test('mixed jury and nickname outcomes use the same owner-only read path without source or profile lookup', async (t) => {
+  const s = harness();
+  t.after(() => {
+    s.controller.dispose();
+    s.badge.dispose();
+  });
+  const reset = {
+    noticeId: otherId,
+    kind: 'profile_nickname_reset',
+    createdAt,
+    readAt: null,
+    nickname: '违规昵称Ab123Z',
+  } as const;
+  s.notices.listImpl = async () => systemNotices([systemNotice(), reset]);
+  await s.controller.load();
+  assert.equal(s.view().items[1]!.kind, 'profile_nickname_reset');
+  assert.equal(s.view().unreadCount, 2);
+  s.notices.readImpl = async (noticeId) => ({
+    noticeId,
+    readAt: createdAt,
+    unreadCount: 1,
+  });
+  await s.controller.acknowledge(otherId);
+  assert.deepEqual(s.view().items[1], { ...reset, readAt: createdAt });
+  assert.equal(s.view().items[0]!.readAt, null);
+  assert.equal(s.view().unreadCount, 1);
+  assert.deepEqual(
+    s.notices.calls.map((call) => call.method),
+    ['list', 'read'],
+  );
+  assert.equal(s.notices.calls[1]!.args[0], otherId);
+  assert.deepEqual(s.gateway.calls, []);
+});

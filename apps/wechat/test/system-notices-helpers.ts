@@ -1,13 +1,14 @@
 import type {
   SystemNotice,
+  PostJuryRemovedNotice,
   SystemNoticesList,
 } from '../src/community/system-notices-contract';
 import type { SystemNoticesGateway } from '../src/community/system-notices-gateway';
 import { createdAt, requestId, setup } from './community-helpers';
 
 export const systemNotice = (
-  overrides: Partial<SystemNotice> = {},
-): SystemNotice => ({
+  overrides: Partial<PostJuryRemovedNotice> = {},
+): PostJuryRemovedNotice => ({
   noticeId: requestId,
   kind: 'post_jury_removed',
   createdAt,

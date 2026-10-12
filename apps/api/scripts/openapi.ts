@@ -1,3 +1,4 @@
+import { writeProfileModerationOpenApi } from './profile-moderation-openapi-document.js';
 import { writeOwnerPostVisibilityOpenApi } from './owner-post-visibility-openapi-document.js';
 import { writeMajorDiscussionImagesOpenApi } from './major-discussion-images-openapi-document.js';
 import { writeWindowDiscussionImagesOpenApi } from './window-discussion-images-openapi-document.js';
@@ -320,3 +321,5 @@ await writeMajorDiscussionImagesOpenApi(process.argv.includes('--check'));
 await writeWindowDiscussionImagesOpenApi(args[0] === '--check');
 
 await writeOwnerPostVisibilityOpenApi(args[0] === '--check');
+
+await writeProfileModerationOpenApi(args[0] === '--check');

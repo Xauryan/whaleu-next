@@ -1,3 +1,4 @@
+import { ProfileModerationModule } from './profile/moderation/module.js';
 import { MajorsModule } from './majors/module.js';
 import { ActivityPublicationModule } from './activities/publication/module.js';
 import { OrganizationManagementModule } from './organizations/management/module.js';
@@ -62,6 +63,7 @@ export class AppModule {
         CampusModule,
         IdentityCampusModule,
         ProfileModule,
+        ProfileModerationModule,
         ProfileDiscoveryModule,
         CommunityModule,
         DirectoryModule,

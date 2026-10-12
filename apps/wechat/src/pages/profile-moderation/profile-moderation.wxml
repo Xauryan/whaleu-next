@@ -1,0 +1,38 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 内容目标管理</view>
+  <view class="title">处理公开昵称</view>
+  <view class="notice">仅从当前可查看的公开身份帖子、评论或回复核验管理权限。权限及版本以服务端本次核验为准。</view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{addressError || error}}" class="error">{{addressError || error}}</view>
+  <view wx:if="{{receiptStatus}}" class="notice" aria-role="status">{{receiptStatus}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续 →</navigator>
+  <button bindtap="onReload" disabled="{{busy}}">重新核验目标与原请求</button>
+  <button wx:if="{{busy}}" bindtap="onStopWaiting">停止等待</button>
+  <view wx:if="{{management &amp;&amp; management.canReset &amp;&amp; !frozen}}" class="card">
+    <view class="section-title">当前公开昵称：{{management.displayName}}</view>
+    <view class="meta">目标：{{management.target.kind}} · {{management.target.id}} · 资料版本 {{management.revision}}</view>
+    <button bindtap="onResetNickname" disabled="{{busy}}">重置此账号公开昵称</button>
+  </view>
+  <view wx:if="{{confirming === 'reset' &amp;&amp; management &amp;&amp; !frozen}}" class="card" aria-role="alert">
+    <view class="section-title">确认重置「{{management.displayName}}」的公开昵称？</view>
+    <view class="notice">将重置此账号的公开昵称，包括其他地区的公开署名，并向对方发送私有系统通知。匿名分身保持不变。资料版本已变化时需要重新确认。</view>
+    <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认重置昵称并通知对方</button>
+    <button bindtap="onClose" disabled="{{busy}}">返回</button>
+  </view>
+  <view wx:if="{{frozen}}" class="card">
+    <view class="section-title">原昵称管理请求待确认</view>
+    <view wx:if="{{pendingTarget}}" class="meta">{{pendingTarget.kind}} · {{pendingTarget.id}} · {{pendingPhase === 'cancel' ? '取消请求' : '提交请求'}}</view>
+    <view class="notice">查询不到回执不代表原请求不会完成。确认结果或取消成功前不能创建新请求，请保留本机数据。</view>
+    <button bindtap="onRecover" disabled="{{busy || !pendingRequestId}}">查询原昵称管理回执</button>
+    <button bindtap="onRetry" disabled="{{busy || !pendingRequestId}}">重试原昵称管理请求</button>
+    <button bindtap="onCancelRequest" disabled="{{busy || !pendingRequestId}}">取消原昵称管理请求</button>
+  </view>
+  <view wx:if="{{confirming === 'cancel'}}" class="card" aria-role="alert">
+    <view>确认取消原昵称管理请求？已经完成的重置仍返回原结果，不会自动恢复旧昵称。</view>
+    <button bindtap="onConfirmCancel" disabled="{{busy}}">确认取消原请求</button>
+    <button bindtap="onClose" disabled="{{busy}}">返回</button>
+  </view>
+  <view wx:if="{{!target &amp;&amp; !frozen &amp;&amp; !busy}}" class="notice">没有待确认请求时，请从具体公开身份内容进入昵称管理。</view>
+  <navigator class="link" url="/pages/community-mine/community-mine">我的发布与请求恢复 →</navigator>
+  <navigator class="link" url="/pages/profile/profile">查看我的当前资料 →</navigator>
+</view>

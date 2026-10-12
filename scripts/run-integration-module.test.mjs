@@ -264,3 +264,26 @@ test('all generated CLI matrix entries can list without dependencies or a databa
     discoverFiles(),
   );
 });
+
+test('nickname moderation keeps emitted Community and Profile causal ownership explicit', () => {
+  const plan = createModulePlan(discoverFiles(), readModules());
+  const community = plan.shards.find(
+    (shard) => shard.id === 'community-media-1',
+  );
+  const profile = plan.shards.find(
+    (shard) => shard.id === 'identity-messaging-1',
+  );
+  assert.ok(
+    community.files.includes(
+      'test/integration/profile-moderation-native-roundtrip.test.ts',
+    ),
+  );
+  for (const name of [
+    'profile-moderation.test.ts',
+    'profile-moderation-causality.test.ts',
+    'profile-moderation-avatar-preservation.test.ts',
+    'profile-moderation-current-proof.test.ts',
+    'profile-moderation-notices.test.ts',
+  ])
+    assert.ok(profile.files.includes(`test/integration/${name}`));
+});

@@ -17,14 +17,23 @@ export const emptySystemNoticeSchema = z.strictObject({});
 export const systemNoticeIdSchema = z.uuid();
 export type SystemNoticesQuery = z.infer<typeof systemNoticesQuerySchema>;
 
-export interface SystemNoticeView {
+interface SystemNoticeBase {
   noticeId: string;
-  kind: 'post_jury_removed';
   createdAt: string;
   readAt: string | null;
+}
+export interface PostJuryRemovalNoticeView extends SystemNoticeBase {
+  kind: 'post_jury_removed';
   keepVotes: number;
   removeVotes: number;
 }
+export interface ProfileNicknameResetNoticeView extends SystemNoticeBase {
+  kind: 'profile_nickname_reset';
+  nickname: string;
+}
+export type SystemNoticeView =
+  PostJuryRemovalNoticeView | ProfileNicknameResetNoticeView;
+export type SystemNoticeKind = SystemNoticeView['kind'];
 export interface SystemNoticesPage {
   items: SystemNoticeView[];
   nextCursor: string | null;

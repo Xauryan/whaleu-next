@@ -19,6 +19,7 @@
     "pages/community-updates/community-updates",
     "pages/community-blocks/community-blocks",
     "pages/report-progress/report-progress",
+    "pages/profile-moderation/profile-moderation",
     "pages/system-notices/system-notices",
     "pages/public-profile/public-profile",
     "pages/community-liked/community-liked",

@@ -164,6 +164,7 @@ export class ProfileController {
     ProfileAdminParticipantFacade,
   ],
   exports: [
+    ProfileRepository,
     ProfileAvatarService,
     ProfileAvatarUploadApplication,
     PROFILE_AVATAR_RUNTIME,

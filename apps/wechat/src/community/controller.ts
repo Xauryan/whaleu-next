@@ -40,6 +40,10 @@ export const reasonMessage = (code: string | null): string =>
     MEDIA_UNAVAILABLE: '图片上传与审核服务尚未接入',
     NOTICE_NOT_FOUND: '此更新不存在或不属于当前账号，请刷新列表',
     POST_NOT_FOUND: '帖子不存在或当前不可查看',
+    PROFILE_MODERATION_UNAVAILABLE:
+      '此内容当前不能用于管理昵称；待确认的原请求请继续查询回执',
+    PROFILE_MODERATION_STALE: '资料版本已变化，请重新加载并确认',
+    PROFILE_MODERATION_CANCELLED: '原昵称重置请求已取消',
     POST_CATEGORY_UNAVAILABLE: '此帖子当前不能更改分类；原请求请继续查询回执',
     POST_CATEGORY_STALE: '分类版本已变化，请重新加载',
     POST_CATEGORY_CANCELLED: '原分类请求已取消',

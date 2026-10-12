@@ -1,7 +1,7 @@
 <view class="screen">
   <view class="eyebrow">WHALEU · 系统通知</view>
   <view class="title">我的系统通知</view>
-  <view class="notice">这里仅展示本账号收到的帖子陪审团移除结果。通知只包含处理结果与票数，不包含原帖内容、来源链接或参与者身份。</view>
+  <view class="notice">这里仅展示本账号收到的处理结果，包括帖子陪审团移除结果和公开昵称重置；不展示原内容、来源链接或处理者身份。</view>
   <view class="status" aria-role="status">{{status}}</view>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <view wx:if="{{loaded}}" class="section-title">系统通知未读 {{unreadCount}} 条</view>
@@ -11,9 +11,17 @@
   <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看自己的系统通知 →</navigator>
   <view wx:for="{{items}}" wx:key="noticeId" class="card">
     <view class="meta">{{item.createdAt}} · {{item.readAt ? '已读' : '未读'}}</view>
-    <view class="section-title">帖子已被陪审团移除</view>
-    <view class="body">你的一条帖子经陪审团判定后已移除</view>
-    <view class="meta">保留 {{item.keepVotes}} 票 · 移除 {{item.removeVotes}} 票</view>
+    <view wx:if="{{item.kind === 'post_jury_removed'}}">
+      <view class="section-title">帖子已被陪审团移除</view>
+      <view class="body">你的一条帖子经陪审团判定后已移除</view>
+      <view class="meta">保留 {{item.keepVotes}} 票 · 移除 {{item.removeVotes}} 票</view>
+    </view>
+    <view wx:elif="{{item.kind === 'profile_nickname_reset'}}">
+      <view class="section-title">昵称已被管理员重置</view>
+      <view class="body">本次重置后的公开昵称：{{item.nickname}}</view>
+      <view class="notice">此结果适用于账号在其他地区的公开署名；匿名分身保持不变。之后自行修改昵称不会改写这条历史通知。</view>
+      <navigator class="link" url="/pages/profile/profile">查看我的当前资料 →</navigator>
+    </view>
     <button wx:if="{{!item.readAt}}" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy}}">标记此条已读</button>
   </view>
   <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">暂无系统通知</view>

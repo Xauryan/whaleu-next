@@ -1,3 +1,4 @@
+import { smokeProfileModeration } from './smoke-profile-moderation.mjs';
 import { smokeCategoryReclassification } from './smoke-category-reclassification.mjs';
 import { smokeMediaBatch } from './smoke-media-batch.mjs';
 import { smokeMediaUpload } from './smoke-media-upload.mjs';
@@ -2696,6 +2697,7 @@ await smokeRatingCategoryManagement({ app, dist, flush: flushTrading });
 await smokeRatingsScoped({ app, dist });
 await smokeRatingCategoryScoped({ app, dist });
 await smokeCategoryReclassification({ dist });
+await smokeProfileModeration({ dist });
 await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeErrandAdminMutations({ app, dist, flush: flushTrading });
 await smokeErrandAdminNotices({ app, dist, flush: flushTrading });

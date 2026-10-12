@@ -168,3 +168,55 @@ test('system notice list and read/count DTOs reject invalid pagination, duplicat
     { kind: 'protocol' },
   );
 });
+
+test('nickname reset notices form a separate minimal discriminant alongside unchanged jury outcomes', () => {
+  const reset = {
+    noticeId: otherId,
+    kind: 'profile_nickname_reset',
+    createdAt,
+    readAt: null,
+    nickname: '违规昵称Ab123Z',
+  } as const;
+  assert.deepEqual(decodeSystemNotice(reset), reset);
+  assert.ok(Object.isFrozen(decodeSystemNotice(reset)));
+  assert.deepEqual(
+    decodeSystemNoticesList({
+      items: [systemNotice(), reset],
+      nextCursor: null,
+      unreadCount: 2,
+    }).items,
+    [systemNotice(), reset],
+  );
+  for (const patch of [
+    { kind: 'profile_avatar_reset' },
+    { nickname: '' },
+    { nickname: '任意昵称' },
+    { nickname: '违规昵称Ab123Zx' },
+    { nickname: '违规昵称Ab123_' },
+    { oldNickname: '旧昵称' },
+    { accountId: requestId },
+    { subjectId: requestId },
+    { publicId: requestId },
+    { target: { kind: 'post', id: requestId } },
+    { actorId: requestId },
+    { eventId: requestId },
+    { keepVotes: 0 },
+    { removeVotes: 1 },
+  ])
+    assert.throws(() => decodeSystemNotice({ ...reset, ...patch }), {
+      kind: 'protocol',
+    });
+  assert.throws(
+    () => decodeSystemNotice({ ...systemNotice(), nickname: reset.nickname }),
+    { kind: 'protocol' },
+  );
+  assert.throws(
+    () =>
+      decodeSystemNoticesList({
+        items: [reset, systemNotice({ noticeId: otherId })],
+        nextCursor: null,
+        unreadCount: 2,
+      }),
+    { kind: 'protocol' },
+  );
+});

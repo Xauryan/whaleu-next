@@ -26,7 +26,12 @@ import {
   systemNoticesCursor,
 } from '../src/notifications/system-notices/cursor.js';
 import { SystemNoticesRepository } from '../src/notifications/system-notices/repository.js';
-import type { StoredSystemNotice } from '../src/notifications/system-notices/repository.js';
+import type {
+  StoredPostJuryRemovalNotice,
+  StoredProfileNicknameResetNotice,
+  StoredSystemNotice,
+} from '../src/notifications/system-notices/repository.js';
+import type { SystemNoticesSeek } from '../src/notifications/system-notices/cursor.js';
 import { SystemNoticesService } from '../src/notifications/system-notices/service.js';
 import { SystemNoticesModule } from '../src/notifications/system-notices/system-notices.module.js';
 
@@ -35,8 +40,8 @@ const errorCode = (code: string) => (error: unknown) =>
   error instanceof ApplicationError && error.code === code;
 function notice(
   owner: string,
-  patch: Partial<StoredSystemNotice> = {},
-): StoredSystemNotice {
+  patch: Partial<StoredPostJuryRemovalNotice> = {},
+): StoredPostJuryRemovalNotice {
   return {
     id: randomUUID(),
     decision_id: randomUUID(),
@@ -49,10 +54,29 @@ function notice(
     ...patch,
   };
 }
+function nicknameNotice(
+  owner: string,
+  patch: Partial<StoredProfileNicknameResetNotice> = {},
+): StoredProfileNicknameResetNotice {
+  return {
+    id: randomUUID(),
+    event_id: randomUUID(),
+    recipient_account_id: owner,
+    kind: 'profile_nickname_reset',
+    nickname: '违规昵称Ab12Cd',
+    created_at: occurredAt,
+    read_at: null,
+    ...patch,
+  };
+}
 function fixture() {
   const owner = randomUUID(),
     tx = {} as PoolClient;
-  const rows = [notice(owner), notice(owner), notice(owner)];
+  const rows: StoredSystemNotice[] = [
+    notice(owner),
+    notice(owner),
+    notice(owner),
+  ].sort((left, right) => (left.id < right.id ? 1 : -1));
   const calls: string[] = [];
   let transactions = 0,
     sessions = 0;
@@ -88,14 +112,24 @@ function fixture() {
     },
     page: async (
       account: string,
-      _limit: number,
-      _seek: unknown,
+      limit: number,
+      seek: SystemNoticesSeek | null,
       given: PoolClient,
     ) => {
       assert.equal(account, owner);
       assert.equal(given, tx);
       calls.push('page');
-      return rows;
+      return rows
+        .filter(
+          (row) =>
+            !seek ||
+            row.created_at.toISOString() < seek.at ||
+            (row.created_at.toISOString() === seek.at && row.id < seek.id) ||
+            (row.created_at.toISOString() === seek.at &&
+              row.id === seek.id &&
+              row.kind < seek.kind),
+        )
+        .slice(0, limit + 1);
     },
     count: async (account: string, given: PoolClient) => {
       assert.equal(account, owner);
@@ -205,7 +239,11 @@ test('system notice cursors are owner, purpose and limit bound without a raw own
     id = randomUUID(),
     at = occurredAt.toISOString();
   const cursor = encodeSystemNoticesCursor(at, id, owner, 20);
-  assert.deepEqual(systemNoticesCursor(cursor, owner, 20), { at, id });
+  assert.deepEqual(systemNoticesCursor(cursor, owner, 20), {
+    at,
+    id,
+    kind: 'post_jury_removed',
+  });
   assert.equal(systemNoticesCursor(undefined, owner, 20), null);
   assert.equal(
     Buffer.from(cursor, 'base64url').toString().includes(owner),
@@ -228,7 +266,10 @@ test('system notice cursors are owner, purpose and limit bound without a raw own
     { at: '2026-10-07T12:00:00Z' },
     { at: '2026-10-07T12:00:00.123+00:00' },
     { actor: owner },
-    { v: 2 },
+    { v: 3 },
+    { kind: 'unknown_notice' },
+    { kind: undefined },
+    { v: 1 },
   ])
     assert.throws(
       () =>
@@ -239,6 +280,44 @@ test('system notice cursors are owner, purpose and limit bound without a raw own
           owner,
           20,
         ),
+      BadRequestException,
+    );
+});
+
+test('mixed cursor discriminators are strict and existing v1 jury cursors remain owner and limit bound', () => {
+  const owner = randomUUID(),
+    id = randomUUID(),
+    at = occurredAt.toISOString();
+  const encoded = encodeSystemNoticesCursor(
+    at,
+    id,
+    owner,
+    2,
+    'profile_nickname_reset',
+  );
+  assert.deepEqual(systemNoticesCursor(encoded, owner, 2), {
+    at,
+    id,
+    kind: 'profile_nickname_reset',
+  });
+  const decoded = JSON.parse(Buffer.from(encoded, 'base64url').toString());
+  assert.equal(decoded.v, 2);
+  const legacy = Buffer.from(
+    JSON.stringify({ v: 1, scope: decoded.scope, limit: 2, at, id }),
+  ).toString('base64url');
+  assert.deepEqual(systemNoticesCursor(legacy, owner, 2), {
+    at,
+    id,
+    kind: 'post_jury_removed',
+  });
+  for (const args of [
+    [legacy, randomUUID(), 2],
+    [legacy, owner, 3],
+    [encoded, randomUUID(), 2],
+    [encoded, owner, 3],
+  ] as const)
+    assert.throws(
+      () => systemNoticesCursor(args[0], args[1], args[2]),
       BadRequestException,
     );
 });
@@ -269,9 +348,15 @@ test('owner notices expose only immutable summary data, page by limit and retain
   assert.deepEqual(systemNoticesCursor(result.nextCursor!, f.owner, 2), {
     at: occurredAt.toISOString(),
     id: f.rows[1]!.id,
+    kind: 'post_jury_removed',
   });
   const serialized = JSON.stringify(result);
-  for (const value of [f.owner, ...f.rows.map((row) => row.decision_id)])
+  for (const value of [
+    f.owner,
+    ...f.rows.map((row) =>
+      row.kind === 'post_jury_removed' ? row.decision_id : row.event_id,
+    ),
+  ])
     assert.equal(serialized.includes(value), false);
   assert.deepEqual(f.calls, [
     'session',
@@ -286,6 +371,82 @@ test('owner notices expose only immutable summary data, page by limit and retain
     (await short.service.list('session', { limit: 20 })).nextCursor,
     null,
   );
+});
+
+test('mixed owner pages preserve equal-time ordering and disclose only each notice summary', async () => {
+  const f = fixture();
+  const newest = notice(f.owner, {
+    id: '20000000-0000-4000-8000-000000000003',
+  });
+  const reset = nicknameNotice(f.owner, {
+    id: '20000000-0000-4000-8000-000000000002',
+  });
+  const oldest = notice(f.owner, {
+    id: '20000000-0000-4000-8000-000000000001',
+    read_at: occurredAt,
+  });
+  f.rows.splice(0, f.rows.length, newest, reset, oldest);
+  const first = await f.service.list('session', { limit: 1 });
+  const second = await f.service.list('session', {
+    limit: 1,
+    cursor: first.nextCursor!,
+  });
+  const firstCursor = JSON.parse(
+    Buffer.from(first.nextCursor!, 'base64url').toString(),
+  );
+  const legacyCursor = Buffer.from(
+    JSON.stringify({
+      v: 1,
+      scope: firstCursor.scope,
+      limit: 1,
+      at: firstCursor.at,
+      id: firstCursor.id,
+    }),
+  ).toString('base64url');
+  assert.deepEqual(
+    await f.service.list('session', { limit: 1, cursor: legacyCursor }),
+    second,
+  );
+  const third = await f.service.list('session', {
+    limit: 1,
+    cursor: second.nextCursor!,
+  });
+  assert.deepEqual(
+    [...first.items, ...second.items, ...third.items].map(
+      (row) => row.noticeId,
+    ),
+    [newest.id, reset.id, oldest.id],
+  );
+  assert.deepEqual(second.items[0], {
+    noticeId: reset.id,
+    kind: 'profile_nickname_reset',
+    createdAt: occurredAt.toISOString(),
+    readAt: null,
+    nickname: reset.nickname,
+  });
+  assert.deepEqual(systemNoticesCursor(second.nextCursor!, f.owner, 1), {
+    at: occurredAt.toISOString(),
+    id: reset.id,
+    kind: reset.kind,
+  });
+  assert.equal(third.nextCursor, null);
+  for (const page of [first, second, third]) assert.equal(page.unreadCount, 2);
+  const serialized = JSON.stringify([first, second, third]);
+  for (const privateValue of [
+    f.owner,
+    newest.decision_id,
+    oldest.decision_id,
+    reset.event_id,
+  ])
+    assert.equal(serialized.includes(privateValue), false);
+  const firstRead = await f.service.markRead('session', reset.id);
+  assert.deepEqual(await f.service.markRead('session', reset.id), firstRead);
+  assert.deepEqual(firstRead, {
+    noticeId: reset.id,
+    readAt: '2026-10-07T12:01:00.001Z',
+    unreadCount: 1,
+  });
+  assert.deepEqual(await f.service.unreadCount('session'), { unreadCount: 1 });
 });
 
 test('only owned exact notices can be marked read and retries preserve first readAt and counts', async () => {
@@ -389,12 +550,51 @@ test('repository uses bounded owner-keyed rates, owner-scoped SQL and atomic fir
   assert.match(statements.at(-1)!.sql, /LEAST\(.*hits\+1,1000000\)/s);
   hits = 121;
   await assert.rejects(repository.rate(owner, tx), errorCode('RATE_LIMITED'));
-  const seek = { at: occurredAt.toISOString(), id: row.id };
+  const seek = {
+    at: occurredAt.toISOString(),
+    id: row.id,
+    kind: row.kind,
+  };
   await repository.page(owner, 50, seek, tx);
-  assert.deepEqual(statements.at(-1)!.values, [owner, seek.at, row.id, 51]);
+  assert.deepEqual(statements.at(-1)!.values, [
+    owner,
+    seek.at,
+    row.id,
+    row.kind,
+    51,
+  ]);
   assert.match(statements.at(-1)!.sql, /WHERE recipient_account_id=\$1/);
   assert.match(statements.at(-1)!.sql, /ORDER BY created_at DESC,id DESC/);
+  assert.match(statements.at(-1)!.sql, /UNION ALL/);
+  assert.match(
+    statements.at(-1)!.sql,
+    /FROM whaleu_notifications.profile_moderation_notices WHERE recipient_account_id=\$1/,
+  );
+  assert.equal(
+    statements.at(-1)!.sql.match(/WHERE recipient_account_id=\$1/g)?.length,
+    2,
+  );
+  assert.equal(
+    statements.at(-1)!.sql.match(/\(created_at,id,kind COLLATE "C"\)</g)
+      ?.length,
+    2,
+  );
+  assert.equal(
+    statements
+      .at(-1)!
+      .sql.match(
+        /ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT \$5/g,
+      )?.length,
+    3,
+  );
+  await repository.page(owner, 20, null, tx);
+  assert.deepEqual(statements.at(-1)!.values, [owner, null, null, null, 21]);
   await repository.markRead(owner, row.id, tx);
+  assert.match(
+    statements.at(-2)!.sql,
+    /FROM whaleu_notifications.system_notice_ids\s+WHERE id=\$1 AND recipient_account_id=\$2/,
+  );
+  assert.deepEqual(statements.at(-2)!.values, [row.id, owner]);
   assert.deepEqual(statements.at(-1)!.values, [row.id, owner]);
   assert.match(statements.at(-1)!.sql, /COALESCE\(read_at,/);
   assert.match(
@@ -409,8 +609,83 @@ test('repository uses bounded owner-keyed rates, owner-scoped SQL and atomic fir
   assert.equal(await repository.count(owner, tx), 2147483647);
   assert.match(
     statements.at(-1)!.sql,
-    /LEAST\(count\(\*\),2147483647\)::integer/,
+    /LEAST\(sum\(unread_count\),2147483647\)::integer/,
   );
+  assert.equal(
+    statements
+      .at(-1)!
+      .sql.match(/WHERE recipient_account_id=\$1 AND read_at IS NULL/g)?.length,
+    2,
+  );
+  assert.match(
+    statements.at(-1)!.sql,
+    /FROM whaleu_notifications.profile_moderation_notices/,
+  );
+  assert.deepEqual(statements.at(-1)!.values, [owner]);
+});
+
+test('registry routes nickname reads only to the exact owned source and rejects unknown owners or kinds', async () => {
+  const repository = new SystemNoticesRepository(),
+    owner = randomUUID(),
+    stranger = randomUUID(),
+    row = nicknameNotice(owner);
+  const statements: { sql: string; values: unknown[] | undefined }[] = [];
+  let kind: string = row.kind;
+  const tx = {
+    query: async (sql: string, values?: unknown[]) => {
+      statements.push({ sql, values });
+      if (sql.includes('FROM whaleu_notifications.system_notice_ids')) {
+        assert.match(sql, /WHERE id=\$1 AND recipient_account_id=\$2/);
+        return {
+          rows: values?.[0] === row.id && values[1] === owner ? [{ kind }] : [],
+        };
+      }
+      assert.match(
+        sql,
+        /^UPDATE whaleu_notifications.profile_moderation_notices/,
+      );
+      assert.match(sql, /WHERE id=\$1 AND recipient_account_id=\$2/);
+      assert.match(sql, /COALESCE\(read_at,/);
+      assert.deepEqual(values, [row.id, owner]);
+      row.read_at ??= occurredAt;
+      return { rows: [row] };
+    },
+  } as unknown as PoolClient;
+  const first = await repository.markRead(owner, row.id, tx);
+  assert.equal(first.kind, 'profile_nickname_reset');
+  assert.deepEqual(await repository.markRead(owner, row.id, tx), first);
+  assert.equal(
+    statements.filter(({ sql }) => sql.startsWith('UPDATE')).length,
+    2,
+  );
+  for (const args of [
+    [stranger, row.id],
+    [owner, randomUUID()],
+  ] as const)
+    await assert.rejects(
+      repository.markRead(args[0], args[1], tx),
+      errorCode('NOTICE_NOT_FOUND'),
+    );
+  assert.equal(
+    statements.filter(({ sql }) => sql.startsWith('UPDATE')).length,
+    2,
+  );
+  kind = 'unknown_notice';
+  await assert.rejects(
+    repository.markRead(owner, row.id, tx),
+    errorCode('SYSTEM_NOTICES_UNAVAILABLE'),
+  );
+  assert.equal(
+    statements.filter(({ sql }) => sql.startsWith('UPDATE')).length,
+    2,
+  );
+  for (const { sql } of statements) {
+    assert.doesNotMatch(
+      sql,
+      /whaleu_community\.|whaleu_profile\.|whaleu_safety\./,
+    );
+    assert.doesNotMatch(sql, /UPDATE whaleu_notifications.system_notices/);
+  }
 });
 
 test('repository append preserves deduplication and rejects a conflicting replay', async () => {

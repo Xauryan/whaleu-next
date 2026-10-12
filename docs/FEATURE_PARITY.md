@@ -692,3 +692,14 @@ See [W3 contract](WINDOW_DISCUSSION.md). Local simulation is not complete parity
   optional comments/images, physical devices and providers remain separate gates
 
 See [the bounded floor-score contract](CANTEEN_FLOOR_SCORES.md).
+
+Scoped nickname-moderation development slice: exact named post/comment/reply
+entry, fixed original regional `sync:none` school/super-admin authority, shared
+Profile CAS, immutable atomic event/receipt/private notice, original-key recovery
+and native confirmation are implemented. Ordinary named snapshot/read semantics
+and avatar current-delivery proofs are unchanged. A reset has account-wide public
+nickname effects; anonymous personas and public ID stay unchanged. Related-campus
+and university-city scope, avatar moderation, legacy native status-code relogin,
+production source acceptance and physical-device/provider verification remain
+open. This is not full profile moderation or legacy parity. See
+[the exact scope and contract](API_PROFILE_MODERATION.md).

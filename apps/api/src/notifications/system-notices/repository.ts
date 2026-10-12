@@ -2,18 +2,28 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
-import type { PostJuryRemovalNotice } from './contracts.js';
+import type { PostJuryRemovalNotice, SystemNoticeKind } from './contracts.js';
+import type { SystemNoticesSeek } from './cursor.js';
 
-export interface StoredSystemNotice {
+interface StoredSystemNoticeBase {
   id: string;
-  decision_id: string;
   recipient_account_id: string;
-  kind: 'post_jury_removed';
-  keep_votes: number;
-  remove_votes: number;
   created_at: Date;
   read_at: Date | null;
 }
+export interface StoredPostJuryRemovalNotice extends StoredSystemNoticeBase {
+  decision_id: string;
+  kind: 'post_jury_removed';
+  keep_votes: number;
+  remove_votes: number;
+}
+export interface StoredProfileNicknameResetNotice extends StoredSystemNoticeBase {
+  event_id: string;
+  kind: 'profile_nickname_reset';
+  nickname: string;
+}
+export type StoredSystemNotice =
+  StoredPostJuryRemovalNotice | StoredProfileNicknameResetNotice;
 
 @Injectable()
 export class SystemNoticesRepository {
@@ -42,7 +52,13 @@ export class SystemNoticesRepository {
   async count(accountId: string, tx: PoolClient): Promise<number> {
     return (
       await tx.query<{ count: number }>(
-        'SELECT LEAST(count(*),2147483647)::integer AS count FROM whaleu_notifications.system_notices WHERE recipient_account_id=$1 AND read_at IS NULL',
+        `SELECT LEAST(sum(unread_count),2147483647)::integer AS count FROM (
+          SELECT count(*) AS unread_count FROM whaleu_notifications.system_notices
+          WHERE recipient_account_id=$1 AND read_at IS NULL
+          UNION ALL
+          SELECT count(*) AS unread_count FROM whaleu_notifications.profile_moderation_notices
+          WHERE recipient_account_id=$1 AND read_at IS NULL
+        ) notices`,
         [accountId],
       )
     ).rows[0]!.count;
@@ -50,16 +66,31 @@ export class SystemNoticesRepository {
   async page(
     accountId: string,
     limit: number,
-    seek: { at: string; id: string } | null,
+    seek: SystemNoticesSeek | null,
     tx: PoolClient,
   ): Promise<StoredSystemNotice[]> {
     return (
       await tx.query<StoredSystemNotice>(
-        `SELECT id,decision_id,recipient_account_id,kind,keep_votes,remove_votes,created_at,read_at
-       FROM whaleu_notifications.system_notices WHERE recipient_account_id=$1
-       AND ($2::timestamptz IS NULL OR (created_at,id)<($2::timestamptz,$3::uuid))
-       ORDER BY created_at DESC,id DESC LIMIT $4`,
-        [accountId, seek?.at ?? null, seek?.id ?? null, limit + 1],
+        `SELECT * FROM (
+          (SELECT id,decision_id,NULL::uuid AS event_id,recipient_account_id,kind,
+            keep_votes,remove_votes,NULL::text AS nickname,created_at,read_at
+          FROM whaleu_notifications.system_notices WHERE recipient_account_id=$1
+          AND ($2::timestamptz IS NULL OR (created_at,id,kind COLLATE "C")<($2::timestamptz,$3::uuid,$4::text COLLATE "C"))
+          ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5)
+          UNION ALL
+          (SELECT id,NULL::uuid AS decision_id,event_id,recipient_account_id,kind,
+            NULL::integer AS keep_votes,NULL::integer AS remove_votes,nickname,created_at,read_at
+          FROM whaleu_notifications.profile_moderation_notices WHERE recipient_account_id=$1
+          AND ($2::timestamptz IS NULL OR (created_at,id,kind COLLATE "C")<($2::timestamptz,$3::uuid,$4::text COLLATE "C"))
+          ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5)
+        ) notices ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5`,
+        [
+          accountId,
+          seek?.at ?? null,
+          seek?.id ?? null,
+          seek?.kind ?? null,
+          limit + 1,
+        ],
       )
     ).rows;
   }
@@ -70,14 +101,32 @@ export class SystemNoticesRepository {
   ): Promise<StoredSystemNotice> {
     // The owner UPDATE lock serializes read changes and appends. COALESCE keeps
     // the first read timestamp stable on retries, including concurrent retries.
-    const row = (
-      await tx.query<StoredSystemNotice>(
-        `UPDATE whaleu_notifications.system_notices
-       SET read_at=COALESCE(read_at,date_trunc('milliseconds',clock_timestamp()))
-       WHERE id=$1 AND recipient_account_id=$2
-       RETURNING id,decision_id,recipient_account_id,kind,keep_votes,remove_votes,created_at,read_at`,
+    // The mandatory cross-table registry makes this UUID route unambiguous even
+    // for deliberately colliding IDs, without relying on random UUID chance.
+    const identity = (
+      await tx.query<{ kind: SystemNoticeKind }>(
+        `SELECT kind FROM whaleu_notifications.system_notice_ids
+         WHERE id=$1 AND recipient_account_id=$2`,
         [noticeId, accountId],
       )
+    ).rows[0];
+    if (!identity) throw new ApplicationError('NOTICE_NOT_FOUND');
+    let statement: string;
+    if (identity.kind === 'post_jury_removed') {
+      statement = `UPDATE whaleu_notifications.system_notices
+       SET read_at=COALESCE(read_at,date_trunc('milliseconds',clock_timestamp()))
+       WHERE id=$1 AND recipient_account_id=$2
+       RETURNING id,decision_id,recipient_account_id,kind,keep_votes,remove_votes,created_at,read_at`;
+    } else if (identity.kind === 'profile_nickname_reset') {
+      statement = `UPDATE whaleu_notifications.profile_moderation_notices
+       SET read_at=COALESCE(read_at,date_trunc('milliseconds',clock_timestamp()))
+       WHERE id=$1 AND recipient_account_id=$2
+       RETURNING id,event_id,recipient_account_id,kind,nickname,created_at,read_at`;
+    } else {
+      throw new ApplicationError('SYSTEM_NOTICES_UNAVAILABLE');
+    }
+    const row = (
+      await tx.query<StoredSystemNotice>(statement, [noticeId, accountId])
     ).rows[0];
     if (!row) throw new ApplicationError('NOTICE_NOT_FOUND');
     return row;
@@ -97,7 +146,7 @@ export class SystemNoticesRepository {
       ],
     );
     const row = (
-      await tx.query<StoredSystemNotice>(
+      await tx.query<StoredPostJuryRemovalNotice>(
         `SELECT id,decision_id,recipient_account_id,kind,keep_votes,remove_votes,created_at,read_at
        FROM whaleu_notifications.system_notices WHERE decision_id=$1 AND recipient_account_id=$2`,
         [input.decisionId, input.ownerAccountId],

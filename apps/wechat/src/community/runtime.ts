@@ -1,4 +1,9 @@
 import {
+  HttpProfileModerationGateway,
+  type ProfileModerationGateway,
+} from '../profile-moderation/gateway';
+import { PendingProfileModerationStore } from '../profile-moderation/pending';
+import {
   HttpCategoryReclassificationGateway,
   type CategoryReclassificationGateway,
 } from '../category-reclassification/gateway';
@@ -226,6 +231,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly profileModeration?: ProfileModerationGateway;
+  readonly pendingProfileModeration?: PendingProfileModerationStore;
   readonly categoryReclassification?: CategoryReclassificationGateway;
   readonly pendingCategoryReclassification?: PendingCategoryReclassificationStore;
   readonly ownerPostVisibility?: OwnerPostVisibilityGateway;
@@ -422,6 +429,13 @@ export function createCommunityRuntime(
     pendingWindowDiscussion: new PendingWindowDiscussionStore(storage, origin),
     ...(identity.api
       ? { windowDiscussion: new HttpWindowDiscussionGateway(identity.api) }
+      : {}),
+    pendingProfileModeration: new PendingProfileModerationStore(
+      storage,
+      origin,
+    ),
+    ...(identity.api
+      ? { profileModeration: new HttpProfileModerationGateway(identity.api) }
       : {}),
     pendingCategoryReclassification: new PendingCategoryReclassificationStore(
       storage,

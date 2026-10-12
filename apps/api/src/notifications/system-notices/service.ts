@@ -14,14 +14,21 @@ import { encodeSystemNoticesCursor, systemNoticesCursor } from './cursor.js';
 import { SystemNoticesRepository } from './repository.js';
 import type { StoredSystemNotice } from './repository.js';
 
-const project = (row: StoredSystemNotice): SystemNoticeView => ({
-  noticeId: row.id,
-  kind: row.kind,
-  createdAt: row.created_at.toISOString(),
-  readAt: row.read_at?.toISOString() ?? null,
-  keepVotes: row.keep_votes,
-  removeVotes: row.remove_votes,
-});
+const project = (row: StoredSystemNotice): SystemNoticeView => {
+  const base = {
+    noticeId: row.id,
+    createdAt: row.created_at.toISOString(),
+    readAt: row.read_at?.toISOString() ?? null,
+  };
+  return row.kind === 'post_jury_removed'
+    ? {
+        ...base,
+        kind: row.kind,
+        keepVotes: row.keep_votes,
+        removeVotes: row.remove_votes,
+      }
+    : { ...base, kind: row.kind, nickname: row.nickname };
+};
 
 @Injectable()
 export class SystemNoticesService {
@@ -65,6 +72,7 @@ export class SystemNoticesService {
                 last.id,
                 accountId,
                 query.limit,
+                last.kind,
               )
             : null,
         unreadCount,

@@ -1,3 +1,4 @@
+import { ProfileModerationTargetFacade } from './profile-moderation-target.facade.js';
 import { CategoryReclassificationController } from './category-reclassification/controller.js';
 import { CategoryReclassificationService } from './category-reclassification/service.js';
 import { OwnerVisibilityController } from './owner-visibility/controller.js';
@@ -347,6 +348,7 @@ export class CommunityRecoveryController {
     CommunityRecoveryController,
   ],
   exports: [
+    ProfileModerationTargetFacade,
     CommunityExperienceSourceFacade,
     CommunityProfileDiscoveryFacade,
     CommunityContentIdentityService,
@@ -357,6 +359,7 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    ProfileModerationTargetFacade,
     CategoryReclassificationService,
     OwnerVisibilityService,
     OwnerVisibilityRepository,

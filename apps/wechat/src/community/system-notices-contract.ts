@@ -1,8 +1,9 @@
+import { isRecord } from '../api/errors';
 import { isUuid } from '../profile/contract';
 import { cursor, exact, invalid, timestamp } from './contract';
 
 /** Owner-only outcome metadata, deliberately without a source, author or preview. */
-export interface SystemNotice {
+export interface PostJuryRemovedNotice {
   readonly noticeId: string;
   readonly kind: 'post_jury_removed';
   readonly createdAt: string;
@@ -10,6 +11,14 @@ export interface SystemNotice {
   readonly keepVotes: number;
   readonly removeVotes: number;
 }
+export interface ProfileNicknameResetNotice {
+  readonly noticeId: string;
+  readonly kind: 'profile_nickname_reset';
+  readonly createdAt: string;
+  readonly readAt: string | null;
+  readonly nickname: string;
+}
+export type SystemNotice = PostJuryRemovedNotice | ProfileNicknameResetNotice;
 export interface SystemNoticesList {
   readonly items: readonly SystemNotice[];
   readonly nextCursor: string | null;
@@ -31,6 +40,25 @@ const utcMilliseconds = (value: unknown): value is string =>
   timestamp(value) && new Date(value).toISOString() === value;
 
 export function decodeSystemNotice(value: unknown): SystemNotice {
+  if (!isRecord(value)) invalid();
+  if (value.kind === 'profile_nickname_reset') {
+    exact(value, ['noticeId', 'kind', 'createdAt', 'readAt', 'nickname']);
+    if (
+      !isUuid(value.noticeId) ||
+      !utcMilliseconds(value.createdAt) ||
+      !(value.readAt === null || utcMilliseconds(value.readAt)) ||
+      typeof value.nickname !== 'string' ||
+      !/^违规昵称[A-Za-z0-9]{6}$/.test(value.nickname)
+    )
+      invalid();
+    return Object.freeze({
+      noticeId: value.noticeId,
+      kind: 'profile_nickname_reset',
+      createdAt: value.createdAt,
+      readAt: value.readAt,
+      nickname: value.nickname,
+    });
+  }
   exact(value, [
     'noticeId',
     'kind',

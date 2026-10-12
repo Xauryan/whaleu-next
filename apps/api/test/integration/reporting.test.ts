@@ -572,6 +572,7 @@ test(
           );
           const page = await notices.list(owner.accessToken, { limit: 20 });
           assert.equal(page.items.length, 1);
+          assert.equal(page.items[0]!.kind, 'post_jury_removed');
           assert.equal(page.items[0]!.removeVotes, 6);
           assert.equal(
             (await notices.list(jurors[0]!.accessToken, { limit: 20 })).items
@@ -836,11 +837,10 @@ test(
           );
           await worker.run({ mode: 'apply', juryIds: [j.id] });
           assert.equal((await jury(p)).state, 'removed');
-          assert.equal(
-            (await notices.list(owner.accessToken, { limit: 20 })).items[0]!
-              .removeVotes,
-            5,
-          );
+          const notice = (await notices.list(owner.accessToken, { limit: 20 }))
+            .items[0]!;
+          assert.equal(notice.kind, 'post_jury_removed');
+          assert.equal(notice.removeVotes, 5);
         },
       );
       await t.test(
@@ -1398,6 +1398,7 @@ test(
                   limit: 20,
                 });
                 assert.equal(page.items.length, 1);
+                assert.equal(page.items[0]!.kind, 'post_jury_removed');
                 assert.equal(page.items[0]!.keepVotes, 0);
                 assert.equal(page.items[0]!.removeVotes, 1);
               },
