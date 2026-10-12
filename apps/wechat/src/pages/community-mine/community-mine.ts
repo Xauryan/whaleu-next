@@ -1,3 +1,7 @@
+import {
+  OwnerPostVisibilityController,
+  initialOwnerVisibilityView,
+} from '../../owner-post-visibility/controller';
 import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import { AuthorNavigator } from '../../profile/author-navigation';
 import {
@@ -8,14 +12,51 @@ import type { WhaleuApp } from '../../app';
 import { MineController, initialMineView } from './controller';
 Page({
   data: {
+    ownerVisibility: initialOwnerVisibilityView(),
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     ...initialMineView(),
     tradingCategories,
     tradingLabels,
   },
+  ownerVisibilityController: undefined as
+    OwnerPostVisibilityController | undefined,
+  onOwnerVisibilityHide(event: { currentTarget: { dataset: { id: string } } }) {
+    void this.ownerVisibilityController?.request(
+      event.currentTarget.dataset.id,
+      true,
+    );
+  },
+  onOwnerVisibilityUnhide(event: {
+    currentTarget: { dataset: { id: string } };
+  }) {
+    void this.ownerVisibilityController?.request(
+      event.currentTarget.dataset.id,
+      false,
+    );
+  },
+  onOwnerVisibilitySubmit() {
+    void this.ownerVisibilityController?.submit();
+  },
+  onOwnerVisibilityRecover() {
+    void this.ownerVisibilityController?.recover();
+  },
+  onOwnerVisibilityRetry() {
+    void this.ownerVisibilityController?.recover(true);
+  },
+  onOwnerVisibilityCancel() {
+    this.ownerVisibilityController?.requestCancellation();
+  },
+  onOwnerVisibilityConfirmCancel() {
+    void this.ownerVisibilityController?.confirmCancellation();
+  },
+  onOwnerVisibilityClose() {
+    this.ownerVisibilityController?.closeConfirmation();
+  },
   controller: undefined as MineController | undefined,
   authorNavigator: undefined as AuthorNavigator | undefined,
   onShow() {
+    this.ownerVisibilityController?.dispose();
+    this.ownerVisibilityController = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = new AuthorNavigator(
       wx,
@@ -28,6 +69,14 @@ Page({
       this.setData({ error: '环境未初始化，请重新打开小程序' });
       return;
     }
+    this.ownerVisibilityController = new OwnerPostVisibilityController(
+      runtime,
+      (view) => this.setData({ ownerVisibility: view }),
+      () => {
+        if (!runtime.safetyChanges) void this.controller?.load();
+      },
+    );
+    void this.ownerVisibilityController.load();
     this.controller = new MineController(runtime, (view) =>
       this.setData({ ...view }),
     );
@@ -51,6 +100,7 @@ Page({
     );
   },
   onReload() {
+    void this.ownerVisibilityController?.load();
     void this.controller?.load();
   },
   onMore() {
@@ -60,12 +110,16 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.ownerVisibilityController?.dispose();
+    this.ownerVisibilityController = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = undefined;
     this.controller?.dispose();
     this.controller = undefined;
   },
   onUnload() {
+    this.ownerVisibilityController?.dispose();
+    this.ownerVisibilityController = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = undefined;
     this.controller?.dispose();

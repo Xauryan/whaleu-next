@@ -148,7 +148,7 @@ export class LikedHistoryService {
           const post = posts.get(candidate.post_id)!;
           if (!postVisibility.has(post.id)) {
             try {
-              await this.access.accessiblePost(post.id, actor, tx);
+              await this.access.projectionPost(post.id, actor, tx);
               postVisibility.set(post.id, true);
             } catch (error) {
               if (

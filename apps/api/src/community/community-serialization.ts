@@ -1,3 +1,6 @@
+import { ownerPostVisibilityAllowed } from './owner-visibility/read-proof.js';
+import type { VisibilityPurpose } from './community-policy.js';
+import type { MediaReadPurpose } from '../media/owner-proof.js';
 import { FeedbackProjectionService } from './feedback/projection.js';
 import { TextReviewRuntime } from './text-review/runtime.js';
 import { mediaAttachmentDescriptorSchema } from '../media/contracts.js';
@@ -97,6 +100,7 @@ export class CommunitySerializer {
     id: string,
     tx: PoolClient,
     viewer: string | null,
+    purpose: MediaReadPurpose = 'list-projection',
   ): Promise<MediaView[]> {
     const assets = await this.repository.images(kind, id, tx);
     if (!assets.length) return [];
@@ -109,7 +113,7 @@ export class CommunitySerializer {
           resourceId: id,
           contentVersion: 1,
         },
-        purpose: 'list-projection',
+        purpose,
       }),
       'MEDIA_UNAVAILABLE',
     );
@@ -131,7 +135,15 @@ export class CommunitySerializer {
     viewer: string | null,
     authority: Authority | null,
     tx: PoolClient,
+    purpose: MediaReadPurpose = 'list-projection',
   ): Promise<PostView> {
+    const publicEligible = await ownerPostVisibilityAllowed(
+      post.id,
+      post.account_id,
+      viewer,
+      'list_projection',
+      tx,
+    );
     const likes = await tx.query<{ count: number; liked: boolean }>(
       'SELECT count(*)::integer AS count,coalesce(bool_or(account_id=$2::uuid),false) AS liked FROM whaleu_community.post_likes WHERE post_id=$1',
       [post.id, viewer],
@@ -145,10 +157,27 @@ export class CommunitySerializer {
     let commentCount = 0,
       replyCount = 0;
     for (const comment of comments.rows)
-      if (await this.access.visible(viewer, comment, tx, 'list_projection')) {
+      if (
+        await this.access.visible(
+          viewer,
+          comment,
+          tx,
+          purpose === 'list-projection'
+            ? 'list_projection'
+            : 'detail_projection',
+        )
+      ) {
         commentCount++;
-        replyCount += (await this.visibleReplies(comment.id, viewer, tx))
-          .length;
+        replyCount += (
+          await this.visibleReplies(
+            comment.id,
+            viewer,
+            tx,
+            purpose === 'list-projection'
+              ? 'list_projection'
+              : 'detail_projection',
+          )
+        ).length;
         if (replyCount > 1024)
           throw new ApplicationError('COMMUNITY_UNAVAILABLE');
       }
@@ -167,7 +196,11 @@ export class CommunitySerializer {
             targetPostId: post.id,
           })
         : authority;
-    if (commentAuthority && (!commentAuthority.runtime || reviewAvailable))
+    if (
+      publicEligible &&
+      commentAuthority &&
+      (!commentAuthority.runtime || reviewAvailable)
+    )
       for (const mode of ['named', 'anonymous'] as const) {
         if (
           commentAuthority.runtime &&
@@ -200,7 +233,12 @@ export class CommunitySerializer {
         if (canComment) break;
       }
     const saved = await this.saved.projection(post.id, viewer, tx);
-    const poll = await this.polls.project(post.id, viewer, authority, tx);
+    const poll = await this.polls.project(
+      post.id,
+      viewer,
+      publicEligible ? authority : null,
+      tx,
+    );
     const formation = await this.formations.project(
       post,
       viewer,
@@ -226,7 +264,7 @@ export class CommunitySerializer {
       space: { id: space.id, kind: space.kind, name: space.name },
       category: post.category,
       text: post.text,
-      images: await this.images('post', post.id, tx, viewer),
+      images: await this.images('post', post.id, tx, viewer, purpose),
       author: await this.author(post, post, tx),
       publishedAt: post.published_at.toISOString(),
       likeCount: likes.rows[0]!.count,
@@ -240,11 +278,10 @@ export class CommunitySerializer {
           viewer === post.account_id && actionAllowed(authority, 'delete'),
         canComment,
         isSaved: saved.isSaved,
-        canSave: actionAllowed(authority, 'save_post'),
-        canSetUpdatePreference: actionAllowed(
-          authority,
-          'set_post_update_preference',
-        ),
+        canSave: publicEligible && actionAllowed(authority, 'save_post'),
+        canSetUpdatePreference:
+          publicEligible &&
+          actionAllowed(authority, 'set_post_update_preference'),
       },
       commentsPolicy: post.comments_policy,
       allowAnonymousDm:
@@ -278,7 +315,13 @@ export class CommunitySerializer {
       id: comment.id,
       postId: post.id,
       text: comment.text,
-      images: await this.images('comment', comment.id, tx, viewer),
+      images: await this.images(
+        'comment',
+        comment.id,
+        tx,
+        viewer,
+        'direct-content',
+      ),
       likeCount: likes.count,
       replyCount: replies.length,
       isPinned,
@@ -298,7 +341,16 @@ export class CommunitySerializer {
       viewer: {
         isSelf: viewer === comment.account_id,
         isLiked: likes.liked,
-        canPin: viewer === post.account_id && actionAllowed(authority, 'pin'),
+        canPin:
+          viewer === post.account_id &&
+          (await ownerPostVisibilityAllowed(
+            post.id,
+            post.account_id,
+            viewer,
+            'list_projection',
+            tx,
+          )) &&
+          actionAllowed(authority, 'pin'),
         canDelete:
           viewer === comment.account_id && actionAllowed(authority, 'delete'),
       },
@@ -321,6 +373,7 @@ export class CommunitySerializer {
     rootId: string,
     viewer: string | null,
     tx: PoolClient,
+    purpose: VisibilityPurpose = 'detail_projection',
   ): Promise<StoredReply[]> {
     const rows = await tx.query<StoredReply>(
       "SELECT * FROM whaleu_community.replies WHERE root_comment_id=$1 AND visibility='approved' AND deleted_at IS NULL ORDER BY sequence LIMIT 1025 FOR SHARE",
@@ -330,7 +383,7 @@ export class CommunitySerializer {
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     const visible: StoredReply[] = [];
     for (const reply of rows.rows)
-      if (await this.access.visible(viewer, reply, tx, 'list_projection'))
+      if (await this.access.visible(viewer, reply, tx, purpose))
         visible.push(reply);
     return visible;
   }
@@ -352,7 +405,7 @@ export class CommunitySerializer {
       target =
         original.post_id === post.id &&
         original.root_comment_id === root.id &&
-        (await this.access.visible(viewer, original, tx, 'list_projection'))
+        (await this.access.visible(viewer, original, tx, 'detail_projection'))
           ? {
               kind: 'reply',
               id: original.id,
@@ -374,7 +427,13 @@ export class CommunitySerializer {
       rootCommentId: root.id,
       target,
       text: reply.text,
-      images: await this.images('reply', reply.id, tx, viewer),
+      images: await this.images(
+        'reply',
+        reply.id,
+        tx,
+        viewer,
+        'direct-content',
+      ),
       author: await this.author(reply, post, tx),
       createdAt: reply.created_at.toISOString(),
       likeCount: likes.count,

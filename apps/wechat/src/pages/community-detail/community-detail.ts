@@ -1,4 +1,8 @@
 import {
+  OwnerPostVisibilityController,
+  initialOwnerVisibilityView,
+} from '../../owner-post-visibility/controller';
+import {
   PinDetailController,
   initialPinDetailView,
 } from '../../post-pins/controller';
@@ -75,6 +79,7 @@ import {
 } from '../../community/poll-controller';
 Page({
   data: {
+    ownerVisibility: initialOwnerVisibilityView(),
     postPin: initialPinDetailView(),
     namedAvatar: initialNamedAvatarView(),
     mediaRead: initialMediaReadView(),
@@ -96,6 +101,40 @@ Page({
     postLikeMutation: initialPostLikeMutationView(),
     tradingMutation: initialTradingMutationView(),
     tradingContacts: initialTradingContactsView(),
+  },
+  ownerVisibilityController: undefined as
+    OwnerPostVisibilityController | undefined,
+  onOwnerVisibilityHide(event: { currentTarget: { dataset: { id: string } } }) {
+    void this.ownerVisibilityController?.request(
+      event.currentTarget.dataset.id,
+      true,
+    );
+  },
+  onOwnerVisibilityUnhide(event: {
+    currentTarget: { dataset: { id: string } };
+  }) {
+    void this.ownerVisibilityController?.request(
+      event.currentTarget.dataset.id,
+      false,
+    );
+  },
+  onOwnerVisibilitySubmit() {
+    void this.ownerVisibilityController?.submit();
+  },
+  onOwnerVisibilityRecover() {
+    void this.ownerVisibilityController?.recover();
+  },
+  onOwnerVisibilityRetry() {
+    void this.ownerVisibilityController?.recover(true);
+  },
+  onOwnerVisibilityCancel() {
+    this.ownerVisibilityController?.requestCancellation();
+  },
+  onOwnerVisibilityConfirmCancel() {
+    void this.ownerVisibilityController?.confirmCancellation();
+  },
+  onOwnerVisibilityClose() {
+    this.ownerVisibilityController?.closeConfirmation();
   },
   namedAvatarController: undefined as NamedAvatarController | undefined,
   mediaReadController: undefined as MediaReadController | undefined,
@@ -176,6 +215,8 @@ Page({
     void this.pinController?.confirmCancellation();
   },
   onShow() {
+    this.ownerVisibilityController?.dispose();
+    this.ownerVisibilityController = undefined;
     this.pinController?.dispose();
     this.pinController = undefined;
 
@@ -237,6 +278,22 @@ Page({
       this.setData({ error: '帖子地址无效或环境尚未初始化' });
       return;
     }
+    this.ownerVisibilityController = new OwnerPostVisibilityController(
+      runtime,
+      (view) => {
+        this.setData({ ownerVisibility: view });
+        if (view.frozen) this.pinController?.clear();
+      },
+      () => {
+        if (!runtime.safetyChanges) {
+          void this.controller?.load();
+          void Promise.resolve().then(() =>
+            this.ownerVisibilityController?.load(this.postId),
+          );
+        }
+      },
+    );
+    void this.ownerVisibilityController.load(this.postId);
     if (runtime.views)
       this.viewObserver = new ViewObserver(
         wx,
@@ -549,6 +606,7 @@ Page({
               this.pinController === pins &&
               this.controller?.readGeneration === readGeneration &&
               this.data.loaded &&
+              !this.data.ownerVisibility.frozen &&
               this.data.post?.id === post.id
             )
               void pins?.load(post.id);
@@ -1014,6 +1072,7 @@ Page({
     this.namedAvatarController?.imageFailed();
   },
   onReload() {
+    void this.ownerVisibilityController?.load(this.postId);
     this.namedAvatarController?.clear();
     this.reportMutations?.dismiss();
     this.blockMutations?.dismissBlock();
@@ -1091,6 +1150,8 @@ Page({
     this.savedMutations?.cancel();
   },
   onHide() {
+    this.ownerVisibilityController?.dispose();
+    this.ownerVisibilityController = undefined;
     this.pinController?.dispose();
     this.pinController = undefined;
     this.namedAvatarController?.dispose();
@@ -1138,6 +1199,8 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.ownerVisibilityController?.dispose();
+    this.ownerVisibilityController = undefined;
     this.pinController?.dispose();
     this.pinController = undefined;
     this.namedAvatarController?.dispose();

@@ -30,6 +30,7 @@ import type { IdentityService } from '../src/identity/identity.service.js';
 import type { AuthorDisplayService } from '../src/profile/author-display.service.js';
 import type { SafetyRepository } from '../src/safety/repository.js';
 import { NamedBlockVisibility } from '../src/safety/visibility.js';
+import { startTransactionDeadlines } from '../src/database/transaction-deadlines.js';
 import { verified } from './support/community-fixtures.js';
 
 const viewer = 'viewer';
@@ -101,14 +102,32 @@ function fixture() {
     base: allowed,
     scopeError: null as Error | null,
     blocks: new Map<string, Directions | null>(),
+    ownerHidden: false,
     queryRows: (_sql: string): unknown[] => [],
   };
   const tx = {
-    query: async (sql: string) => {
+    query: async (sql: string, args: unknown[] = []) => {
       trace.push('query');
+      if (sql.includes('LEFT JOIN whaleu_community.post_owner_visibility')) {
+        assert.equal(args[0], state.post.id);
+        return {
+          rows: [
+            {
+              postId: state.post.id,
+              ownerHidden: state.ownerHidden,
+              version: state.ownerHidden ? 1 : 0,
+              requestId: state.ownerHidden
+                ? '10000000-0000-4000-8000-000000000099'
+                : null,
+              xmin: state.ownerHidden ? '100' : null,
+            },
+          ],
+        };
+      }
       return { rows: state.queryRows(sql) };
     },
   } as unknown as PoolClient;
+  startTransactionDeadlines(tx);
   const base: CommunityVisibilityPort = {
     check: async (viewer, subject, tx, purpose) => {
       trace.push(`visibility:${subject.contentId}:${purpose}`);
@@ -464,16 +483,21 @@ test('comment access checks the parent directly and projects the child one way, 
       f.checks.map(({ subject, purpose }) => [subject.contentId, purpose]),
       [
         ['post', 'direct_post'],
-        ['comment', 'list_projection'],
+        ['comment', 'detail_projection'],
       ],
     );
     assert.ok(
       f.trace.indexOf(`post:${write}`) < f.trace.indexOf('comment:true'),
     );
+    assert.equal(
+      f.directionCalls.at(-1)?.[2],
+      'list_projection',
+      'Private-detail canonical purpose retains one-way child Safety semantics',
+    );
   }
 });
 
-test('reply access checks the parent directly, then root and reply as list projections', async () => {
+test('reply access checks the parent directly, then private detail children with one-way Safety projections', async () => {
   const f = fixture();
   for (const child of [f.state.comment, f.state.reply]) {
     f.state.blocks.set(child.account_id, { outgoing: false, incoming: true });
@@ -484,12 +508,16 @@ test('reply access checks the parent directly, then root and reply as list proje
     f.checks.map(({ subject, purpose }) => [subject.contentId, purpose]),
     [
       ['post', 'direct_post'],
-      ['comment', 'list_projection'],
-      ['reply', 'list_projection'],
+      ['comment', 'detail_projection'],
+      ['reply', 'detail_projection'],
     ],
   );
   assert.ok(f.trace.indexOf('post:false') < f.trace.indexOf('comment:true'));
   assert.ok(f.trace.indexOf('comment:true') < f.trace.indexOf('reply:true'));
+  assert.deepEqual(
+    f.directionCalls.map(([, , purpose]) => purpose),
+    ['direct_post', 'list_projection', 'list_projection'],
+  );
 });
 
 test('blocked parent stops descendant access before child visibility or locked reads', async () => {
@@ -527,7 +555,8 @@ test('outgoing child blocks produce child-not-found without the direct-post expl
         : f.access.accessibleReply('reply', viewer, f.tx),
       errorIs(kind === 'comment' ? 'COMMENT_NOT_FOUND' : 'REPLY_NOT_FOUND'),
     );
-    assert.equal(f.checks.at(-1)?.purpose, 'list_projection');
+    assert.equal(f.checks.at(-1)?.purpose, 'detail_projection');
+    assert.equal(f.directionCalls.at(-1)?.[2], 'list_projection');
   }
 });
 
@@ -687,7 +716,11 @@ test('privileged identity facade still applies direct parent and one-way child v
     const result = await service.resolve({ kind, id: kind }, viewer, f.tx);
     assert.equal(result?.accountId, f.state[kind].account_id);
     assert.equal(f.checks[0]?.purpose, 'direct_post');
-    assert.equal(f.checks.at(-1)?.purpose, 'list_projection');
+    assert.equal(
+      f.checks.at(-1)?.purpose,
+      kind === 'comment' ? 'list_projection' : 'detail_projection',
+    );
+    assert.equal(f.directionCalls.at(-1)?.[2], 'list_projection');
     f.state.blocks.set(f.state[kind].account_id, {
       outgoing: true,
       incoming: false,
@@ -798,4 +831,16 @@ test('update eligibility uses direct parent and list child purposes before const
     code: 'target_inaccessible',
   });
   assert.equal(previews, 1);
+  f.state.blocks.clear();
+  f.state.post.account_id = viewer;
+  f.state.ownerHidden = true;
+  assert.deepEqual(await service.eligible(target, recipient, f.tx), {
+    outcome: 'suppressed',
+    code: 'target_inaccessible',
+  });
+  assert.equal(
+    previews,
+    1,
+    'Owner-private parent detail cannot authorize a public notice preview',
+  );
 });

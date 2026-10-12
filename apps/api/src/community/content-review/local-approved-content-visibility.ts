@@ -1,3 +1,4 @@
+import { readOwnerPostVisibility } from '../owner-visibility/read-proof.js';
 import {
   CONTENT_MEDIA_PROOF,
   UnavailableContentMediaProof,
@@ -9,7 +10,11 @@ const canonicalOwner = {};
 type CanonicalProof = Pick<
   ApprovalBinding,
   'account_id' | 'content_version'
-> & { authorMode: 'named' | 'anonymous' };
+> & {
+  authorMode: 'named' | 'anonymous';
+  postOwner: string;
+  ownerHidden: boolean;
+};
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import type {
@@ -35,31 +40,67 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
     kind: ContentKind,
     id: string,
     tx: PoolClient,
-    visited: Set<string>,
+    visited: Map<string, CanonicalProof | null>,
+    viewer: string | null,
+    purpose: VisibilityPurpose,
     read?: SearchReadContext,
     currentMediaAllowed = true,
   ): Promise<Decision<CanonicalProof>> {
-    if (read)
-      return read.read(
-        canonicalOwner,
-        `${kind}:${id}:1:${currentMediaAllowed ? 'media-current' : 'text-only'}`,
-        tx,
-        () => this.prove(kind, id, tx, visited, read, currentMediaAllowed),
-        (result) => result.kind === 'allow',
-      );
-    return this.prove(kind, id, tx, visited, undefined, currentMediaAllowed);
+    const result = read
+      ? await read.read(
+          canonicalOwner,
+          `${kind}:${id}:1:${currentMediaAllowed ? 'media-current' : 'text-only'}`,
+          tx,
+          () =>
+            this.prove(
+              kind,
+              id,
+              tx,
+              visited,
+              viewer,
+              purpose,
+              read,
+              currentMediaAllowed,
+            ),
+          (result) => result.kind === 'allow',
+        )
+      : await this.prove(
+          kind,
+          id,
+          tx,
+          visited,
+          viewer,
+          purpose,
+          undefined,
+          currentMediaAllowed,
+        );
+    // Canonical definitions can be shared, but an author-private allow is never
+    // a public or another-viewer's visibility certificate, even in one epoch.
+    if (
+      result.kind === 'allow' &&
+      result.value.ownerHidden &&
+      !(
+        (purpose === 'direct_post' || purpose === 'detail_projection') &&
+        viewer === result.value.postOwner
+      )
+    )
+      return { kind: 'deny', reason: 'POST_NOT_FOUND' };
+    if (result.kind === 'allow') visited.set(`${kind}:${id}`, result.value);
+    return result;
   }
   private async prove(
     kind: ContentKind,
     id: string,
     tx: PoolClient,
-    visited: Set<string>,
+    visited: Map<string, CanonicalProof | null>,
+    viewer: string | null,
+    purpose: VisibilityPurpose,
     read?: SearchReadContext,
     currentMediaAllowed = true,
   ): Promise<Decision<CanonicalProof>> {
     const key = `${kind}:${id}`;
     if (visited.has(key)) return { kind: 'unavailable' };
-    visited.add(key);
+    visited.set(key, null);
     const binding = await this.approvals.binding(kind, id, tx);
     if (!binding) return { kind: 'unavailable' };
     const accepted = await this.approvals.current(binding, tx, read);
@@ -72,6 +113,19 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
       read,
     );
     if (stored.kind !== 'allow') return stored;
+    let postOwner = binding.account_id;
+    let ownerHidden = false;
+    if (kind === 'post') {
+      ownerHidden = (await readOwnerPostVisibility(id, tx)).ownerHidden;
+      if (
+        ownerHidden &&
+        !(
+          (purpose === 'direct_post' || purpose === 'detail_projection') &&
+          viewer === postOwner
+        )
+      )
+        return { kind: 'deny', reason: 'POST_NOT_FOUND' };
+    }
     const images = stored.value.envelope.images;
     if (images.length && !currentMediaAllowed) return { kind: 'unavailable' };
     if (images.length) {
@@ -87,17 +141,26 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
     )
       return { kind: 'unavailable' };
     for (const parent of stored.value.parents) {
-      // A post reached again via its root is already checked in this traversal.
-      if (visited.has(`${parent.kind}:${parent.id}`)) continue;
+      // A post reached again via its root retains its exact owner overlay too.
+      const prior = visited.get(`${parent.kind}:${parent.id}`);
+      if (prior) {
+        postOwner = prior.postOwner;
+        ownerHidden = prior.ownerHidden;
+        continue;
+      }
       const decision = await this.visible(
         parent.kind,
         parent.id,
         tx,
         visited,
+        viewer,
+        purpose,
         read,
         currentMediaAllowed,
       );
       if (decision.kind !== 'allow') return decision;
+      postOwner = decision.value.postOwner;
+      ownerHidden = decision.value.ownerHidden;
     }
     return {
       kind: 'allow',
@@ -105,14 +168,16 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
         account_id: binding.account_id,
         content_version: binding.content_version,
         authorMode: binding.envelope.authorMode,
+        postOwner,
+        ownerHidden,
       }),
     };
   }
   async check(
-    _viewer: string | null,
+    viewer: string | null,
     subject: VisibilitySubject,
     tx: PoolClient,
-    _purpose: VisibilityPurpose,
+    purpose: VisibilityPurpose,
     read?: SearchReadContext,
     currentMediaAllowed = true,
   ): Promise<Decision> {
@@ -131,7 +196,9 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
         typed.contentKind,
         subject.contentId,
         tx,
-        new Set(),
+        new Map(),
+        viewer,
+        purpose,
         read,
         currentMediaAllowed,
       );

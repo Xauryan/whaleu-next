@@ -73,6 +73,7 @@ export class ReactionsService {
           tx,
           true,
         );
+        if (liked) await this.access.interaction(actor, post, tx);
         requireAction(await this.access.authority(actor, space, tx), 'like');
         const changed = liked
           ? await tx.query<{ like_id: string }>(

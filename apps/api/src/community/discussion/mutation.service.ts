@@ -69,6 +69,7 @@ export class DiscussionMutationService {
             ? await this.access.accessibleReply(id, actor, tx, true)
             : await this.access.accessibleComment(id, actor, tx, true);
         const { post, comment, authority } = target;
+        if (desired) await this.access.interaction(actor, post, tx);
         requireAction(
           authority!,
           operation === 'set_comment_pin' ? 'pin' : 'like',

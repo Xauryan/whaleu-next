@@ -289,6 +289,9 @@ export class CommunityDmEntryFacade {
         }
         nodes.push({ kind: 'reply', content: found.reply });
       }
+      // Private detail is read-only authority. A new community-sourced DM
+      // cannot be initiated through an owner-hidden parent or its children.
+      await this.access.interaction(actor, post, tx);
       if (
         subject.account_id === actor ||
         !(await this.identity.dmActiveAccount(subject.account_id, tx))

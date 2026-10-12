@@ -16,6 +16,7 @@ import type { PublicProfileFacade } from '../src/profile/public-profile.facade.j
 import type { ProfileVisibilityFacade } from '../src/safety/profile-visibility.facade.js';
 import type { IdentityService } from '../src/identity/identity.service.js';
 import { ApplicationError } from '../src/http/application-error.js';
+import { ownerPostVisibilityAllowed } from '../src/community/owner-visibility/read-proof.js';
 import {
   startTransactionDeadlines,
   checkTransactionDeadlines,
@@ -66,6 +67,7 @@ function fixture() {
     targetVisible: true,
     reviewVersion: 1 as 1 | 2,
     reviewOptIn: false,
+    ownerHidden: false,
   };
   const profileReads: string[] = [],
     personas: { post: string; account: string }[] = [],
@@ -97,6 +99,24 @@ function fixture() {
         return { rows: [{ locked: true }] };
       if (sql === 'SELECT clock_timestamp() AS now')
         return { rows: [{ now: new Date() }] };
+      if (sql.includes('LEFT JOIN whaleu_community.post_owner_visibility')) {
+        const requested = Array.isArray(values[0]) ? values[0] : [values[0]];
+        return {
+          rows: requested.includes(post.id)
+            ? [
+                {
+                  postId: post.id,
+                  ownerHidden: state.ownerHidden,
+                  version: state.ownerHidden ? 1 : 0,
+                  requestId: state.ownerHidden
+                    ? '10000000-0000-4000-8000-000000000099'
+                    : null,
+                  xmin: state.ownerHidden ? '100' : null,
+                },
+              ]
+            : [],
+        };
+      }
       if (sql.includes('FROM whaleu_community.thread_personas'))
         return {
           rows: [
@@ -118,6 +138,24 @@ function fixture() {
     accessibleComment: async () => ({ post, comment: root }),
     accessibleReply: async () => ({ post, comment: root, reply }),
     visible: async () => state.targetVisible,
+    interaction: async (
+      actor: string,
+      targetPost: StoredPost,
+      client: PoolClient,
+    ) => {
+      assert.equal(targetPost, post);
+      assert.equal(client, tx);
+      if (
+        !(await ownerPostVisibilityAllowed(
+          post.id,
+          post.account_id,
+          actor,
+          'list_projection',
+          tx,
+        ))
+      )
+        throw new ApplicationError('POST_NOT_FOUND');
+    },
   } as unknown as CommunityAccessService;
   const records = {
     persona: async (p: string, a: string) => {
@@ -236,6 +274,30 @@ test('DM anonymous entry resolves exact same-post personas without reading hidde
   assert.deepEqual(f.profileReads, []);
   assert.ok(Object.isFrozen(ready.provenance));
   await checkTransactionDeadlines(f.tx);
+});
+test('DM owner-private hidden descendants cannot become fresh peer initiation or persona authority', async () => {
+  for (const kind of ['comment', 'reply'] as const) {
+    const f = fixture();
+    f.post.account_id = id(1);
+    f.state.ownerHidden = true;
+    const entry =
+      kind === 'comment'
+        ? { kind, postId: f.post.id, commentId: f.root.id }
+        : {
+            kind,
+            postId: f.post.id,
+            rootCommentId: f.root.id,
+            replyId: f.reply.id,
+          };
+    await assert.rejects(
+      f.facade.resolve(id(1), entry, 'anonymous', f.tx),
+      unavailable,
+    );
+    assert.deepEqual(f.personas, []);
+    assert.deepEqual(f.profileReads, []);
+    assert.deepEqual(f.subjects, []);
+    await checkTransactionDeadlines(f.tx);
+  }
 });
 test('DM reply rejects substituted post/root and mismatching referenced target ancestry', async () => {
   for (const altered of [

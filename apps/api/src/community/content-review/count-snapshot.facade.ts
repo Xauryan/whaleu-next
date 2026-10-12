@@ -173,6 +173,8 @@ class SnapshotEvaluator {
     const postDecision = definitionNodeDecision(post, true);
     if (postDecision.kind !== 'allow') return postDecision;
     if (!post) return { kind: 'unavailable' };
+    if (post.owner_hidden === true)
+      return { kind: 'deny', reason: 'POST_NOT_FOUND' };
     const scopeDecision = definitionScopeDecision(
       spaces.get(post.space_id),
       scope,

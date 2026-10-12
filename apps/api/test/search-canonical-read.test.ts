@@ -489,6 +489,20 @@ function fixture(collision = false) {
         );
       if (sql.includes('content_approval_decisions'))
         return one(approvals.get(args[0] as string));
+      if (sql.includes('LEFT JOIN whaleu_community.post_owner_visibility'))
+        return one(
+          args[0] === post.id
+            ? {
+                postId: post.id,
+                ownerHidden: post.owner_hidden === true,
+                version: post.owner_hidden ? 1 : 0,
+                requestId: post.owner_hidden
+                  ? '10000000-0000-4000-8000-000000000099'
+                  : null,
+                xmin: post.owner_hidden ? '100' : null,
+              }
+            : undefined,
+        );
       if (sql.includes('whaleu_community.posts'))
         return one(args[0] === post.id ? post : undefined);
       if (sql.includes('whaleu_community.spaces'))
@@ -526,6 +540,7 @@ function fixture(collision = false) {
       throw new Error(`Unexpected SQL: ${sql}`);
     },
   } as unknown as PoolClient;
+  startTransactionDeadlines(tx);
   const campuses = {
     requireActiveRegion: async () => {
       regionReads++;
@@ -551,7 +566,12 @@ function fixture(collision = false) {
   const count = (sql: string, id?: string) =>
     calls.filter(
       (call) =>
-        call.sql.includes(sql) && (id === undefined || call.args.includes(id)),
+        call.sql.includes(sql) &&
+        !(
+          sql === 'whaleu_community.posts' &&
+          call.sql.includes('post_owner_visibility')
+        ) &&
+        (id === undefined || call.args.includes(id)),
     ).length;
   return {
     tx,
@@ -694,6 +714,42 @@ test('kind-qualified canonical and source keys preserve post, root and reply pro
     assert.equal(
       (await searchReply(f.reply.id, f.tx, read))!.text,
       f.reply.text,
+    );
+  } finally {
+    read.close();
+    clearTransactionDeadlines(f.tx);
+  }
+});
+
+test('owner-private canonical allow never becomes a public or different-viewer ancestor certificate', async () => {
+  const f = fixture();
+  f.post.owner_hidden = true;
+  const read = new SearchReadContext(f.tx);
+  try {
+    for (const { kind, node } of [f.nodes[0], f.nodes[1], f.nodes[2]]) {
+      const subject = f.subject(kind, node);
+      assert.equal(
+        (await f.base.check(f.author, subject, f.tx, 'direct_post', read)).kind,
+        'allow',
+      );
+      assert.equal(
+        (await f.base.check(f.author, subject, f.tx, 'list_projection', read))
+          .kind,
+        'deny',
+      );
+      assert.equal(
+        (await f.base.check(f.viewer, subject, f.tx, 'direct_post', read)).kind,
+        'deny',
+      );
+      assert.equal(
+        (await f.base.check(null, subject, f.tx, 'list_projection', read)).kind,
+        'deny',
+      );
+    }
+    assert.ok(
+      f.calls.some((call) =>
+        call.sql.includes('LEFT JOIN whaleu_community.post_owner_visibility'),
+      ),
     );
   } finally {
     read.close();

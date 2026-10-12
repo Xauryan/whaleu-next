@@ -65,7 +65,7 @@ export interface CommunityAuthorizationPort {
   ): Promise<Decision<Authority>>;
 }
 export type VisibilityPurpose =
-  'list_projection' | 'direct_post' | 'named_interaction';
+  'list_projection' | 'direct_post' | 'detail_projection' | 'named_interaction';
 export type VisibilitySubject = {
   contentId: string;
   contentKind: 'post' | 'comment' | 'reply';

@@ -1,3 +1,4 @@
+import { ownerPostVisibilityAllowed } from '../owner-visibility/read-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
@@ -164,6 +165,18 @@ export class ViewReportingService {
         if (decision.kind === 'unavailable')
           throw new ApplicationError('VIEW_REPORTING_UNAVAILABLE');
         if (decision.kind === 'deny') continue;
+        // Author-private detail must not create public heat or consume the
+        // unique detail counter. Original batch receipts were replayed above.
+        if (
+          !(await ownerPostVisibilityAllowed(
+            postId,
+            post.account_id,
+            actor,
+            'list_projection',
+            tx,
+          ))
+        )
+          continue;
         const delta =
           input.kind === 'list_exposure'
             ? multiplicity

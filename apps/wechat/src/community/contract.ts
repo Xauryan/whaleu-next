@@ -1,4 +1,8 @@
 import {
+  decodeOwnerVisibilityState,
+  type OwnerVisibilityState,
+} from '../owner-post-visibility/contract';
+import {
   decodeFeedbackInput,
   decodeFeedbackView,
   type FeedbackInput,
@@ -138,6 +142,7 @@ export interface Comments {
   readonly nextCursor: string | null;
 }
 export interface OwnPublication {
+  readonly ownerVisibility?: OwnerVisibilityState;
   readonly id: string;
   readonly spaceId: string;
   readonly category: Category;
@@ -574,7 +579,17 @@ export function decodeOwnPublications(value: unknown): OwnPublications {
   )
     invalid();
   const items = value.items.map((item) => {
-    exact(item, ['id', 'spaceId', 'category', 'status', 'publishedAt']);
+    const hasOwnerVisibility =
+      isRecord(item) &&
+      Object.prototype.hasOwnProperty.call(item, 'ownerVisibility');
+    exact(item, [
+      'id',
+      'spaceId',
+      'category',
+      'status',
+      'publishedAt',
+      ...(hasOwnerVisibility ? ['ownerVisibility'] : []),
+    ]);
     if (
       !isUuid(item.id) ||
       !isUuid(item.spaceId) ||
@@ -588,6 +603,9 @@ export function decodeOwnPublications(value: unknown): OwnPublications {
       spaceId: item.spaceId,
       category: item.category,
       status: item.status as OwnPublication['status'],
+      ...(hasOwnerVisibility
+        ? { ownerVisibility: decodeOwnerVisibilityState(item.ownerVisibility) }
+        : {}),
       publishedAt: item.publishedAt,
     });
   });

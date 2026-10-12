@@ -19,6 +19,10 @@ import type { ApprovalBinding } from '../src/community/content-review/approval.r
 import { ContentDefinitionRepository } from '../src/community/content-review/content-definition.repository.js';
 import { LocalApprovedContentVisibility } from '../src/community/content-review/local-approved-content-visibility.js';
 import { LocalContentPublicationGate } from '../src/community/content-review/local-content-publication-gate.js';
+import {
+  clearTransactionDeadlines,
+  startTransactionDeadlines,
+} from '../src/database/transaction-deadlines.js';
 import type {
   ContentPublicationGate,
   VisibilitySubject,
@@ -424,12 +428,13 @@ test('live gate rejects legacy bare inputs and exact mismatch before ledger look
   );
   assert.equal(called, 0);
 });
-test('base visibility requires explicit kind/version, exact author/payload, parents and text-only assets', async () => {
+test('base visibility requires explicit kind/version, exact author/payload, parents and text-only assets', async (t) => {
   const envelope = canonicalEnvelope(raw()),
     decision = accepted(envelope),
     id = randomUUID();
   let altered = envelope,
-    missingParent = false;
+    missingParent = false,
+    ownerHidden = false;
   const approvals = {
     binding: async (kind: ContentKind, target: string) =>
       target === id && kind === 'post'
@@ -454,7 +459,29 @@ test('base visibility requires explicit kind/version, exact author/payload, pare
     }),
   } as unknown as ContentDefinitionRepository;
   const base = new LocalApprovedContentVisibility(approvals, definitions),
-    tx = {} as PoolClient;
+    tx = {
+      query: async (sql: string, args: unknown[]) => {
+        assert.ok(
+          sql.includes('LEFT JOIN whaleu_community.post_owner_visibility'),
+        );
+        assert.equal(args[0], id);
+        return {
+          rows: [
+            {
+              postId: id,
+              ownerHidden,
+              version: ownerHidden ? 1 : 0,
+              requestId: ownerHidden
+                ? '10000000-0000-4000-8000-000000000099'
+                : null,
+              xmin: ownerHidden ? '100' : null,
+            },
+          ],
+        };
+      },
+    } as unknown as PoolClient;
+  startTransactionDeadlines(tx);
+  t.after(() => clearTransactionDeadlines(tx));
   const subject: VisibilitySubject = {
     contentId: id,
     contentKind: 'post',
@@ -466,6 +493,20 @@ test('base visibility requires explicit kind/version, exact author/payload, pare
     (await base.check(null, subject, tx, 'direct_post')).kind,
     'allow',
   );
+  ownerHidden = true;
+  assert.equal(
+    (await base.check(null, subject, tx, 'direct_post')).kind,
+    'deny',
+  );
+  assert.equal(
+    (await base.check(accountId, subject, tx, 'direct_post')).kind,
+    'allow',
+  );
+  assert.equal(
+    (await base.check(accountId, subject, tx, 'list_projection')).kind,
+    'deny',
+  );
+  ownerHidden = false;
   assert.equal(
     (
       await base.check(

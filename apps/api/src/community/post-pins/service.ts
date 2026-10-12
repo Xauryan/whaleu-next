@@ -380,12 +380,12 @@ export class PostPinsService {
           error.code === 'POST_PIN_UNAVAILABLE'
         ) {
           restoreTransactionDeadlines(tx, checkpoint);
-          await this.access.accessiblePost(postId, actor, tx);
+          await this.access.projectionPost(postId, actor, tx);
           return base;
         }
         throw error;
       }
-      const { post } = await this.access.accessiblePost(postId, actor, tx);
+      const { post } = await this.access.projectionPost(postId, actor, tx);
       if (!this.supported(scope, post)) return base;
       const pin = await this.current(scope, tx);
       const own = pin?.post_id === postId ? pin : null;
@@ -499,7 +499,7 @@ export class PostPinsService {
         const post =
           command.operation === 'unpin'
             ? await this.repository.post(command.postId, tx)
-            : (await this.access.accessiblePost(command.postId, actor, tx))
+            : (await this.access.projectionPost(command.postId, actor, tx))
                 .post;
         if (command.operation !== 'unpin' && !this.supported(scope, post))
           throw new ApplicationError('POST_PIN_UNAVAILABLE');

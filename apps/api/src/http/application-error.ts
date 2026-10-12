@@ -3,6 +3,18 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  POST_OWNER_VISIBILITY_STALE: {
+    status: 409,
+    message: 'Post visibility has changed',
+  },
+  POST_OWNER_VISIBILITY_UNAVAILABLE: {
+    status: 503,
+    message: 'Post visibility unavailable',
+  },
+  POST_OWNER_VISIBILITY_CANCELLED: {
+    status: 409,
+    message: 'Post visibility command cancelled',
+  },
   POST_PIN_UNAVAILABLE: {
     status: 503,
     message: 'Accepted post pin scope or history is unavailable',

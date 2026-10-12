@@ -1,0 +1,27 @@
+<template name="owner-post-visibility">
+  <view wx:if="{{visibility.management}}" class="card">
+    <view class="section-title">作者可见性</view>
+    <view>{{visibility.management.ownerHidden ? '你已隐藏此帖，公开列表不展示' : '你尚未隐藏此帖'}} · 版本 {{visibility.management.version}}</view>
+    <view class="notice">隐藏可以撤回；取消隐藏后仍须通过当前审核、安全和图片校验。此处不展示正文、图片或身份资料。</view>
+    <button wx:if="{{visibility.management.canChange &amp;&amp; !visibility.management.ownerHidden}}" data-id="{{visibility.management.postId}}" bindtap="onOwnerVisibilityHide" disabled="{{visibility.busy || visibility.frozen}}">隐藏我的帖子</button>
+    <button wx:if="{{visibility.management.canChange &amp;&amp; visibility.management.ownerHidden}}" data-id="{{visibility.management.postId}}" bindtap="onOwnerVisibilityUnhide" disabled="{{visibility.busy || visibility.frozen}}">取消个人隐藏</button>
+  </view>
+  <view wx:if="{{visibility.confirming === 'change'}}" class="card">
+    <view>确认{{visibility.desired ? '隐藏此帖？隐藏后其他人不可查看，公开列表也不向你展示。' : '取消个人隐藏？内容仍需通过当前审核与安全校验。'}}</view>
+    <button bindtap="onOwnerVisibilitySubmit" disabled="{{visibility.busy || visibility.frozen}}">确认{{visibility.desired ? '隐藏' : '取消隐藏'}}</button>
+    <button bindtap="onOwnerVisibilityClose" disabled="{{visibility.busy}}">返回</button>
+  </view>
+  <view wx:if="{{visibility.frozen}}" class="card">
+    <view>作者可见性原请求待确认：{{visibility.pendingPostId}} · {{visibility.pendingOwnerHidden ? '隐藏' : '取消隐藏'}} · {{visibility.pendingPhase === 'cancel' ? '取消请求' : '提交请求'}}</view>
+    <view class="notice">先确认或取消原请求；查询不到回执不代表原请求不会完成。请保留本机数据。</view>
+    <button bindtap="onOwnerVisibilityRecover" disabled="{{visibility.busy || !visibility.pendingPostId}}">查询原可见性回执</button>
+    <button bindtap="onOwnerVisibilityRetry" disabled="{{visibility.busy || !visibility.pendingPostId}}">重试原可见性请求</button>
+    <button bindtap="onOwnerVisibilityCancel" disabled="{{visibility.busy || !visibility.pendingPostId}}">取消原可见性请求</button>
+  </view>
+  <view wx:if="{{visibility.confirming === 'cancel'}}" class="card">
+    <view>确认取消原请求？已完成的操作仍返回原回执，不会自动反向修改。</view>
+    <button bindtap="onOwnerVisibilityConfirmCancel" disabled="{{visibility.busy}}">确认取消原请求</button>
+    <button bindtap="onOwnerVisibilityClose" disabled="{{visibility.busy}}">返回</button>
+  </view>
+  <view wx:if="{{visibility.error || visibility.receiptStatus}}" class="notice" aria-role="status">{{visibility.error || visibility.receiptStatus}}</view>
+</template>

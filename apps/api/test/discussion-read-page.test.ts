@@ -139,12 +139,12 @@ function fixture(rootCount = 12, repliesPerRoot = 2) {
       tx: PoolClient,
       purpose: string,
     ) => {
-      assert.equal(purpose, 'list_projection');
+      assert.equal(purpose, 'detail_projection');
       if (hidden.has(root.id)) return false;
       requireAllowedSafetyRelationship(
         actor,
         root.account_id,
-        'list_projection',
+        'detail_projection',
         tx,
       );
       return true;
@@ -172,7 +172,7 @@ function fixture(rootCount = 12, repliesPerRoot = 2) {
         requireAllowedSafetyRelationship(
           actor,
           `${root.id}:${index}`,
-          'list_projection',
+          'detail_projection',
           tx,
         );
       return {

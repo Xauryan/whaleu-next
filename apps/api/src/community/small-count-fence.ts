@@ -18,6 +18,7 @@ export async function fenceSmallCommunityCount(tx: PoolClient): Promise<void> {
     whaleu_community.post_images,
     whaleu_community.post_likes,
     whaleu_community.posts,
+    whaleu_community.post_owner_visibility,
     whaleu_community.replies,
     whaleu_community.reply_images,
     whaleu_community.reply_likes,

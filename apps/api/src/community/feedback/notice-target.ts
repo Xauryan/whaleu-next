@@ -18,7 +18,7 @@ export class CommunityFeedbackNoticeTargetSource extends FeedbackNoticeTargetSou
     tx: PoolClient,
   ): Promise<boolean> {
     try {
-      const { post, space } = await this.access.accessiblePost(
+      const { post, space } = await this.access.projectionPost(
         postId,
         accountId,
         tx,

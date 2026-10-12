@@ -253,6 +253,11 @@ export interface OwnPublication {
   spaceId: string;
   category: Category;
   status: 'published' | 'hidden' | 'deleted';
+  ownerVisibility: {
+    ownerHidden: boolean;
+    version: number;
+    canChange: boolean;
+  };
   publishedAt: string;
 }
 

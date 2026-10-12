@@ -6,6 +6,10 @@ import { CommunitySerializer } from '../src/community/community-serialization.js
 import type { Authority } from '../src/community/community-policy.js';
 import type { CommunitySpace } from '../src/community/contracts.js';
 import type { StoredPost } from '../src/community/community.repository.js';
+import {
+  clearTransactionDeadlines,
+  startTransactionDeadlines,
+} from '../src/database/transaction-deadlines.js';
 
 const space: CommunitySpace = {
   id: 'synthetic-space',
@@ -100,16 +104,45 @@ test('local review comment hints resolve full current eligibility without granti
       full: eligible,
       post: { author_mode: 'anonymous' },
     },
+    {
+      name: 'owner-private hidden detail never advertises positive comment capability',
+      full: eligible,
+      post: { owner_hidden: true },
+    },
   ];
   for (const scenario of cases)
-    await t.test(scenario.name, async () => {
+    await t.test(scenario.name, async (child) => {
       let reads = 0;
       const currentPost = { ...post, ...scenario.post };
       const tx = {
-        query: async (sql: string) => ({
-          rows: sql.includes('post_likes') ? [{ count: 0, liked: false }] : [],
-        }),
+        query: async (sql: string, args: unknown[] = []) => {
+          if (
+            sql.includes('LEFT JOIN whaleu_community.post_owner_visibility')
+          ) {
+            assert.equal(args[0], currentPost.id);
+            return {
+              rows: [
+                {
+                  postId: currentPost.id,
+                  ownerHidden: currentPost.owner_hidden === true,
+                  version: currentPost.owner_hidden ? 1 : 0,
+                  requestId: currentPost.owner_hidden
+                    ? '10000000-0000-4000-8000-000000000099'
+                    : null,
+                  xmin: currentPost.owner_hidden ? '100' : null,
+                },
+              ],
+            };
+          }
+          return {
+            rows: sql.includes('post_likes')
+              ? [{ count: 0, liked: false }]
+              : [],
+          };
+        },
       } as unknown as PoolClient;
+      startTransactionDeadlines(tx);
+      child.after(() => clearTransactionDeadlines(tx));
       type Dependencies = ConstructorParameters<typeof CommunitySerializer>;
       const serializer = new CommunitySerializer(
         {

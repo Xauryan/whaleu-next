@@ -42,7 +42,7 @@ export class DiscussionReadService {
           throw new ApplicationError('COMMUNITY_UNAVAILABLE');
         const visible: StoredComment[] = [];
         for (const row of rows.rows)
-          if (await this.access.visible(actor, row, tx, 'list_projection'))
+          if (await this.access.visible(actor, row, tx, 'detail_projection'))
             visible.push(row);
         // Only root ordering facts are needed for traversal. Do not read replies,
         // display names, images or preview targets for roots outside this page.

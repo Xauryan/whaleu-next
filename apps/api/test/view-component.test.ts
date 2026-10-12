@@ -116,10 +116,39 @@ function fixture() {
     denied = false,
     lagging = false,
     known = true,
-    authError = false;
+    authError = false,
+    ownerHidden = false;
   const tx = {
-    query: async (sql: string) => {
+    query: async (sql: string, args: unknown[] = []) => {
       calls.push(sql);
+      if (sql.includes("current_setting('transaction_isolation')"))
+        return {
+          rows: [
+            {
+              isolation: 'read committed',
+              statement_timeout: '0',
+              lock_timeout: '0',
+            },
+          ],
+        };
+      if (sql.includes('LEFT JOIN whaleu_community.post_owner_visibility')) {
+        const requested = Array.isArray(args[0]) ? args[0] : [args[0]];
+        return {
+          rows: requested.includes(post)
+            ? [
+                {
+                  postId: post,
+                  ownerHidden,
+                  version: ownerHidden ? 1 : 0,
+                  requestId: ownerHidden
+                    ? '10000000-0000-4000-8000-000000000099'
+                    : null,
+                  xmin: ownerHidden ? '100' : null,
+                },
+              ]
+            : [],
+        };
+      }
       return {
         rows:
           sql === 'SELECT clock_timestamp() AS now'
@@ -216,7 +245,13 @@ function fixture() {
       assert.deepEqual(ids, [...ids].sort());
       calls.push('posts');
       return [
-        { id: post, space_id: other, visibility: 'approved', deleted_at: null },
+        {
+          id: post,
+          account_id: actor,
+          space_id: other,
+          visibility: 'approved',
+          deleted_at: null,
+        },
       ] as StoredPost[];
     },
     known: async () => known,
@@ -275,6 +310,9 @@ function fixture() {
     },
     revoke: () => {
       authError = true;
+    },
+    ownerHide: () => {
+      ownerHidden = true;
     },
   };
 }
@@ -359,6 +397,22 @@ test('detail uses direct semantics, independent of list exposure', async () => {
   assert.ok(f.calls.includes('direct_post'));
   assert.ok(f.calls.includes('detail'));
   assert.equal(f.calls.includes('list_projection'), false);
+});
+test('owner-private hidden detail preserves an aggregate receipt but cannot call counter or cooldown owners', async () => {
+  for (const kind of ['detail_visit', 'list_exposure'] as const) {
+    const f = fixture();
+    f.ownerHide();
+    const receipt = await f.service.report('token', {
+      ...intent,
+      kind,
+      postIds: [post],
+    });
+    assert.equal(receipt.acceptedCount, 0);
+    assert.equal(f.state().count, 0);
+    assert.equal(f.calls.includes('detail'), false);
+    assert.equal(f.calls.includes('increment'), false);
+    assert.equal(f.calls.at(-1), 'COMMIT');
+  }
 });
 test('absent/expired epoch never opens; close-at-final-fence rolls back receipt and aggregate', async () => {
   const missing = fixture();

@@ -274,7 +274,18 @@ export class PinDetailController extends CommunityController<PinDetailView> {
             Math.max(1, Date.parse(detail.pin.pinnedUntil) - systemClock.now()),
           );
       },
-      () => this.update({ detail: null, loaded: false }),
+      (error) =>
+        this.update({
+          detail: null,
+          loaded: false,
+          // Owner-private post detail can be available while public pin projection
+          // is deliberately unavailable. Keep receipt recovery, never clear the post.
+          ...(error.kind !== 'protocol' &&
+          error.details.httpStatus === 404 &&
+          error.details.serverCode === 'POST_NOT_FOUND'
+            ? { error: '', status: '' }
+            : {}),
+        }),
     );
     if (readable && autoRead && this.postId === postId && !this.view.busy)
       await this.start('read');

@@ -124,7 +124,7 @@ export class CommunityProfileDiscoveryFacade {
     tx: PoolClient,
   ): Promise<ProfileContentItem | null> {
     try {
-      const item = await this.access.accessiblePost(id, viewer, tx);
+      const item = await this.access.projectionPost(id, viewer, tx);
       if (
         item.post.account_id !== owner ||
         item.post.author_mode !== 'named' ||

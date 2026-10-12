@@ -27,6 +27,7 @@ export interface StoredPost {
   publication_envelope_version?: 1 | 2 | 3;
   feedback?: import('./feedback/contracts.js').FeedbackInput | null;
   allow_anonymous_dm?: boolean | null;
+  owner_hidden?: boolean;
   visibility: 'approved' | 'hidden';
   deleted_at: Date | null;
   published_at: Date;

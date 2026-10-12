@@ -104,6 +104,7 @@ export class SavedMutationService {
             true,
           );
           post = target.post;
+          await this.access.interaction(actor, post, tx);
           requireAction(
             await this.access.authority(actor, target.space, tx),
             intent.operation === 'set_post_saved'

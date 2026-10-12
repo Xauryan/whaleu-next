@@ -1,3 +1,4 @@
+import { writeOwnerPostVisibilityOpenApi } from './owner-post-visibility-openapi-document.js';
 import { writeMajorDiscussionImagesOpenApi } from './major-discussion-images-openapi-document.js';
 import { writeWindowDiscussionImagesOpenApi } from './window-discussion-images-openapi-document.js';
 import { writeCanteenFloorScoresOpenApi } from './canteen-floor-scores-openapi-document.js';
@@ -317,3 +318,5 @@ await writeMajorDiscussionOpenApi(args[0] === '--check');
 
 await writeMajorDiscussionImagesOpenApi(process.argv.includes('--check'));
 await writeWindowDiscussionImagesOpenApi(args[0] === '--check');
+
+await writeOwnerPostVisibilityOpenApi(args[0] === '--check');

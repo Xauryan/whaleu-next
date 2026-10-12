@@ -9,7 +9,10 @@ import type { CampusService } from '../src/campus/campus.service.js';
 import type { CampusContentScopeFacade } from '../src/campus/content-scope.facade.js';
 import type { RuntimeConfig } from '../src/config/config.js';
 import type { DatabaseService } from '../src/database/database.js';
-import { checkpointTransactionDeadlines } from '../src/database/transaction-deadlines.js';
+import {
+  checkpointTransactionDeadlines,
+  startTransactionDeadlines,
+} from '../src/database/transaction-deadlines.js';
 import { ApplicationError } from '../src/http/application-error.js';
 import { mediaContentKey } from '../src/media/content-snapshot.facade.js';
 import type {
@@ -70,6 +73,7 @@ function fixture(collision = false) {
     author_mode: 'named',
     comments_policy: 'open',
     visibility: 'approved',
+    owner_hidden: false,
     deleted_at: null,
     published_at: new Date(now - 10000),
     publication_state: 'published',
@@ -237,6 +241,22 @@ function fixture(collision = false) {
         );
       if (sql.includes('content_approval_decisions'))
         return one(snapshot.approvals.get(args[0] as string));
+      if (sql.includes('LEFT JOIN whaleu_community.post_owner_visibility')) {
+        const row = snapshot.posts.get(args[0] as string);
+        return one(
+          row
+            ? {
+                postId: row.id,
+                ownerHidden: row.owner_hidden === true,
+                version: row.owner_hidden ? 1 : 0,
+                requestId: row.owner_hidden
+                  ? '10000000-0000-4000-8000-000000000099'
+                  : null,
+                xmin: row.owner_hidden ? '100' : null,
+              }
+            : undefined,
+        );
+      }
       if (sql.includes('whaleu_community.posts'))
         return one(snapshot.posts.get(args[0] as string));
       if (sql.includes('whaleu_community.spaces')) {
@@ -286,6 +306,9 @@ function fixture(collision = false) {
       throw new Error(sql);
     },
   } as unknown as PoolClient;
+  // Scalar canonical reads now carry the mandatory owner overlay final proof.
+  // Weak transaction registries remain scoped to this isolated fixture client.
+  startTransactionDeadlines(tx);
   const campus = {
     requireActiveRegion: async () => {
       if (!regionActive)
@@ -447,6 +470,9 @@ test('snapshot/scalar post differential preserves all canonical gates and denial
   const changes: ((f: ReturnType<typeof fixture>) => void)[] = [
     () => {},
     (f) => {
+      f.post.owner_hidden = true;
+    },
+    (f) => {
       f.post.visibility = 'hidden';
       f.snapshot.bindings.clear();
     },
@@ -543,6 +569,24 @@ test('liked snapshot/scalar differential covers every named/anonymous chain and 
         'addressed reply is intentionally absent',
       );
     }
+});
+
+test('owner-hidden canonical parents deny public post and liked-descendant counts even for their author', async () => {
+  for (const authorMode of ['named', 'anonymous'] as const) {
+    const f = fixture();
+    f.post.author_mode = authorMode;
+    f.post.owner_hidden = true;
+    f.bind('post');
+    for (const viewer of [f.viewer, f.post.account_id]) {
+      const posts = await f.facade.evaluatePosts([f.post.id], viewer, f.tx);
+      assert.equal(posts.facts.get(f.post.id)?.decision, 'deny');
+      const liked = await f.facade.evaluateLiked([f.membership], viewer, f.tx);
+      assert.equal(
+        liked.facts.get(`reply:${f.membership.like_id}`)?.decision,
+        'deny',
+      );
+    }
+  }
 });
 
 test('parent denial short-circuits unknown child, malformed binding and replacement membership', async () => {

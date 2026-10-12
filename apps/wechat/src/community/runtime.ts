@@ -1,3 +1,8 @@
+import {
+  HttpOwnerPostVisibilityGateway,
+  type OwnerPostVisibilityGateway,
+} from '../owner-post-visibility/gateway';
+import { PendingOwnerPostVisibilityStore } from '../owner-post-visibility/pending';
 import type { MajorDiscussionImageRuntime } from '../major-discussion/image-runtime';
 import type { MajorDiscussionV2Gateway } from '../major-discussion/v2-gateway';
 import type { WindowDiscussionImageRuntime } from '../window-discussion/image-runtime';
@@ -216,6 +221,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly ownerPostVisibility?: OwnerPostVisibilityGateway;
+  readonly pendingOwnerPostVisibility?: PendingOwnerPostVisibilityStore;
   readonly majors?: MajorDirectoryGateway;
   readonly majorDiscussion?: MajorDiscussionGateway;
   readonly majorDiscussionV2?: MajorDiscussionV2Gateway;
@@ -408,6 +415,15 @@ export function createCommunityRuntime(
     pendingWindowDiscussion: new PendingWindowDiscussionStore(storage, origin),
     ...(identity.api
       ? { windowDiscussion: new HttpWindowDiscussionGateway(identity.api) }
+      : {}),
+    pendingOwnerPostVisibility: new PendingOwnerPostVisibilityStore(
+      storage,
+      origin,
+    ),
+    ...(identity.api
+      ? {
+          ownerPostVisibility: new HttpOwnerPostVisibilityGateway(identity.api),
+        }
       : {}),
     pendingPostPins: new PendingPostPinStore(storage, origin),
     ...(identity.api

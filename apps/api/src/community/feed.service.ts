@@ -1,3 +1,8 @@
+import { retainOwnerRestoreCapability } from './owner-visibility/capability.js';
+import {
+  ownerPostVisibilityAllowed,
+  readOwnerPostVisibility,
+} from './owner-visibility/read-proof.js';
 import { requireFeedbackSpace } from './feedback/topic.js';
 import { TextReviewRuntime } from './text-review/runtime.js';
 import { enableSafetyRelationshipProof } from '../safety/relationship-proof.js';
@@ -216,6 +221,22 @@ export class FeedService {
         enableSafetyRelationshipProof(tx);
         const actor = await this.access.actor(token, tx);
         const { post, space } = await this.access.accessiblePost(id, actor, tx);
+        if (
+          !(await ownerPostVisibilityAllowed(
+            post.id,
+            post.account_id,
+            actor,
+            'list_projection',
+            tx,
+          ))
+        )
+          return {
+            lastAuthorMode: null,
+            availability: 'denied',
+            reason: 'POST_NOT_FOUND',
+            authorModes: [],
+            forcedAuthorMode: null,
+          };
         const lastMode =
           (
             await tx.query<{ author_mode: 'named' | 'anonymous' }>(
@@ -320,6 +341,7 @@ export class FeedService {
           actor,
           await this.access.advisory(actor, space, tx),
           tx,
+          'direct-content',
         );
       },
       { isolationLevel: 'read committed' },
@@ -352,7 +374,7 @@ export class FeedService {
           for (const comment of rows.rows) {
             seek = { at: comment.created_at.toISOString(), id: comment.id };
             if (
-              await this.access.visible(actor, comment, tx, 'list_projection')
+              await this.access.visible(actor, comment, tx, 'detail_projection')
             )
               items.push(
                 await this.serializer.comment(
@@ -419,7 +441,7 @@ export class FeedService {
           for (const post of rows.rows) {
             seek = { at: post.published_at.toISOString(), id: post.id };
             try {
-              const { space } = await this.access.accessiblePost(
+              const { space } = await this.access.projectionPost(
                 post.id,
                 actor,
                 tx,
@@ -470,9 +492,17 @@ export class FeedService {
       const scope = 'own';
       const seek: Seek | null = decodeCursor(query.cursor, scope, query.limit);
       const rows = await tx.query<StoredPost>(
-        `SELECT * FROM whaleu_community.posts WHERE account_id=$1 AND ($2::timestamptz IS NULL OR (published_at,id)<($2::timestamptz,$3::uuid)) ORDER BY published_at DESC,id DESC LIMIT $4`,
+        `SELECT p.* FROM whaleu_community.posts p WHERE p.account_id=$1 AND ($2::timestamptz IS NULL OR (p.published_at,p.id)<($2::timestamptz,$3::uuid)) ORDER BY p.published_at DESC,p.id DESC LIMIT $4 FOR SHARE OF p`,
         [actor, seek?.at ?? null, seek?.id ?? null, query.limit + 1],
       );
+      const visibility = new Map<
+        string,
+        Awaited<ReturnType<typeof readOwnerPostVisibility>>
+      >();
+      // Read overlay only after the parent SHARE locks complete: a joined
+      // statement snapshot could otherwise precede a concurrent writer's commit.
+      for (const post of rows.rows.slice(0, query.limit))
+        visibility.set(post.id, await readOwnerPostVisibility(post.id, tx));
       const items: OwnPublication[] = rows.rows
         .slice(0, query.limit)
         .map((post) => ({
@@ -484,8 +514,17 @@ export class FeedService {
             : post.visibility === 'hidden'
               ? 'hidden'
               : 'published',
+          ownerVisibility: {
+            ownerHidden: visibility.get(post.id)!.ownerHidden,
+            version: visibility.get(post.id)!.version,
+            canChange:
+              post.deleted_at === null &&
+              visibility.get(post.id)!.version < 2147483647,
+          },
           publishedAt: post.published_at.toISOString(),
         }));
+      for (const item of items)
+        await retainOwnerRestoreCapability(actor, item.ownerVisibility, tx);
       const last = items.at(-1);
       return {
         items,

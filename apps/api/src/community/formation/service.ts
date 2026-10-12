@@ -331,6 +331,7 @@ export class FormationService {
           tx,
           true,
         );
+        await this.access.interaction(actor, post, tx);
         requireAction(
           await this.access.authority(actor, space, tx),
           'join_formation',
@@ -346,6 +347,7 @@ export class FormationService {
           throw new ApplicationError('FORMATION_FULL');
         await this.profiles.prepare(actor, tx);
         await this.access.actor(token, tx);
+        await this.access.interaction(actor, post, tx);
         requireAction(
           await this.access.authority(actor, space, tx),
           'join_formation',

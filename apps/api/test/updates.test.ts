@@ -8,6 +8,7 @@ import { loadConfig } from '../src/config/config.js';
 import type { RuntimeConfig } from '../src/config/config.js';
 import type { DatabaseService } from '../src/database/database.js';
 import { CommunityUpdatesFacade } from '../src/community/updates.facade.js';
+import { ApplicationError } from '../src/http/application-error.js';
 import type { NotificationsRepository } from '../src/notifications/repository.js';
 import type { UpdatesWorker } from '../src/notifications/worker.js';
 import { UpdatesDispatcher } from '../src/notifications/dispatcher.js';
@@ -290,11 +291,22 @@ test('Typed authority denial is terminal suppression while unavailable stays ret
     { kind: 'deny', reason: 'AUTHORIZATION_REQUIRED' },
     { kind: 'unavailable' },
   ]) {
+    const tx = { query: async () => ({ rows: [] }) } as unknown as PoolClient;
+    let publicReads = 0;
     const access = {
-      accessiblePost: async () => ({
-        post: { id: target.postId },
-        space: { id: randomUUID() },
-      }),
+      projectionPost: async (
+        postId: string,
+        viewer: string,
+        currentTx: PoolClient,
+      ) => {
+        assert.equal(postId, target.postId);
+        assert.equal(viewer, accountId);
+        assert.equal(currentTx, tx);
+        publicReads++;
+        return { post: { id: target.postId }, space: { id: randomUUID() } };
+      },
+      accessiblePost: async () =>
+        assert.fail('Notice eligibility must not use owner-private detail'),
       authorization: { resolve: async () => decision },
     };
     const facade = new CommunityUpdatesFacade(
@@ -305,12 +317,67 @@ test('Typed authority denial is terminal suppression while unavailable stays ret
       { activeAccount: async () => true } as never,
     );
     assert.deepEqual(
-      await facade.eligible(target, recipient, {
-        query: async () => ({ rows: [] }),
-      } as unknown as PoolClient),
+      await facade.eligible(target, recipient, tx),
       decision.kind === 'deny'
         ? { outcome: 'suppressed', code: 'target_inaccessible' }
         : { outcome: 'unavailable', code: 'authority_unavailable' },
     );
+    assert.equal(publicReads, 1);
   }
+});
+
+test('owner-private hidden detail never becomes an eligible public notice preview', async () => {
+  const accountId = randomUUID();
+  const target = {
+    postId: randomUUID(),
+    commentId: randomUUID(),
+    replyId: null,
+  };
+  const tx = { query: async () => ({ rows: [] }) } as unknown as PoolClient;
+  let publicReads = 0;
+  let privateReads = 0;
+  const access = {
+    accessiblePost: async () => {
+      privateReads++;
+      return {
+        post: { id: target.postId, account_id: accountId },
+        space: { id: randomUUID() },
+      };
+    },
+    projectionPost: async (
+      postId: string,
+      viewer: string,
+      currentTx: PoolClient,
+    ) => {
+      assert.equal(postId, target.postId);
+      assert.equal(viewer, accountId);
+      assert.equal(currentTx, tx);
+      publicReads++;
+      throw new ApplicationError('POST_NOT_FOUND');
+    },
+    authorization: {
+      resolve: async () =>
+        assert.fail('Hidden target must stop before authority or preview work'),
+    },
+  };
+  const facade = new CommunityUpdatesFacade(
+    {
+      comment: async () =>
+        assert.fail('Hidden target cannot load notice child'),
+    } as never,
+    access as never,
+    {} as never,
+    {} as never,
+    { activeAccount: async () => true } as never,
+  );
+  assert.deepEqual(
+    await facade.eligible(
+      target,
+      { accountId, reason: 'direct', saveEpochId: null },
+      tx,
+    ),
+    { outcome: 'suppressed', code: 'target_inaccessible' },
+  );
+  assert.equal(publicReads, 1);
+  assert.equal(privateReads, 0);
 });

@@ -1,3 +1,4 @@
+import { ownerPostVisibilityAllowed } from '../owner-visibility/read-proof.js';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
@@ -100,7 +101,15 @@ export class TradingRepository {
       viewer: {
         canSetResolution:
           actor === post.account_id &&
-          actionAllowed(authority, 'resolve_trading'),
+          actionAllowed(authority, 'resolve_trading') &&
+          (row.resolution === 'open' ||
+            (await ownerPostVisibilityAllowed(
+              post.id,
+              post.account_id,
+              actor,
+              'list_projection',
+              tx,
+            ))),
       },
     };
   }

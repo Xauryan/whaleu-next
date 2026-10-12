@@ -31,12 +31,13 @@ export class PollVotingService {
       body.clientRequestId,
       ballotHash(postId, body.optionIds),
       async (actor, tx) => {
-        const { space } = await this.access.accessiblePost(
+        const { post, space } = await this.access.accessiblePost(
           postId,
           actor,
           tx,
           true,
         );
+        await this.access.interaction(actor, post, tx);
         const authority = await this.access.authority(actor, space, tx);
         requireAction(authority, 'vote');
         const poll = await this.polls.find(postId, tx, true);

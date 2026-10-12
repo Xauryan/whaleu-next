@@ -1,3 +1,4 @@
+import { ownerPostVisibilityAllowed } from './owner-visibility/read-proof.js';
 import type { SearchReadContext } from './content-review/search-read-context.js';
 import {
   checkpointTransactionDeadlines,
@@ -211,6 +212,22 @@ export class CommunityAccessService {
       );
     return { post, space };
   }
+  /** Public distribution always suppresses owner-hidden posts, including for
+   * their author. Keep existing direct Safety rules before this extra gate. */
+  async projectionPost(id: string, viewer: string | null, tx: PoolClient) {
+    const result = await this.accessiblePost(id, viewer, tx);
+    if (
+      !(await ownerPostVisibilityAllowed(
+        id,
+        result.post.account_id,
+        viewer,
+        'list_projection',
+        tx,
+      ))
+    )
+      throw new ApplicationError('POST_NOT_FOUND');
+    return result;
+  }
   async accessibleComment(
     id: string,
     viewer: string,
@@ -230,7 +247,7 @@ export class CommunityAccessService {
     const comment = await this.repository.comment(id, tx, true);
     if (
       comment.post_id !== post.id ||
-      !(await this.visible(viewer, comment, tx, 'list_projection'))
+      !(await this.visible(viewer, comment, tx, 'detail_projection'))
     )
       throw new ApplicationError('COMMENT_NOT_FOUND');
     return { post, space, comment, authority };
@@ -252,7 +269,7 @@ export class CommunityAccessService {
     if (
       reply.post_id !== parent.post.id ||
       reply.root_comment_id !== parent.comment.id ||
-      !(await this.visible(viewer, reply, tx, 'list_projection'))
+      !(await this.visible(viewer, reply, tx, 'detail_projection'))
     )
       throw new ApplicationError('REPLY_NOT_FOUND');
     return { ...parent, reply };

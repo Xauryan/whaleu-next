@@ -65,7 +65,7 @@ export class SavedReadService {
       async (tx) => {
         enableSafetyRelationshipProof(tx);
         const actor = await this.access.actor(token, tx),
-          { post, space } = await this.access.accessiblePost(postId, actor, tx);
+          { post, space } = await this.access.projectionPost(postId, actor, tx);
         const result = await this.projectPreferences(
           actor,
           post.id,
@@ -87,7 +87,7 @@ export class SavedReadService {
         // Deterministic parent lock ordering also applies to caller-ordered batches.
         for (const id of [...postIds].sort()) {
           try {
-            const { post, space } = await this.access.accessiblePost(
+            const { post, space } = await this.access.projectionPost(
                 id,
                 actor,
                 tx,
@@ -147,7 +147,7 @@ export class SavedReadService {
         }[] = [];
         for (const candidate of candidates) {
           try {
-            const { post, space } = await this.access.accessiblePost(
+            const { post, space } = await this.access.projectionPost(
                 candidate.post_id,
                 actor,
                 tx,

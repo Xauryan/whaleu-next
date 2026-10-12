@@ -1,3 +1,6 @@
+import { OwnerVisibilityController } from './owner-visibility/controller.js';
+import { OwnerVisibilityService } from './owner-visibility/service.js';
+import { OwnerVisibilityRepository } from './owner-visibility/repository.js';
 import { PostPinsService } from './post-pins/service.js';
 import {
   PostPinsController,
@@ -309,6 +312,7 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    OwnerVisibilityController,
     PostPinsController,
     PostPinRecoveryController,
     FeedbackNoticesController,
@@ -350,6 +354,8 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    OwnerVisibilityService,
+    OwnerVisibilityRepository,
     PostPinsService,
     FeedbackNoticesService,
     CommunityFeedbackNoticeTargetSource,

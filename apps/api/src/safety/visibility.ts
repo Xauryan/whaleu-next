@@ -46,6 +46,9 @@ export class NamedBlockVisibility implements CommunityVisibilityPort {
     purpose: VisibilityPurpose,
     read?: SearchReadContext,
   ): Promise<Decision> {
+    // Private-detail children retain existing list relationship semantics.
+    // Owner concealment remains an independent canonical parent gate.
+    if (purpose === 'detail_projection') purpose = 'list_projection';
     const base: Decision = { kind: 'allow', value: undefined };
     if (!viewer || viewer === namedAccountId) return base;
     const directions = await this.records.directions(

@@ -1,3 +1,4 @@
+import { ownerPostVisibilityAllowed } from '../owner-visibility/read-proof.js';
 import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -72,9 +73,25 @@ export class PollReadService {
       async (tx) => {
         enableSafetyRelationshipProof(tx);
         const actor = await this.access.actor(token, tx);
-        const { space } = await this.access.accessiblePost(postId, actor, tx);
+        const { post, space } = await this.access.accessiblePost(
+          postId,
+          actor,
+          tx,
+        );
         const authority = await this.access.advisory(actor, space, tx);
-        const poll = await this.project(postId, actor, authority, tx);
+        const publicEligible = await ownerPostVisibilityAllowed(
+          post.id,
+          post.account_id,
+          actor,
+          'list_projection',
+          tx,
+        );
+        const poll = await this.project(
+          postId,
+          actor,
+          publicEligible ? authority : null,
+          tx,
+        );
         if (!poll) throw new ApplicationError('POLL_NOT_FOUND');
         return poll;
       },

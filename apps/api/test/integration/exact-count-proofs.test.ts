@@ -150,7 +150,35 @@ test(
         JOIN pg_attribute a ON a.attrelid=c.oid AND a.attnum=1
         WHERE t.tgname='a_discovery_count_epoch' ORDER BY n.nspname,c.relname`)
           ).rows;
-          assert.equal(tables.length, 23);
+          assert.deepEqual(
+            tables.map((table) => `${table.schema}.${table.table}`),
+            [
+              'whaleu_campus.operating_regions',
+              'whaleu_community.comment_images',
+              'whaleu_community.comment_likes',
+              'whaleu_community.content_approval_bindings',
+              'whaleu_community.content_approval_decisions',
+              'whaleu_community.content_approval_events',
+              'whaleu_community.content_approval_heads',
+              'whaleu_community.content_approval_policies',
+              'whaleu_community.formation_members',
+              'whaleu_community.formations',
+              'whaleu_community.poll_options',
+              'whaleu_community.polls',
+              'whaleu_community.post_images',
+              'whaleu_community.post_likes',
+              'whaleu_community.post_owner_visibility',
+              'whaleu_community.posts',
+              'whaleu_community.replies',
+              'whaleu_community.reply_images',
+              'whaleu_community.reply_likes',
+              'whaleu_community.root_comments',
+              'whaleu_community.spaces',
+              'whaleu_community.trading_listings',
+              'whaleu_safety.account_heads',
+              'whaleu_safety.blocks',
+            ],
+          );
           for (const table of tables) {
             const owner = table.schema.replace(
               'whaleu_',

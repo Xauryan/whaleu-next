@@ -360,7 +360,9 @@ export class CommunityMediaOwner
         request.viewerAccountId,
         post,
         tx,
-        'list_projection',
+        request.purpose === 'list-projection'
+          ? 'list_projection'
+          : 'detail_projection',
       ))
     )
       throw new ApplicationError('POST_NOT_FOUND');
@@ -372,7 +374,9 @@ export class CommunityMediaOwner
           request.viewerAccountId,
           root,
           tx,
-          'list_projection',
+          request.purpose === 'list-projection'
+            ? 'list_projection'
+            : 'detail_projection',
         ))
       )
         throw new ApplicationError('COMMENT_NOT_FOUND');
@@ -385,7 +389,9 @@ export class CommunityMediaOwner
             request.viewerAccountId,
             reply,
             tx,
-            'list_projection',
+            request.purpose === 'list-projection'
+              ? 'list_projection'
+              : 'detail_projection',
           ))
         )
           throw new ApplicationError('REPLY_NOT_FOUND');

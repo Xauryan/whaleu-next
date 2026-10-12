@@ -229,7 +229,7 @@ export class CommunityUpdatesFacade {
       await lockSafetyPolicy(tx);
       if (!(await this.identity.activeAccount(recipient.accountId, tx)))
         return { outcome: 'suppressed', code: 'recipient_inactive' };
-      const { post, space } = await this.access.accessiblePost(
+      const { post, space } = await this.access.projectionPost(
         target.postId,
         recipient.accountId,
         tx,

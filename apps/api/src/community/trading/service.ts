@@ -85,6 +85,8 @@ export class TradingService {
         );
         if (post.category !== 'trading' || post.account_id !== actor)
           throw new ApplicationError('POST_NOT_FOUND');
+        if (input.resolution === 'open')
+          await this.access.interaction(actor, post, tx);
         const authority = await this.access.authority(actor, space, tx);
         requireAction(authority, 'resolve_trading');
         const listing = await this.trading.find(post.id, tx, true);
