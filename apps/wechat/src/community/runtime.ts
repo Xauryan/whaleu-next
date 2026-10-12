@@ -1,4 +1,9 @@
 import {
+  HttpDishRecommendationsGateway,
+  type DishRecommendationsGateway,
+} from '../dish-recommendations/gateway';
+import { PendingDishRecommendationStore } from '../dish-recommendations/pending';
+import {
   HttpWindowRatingsGateway,
   type WindowRatingsGateway,
 } from '../window-ratings/gateway';
@@ -183,6 +188,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly dishRecommendations?: DishRecommendationsGateway;
+  readonly pendingDishRecommendations?: PendingDishRecommendationStore;
   readonly windowRatings?: WindowRatingsGateway;
   readonly pendingWindowRatings?: PendingWindowRatingStore;
   readonly courseComments?: CourseCommentsGateway;
@@ -348,6 +355,15 @@ export function createCommunityRuntime(
           ratingLikeUpdates: new HttpRatingLikeUpdatesGateway(identity.api),
           ratingDiscussion: new HttpRatingDiscussionGateway(identity.api),
           ratingUpdates: new HttpRatingUpdatesGateway(identity.api),
+        }
+      : {}),
+    pendingDishRecommendations: new PendingDishRecommendationStore(
+      storage,
+      origin,
+    ),
+    ...(identity.api
+      ? {
+          dishRecommendations: new HttpDishRecommendationsGateway(identity.api),
         }
       : {}),
     pendingWindowRatings: new PendingWindowRatingStore(storage, origin),

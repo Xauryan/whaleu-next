@@ -164,3 +164,11 @@ per-axis summaries and durable original-key recovery on new Next native pages.
 Catalog and historical coverage remain unavailable until explicitly accepted; no
 production catalog/history or provider is activated. Generic Ratings and other
 specialist domains are unchanged. See [scope and verification](docs/COURSE_RATINGS.md).
+
+## W2 window dish recommendations
+
+Bounded exact-name visible endorsements now have reversible actor membership,
+private own-state closure, versioned CAS and durable original-request recovery.
+Fresh public names use a distinct Review purpose; source/history/provider
+activation remains closed. This is separate from numeric window scores. See
+[the W2 contract](docs/DISH_RECOMMENDATIONS.md) for identity, coverage, privacy and local-test limits.

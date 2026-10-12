@@ -568,3 +568,11 @@ history source is invented. See [native course comments](docs/course-comments.md
 The Ratings entry now reaches accepted canteen/floor directory filtering, bounded mean-ranked window pages and a dedicated editable signed-integer score detail. All 21 choices (-10 through +10, including zero) use a separate window operation and nullable own-score revision CAS. Positive-only minimum filtering preserves the accepted legacy behavior. A durable account/origin journal precedes transport, recovery is receipt-first, and a separately confirmed cancellation decision is persisted before its server fence. Historical applied/noop receipts are independently followed by fresh current detail.
 
 See [the native W1 contract](docs/window-ratings.md). Unit/controller/template tests and the emitted App/Page/WXML-to-real-HTTP/PostgreSQL roundtrip cover the implementation boundary; real source import, provider, DevTools/device and deployment acceptance remain unclaimed.
+
+## W2 window dish recommendations
+
+Bounded exact-name visible endorsements now have reversible actor membership,
+private own-state closure, versioned CAS and durable original-request recovery.
+Fresh public names use a distinct Review purpose; source/history/provider
+activation remains closed. This is separate from numeric window scores. See
+[the W2 contract](../../docs/DISH_RECOMMENDATIONS.md) for identity, coverage, privacy and local-test limits.

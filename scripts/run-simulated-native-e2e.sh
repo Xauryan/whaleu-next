@@ -14,6 +14,9 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   timeout 1200 node --import tsx --test --test-concurrency=1 \
   test/integration/course-ratings.test.ts \
   test/integration/course-ratings-native-roundtrip.test.ts \
+  test/integration/course-comments-native-roundtrip.test.ts \
+  test/integration/window-ratings-native-roundtrip.test.ts \
+  test/integration/dish-recommendations-native-roundtrip.test.ts \
   test/integration/community-text-review-native-roundtrip.test.ts \
   test/integration/community-feedback.test.ts \
   test/integration/school-configuration-native-roundtrip.test.ts \

@@ -1,5 +1,6 @@
 <import src="../../window-ratings/common.wxml" />
 <view class="screen">
+  <navigator class="link" url="/pages/window-dishes/window-dishes">菜品推荐原请求：独立查询回执与取消 →</navigator>
   <view class="eyebrow">WHALEU · 窗口评分</view>
   <view class="title">找食堂窗口</view>
   <view class="notice">仅展示已核验来源中的食堂、楼层与窗口。评分范围为 -10 至 +10 的整数，可修改；0 是有效评分。</view>

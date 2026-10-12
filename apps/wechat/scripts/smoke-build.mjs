@@ -234,7 +234,10 @@ for (const route of config.pages.filter(
     }
   }
   current.onLoad?.(
-    route === 'pages/window-rating-detail/window-rating-detail'
+    [
+      'pages/window-rating-detail/window-rating-detail',
+      'pages/window-dishes/window-dishes',
+    ].includes(route)
       ? { windowId: '11111111-1111-4111-8111-111111111111' }
       : route === 'pages/course-rating-detail/course-rating-detail'
         ? { courseId: '11111111-1111-4111-8111-111111111111' }

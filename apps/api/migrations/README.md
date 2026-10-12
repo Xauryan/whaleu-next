@@ -215,3 +215,9 @@ Stable raw floor/source identities and independently evidenced canonical mapping
 are required. No catalog/history is seeded, and no canteen/floor score, dish,
 comment, image or production administration is added. See
 [W1 window ratings](../../../docs/WINDOW_RATINGS.md).
+
+0115 adds independently covered exact-native window dish recommendations,
+Review-owned name decisions, reversible actor/name lineage and original command
+receipts. Earlier migrations remain unchanged. Only synthetic tests issue
+accepted-empty population/membership baselines; there is no production seed or
+nonempty historical adoption. See [W2](../../../docs/DISH_RECOMMENDATIONS.md).

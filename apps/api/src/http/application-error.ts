@@ -3,6 +3,15 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  DISH_HISTORY_UNAVAILABLE: {
+    status: 503,
+    message: 'Dish recommendation history is unavailable',
+  },
+  DISH_BUDGET_UNAVAILABLE: {
+    status: 503,
+    message:
+      'Exact dish recommendation population exceeds the supported budget',
+  },
   WINDOW_CATALOG_UNAVAILABLE: {
     status: 503,
     message: 'Accepted window catalog is unavailable',

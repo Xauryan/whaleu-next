@@ -107,7 +107,8 @@ transport. Hide/back, login/account/origin changes and late callbacks clear priv
 state. An old applied/noop receipt is historical outcome, followed by a fresh
 current detail read. It does not become the current displayed score by itself.
 
-Canteen/floor score writes, dish endorsements, window comments/replies/images,
+W2 dish endorsements are now a separate bounded [contract](DISH_RECOMMENDATIONS.md).
+Canteen/floor score writes, window comments/replies/images,
 admin/catalog workflows, rewards, notices and mixed-population aggregates remain
 explicit separate gates. There is no production activation endpoint or fabricated
 seed. Local emitted App/Page/WXML → production gateway → loopback AppModule →

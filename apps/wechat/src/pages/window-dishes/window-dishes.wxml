@@ -1,0 +1,51 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 菜品推荐</view><view class="title">窗口推荐菜品</view>
+  <view class="meta">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
+  <view wx:if="{{receiptStatus}}" class="notice">{{receiptStatus}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看菜品推荐 →</navigator>
+  <view wx:if="{{frozen}}" class="card confirmation">
+    <view class="section-title">原菜品操作待确认</view>
+    <view class="body">窗口编号：{{recoveryWindowId}}</view>
+    <view class="body">原菜名：{{recoveryName}}</view>
+    <view class="body">原操作：{{recoveryOperation === 'window.dish.retract.v1' ? '撤回推荐' : '推荐菜品'}}</view>
+    <view class="notice">{{recoveryPhase === 'cancel' ? '已保存取消决定，只查询回执或重试取消，不重新执行推荐或撤回。' : '未查到回执不等于失败，原编号与完整意图已保存，不能创建替代请求。'}}</view>
+    <button bindtap="onRecover" disabled="{{busy}}">查询原回执</button>
+    <button bindtap="onRetry" disabled="{{busy}}">{{recoveryPhase === 'cancel' ? '查询后重试原取消' : '查询后重试原操作'}}</button>
+    <button wx:if="{{recoveryWindowId &amp;&amp; recoveryPhase !== 'cancel'}}" bindtap="onRequestCancellation" disabled="{{busy}}">查询后申请取消原请求</button>
+  </view>
+  <view wx:if="{{confirming === 'cancel'}}" class="card confirmation">
+    <view class="section-title">确认取消原请求</view><view class="notice">只有服务端取消回执才算取消；已完成的原操作返回真实回执，取消不会撤销已经完成的推荐或撤回。</view>
+    <button bindtap="onConfirmCancellation" disabled="{{busy || !receiptMissing}}">确认取消这个原请求</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回</button>
+  </view>
+  <button bindtap="onRefresh" disabled="{{busy}}">重新加载当前推荐</button><button wx:if="{{busy}}" bindtap="onCancelWait">停止等待</button>
+  <view wx:if="{{restartRequired}}" class="notice">分页已失效，旧页已清除，请从第一页重新加载。</view>
+  <view wx:if="{{loaded}}" class="card">
+    <view class="section-title">当前可见推荐</view><view class="notice">有效推荐数只计算当前可见的有效推荐。每个账号可推荐多个不同菜名，同一账号在同一菜名下最多一条当前推荐；不代表不同自然人的数量，不展示推荐者身份。</view>
+    <view wx:if="{{items.length === 0}}" class="body">当前已确认没有可见推荐。</view>
+    <view wx:for="{{items}}" wx:key="dishIdentity" class="card">
+      <view class="section-title">{{item.dishName}}</view><view class="body">{{item.recommendationCount}} 条有效推荐</view><view class="meta">{{item.isRecommended ? '我已推荐' : '我当前未推荐'}}</view>
+      <button bindtap="onDish" data-identity="{{item.dishIdentity}}" disabled="{{busy || frozen || confirming}}">查询自己的当前状态</button>
+    </view>
+    <view class="meta">第 {{pageNumber}} 页</view><button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button>
+  </view>
+  <view class="card">
+    <view class="section-title">查询、推荐或撤回原菜名</view>
+    <view class="notice">菜名为 1 至 10 个 Unicode 码点，例如 10 个 🍱 有效；组合序列按 Unicode 码点数计算。保留大小写、空格与组合字符，不自动修改。即使来源、手机号或安全资格变化，仍可按原菜名查询自己的既有推荐并撤回。</view>
+    <input value="{{nameDraft}}" bindinput="onName" maxlength="-1" disabled="{{busy || frozen || confirming}}" placeholder="输入原样菜名" />
+    <button bindtap="onLookup" disabled="{{busy || frozen || confirming}}">查询我的这个菜名</button>
+    <block wx:if="{{own}}">
+      <view wx:if="{{own.kind === 'recorded'}}" class="body">{{own.active ? '我当前已推荐' : '我当前已撤回'}}：{{ownName}}</view>
+      <view wx:elif="{{own.kind === 'not_recommended'}}" class="body">已确认尚未推荐这个菜名。</view>
+      <view wx:else class="notice">自己的推荐历史暂不能确认，不能当作尚未推荐。</view>
+    </block>
+    <view wx:if="{{blocker}}" class="notice">{{blocker}}</view>
+    <button wx:if="{{canRecommend}}" bindtap="onRecommend" disabled="{{busy || frozen || confirming}}">核对推荐</button>
+    <button wx:if="{{canRetract}}" bindtap="onRetract" disabled="{{busy || frozen || confirming}}">核对撤回我的推荐</button>
+  </view>
+  <view wx:if="{{confirming === 'recommend' || confirming === 'retract'}}" class="card confirmation">
+    <view class="section-title">确认{{confirming === 'retract' ? '撤回我的推荐' : '推荐菜品'}}</view><view class="body">原样菜名：{{ownName}}</view>
+    <view class="notice">先保存完整原请求再发送。自己的推荐如已在别处变化，本次不会覆盖；撤回后可重新推荐，并产生新的版本。</view>
+    <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认这个操作</button><button bindtap="onCloseConfirmation" disabled="{{busy || frozen}}">返回调整</button>
+  </view>
+  <navigator class="link" url="/pages/window-ratings/window-ratings">窗口目录 →</navigator>
+</view>

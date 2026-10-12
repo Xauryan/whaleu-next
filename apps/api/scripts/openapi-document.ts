@@ -515,6 +515,10 @@ export async function renderErrandsOpenApiDocument(): Promise<string> {
 
 /** Tooling-only rating routes. No live database, issuer or provider. */
 export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { DishRecommendationsController } =
+    await import('../src/ratings/windows/dishes/controller.js');
+  const { DishRecommendationsService } =
+    await import('../src/ratings/windows/dishes/service.js');
   const { CourseCommentsController } =
     await import('../src/ratings/courses/comments/controller.js');
   const { CourseCommentsService } =
@@ -723,6 +727,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       CourseCommentsController,
       CourseRatingsController,
       WindowRatingsController,
+      DishRecommendationsController,
       RatingCategoryIconManagementController,
       RatingCategoryIconRequestController,
       RatingCategoryIconPublicController,
@@ -789,6 +794,17 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       { provide: RatingSubscriptionsService, useValue: {} },
       { provide: RatingSubscriptionUpdatesReadService, useValue: {} },
       { provide: RatingsService, useValue: {} },
+      {
+        provide: DishRecommendationsService,
+        useValue: {
+          page: fail,
+          own: fail,
+          recommend: fail,
+          retract: fail,
+          receipt: fail,
+          cancel: fail,
+        },
+      },
       {
         provide: WindowRatingsService,
         useValue: {

@@ -1,3 +1,4 @@
+import * as dishes from '../src/ratings/windows/dishes/contracts.js';
 import * as windows from '../src/ratings/windows/contracts.js';
 import * as courseComments from '../src/ratings/courses/comments/contracts.js';
 import * as courses from '../src/ratings/courses/contracts.js';
@@ -1011,6 +1012,32 @@ test('legacy, scoped, category management and category icon operations have exac
   ] as const;
   const allCases = [
     ...windowCases,
+    ['/v1/ratings/windows/{id}/dishes', 'get', dishes.dishPageSchema],
+    [
+      '/v1/ratings/windows/{id}/dishes/my-membership',
+      'get',
+      dishes.dishOwnSchema,
+    ],
+    [
+      '/v1/ratings/windows/{id}/dishes/recommend',
+      'post',
+      dishes.dishReceiptSchema,
+    ],
+    [
+      '/v1/ratings/windows/{id}/dishes/retract',
+      'post',
+      dishes.dishReceiptSchema,
+    ],
+    [
+      '/v1/ratings/windows/dish-requests/{requestId}',
+      'get',
+      dishes.dishReceiptSchema,
+    ],
+    [
+      '/v1/ratings/windows/dish-requests/{requestId}/cancel',
+      'post',
+      dishes.dishReceiptSchema,
+    ],
     ...courseCases,
     ...cases,
     ...scopedCases,
@@ -1247,8 +1274,8 @@ test('course comments expose distinct strict publish/like/cancel inputs without 
 
 test('window scores expose independent signed mutable CAS, metadata and original cancellation without first-tuple or generic scale conversion', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
-  const paths = Object.keys(doc.paths).filter((path) =>
-    path.startsWith('/v1/ratings/windows'),
+  const paths = Object.keys(doc.paths).filter(
+    (path) => path.startsWith('/v1/ratings/windows') && !path.includes('dish'),
   );
   assert.equal(paths.length, 8);
   for (const [path, schema] of [
@@ -1268,4 +1295,25 @@ test('window scores expose independent signed mutable CAS, metadata and original
   }
   assert.ok(doc.paths['/v1/ratings/windows/catalog']!.get);
   assert.equal(doc.paths['/v1/ratings/windows/{id}/first-score'], undefined);
+});
+
+test('dish recommend/retract and original cancellation have distinct bounded strict command contracts', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  for (const [path, schema] of [
+    ['/v1/ratings/windows/{id}/dishes/recommend', dishes.dishCommandSchema],
+    ['/v1/ratings/windows/{id}/dishes/retract', dishes.dishCommandSchema],
+    [
+      '/v1/ratings/windows/dish-requests/{requestId}/cancel',
+      dishes.dishCancelSchema,
+    ],
+  ] as const) {
+    const body = doc.paths[path]!.post!.requestBody!;
+    assert.ok(!('$ref' in body));
+    assert.deepEqual(
+      body.content['application/json']!.schema,
+      z.toJSONSchema(schema, { target: 'openapi-3.0', io: 'input' }),
+    );
+    assert.equal(doc.paths[path]!.put, undefined);
+    assert.equal(doc.paths[path]!.delete, undefined);
+  }
 });
