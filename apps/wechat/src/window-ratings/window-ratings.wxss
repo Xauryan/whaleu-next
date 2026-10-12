@@ -1,0 +1,30 @@
+.window-field {
+  border: 1rpx solid #d5dce4;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin: 20rpx 0;
+}
+.filter-picker {
+  padding: 20rpx;
+  border: 1rpx solid #d5dce4;
+  border-radius: 12rpx;
+  margin: 20rpx 0;
+}
+.window-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin: 20rpx 0;
+}
+.window-scores button {
+  width: 92rpx;
+  margin: 0;
+  font-size: 28rpx;
+}
+.score-selected {
+  background: #12594b !important;
+  color: #fff !important;
+}
+.confirmation {
+  border: 2rpx solid #b47a18;
+}

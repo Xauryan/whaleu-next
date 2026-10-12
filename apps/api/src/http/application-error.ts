@@ -3,6 +3,30 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  WINDOW_CATALOG_UNAVAILABLE: {
+    status: 503,
+    message: 'Accepted window catalog is unavailable',
+  },
+  WINDOW_HISTORY_UNAVAILABLE: {
+    status: 503,
+    message: 'Window score history or current proof is unavailable',
+  },
+  WINDOW_NOT_FOUND: {
+    status: 404,
+    message: 'Window or active parent is unavailable',
+  },
+  WINDOW_REVISION_CONFLICT: {
+    status: 409,
+    message: 'Window catalog changed; reload before confirming',
+  },
+  WINDOW_SCORE_REVISION_CONFLICT: {
+    status: 409,
+    message: 'Own window score changed; reload before confirming',
+  },
+  WINDOW_SCORE_CANCELLED: {
+    status: 409,
+    message: 'Original window score command was cancelled',
+  },
   COURSE_COMMENT_HISTORY_UNAVAILABLE: {
     status: 503,
     message: 'Course comment or like history is unavailable',

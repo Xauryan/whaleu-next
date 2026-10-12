@@ -45,6 +45,10 @@ A bounded [specialist course-comments slice](docs/COURSE_COMMENTS.md) adds
 reviewed author-undisclosed text, permanent likes and original-request recovery;
 real comment/like history and production Review remain unavailable.
 
+A bounded [specialist window-rating slice](docs/WINDOW_RATINGS.md) adds accepted
+canteen/floor/window topology, mutable signed −10..10 scores and durable own-score
+recovery; production source/history remain unavailable.
+
 See the [feature-parity checklist](docs/FEATURE_PARITY.md) for the required scope.
 
 A separate [semantic search slice](docs/design/semantic-search.md) adds full-scope

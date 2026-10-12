@@ -519,6 +519,10 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
     await import('../src/ratings/courses/comments/controller.js');
   const { CourseCommentsService } =
     await import('../src/ratings/courses/comments/service.js');
+  const { WindowRatingsController } =
+    await import('../src/ratings/windows/controller.js');
+  const { WindowRatingsService } =
+    await import('../src/ratings/windows/service.js');
   const { CourseRatingsController } =
     await import('../src/ratings/courses/controller.js');
   const { CourseRatingsService } =
@@ -718,6 +722,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
     controllers: [
       CourseCommentsController,
       CourseRatingsController,
+      WindowRatingsController,
       RatingCategoryIconManagementController,
       RatingCategoryIconRequestController,
       RatingCategoryIconPublicController,
@@ -784,6 +789,19 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       { provide: RatingSubscriptionsService, useValue: {} },
       { provide: RatingSubscriptionUpdatesReadService, useValue: {} },
       { provide: RatingsService, useValue: {} },
+      {
+        provide: WindowRatingsService,
+        useValue: {
+          catalog: fail,
+          page: fail,
+          detail: fail,
+          own: fail,
+          summary: fail,
+          setScore: fail,
+          receipt: fail,
+          cancel: fail,
+        },
+      },
       {
         provide: CourseCommentsService,
         useValue: {

@@ -1,0 +1,26 @@
+<import src="../../window-ratings/common.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 窗口评分</view>
+  <view class="title">找食堂窗口</view>
+  <view class="notice">仅展示已核验来源中的食堂、楼层与窗口。评分范围为 -10 至 +10 的整数，可修改；0 是有效评分。</view>
+  <template is="window-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryWindowId,recoveryScore,recoveryPhase,busy,restartRequired,confirming,receiptMissing}}" />
+  <view wx:if="{{catalog}}" class="card">
+    <view class="section-title">食堂与楼层筛选</view>
+    <view class="notice">食堂可多选；未选择时查询全部已确认食堂。</view>
+    <button wx:for="{{canteenOptions}}" wx:key="id" data-id="{{item.id}}" class="{{item.selected ? 'score-selected' : ''}}" bindtap="onCanteen" disabled="{{busy}}">{{item.selected ? '已选 · ' : ''}}{{item.label}}</button>
+    <picker range="{{floorLabels}}" value="{{floorIndex}}" bindchange="onFloor" disabled="{{busy}}"><view class="filter-picker">{{floorLabels[floorIndex]}} ▾</view></picker>
+    <input class="window-field" value="{{minRatingDraft}}" maxlength="8" placeholder="最低均分（-10 至 10，可留空）" bindinput="onMinimum" bindconfirm="onSearch" disabled="{{busy}}" />
+    <view class="notice">最低均分只有大于 0 时启用；留空、0 或负数均不过滤低分窗口。</view>
+    <button bindtap="onSearch" disabled="{{busy}}">按条件查询窗口</button>
+  </view>
+  <block wx:if="{{loaded}}">
+    <view class="meta">{{appliedFilter}} · 按均分排序 · 第 {{pageNumber}} 页</view>
+    <view wx:for="{{items}}" wx:key="id" class="card">
+      <template is="window-facts" data="{{window:item}}" />
+      <template is="window-summary" data="{{summary:item.summary}}" />
+      <button data-id="{{item.id}}" bindtap="onWindow" disabled="{{busy}}">查看窗口与我的评分 →</button>
+    </view>
+    <view wx:if="{{!items.length}}" class="empty">当前查询已确认没有窗口。</view>
+    <button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页窗口</button>
+  </block>
+</view>

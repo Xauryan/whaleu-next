@@ -1,3 +1,4 @@
+import { WindowRatingsModule } from './windows/module.js';
 import { CourseRatingsModule } from './courses/module.js';
 import { RatingCategoryIconRetirementOwner } from './category-management/icon-retirement.js';
 import {
@@ -134,6 +135,7 @@ import { RatingsCursors } from './cursor.js';
 @Module({
   imports: [
     CourseRatingsModule,
+    WindowRatingsModule,
     DatabaseModule,
     MediaDeliveryBudgetModule,
     RatingsReadModule,

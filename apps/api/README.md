@@ -299,3 +299,11 @@ separate from physical-device/provider and production acceptance.
 ### Student document verification (private, non-production adapters closed)
 
 See [scope and policy](../../docs/STUDENT_VERIFICATION.md). Native application/review/local-notice endpoints are owned by Verification; protocol 13 materials use private typed upload and inline delivery. Approvals issue only document-review affiliation, preserve independent phone/student-number pointers, and use internal Campus institution UUIDs. Material retention requires an explicit per-item immutable policy; normal runtime evidence adapters stay unavailable. Exact original request recovery, expiry and owner-only cancellation are separate from current reviewer authority.
+
+## W1 specialist window ratings
+
+A dedicated Ratings/window module provides accepted canteen/floor metadata,
+bounded signed window rankings, mutable integer −10..10 own-score CAS, exact
+PostgreSQL mean/count and immutable original-key recovery/cancellation. Current
+session, phone and Safety are required; course-comment verified-base is not.
+Default source/history stays unavailable. See [the bounded contract](../../docs/WINDOW_RATINGS.md).

@@ -562,3 +562,9 @@ account/origin recovery, receipt-first retries and server-confirmed cancellation
 The three-axis C1 score remains separate. Independent source/comment/like
 history and exact text Review must be available; no production approval or
 history source is invented. See [native course comments](docs/course-comments.md).
+
+## W1 specialist window ratings
+
+The Ratings entry now reaches accepted canteen/floor directory filtering, bounded mean-ranked window pages and a dedicated editable signed-integer score detail. All 21 choices (-10 through +10, including zero) use a separate window operation and nullable own-score revision CAS. Positive-only minimum filtering preserves the accepted legacy behavior. A durable account/origin journal precedes transport, recovery is receipt-first, and a separately confirmed cancellation decision is persisted before its server fence. Historical applied/noop receipts are independently followed by fresh current detail.
+
+See [the native W1 contract](docs/window-ratings.md). Unit/controller/template tests and the emitted App/Page/WXML-to-real-HTTP/PostgreSQL roundtrip cover the implementation boundary; real source import, provider, DevTools/device and deployment acceptance remain unclaimed.

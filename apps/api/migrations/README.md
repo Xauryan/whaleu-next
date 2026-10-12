@@ -207,3 +207,11 @@ unchanged. Queue admission is bounded; original-owner cancellation fences remain
 irrevocable and retain their existing quota. See
 [local text review](../../../docs/COMMUNITY_TEXT_REVIEW.md). This migration seeds
 no policy, decision, account, school or operating region.
+
+`0114_window_ratings.sql` adds empty accepted canteen/floor/window topology,
+independent score-history assertions, mutable signed −10..10 own-score heads,
+immutable causal events/receipts, cancellation and current-owner SQL guards.
+Stable raw floor/source identities and independently evidenced canonical mappings
+are required. No catalog/history is seeded, and no canteen/floor score, dish,
+comment, image or production administration is added. See
+[W1 window ratings](../../../docs/WINDOW_RATINGS.md).

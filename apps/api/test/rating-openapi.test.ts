@@ -1,3 +1,4 @@
+import * as windows from '../src/ratings/windows/contracts.js';
 import * as courseComments from '../src/ratings/courses/comments/contracts.js';
 import * as courses from '../src/ratings/courses/contracts.js';
 import * as discussionMedia from '../src/ratings/scoped/discussion-media-contracts.js';
@@ -374,7 +375,9 @@ test('legacy, scoped, category management and category icon operations have exac
     Object.entries(doc.paths)
       .filter(
         ([path]) =>
-          path.startsWith('/v1/') && !path.startsWith('/v1/ratings/courses'),
+          path.startsWith('/v1/') &&
+          !path.startsWith('/v1/ratings/courses') &&
+          !path.startsWith('/v1/ratings/windows'),
       )
       .reduce((n, [, item]) => n + Object.keys(item!).length, 0),
     66,
@@ -988,7 +991,26 @@ test('legacy, scoped, category management and category icon operations have exac
       courses.courseReceiptSchema,
     ],
   ] as const;
+  const windowCases = [
+    ['/v1/ratings/windows/catalog', 'get', windows.windowCatalogSchema],
+    ['/v1/ratings/windows', 'get', windows.windowPageSchema],
+    ['/v1/ratings/windows/{id}', 'get', windows.windowDetailSchema],
+    ['/v1/ratings/windows/{id}/my-score', 'get', windows.windowOwnSchema],
+    ['/v1/ratings/windows/{id}/summary', 'get', windows.windowSummarySchema],
+    ['/v1/ratings/windows/{id}/score', 'post', windows.windowReceiptSchema],
+    [
+      '/v1/ratings/windows/requests/{requestId}',
+      'get',
+      windows.windowReceiptSchema,
+    ],
+    [
+      '/v1/ratings/windows/requests/{requestId}/cancel',
+      'post',
+      windows.windowReceiptSchema,
+    ],
+  ] as const;
   const allCases = [
+    ...windowCases,
     ...courseCases,
     ...cases,
     ...scopedCases,
@@ -1221,4 +1243,29 @@ test('course comments expose distinct strict publish/like/cancel inputs without 
     assert.equal(doc.paths[path]!.put, undefined);
     assert.equal(doc.paths[path]!.delete, undefined);
   }
+});
+
+test('window scores expose independent signed mutable CAS, metadata and original cancellation without first-tuple or generic scale conversion', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  const paths = Object.keys(doc.paths).filter((path) =>
+    path.startsWith('/v1/ratings/windows'),
+  );
+  assert.equal(paths.length, 8);
+  for (const [path, schema] of [
+    ['/v1/ratings/windows/{id}/score', windows.windowSetScoreSchema],
+    [
+      '/v1/ratings/windows/requests/{requestId}/cancel',
+      windows.windowCancelSchema,
+    ],
+  ] as const) {
+    const body = doc.paths[path]!.post!.requestBody!;
+    assert.ok(!('$ref' in body));
+    assert.deepEqual(
+      body.content['application/json']!.schema,
+      z.toJSONSchema(schema, { io: 'input', target: 'openapi-3.0' }),
+    );
+    assert.equal(doc.paths[path]!.delete, undefined);
+  }
+  assert.ok(doc.paths['/v1/ratings/windows/catalog']!.get);
+  assert.equal(doc.paths['/v1/ratings/windows/{id}/first-score'], undefined);
 });

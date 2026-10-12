@@ -1,0 +1,33 @@
+<import src="../../window-ratings/common.wxml" />
+<view class="screen">
+  <view class="eyebrow">WHALEU · 窗口评分</view><view class="title">窗口详情与评分</view>
+  <template is="window-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryWindowId,recoveryScore,recoveryPhase,busy,restartRequired,confirming,receiptMissing}}" />
+  <block wx:if="{{loaded &amp;&amp; detail}}">
+    <view class="card"><template is="window-facts" data="{{window:detail.window}}" /><view class="meta">已核验目录版本：{{detail.catalogRevision}}</view></view>
+    <view class="card"><view class="section-title">当前窗口均分</view><template is="window-summary" data="{{summary:detail.window.summary}}" /></view>
+    <view class="card">
+      <view class="section-title">我的当前评分</view>
+      <view wx:if="{{detail.myScore.kind === 'recorded'}}" class="body">当前评分：{{detail.myScore.score}} 分，可修改</view>
+      <view wx:elif="{{detail.myScore.kind === 'unavailable'}}" class="notice">我的历史评分暂不能确认，不能当作尚未评分。</view>
+      <view wx:else class="notice">当前已确认尚未评分。</view>
+      <view class="notice">{{blocker}}</view>
+    </view>
+    <view wx:if="{{canScore}}" class="card">
+      <view class="section-title">{{detail.myScore.kind === 'recorded' ? '修改我的评分' : '选择我的评分'}}</view>
+      <view class="body">本次选择：{{selectedScore === null ? '尚未选择' : selectedScore}}</view>
+      <view class="window-scores"><button wx:for="{{scores}}" wx:key="value" data-score="{{item.value}}" class="{{selectedScore === item.value ? 'score-selected' : ''}}" bindtap="onScore" disabled="{{busy || confirming}}">{{item.label}}</button></view>
+      <view class="notice">每个账号在同一窗口只保留一个当前评分。修改会替换原分数，不增加当前评分条数；选择 0 分同样计入。</view>
+      <button bindtap="onConfirm" disabled="{{busy || selectedScore === null || confirming}}">核对本次评分</button>
+    </view>
+    <view wx:if="{{confirming === 'score'}}" class="card confirmation">
+      <view class="section-title">确认{{detail.myScore.kind === 'recorded' ? '修改' : '提交'}}窗口评分</view>
+      <view class="body">{{detail.window.canteenName}} · {{detail.window.floor.label}} · {{detail.window.name}}</view>
+      <view wx:if="{{detail.myScore.kind === 'recorded'}}" class="body">当前 {{detail.myScore.score}} 分 → 本次 {{selectedScore}} 分</view>
+      <view wx:else class="body">本次 {{selectedScore}} 分</view>
+      <view class="notice">先保存本次原请求再发送。如果评分已在别处变化，本次不会覆盖新评分，需要刷新后重新确认。</view>
+      <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认这个分数</button>
+      <button bindtap="onCloseConfirmation" disabled="{{busy || frozen}}">返回调整</button>
+    </view>
+  </block>
+  <navigator class="link" url="/pages/window-ratings/window-ratings">窗口目录与独立回执恢复 →</navigator>
+</view>
