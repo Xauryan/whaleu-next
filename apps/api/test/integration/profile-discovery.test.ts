@@ -45,6 +45,7 @@ import {
   setReviewState,
 } from '../support/community-approval-fixtures.js';
 import { migrationSchemaNames } from '../support/migration-schemas.js';
+import { assertSafeErrorResponse } from '../support/safe-error-response.js';
 
 // Real AppModule and canonical owner records only, with deterministic database
 // waits. No provider, application policy or visibility replacements are installed.
@@ -550,8 +551,14 @@ test(
               .get(`/v1/profiles/${id}${suffix}`)
               .set('Authorization', auth());
             assert.equal(result.status, 503, JSON.stringify(result.body));
-            assert.equal(result.body.error.code, 'COMMUNITY_UNAVAILABLE');
-            assert.ok(!JSON.stringify(result.body).includes('1025'));
+            assertSafeErrorResponse(
+              result.body,
+              result.headers['x-request-id'],
+              {
+                code: 'COMMUNITY_UNAVAILABLE',
+                message: 'Community is unavailable',
+              },
+            );
           }
           const current = await request(http)
             .get('/v1/me/profile')
