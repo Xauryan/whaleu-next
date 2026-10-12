@@ -11,6 +11,8 @@ import {
   MajorDiscussionController,
   MajorDiscussionNoticesController,
 } from '../src/majors/discussion/controller.js';
+import { MajorDiscussionDeleteService } from '../src/majors/discussion/delete-service.js';
+import { MajorDiscussionDeleteController } from '../src/majors/discussion/delete-controller.js';
 import { MajorDiscussionService } from '../src/majors/discussion/service.js';
 import { RatingRequestGuard } from '../src/request-throttling/rating-request.guard.js';
 export async function createMajorDiscussionOpenApiDocument(): Promise<OpenAPIObject> {
@@ -37,11 +39,21 @@ export async function createMajorDiscussionOpenApiDocument(): Promise<OpenAPIObj
   };
   const testing = await Test.createTestingModule({
     controllers: [
+      MajorDiscussionDeleteController,
       MajorDiscussionController,
       MajorDiscussionNoticesController,
       MajorsController,
     ],
     providers: [
+      {
+        provide: MajorDiscussionDeleteService,
+        useValue: {
+          receipt: fail,
+          cancel: fail,
+          delete: fail,
+          capability: fail,
+        },
+      },
       {
         provide: MajorsService,
         useValue: {

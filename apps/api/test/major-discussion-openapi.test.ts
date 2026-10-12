@@ -10,6 +10,10 @@ test('M1 OpenAPI names independent Major roots, flat replies, reversible likes, 
   )) as { createMajorDiscussionOpenApiDocument(): Promise<OpenAPIObject> };
   const doc = await createMajorDiscussionOpenApiDocument();
   for (const [path, method] of [
+    ['/v1/majors/{id}/discussion/{commentId}/delete', 'post'],
+    ['/v1/majors/{id}/discussion/{commentId}/delete-capability', 'get'],
+    ['/v1/majors/discussion-delete-requests/{requestId}', 'get'],
+    ['/v1/majors/discussion-delete-requests/{requestId}/cancel', 'post'],
     ['/v1/majors', 'get'],
     ['/v1/majors/departments', 'get'],
     ['/v1/majors/{id}', 'get'],
@@ -31,5 +35,5 @@ test('M1 OpenAPI names independent Major roots, flat replies, reversible likes, 
     assert.ok(operation.security?.some((s) => 'accessToken' in s));
     assert.ok(operation.responses['200']);
   }
-  assert.equal(Object.keys(doc.paths).length, 14);
+  assert.equal(Object.keys(doc.paths).length, 18);
 });

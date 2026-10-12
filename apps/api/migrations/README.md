@@ -270,3 +270,13 @@ including image-only content. Existing SQL through 0122, text-v1 hash/receipt
 domains and raw text validation remain unchanged. No source/Review/provider is
 seeded, no creator mapping is invented, and no Window deletion or bound-image
 retirement policy is added. See [Window images v2](../../../docs/WINDOW_DISCUSSION_IMAGES.md).
+
+`0124_major_discussion_soft_delete.sql` adds independent append-only Major logical
+withdrawal commands and tombstones. Original v1 rows/hash domains remain unchanged.
+Authors use immutable ownership and current session/phone/Safety without source,
+Review or publication-base requirements. Administrator authority separately proves
+accepted target-campus/current-region mapping and an exact school_admin or
+super_admin grant; developer never substitutes. Authority/content epochs, strict
+causal receipts and final fences fail closed. Root visibility suppresses all
+descendants while reply removal only suppresses itself. There is no restore/edit,
+physical purge, retention TTL, media protocol or production source import.

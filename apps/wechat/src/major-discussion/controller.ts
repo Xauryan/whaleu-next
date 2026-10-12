@@ -9,6 +9,8 @@ import type { CommunityRuntime } from '../community/runtime';
 import type { Cancellation } from '../platform/contracts';
 import { majorId } from '../majors/contract';
 import {
+  decodeDeleteCapability,
+  type DiscussionDeleteLocator,
   decodeDiscussionIntent,
   decodeDiscussionPage,
   decodeDiscussionOwn,
@@ -22,10 +24,13 @@ import {
   type DiscussionReceipt,
   type DiscussionSort,
   type DiscussionTarget,
-} from './contract';
+} from './operation-contract';
 import type { PendingMajorDiscussion, DiscussionOwnReference } from './pending';
 export type DiscussionMode = 'roots' | 'thread' | 'recovery';
 export interface MajorDiscussionView extends CommunityView {
+  readonly deletionLocatorUnavailable: boolean;
+  readonly deletionLocators: readonly DiscussionDeleteLocator[];
+  readonly deleteTarget: DiscussionDeleteLocator | null;
   readonly mode: DiscussionMode;
   readonly loaded: boolean;
   readonly majorId: string;
@@ -41,7 +46,8 @@ export interface MajorDiscussionView extends CommunityView {
   readonly bodyBytes: number;
   readonly canPublish: boolean;
   readonly replyTarget: DiscussionItem | null;
-  readonly confirming: 'publish' | 'like' | 'unlike' | 'cancel' | null;
+  readonly confirming:
+    'publish' | 'like' | 'unlike' | 'delete' | 'cancel' | null;
   readonly selectedComment: DiscussionItem | null;
   readonly frozen: boolean;
   readonly recoveryMajorId: string;
@@ -59,6 +65,9 @@ export interface MajorDiscussionView extends CommunityView {
 }
 export const initialMajorDiscussionView = (): MajorDiscussionView => ({
   ...initialCommunityView(),
+  deletionLocatorUnavailable: false,
+  deletionLocators: [],
+  deleteTarget: null,
   mode: 'roots',
   loaded: false,
   majorId: '',
@@ -176,6 +185,7 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
     this.ownLocator = null;
     this.update({
       loaded: false,
+      deleteTarget: null,
       root: null,
       items: [],
       totalCount: null,
@@ -192,11 +202,18 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
     const accountId = this.accountId();
     if (!accountId || !this.runtime.pendingMajorDiscussion) return false;
     try {
+      this.pending =
+        this.runtime.pendingMajorDiscussion.loadForRecovery(accountId);
+      const locatorState =
+        this.runtime.pendingMajorDiscussion.deletionLocatorState(accountId);
       this.update({
+        deletionLocators: locatorState.items,
+        deletionLocatorUnavailable: locatorState.unavailable,
         ownReferences:
-          this.runtime.pendingMajorDiscussion.references(accountId),
+          this.pending?.intent.operation === 'major.discussion.delete.v1'
+            ? []
+            : this.runtime.pendingMajorDiscussion.references(accountId),
       });
-      this.pending = this.runtime.pendingMajorDiscussion.load(accountId);
       if (this.pending) this.showPending(this.pending);
       else
         this.update({
@@ -235,7 +252,8 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
       recoveryMajorId: i.majorId,
       recoveryOperation: i.operation,
       recoveryCommentId:
-        i.operation === 'major.discussion.like.v1'
+        i.operation === 'major.discussion.like.v1' ||
+        i.operation === 'major.discussion.delete.v1'
           ? i.commentId
           : i.operation === 'major.discussion.reply.v1'
             ? i.rootId
@@ -446,9 +464,73 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
     if (!item || !this.restore() || this.pending) return;
     this.update({ confirming: 'like', selectedComment: item });
   }
+  confirmDelete(id: string): void {
+    if (
+      this.view.busy ||
+      this.view.confirming ||
+      this.view.frozen ||
+      this.view.deleteTarget?.commentId !== id ||
+      !this.ready() ||
+      !this.restore() ||
+      this.pending
+    )
+      return;
+    this.update({ confirming: 'delete' });
+  }
+  async inspectDeletion(id: string, own = false): Promise<void> {
+    if (
+      this.view.busy ||
+      this.view.confirming ||
+      this.view.frozen ||
+      !this.ready() ||
+      !this.restore() ||
+      this.pending
+    )
+      return;
+    const item = [
+      ...(this.view.root ? [this.view.root] : []),
+      ...this.view.items,
+    ].find((i) => i.id === id);
+    const ref = own
+      ? this.view.deletionLocators.find((i) => i.commentId === id)
+      : this.view.loaded && item
+        ? { majorId: item.majorId, commentId: item.id, rootId: item.rootId }
+        : null;
+    this.update({ deleteTarget: null });
+    if (!ref) return;
+    await this.run(
+      async (cancel) => {
+        const proof = decodeDeleteCapability(
+          await this.runtime.majorDiscussion!.deleteCapability(ref, cancel),
+        );
+        if (
+          proof.majorId !== ref.majorId ||
+          proof.commentId !== ref.commentId ||
+          proof.rootId !== ref.rootId
+        )
+          invalidDiscussion();
+        return proof;
+      },
+      (proof) => {
+        if (proof.allowed)
+          this.update({
+            deleteTarget: ref,
+            ...(own ? { confirming: 'delete' as const } : {}),
+          });
+        else
+          this.update({ deleteTarget: null, status: '当前没有可用的删除操作' });
+      },
+      (e) =>
+        this.update({ deleteTarget: null, error: majorDiscussionError(e) }),
+    );
+  }
   closeConfirmation(): void {
     if (this.view.busy) return;
-    this.update({ confirming: null, selectedComment: null });
+    this.update({
+      confirming: null,
+      selectedComment: null,
+      deleteTarget: null,
+    });
   }
   setOwnLocator(field: 'major' | 'comment', value: string): void {
     if (this.view.busy || this.view.confirming || this.view.frozen) return;
@@ -525,19 +607,23 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
       reply = this.view.replyTarget,
       selected = this.view.selectedComment,
       own = this.view.own,
-      locator = this.ownLocator;
+      locator = this.ownLocator,
+      deleteTarget = this.view.deleteTarget;
     if (
       confirming !== 'publish' &&
       confirming !== 'like' &&
-      confirming !== 'unlike'
+      confirming !== 'unlike' &&
+      confirming !== 'delete'
     )
       return;
     if (
-      confirming === 'unlike'
-        ? !locator || own?.kind !== 'recorded' || !own.active
-        : !snapshot ||
-          !this.view.loaded ||
-          (confirming === 'publish' ? !discussionBody(body) : !selected)
+      confirming === 'delete'
+        ? !deleteTarget
+        : confirming === 'unlike'
+          ? !locator || own?.kind !== 'recorded' || !own.active
+          : !snapshot ||
+            !this.view.loaded ||
+            (confirming === 'publish' ? !discussionBody(body) : !selected)
     )
       return;
     if (!this.restore() || this.pending) return;
@@ -556,52 +642,63 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
           expectedCatalogRevision:
             confirming === 'unlike' && own?.kind === 'recorded'
               ? own.catalogRevision
-              : snapshot!.catalogRevision,
+              : (snapshot?.catalogRevision ?? ''),
           expectedMajorRevision:
             confirming === 'unlike' && own?.kind === 'recorded'
               ? own.majorRevision
-              : snapshot!.majorRevision,
+              : (snapshot?.majorRevision ?? ''),
         };
         const intent = decodeDiscussionIntent(
-          confirming === 'unlike'
+          confirming === 'delete'
             ? {
-                operation: 'major.discussion.like.v1',
-                majorId: locator!.majorId,
-                commentId: locator!.commentId,
+                operation: 'major.discussion.delete.v1',
+                majorId: deleteTarget!.majorId,
+                commentId: deleteTarget!.commentId,
                 command: {
-                  ...source,
-                  active: false,
-                  expectedMembershipRevision:
-                    own!.kind === 'recorded' ? own!.revision : null,
+                  clientRequestId: requestId,
+                  rootId: deleteTarget!.rootId,
                 },
               }
-            : confirming === 'like'
+            : confirming === 'unlike'
               ? {
                   operation: 'major.discussion.like.v1',
-                  majorId: snapshot!.majorId,
-                  commentId: selected!.id,
+                  majorId: locator!.majorId,
+                  commentId: locator!.commentId,
                   command: {
                     ...source,
-                    active: !selected!.isLiked,
-                    expectedMembershipRevision: selected!.myMembershipRevision,
+                    active: false,
+                    expectedMembershipRevision:
+                      own!.kind === 'recorded' ? own!.revision : null,
                   },
                 }
-              : this.selectedRootId
+              : confirming === 'like'
                 ? {
-                    operation: 'major.discussion.reply.v1',
+                    operation: 'major.discussion.like.v1',
                     majorId: snapshot!.majorId,
-                    rootId: this.selectedRootId,
+                    commentId: selected!.id,
                     command: {
                       ...source,
-                      body,
-                      replyToReplyId: reply?.id ?? null,
+                      active: !selected!.isLiked,
+                      expectedMembershipRevision:
+                        selected!.myMembershipRevision,
                     },
                   }
-                : {
-                    operation: 'major.discussion.root.v1',
-                    majorId: snapshot!.majorId,
-                    command: { ...source, body },
-                  },
+                : this.selectedRootId
+                  ? {
+                      operation: 'major.discussion.reply.v1',
+                      majorId: snapshot!.majorId,
+                      rootId: this.selectedRootId,
+                      command: {
+                        ...source,
+                        body,
+                        replyToReplyId: reply?.id ?? null,
+                      },
+                    }
+                  : {
+                      operation: 'major.discussion.root.v1',
+                      majorId: snapshot!.majorId,
+                      command: { ...source, body },
+                    },
         );
         const p = this.runtime.pendingMajorDiscussion!.freeze({
           version: 1,
@@ -634,11 +731,17 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
         await this.lookupOwn();
     }
   }
-  private assertAttempt(p: PendingMajorDiscussion, cancel: Cancellation): void {
+  private assertAttempt(
+    p: PendingMajorDiscussion,
+    cancel: Cancellation,
+    recovery = false,
+  ): void {
     if (cancel.isCancelled) throw new ClientError('cancelled', 'Cancelled');
     if (p.accountId !== this.accountId())
       throw new ClientError('stale-session', 'Account changed');
-    this.runtime.pendingMajorDiscussion!.assertOriginal(p);
+    if (recovery)
+      this.runtime.pendingMajorDiscussion!.assertRecoveryOriginal(p);
+    else this.runtime.pendingMajorDiscussion!.assertOriginal(p);
   }
   private dispatch(
     p: PendingMajorDiscussion,
@@ -659,11 +762,12 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
     let settled = false;
     await this.run(
       async (cancel) => {
-        this.assertAttempt(p, cancel);
+        this.assertAttempt(p, cancel, true);
         try {
           return await this.runtime.majorDiscussion!.receipt(
             p.intent.command.clientRequestId,
             cancel,
+            p.intent.operation,
           );
         } catch (e) {
           if (!missing(e)) throw e;
@@ -729,9 +833,15 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
         this.pending,
         receipt,
       );
+    const locatorState =
+      this.runtime.pendingMajorDiscussion!.deletionLocatorState(
+        this.pending.accountId,
+      );
     this.pending = null;
     this.clearRead();
     this.update({
+      deletionLocators: locatorState.items,
+      deletionLocatorUnavailable: locatorState.unavailable,
       frozen: false,
       recoveryMajorId: '',
       recoveryOperation: '',

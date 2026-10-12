@@ -195,6 +195,62 @@ test(
                   ).length,
                   5,
                 );
+              } else if (
+                name === 'delete-reply-committed' ||
+                name === 'delete-cancelled'
+              ) {
+                const intent = message['intent'] as {
+                  operation: string;
+                  majorId: string;
+                  commentId: string;
+                  command: { clientRequestId: string; rootId: string | null };
+                };
+                const owner = name === 'delete-reply-committed' ? other : actor;
+                const r = await request(http)
+                  .get(
+                    `/v1/majors/discussion-delete-requests/${intent.command.clientRequestId}`,
+                  )
+                  .set('Authorization', `Bearer ${owner.accessToken}`);
+                assert.equal(r.status, 200, JSON.stringify(r.body));
+                assert.equal(r.body.operation, 'major.discussion.delete.v1');
+                assert.equal(r.body.commentId, intent.commentId);
+                assert.equal(r.body.rootId, intent.command.rootId);
+                assert.deepEqual(
+                  Object.keys(r.body).sort(),
+                  [
+                    'requestId',
+                    'operation',
+                    'majorId',
+                    'commentId',
+                    'rootId',
+                    'outcome',
+                    ...(name === 'delete-reply-committed'
+                      ? ['tombstoneId', 'recordedAt']
+                      : ['code']),
+                  ].sort(),
+                );
+                assert.equal(
+                  r.body.outcome,
+                  name === 'delete-reply-committed' ? 'applied' : 'rejected',
+                );
+                const replay = await post(
+                  `/v1/majors/${major.id}/discussion/${intent.commentId}/delete`,
+                  intent.command,
+                  owner,
+                );
+                assert.deepEqual(replay, r.body);
+              } else if (name === 'delete-author-loss') {
+                await f.pool.query(
+                  "UPDATE whaleu_community.major_discussion_review_heads SET state='revoked' WHERE decision_id=(SELECT review_decision_id FROM whaleu_majors.major_discussion_comments WHERE id=$1 AND actor_id=$2)",
+                  [message['commentId'], actor.accountId],
+                );
+                await f.pool.query(
+                  "UPDATE whaleu_majors.major_catalog_head SET state='withdrawn'",
+                );
+                await f.certify(actor.accountId, {
+                  affiliation: 'unverified',
+                  identity: false,
+                });
               } else if (name === 'paging-change') {
                 const c = f.root(
                   catalog,
@@ -224,6 +280,9 @@ test(
             assert.ok(checkpoints.includes('historical-like'));
             assert.ok(checkpoints.includes('like-notice-count'));
             assert.ok(checkpoints.includes('paging-change'));
+            assert.ok(checkpoints.includes('delete-reply-committed'));
+            assert.ok(checkpoints.includes('delete-cancelled'));
+            assert.ok(checkpoints.includes('delete-author-loss'));
             assert.ok(
               ['source', 'phone', 'safety'].every((s) => losses.includes(s)),
             );

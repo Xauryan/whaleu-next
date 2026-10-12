@@ -3,8 +3,7 @@
 Major is an independent source-backed department/college/major directory with
 named discussion. It is not a numeric rating target. This slice adds a bounded
 native directory, reviewed text roots, flat addressed replies, reversible CAS
-likes, exact local notices and original-request recovery. Images, author/admin
-soft deletion, accepted nonempty legacy history, real issuers/providers, physical
+likes, exact local notices and original-request recovery. Images, accepted nonempty legacy history, real issuers/providers, physical
 WeChat acceptance and production remain separate required work.
 
 ## Fixed source and deliberate differences
@@ -199,3 +198,57 @@ author and legitimate school/super-admin soft deletion with original-school
 mapping, and nonempty authoritative history/crosswalk import. Provider activation,
 true native rendering/device acceptance, operational tuning and production rollout
 remain separate gates. This document never marks the whole Major feature complete.
+
+## Logical withdrawal (0124; synthetic local acceptance)
+
+Independent `major.discussion.delete.v1` commands, receipts and append-only
+tombstones preserve all original v1 canonical bytes, immutable content, likes
+and receipts. No editing, restoration, physical purge or retention TTL is added.
+A root tombstone denies all descendants. A reply tombstone denies only itself;
+removing an addressed target removes its reference, not another author's body.
+Current counts, hot previews, notice previews and fresh targets share visibility.
+
+First author withdrawal proves immutable ownership plus current session, phone
+and Safety, without catalog, Review, publication base or historical coverage.
+Administrator authority is independent: actual super_admin or school_admin bound
+to the accepted target Campus's current region. Developer, selected campus and
+association never grant this scope. Missing target mapping fails closed even for
+super_admin. This authority does not grant hidden-content read access.
+
+The new delete endpoint accepts only original clientRequestId and exact nullable
+rootId. Separate discussion-delete-requests receipt/cancel routes are actor-owned,
+session-only and retain the original result. Same key/different subject conflicts;
+new-key repeats are noop with the existing tombstone. Cancel-before-execute is a
+durable rejection; cancel-after-execute returns the original receipt. Missing
+receipt never means cancellation succeeded. Receipts expose only IDs/outcome/time.
+
+Independent single-target delete-capability returns the input locator and allowed
+boolean only. Native requests it from a generic single-item action menu, not from
+every row. It is a UI hint; mutation revalidates authority. Successful root/reply
+receipts can populate bounded, account/origin-bound own-withdrawal locators. The
+recovery page can start author withdrawal from these locators after source/Review
+loss without storing or reading hidden bodies. Older unsaved locators are not
+claimed to exist.
+
+Authority epochs cover grant/catalog/campus statement changes, zero-row writes
+and ABA; missing epochs fail closed. Required exact-time proof follows deferred
+waits with bounded NOWAIT fences. Author and original-receipt paths do not gain
+administrator mapping dependencies.
+
+Focused API/native unit checks, API/native type checks, generated OpenAPI checks
+and native emitted build have passed on the signed baseline containing Window 0123. Real PostgreSQL 18.6 acceptance covers A–G, text/deleted-notice J and K:
+new delete suite 11/11; existing Major directory/discussion/concurrency 42/42;
+emitted App/Page/WXML→Nest HTTP→disposable PostgreSQL 1/1. The latter exercises
+response loss, cancel-before-execute, cold receipt recovery, cold own-locator
+withdrawal after source/Review/base loss and deleted-notice target rejection.
+Unit checks are not substitutes for these runtime chains. Images H–I, production
+issuers/imports/providers and physical devices remain separate acceptance gates.
+
+Deletion journals and own-locator caches are independent additions. A valid old
+v1 pending receipt remains readable when either new cache is corrupt, and two
+valid pending namespaces recover the legacy receipt first. Settlement clears only
+the matched original namespace after exact readback. Corrupt auxiliary caches are
+not silently overwritten; their unavailable state is explicit and continues to
+block new admission where required. Locator write/readback failure cannot veto an
+already matched historical v1 receipt. The emitted HTTP/PostgreSQL acceptance
+also exercises this cross-version recovery, not only mock storage tests.

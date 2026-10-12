@@ -112,6 +112,18 @@ export function registerMajorDiscussionPage(mode: DiscussionMode): void {
     onLike(e: Tap) {
       this.controller?.confirmLike(e.currentTarget.dataset.id ?? '');
     },
+    onOwnDelete(e: Tap) {
+      void this.controller?.inspectDeletion(
+        e.currentTarget.dataset.id ?? '',
+        true,
+      );
+    },
+    onDeleteMenu(e: Tap) {
+      void this.controller?.inspectDeletion(e.currentTarget.dataset.id ?? '');
+    },
+    onDelete(e: Tap) {
+      this.controller?.confirmDelete(e.currentTarget.dataset.id ?? '');
+    },
     onReply(e: Tap) {
       this.controller?.chooseReply(e.currentTarget.dataset.id ?? null);
     },

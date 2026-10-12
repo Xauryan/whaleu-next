@@ -55,7 +55,11 @@ process.once('message', async (input) => {
       ...platform,
       nextTick: queueMicrotask,
       setStorageSync: (key, value) => {
-        if (failJournal && key.includes('major-discussion.pending'))
+        if (
+          failJournal &&
+          (key.includes('major-discussion.pending') ||
+            key.includes('major-discussion-delete.pending'))
+        )
           throw Error('Synthetic local persistence failure');
         platform.setStorageSync(key, value);
       },
@@ -72,7 +76,8 @@ process.once('message', async (input) => {
               /\/discussion\/[a-f0-9-]+\/replies$/.test(path)),
           mutation =
             options.method === 'POST' &&
-            (publication || /\/discussion\/[a-f0-9-]+\/like$/.test(path));
+            (publication ||
+              /\/discussion\/[a-f0-9-]+\/(like|delete)$/.test(path));
         if (mutation)
           commands.push({
             actorId: currentActor.accountId,
@@ -244,10 +249,49 @@ process.once('message', async (input) => {
     await checkpoint('first-root-committed', {
       command: rootAttempt.intent.command,
     });
+    const legacyKey = `whaleu.major-discussion.pending.v1:${nativeOrigin}:${input.actor.accountId}`,
+      deleteKey = `whaleu.major-discussion-delete.pending.v1:${nativeOrigin}:${input.actor.accountId}`,
+      locatorKey = `whaleu.major-discussion.own-deletion-locators.v1:${nativeOrigin}:${input.actor.accountId}`,
+      corruptDelete = { invalid: 'synthetic-delete-cache' },
+      corruptLocator = [
+        {
+          majorId: input.majorId,
+          commentId: input.actor.accountId,
+          rootId: null,
+          body: 'forbidden-extra-field',
+        },
+      ];
+    platform.setStorageSync(deleteKey, corruptDelete);
+    platform.setStorageSync(locatorKey, corruptLocator);
     restart(input.actor);
     h = recovery();
     await idle(h);
     assert.equal(h.page.data.frozen, true);
+    const writesBeforeRecovery = commands.length;
+    h.tap('onRecover');
+    await until(
+      () => !h.page.data.busy && /历史回执/.test(h.page.data.receiptStatus),
+      'legacy receipt despite unrelated corrupt delete caches',
+      h,
+    );
+    assert.match(text(h), /历史回执/);
+    assert.deepEqual(platform.getStorageSync(deleteKey), corruptDelete);
+    assert.deepEqual(platform.getStorageSync(locatorKey), corruptLocator);
+    assert.equal(commands.length, writesBeforeRecovery);
+    assert.equal(
+      h.page.data.frozen,
+      true,
+      'Corrupt new journal still blocks new admission',
+    );
+    assert.ok(!platform.getStorageSync(legacyKey));
+    // Explicit test-platform repair, never an application recovery side effect.
+    // Recover the same historical original receipt again to rebuild its locator.
+    platform.removeStorageSync(deleteKey);
+    platform.removeStorageSync(locatorKey);
+    platform.setStorageSync(legacyKey, rootAttempt);
+    restart(input.actor);
+    h = recovery();
+    await idle(h);
     h.tap('onRecover');
     await settled(h);
     assert.equal(h.page.data.loaded, false);
@@ -468,6 +512,106 @@ process.once('message', async (input) => {
     close(h);
     h = mount();
     await loaded(h);
+    // Delete travels through actual emitted confirmation controls and the production API.
+    close(h);
+    h = mount('major-discussion-thread', { majorId: input.majorId, rootId });
+    await loaded(h);
+    h.tap('onDeleteMenu', { id: otherReply });
+    await idle(h);
+    h.tap('onDelete', { id: otherReply });
+    assert.equal(h.page.data.confirming, 'delete');
+    h.tap('onCloseConfirmation');
+    assert.ok(h.page.data.items.some((i) => i.id === otherReply));
+    h.tap('onDeleteMenu', { id: otherReply });
+    await idle(h);
+    h.tap('onDelete', { id: otherReply });
+    transport.dropSuccess = {
+      path: `${path}/${otherReply}/delete`,
+      method: 'POST',
+    };
+    h.tap('onSubmit');
+    await uncertain(h);
+    const deleteAttempt = app.community.pendingMajorDiscussion.load(
+      input.other.accountId,
+    );
+    assert.deepEqual(Object.keys(deleteAttempt.intent.command).sort(), [
+      'clientRequestId',
+      'rootId',
+    ]);
+    assert.equal(deleteAttempt.intent.command.rootId, rootId);
+    await checkpoint('delete-reply-committed', {
+      intent: deleteAttempt.intent,
+    });
+    for (const loss of ['source', 'phone', 'safety'])
+      await checkpoint('loss', { loss });
+    restart(input.other);
+    h = recovery();
+    await idle(h);
+    h.tap('onRecover');
+    await settled(h);
+    assert.match(text(h), /历史回执/);
+    await checkpoint('restore');
+    close(h);
+    login(input.actor);
+    h = mount();
+    await loaded(h);
+    await publish(h, 'Native deletion cancellation survivor');
+    await loaded(h);
+    const survivor = h.page.data.items.find(
+      (i) => i.body === 'Native deletion cancellation survivor',
+    ).id;
+    h.tap('onDeleteMenu', { id: survivor });
+    await idle(h);
+    h.tap('onDelete', { id: survivor });
+    transport.failNext = `${path}/${survivor}/delete`;
+    h.tap('onSubmit');
+    await uncertain(h);
+    const deleteCancel = app.community.pendingMajorDiscussion.load(
+      input.actor.accountId,
+    );
+    h.tap('onRequestCancellation');
+    await idle(h);
+    assert.equal(h.page.data.confirming, 'cancel');
+    transport.dropSuccess = {
+      path: `/v1/majors/discussion-delete-requests/${deleteCancel.intent.command.clientRequestId}/cancel`,
+      method: 'POST',
+    };
+    h.tap('onConfirmCancellation');
+    await uncertain(h);
+    restart(input.actor);
+    h = recovery();
+    await idle(h);
+    h.tap('onRetry');
+    await settled(h);
+    assert.match(text(h), /确认取消/);
+    await checkpoint('delete-cancelled', { intent: deleteCancel.intent });
+    close(h);
+    h = mount();
+    await loaded(h);
+    assert.ok(h.page.data.items.some((i) => i.id === survivor));
+    // The author can retract with current phone/Safety despite withdrawn source/base/Review.
+    await checkpoint('delete-author-loss', { commentId: rootId });
+    restart(input.actor);
+    h = recovery();
+    await idle(h);
+    assert.ok(h.page.data.deletionLocators.some((i) => i.commentId === rootId));
+    h.tap('onOwnDelete', { id: rootId });
+    await idle(h);
+    assert.equal(h.page.data.confirming, 'delete');
+    h.tap('onSubmit');
+    await settled(h);
+    await checkpoint('restore');
+    close(h);
+    h = mount('major-discussion-thread', targetQuery);
+    await idle(h);
+    assert.equal(h.page.data.loaded, false);
+    assert.equal(h.page.data.items.length, 0);
+    assert.match(text(h), /这条评论当前不可查看/);
+    close(h);
+    h = mount();
+    await loaded(h);
+    assert.ok(!h.page.data.items.some((i) => i.id === rootId));
+    assert.ok(h.page.data.items.some((i) => i.id === survivor));
     const heldRead = transport.holdNext(path);
     h.tap('onRefresh');
     await heldRead.arrived;
@@ -480,6 +624,8 @@ process.once('message', async (input) => {
       event: 'done',
       rootId,
       otherReply,
+      deletedReplyRequestId: deleteAttempt.intent.command.clientRequestId,
+      deleteCancelledRequestId: deleteCancel.intent.command.clientRequestId,
       rootRequestId: rootAttempt.intent.command.clientRequestId,
       cancelledRequestId: cancelAttempt.intent.command.clientRequestId,
       nativeCommands: commands.length,

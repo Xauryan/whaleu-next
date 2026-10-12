@@ -12,7 +12,15 @@ import type {
   DiscussionReceipt,
   DiscussionOwn,
   DiscussionNotice,
+} from '../src/major-discussion/operation-contract';
+import type {
+  DiscussionIntent as LegacyIntent,
+  DiscussionReceipt as LegacyReceipt,
 } from '../src/major-discussion/contract';
+import type {
+  DiscussionDeleteIntent,
+  DiscussionDeleteReceipt,
+} from '../src/major-discussion/operation-contract';
 import type { MajorDiscussionGateway } from '../src/major-discussion/gateway';
 import {
   PendingMajorDiscussionStore,
@@ -66,7 +74,7 @@ export const source = () => ({
   expectedCatalogRevision: catalogRevision,
   expectedMajorRevision: revision,
 });
-export const intent = (body = '合成原文'): DiscussionIntent => ({
+export const intent = (body = '合成原文'): LegacyIntent => ({
   operation: 'major.discussion.root.v1',
   majorId: id,
   command: { ...source(), body },
@@ -74,7 +82,7 @@ export const intent = (body = '合成原文'): DiscussionIntent => ({
 export const like = (
   active = true,
   expectedMembershipRevision: string | null = null,
-): DiscussionIntent => ({
+): LegacyIntent => ({
   operation: 'major.discussion.like.v1',
   majorId: id,
   commentId: rootId,
@@ -88,49 +96,69 @@ export const own = (active = true): DiscussionOwn => ({
   catalogRevision,
   majorRevision: revision,
 });
-export const receipt = (i: DiscussionIntent = intent()): DiscussionReceipt => ({
-  requestId: i.command.clientRequestId,
-  majorId: i.majorId,
-  ...(i.operation === 'major.discussion.like.v1'
-    ? {
-        operation: i.operation,
-        commentId: i.commentId,
-        outcome: 'applied',
-        active: i.command.active,
-        membershipRevision:
-          i.command.expectedMembershipRevision === scoreRevision
-            ? replyId
-            : scoreRevision,
-        recordedAt,
-      }
-    : i.operation === 'major.discussion.reply.v1'
+export function receipt(i: DiscussionDeleteIntent): DiscussionDeleteReceipt;
+export function receipt(i?: LegacyIntent): LegacyReceipt;
+export function receipt(i: DiscussionIntent): DiscussionReceipt;
+export function receipt(i: DiscussionIntent = intent()): DiscussionReceipt {
+  return {
+    requestId: i.command.clientRequestId,
+    majorId: i.majorId,
+    ...(i.operation === 'major.discussion.delete.v1'
       ? {
           operation: i.operation,
-          rootId: i.rootId,
+          commentId: i.commentId,
+          rootId: i.command.rootId,
           outcome: 'applied',
-          commentId: replyId,
-          createdAt: recordedAt,
+          tombstoneId: scoreRevision,
+          recordedAt,
         }
-      : {
-          operation: i.operation,
-          outcome: 'applied',
-          commentId: rootId,
-          createdAt: recordedAt,
-        }),
-});
-export const cancelled = (i: DiscussionIntent = intent()): DiscussionReceipt =>
-  ({
+      : i.operation === 'major.discussion.like.v1'
+        ? {
+            operation: i.operation,
+            commentId: i.commentId,
+            outcome: 'applied',
+            active: i.command.active,
+            membershipRevision:
+              i.command.expectedMembershipRevision === scoreRevision
+                ? replyId
+                : scoreRevision,
+            recordedAt,
+          }
+        : i.operation === 'major.discussion.reply.v1'
+          ? {
+              operation: i.operation,
+              rootId: i.rootId,
+              outcome: 'applied',
+              commentId: replyId,
+              createdAt: recordedAt,
+            }
+          : {
+              operation: i.operation,
+              outcome: 'applied',
+              commentId: rootId,
+              createdAt: recordedAt,
+            }),
+  };
+}
+export function cancelled(i: DiscussionDeleteIntent): DiscussionDeleteReceipt;
+export function cancelled(i?: LegacyIntent): LegacyReceipt;
+export function cancelled(i: DiscussionIntent): DiscussionReceipt;
+export function cancelled(i: DiscussionIntent = intent()): DiscussionReceipt {
+  return {
     requestId: i.command.clientRequestId,
     majorId: i.majorId,
     operation: i.operation,
     outcome: 'rejected',
     code: 'MAJOR_DISCUSSION_CANCELLED',
-    ...(i.operation === 'major.discussion.reply.v1'
-      ? { rootId: i.rootId }
-      : i.operation === 'major.discussion.like.v1'
-        ? { commentId: i.commentId }
-        : {}),
-  }) as DiscussionReceipt;
+    ...(i.operation === 'major.discussion.delete.v1'
+      ? { commentId: i.commentId, rootId: i.command.rootId }
+      : i.operation === 'major.discussion.reply.v1'
+        ? { rootId: i.rootId }
+        : i.operation === 'major.discussion.like.v1'
+          ? { commentId: i.commentId }
+          : {}),
+  } as DiscussionReceipt;
+}
 export const missing = () =>
   new ClientError('http', 'Missing', {
     httpStatus: 404,
@@ -155,6 +183,7 @@ export function discussionHarness(mode: DiscussionMode = 'roots') {
     commands: DiscussionIntent[] = [],
     ids = { next: async () => requestId };
   const impl: MajorDiscussionGateway = {
+    deleteCapability: async (locator) => ({ ...locator, allowed: true }),
     list: async () => page(),
     own: async () => own(),
     submit: async (i) => receipt(i),
@@ -178,6 +207,7 @@ export function discussionHarness(mode: DiscussionMode = 'roots') {
     },
   };
   const gateway: MajorDiscussionGateway = {
+    deleteCapability: (...args) => impl.deleteCapability(...args),
     list: (...a) => {
       calls.push('list');
       return impl.list(...a);
@@ -224,7 +254,7 @@ export function discussionHarness(mode: DiscussionMode = 'roots') {
       views.push(v),
     );
   const pending = (
-    i = intent(),
+    i: DiscussionIntent = intent(),
     phase: 'submit' | 'cancel' = 'submit',
   ): PendingMajorDiscussion => ({
     version: 1,

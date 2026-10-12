@@ -169,6 +169,7 @@
           "errand-target-services-native-roundtrip.test.ts",
           "major-directory.test.ts",
           "major-discussion-concurrency.test.ts",
+          "major-discussion-delete.test.ts",
           "major-discussion-native-roundtrip.test.ts",
           "major-discussion.test.ts",
           "organization-management-native-roundtrip.test.ts",

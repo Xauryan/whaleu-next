@@ -3,6 +3,10 @@ import type { Decoder } from '../api/envelopes';
 import type { Cancellation, Json } from '../platform/contracts';
 import { majorCursor, majorId } from '../majors/contract';
 import {
+  decodeDeleteCapability,
+  decodeDeleteLocator,
+  type DiscussionDeleteLocator,
+  type DiscussionDeleteCapability,
   decodeDiscussionIntent,
   decodeDiscussionPage,
   decodeDiscussionReceipt,
@@ -19,8 +23,12 @@ import {
   type DiscussionSort,
   type DiscussionNotices,
   type DiscussionTarget,
-} from './contract';
+} from './operation-contract';
 export interface MajorDiscussionGateway {
+  deleteCapability(
+    locator: DiscussionDeleteLocator,
+    cancel: Cancellation,
+  ): Promise<DiscussionDeleteCapability>;
   list(
     majorId: string,
     rootId: string | null,
@@ -42,7 +50,11 @@ export interface MajorDiscussionGateway {
     intent: DiscussionIntent,
     cancel: Cancellation,
   ): Promise<DiscussionReceipt>;
-  receipt(requestId: string, cancel: Cancellation): Promise<DiscussionReceipt>;
+  receipt(
+    requestId: string,
+    cancel: Cancellation,
+    operation?: DiscussionIntent['operation'],
+  ): Promise<DiscussionReceipt>;
   notices(
     cursor: string | null,
     cancel: Cancellation,
@@ -82,6 +94,25 @@ export class HttpMajorDiscussionGateway implements MajorDiscussionGateway {
       },
       { cancellation, ...(query ? { query } : {}) },
     );
+  }
+  async deleteCapability(
+    locator: DiscussionDeleteLocator,
+    cancel: Cancellation,
+  ): Promise<DiscussionDeleteCapability> {
+    const i = decodeDeleteLocator(locator);
+    const r = await this.get(
+      `/v1/majors/${i.majorId}/discussion/${i.commentId}/delete-capability`,
+      decodeDeleteCapability,
+      cancel,
+      i.rootId ? { rootId: i.rootId } : undefined,
+    );
+    if (
+      r.majorId !== i.majorId ||
+      r.commentId !== i.commentId ||
+      r.rootId !== i.rootId
+    )
+      invalidDiscussion();
+    return r;
   }
   async list(
     id: string,
@@ -150,12 +181,14 @@ export class HttpMajorDiscussionGateway implements MajorDiscussionGateway {
     const i = decodeDiscussionIntent(raw),
       prefix = `/v1/majors/${i.majorId}/discussion`;
     const path = cancelling
-      ? `/v1/majors/discussion-requests/${i.command.clientRequestId}/cancel`
+      ? `/v1/majors/${i.operation === 'major.discussion.delete.v1' ? 'discussion-delete-requests' : 'discussion-requests'}/${i.command.clientRequestId}/cancel`
       : i.operation === 'major.discussion.root.v1'
         ? prefix
         : i.operation === 'major.discussion.reply.v1'
           ? `${prefix}/${i.rootId}/replies`
-          : `${prefix}/${i.commentId}/like`;
+          : i.operation === 'major.discussion.delete.v1'
+            ? `${prefix}/${i.commentId}/delete`
+            : `${prefix}/${i.commentId}/like`;
     const receipt = await this.api.request(
       {
         path,
@@ -179,14 +212,23 @@ export class HttpMajorDiscussionGateway implements MajorDiscussionGateway {
   cancel(i: DiscussionIntent, c: Cancellation): Promise<DiscussionReceipt> {
     return this.write(i, c, true);
   }
-  async receipt(id: string, c: Cancellation): Promise<DiscussionReceipt> {
+  async receipt(
+    id: string,
+    c: Cancellation,
+    operation?: DiscussionIntent['operation'],
+  ): Promise<DiscussionReceipt> {
     if (!majorId(id)) invalidDiscussion();
     const r = await this.get(
-      `/v1/majors/discussion-requests/${id}`,
+      `/v1/majors/${operation === 'major.discussion.delete.v1' ? 'discussion-delete-requests' : 'discussion-requests'}/${id}`,
       decodeDiscussionReceipt,
       c,
     );
-    if (r.requestId !== id) invalidDiscussion();
+    if (
+      r.requestId !== id ||
+      (operation === 'major.discussion.delete.v1') !==
+        (r.operation === 'major.discussion.delete.v1')
+    )
+      invalidDiscussion();
     return r;
   }
   async notices(

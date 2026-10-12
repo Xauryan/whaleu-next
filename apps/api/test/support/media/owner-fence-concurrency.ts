@@ -60,6 +60,12 @@ export async function verifyMediaOwnerFenceConcurrency(
         "SELECT to_regclass('whaleu_media.private_message_scopes') IS NOT NULL AS present",
       )
     ).rows[0]?.present === true;
+  const windowDiscussionMediaInstalled =
+    (
+      await pool.query<{ present: boolean }>(
+        "SELECT to_regclass('whaleu_media.window_discussion_scopes') IS NOT NULL AS present",
+      )
+    ).rows[0]?.present === true;
   const sources = [
     ...historicalSources,
     ...(categoryIconInstalled ? ['category_icon_request_markers'] : []),
@@ -72,6 +78,13 @@ export async function verifyMediaOwnerFenceConcurrency(
           'private_message_cancel_scopes',
           'private_message_appearances',
           'private_message_retirements',
+        ]
+      : []),
+    ...(windowDiscussionMediaInstalled
+      ? [
+          'window_discussion_scopes',
+          'window_discussion_cancel_scopes',
+          'window_discussion_appearances',
         ]
       : []),
     ...(verificationEvidenceInstalled

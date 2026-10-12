@@ -618,7 +618,21 @@ Current hearts and content always come from fresh reads after a historical recei
 Account changes, same-account login epochs, page/app hide, cancelled reads and
 changed directory/discussion pages discard late callbacks and stale projections.
 
-This remains a partial text-only slice. Images, deletion, real source/history
+The generic row action menu checks one independent deletion capability only when
+opened, then shows author withdrawal / authorized administration deletion. It uses the
+separate `major.discussion.delete.v1` contract and delete-request receipt routes.
+The client does not infer ownership from a public profile ID or grant an admin
+read exemption. Its command contains only the original request ID and exact
+nullable root; the server decides deletion authority and current phone/Safety.
+Successful root/reply receipts save at most 100 recent account/origin-bound
+minimal own-deletion locators, without body or identity. These are not complete
+history. The recovery page independently checks a selected locator and confirms
+a first withdrawal without requiring a readable catalog/discussion snapshot.
+A separate account/origin deletion journal leaves the original publication/like
+v1 contract and journal namespace unchanged. Cancellation records a durable
+rejected receipt; a missing receipt never means successful cancellation.
+
+This remains a partial text-only slice. Images and real source/history
 import and production authorization/Review issuance remain unfinished. Focused
 unit, transport and bounded WXML tests use synthetic facts; they do not establish
 WeChat DevTools, physical-device, provider or production acceptance.

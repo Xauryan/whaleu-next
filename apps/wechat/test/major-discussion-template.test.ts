@@ -247,3 +247,32 @@ test('Major directory and detail WXML display source metadata, named summaries a
       /major-directory/,
     );
 });
+
+test('delete is an explicit server-authorized operation with separate confirmation and no forged author predicate', () => {
+  const nodes = render('major-discussion', {
+    loaded: true,
+    items: [item()],
+    hasSession: true,
+  });
+  assert.equal(buttons(nodes, 'onDelete').length, 0);
+  assert.equal(buttons(nodes, 'onDeleteMenu').length, 1);
+  assert.equal(buttons(nodes, 'onSubmit').length, 0);
+  const confirmation = render('major-discussion', {
+    loaded: true,
+    items: [item()],
+    deleteTarget: { majorId: item().majorId, commentId: rootId, rootId: null },
+    confirming: 'delete',
+  });
+  assert.equal(buttons(confirmation, 'onSubmit').length, 1);
+  assert.match(text(confirmation), /仅作者或有权限的管理员/);
+  assert.match(text(confirmation), /删除主题后其回复也将不可查看/);
+});
+test('unavailable auxiliary locator cache is visible beside the recovered historical receipt', () => {
+  const nodes = render('major-discussion-recovery', {
+    deletionLocatorUnavailable: true,
+    receiptStatus: '原请求已确认完成。这是历史回执。',
+  });
+  assert.match(text(nodes), /定位缓存暂不可用/);
+  assert.match(text(nodes), /未确认保存新的撤回定位记录/);
+  assert.match(text(nodes), /历史回执/);
+});

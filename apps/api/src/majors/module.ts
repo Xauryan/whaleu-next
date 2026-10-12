@@ -13,6 +13,8 @@ import {
   MajorDiscussionController,
   MajorDiscussionNoticesController,
 } from './discussion/controller.js';
+import { MajorDiscussionDeleteService } from './discussion/delete-service.js';
+import { MajorDiscussionDeleteController } from './discussion/delete-controller.js';
 import { MajorDiscussionService } from './discussion/service.js';
 import { MajorDiscussionCursors } from './discussion/cursor.js';
 import { MajorsController } from './controller.js';
@@ -32,11 +34,13 @@ import { MajorCursors } from './cursor.js';
     MajorDiscussionNoticeModule,
   ],
   controllers: [
+    MajorDiscussionDeleteController,
     MajorDiscussionController,
     MajorDiscussionNoticesController,
     MajorsController,
   ],
   providers: [
+    MajorDiscussionDeleteService,
     MajorDiscussionService,
     MajorDiscussionCursors,
     MajorsService,
