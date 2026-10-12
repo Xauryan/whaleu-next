@@ -1,3 +1,4 @@
+import { FloorRatingsModule } from './canteen-floors/module.js';
 import { WindowRatingsModule } from './windows/module.js';
 import { CourseRatingsModule } from './courses/module.js';
 import { RatingCategoryIconRetirementOwner } from './category-management/icon-retirement.js';
@@ -134,6 +135,7 @@ import { RatingsRequests } from './requests.js';
 import { RatingsCursors } from './cursor.js';
 @Module({
   imports: [
+    FloorRatingsModule,
     CourseRatingsModule,
     WindowRatingsModule,
     DatabaseModule,

@@ -1,0 +1,13 @@
+<import src="../../canteen-floor-scores/common.wxml" />
+<view class="screen">
+ <view class="eyebrow">WHALEU · 食堂楼层评分</view><view class="title">楼层详情与评分</view>
+ <template is="floor-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryFloorId,recoveryScore,recoveryPhase,busy,confirming,receiptMissing}}" />
+ <block wx:if="{{loaded &amp;&amp; detail}}">
+  <view class="card"><view class="section-title">{{detail.floor.canteenName}} · {{detail.floor.label}}</view><view class="meta">原始楼层：{{detail.floor.sourceFloorKey}}</view></view>
+  <view class="card"><view class="section-title">这个楼层的评分记录</view><template is="floor-summary" data="{{summary:detail.floor.summary}}" /></view>
+  <view class="card"><view class="section-title">我的有效评分</view><view wx:if="{{detail.myScore.kind === 'recorded'}}">{{detail.myScore.score}} 分；已有有效评分不能重复提交。</view><view wx:elif="{{detail.myScore.kind === 'unavailable'}}">历史评分尚未确认，不能当作尚未评分。</view><view wx:else>已确认尚未评分。</view><view class="notice">{{blocker}}</view></view>
+  <view wx:if="{{canScore}}" class="card"><view class="section-title">输入 1 至 5 分，支持小数</view><input type="digit" bindinput="onScore" disabled="{{busy || frozen || confirming}}" placeholder="例如 4.75" /><view>本次分数：{{selectedScore === null ? '尚未填写有效分数' : selectedScore}}</view><button bindtap="onConfirm" disabled="{{busy || frozen || selectedScore === null}}">核对评分</button></view>
+ </block>
+ <view wx:if="{{confirming === 'score' &amp;&amp; detail}}" class="card confirmation"><view class="section-title">确认提交楼层评分</view><view>{{detail.floor.canteenName}} · {{detail.floor.label}}：{{selectedScore}} 分</view><view class="notice">已有有效评分后不能重复提交；当前没有编辑或删除入口。评分只计入这个楼层。</view><button bindtap="onSubmit" disabled="{{busy}}">确认提交</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回修改</button></view>
+ <view class="notice">附言、图片与整座食堂汇总尚未开放。</view>
+</view>

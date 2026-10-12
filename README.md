@@ -174,3 +174,8 @@ activation remains closed. This is separate from numeric window scores. See
 [the W2 contract](docs/DISH_RECOMMENDATIONS.md) for identity, coverage, privacy and local-test limits.
 
 PM3 adds bounded private single-image Messaging through shared Media15, exact image Review and authenticated participant bytes. [Contract and remaining gates](docs/PRIVATE_MESSAGE_IMAGES.md).
+
+Independent [canteen-floor scalar scores](docs/CANTEEN_FLOOR_SCORES.md) add raw-floor
+selection, fractional 1–5 first-active publication and original-request recovery.
+Floor history and population are independent of Window scores; production import,
+optional comments/images and whole-canteen summaries remain gated.

@@ -269,40 +269,45 @@ for (const route of config.pages.filter(
             windowId: '11111111-1111-4111-8111-111111111111',
             rootId: '22222222-2222-4222-8222-222222222222',
           }
-        : route === 'pages/course-rating-detail/course-rating-detail'
-          ? { courseId: '11111111-1111-4111-8111-111111111111' }
-          : [
-                'pages/window-ratings/window-ratings',
-                'pages/window-discussion-recovery/window-discussion-recovery',
-                'pages/window-discussion-notices/window-discussion-notices',
-                'pages/course-ratings/course-ratings',
-                'pages/course-comments/course-comments',
-                'pages/activity-list/activity-list',
-                'pages/activity-publish/activity-publish',
-                'pages/announcement-edit/announcement-edit',
-                'pages/announcement-manage/announcement-manage',
-                'pages/activity-native/activity-native',
-                'pages/activity-native-detail/activity-native-detail',
-                'pages/rating-updates/rating-updates',
-                'pages/school-services/school-services',
-                'pages/school-configuration/school-configuration',
-                'pages/school-posting-policy/school-posting-policy',
-                'pages/organizations/organizations',
-                'pages/organization-editor/organization-editor',
-              ].includes(route)
-            ? {}
-            : {
-                postId: '66666666-6666-4666-8666-666666666666',
-                spaceId: '55555555-5555-4555-8555-555555555555',
-                category: 'discussion',
-                ...(route.endsWith('community-thread')
-                  ? { rootCommentId: '88888888-8888-4888-8888-888888888888' }
-                  : {}),
-                ...(route ===
-                'pages/private-message-detail/private-message-detail'
-                  ? { conversationId: '77777777-7777-4777-8777-777777777777' }
-                  : {}),
-              },
+        : route ===
+            'pages/canteen-floor-score-detail/canteen-floor-score-detail'
+          ? { floorId: '11111111-1111-4111-8111-111111111111' }
+          : route === 'pages/course-rating-detail/course-rating-detail'
+            ? { courseId: '11111111-1111-4111-8111-111111111111' }
+            : [
+                  'pages/window-ratings/window-ratings',
+                  'pages/window-discussion-recovery/window-discussion-recovery',
+                  'pages/window-discussion-notices/window-discussion-notices',
+
+                  'pages/canteen-floor-scores/canteen-floor-scores',
+                  'pages/course-ratings/course-ratings',
+                  'pages/course-comments/course-comments',
+                  'pages/activity-list/activity-list',
+                  'pages/activity-publish/activity-publish',
+                  'pages/announcement-edit/announcement-edit',
+                  'pages/announcement-manage/announcement-manage',
+                  'pages/activity-native/activity-native',
+                  'pages/activity-native-detail/activity-native-detail',
+                  'pages/rating-updates/rating-updates',
+                  'pages/school-services/school-services',
+                  'pages/school-configuration/school-configuration',
+                  'pages/school-posting-policy/school-posting-policy',
+                  'pages/organizations/organizations',
+                  'pages/organization-editor/organization-editor',
+                ].includes(route)
+              ? {}
+              : {
+                  postId: '66666666-6666-4666-8666-666666666666',
+                  spaceId: '55555555-5555-4555-8555-555555555555',
+                  category: 'discussion',
+                  ...(route.endsWith('community-thread')
+                    ? { rootCommentId: '88888888-8888-4888-8888-888888888888' }
+                    : {}),
+                  ...(route ===
+                  'pages/private-message-detail/private-message-detail'
+                    ? { conversationId: '77777777-7777-4777-8777-777777777777' }
+                    : {}),
+                },
   );
   current.onShow();
   if (route.startsWith('pages/window-discussion')) {

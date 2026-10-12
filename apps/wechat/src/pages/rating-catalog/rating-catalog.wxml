@@ -1,5 +1,6 @@
 <import src="../../ratings/common.wxml" />
 <view class="screen">
+  <navigator class="link" url="/pages/canteen-floor-scores/canteen-floor-scores">食堂楼层评分 →</navigator>
   <navigator class="link" url="/pages/window-ratings/window-ratings">食堂窗口目录、可修改整数评分与原请求恢复 →</navigator>
   <navigator class="link" url="/pages/course-ratings/course-ratings">课程目录、首次三维评分与原请求恢复 →</navigator>
 <navigator class="link" url="/pages/rating-scoped/rating-scoped?mode=catalog&amp;scope=global">校园范围评分：明确选择校园 →</navigator>

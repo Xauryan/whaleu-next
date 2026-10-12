@@ -4,6 +4,11 @@ import {
 } from '../window-discussion/gateway';
 import { PendingWindowDiscussionStore } from '../window-discussion/pending';
 import {
+  HttpFloorRatingsGateway,
+  type FloorRatingsGateway,
+} from '../canteen-floor-scores/gateway';
+import { PendingFloorRatingStore } from '../canteen-floor-scores/pending';
+import {
   HttpPostPinsGateway,
   type PostPinsGateway,
 } from '../post-pins/gateway';
@@ -204,6 +209,8 @@ export interface CommunityRuntime {
   readonly pendingPostPins?: PendingPostPinStore;
   readonly dishRecommendations?: DishRecommendationsGateway;
   readonly pendingDishRecommendations?: PendingDishRecommendationStore;
+  readonly floorRatings?: FloorRatingsGateway;
+  readonly pendingFloorRatings?: PendingFloorRatingStore;
   readonly windowRatings?: WindowRatingsGateway;
   readonly pendingWindowRatings?: PendingWindowRatingStore;
   readonly courseComments?: CourseCommentsGateway;
@@ -387,6 +394,10 @@ export function createCommunityRuntime(
       ? {
           dishRecommendations: new HttpDishRecommendationsGateway(identity.api),
         }
+      : {}),
+    pendingFloorRatings: new PendingFloorRatingStore(storage, origin),
+    ...(identity.api
+      ? { floorRatings: new HttpFloorRatingsGateway(identity.api) }
       : {}),
     pendingWindowRatings: new PendingWindowRatingStore(storage, origin),
     ...(identity.api

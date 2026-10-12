@@ -237,3 +237,12 @@ per-transition local notice obligations. Root-to-creator notices remain gated
 without an accepted creator mapping. Images and image-only publications remain a
 separate Media/Review follow-on. No source history, creator mapping, Review
 policy/decision or production data is seeded. See [W3](../../../docs/WINDOW_DISCUSSION.md).
+
+0120 adds independent canteen-floor scalar scores using stable W1 raw floor
+identities, including floors without Windows. Immutable publication/event/receipt
+lineage and a separate one-active actor/floor head preserve fractional JSON 1–5
+scores; independent accepted-empty history gates exact floor-only record counts
+and PostgreSQL numeric one-decimal means. No retirement/import, comment/image,
+whole-canteen aggregate or source seed is added. Historical original-key recovery
+and cancellation retain the current-session boundary. See
+[canteen-floor scores](../../../docs/CANTEEN_FLOOR_SCORES.md).

@@ -117,6 +117,72 @@ function destinations(f: Fixture) {
   };
 }
 
+/** A claimed row is not necessarily a send: the real 100ms permit can expire
+ * during final proofs/COMMIT. Only that explicit, pre-dispatch retry is allowed
+ * here; unknown outcomes, source failures and exhausted budgets must fail. */
+async function confirmDiscoveredGroups(
+  f: Fixture,
+  count: number,
+  worker = f.groups,
+) {
+  const initial = (await f.rows()).rows;
+  assert.equal(initial.length, count);
+  const identities = (rows: typeof initial) =>
+    rows.map((r) => [
+      r.id,
+      r.event_id,
+      r.stage,
+      r.destination_id,
+      r.idempotency_key,
+    ]);
+  // The repository suppresses retryable deliveries at attempt eight. This is
+  // the existing delivery budget, not an open-ended retry-until-green loop.
+  for (let round = 0; round <= 8; round++) {
+    const rows = (await f.rows()).rows;
+    assert.deepEqual(identities(rows), identities(initial));
+    const remaining = rows.filter((r) => r.status !== 'confirmed');
+    if (!remaining.length) {
+      assert.equal(await worker.runOne(), false);
+      const receipts = await f.pool.query(
+        'SELECT delivery_id,idempotency_key FROM whaleu_notifications.errand_group_receipts ORDER BY delivery_id',
+      );
+      assert.deepEqual(
+        receipts.rows,
+        rows
+          .map((r) => ({
+            delivery_id: r.id,
+            idempotency_key: r.idempotency_key,
+          }))
+          .sort((a, b) => a.delivery_id.localeCompare(b.delivery_id)),
+      );
+      return;
+    }
+    assert.ok(round < 8, `Delivery budget exhausted: ${JSON.stringify(rows)}`);
+    for (const row of remaining) {
+      assert.ok(
+        (row.status === 'pending' &&
+          row.reason === null &&
+          row.attempts === 0) ||
+          (row.status === 'retryable' && row.reason === 'permit_expired'),
+        JSON.stringify(row),
+      );
+      assert.ok(row.attempts < 8, JSON.stringify(row));
+      assert.equal(row.lease_until, null);
+    }
+    // Advance only the synthetic business scheduler to persisted due times.
+    // Real authorization, lease and process-local permit clocks stay intact.
+    f.setTime(
+      Math.max(
+        f.runtime.now(),
+        ...remaining.map((r) => r.next_attempt_at.getTime()),
+      ),
+    );
+    for (let n = 0; n < remaining.length; n++)
+      assert.equal(await worker.runOne(), true);
+    assert.equal(await worker.runOne(), false);
+  }
+}
+
 test(
   'E4 partial destination failure, durable restart, exact first ACK forum windows and private allowlist',
   { timeout: 120000 },
@@ -1087,9 +1153,92 @@ test(
       ).rowCount,
       10,
     );
-    for (let n = 0; n < 144; n++) assert.equal(await f.groups.runOne(), true);
+    // Deterministically reproduce the old false assumption that 144 claims
+    // imply 144 sends. Advance the monotonic clock only in the last registered
+    // final proof, after source checks but before COMMIT/dispatch.
+    const monotonicNow = performance.now.bind(performance);
+    let elapsed = 0;
+    const clock = t.mock.method(
+      performance,
+      'now',
+      () => monotonicNow() + elapsed,
+    );
+    const original = f.source.current.bind(f.source);
+    const expirePermit: RequiredTransactionProof<string> = {
+      maximumFacts: 1,
+      failureCode: 'ERRAND_UNAVAILABLE',
+      validate: async () => {
+        elapsed += 101;
+      },
+    };
+    const source = t.mock.method(
+      f.source,
+      'current',
+      async (...args: Parameters<typeof original>) => {
+        const payload = await original(...args);
+        enableRequiredTransactionProof(args[2], expirePermit);
+        registerRequiredTransactionFact(
+          args[2],
+          expirePermit,
+          'expire',
+          'expire',
+        );
+        return payload;
+      },
+    );
+    for (let n = 0; n < 2; n++) assert.equal(await f.groups.runOne(), true);
+    source.mock.restore();
+    // Retain the monotonic offset until this test ends; never rewind a permit.
+    t.after(() => clock.mock.restore());
+    const expired = (await f.rows()).rows.filter((r) => r.status !== 'pending');
+    assert.equal(expired.length, 2);
+    assert.equal(
+      f.sender.attempts.length,
+      0,
+      'expired permits cannot dispatch',
+    );
+    assert.equal(
+      (
+        await f.pool.query(
+          'SELECT 1 FROM whaleu_notifications.errand_group_receipts',
+        )
+      ).rowCount,
+      0,
+    );
+    for (const row of expired) {
+      assert.equal(row.status, 'retryable');
+      assert.equal(row.reason, 'permit_expired');
+      assert.equal(row.attempts, 1);
+      assert.equal(row.next_attempt_at.getTime(), f.runtime.now() + 1000);
+    }
+    for (let n = 2; n < 144; n++) assert.equal(await f.groups.runOne(), true);
     assert.equal(await f.groups.runOne(), false);
+    // The frozen business clock cannot claim either scheduled retry yet.
+    const firstPass = (await f.rows()).rows;
+    assert.equal(firstPass.filter((r) => r.status === 'pending').length, 0);
+    assert.equal(
+      f.sender.attempts.length,
+      firstPass.filter((r) => r.status === 'confirmed').length,
+    );
+    for (const row of expired) {
+      const current = firstPass.find((r) => r.id === row.id)!;
+      assert.equal(current.status, 'retryable');
+      assert.equal(current.attempts, 1);
+    }
+    await confirmDiscoveredGroups(f, 144);
     assert.equal(f.sender.attempts.length, 144);
+    assert.equal(new Set(f.sender.attempts.map((p) => p.key)).size, 144);
+    assert.equal(
+      new Set(f.sender.attempts.map((p) => p.destination.id)).size,
+      144,
+    );
+    assert.deepEqual(
+      f.sender.attempts.map((p) => p.destination.id).sort(),
+      [...f.authority.groups.values()]
+        .filter((d) => d.targetRegionId !== unknown)
+        .map((d) => d.id)
+        .sort(),
+    );
     assert.equal(
       (await f.rows()).rows.every((r) => r.status === 'confirmed'),
       true,
@@ -1109,8 +1258,17 @@ test(
       160,
       'recovered exact scope is neither truncated nor duplicated',
     );
-    for (let n = 0; n < 16; n++) assert.equal(await f.restart().runOne(), true);
+    await confirmDiscoveredGroups(f, 160, f.restart());
     assert.equal(f.sender.attempts.length, 160);
+    assert.equal(new Set(f.sender.attempts.map((p) => p.key)).size, 160);
+    assert.equal(
+      new Set(f.sender.attempts.map((p) => p.destination.id)).size,
+      160,
+    );
+    assert.deepEqual(
+      f.sender.attempts.map((p) => p.destination.id).sort(),
+      [...f.authority.groups.keys()].sort(),
+    );
     assert.equal(
       (await f.rows()).rows.every((r) => r.status === 'confirmed'),
       true,

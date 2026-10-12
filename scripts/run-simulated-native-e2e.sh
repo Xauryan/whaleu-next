@@ -20,6 +20,9 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/course-comments-native-roundtrip.test.ts \
   test/integration/window-ratings-native-roundtrip.test.ts \
   test/integration/dish-recommendations-native-roundtrip.test.ts \
+  test/integration/canteen-floor-scores.test.ts \
+  test/integration/canteen-floor-score-proofs.test.ts \
+  test/integration/canteen-floor-scores-native-roundtrip.test.ts \
   test/integration/scoped-post-pins.test.ts \
   test/integration/scoped-post-pin-proofs.test.ts \
   test/integration/scoped-post-pins-native-roundtrip.test.ts \

@@ -1,0 +1,10 @@
+<import src="../../canteen-floor-scores/common.wxml" />
+<view class="screen">
+ <view class="eyebrow">WHALEU · 食堂楼层评分</view><view class="title">选择食堂与楼层</view>
+ <template is="floor-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryFloorId,recoveryScore,recoveryPhase,busy,confirming,receiptMissing}}" />
+ <block wx:if="{{loaded &amp;&amp; catalog}}">
+  <view class="card"><view class="section-title">食堂</view><button wx:for="{{canteenOptions}}" wx:key="id" data-id="{{item.id}}" bindtap="onCanteen" disabled="{{busy}}">{{item.selected ? '已选 · ' : ''}}{{item.label}}</button></view>
+  <view class="card"><view class="section-title">原始楼层</view><picker range="{{floorLabels}}" value="{{floorIndex}}" bindchange="onFloor"><view>{{floorLabels[floorIndex]}}</view></picker><button wx:if="{{floorDraft}}" data-id="{{floorDraft}}" bindtap="onOpenFloor" disabled="{{busy}}">查看这个楼层</button><view wx:if="{{floorOptions.length === 0}}">已确认当前选择没有有效楼层。</view></view>
+ </block>
+ <view class="notice">楼层评分独立计算，不混入窗口评分、推荐或讨论；支持没有窗口的有效楼层。</view>
+</view>

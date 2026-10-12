@@ -21,7 +21,7 @@ npm run test:simulated:e2e
 
 The command rebuilds the native bundle and runs its emitted smoke checks, creates
 an isolated loopback cluster through the existing controlled-maintenance wrapper,
-and runs the 45 integration files explicitly listed in
+and runs the 48 integration files explicitly listed in
 `scripts/run-simulated-native-e2e.sh` serially. The 1,800-second aggregate process
 timeout is inside the wrapper so PostgreSQL is stopped normally on exit. This
 budget includes deliberate proof-expiry waits; individual test bounds remain in
@@ -174,3 +174,14 @@ The subsequent composition on `21b3422` preserves all three scoped-pin entries,
 so the combined manifest has 45 files. The 42-file split record above remains
 historical evidence for the original W3 source, not execution evidence for this
 newly composed manifest. Its exact aggregate validation is recorded separately.
+
+Independent [canteen-floor scores](CANTEEN_FLOOR_SCORES.md) add three explicit
+files: `canteen-floor-scores.test.ts`, `canteen-floor-score-proofs.test.ts`, and
+`canteen-floor-scores-native-roundtrip.test.ts`. The emitted root floor selector
+recovers the original decimal request while current catalog access is withdrawn;
+the same journey covers decimal confirmation, durable cancellation and account/
+hide fencing. PostgreSQL tests keep floor record counts and numeric means separate
+from signed Window scores, dish recommendations, Window discussion and generic
+ratings. No optional floor comments/images, production history or provider is
+introduced. The runner retains all 45 prior files, now 48 explicit files, under
+the same 1800-second timeout inside normal PostgreSQL cleanup.

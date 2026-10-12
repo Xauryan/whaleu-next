@@ -45,6 +45,26 @@ const conditions = {
     message:
       'Exact dish recommendation population exceeds the supported budget',
   },
+  FLOOR_HISTORY_UNAVAILABLE: {
+    status: 503,
+    message: 'Floor score history or current proof is unavailable',
+  },
+  FLOOR_NOT_FOUND: {
+    status: 404,
+    message: 'Floor or active canteen is unavailable',
+  },
+  FLOOR_REVISION_CONFLICT: {
+    status: 409,
+    message: 'Floor catalog changed; reload before confirming',
+  },
+  FLOOR_ALREADY_RATED: {
+    status: 409,
+    message: 'An active floor score already exists',
+  },
+  FLOOR_SCORE_CANCELLED: {
+    status: 409,
+    message: 'Original floor score command was cancelled',
+  },
   WINDOW_CATALOG_UNAVAILABLE: {
     status: 503,
     message: 'Accepted window catalog is unavailable',

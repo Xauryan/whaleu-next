@@ -37,6 +37,8 @@
     "pages/errand-admin/errand-admin",
     "pages/errand-restrictions/errand-restrictions",
     "pages/rating-catalog/rating-catalog",
+    "pages/canteen-floor-scores/canteen-floor-scores",
+    "pages/canteen-floor-score-detail/canteen-floor-score-detail",
     "pages/window-ratings/window-ratings",
     "pages/window-rating-detail/window-rating-detail",
     "pages/window-dishes/window-dishes",

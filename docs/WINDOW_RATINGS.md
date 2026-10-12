@@ -109,9 +109,10 @@ current detail read. It does not become the current displayed score by itself.
 
 W2 dish endorsements are now a separate bounded [contract](DISH_RECOMMENDATIONS.md).
 W3 named text roots/replies, reversible likes and local notices now have a separate
-[bounded contract](WINDOW_DISCUSSION.md). Canteen/floor score writes, Window
-images/image-only discussion, accepted creator-notice mapping,
-admin/catalog workflows, rewards and mixed-population aggregates remain
+[bounded contract](WINDOW_DISCUSSION.md). Independent [canteen-floor scalar score
+writes](CANTEEN_FLOOR_SCORES.md) also have a separate bounded slice. Window
+images/image-only discussion, accepted creator-notice mapping, admin/catalog
+workflows, rewards and mixed-population aggregates remain
 explicit separate gates. There is no production activation endpoint or fabricated
 seed. Local emitted App/Page/WXML → production gateway → loopback AppModule →
 PostgreSQL acceptance is distinct from physical devices, hosted CI and migration.
