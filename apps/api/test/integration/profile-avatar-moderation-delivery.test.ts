@@ -330,13 +330,20 @@ test(
               const s = await scenario(f);
               const open = f.storage.openExact.bind(f.storage);
               let changed = false;
+              const clearResults: request.Response[] = [];
+              const clearErrors: unknown[] = [];
               f.storage.openExact = async (object, maximum) => {
                 const opened = await open(object, maximum);
                 if (!changed) {
                   changed = true;
-                  const cleared = await f.send(s.admin, s.body);
-                  profileOk(cleared);
-                  assert.equal(cleared.body.outcome, 'applied');
+                  // Delivery intentionally catches storage failures. Assert the
+                  // moderator result outside that catch boundary so a failed
+                  // clear cannot masquerade as successful byte revocation.
+                  try {
+                    clearResults.push(await f.send(s.admin, s.body));
+                  } catch (error) {
+                    clearErrors.push(error);
+                  }
                 }
                 return opened;
               };
@@ -346,6 +353,10 @@ test(
                   call.set('Authorization', `Bearer ${s.viewer.accessToken}`);
                 const response = await call;
                 assert.equal(changed, true);
+                assert.deepEqual(clearErrors, []);
+                assert.equal(clearResults.length, 1);
+                profileOk(clearResults[0]!);
+                assert.equal(clearResults[0]!.body.outcome, 'applied');
                 assert.notEqual(response.status, 200);
                 assert.equal(
                   Buffer.isBuffer(response.body),

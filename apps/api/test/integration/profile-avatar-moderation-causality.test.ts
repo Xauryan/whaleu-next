@@ -1,7 +1,7 @@
 /** Raw SQL closure adversaries. Synthetic fixtures never activate production Media. */
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import request from 'supertest';
@@ -1112,5 +1112,291 @@ test(
       'Every permitted statement has exactly one real epoch transition',
     );
     assert.equal(cause.complete, true);
+  },
+);
+
+test(
+  'indexed Media trigger inventory equals the published full-catalog predicate through normal PostgreSQL DDL',
+  { timeout: 120000 },
+  async (t) => {
+    const f = await profileAvatarModerationFixture();
+    t.after(() => f.close());
+    const published = await readFile(
+      new URL(
+        '../../migrations/0129_scoped_profile_avatar_moderation.sql',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const oracle =
+      /CREATE FUNCTION whaleu_profile\.avatar_moderation_media_inventory_current\(\) RETURNS boolean LANGUAGE sql STABLE AS \$\$([\s\S]*?)\$\$;/.exec(
+        published,
+      )?.[1];
+    assert.ok(oracle, 'The oracle is the unchanged published 0129 body');
+    const sourceRows = `SELECT source.oid,source.tgrelid,source.tgfoid,source.tgtype,source.tgenabled,source.tgisinternal,source.tgparentid
+      FROM pg_catalog.pg_trigger source WHERE source.tgfoid='whaleu_media.advance_owner_epoch()'::regprocedure ORDER BY source.oid`;
+    const indexedRows = `SELECT DISTINCT source.oid,source.tgrelid,source.tgfoid,source.tgtype,source.tgenabled,source.tgisinternal,source.tgparentid
+      FROM pg_catalog.pg_depend dep JOIN pg_catalog.pg_trigger source ON source.oid=dep.objid
+      WHERE dep.classid='pg_catalog.pg_trigger'::regclass AND dep.refclassid='pg_catalog.pg_proc'::regclass
+      AND dep.refobjid='whaleu_media.advance_owner_epoch()'::regprocedure
+      AND source.tgfoid='whaleu_media.advance_owner_epoch()'::regprocedure ORDER BY source.oid`;
+    const check = async (tx: PoolClient, expected: boolean) => {
+      const previous = (
+        await tx.query<{ valid: boolean }>(`SELECT (${oracle}) valid`)
+      ).rows[0]!.valid;
+      const current = (
+        await tx.query<{ valid: boolean }>(
+          'SELECT whaleu_profile.avatar_moderation_media_inventory_current() valid',
+        )
+      ).rows[0]!.valid;
+      assert.equal(previous, expected);
+      assert.equal(current, previous);
+      assert.deepEqual(
+        (await tx.query(indexedRows)).rows,
+        (await tx.query(sourceRows)).rows,
+      );
+    };
+    const run = async (work: (tx: PoolClient) => Promise<void>) => {
+      const tx = await f.pool.connect();
+      try {
+        await tx.query('BEGIN');
+        await tx.query(`CREATE SCHEMA avatar_inventory_spec;
+          CREATE TABLE avatar_inventory_spec.target(id integer PRIMARY KEY);
+          CREATE FUNCTION avatar_inventory_spec.noop() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NULL;END$$`);
+        await check(tx, true);
+        await work(tx);
+      } finally {
+        await tx.query('ROLLBACK');
+        tx.release();
+      }
+    };
+    const source = `CREATE TRIGGER source BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON avatar_inventory_spec.target FOR EACH STATEMENT EXECUTE FUNCTION whaleu_media.advance_owner_epoch()`;
+    const guard = `CREATE TRIGGER guard BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON avatar_inventory_spec.target FOR EACH STATEMENT EXECUTE FUNCTION whaleu_profile.avatar_moderation_media_statement_guard()`;
+    await t.test(
+      'all current source owners are exactly discoverable, with no dependency-kind approximation',
+      () =>
+        run(async (tx) => {
+          const rows = (await tx.query(sourceRows)).rows;
+          assert.ok(rows.length >= 53);
+          await check(tx, true);
+        }),
+    );
+    await t.test(
+      'uncovered foreign sources fail for ordinary, replica and always modes; disabled sources preserve the original predicate',
+      () =>
+        run(async (tx) => {
+          await tx.query(source);
+          for (const mode of ['ENABLE', 'ENABLE REPLICA', 'ENABLE ALWAYS']) {
+            await tx.query(
+              `ALTER TABLE avatar_inventory_spec.target ${mode} TRIGGER source`,
+            );
+            await check(tx, false);
+          }
+          await tx.query(
+            'ALTER TABLE avatar_inventory_spec.target DISABLE TRIGGER source',
+          );
+          await check(tx, true);
+          await tx.query(
+            'ALTER TABLE avatar_inventory_spec.target ENABLE TRIGGER source',
+          );
+          await tx.query(guard);
+          for (const mode of ['ENABLE', 'ENABLE ALWAYS']) {
+            await tx.query(
+              `ALTER TABLE avatar_inventory_spec.target ${mode} TRIGGER guard`,
+            );
+            await check(tx, true);
+          }
+          for (const mode of ['DISABLE', 'ENABLE REPLICA']) {
+            await tx.query(
+              `ALTER TABLE avatar_inventory_spec.target ${mode} TRIGGER guard`,
+            );
+            await check(tx, false);
+          }
+          await tx.query('DROP TRIGGER source ON avatar_inventory_spec.target');
+          await check(tx, true);
+        }),
+    );
+    await t.test(
+      'CREATE OR REPLACE replaces the real function dependency and cannot lend a similarly named guard',
+      () =>
+        run(async (tx) => {
+          await tx.query(
+            'CREATE TRIGGER source BEFORE INSERT ON avatar_inventory_spec.target FOR EACH STATEMENT EXECUTE FUNCTION avatar_inventory_spec.noop()',
+          );
+          await check(tx, true);
+          await tx.query(
+            'CREATE OR REPLACE TRIGGER source BEFORE INSERT ON avatar_inventory_spec.target FOR EACH STATEMENT EXECUTE FUNCTION whaleu_media.advance_owner_epoch()',
+          );
+          await check(tx, false);
+          await tx.query(
+            'CREATE TRIGGER guard BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON avatar_inventory_spec.target FOR EACH STATEMENT EXECUTE FUNCTION avatar_inventory_spec.noop()',
+          );
+          await check(tx, false);
+          await tx.query(
+            'CREATE OR REPLACE TRIGGER source BEFORE INSERT ON avatar_inventory_spec.target FOR EACH STATEMENT EXECUTE FUNCTION avatar_inventory_spec.noop()',
+          );
+          await check(tx, true);
+        }),
+    );
+    await t.test(
+      'incomplete operations, WHEN qualifiers and arguments do not become complete guards',
+      () =>
+        run(async (tx) => {
+          await tx.query(source);
+          for (const statement of [
+            'CREATE TRIGGER guard BEFORE INSERT ON avatar_inventory_spec.target FOR EACH STATEMENT EXECUTE FUNCTION whaleu_profile.avatar_moderation_media_statement_guard()',
+            'CREATE TRIGGER guard BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON avatar_inventory_spec.target FOR EACH STATEMENT WHEN (pg_trigger_depth()>=0) EXECUTE FUNCTION whaleu_profile.avatar_moderation_media_statement_guard()',
+            "CREATE TRIGGER guard BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON avatar_inventory_spec.target FOR EACH STATEMENT EXECUTE FUNCTION whaleu_profile.avatar_moderation_media_statement_guard('unexpected')",
+          ]) {
+            await tx.query(statement);
+            await check(tx, false);
+            await tx.query(
+              'DROP TRIGGER guard ON avatar_inventory_spec.target',
+            );
+          }
+        }),
+    );
+    await t.test(
+      'row, AFTER and constraint sources remain invalid rather than disappearing from discovery',
+      () =>
+        run(async (tx) => {
+          await tx.query(guard);
+          for (const statement of [
+            'CREATE TRIGGER source BEFORE INSERT ON avatar_inventory_spec.target FOR EACH ROW EXECUTE FUNCTION whaleu_media.advance_owner_epoch()',
+            'CREATE TRIGGER source AFTER INSERT ON avatar_inventory_spec.target FOR EACH STATEMENT EXECUTE FUNCTION whaleu_media.advance_owner_epoch()',
+            'CREATE CONSTRAINT TRIGGER source AFTER INSERT ON avatar_inventory_spec.target DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION whaleu_media.advance_owner_epoch()',
+          ]) {
+            await tx.query(statement);
+            await check(tx, false);
+            await tx.query(
+              'DROP TRIGGER source ON avatar_inventory_spec.target',
+            );
+          }
+        }),
+    );
+    await t.test(
+      'partition row clones retain their actual function dependency and cannot bypass the source type check',
+      () =>
+        run(async (tx) => {
+          await tx.query(`CREATE TABLE avatar_inventory_spec.parent(id integer) PARTITION BY RANGE(id);
+        CREATE TABLE avatar_inventory_spec.child PARTITION OF avatar_inventory_spec.parent FOR VALUES FROM(0) TO(10);
+        CREATE TRIGGER source BEFORE INSERT ON avatar_inventory_spec.parent FOR EACH ROW EXECUTE FUNCTION whaleu_media.advance_owner_epoch()`);
+          assert.equal(
+            (
+              await tx.query(
+                "SELECT 1 FROM pg_trigger WHERE tgrelid='avatar_inventory_spec.child'::regclass AND tgparentid<>0 AND tgfoid='whaleu_media.advance_owner_epoch()'::regprocedure",
+              )
+            ).rowCount,
+            1,
+          );
+          await check(tx, false);
+          await tx.query('DROP TRIGGER source ON avatar_inventory_spec.parent');
+          await check(tx, true);
+          for (const relation of ['parent', 'child']) {
+            await tx.query(
+              `CREATE TRIGGER source BEFORE INSERT ON avatar_inventory_spec.${relation} FOR EACH STATEMENT EXECUTE FUNCTION whaleu_media.advance_owner_epoch()`,
+            );
+            await check(tx, false);
+            await tx.query(
+              `CREATE TRIGGER guard BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON avatar_inventory_spec.${relation} FOR EACH STATEMENT EXECUTE FUNCTION whaleu_profile.avatar_moderation_media_statement_guard()`,
+            );
+            await check(tx, true);
+          }
+        }),
+    );
+    await t.test(
+      'internal FK triggers and a function referenced only by WHEN cannot impersonate an epoch source',
+      () =>
+        run(async (tx) => {
+          await tx.query(`CREATE TABLE avatar_inventory_spec.foreign_child(id integer REFERENCES avatar_inventory_spec.target(id));
+        CREATE TRIGGER when_reference BEFORE INSERT ON avatar_inventory_spec.target FOR EACH STATEMENT WHEN (whaleu_media.advance_owner_epoch() IS NULL) EXECUTE FUNCTION avatar_inventory_spec.noop()`);
+          assert.ok(
+            (
+              await tx.query(
+                "SELECT 1 FROM pg_trigger WHERE tgrelid='avatar_inventory_spec.foreign_child'::regclass AND tgisinternal",
+              )
+            ).rowCount,
+          );
+          assert.equal(
+            (
+              await tx.query(
+                "SELECT 1 FROM pg_depend d JOIN pg_trigger g ON g.oid=d.objid WHERE d.classid='pg_trigger'::regclass AND d.refclassid='pg_proc'::regclass AND d.refobjid='whaleu_media.advance_owner_epoch()'::regprocedure AND g.tgname='when_reference' AND g.tgfoid<>'whaleu_media.advance_owner_epoch()'::regprocedure",
+              )
+            ).rowCount,
+            1,
+          );
+          await check(tx, true);
+        }),
+    );
+    await t.test(
+      'bounded inventory plan records actual server/JIT settings without broad trigger scans',
+      () =>
+        run(async (tx) => {
+          const environment = (
+            await tx.query(
+              `SELECT version() version,pg_jit_available() jit_available,current_setting('jit') jit,current_setting('jit_above_cost') jit_above_cost`,
+            )
+          ).rows[0];
+          const body = (
+            await tx.query<{ prosrc: string }>(
+              "SELECT prosrc FROM pg_proc WHERE oid='whaleu_profile.avatar_moderation_media_inventory_current()'::regprocedure",
+            )
+          ).rows[0]!.prosrc;
+          await check(tx, true);
+          await tx.query(
+            "SET LOCAL statement_timeout='100ms';SET LOCAL lock_timeout='1ms'",
+          );
+          const started = performance.now();
+          const result = (
+            await tx.query<Record<string, unknown>>(
+              'EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) ' + body,
+            )
+          ).rows[0]!['QUERY PLAN'] as Array<Record<string, unknown>>;
+          const nodes: Array<Record<string, unknown>> = [];
+          const collect = (node: Record<string, unknown>) => {
+            nodes.push(node);
+            for (const child of (node['Plans'] ?? []) as Array<
+              Record<string, unknown>
+            >)
+              collect(child);
+          };
+          collect(result[0]!['Plan'] as Record<string, unknown>);
+          t.diagnostic(
+            JSON.stringify({
+              avatarInventoryProofEnvironment: environment,
+              avatarInventoryFunctionBodySha256: createHash('sha256')
+                .update(body)
+                .digest('hex'),
+              avatarInventoryPlan: {
+                statementBudgetMs: 100,
+                clientMs: performance.now() - started,
+                planningMs: result[0]!['Planning Time'],
+                executionMs: result[0]!['Execution Time'],
+                nodes: nodes.map((node) => ({
+                  type: node['Node Type'],
+                  relation: node['Relation Name'],
+                  index: node['Index Name'],
+                  loops: node['Actual Loops'],
+                  rows: node['Actual Rows'],
+                  sharedHits: node['Shared Hit Blocks'],
+                })),
+              },
+            }),
+          );
+          assert.ok(
+            nodes.some(
+              (node) => node['Index Name'] === 'pg_depend_reference_index',
+            ),
+          );
+          assert.equal(
+            nodes.some(
+              (node) =>
+                node['Relation Name'] === 'pg_trigger' &&
+                node['Node Type'] === 'Seq Scan',
+            ),
+            false,
+          );
+        }),
+    );
   },
 );
