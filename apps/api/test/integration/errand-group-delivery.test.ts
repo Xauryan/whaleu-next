@@ -117,9 +117,9 @@ function destinations(f: Fixture) {
   };
 }
 
-/** A claimed row is not necessarily a send: the real 100ms permit can expire
- * during final proofs/COMMIT. Only that explicit, pre-dispatch retry is allowed
- * here; unknown outcomes, source failures and exhausted budgets must fail. */
+/** A claim need not send: the 100ms permit can expire before dispatch or at
+ * the sender boundary. Unknown work may only reconcile its original key; a
+ * fresh send needs proven nonacceptance. Unresolved outcomes still fail. */
 async function confirmDiscoveredGroups(
   f: Fixture,
   count: number,
@@ -135,6 +135,7 @@ async function confirmDiscoveredGroups(
       r.destination_id,
       r.idempotency_key,
     ]);
+  const provenNegativeAttempts = new Map<string, number>();
   // The repository suppresses retryable deliveries at attempt eight. This is
   // the existing delivery budget, not an open-ended retry-until-green loop.
   for (let round = 0; round <= 8; round++) {
@@ -163,12 +164,26 @@ async function confirmDiscoveredGroups(
         (row.status === 'pending' &&
           row.reason === null &&
           row.attempts === 0) ||
-          (row.status === 'retryable' && row.reason === 'permit_expired'),
+          (row.status === 'retryable' && row.reason === 'permit_expired') ||
+          (row.status === 'unknown' &&
+            row.reason === 'unknown' &&
+            row.reconciliations < 8) ||
+          (row.status === 'retryable' &&
+            row.reason === 'not_accepted' &&
+            provenNegativeAttempts.get(row.id) === row.attempts),
         JSON.stringify(row),
       );
       assert.ok(row.attempts < 8, JSON.stringify(row));
       assert.equal(row.lease_until, null);
     }
+    const unknown = remaining.filter((r) => r.status === 'unknown');
+    const reconciledBefore = f.sender.reconciled.length;
+    const dispatchesBefore = new Map(
+      unknown.map((r) => [
+        r.id,
+        f.sender.attempts.filter((p) => p.key === r.idempotency_key).length,
+      ]),
+    );
     // Advance only the synthetic business scheduler to persisted due times.
     // Real authorization, lease and process-local permit clocks stay intact.
     f.setTime(
@@ -180,6 +195,28 @@ async function confirmDiscoveredGroups(
     for (let n = 0; n < remaining.length; n++)
       assert.equal(await worker.runOne(), true);
     assert.equal(await worker.runOne(), false);
+    assert.deepEqual(
+      f.sender.reconciled.slice(reconciledBefore).sort(),
+      unknown.map((r) => r.idempotency_key).sort(),
+      'unknown work only reconciles each original key once in this due batch',
+    );
+    const after = (await f.rows()).rows;
+    for (const row of unknown) {
+      const settled = after.find((r) => r.id === row.id)!;
+      assert.equal(
+        f.sender.attempts.filter((p) => p.key === row.idempotency_key).length,
+        dispatchesBefore.get(row.id),
+        'reconciliation cannot dispatch',
+      );
+      assert.equal(settled.attempts, row.attempts + 1);
+      assert.equal(settled.reconciliations, row.reconciliations + 1);
+      // These durable fields are written only after acknowledge() validates the
+      // provider's exact-key/destination not_accepted response. Still-unknown
+      // evidence must fail here, never become permission for a fresh send.
+      assert.equal(settled.status, 'retryable', JSON.stringify(settled));
+      assert.equal(settled.reason, 'not_accepted', JSON.stringify(settled));
+      provenNegativeAttempts.set(row.id, settled.attempts);
+    }
   }
 }
 
@@ -1211,10 +1248,37 @@ test(
       assert.equal(row.attempts, 1);
       assert.equal(row.next_attempt_at.getTime(), f.runtime.now() + 1000);
     }
+    const prepare = f.sender.prepare.bind(f.sender);
+    let boundaryKey: string | null = null;
+    const sender = t.mock.method(
+      f.sender,
+      'prepare',
+      async (...args: Parameters<typeof prepare>) => {
+        const prepared = await prepare(...args);
+        return {
+          ...prepared,
+          dispatch(permit: Parameters<typeof prepared.dispatch>[0]) {
+            if (boundaryKey === null) {
+              boundaryKey = permit.key;
+              // The worker has passed its clock check, but the sender can still
+              // observe expiry before acceptance. Preserve that unknown result.
+              elapsed += Math.max(0, permit.expiresAt - performance.now());
+            }
+            return prepared.dispatch(permit);
+          },
+        };
+      },
+    );
     for (let n = 2; n < 144; n++) assert.equal(await f.groups.runOne(), true);
+    sender.mock.restore();
     assert.equal(await f.groups.runOne(), false);
     // The frozen business clock cannot claim either scheduled retry yet.
     const firstPass = (await f.rows()).rows;
+    assert.ok(boundaryKey);
+    const boundary = firstPass.find((r) => r.idempotency_key === boundaryKey)!;
+    assert.equal(boundary.status, 'unknown');
+    assert.equal(boundary.attempts, 1);
+    assert.equal(boundary.reconciliations, 0);
     assert.equal(firstPass.filter((r) => r.status === 'pending').length, 0);
     assert.equal(
       f.sender.attempts.length,
@@ -1272,6 +1336,127 @@ test(
     assert.equal(
       (await f.rows()).rows.every((r) => r.status === 'confirmed'),
       true,
+    );
+  },
+);
+
+test(
+  'sender permit boundary after the worker check stays unknown until same-key reconciliation proves no acceptance',
+  { timeout: 120000 },
+  async (t) => {
+    const f = await errandGroupFixture();
+    t.after(() => f.close());
+    f.authority.add(
+      f.scope.related.regionId,
+      'errand',
+      'dispatch-boundary:one',
+    );
+    await publish(f);
+    await f.groups.discover();
+    let monotonic = 1000;
+    t.mock.method(performance, 'now', () => monotonic);
+    const prepare = f.sender.prepare.bind(f.sender);
+    let expiryInjected = false;
+    t.mock.method(
+      f.sender,
+      'prepare',
+      async (...args: Parameters<typeof prepare>) => {
+        const prepared = await prepare(...args);
+        return {
+          ...prepared,
+          dispatch(permit: Parameters<typeof prepared.dispatch>[0]) {
+            assert.equal(permit.key, prepared.key);
+            assert.equal(permit.destination.id, prepared.destinationId);
+            if (!expiryInjected) {
+              assert.ok(
+                monotonic < permit.expiresAt,
+                'worker passed a live permit',
+              );
+              monotonic = permit.expiresAt;
+              expiryInjected = true;
+            }
+            return prepared.dispatch(permit);
+          },
+        };
+      },
+    );
+    const current = f.source.current.bind(f.source);
+    let sourceReads = 0;
+    t.mock.method(
+      f.source,
+      'current',
+      async (...args: Parameters<typeof current>) => {
+        sourceReads++;
+        return current(...args);
+      },
+    );
+    assert.equal(await f.groups.runOne(), true);
+    let row = (await f.rows()).rows[0]!;
+    assert.equal(expiryInjected, true);
+    assert.equal(row.status, 'unknown');
+    assert.equal(row.reason, 'unknown');
+    assert.equal(row.attempts, 1);
+    assert.equal(row.reconciliations, 0);
+    assert.equal(f.sender.attempts.length, 0);
+    assert.equal(sourceReads, 1);
+    assert.equal(
+      (
+        await f.pool.query(
+          'SELECT 1 FROM whaleu_notifications.errand_group_receipts',
+        )
+      ).rowCount,
+      0,
+    );
+    t.diagnostic(
+      JSON.stringify({
+        phase: 'post-dispatch-boundary',
+        row,
+        dispatches: f.sender.attempts.length,
+        sourceReads,
+      }),
+    );
+    f.sender.unresolved = true;
+    await assert.rejects(confirmDiscoveredGroups(f, 1), /unknown/);
+    row = (await f.rows()).rows[0]!;
+    assert.equal(row.status, 'unknown');
+    assert.equal(row.reconciliations, 1);
+    assert.equal(f.sender.attempts.length, 0);
+    assert.equal(
+      sourceReads,
+      1,
+      'unresolved outcome cannot fresh-authorize a resend',
+    );
+    f.sender.unresolved = false;
+    await confirmDiscoveredGroups(f, 1, f.restart());
+    row = (await f.rows()).rows[0]!;
+    assert.equal(row.status, 'confirmed');
+    assert.equal(row.attempts, 4);
+    assert.equal(row.reconciliations, 2);
+    assert.deepEqual(f.sender.reconciled, [
+      row.idempotency_key,
+      row.idempotency_key,
+    ]);
+    assert.equal(
+      sourceReads,
+      2,
+      'confirmed negative evidence permits only a fresh source authorization',
+    );
+    assert.equal(f.sender.attempts.length, 1);
+    assert.equal(
+      (
+        await f.pool.query(
+          'SELECT 1 FROM whaleu_notifications.errand_group_receipts',
+        )
+      ).rowCount,
+      1,
+    );
+    t.diagnostic(
+      JSON.stringify({
+        phase: 'confirmed-after-proven-negative',
+        row,
+        dispatches: f.sender.attempts.length,
+        sourceReads,
+      }),
     );
   },
 );

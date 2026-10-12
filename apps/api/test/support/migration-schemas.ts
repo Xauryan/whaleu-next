@@ -7,6 +7,7 @@ export const migrationSchemaNames = [
   'whaleu_school_configuration',
   'whaleu_media',
   'whaleu_messaging',
+  'whaleu_majors',
   'whaleu_ratings',
   'whaleu_errands',
   'whaleu_activities',

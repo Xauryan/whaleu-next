@@ -1,0 +1,19 @@
+<template name="major-status">
+  <view class="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续 →</navigator>
+  <button bindtap="onRefresh" disabled="{{busy}}">重新核验当前目录</button>
+  <button wx:if="{{busy}}" bindtap="onCancelWait">停止等待</button>
+</template>
+<template name="major-summary">
+  <block wx:if="{{summary.kind === 'known'}}">
+    <view class="meta">{{summary.rootCount}} 条主评论</view>
+    <view wx:if="{{summary.hotComment}}" class="hot-comment"><view class="meta">热门主评论 · {{summary.hotComment.likes}} 个赞</view><view class="body">{{summary.hotComment.body}}</view></view>
+  </block>
+  <view wx:else class="notice">评论或点赞历史暂不能确认，暂无可靠讨论摘要。</view>
+</template>
+<template name="major-item">
+  <view class="card"><view class="section-title">{{item.majorName}}</view><view class="meta">{{item.departmentId}}系 · {{item.collegeName}}</view>
+    <template is="major-summary" data="{{summary:item.summary}}" />
+    <button data-id="{{item.id}}" bindtap="onDetail" disabled="{{busy}}">查看专业与讨论 →</button>
+  </view>
+</template>

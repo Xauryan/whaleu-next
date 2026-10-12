@@ -124,7 +124,8 @@
         "organizations",
         "ratings/courses",
         "ratings/windows",
-        "ratings/dishes"
+        "ratings/dishes",
+        "majors"
       ],
       "shards": [
         [
@@ -166,6 +167,10 @@
           "errand-native-roundtrip.test.ts",
           "errand-target-authority-proof.test.ts",
           "errand-target-services-native-roundtrip.test.ts",
+          "major-directory.test.ts",
+          "major-discussion-concurrency.test.ts",
+          "major-discussion-native-roundtrip.test.ts",
+          "major-discussion.test.ts",
           "organization-management-native-roundtrip.test.ts",
           "organization-management.test.ts",
           "organization-media-native-roundtrip.test.ts",

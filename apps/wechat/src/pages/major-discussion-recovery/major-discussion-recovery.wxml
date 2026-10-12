@@ -1,0 +1,10 @@
+<import src="../../major-discussion/common.wxml" />
+<view class="screen"><view class="title">专业讨论独立恢复</view><template is="discussion-status" data="{{status,error,receiptStatus,hasSession,busy,frozen,recoveryMajorId,recoveryOperation,recoveryCommentId,recoveryPhase,confirming}}" />
+<view class="card"><view class="section-title">自己的点赞查询与撤回</view><view class="notice">不需要公开专业仍可查看。下列近期编号只用于定位，不代表仍然点赞，也不是完整历史。</view>
+<button wx:for="{{ownReferences}}" wx:key="commentId" data-id="{{item.commentId}}" bindtap="onOwnReference" disabled="{{busy || frozen || confirming}}">查询近期评论 {{item.commentId}}</button>
+<input value="{{ownMajorDraft}}" bindinput="onOwnMajor" disabled="{{busy || frozen || confirming}}" placeholder="专业编号" /><input value="{{ownCommentDraft}}" bindinput="onOwnComment" disabled="{{busy || frozen || confirming}}" placeholder="评论编号" />
+<button bindtap="onLookupOwn" disabled="{{busy || frozen || confirming}}">查询自己的当前点赞</button>
+<view wx:if="{{own &amp;&amp; own.kind === 'recorded'}}">当前：{{own.active ? '已点赞' : '未点赞'}} · {{own.recordedAt}}</view><view wx:elif="{{own &amp;&amp; own.kind === 'not_liked'}}">已确认没有点赞记录</view><view wx:elif="{{own &amp;&amp; own.kind === 'unavailable'}}">历史暂不能确认，不能当作未点赞</view>
+<button wx:if="{{canUnlike}}" bindtap="onUnlike" disabled="{{busy || frozen || confirming}}">核对后取消我的赞</button>
+<view wx:if="{{confirming === 'unlike'}}" class="confirmation"><view>确认取消当前账号对评论 {{ownCommentDraft}} 的赞？</view><button bindtap="onSubmit" disabled="{{busy}}">确认取消我的赞</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回</button></view></view>
+<navigator class="link" url="/pages/major-discussion-notices/major-discussion-notices">专业讨论通知 →</navigator></view>

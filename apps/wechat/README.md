@@ -588,3 +588,37 @@ uncertain original requests and confirmed cancellation decisions, and can query
 or unlike owned memberships after public source withdrawal. Minimal historical
 receipts never become current content or heart snapshots. See
 [the native W3 contract and acceptance boundaries](docs/window-discussion.md).
+
+## Major directory and text discussion (first slice)
+
+The registered `major-directory` and `major-detail` pages provide the independent
+accepted Major catalog, combined department and professional/college-name search,
+source details and bounded same-department-first recommendations. Department IDs
+use the source integer domain, without Course's department whitelist. Known root
+comment counts and hot-comment previews remain separate from unavailable history;
+unknown data is never shown as zero comments or an absent like. The client adds no
+numeric Major rating, generated curriculum, degree claim or creator mapping.
+
+Dedicated `major-discussion`, `major-discussion-thread`,
+`major-discussion-recovery` and `major-discussion-notices` pages provide named text,
+flat addressed replies, reversible desired-state CAS likes and explicit local
+notice reads. Publication's verified/temporary/admin base eligibility is decided
+by the server. Directory/discussion reads and likes do not fetch same-school or
+student-number publication capabilities. Reply targets are current comment IDs,
+never arbitrary user IDs; notification navigation resolves its target again before
+opening and on the destination page. Major has no creator-notice field or gate.
+
+The independent origin/account-bound Major journal persists the exact original
+intent before dispatch, queries the receipt before retry and durably records
+confirmed cancellation. Missing receipts and uncertain results never unlock a new
+request. Source withdrawal, phone or Safety loss do not prevent independent own
+receipt or owned-like recovery. Bounded recent local IDs are navigation locators,
+not an exhaustive like history or evidence that the actor still likes an item.
+Current hearts and content always come from fresh reads after a historical receipt.
+Account changes, same-account login epochs, page/app hide, cancelled reads and
+changed directory/discussion pages discard late callbacks and stale projections.
+
+This remains a partial text-only slice. Images, deletion, real source/history
+import and production authorization/Review issuance remain unfinished. Focused
+unit, transport and bounded WXML tests use synthetic facts; they do not establish
+WeChat DevTools, physical-device, provider or production acceptance.

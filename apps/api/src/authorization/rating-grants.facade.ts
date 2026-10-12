@@ -161,6 +161,24 @@ export class RatingAuthorizationFacade {
       fingerprint,
     };
   }
+  /** Major publication base identity is independent of course-scoped authority. */
+  async majorDiscussionBase(accountId: string, tx: PoolClient) {
+    enableRequiredTransactionProof(tx, proof);
+    const observed = await capture(accountId, tx);
+    const fingerprint = ownerFingerprint(observed);
+    registerRequiredTransactionFact(
+      tx,
+      proof,
+      `${accountId}:${fingerprint}`,
+      Object.freeze({ accountId, fingerprint }),
+    );
+    return {
+      allowed: observed.grants.some(
+        (g) => g.role === 'school_admin' || g.role === 'super_admin',
+      ),
+      fingerprint,
+    };
+  }
   async scope(accountId: string, tx: PoolClient): Promise<RatingGrantScope> {
     enableRequiredTransactionProof(tx, proof);
     const locked = await tx.query(

@@ -1,3 +1,4 @@
+import { MajorsModule } from './majors/module.js';
 import { ActivityPublicationModule } from './activities/publication/module.js';
 import { OrganizationManagementModule } from './organizations/management/module.js';
 import { SchoolPostingPolicyModule } from './school-posting-policy/module.js';
@@ -69,6 +70,7 @@ export class AppModule {
         ActivityPublicationModule,
         ErrandsModule,
         RatingsModule,
+        MajorsModule,
         MessagingModule,
         SchoolConfigurationModule,
         SchoolPostingPolicyModule,

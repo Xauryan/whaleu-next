@@ -105,3 +105,10 @@ not an executed drift check. See the
 The specialist Window W3 text-discussion and local-notice surface is separately
 recorded in `docs/openapi/window-discussion.json`; its typed metadata and generated
 artifact are part of the same generation/check CLI. See [W3](WINDOW_DISCUSSION.md).
+
+The independent Major directory and text-discussion surface is generated in
+`docs/openapi/major-discussion.json`. It includes source-backed departments/list/
+detail/related, named flat discussion, desired-state CAS likes, original-key
+recovery and local notice/read/target routes. It has no numeric score or creator
+notice contract. Image/deletion/import/provider/device boundaries are described
+in [Major first-slice scope](MAJOR_DISCUSSION.md).

@@ -1,6 +1,7 @@
 <import src="../../experience/public-display.wxml" />
 <import src="../../identity-privacy/view.wxml" />
 <view class="screen">
+  <navigator class="link" url="/pages/major-discussion-notices/major-discussion-notices">专业讨论回复与点赞通知 →</navigator>
   <view class="eyebrow">WHALEU · 社区更新</view><view class="title">我的站内更新</view>
   <navigator class="link" url="/pages/window-discussion-notices/window-discussion-notices">窗口评论回复 / 赞通知 →</navigator>
   <navigator class="link" url="/pages/rating-updates/rating-updates">评分回复 / 赞更新 →</navigator>

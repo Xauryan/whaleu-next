@@ -1,0 +1,19 @@
+<import src="../../majors/common.wxml" />
+<view class="screen"><view class="title">专业详情</view>
+  <template is="major-status" data="{{status,error,hasSession,busy}}" />
+  <navigator class="link" url="/pages/major-discussion-recovery/major-discussion-recovery">原讨论请求与自己的点赞恢复 →</navigator>
+  <block wx:if="{{loaded &amp;&amp; detail}}">
+    <view class="card"><view class="section-title">{{detail.item.majorName}}</view><view class="meta">{{detail.item.departmentId}}系 · {{detail.item.collegeName}}</view>
+      <template is="major-summary" data="{{summary:detail.item.summary}}" />
+      <button bindtap="onOpenDiscussion" disabled="{{busy}}">查看实名文字讨论与回复 →</button>
+    </view>
+    <view class="section-title">相关专业</view><view class="meta">同院系优先，之后为其他院系；最多展示 5 个</view>
+    <view wx:if="{{relatedError}}" class="error">{{relatedError}}</view>
+    <button bindtap="onRelatedRefresh" disabled="{{busy}}">重新核验相关专业</button>
+    <block wx:if="{{relatedLoaded}}"><template wx:for="{{relatedItems}}" wx:key="id" is="major-item" data="{{item,busy}}" />
+      <view wx:if="{{!relatedItems.length}}" class="empty">当前没有其他专业</view>
+    </block>
+  </block>
+  <view wx:if="{{!loaded &amp;&amp; relatedError}}" class="error">{{relatedError}}</view>
+  <view class="notice">未提供经核验的培养方案、学位或就业说明。发布文字需有效基础认证或实际管理权限；浏览和点赞不要求同校认证。</view>
+</view>

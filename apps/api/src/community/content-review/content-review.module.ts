@@ -1,3 +1,4 @@
+import { MajorDiscussionReviewFacade } from './major-discussion-review.facade.js';
 import { WindowDiscussionReviewFacade } from './window-discussion-review.facade.js';
 import { DishReviewFacade } from './dish-review.facade.js';
 import { CourseCommentReviewFacade } from './course-comment-review.facade.js';
@@ -29,6 +30,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
   imports: [CampusModule],
   providers: [
     WindowDiscussionReviewFacade,
+    MajorDiscussionReviewFacade,
     CourseCommentReviewFacade,
     DishReviewFacade,
     RatingCategoryIconReviewFacade,
@@ -52,6 +54,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
   ],
   exports: [
     WindowDiscussionReviewFacade,
+    MajorDiscussionReviewFacade,
     CourseCommentReviewFacade,
     DishReviewFacade,
     RatingCategoryIconReviewFacade,

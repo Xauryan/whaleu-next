@@ -709,6 +709,40 @@ const conditions = {
     status: 422,
     message: 'Content did not pass review',
   },
+
+  MAJOR_DISCUSSION_HISTORY_UNAVAILABLE: {
+    status: 503,
+    message: 'Major discussion history is unavailable',
+  },
+  MAJOR_DISCUSSION_BUDGET_UNAVAILABLE: {
+    status: 503,
+    message: 'Major discussion complete visibility budget exceeded',
+  },
+  MAJOR_DISCUSSION_NOT_FOUND: {
+    status: 404,
+    message: 'Major discussion is not available',
+  },
+  MAJOR_DISCUSSION_NOTICE_NOT_FOUND: {
+    status: 404,
+    message: 'Major discussion notice was not found',
+  },
+  MAJOR_CATALOG_UNAVAILABLE: {
+    status: 503,
+    message: 'Accepted major catalog is unavailable',
+  },
+  MAJOR_NOT_FOUND: {
+    status: 404,
+    message: 'Major or active parent is unavailable',
+  },
+  MAJOR_REVISION_CONFLICT: {
+    status: 409,
+    message: 'Major catalog changed; reload before confirming',
+  },
+  MAJOR_BASE_REQUIRED: {
+    status: 403,
+    message:
+      'Verified, temporarily verified or administrator identity required',
+  },
 } as const;
 
 export type ApplicationErrorCode = keyof typeof conditions;

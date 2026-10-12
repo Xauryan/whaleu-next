@@ -246,3 +246,11 @@ and PostgreSQL numeric one-decimal means. No retirement/import, comment/image,
 whole-canteen aggregate or source seed is added. Historical original-key recovery
 and cancellation retain the current-session boundary. See
 [canteen-floor scores](../../../docs/CANTEEN_FLOOR_SCORES.md).
+
+0121 adds independent Major source identities, sealed school/department/major
+catalogs, accepted-empty discussion/like coverage, named text roots and flat
+replies, exact Major Review, reversible CAS membership, immutable original-key
+commands and per-transition local notice obligations. Major has no score or
+creator-recipient requirement. Earlier SQL remains unchanged; 0120 remains the separate canteen-floor owner. Empty storage creates no production source,
+history or issuer. Images, legitimate soft deletion and real import remain
+separate gates. See [Major partial scope](../../../docs/MAJOR_DISCUSSION.md).

@@ -81,7 +81,13 @@
     "pages/announcement-edit/announcement-edit",
     "pages/student-verification/student-verification",
     "pages/student-verification-review/student-verification-review",
-    "pages/student-verification-notices/student-verification-notices"
+    "pages/student-verification-notices/student-verification-notices",
+    "pages/major-directory/major-directory",
+    "pages/major-detail/major-detail",
+    "pages/major-discussion/major-discussion",
+    "pages/major-discussion-thread/major-discussion-thread",
+    "pages/major-discussion-recovery/major-discussion-recovery",
+    "pages/major-discussion-notices/major-discussion-notices"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

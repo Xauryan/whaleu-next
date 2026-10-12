@@ -21,7 +21,7 @@ npm run test:simulated:e2e
 
 The command rebuilds the native bundle and runs its emitted smoke checks, creates
 an isolated loopback cluster through the existing controlled-maintenance wrapper,
-and runs the 48 integration files explicitly listed in
+and runs the 52 integration files explicitly listed in
 `scripts/run-simulated-native-e2e.sh` serially. The 1,800-second aggregate process
 timeout is inside the wrapper so PostgreSQL is stopped normally on exit. This
 budget includes deliberate proof-expiry waits; individual test bounds remain in
@@ -185,3 +185,15 @@ from signed Window scores, dish recommendations, Window discussion and generic
 ratings. No optional floor comments/images, production history or provider is
 introduced. The runner retains all 45 prior files, now 48 explicit files, under
 the same 1800-second timeout inside normal PostgreSQL cleanup.
+
+## Major directory and text discussion first slice
+
+The manifest additionally lists `major-directory`, `major-discussion`,
+`major-discussion-concurrency` and `major-discussion-native-roundtrip`. These are
+explicit CI module members and preserve every earlier manifest entry. Native
+acceptance exercises emitted Major directory/detail entry points, named roots and
+flat addressed replies, source-independent original-key recovery, CAS unlike and
+re-like, exact local-notice targets, pagination and account/origin/background
+interruption. Complete [scope and outstanding parity](MAJOR_DISCUSSION.md) remain
+separate from an executed validation result. Real source/provider/device/import
+or production activation is not implied.

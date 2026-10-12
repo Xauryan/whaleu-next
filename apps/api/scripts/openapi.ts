@@ -1,4 +1,5 @@
 import { writeCanteenFloorScoresOpenApi } from './canteen-floor-scores-openapi-document.js';
+import { writeMajorDiscussionOpenApi } from './major-discussion-openapi-document.js';
 import { writeScopedPostPinsOpenApi } from './scoped-post-pins-openapi-document.js';
 import { writeWindowDiscussionOpenApi } from './window-discussion-openapi-document.js';
 import { writeStudentVerificationOpenApi } from './student-verification-openapi-document.js';
@@ -310,3 +311,4 @@ await writeScopedPostPinsOpenApi(args[0] === '--check');
 await writeWindowDiscussionOpenApi(args[0] === '--check');
 
 await writeCanteenFloorScoresOpenApi(args[0] === '--check');
+await writeMajorDiscussionOpenApi(args[0] === '--check');
