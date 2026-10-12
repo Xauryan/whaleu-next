@@ -45,6 +45,7 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/owner-post-visibility.test.ts \
   test/integration/owner-post-visibility-native-roundtrip.test.ts \
   test/integration/category-reclassification-native-roundtrip.test.ts \
+  test/integration/profile-avatar-moderation-native-roundtrip.test.ts \
   test/integration/profile-moderation-native-roundtrip.test.ts \
   test/integration/community-text-review-native-roundtrip.test.ts \
   test/integration/community-feedback.test.ts \

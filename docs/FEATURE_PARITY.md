@@ -703,3 +703,11 @@ and university-city scope, avatar moderation, legacy native status-code relogin,
 production source acceptance and physical-device/provider verification remain
 open. This is not full profile moderation or legacy parity. See
 [the exact scope and contract](API_PROFILE_MODERATION.md).
+
+Scoped custom-avatar-clear development slice: named content-bound administration
+can remove only the current owned custom image through an independent system-clear
+causal event, shared Profile CAS, precise Media retirement, private notice and
+original-key native recovery. The result is the existing unselected-avatar state,
+not legacy random-default-image parity. Target/ancestor image proof remains exact
+through the permitted avatar detach; ordinary runtime/provider/source acceptance
+gates remain closed. See [the contract](API_PROFILE_AVATAR_MODERATION.md).

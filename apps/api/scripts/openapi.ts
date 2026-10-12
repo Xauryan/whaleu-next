@@ -1,3 +1,5 @@
+import { writeProfileAvatarModerationOpenApi } from './profile-avatar-moderation-openapi-document.js';
+import { writeSystemNoticesOpenApi } from './system-notices-openapi-document.js';
 import { writeProfileModerationOpenApi } from './profile-moderation-openapi-document.js';
 import { writeOwnerPostVisibilityOpenApi } from './owner-post-visibility-openapi-document.js';
 import { writeMajorDiscussionImagesOpenApi } from './major-discussion-images-openapi-document.js';
@@ -323,3 +325,7 @@ await writeWindowDiscussionImagesOpenApi(args[0] === '--check');
 await writeOwnerPostVisibilityOpenApi(args[0] === '--check');
 
 await writeProfileModerationOpenApi(args[0] === '--check');
+
+await writeSystemNoticesOpenApi(args[0] === '--check');
+
+await writeProfileAvatarModerationOpenApi(args[0] === '--check');

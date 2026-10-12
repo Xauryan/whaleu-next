@@ -40,6 +40,12 @@ export const reasonMessage = (code: string | null): string =>
     MEDIA_UNAVAILABLE: '图片上传与审核服务尚未接入',
     NOTICE_NOT_FOUND: '此更新不存在或不属于当前账号，请刷新列表',
     POST_NOT_FOUND: '帖子不存在或当前不可查看',
+    PROFILE_AVATAR_MODERATION_UNAVAILABLE:
+      '此内容当前不能用于管理头像；待确认的原请求请继续查询回执',
+    PROFILE_AVATAR_MODERATION_STALE: '头像或资料版本已变化，请重新核验并确认',
+    PROFILE_AVATAR_MODERATION_NOT_APPLICABLE:
+      '当前没有可清除的自定义头像，请重新核验',
+    PROFILE_AVATAR_MODERATION_CANCELLED: '原头像清除请求已取消',
     PROFILE_MODERATION_UNAVAILABLE:
       '此内容当前不能用于管理昵称；待确认的原请求请继续查询回执',
     PROFILE_MODERATION_STALE: '资料版本已变化，请重新加载并确认',

@@ -235,6 +235,7 @@ export class ProfileAvatarService {
           await this.reviews.bind(review, tx);
           await this.repository.replace(
             {
+              authority: 'self_selection',
               id: appearanceId,
               actor_id: actor,
               source,
@@ -378,6 +379,7 @@ export class ProfileAvatarService {
     const definition = await this.repository.current(actor, tx);
     if (
       !definition ||
+      definition.authority !== 'self_selection' ||
       definition.id !== request.appearanceId ||
       definition.source.kind !== 'custom' ||
       !definition.binding_id
@@ -421,6 +423,10 @@ export class ProfileAvatarService {
       revision: current.revision,
     };
     if (!definition) return { ...base, avatar: { state: 'none' } };
+    if (definition.authority === 'scoped_moderation_clear') {
+      await this.repository.requireSystemClearCurrent(definition, current, tx);
+      return { ...base, avatar: { state: 'none' } };
+    }
     if (!this.runtime) return { ...base, avatar: { state: 'unavailable' } };
     // Missing/held avatar does not make an already-visible named profile fail.
     // We do not discard any proof facts: final proof uncertainty still fails.

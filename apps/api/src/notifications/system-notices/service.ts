@@ -14,20 +14,31 @@ import { encodeSystemNoticesCursor, systemNoticesCursor } from './cursor.js';
 import { SystemNoticesRepository } from './repository.js';
 import type { StoredSystemNotice } from './repository.js';
 
+const unknownNotice = (_row: never): never => {
+  throw new ApplicationError('SYSTEM_NOTICES_UNAVAILABLE');
+};
+
 const project = (row: StoredSystemNotice): SystemNoticeView => {
   const base = {
     noticeId: row.id,
     createdAt: row.created_at.toISOString(),
     readAt: row.read_at?.toISOString() ?? null,
   };
-  return row.kind === 'post_jury_removed'
-    ? {
+  switch (row.kind) {
+    case 'post_jury_removed':
+      return {
         ...base,
         kind: row.kind,
         keepVotes: row.keep_votes,
         removeVotes: row.remove_votes,
-      }
-    : { ...base, kind: row.kind, nickname: row.nickname };
+      };
+    case 'profile_nickname_reset':
+      return { ...base, kind: row.kind, nickname: row.nickname };
+    case 'profile_custom_avatar_cleared':
+      return { ...base, kind: row.kind };
+    default:
+      return unknownNotice(row);
+  }
 };
 
 @Injectable()

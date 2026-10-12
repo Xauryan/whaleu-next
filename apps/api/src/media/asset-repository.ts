@@ -1,3 +1,4 @@
+import { collectAvatarModerationMedia } from './avatar-moderation-proof.js';
 import { collectDiscussionAncestorMedia } from './discussion-ancestor-proof.js';
 import { validateCurrentMedia } from './current-facts.js';
 import { lockMediaBatchesForIntents } from './batch-locks.js';
@@ -366,7 +367,8 @@ export class MediaAssetRepository {
       'content-gated',
       expected,
       tx,
-      !collectDiscussionAncestorMedia(tx, parent, expected),
+      !collectDiscussionAncestorMedia(tx, parent, expected) &&
+        !collectAvatarModerationMedia(tx, parent, expected),
     );
   }
   /** Delete-transition proof only: exact original set is now detached and its

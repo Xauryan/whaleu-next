@@ -3,6 +3,26 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  PROFILE_AVATAR_MODERATION_STALE: {
+    status: 409,
+    message: 'Profile revision changed',
+  },
+  PROFILE_AVATAR_MODERATION_NOT_APPLICABLE: {
+    status: 409,
+    message: 'Current custom avatar changed',
+  },
+  PROFILE_AVATAR_MODERATION_CANCELLED: {
+    status: 409,
+    message: 'Avatar moderation was cancelled',
+  },
+  PROFILE_AVATAR_MODERATION_UNAVAILABLE: {
+    status: 503,
+    message: 'Avatar moderation unavailable',
+  },
+  PROFILE_AVATAR_MODERATION_TARGET_NOT_ALLOWED: {
+    status: 404,
+    message: 'Avatar moderation target unavailable',
+  },
   PROFILE_MODERATION_STALE: {
     status: 409,
     message: 'Profile revision changed',

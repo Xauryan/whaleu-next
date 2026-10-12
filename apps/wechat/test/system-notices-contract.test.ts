@@ -6,7 +6,7 @@ import {
   decodeSystemNoticesList,
   decodeSystemNoticesUnread,
 } from '../src/community/system-notices-contract';
-import { createdAt, otherId, requestId } from './community-helpers';
+import { createdAt, otherId, replyId, requestId } from './community-helpers';
 import { systemNotice, systemNotices } from './system-notices-helpers';
 
 test('system notices decode only source-free removal outcomes with canonical UTC milliseconds', () => {
@@ -219,4 +219,78 @@ test('nickname reset notices form a separate minimal discriminant alongside unch
       }),
     { kind: 'protocol' },
   );
+});
+
+test('custom avatar clear notices are minimal, immutable and reject private bytes, identities, links and fake replacements', () => {
+  const cleared = {
+    noticeId: replyId,
+    kind: 'profile_custom_avatar_cleared',
+    createdAt,
+    readAt: null,
+  } as const;
+  const reset = {
+    noticeId: otherId,
+    kind: 'profile_nickname_reset',
+    createdAt,
+    readAt: null,
+    nickname: '违规昵称Ab123Z',
+  } as const;
+  assert.deepEqual(decodeSystemNotice(cleared), cleared);
+  assert.ok(Object.isFrozen(decodeSystemNotice(cleared)));
+  assert.deepEqual(decodeSystemNotice({ ...cleared, readAt: createdAt }), {
+    ...cleared,
+    readAt: createdAt,
+  });
+  const mixed = systemNotices([systemNotice(), reset, cleared]);
+  assert.deepEqual(decodeSystemNoticesList(mixed), mixed);
+  for (const key of [
+    'eventId',
+    'accountId',
+    'recipientAccountId',
+    'subjectAccountId',
+    'actorAccountId',
+    'publicId',
+    'appearanceId',
+    'assetId',
+    'image',
+    'images',
+    'preview',
+    'url',
+    'source',
+    'sourceLink',
+    'target',
+    'oldAvatar',
+    'defaultAvatar',
+    'replacement',
+    'reason',
+    'nickname',
+    'keepVotes',
+    'removeVotes',
+  ])
+    assert.throws(() => decodeSystemNotice({ ...cleared, [key]: otherId }), {
+      kind: 'protocol',
+    });
+  for (const patch of [
+    { kind: 'profile_avatar_reset' },
+    { kind: 'profile_nickname_reset' },
+    { kind: 'post_jury_removed' },
+    { kind: 'unknown_notice' },
+    { noticeId: 'bad' },
+    { createdAt: '2026-10-07T00:00:00Z' },
+    { createdAt: '2026-02-30T00:00:00.000Z' },
+    { readAt: undefined },
+    { readAt: true },
+    { readAt: 'yesterday' },
+  ])
+    assert.throws(() => decodeSystemNotice({ ...cleared, ...patch }), {
+      kind: 'protocol',
+    });
+  for (const other of [systemNotice(), reset])
+    assert.throws(
+      () =>
+        decodeSystemNoticesList(
+          systemNotices([other, { ...cleared, noticeId: other.noticeId }]),
+        ),
+      { kind: 'protocol' },
+    );
 });

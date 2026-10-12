@@ -1,3 +1,4 @@
+import { ProfileAvatarModerationModule } from './profile/avatar-moderation/module.js';
 import { ProfileModerationModule } from './profile/moderation/module.js';
 import { MajorsModule } from './majors/module.js';
 import { ActivityPublicationModule } from './activities/publication/module.js';
@@ -64,6 +65,7 @@ export class AppModule {
         IdentityCampusModule,
         ProfileModule,
         ProfileModerationModule,
+        ProfileAvatarModerationModule,
         ProfileDiscoveryModule,
         CommunityModule,
         DirectoryModule,

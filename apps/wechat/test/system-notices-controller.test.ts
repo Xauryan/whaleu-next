@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 import { ClientError } from '../src/api/errors';
 import type {
@@ -399,7 +401,7 @@ test('terminal owner authentication rejection clears notice list and badge and i
   }
 });
 
-test('mixed jury and nickname outcomes use the same owner-only read path without source or profile lookup', async (t) => {
+test('all three outcomes use the same owner-only read path without source, profile or avatar lookup', async (t) => {
   const s = harness();
   t.after(() => {
     s.controller.dispose();
@@ -412,23 +414,52 @@ test('mixed jury and nickname outcomes use the same owner-only read path without
     readAt: null,
     nickname: '违规昵称Ab123Z',
   } as const;
-  s.notices.listImpl = async () => systemNotices([systemNotice(), reset]);
+  const cleared = {
+    noticeId: replyId,
+    kind: 'profile_custom_avatar_cleared',
+    createdAt,
+    readAt: null,
+  } as const;
+  s.notices.listImpl = async () =>
+    systemNotices([systemNotice(), reset, cleared]);
   await s.controller.load();
   assert.equal(s.view().items[1]!.kind, 'profile_nickname_reset');
-  assert.equal(s.view().unreadCount, 2);
+  assert.equal(s.view().items[2]!.kind, 'profile_custom_avatar_cleared');
+  assert.equal(s.view().unreadCount, 3);
   s.notices.readImpl = async (noticeId) => ({
     noticeId,
     readAt: createdAt,
-    unreadCount: 1,
+    unreadCount: noticeId === otherId ? 2 : 1,
   });
   await s.controller.acknowledge(otherId);
   assert.deepEqual(s.view().items[1], { ...reset, readAt: createdAt });
   assert.equal(s.view().items[0]!.readAt, null);
+  assert.equal(s.view().unreadCount, 2);
+  await s.controller.acknowledge(replyId);
+  assert.deepEqual(s.view().items[2], { ...cleared, readAt: createdAt });
   assert.equal(s.view().unreadCount, 1);
   assert.deepEqual(
     s.notices.calls.map((call) => call.method),
-    ['list', 'read'],
+    ['list', 'read', 'read'],
   );
   assert.equal(s.notices.calls[1]!.args[0], otherId);
+  assert.equal(s.notices.calls[2]!.args[0], replyId);
   assert.deepEqual(s.gateway.calls, []);
+  assert.equal(s.storage.data.size, 0);
+});
+
+test('native avatar notice renderer uses fixed honest text without a source, old image or default replacement', () => {
+  const template = readFileSync(
+    path.resolve(__dirname, '../src/pages/system-notices/system-notices.wxml'),
+    'utf8',
+  );
+  const branch = template
+    .split("item.kind === 'profile_custom_avatar_cleared'")[1]
+    ?.split('<button')[0];
+  assert.ok(branch);
+  assert.match(branch, /自定义头像已被管理员清除/);
+  assert.match(branch, /可重新选择头像/);
+  assert.doesNotMatch(branch, /<image|<navigator|\burl=|\bsrc=|默认|{{item\./);
+  for (const kind of ['post_jury_removed', 'profile_nickname_reset'])
+    assert.ok(template.includes(`item.kind === '${kind}'`));
 });

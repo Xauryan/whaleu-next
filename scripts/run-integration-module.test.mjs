@@ -334,3 +334,35 @@ test('nickname moderation keeps emitted Community and Profile causal ownership e
   ])
     assert.ok(profile.files.includes(`test/integration/${name}`));
 });
+
+test('scoped avatar clear keeps all eight causal and emitted specs explicitly owned', () => {
+  const plan = createModulePlan(discoverFiles(), readModules());
+  const community = plan.shards.find(
+    (shard) => shard.id === 'community-media-1',
+  );
+  const profile = plan.shards.find(
+    (shard) => shard.id === 'identity-messaging-1',
+  );
+  const native =
+    'test/integration/profile-avatar-moderation-native-roundtrip.test.ts';
+  const causal = [
+    'profile-avatar-moderation-authority.test.ts',
+    'profile-avatar-moderation-causality.test.ts',
+    'profile-avatar-moderation-concurrency.test.ts',
+    'profile-avatar-moderation-current-proof.test.ts',
+    'profile-avatar-moderation-delivery.test.ts',
+    'profile-avatar-moderation-notices.test.ts',
+    'profile-avatar-moderation.test.ts',
+  ].map((name) => `test/integration/${name}`);
+  assert.ok(community.files.includes(native));
+  for (const file of causal) assert.ok(profile.files.includes(file));
+  assert.deepEqual(
+    plan.shards
+      .flatMap((shard) => shard.files)
+      .filter((file) =>
+        file.startsWith('test/integration/profile-avatar-moderation'),
+      )
+      .sort(),
+    [...causal, native].sort(),
+  );
+});

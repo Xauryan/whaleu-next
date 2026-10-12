@@ -18,7 +18,16 @@ export interface ProfileNicknameResetNotice {
   readonly readAt: string | null;
   readonly nickname: string;
 }
-export type SystemNotice = PostJuryRemovedNotice | ProfileNicknameResetNotice;
+export interface ProfileCustomAvatarClearedNotice {
+  readonly noticeId: string;
+  readonly kind: 'profile_custom_avatar_cleared';
+  readonly createdAt: string;
+  readonly readAt: string | null;
+}
+export type SystemNotice =
+  | PostJuryRemovedNotice
+  | ProfileNicknameResetNotice
+  | ProfileCustomAvatarClearedNotice;
 export interface SystemNoticesList {
   readonly items: readonly SystemNotice[];
   readonly nextCursor: string | null;
@@ -41,6 +50,21 @@ const utcMilliseconds = (value: unknown): value is string =>
 
 export function decodeSystemNotice(value: unknown): SystemNotice {
   if (!isRecord(value)) invalid();
+  if (value.kind === 'profile_custom_avatar_cleared') {
+    exact(value, ['noticeId', 'kind', 'createdAt', 'readAt']);
+    if (
+      !isUuid(value.noticeId) ||
+      !utcMilliseconds(value.createdAt) ||
+      !(value.readAt === null || utcMilliseconds(value.readAt))
+    )
+      invalid();
+    return Object.freeze({
+      noticeId: value.noticeId,
+      kind: 'profile_custom_avatar_cleared',
+      createdAt: value.createdAt,
+      readAt: value.readAt,
+    });
+  }
   if (value.kind === 'profile_nickname_reset') {
     exact(value, ['noticeId', 'kind', 'createdAt', 'readAt', 'nickname']);
     if (

@@ -22,8 +22,14 @@ export interface StoredProfileNicknameResetNotice extends StoredSystemNoticeBase
   kind: 'profile_nickname_reset';
   nickname: string;
 }
+export interface StoredProfileCustomAvatarClearedNotice extends StoredSystemNoticeBase {
+  event_id: string;
+  kind: 'profile_custom_avatar_cleared';
+}
 export type StoredSystemNotice =
-  StoredPostJuryRemovalNotice | StoredProfileNicknameResetNotice;
+  | StoredPostJuryRemovalNotice
+  | StoredProfileNicknameResetNotice
+  | StoredProfileCustomAvatarClearedNotice;
 
 @Injectable()
 export class SystemNoticesRepository {
@@ -58,6 +64,9 @@ export class SystemNoticesRepository {
           UNION ALL
           SELECT count(*) AS unread_count FROM whaleu_notifications.profile_moderation_notices
           WHERE recipient_account_id=$1 AND read_at IS NULL
+          UNION ALL
+          SELECT count(*) AS unread_count FROM whaleu_notifications.profile_avatar_moderation_notices
+          WHERE recipient_account_id=$1 AND read_at IS NULL
         ) notices`,
         [accountId],
       )
@@ -81,6 +90,12 @@ export class SystemNoticesRepository {
           (SELECT id,NULL::uuid AS decision_id,event_id,recipient_account_id,kind,
             NULL::integer AS keep_votes,NULL::integer AS remove_votes,nickname,created_at,read_at
           FROM whaleu_notifications.profile_moderation_notices WHERE recipient_account_id=$1
+          AND ($2::timestamptz IS NULL OR (created_at,id,kind COLLATE "C")<($2::timestamptz,$3::uuid,$4::text COLLATE "C"))
+          ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5)
+          UNION ALL
+          (SELECT id,NULL::uuid AS decision_id,event_id,recipient_account_id,kind,
+            NULL::integer AS keep_votes,NULL::integer AS remove_votes,NULL::text AS nickname,created_at,read_at
+          FROM whaleu_notifications.profile_avatar_moderation_notices WHERE recipient_account_id=$1
           AND ($2::timestamptz IS NULL OR (created_at,id,kind COLLATE "C")<($2::timestamptz,$3::uuid,$4::text COLLATE "C"))
           ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5)
         ) notices ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5`,
@@ -122,6 +137,11 @@ export class SystemNoticesRepository {
        SET read_at=COALESCE(read_at,date_trunc('milliseconds',clock_timestamp()))
        WHERE id=$1 AND recipient_account_id=$2
        RETURNING id,event_id,recipient_account_id,kind,nickname,created_at,read_at`;
+    } else if (identity.kind === 'profile_custom_avatar_cleared') {
+      statement = `UPDATE whaleu_notifications.profile_avatar_moderation_notices
+       SET read_at=COALESCE(read_at,date_trunc('milliseconds',clock_timestamp()))
+       WHERE id=$1 AND recipient_account_id=$2
+       RETURNING id,event_id,recipient_account_id,kind,created_at,read_at`;
     } else {
       throw new ApplicationError('SYSTEM_NOTICES_UNAVAILABLE');
     }

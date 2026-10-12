@@ -1,4 +1,9 @@
 import {
+  HttpProfileAvatarModerationGateway,
+  type ProfileAvatarModerationGateway,
+} from '../profile-avatar-moderation/gateway';
+import { PendingProfileAvatarModerationStore } from '../profile-avatar-moderation/pending';
+import {
   HttpProfileModerationGateway,
   type ProfileModerationGateway,
 } from '../profile-moderation/gateway';
@@ -231,6 +236,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly profileAvatarModeration?: ProfileAvatarModerationGateway;
+  readonly pendingProfileAvatarModeration?: PendingProfileAvatarModerationStore;
   readonly profileModeration?: ProfileModerationGateway;
   readonly pendingProfileModeration?: PendingProfileModerationStore;
   readonly categoryReclassification?: CategoryReclassificationGateway;
@@ -429,6 +436,17 @@ export function createCommunityRuntime(
     pendingWindowDiscussion: new PendingWindowDiscussionStore(storage, origin),
     ...(identity.api
       ? { windowDiscussion: new HttpWindowDiscussionGateway(identity.api) }
+      : {}),
+    pendingProfileAvatarModeration: new PendingProfileAvatarModerationStore(
+      storage,
+      origin,
+    ),
+    ...(identity.api
+      ? {
+          profileAvatarModeration: new HttpProfileAvatarModerationGateway(
+            identity.api,
+          ),
+        }
       : {}),
     pendingProfileModeration: new PendingProfileModerationStore(
       storage,

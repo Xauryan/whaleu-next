@@ -463,6 +463,9 @@ Page({
               : undefined;
     void this.namedAvatarController?.open(author);
   },
+  onAvatarModerationNavigate() {
+    this.namedAvatarController?.clear();
+  },
   onNamedAvatarClose() {
     this.namedAvatarController?.clear();
   },

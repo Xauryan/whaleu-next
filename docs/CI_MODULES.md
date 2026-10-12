@@ -101,15 +101,23 @@ intervals or bounds on external queueing or runner slowdown. The earlier
 333-file prediction. Matrix order does not guarantee actual start order, and ten
 jobs do not run simultaneously under `max-parallel: 8`.
 
-The ten-job candidate has **no hosted measurement yet**. Its exact-commit run
-must retain the same corpus and verify all ten consumers, the one native build,
-immutable producer artifact/provenance, 21 inventory logs (plan plus two per
-consumer), actual start/end times and peak concurrency, every database cleanup,
-terminal test counts with no failures/skips/cancellations, and the required gate.
-Compare its measured workflow and aggregate runner time against the same-corpus
-baseline; runner or queue differences limit causal claims. Do not weaken test
-budgets or raise concurrency to manufacture a benefit. Reconsider the split if
-same-corpus hosted evidence does not show a material benefit or introduces flakes.
+Hosted observation on **2026-10-12**: [run 38299200470](https://github.com/Xauryan/whaleu-next/actions/runs/38299200470)
+on `2b7bd3e8ba1932ef7a92f4ebbb20e9a46a4ba017` completed in **23m14s**, versus
+**27m47s** for the same 333-file baseline: an observed **4m33s (16.38%)** reduction.
+All **8,193 Verify executions** passed, including unchanged **3,140 main PostgreSQL
+verdicts**; the additional execution is one CI guard. [Stats](https://github.com/Xauryan/whaleu-next/actions/runs/38299200481)
+also passed all six tests. The 53-file Community job took **19m19s** and the
+12-file Media runtime job **6m05s**. Actual peak concurrency remained eight;
+Campus 2/2 and Media started 770s and 916s after the first PostgreSQL start,
+each three seconds after an occupied slot became free. Media finished last.
+Summed PostgreSQL job time increased **8,563 → 8,693s**; all jobs including Stats
+increased **9,154 → 9,310s**. These sums are job wall time, not billed minutes.
+All 333 per-file verdict counts, 21 inventories, 11 native provenance contexts,
+14 cache restores followed by `npm ci`, 11 database cleanups and the final gate
+were verified; failures, skipped tests and cancellations were zero. Native built
+once, and all 859 emitted files were byte-identical to the baseline artifact.
+This single same-corpus observation is distinct from the historical models above;
+runner and scheduling variation prevent a guaranteed or repeatable speedup claim.
 
 ### Historical Campus split and scheduling limits (317/318 files)
 

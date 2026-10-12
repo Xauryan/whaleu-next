@@ -4,6 +4,8 @@ import { ApplicationError } from '../../http/application-error.js';
 import { registerTransactionDeadline } from '../../database/transaction-deadlines.js';
 import {
   avatarCommandHash,
+  avatarModerationClearDigest,
+  avatarModerationClearEnvelopeSchema,
   avatarPrepareHash,
   avatarReceiptSchema,
   avatarReviewEnvelopeSchema,
@@ -12,18 +14,36 @@ import {
 } from './contracts.js';
 import type {
   AvatarCommand,
+  AvatarModerationClearEnvelope,
   AvatarPrepare,
   AvatarReceipt,
   AvatarReviewEnvelope,
   AvatarSelectedSource,
 } from './contracts.js';
 import { lockAvatarActor, requireAvatarCurrent } from './current-proof.js';
-export interface AvatarDefinition {
+interface AvatarDefinitionBase {
   id: string;
   actor_id: string;
+  digest: string;
+}
+export interface SelfSelectionAvatarDefinition extends AvatarDefinitionBase {
+  authority: 'self_selection';
   source: AvatarSelectedSource;
   envelope: AvatarReviewEnvelope;
-  digest: string;
+  binding_id: string | null;
+}
+export interface ScopedModerationClearAvatarDefinition extends AvatarDefinitionBase {
+  authority: 'scoped_moderation_clear';
+  source: { kind: 'clear' };
+  envelope: AvatarModerationClearEnvelope;
+  binding_id: null;
+}
+export type AvatarDefinition =
+  SelfSelectionAvatarDefinition | ScopedModerationClearAvatarDefinition;
+interface AvatarDefinitionRow extends AvatarDefinitionBase {
+  authority: string;
+  source: unknown;
+  envelope: unknown;
   binding_id: string | null;
 }
 export interface AvatarEdit {
@@ -47,23 +67,77 @@ export function avatarAppearanceId(actor: string, commandId: string): string {
   const value = bytes.toString('hex');
   return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
 }
+/** Moderator/request/subject are separate from the self-selection identity. */
+export function avatarModerationClearAppearanceId(
+  moderator: string,
+  commandId: string,
+  subject: string,
+): string {
+  const bytes = createHash('sha256')
+    .update(
+      `whaleu:profile-avatar-moderation-appearance:v1\n${moderator}\n${commandId}\n${subject}`,
+    )
+    .digest()
+    .subarray(0, 16);
+  bytes[6] = (bytes[6]! & 15) | 80;
+  bytes[8] = (bytes[8]! & 63) | 128;
+  const value = bytes.toString('hex');
+  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
+}
 export class ProfileAvatarRepository {
   async current(
     actor: string,
     tx: PoolClient,
   ): Promise<AvatarDefinition | null> {
     const row = (
-      await tx.query<AvatarDefinition>(
+      await tx.query<AvatarDefinitionRow>(
         'SELECT d.* FROM whaleu_profile.avatar_current c JOIN whaleu_profile.avatar_definitions d ON d.id=c.appearance_id AND d.actor_id=c.actor_id WHERE c.actor_id=$1',
         [actor],
       )
     ).rows[0];
     if (!row) return null;
+    if (row.authority === 'scoped_moderation_clear') {
+      const source = avatarSelectedSourceSchema.safeParse(row.source),
+        envelope = avatarModerationClearEnvelopeSchema.safeParse(row.envelope);
+      if (
+        !source.success ||
+        source.data.kind !== 'clear' ||
+        row.binding_id !== null ||
+        !envelope.success ||
+        envelope.data.accountId !== row.actor_id ||
+        envelope.data.appearanceId !== row.id ||
+        avatarModerationClearDigest(envelope.data) !== row.digest
+      )
+        throw new ApplicationError('MEDIA_UNAVAILABLE');
+      // Only immutable event/transition closure establishes this authority.
+      // Later grant or target changes must not restore a removed selection.
+      const authorized = (
+        await tx.query<{ authorized: boolean }>(
+          'SELECT whaleu_profile.avatar_moderation_definition_authorized($1::uuid) AS authorized',
+          [row.id],
+        )
+      ).rows[0]?.authorized;
+      if (authorized !== true) throw new ApplicationError('MEDIA_UNAVAILABLE');
+      return {
+        ...row,
+        authority: 'scoped_moderation_clear',
+        source: source.data,
+        envelope: envelope.data,
+        binding_id: null,
+      };
+    }
+    if (row.authority !== 'self_selection')
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
     const source = avatarSelectedSourceSchema.safeParse(row.source),
       envelope = avatarReviewEnvelopeSchema.safeParse(row.envelope);
     if (!source.success || !envelope.success)
       throw new ApplicationError('MEDIA_UNAVAILABLE');
-    return { ...row, source: source.data, envelope: envelope.data };
+    return {
+      ...row,
+      authority: 'self_selection',
+      source: source.data,
+      envelope: envelope.data,
+    };
   }
   async revision(
     actor: string,
@@ -77,6 +151,29 @@ export class ProfileAvatarRepository {
         )
       ).rows[0] ?? { revision: 0, profileId: null }
     );
+  }
+  /** Bind the no-runtime projection to the same pointer/Profile values returned
+   * to the client, after its final-proof fact has already been enrolled. */
+  async requireSystemClearCurrent(
+    definition: ScopedModerationClearAvatarDefinition,
+    current: { revision: number; profileId: string | null },
+    tx: PoolClient,
+  ): Promise<void> {
+    const selected = (
+      await tx.query<{ current: boolean }>(
+        `SELECT EXISTS(SELECT 1 FROM whaleu_profile.avatar_current c
+         JOIN whaleu_profile.profiles p ON p.account_id=c.actor_id
+         WHERE c.actor_id=$1 AND c.appearance_id=$2 AND p.revision=$3
+         AND p.public_id=$4::uuid) AS current`,
+        [
+          definition.actor_id,
+          definition.id,
+          current.revision,
+          current.profileId,
+        ],
+      )
+    ).rows[0]?.current;
+    if (selected !== true) throw new ApplicationError('MEDIA_UNAVAILABLE');
   }
   async prepare(
     actor: string,
@@ -205,7 +302,7 @@ export class ProfileAvatarRepository {
   }
   async replace(definition: AvatarDefinition, tx: PoolClient): Promise<void> {
     await tx.query(
-      "INSERT INTO whaleu_profile.avatar_definitions(id,actor_id,slot,source,envelope,digest,binding_id) VALUES($1,$2,'avatar',$3::jsonb,$4::jsonb,$5,$6)",
+      "INSERT INTO whaleu_profile.avatar_definitions(id,actor_id,slot,source,envelope,digest,binding_id,authority) VALUES($1,$2,'avatar',$3::jsonb,$4::jsonb,$5,$6,$7)",
       [
         definition.id,
         definition.actor_id,
@@ -213,6 +310,7 @@ export class ProfileAvatarRepository {
         JSON.stringify(definition.envelope),
         definition.digest,
         definition.binding_id,
+        definition.authority,
       ],
     );
     await tx.query(

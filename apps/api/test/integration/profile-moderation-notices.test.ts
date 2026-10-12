@@ -236,7 +236,7 @@ test(
         const decoded = JSON.parse(
           Buffer.from(first.nextCursor, 'base64url').toString(),
         );
-        assert.equal(decoded.v, 2);
+        assert.equal(decoded.v, 3);
         assert.equal(decoded.kind, 'post_jury_removed');
         const second = await list({ limit: 1, cursor: first.nextCursor });
         assert.deepEqual(second, {

@@ -17,28 +17,67 @@ export const emptySystemNoticeSchema = z.strictObject({});
 export const systemNoticeIdSchema = z.uuid();
 export type SystemNoticesQuery = z.infer<typeof systemNoticesQuerySchema>;
 
-interface SystemNoticeBase {
-  noticeId: string;
-  createdAt: string;
-  readAt: string | null;
-}
-export interface PostJuryRemovalNoticeView extends SystemNoticeBase {
-  kind: 'post_jury_removed';
-  keepVotes: number;
-  removeVotes: number;
-}
-export interface ProfileNicknameResetNoticeView extends SystemNoticeBase {
-  kind: 'profile_nickname_reset';
-  nickname: string;
-}
-export type SystemNoticeView =
-  PostJuryRemovalNoticeView | ProfileNicknameResetNoticeView;
+const noticeFields = {
+  noticeId: z.uuid(),
+  createdAt: z.iso.datetime({ precision: 3 }),
+  readAt: z.iso.datetime({ precision: 3 }).nullable(),
+};
+export const postJuryRemovalNoticeViewSchema = z
+  .strictObject({
+    ...noticeFields,
+    kind: z.literal('post_jury_removed'),
+    keepVotes: z.number().int().min(0).max(5),
+    removeVotes: z.number().int().min(1).max(6),
+  })
+  .refine(
+    (notice) =>
+      notice.removeVotes > notice.keepVotes &&
+      notice.keepVotes + notice.removeVotes <= 11,
+  );
+export const profileNicknameResetNoticeViewSchema = z.strictObject({
+  ...noticeFields,
+  kind: z.literal('profile_nickname_reset'),
+  nickname: z.string().regex(/^违规昵称[A-Za-z0-9]{6}$/),
+});
+export const profileCustomAvatarClearedNoticeViewSchema = z.strictObject({
+  ...noticeFields,
+  kind: z.literal('profile_custom_avatar_cleared'),
+});
+export const systemNoticeViewSchema = z.discriminatedUnion('kind', [
+  postJuryRemovalNoticeViewSchema,
+  profileNicknameResetNoticeViewSchema,
+  profileCustomAvatarClearedNoticeViewSchema,
+]);
+export const systemNoticesUnreadSchema = z.strictObject({
+  unreadCount: z.number().int().min(0).max(2147483647),
+});
+export const systemNoticesPageSchema = z.strictObject({
+  items: z.array(systemNoticeViewSchema).max(50),
+  nextCursor: z
+    .string()
+    .min(1)
+    .max(1024)
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .nullable(),
+  unreadCount: systemNoticesUnreadSchema.shape.unreadCount,
+});
+export const systemNoticeReadSchema = z.strictObject({
+  noticeId: noticeFields.noticeId,
+  readAt: z.iso.datetime({ precision: 3 }),
+  unreadCount: systemNoticesUnreadSchema.shape.unreadCount,
+});
+export type PostJuryRemovalNoticeView = z.infer<
+  typeof postJuryRemovalNoticeViewSchema
+>;
+export type ProfileNicknameResetNoticeView = z.infer<
+  typeof profileNicknameResetNoticeViewSchema
+>;
+export type ProfileCustomAvatarClearedNoticeView = z.infer<
+  typeof profileCustomAvatarClearedNoticeViewSchema
+>;
+export type SystemNoticeView = z.infer<typeof systemNoticeViewSchema>;
 export type SystemNoticeKind = SystemNoticeView['kind'];
-export interface SystemNoticesPage {
-  items: SystemNoticeView[];
-  nextCursor: string | null;
-  unreadCount: number;
-}
+export type SystemNoticesPage = z.infer<typeof systemNoticesPageSchema>;
 export interface PostJuryRemovalNotice {
   decisionId: string;
   ownerAccountId: string;

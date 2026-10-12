@@ -60,6 +60,7 @@ for (const relative of [
   'messaging/image-contract.js',
   'media/upload-contracts.js',
   'profile/avatar-contract.js',
+  'profile-avatar-moderation/contract.js',
   'media/upload-runtime.js',
   'media/batch-contracts.js',
   'media/discussion-batch-contracts.js',

@@ -101,6 +101,29 @@ export const avatarReviewEnvelopeSchema = z.strictObject({
   source: avatarSelectedSourceSchema,
 });
 export type AvatarReviewEnvelope = z.infer<typeof avatarReviewEnvelopeSchema>;
+/** Administrative removal has its own immutable event authority. It cannot be
+ * consumed as a self-selection Review or authorize any image bytes. */
+export const avatarModerationClearEnvelopeSchema = z.strictObject({
+  version: z.literal(1),
+  purpose: z.literal('moderate_profile_avatar_clear'),
+  accountId: id,
+  moderatorAccountId: id,
+  clientRequestId: id,
+  eventId: id,
+  target: z.strictObject({
+    kind: z.enum(['post', 'comment', 'reply']),
+    id,
+  }),
+  originalRegionId: id,
+  expectedRevision: expectedRevisionSchema,
+  appearanceId: id,
+  previousAppearanceId: id,
+  slot: z.literal('avatar'),
+  source: z.strictObject({ kind: z.literal('clear') }),
+});
+export type AvatarModerationClearEnvelope = z.infer<
+  typeof avatarModerationClearEnvelopeSchema
+>;
 function digest(domain: string, data: unknown): string {
   return createHash('sha256')
     .update(`${domain}\n${canonicalJson(data)}`)
@@ -141,6 +164,12 @@ export function avatarReviewDigest(input: unknown): string {
   return digest(
     'whaleu-profile-avatar-review:v1',
     avatarReviewEnvelopeSchema.parse(input),
+  );
+}
+export function avatarModerationClearDigest(input: unknown): string {
+  return digest(
+    'whaleu-profile-avatar-moderation:v1',
+    avatarModerationClearEnvelopeSchema.parse(input),
   );
 }
 export const avatarVariantSchema = mediaVariantSchema;

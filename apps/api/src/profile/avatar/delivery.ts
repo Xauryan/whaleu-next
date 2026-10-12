@@ -71,6 +71,7 @@ export class ProfileAvatarDelivery {
         const definition = await this.owner.repository.current(actor, tx);
         if (
           !definition ||
+          definition.authority !== 'self_selection' ||
           definition.id !== appearanceId ||
           definition.source.kind === 'clear'
         )
