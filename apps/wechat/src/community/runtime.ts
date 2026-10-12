@@ -1,3 +1,5 @@
+import type { MajorDiscussionImageRuntime } from '../major-discussion/image-runtime';
+import type { MajorDiscussionV2Gateway } from '../major-discussion/v2-gateway';
 import type { WindowDiscussionImageRuntime } from '../window-discussion/image-runtime';
 import type { WindowDiscussionV2Gateway } from '../window-discussion/v2-gateway';
 import {
@@ -216,6 +218,8 @@ import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
   readonly majors?: MajorDirectoryGateway;
   readonly majorDiscussion?: MajorDiscussionGateway;
+  readonly majorDiscussionV2?: MajorDiscussionV2Gateway;
+  readonly majorDiscussionImages?: MajorDiscussionImageRuntime;
   readonly pendingMajorDiscussion?: PendingMajorDiscussionStore;
   readonly windowDiscussion?: WindowDiscussionGateway;
   readonly windowDiscussionV2?: WindowDiscussionV2Gateway;

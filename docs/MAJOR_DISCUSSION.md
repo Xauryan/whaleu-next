@@ -252,3 +252,9 @@ not silently overwritten; their unavailable state is explicit and continues to
 block new admission where required. Locator write/readback failure cannot veto an
 already matched historical v1 receipt. The emitted HTTP/PostgreSQL acceptance
 also exercises this cross-version recovery, not only mock storage tests.
+
+## Image discussion extension
+
+The additive [Major discussion images v2 slice](MAJOR_DISCUSSION_IMAGES.md) uses
+0125/Media17 and preserves this slice's author/scoped-admin withdrawal and original
+recovery domains. Major still requires valid nonblank text for root and reply.

@@ -110,8 +110,10 @@ export async function revokeMajorDiscussionReview(
     [decisionId],
   );
 }
-export async function majorDiscussionFixture() {
-  const f = await majorCatalogFixture();
+export async function majorDiscussionFixture(
+  existing?: Parameters<typeof majorCatalogFixture>[0],
+) {
+  const f = await majorCatalogFixture(existing);
   const acceptDiscussion = async (ids: string[]) => {
     for (const id of ids) {
       await discussionHistory(f.pool, id, 'population');

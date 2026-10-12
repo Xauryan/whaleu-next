@@ -1,3 +1,4 @@
+import { createMajorDiscussionImageRuntime } from './major-discussion/image-runtime';
 import { createWindowDiscussionImageRuntime } from './window-discussion/image-runtime';
 import { connectPrivateMessageImages } from './messaging/image-runtime';
 import {
@@ -86,6 +87,7 @@ App<WhaleuApp>({
   },
   onHide() {
     this.community?.windowDiscussionImages?.hide();
+    this.community?.majorDiscussionImages?.hide();
     this.errandMedia?.hide();
     this.studentEvidence?.clear();
     this.schoolQr?.hide();
@@ -229,6 +231,28 @@ App<WhaleuApp>({
         ...this.community,
         windowDiscussionV2: images.publication,
         windowDiscussionImages: images,
+      };
+    }
+    if (this.identity.api && this.identity.auth) {
+      const images = createMajorDiscussionImageRuntime({
+        api: this.identity.api,
+        ...(this.community.pendingMajorDiscussion
+          ? { legacy: this.community.pendingMajorDiscussion }
+          : {}),
+        sessions: this.identity.sessions,
+        storage: new WechatStorage(wx),
+        origin: clientConfiguration.apiOrigin,
+        clock: systemClock,
+        newRequestId: this.community.newRequestId,
+        wx,
+        files: nativeFiles,
+        registry,
+        auth: this.identity.auth,
+      });
+      this.community = {
+        ...this.community,
+        majorDiscussionV2: images.publication,
+        majorDiscussionImages: images,
       };
     }
     this.community = connectRatingDiscussionNative(

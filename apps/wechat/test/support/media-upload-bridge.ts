@@ -47,6 +47,7 @@ export class NativeMediaUploadBridge {
     private readonly owner:
       | 'private-messages'
       | 'window-discussions'
+      | 'major-discussions'
       | 'community'
       | 'school-configuration'
       | 'organizations'
@@ -61,6 +62,7 @@ export class NativeMediaUploadBridge {
     owner:
       | 'private-messages'
       | 'window-discussions'
+      | 'major-discussions'
       | 'community'
       | 'school-configuration'
       | 'organizations'
@@ -184,23 +186,25 @@ export class NativeMediaUploadBridge {
     assert.equal(url.origin, this.origin);
     assert.match(
       url.pathname,
-      this.owner === 'window-discussions'
-        ? /^\/v3\/media\/window-discussions\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
-        : this.owner === 'private-messages'
-          ? /^\/v3\/media\/private-messages\/upload-intents\/[^/]+\/uploads\/[^/]+$/
-          : this.owner === 'errands'
-            ? /^\/v3\/media\/errands\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
-            : this.owner === 'verification-evidence'
-              ? /^\/v3\/media\/verification-evidence\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
-              : this.owner === 'announcements'
-                ? /^\/v3\/media\/announcements\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
-                : this.owner === 'activities'
-                  ? /^\/v3\/media\/activities\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
-                  : this.owner === 'organizations'
-                    ? /^\/v3\/media\/organizations\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
-                    : this.owner === 'school-configuration'
-                      ? /^\/v3\/media\/school-configuration\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
-                      : /^\/v2\/media\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i,
+      this.owner === 'major-discussions'
+        ? /^\/v3\/media\/major-discussions\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+        : this.owner === 'window-discussions'
+          ? /^\/v3\/media\/window-discussions\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+          : this.owner === 'private-messages'
+            ? /^\/v3\/media\/private-messages\/upload-intents\/[^/]+\/uploads\/[^/]+$/
+            : this.owner === 'errands'
+              ? /^\/v3\/media\/errands\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+              : this.owner === 'verification-evidence'
+                ? /^\/v3\/media\/verification-evidence\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+                : this.owner === 'announcements'
+                  ? /^\/v3\/media\/announcements\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+                  : this.owner === 'activities'
+                    ? /^\/v3\/media\/activities\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+                    : this.owner === 'organizations'
+                      ? /^\/v3\/media\/organizations\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+                      : this.owner === 'school-configuration'
+                        ? /^\/v3\/media\/school-configuration\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i
+                        : /^\/v2\/media\/upload-intents\/[a-f0-9-]{36}\/uploads\/[a-f0-9-]{36}$/i,
     );
     assert.equal(url.search, '');
     assert.equal(url.hash, '');

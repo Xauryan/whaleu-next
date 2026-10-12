@@ -82,6 +82,34 @@ for (const [module, exports] of [
       'WindowDiscussionImageGallery',
     ],
   ],
+  [
+    'major-discussion/v2-contract',
+    [
+      'decodeDiscussionV2Intent',
+      'decodeDiscussionV2Page',
+      'computeDiscussionV2IntentHash',
+    ],
+  ],
+  ['major-discussion/v2-gateway', ['HttpMajorDiscussionV2Gateway']],
+  ['major-discussion/v2-pending', ['PendingMajorDiscussionV2Store']],
+  [
+    'major-discussion/media-contract',
+    [
+      'decodeMajorDiscussionMediaPrepare',
+      'decodeMajorDiscussionMediaDescriptor',
+    ],
+  ],
+  ['major-discussion/media-gateway', ['HttpMajorDiscussionMediaGateway']],
+  ['major-discussion/media-upload', ['MajorDiscussionMediaUpload']],
+  ['major-discussion/media-download', ['MajorDiscussionMediaDownload']],
+  [
+    'major-discussion/image-runtime',
+    [
+      'createMajorDiscussionImageRuntime',
+      'MajorDiscussionImageComposer',
+      'MajorDiscussionImageGallery',
+    ],
+  ],
 ]) {
   const file = path.join(dist, `${module}.js`);
   assert.ok(
@@ -95,6 +123,8 @@ for (const [module, exports] of [
 for (const module of [
   'window-discussion/v2-contract',
   'window-discussion/media-contract',
+  'major-discussion/v2-contract',
+  'major-discussion/media-contract',
 ]) {
   const source = readFileSync(path.join(dist, `${module}.js`), 'utf8');
   assert.match(
@@ -202,6 +232,143 @@ for (const module of [
     readFileSync(path.join(dist, `${module}.js`), 'utf8'),
     /\.previewImage\b/,
   );
+
+const { MajorDiscussionMediaUpload } = require(
+  path.join(dist, 'major-discussion/media-upload.js'),
+);
+const { MajorDiscussionMediaDownload } = require(
+  path.join(dist, 'major-discussion/media-download.js'),
+);
+assert.equal(
+  Object.getPrototypeOf(MajorDiscussionMediaUpload.prototype),
+  require(path.join(dist, 'media/owner-image-upload.js')).OwnerImageUpload
+    .prototype,
+);
+assert.equal(
+  Object.getPrototypeOf(MajorDiscussionMediaDownload.prototype),
+  require(path.join(dist, 'media/owner-image-download.js')).OwnerImageDownload
+    .prototype,
+);
+const majorImageCommon = readFileSync(
+  path.join(dist, 'major-discussion/common.wxml'),
+  'utf8',
+);
+for (const handler of [
+  'onPickImage',
+  'onImage',
+  'onRecoverImages',
+  'onRequestImageCancel',
+  'onConfirmImageCancel',
+  'onCloseGallery',
+  'onImagePrevious',
+  'onImageNext',
+])
+  assert.match(majorImageCommon, new RegExp(`bindtap="${handler}"`));
+assert.match(majorImageCommon, /按添加顺序发表/);
+assert.match(majorImageCommon, /先取消整组/);
+assert.match(majorImageCommon, /src="{{gallerySrc}}"/);
+const majorImageTemplates = {};
+for (const node of parseWxml(majorImageCommon).children)
+  if (typeof node !== 'string' && node.tag === 'template' && node.attrs.name)
+    majorImageTemplates[node.attrs.name] = node;
+const flattenMajor = (nodes) =>
+  nodes.flatMap((node) =>
+    typeof node === 'string' ? [node] : [node, ...flattenMajor(node.children)],
+  );
+const majorGalleryTree = majorImageTemplates['discussion-gallery'];
+assert.ok(majorGalleryTree);
+const openMajorGallery = flattenMajor(
+  renderWxml(
+    majorGalleryTree.children,
+    {
+      galleryOpen: true,
+      gallerySrc: 'wxfile://tmp/major-smoke.png',
+      galleryStatus: '',
+      galleryIndex: 0,
+      galleryCount: 2,
+    },
+    majorImageTemplates,
+  ),
+);
+assert.equal(
+  openMajorGallery.filter(
+    (node) => typeof node !== 'string' && node.tag === 'image',
+  ).length,
+  1,
+);
+assert.equal(
+  openMajorGallery.find(
+    (node) => typeof node !== 'string' && node.tag === 'image',
+  ).attrs.src,
+  'wxfile://tmp/major-smoke.png',
+);
+const closedMajorGallery = flattenMajor(
+  renderWxml(
+    majorGalleryTree.children,
+    {
+      galleryOpen: false,
+      gallerySrc: '',
+      galleryStatus: '',
+      galleryIndex: 0,
+      galleryCount: 0,
+    },
+    majorImageTemplates,
+  ),
+);
+assert.equal(
+  closedMajorGallery.some(
+    (node) => typeof node !== 'string' && node.tag === 'image',
+  ),
+  false,
+);
+for (const module of [
+  'major-discussion/page',
+  'major-discussion/image-runtime',
+  'major-discussion/media-download',
+])
+  assert.doesNotMatch(
+    readFileSync(path.join(dist, `${module}.js`), 'utf8'),
+    /\.previewImage\b/,
+  );
+
+const majorV2 = require(path.join(dist, 'major-discussion/v2-contract.js'));
+const majorSource = {
+  clientRequestId: '11111111-1111-4111-8111-111111111111',
+  expectedCatalogRevision: '22222222-2222-4222-8222-222222222222',
+  expectedMajorRevision: '33333333-3333-4333-8333-333333333333',
+};
+const majorImage = {
+  assetId: '44444444-4444-4444-8444-444444444444',
+  manifestDigest: 'a'.repeat(64),
+};
+for (const body of ['', ' \n', '\u0000', '\ud800'])
+  assert.throws(() =>
+    majorV2.decodeDiscussionV2Intent({
+      operation: 'major.discussion.root.v2',
+      majorId: majorSource.clientRequestId,
+      command: {
+        ...majorSource,
+        protocol: 'major-discussion-v2',
+        body,
+        images: [majorImage],
+      },
+    }),
+  );
+assert.equal(
+  majorV2.decodeDiscussionV2Intent({
+    operation: 'major.discussion.root.v2',
+    majorId: majorSource.clientRequestId,
+    command: {
+      ...majorSource,
+      protocol: 'major-discussion-v2',
+      body: ' 0 ',
+      images: [majorImage],
+    },
+  }).command.body,
+  ' 0 ',
+);
+assert.match(majorImageCommon, /文字必填/);
+assert.match(majorImageCommon, /onDeleteMenu/);
 
 let app;
 let page;
@@ -572,6 +739,61 @@ for (const route of config.pages.filter(
       assert.equal(current.data.frozen, false);
     } else assert.equal(current.data.unreadCount, null);
   }
+  if (route.startsWith('pages/major-discussion')) {
+    assert.equal(current.validRoute, true, `${route}: valid Major image route`);
+    assert.equal(current.data.galleryOpen, false);
+    assert.equal(current.data.gallerySrc, '');
+    for (const handler of ['onCloseGallery', 'onImagePrevious', 'onImageNext'])
+      assert.equal(typeof current[handler], 'function', `${route}: ${handler}`);
+    if (route.includes('notices'))
+      assert.equal(typeof current.onNoticeImage, 'function');
+    else {
+      assert.equal(current.data.imageCount, 0);
+      assert.equal(current.data.imagePending, false);
+      assert.equal(current.data.imageBusy, false);
+      for (const handler of [
+        'onPickImage',
+        'onImage',
+        'onRecoverImages',
+        'onRequestImageCancel',
+        'onConfirmImageCancel',
+      ])
+        assert.equal(
+          typeof current[handler],
+          'function',
+          `${route}: ${handler}`,
+        );
+    }
+    const priorCalls = calls;
+    current.onCloseGallery();
+    current.onImagePrevious();
+    current.onImageNext();
+    if (route.includes('notices'))
+      current.onNoticeImage({
+        currentTarget: { dataset: { id: 'unavailable' } },
+      });
+    else {
+      current.onPickImage({ currentTarget: { dataset: { source: 'album' } } });
+      current.onImage({
+        currentTarget: { dataset: { id: 'unavailable', index: 0 } },
+      });
+      current.onRecoverImages();
+    }
+    assert.equal(
+      calls,
+      priorCalls,
+      `${route}: cold media controls cannot create native authority`,
+    );
+    assert.ok(current.controller);
+    assert.equal(current.data.loaded, false);
+    assert.deepEqual(current.data.items, []);
+    if (route !== 'pages/major-discussion-notices/major-discussion-notices') {
+      assert.equal(current.data.body, '');
+      assert.equal(current.data.own, null);
+      assert.deepEqual(current.data.ownReferences, []);
+      assert.equal(current.data.frozen, false);
+    } else assert.equal(current.data.unreadCount, null);
+  }
   if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
   else if (route === 'pages/rating-category-create/rating-category-create')
@@ -606,7 +828,10 @@ for (const route of config.pages.filter(
     );
   current.onHide();
   assert.equal(current.controller, undefined);
-  if (route.startsWith('pages/window-discussion')) {
+  if (
+    route.startsWith('pages/window-discussion') ||
+    route.startsWith('pages/major-discussion')
+  ) {
     assert.equal(current.data.gallerySrc, '');
     assert.equal(current.data.galleryOpen, false);
     assert.equal(current.gallery, undefined);

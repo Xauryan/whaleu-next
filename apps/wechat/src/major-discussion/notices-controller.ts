@@ -1,3 +1,4 @@
+import { decodeDiscussionV2Notices } from './v2-contract';
 import {
   CommunityController,
   initialCommunityView,
@@ -71,8 +72,13 @@ export class MajorDiscussionNoticesController extends CommunityController<MajorD
     });
     await this.run(
       async (c) => {
-        const p = decodeDiscussionNotices(
-          await this.runtime.majorDiscussion!.notices(cursor, c),
+        const p = (
+          this.runtime.majorDiscussionV2
+            ? decodeDiscussionV2Notices
+            : decodeDiscussionNotices
+        )(
+          await (this.runtime.majorDiscussionV2 ??
+            this.runtime.majorDiscussion)!.notices(cursor, c),
         );
         if (p.nextCursor !== null && p.nextCursor === cursor)
           invalidDiscussion();
@@ -99,7 +105,8 @@ export class MajorDiscussionNoticesController extends CommunityController<MajorD
     await this.run(
       async (c) => {
         const t = decodeDiscussionTarget(
-          await this.runtime.majorDiscussion!.target(id, c),
+          await (this.runtime.majorDiscussionV2 ??
+            this.runtime.majorDiscussion)!.target(id, c),
         );
         if (
           t.majorId !== notice.target.majorId ||
@@ -134,7 +141,8 @@ export class MajorDiscussionNoticesController extends CommunityController<MajorD
     await this.run(
       async (c) => {
         const r = decodeDiscussionRead(
-          await this.runtime.majorDiscussion!.read(id, c),
+          await (this.runtime.majorDiscussionV2 ??
+            this.runtime.majorDiscussion)!.read(id, c),
         );
         if (r.noticeId !== id) invalidDiscussion();
         return r;

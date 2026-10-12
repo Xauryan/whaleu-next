@@ -1,7 +1,10 @@
 <import src="../../major-discussion/common.wxml" />
-<view class="screen"><view class="eyebrow">WHALEU · 专业讨论</view><view class="title">专业文字讨论</view>
+<view class="screen"><view class="eyebrow">WHALEU · 专业讨论</view><view class="title">专业讨论</view>
 <template is="discussion-status" data="{{status,error,receiptStatus,deletionLocatorUnavailable,hasSession,busy,frozen,recoveryMajorId,recoveryOperation,recoveryCommentId,recoveryPhase,confirming}}" />
 <view class="actions"><button data-sort="likes" bindtap="onSort" disabled="{{busy}}">赞数优先 {{sort === 'likes' ? '✓' : ''}}</button><button data-sort="time" bindtap="onSort" disabled="{{busy}}">最新优先 {{sort === 'time' ? '✓' : ''}}</button></view>
-<block wx:if="{{loaded}}"><view class="meta">共 {{totalCount}} 条评论 · 第 {{pageNumber}} 页</view><template wx:for="{{items}}" wx:key="id" is="discussion-item" data="{{item,deleteTarget,mode,busy,frozen,confirming,focusCommentId}}" /><button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button></block>
-<template is="discussion-form" data="{{loaded,frozen,mode,busy,confirming,replyTarget,body,bodyBytes,canPublish,selectedComment,deleteTarget}}" />
-<navigator class="link" url="/pages/major-discussion-recovery/major-discussion-recovery">独立回执恢复与自己的点赞 →</navigator><navigator class="link" url="/pages/major-discussion-notices/major-discussion-notices">专业回复 / 赞通知 →</navigator><view class="notice">本次支持实名文字、平铺回复和可逆点赞。支持作者撤回与授权管理删除；图片与真实历史迁移仍未完成；专业没有创建者通知。</view></view>
+<block wx:if="{{loaded}}"><view class="meta">共 {{totalCount}} 条评论 · 第 {{pageNumber}} 页</view><template wx:for="{{items}}" wx:key="id" is="discussion-item" data="{{item,deleteTarget,mode,busy,frozen,confirming,focusCommentId,imageBusy}}" /><button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button></block>
+<template is="discussion-form" data="{{loaded,frozen,mode,busy,confirming,replyTarget,body,bodyBytes,canPublish,selectedComment,deleteTarget,imageEnabled,imageCount,imageBusy,imageFrozen}}" />
+<navigator class="link" url="/pages/major-discussion-recovery/major-discussion-recovery">独立回执恢复与自己的点赞 →</navigator><navigator class="link" url="/pages/major-discussion-notices/major-discussion-notices">专业回复 / 赞通知 →</navigator><view class="notice">使用公开昵称发表非空文字，可附最多 3 张 JPEG / PNG 图片。支持作者撤回与授权管理删除；三图上限是本版本的新策略，真实历史迁移未完成。专业没有创建者通知。</view></view>
+
+<template is="discussion-image-state" data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}" />
+<template is="discussion-gallery" data="{{galleryOpen,gallerySrc,galleryStatus,galleryIndex,galleryCount}}" />

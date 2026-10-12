@@ -1,3 +1,4 @@
+import { MajorDiscussionMediaRequiredProof } from '../media/major-discussion-required-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.js';
@@ -72,8 +73,16 @@ export class MajorsService {
     await this.safety.requireAllowed(session.accountId, tx);
     const safety = await this.safety.navigation(tx),
       profile = await profiles(tx),
+      media = await new MajorDiscussionMediaRequiredProof().capture(tx),
       capture = await majorCatalog(tx, session.accountId, session.sessionId);
-    return { session, phone: phone.fingerprint, safety, profile, capture };
+    return {
+      session,
+      phone: phone.fingerprint,
+      safety,
+      profile,
+      media,
+      capture,
+    };
   }
   private async rows(catalog: string, tx: PoolClient) {
     return (
@@ -139,6 +148,7 @@ export class MajorsService {
         c.capture.content,
         c.capture.review,
         c.profile,
+        c.media,
         c.phone,
         c.safety,
         query.departmentId ?? null,

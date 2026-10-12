@@ -1,4 +1,22 @@
 import { RatingAuthorizationFacade } from '../../authorization/rating-grants.facade.js';
+import { MajorDiscussionMediaService } from './media/facade.js';
+import { MajorDiscussionMediaOwner } from './media-owner.js';
+import { MajorDiscussionMediaReviewFacade } from '../../community/content-review/major-discussion-media-review.facade.js';
+import {
+  MAJOR_DISCUSSION_V2,
+  majorDiscussionIntentHashV2,
+  majorDiscussionReceiptV2Schema,
+  majorDiscussionPageV2Schema,
+  majorDiscussionNoticePageV2Schema,
+} from './contracts-v2.js';
+import type {
+  MajorRootPublishV2,
+  MajorReplyPublishV2,
+  MajorDiscussionOperationV2,
+  MajorDiscussionReceiptV2,
+  MajorDiscussionCancelV2,
+  MajorDiscussionItemV2,
+} from './contracts-v2.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -52,13 +70,42 @@ type MajorDirectorySummary =
       rootCount: number;
       hotComment: { id: string; body: string; likes: number } | null;
     };
-type Command = MajorRootPublish | MajorReplyPublish | MajorDiscussionLike;
+type LegacyCommand = MajorRootPublish | MajorReplyPublish | MajorDiscussionLike;
+type Command = LegacyCommand | MajorRootPublishV2 | MajorReplyPublishV2;
+type Operation = MajorDiscussionOperation | MajorDiscussionOperationV2;
+type Receipt = MajorDiscussionReceipt | MajorDiscussionReceiptV2;
+const receiptSchema = (operation: string) =>
+  operation.endsWith('.v2')
+    ? majorDiscussionReceiptV2Schema
+    : majorDiscussionReceiptSchema;
+const intentHash = (
+  actor: string,
+  major: string,
+  subject: string | null,
+  operation: Operation,
+  command: Command,
+) =>
+  operation.endsWith('.v2')
+    ? majorDiscussionIntentHashV2(
+        actor,
+        major,
+        subject,
+        operation as MajorDiscussionOperationV2,
+        command as MajorRootPublishV2 | MajorReplyPublishV2,
+      )
+    : majorDiscussionIntentHash(
+        actor,
+        major,
+        subject,
+        operation as MajorDiscussionOperation,
+        command as LegacyCommand,
+      );
 export function majorDiscussionIntentHash(
   actorId: string,
   majorId: string,
   subjectId: string | null,
   operation: MajorDiscussionOperation,
-  command: Command,
+  command: LegacyCommand,
 ) {
   return createHash('sha256')
     .update(
@@ -78,6 +125,7 @@ interface Row {
   created_at: Date;
   time: string;
   status: string;
+  publication_version: number;
   likes: string;
   own_revision: string | null;
   own_active: boolean | null;
@@ -92,6 +140,12 @@ interface Own {
 @Injectable()
 export class MajorDiscussionService {
   constructor(
+    @Inject(MajorDiscussionMediaService)
+    private readonly media: MajorDiscussionMediaService,
+    @Inject(MajorDiscussionMediaOwner)
+    private readonly mediaOwner: MajorDiscussionMediaOwner,
+    @Inject(MajorDiscussionMediaReviewFacade)
+    private readonly mediaReview: MajorDiscussionMediaReviewFacade,
     @Inject(DatabaseService) private readonly db: DatabaseService,
     @Inject(IdentityService) private readonly identity: IdentityService,
     @Inject(RatingVerificationFacade)
@@ -126,8 +180,8 @@ export class MajorDiscussionService {
         throw error;
       });
   }
-  private async session(token: string, tx: PoolClient) {
-    await lockSafetyPolicy(tx);
+  private async session(token: string, tx: PoolClient, mediaWrite = false) {
+    await lockSafetyPolicy(tx, mediaWrite);
     return this.identity.session(token, tx);
   }
   private async eligible(actor: string, tx: PoolClient, publish = false) {
@@ -225,7 +279,7 @@ export class MajorDiscussionService {
   private async rows(actor: string, id: string, tx: PoolClient) {
     const result = (
       await tx.query<{ rows: unknown[]; until: string }>(
-        `WITH instant AS MATERIALIZED(SELECT clock_timestamp() now), candidates AS MATERIALIZED(SELECT c.* FROM whaleu_majors.major_discussion_comments c WHERE c.major_id=$1 ORDER BY c.id LIMIT 1001) SELECT coalesce((SELECT jsonb_agg(jsonb_build_object('id',c.id,'major_id',c.major_id,'root_id',c.root_id,'reply_to_reply_id',c.reply_to_reply_id,'reply_to_actor_id',c.reply_to_actor_id,'actor_id',c.actor_id,'body',c.body,'created_at',c.created_at,'time',(extract(epoch FROM c.created_at)*1000000)::bigint::text,'status',whaleu_majors.major_discussion_visibility(c.id,$2,instant.now),'likes',(SELECT count(*)::text FROM whaleu_majors.major_discussion_like_heads h JOIN whaleu_majors.major_discussion_like_events e ON e.id=h.revision WHERE h.major_id=c.major_id AND h.comment_id=c.id AND e.active),'own_revision',(SELECT h.revision FROM whaleu_majors.major_discussion_like_heads h WHERE h.major_id=c.major_id AND h.comment_id=c.id AND h.actor_id=$2),'own_active',(SELECT e.active FROM whaleu_majors.major_discussion_like_heads h JOIN whaleu_majors.major_discussion_like_events e ON e.id=h.revision WHERE h.major_id=c.major_id AND h.comment_id=c.id AND h.actor_id=$2)) ORDER BY c.id) FROM candidates c),'[]'::jsonb) rows,least(instant.now+interval '10 minutes',whaleu_majors.major_discussion_deadline($1,instant.now))::text until FROM instant`,
+        `WITH instant AS MATERIALIZED(SELECT clock_timestamp() now), candidates AS MATERIALIZED(SELECT c.* FROM whaleu_majors.major_discussion_comments c WHERE c.major_id=$1 ORDER BY c.id LIMIT 1001) SELECT coalesce((SELECT jsonb_agg(jsonb_build_object('id',c.id,'major_id',c.major_id,'root_id',c.root_id,'reply_to_reply_id',c.reply_to_reply_id,'reply_to_actor_id',c.reply_to_actor_id,'actor_id',c.actor_id,'publication_version',c.publication_version,'body',c.body,'created_at',c.created_at,'time',(extract(epoch FROM c.created_at)*1000000)::bigint::text,'status',whaleu_majors.major_discussion_visibility(c.id,$2,instant.now),'likes',(SELECT count(*)::text FROM whaleu_majors.major_discussion_like_heads h JOIN whaleu_majors.major_discussion_like_events e ON e.id=h.revision WHERE h.major_id=c.major_id AND h.comment_id=c.id AND e.active),'own_revision',(SELECT h.revision FROM whaleu_majors.major_discussion_like_heads h WHERE h.major_id=c.major_id AND h.comment_id=c.id AND h.actor_id=$2),'own_active',(SELECT e.active FROM whaleu_majors.major_discussion_like_heads h JOIN whaleu_majors.major_discussion_like_events e ON e.id=h.revision WHERE h.major_id=c.major_id AND h.comment_id=c.id AND h.actor_id=$2)) ORDER BY c.id) FROM candidates c),'[]'::jsonb) rows,least(instant.now+interval '10 minutes',whaleu_majors.major_discussion_deadline($1,instant.now))::text until FROM instant`,
         [id, actor],
       )
     ).rows[0]!;
@@ -259,7 +313,8 @@ export class MajorDiscussionService {
     row: Row,
     rows: Row[],
     tx: PoolClient,
-  ): Promise<MajorDiscussionItem> {
+    v2 = false,
+  ): Promise<MajorDiscussionItem | MajorDiscussionItemV2> {
     const target = row.reply_to_reply_id
       ? rows.find(
           (r) =>
@@ -269,6 +324,12 @@ export class MajorDiscussionService {
         )
       : undefined;
     return {
+      ...(v2
+        ? {
+            protocol: MAJOR_DISCUSSION_V2,
+            images: await this.imageReferences(row, tx),
+          }
+        : {}),
       id: row.id,
       majorId: row.major_id,
       rootId: row.root_id,
@@ -286,11 +347,29 @@ export class MajorDiscussionService {
       myMembershipRevision: row.own_revision,
     };
   }
+  private async imageReferences(
+    row: Pick<Row, 'id' | 'major_id' | 'publication_version'>,
+    tx: PoolClient,
+  ) {
+    if (row.publication_version !== 2) return [];
+    return (
+      await tx.query<{
+        majorId: string;
+        commentId: string;
+        bindingId: string;
+        ordinal: number;
+      }>(
+        `SELECT major_id "majorId",comment_id "commentId",binding_id "bindingId",ordinal FROM whaleu_media.major_discussion_appearances WHERE comment_id=$1 AND major_id=$2 ORDER BY ordinal`,
+        [row.id, row.major_id],
+      )
+    ).rows;
+  }
   page(
     token: string,
     id: string,
     query: MajorDiscussionQuery,
     rootId: string | null = null,
+    v2 = false,
   ) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -298,7 +377,11 @@ export class MajorDiscussionService {
         source = await discussionSource(id, tx),
         epoch = await discussionEpoch(tx),
         profile = await profiles(tx),
+        mediaEpoch = await this.media.retainCurrent(tx),
+        topology = v2 ? await this.mediaOwner.retainTopology(tx) : null,
         snapshot = await this.rows(session.accountId, id, tx);
+      if (!v2 && snapshot.rows.some((r) => r.publication_version === 2))
+        throw new ApplicationError('MAJOR_DISCUSSION_HISTORY_UNAVAILABLE');
       const root = rootId
         ? snapshot.rows.find(
             (r) =>
@@ -308,7 +391,9 @@ export class MajorDiscussionService {
       if (rootId && !root)
         throw new ApplicationError('MAJOR_DISCUSSION_NOT_FOUND');
       const scope = discussionCursorScope([
-        'major-discussion-v1',
+        v2 ? 'major-discussion-v2' : 'major-discussion-v1',
+        mediaEpoch,
+        topology,
         session.accountId,
         session.sessionId,
         id,
@@ -365,18 +450,21 @@ export class MajorDiscussionService {
                 tx,
               )
             : null;
-      const items: MajorDiscussionItem[] = [];
+      const items: (MajorDiscussionItem | MajorDiscussionItemV2)[] = [];
       for (const row of chosen)
-        items.push(await this.project(row, snapshot.rows, tx));
+        items.push(await this.project(row, snapshot.rows, tx, v2));
       const rootView = root
-        ? await this.project(root, snapshot.rows, tx)
+        ? await this.project(root, snapshot.rows, tx, v2)
         : null;
       await retainDiscussion(session.accountId, session.sessionId, id, tx, {
         source,
         epoch,
       });
       await this.identity.session(token, tx);
-      return majorDiscussionPageSchema.parse({
+      return (
+        v2 ? majorDiscussionPageV2Schema : majorDiscussionPageSchema
+      ).parse({
+        ...(v2 ? { protocol: MAJOR_DISCUSSION_V2 } : {}),
         majorId: id,
         catalogRevision: source.catalog,
         majorRevision: source.revision,
@@ -403,6 +491,8 @@ export class MajorDiscussionService {
       throw new ApplicationError('MAJOR_DISCUSSION_BUDGET_UNAVAILABLE');
     if (!ids.length) return result;
     const epoch = await discussionEpoch(tx);
+    await this.media.retainCurrent(tx);
+    await this.mediaOwner.retainTopology(tx);
     await profiles(tx);
     const captures = (
       await tx.query<{
@@ -486,9 +576,9 @@ export class MajorDiscussionService {
     session: string,
     id: string,
     subject: string | null,
-    operation: MajorDiscussionOperation,
+    operation: Operation,
     command: Command,
-    receipt: MajorDiscussionReceipt,
+    receipt: Receipt,
     tx: PoolClient,
   ) {
     await tx.query(
@@ -501,7 +591,7 @@ export class MajorDiscussionService {
         subject,
         operation,
         command,
-        majorDiscussionIntentHash(actor, id, subject, operation, command),
+        intentHash(actor, id, subject, operation, command),
         receipt,
       ],
     );
@@ -557,26 +647,158 @@ export class MajorDiscussionService {
       true,
     );
   }
+  publishV2(token: string, id: string, command: MajorRootPublishV2) {
+    return this.mutate(
+      token,
+      id,
+      null,
+      'major.discussion.root.v2',
+      command,
+      false,
+    );
+  }
+  replyV2(
+    token: string,
+    id: string,
+    root: string,
+    command: MajorReplyPublishV2,
+  ) {
+    return this.mutate(
+      token,
+      id,
+      root,
+      'major.discussion.reply.v2',
+      command,
+      false,
+    );
+  }
+  private async mediaCancelPrior(actor: string, key: string, tx: PoolClient) {
+    return (
+      await tx.query<{
+        major_id: string;
+        root_id: string | null;
+        operation: string;
+        intent_hash: string | null;
+        receipt: unknown;
+      }>(
+        'SELECT major_id,root_id,operation,intent_hash,receipt FROM whaleu_majors.major_discussion_media_cancels WHERE actor_id=$1 AND request_id=$2',
+        [actor, key],
+      )
+    ).rows[0];
+  }
+  private assertMediaCancel(
+    fence: {
+      major_id: string;
+      root_id: string | null;
+      operation: string;
+      intent_hash: string | null;
+    },
+    major: string,
+    root: string | null,
+    operation: string,
+    hash: string | null,
+  ) {
+    if (
+      fence.major_id !== major ||
+      fence.root_id !== root ||
+      fence.operation !== operation ||
+      (fence.intent_hash !== null && fence.intent_hash !== hash)
+    )
+      throw new ApplicationError('REQUEST_CONFLICT');
+  }
+  receiptV2(token: string, key: string) {
+    return this.run(async (tx) => {
+      const session = await this.session(token, tx);
+      const prior =
+        (await this.prior(session.accountId, key, tx)) ??
+        (await this.mediaCancelPrior(session.accountId, key, tx));
+      if (!prior) throw new ApplicationError('REQUEST_NOT_FOUND');
+      await this.identity.session(token, tx);
+      const parsed = majorDiscussionReceiptV2Schema.safeParse(prior.receipt);
+      if (!parsed.success) throw new ApplicationError('REQUEST_CONFLICT');
+      return parsed.data;
+    });
+  }
+  cancelV2(token: string, key: string, input: MajorDiscussionCancelV2) {
+    return this.run(async (tx) => {
+      const session = await this.session(token, tx),
+        actor = session.accountId,
+        root = 'rootId' in input ? input.rootId : null;
+      await tx.query('SELECT whaleu_majors.major_discussion_lock($1,$2,NULL)', [
+        actor,
+        key,
+      ]);
+      const prior = await this.prior(actor, key, tx);
+      if (prior) {
+        if (input.intentHash === null || prior.intent_hash !== input.intentHash)
+          throw new ApplicationError('REQUEST_CONFLICT');
+        const parsed = majorDiscussionReceiptV2Schema.safeParse(prior.receipt);
+        if (
+          !parsed.success ||
+          parsed.data.operation !== input.operation ||
+          parsed.data.majorId !== input.majorId ||
+          ('rootId' in parsed.data ? parsed.data.rootId : null) !== root
+        )
+          throw new ApplicationError('REQUEST_CONFLICT');
+        await this.identity.session(token, tx);
+        return parsed.data;
+      }
+      const fence = await this.mediaCancelPrior(actor, key, tx);
+      if (fence) {
+        this.assertMediaCancel(
+          fence,
+          input.majorId,
+          root,
+          input.operation,
+          input.intentHash,
+        );
+        return majorDiscussionReceiptV2Schema.parse(fence.receipt);
+      }
+      const receipt = majorDiscussionReceiptV2Schema.parse({
+        requestId: key,
+        majorId: input.majorId,
+        operation: input.operation,
+        ...(root ? { rootId: root } : {}),
+        outcome: 'rejected',
+        code: 'MAJOR_DISCUSSION_CANCELLED',
+      });
+      await tx.query(
+        'INSERT INTO whaleu_majors.major_discussion_media_cancels(actor_id,request_id,session_id,major_id,root_id,operation,intent_hash,receipt) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+        [
+          actor,
+          key,
+          session.sessionId,
+          input.majorId,
+          root,
+          input.operation,
+          input.intentHash,
+          receipt,
+        ],
+      );
+      await this.identity.session(token, tx);
+      return receipt;
+    });
+  }
   private mutate(
     token: string,
     id: string,
     subject: string | null,
-    operation: MajorDiscussionOperation,
+    operation: Operation,
     command: Command,
     cancel: boolean,
   ) {
     return this.run(async (tx) => {
-      const session = await this.session(token, tx),
+      // Media scope/binding statement writers require the exclusive policy
+      // gate. Acquire it before the publication key, never upgrade a shared
+      // gate while a same-key waiter still owns the other shared gate.
+      const session = await this.session(token, tx, operation.endsWith('.v2')),
         actor = session.accountId,
-        hash = majorDiscussionIntentHash(
-          actor,
-          id,
-          subject,
-          operation,
-          command,
-        ),
+        hash = intentHash(actor, id, subject, operation, command),
         pub = operation !== 'major.discussion.like.v1',
-        isReply = operation === 'major.discussion.reply.v1';
+        isReply =
+          operation === 'major.discussion.reply.v1' ||
+          operation === 'major.discussion.reply.v2',
+        v2 = operation.endsWith('.v2');
       await tx.query('SELECT whaleu_majors.major_discussion_lock($1,$2,$3)', [
         actor,
         command.clientRequestId,
@@ -587,7 +809,18 @@ export class MajorDiscussionService {
         if (prior.intent_hash !== hash)
           throw new ApplicationError('REQUEST_CONFLICT');
         await this.identity.session(token, tx);
-        return majorDiscussionReceiptSchema.parse(prior.receipt);
+        return receiptSchema(operation).parse(prior.receipt);
+      }
+      if (v2) {
+        const fence = await this.mediaCancelPrior(
+          actor,
+          command.clientRequestId,
+          tx,
+        );
+        if (fence) {
+          this.assertMediaCancel(fence, id, subject, operation, hash);
+          return majorDiscussionReceiptV2Schema.parse(fence.receipt);
+        }
       }
       const base = {
         requestId: command.clientRequestId,
@@ -596,7 +829,7 @@ export class MajorDiscussionService {
         ...(isReply ? { rootId: subject } : pub ? {} : { commentId: subject }),
       };
       if (cancel) {
-        const receipt = majorDiscussionReceiptSchema.parse({
+        const receipt = receiptSchema(operation).parse({
           ...base,
           outcome: 'rejected',
           code: 'MAJOR_DISCUSSION_CANCELLED',
@@ -620,6 +853,11 @@ export class MajorDiscussionService {
       let source: DiscussionSource | undefined,
         history: string | null = null;
       if (positive) {
+        await this.mediaOwner.retainTopology(tx);
+        // Legacy publication and likes do not write Media. Retain the epoch
+        // before their target read so an image sibling cannot change unseen.
+        // V2 publication captures after its own atomic binding writes instead.
+        if (!v2) await this.media.retainCurrent(tx);
         await this.eligible(actor, tx, pub);
         source = await discussionSource(id, tx);
       } else if (!own) {
@@ -627,19 +865,19 @@ export class MajorDiscussionService {
         if (!history)
           throw new ApplicationError('MAJOR_DISCUSSION_HISTORY_UNAVAILABLE');
       }
-      let receipt: MajorDiscussionReceipt;
+      let receipt: Receipt;
       if (
         source &&
         (source.catalog !== command.expectedCatalogRevision ||
           source.revision !== command.expectedMajorRevision)
       )
-        receipt = majorDiscussionReceiptSchema.parse({
+        receipt = receiptSchema(operation).parse({
           ...base,
           outcome: 'rejected',
           code: 'MAJOR_REVISION_CONFLICT',
         });
       else if (pub) {
-        const publication = command as MajorReplyPublish,
+        const publication = command as MajorReplyPublish | MajorReplyPublishV2,
           root = isReply
             ? await this.target(actor, id, subject!, tx, null)
             : null,
@@ -653,25 +891,60 @@ export class MajorDiscussionService {
                   root!.id,
                 )
               : null;
-        const decision = await this.review.consume(
-          {
-            version: 1,
-            purpose: operation as
-              'major.discussion.root.v1' | 'major.discussion.reply.v1',
-            actorId: actor,
-            requestId: command.clientRequestId,
-            majorId: id,
-            catalogRevision: command.expectedCatalogRevision,
-            majorRevision: command.expectedMajorRevision,
-            body: publication.body,
-            rootId: root?.id ?? null,
-            replyToReplyId: target?.id ?? null,
-            replyToActorId: target?.actor_id ?? null,
-          },
-          tx,
-        );
+        const images = 'images' in publication ? publication.images : [];
+        const mediaContext = v2
+          ? {
+              majorId: id,
+              publicationRequestId: command.clientRequestId,
+              catalogRevision: command.expectedCatalogRevision,
+              majorRevision: command.expectedMajorRevision,
+              rootId: root?.id ?? null,
+              replyToReplyId: target?.id ?? null,
+              contextDigest: (
+                await this.mediaOwner.context(
+                  actor,
+                  {
+                    majorId: id,
+                    publicationRequestId: command.clientRequestId,
+                    catalogRevision: command.expectedCatalogRevision,
+                    majorRevision: command.expectedMajorRevision,
+                    rootId: root?.id ?? null,
+                    replyToReplyId: target?.id ?? null,
+                  },
+                  tx,
+                )
+              ).contextDigest,
+            }
+          : null;
+        if (mediaContext)
+          await this.media.draftFacts(actor, mediaContext, images, tx, true);
+        const envelope = {
+          version: 1 as const,
+          purpose: operation as
+            'major.discussion.root.v1' | 'major.discussion.reply.v1',
+          actorId: actor,
+          requestId: command.clientRequestId,
+          majorId: id,
+          catalogRevision: command.expectedCatalogRevision,
+          majorRevision: command.expectedMajorRevision,
+          body: publication.body,
+          rootId: root?.id ?? null,
+          replyToReplyId: target?.id ?? null,
+          replyToActorId: target?.actor_id ?? null,
+        };
+        const decision = v2
+          ? await this.mediaReview.consume(
+              {
+                ...envelope,
+                version: 2,
+                purpose: operation as MajorDiscussionOperationV2,
+                images,
+              },
+              tx,
+            )
+          : await this.review.consume(envelope, tx);
         if (decision.status === 'reject')
-          receipt = majorDiscussionReceiptSchema.parse({
+          receipt = receiptSchema(operation).parse({
             ...base,
             outcome: 'rejected',
             code: 'CONTENT_REJECTED',
@@ -681,7 +954,7 @@ export class MajorDiscussionService {
           const cid = randomUUID(),
             row = (
               await tx.query<{ created_at: Date }>(
-                'INSERT INTO whaleu_majors.major_discussion_comments(id,major_id,root_id,reply_to_reply_id,reply_to_actor_id,actor_id,request_id,catalog_id,major_revision,population_assertion_id,review_decision_id,body) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING created_at',
+                'INSERT INTO whaleu_majors.major_discussion_comments(id,major_id,root_id,reply_to_reply_id,reply_to_actor_id,actor_id,request_id,catalog_id,major_revision,population_assertion_id,review_decision_id,body,publication_version,image_set,media_review_decision_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING created_at',
                 [
                   cid,
                   id,
@@ -693,12 +966,26 @@ export class MajorDiscussionService {
                   source!.catalog,
                   source!.revision,
                   source!.population,
-                  decision.decisionId,
+                  v2 ? null : decision.decisionId,
                   publication.body,
+                  v2 ? 2 : 1,
+                  JSON.stringify(images),
+                  v2 ? decision.decisionId : null,
                 ],
               )
             ).rows[0]!;
-          receipt = majorDiscussionReceiptSchema.parse({
+          if (mediaContext) {
+            await this.media.acceptAndBind(
+              cid,
+              actor,
+              mediaContext,
+              images,
+              tx,
+            );
+            if (root) await this.target(actor, id, root.id, tx, null);
+            if (target) await this.target(actor, id, target.id, tx, root!.id);
+          }
+          receipt = receiptSchema(operation).parse({
             ...base,
             outcome: 'applied',
             commentId: cid,
@@ -717,13 +1004,13 @@ export class MajorDiscussionService {
         )
           throw new ApplicationError('MAJOR_DISCUSSION_NOT_FOUND');
         if ((own?.id ?? null) !== like.expectedMembershipRevision)
-          receipt = majorDiscussionReceiptSchema.parse({
+          receipt = receiptSchema(operation).parse({
             ...base,
             outcome: 'rejected',
             code: 'MAJOR_DISCUSSION_MEMBERSHIP_CONFLICT',
           });
         else if ((own?.active ?? false) === like.active)
-          receipt = majorDiscussionReceiptSchema.parse({
+          receipt = receiptSchema(operation).parse({
             ...base,
             outcome: 'noop',
             active: like.active,
@@ -760,7 +1047,7 @@ export class MajorDiscussionService {
               'INSERT INTO whaleu_majors.major_discussion_like_heads(major_id,comment_id,actor_id,revision) VALUES($1,$2,$3,$4)',
               [id, subject, actor, revision],
             );
-          receipt = majorDiscussionReceiptSchema.parse({
+          receipt = receiptSchema(operation).parse({
             ...base,
             outcome: 'applied',
             active: like.active,
@@ -782,6 +1069,7 @@ export class MajorDiscussionService {
         receipt,
         tx,
       );
+      if (positive) await this.media.retainCurrent(tx);
       await retainDiscussion(actor, session.sessionId, id, tx, {
         ...(source ? { source, publish: pub } : {}),
         ...(history ? { history } : {}),
@@ -796,7 +1084,9 @@ export class MajorDiscussionService {
         prior = await this.prior(session.accountId, key, tx);
       if (!prior) throw new ApplicationError('REQUEST_NOT_FOUND');
       await this.identity.session(token, tx);
-      return majorDiscussionReceiptSchema.parse(prior.receipt);
+      const parsed = majorDiscussionReceiptSchema.safeParse(prior.receipt);
+      if (!parsed.success) throw new ApplicationError('REQUEST_CONFLICT');
+      return parsed.data;
     });
   }
   private async noticeView(
@@ -804,6 +1094,7 @@ export class MajorDiscussionService {
     actor: string,
     session: string,
     tx: PoolClient,
+    v2 = false,
   ) {
     const base = {
       noticeId: row.id,
@@ -852,12 +1143,15 @@ export class MajorDiscussionService {
       'SAFETY_UNAVAILABLE',
     );
     const sender = senderFact.status;
+    await this.media.retainCurrent(tx);
     if (
       !target ||
       target.status !== 'allow' ||
       !preview ||
       preview.status !== 'allow' ||
-      sender !== 'allow'
+      sender !== 'allow' ||
+      (!v2 &&
+        (target.publication_version === 2 || preview.publication_version === 2))
     )
       return { ...base, status: 'unavailable' as const };
     const display = await this.authors.findRatingPublic(row.actor_id, tx);
@@ -867,6 +1161,14 @@ export class MajorDiscussionService {
       status: 'available' as const,
       kind: row.kind,
       preview: {
+        ...(v2
+          ? {
+              thumbnail:
+                row.kind === 'reply'
+                  ? ((await this.imageReferences(preview, tx))[0] ?? null)
+                  : null,
+            }
+          : {}),
         text: Array.from(preview.body).slice(0, 50).join(''),
         author: { mode: 'named' as const, ...display },
       },
@@ -880,14 +1182,19 @@ export class MajorDiscussionService {
   noticePage(
     token: string,
     query: Pick<MajorDiscussionQuery, 'limit' | 'cursor'>,
+    v2 = false,
   ) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
         access = await this.eligible(session.accountId, tx),
         epoch = await this.notices.epoch(tx),
+        mediaEpoch = await this.media.retainCurrent(tx),
+        topology = v2 ? await this.mediaOwner.retainTopology(tx) : null,
         profile = await profiles(tx),
         scope = discussionCursorScope([
-          'major-discussion-notices-v1',
+          v2 ? 'major-discussion-notices-v2' : 'major-discussion-notices-v1',
+          mediaEpoch,
+          topology,
           session.accountId,
           session.sessionId,
           access,
@@ -915,7 +1222,13 @@ export class MajorDiscussionService {
       const items = [];
       for (const row of chosen)
         items.push(
-          await this.noticeView(row, session.accountId, session.sessionId, tx),
+          await this.noticeView(
+            row,
+            session.accountId,
+            session.sessionId,
+            tx,
+            v2,
+          ),
         );
       const nextCursor =
           more && last
@@ -936,18 +1249,23 @@ export class MajorDiscussionService {
         unreadCount = await this.notices.unread(session.accountId, tx);
       await this.notices.retain(epoch, tx);
       await this.identity.session(token, tx);
-      return majorDiscussionNoticePageSchema.parse({
+      return (
+        v2 ? majorDiscussionNoticePageV2Schema : majorDiscussionNoticePageSchema
+      ).parse({
+        ...(v2 ? { protocol: MAJOR_DISCUSSION_V2 } : {}),
         items,
         nextCursor,
         unreadCount,
       });
     });
   }
-  noticeTarget(token: string, id: string) {
+  noticeTarget(token: string, id: string, v2 = false) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
       await this.eligible(session.accountId, tx);
       await profiles(tx);
+      await this.media.retainCurrent(tx);
+      if (v2) await this.mediaOwner.retainTopology(tx);
       const epoch = await this.notices.epoch(tx),
         row = await this.notices.find(session.accountId, id, tx),
         view = await this.noticeView(
@@ -955,6 +1273,7 @@ export class MajorDiscussionService {
           session.accountId,
           session.sessionId,
           tx,
+          v2,
         );
       if (view.status !== 'available')
         throw new ApplicationError('MAJOR_DISCUSSION_NOT_FOUND');

@@ -13,8 +13,10 @@ export interface SyntheticMajor {
   active: boolean;
 }
 
-export async function majorCatalogFixture() {
-  const f = await directoryRuntimeFixture(),
+export async function majorCatalogFixture(
+  existing?: Awaited<ReturnType<typeof directoryRuntimeFixture>>,
+) {
+  const f = existing ?? (await directoryRuntimeFixture()),
     majors: SyntheticMajor[] = [];
   const add = (patch: Partial<SyntheticMajor> = {}): SyntheticMajor => ({
     id: randomUUID(),

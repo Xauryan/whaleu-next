@@ -1,3 +1,9 @@
+import { MajorDiscussionMediaRequiredProof } from './major-discussion-required-proof.js';
+import {
+  prepareMajorDiscussionMediaSchema,
+  majorDiscussionMediaRequestHash,
+} from './contracts-major-discussion.js';
+import type { PrepareMajorDiscussionMediaInput } from './contracts-major-discussion.js';
 import { WindowDiscussionMediaRequiredProof } from './window-discussion-required-proof.js';
 import {
   prepareWindowDiscussionMediaSchema,
@@ -169,28 +175,30 @@ export class MediaIngressRepository {
   constructor(
     readonly planning: MediaIngressPlanningPort,
     private readonly protocolVersion:
-      2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 = 2,
+      2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 = 2,
   ) {
     this.proof =
-      protocolVersion === 16
-        ? new WindowDiscussionMediaRequiredProof()
-        : protocolVersion === 15
-          ? new PrivateMessageMediaRequiredProof()
-          : protocolVersion === 14
-            ? new ErrandMediaRequiredProof()
-            : protocolVersion === 13
-              ? new VerificationEvidenceMediaRequiredProof()
-              : protocolVersion === 12
-                ? new AnnouncementMediaRequiredProof()
-                : protocolVersion === 11
-                  ? new ActivityMediaRequiredProof()
-                  : protocolVersion === 10
-                    ? new OrganizationMediaRequiredProof()
-                    : protocolVersion === 9
-                      ? new SchoolQrMediaRequiredProof()
-                      : protocolVersion === 8
-                        ? new CategoryIconMediaRequiredProof()
-                        : new MediaRequiredProof();
+      protocolVersion === 17
+        ? new MajorDiscussionMediaRequiredProof()
+        : protocolVersion === 16
+          ? new WindowDiscussionMediaRequiredProof()
+          : protocolVersion === 15
+            ? new PrivateMessageMediaRequiredProof()
+            : protocolVersion === 14
+              ? new ErrandMediaRequiredProof()
+              : protocolVersion === 13
+                ? new VerificationEvidenceMediaRequiredProof()
+                : protocolVersion === 12
+                  ? new AnnouncementMediaRequiredProof()
+                  : protocolVersion === 11
+                    ? new ActivityMediaRequiredProof()
+                    : protocolVersion === 10
+                      ? new OrganizationMediaRequiredProof()
+                      : protocolVersion === 9
+                        ? new SchoolQrMediaRequiredProof()
+                        : protocolVersion === 8
+                          ? new CategoryIconMediaRequiredProof()
+                          : new MediaRequiredProof();
     mediaIdSchema.parse(planning.writerInstanceId);
   }
   /** Nonlocking routing hint only; authority is re-established by scopes and the
@@ -213,6 +221,25 @@ export class MediaIngressRepository {
     ).rows[0];
     if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
     return prepareVerificationEvidenceMediaSchema.parse(row.input);
+  }
+  async originalMajorDiscussionInput(
+    actor: string,
+    id: string,
+    tx: PoolClient,
+  ): Promise<PrepareMajorDiscussionMediaInput> {
+    this.managed(tx);
+    if (this.protocolVersion !== 17)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const row = (
+      await tx.query<{ input: unknown }>(
+        `SELECT s.input FROM whaleu_media.upload_intents i
+      JOIN whaleu_media.major_discussion_scopes s ON s.id=i.resource_id AND s.actor_id=i.actor_id
+      WHERE i.id=$1 AND i.actor_id=$2 AND i.protocol_version=17 AND i.owner_kind='majors'`,
+        [mediaIdSchema.parse(id), actor],
+      )
+    ).rows[0];
+    if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return prepareMajorDiscussionMediaSchema.parse(row.input);
   }
   async originalWindowDiscussionInput(
     actor: string,
@@ -365,7 +392,8 @@ export class MediaIngressRepository {
       this.protocolVersion === 13 ||
       this.protocolVersion === 14 ||
       this.protocolVersion === 15 ||
-      this.protocolVersion === 16
+      this.protocolVersion === 16 ||
+      this.protocolVersion === 17
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const row = (
@@ -998,37 +1026,39 @@ export class MediaIngressRepository {
       )
     ).rows[0];
     const input =
-      this.protocolVersion === 16
-        ? prepareWindowDiscussionMediaSchema.parse(issued.input)
-        : this.protocolVersion === 15
-          ? preparePrivateMessageMediaSchema.parse(issued.input)
-          : this.protocolVersion === 14
-            ? prepareErrandMediaSchema.parse(issued.input)
-            : this.protocolVersion === 13
-              ? prepareVerificationEvidenceMediaSchema.parse(issued.input)
-              : this.protocolVersion === 12
-                ? prepareAnnouncementMediaSchema.parse(issued.input)
-                : this.protocolVersion === 11
-                  ? prepareActivityMediaSchema.parse(issued.input)
-                  : this.protocolVersion === 10
-                    ? prepareOrganizationMediaSchema.parse(issued.input)
-                    : this.protocolVersion === 9
-                      ? prepareSchoolQrMediaSchema.parse(issued.input)
-                      : this.protocolVersion === 8
-                        ? prepareCategoryIconMediaSchema.parse(issued.input)
-                        : this.protocolVersion === 7
-                          ? ratingsDiscussionMemberPrepareSchema.parse(
-                              issued.input,
-                            )
-                          : this.protocolVersion === 6
-                            ? prepareRatingsMediaSchema.parse(issued.input)
-                            : this.protocolVersion === 5
-                              ? prepareProfileMediaSchema.parse(issued.input)
-                              : this.protocolVersion === 4
-                                ? prepareMediaV4Schema.parse(issued.input)
-                                : this.protocolVersion === 3
-                                  ? prepareMediaV3Schema.parse(issued.input)
-                                  : prepareMediaV2Schema.parse(issued.input);
+      this.protocolVersion === 17
+        ? prepareMajorDiscussionMediaSchema.parse(issued.input)
+        : this.protocolVersion === 16
+          ? prepareWindowDiscussionMediaSchema.parse(issued.input)
+          : this.protocolVersion === 15
+            ? preparePrivateMessageMediaSchema.parse(issued.input)
+            : this.protocolVersion === 14
+              ? prepareErrandMediaSchema.parse(issued.input)
+              : this.protocolVersion === 13
+                ? prepareVerificationEvidenceMediaSchema.parse(issued.input)
+                : this.protocolVersion === 12
+                  ? prepareAnnouncementMediaSchema.parse(issued.input)
+                  : this.protocolVersion === 11
+                    ? prepareActivityMediaSchema.parse(issued.input)
+                    : this.protocolVersion === 10
+                      ? prepareOrganizationMediaSchema.parse(issued.input)
+                      : this.protocolVersion === 9
+                        ? prepareSchoolQrMediaSchema.parse(issued.input)
+                        : this.protocolVersion === 8
+                          ? prepareCategoryIconMediaSchema.parse(issued.input)
+                          : this.protocolVersion === 7
+                            ? ratingsDiscussionMemberPrepareSchema.parse(
+                                issued.input,
+                              )
+                            : this.protocolVersion === 6
+                              ? prepareRatingsMediaSchema.parse(issued.input)
+                              : this.protocolVersion === 5
+                                ? prepareProfileMediaSchema.parse(issued.input)
+                                : this.protocolVersion === 4
+                                  ? prepareMediaV4Schema.parse(issued.input)
+                                  : this.protocolVersion === 3
+                                    ? prepareMediaV3Schema.parse(issued.input)
+                                    : prepareMediaV2Schema.parse(issued.input);
     if (
       !row ||
       row.state !== 'prepared' ||
@@ -1063,6 +1093,14 @@ export class MediaIngressRepository {
           issued.scope.slot !== 'evidence' ||
           row.request_hash !==
             verificationEvidenceMediaRequestHash(session.accountId, input))) ||
+      ('protocol' in input &&
+        input.protocol === 'major-discussion-media-v1' &&
+        (issued.scope.ownerKind !== 'majors' ||
+          issued.scope.resourceKind !== 'major_discussion_image' ||
+          issued.scope.slot !== 'images' ||
+          row.ordinal !== input.ordinal ||
+          row.request_hash !==
+            majorDiscussionMediaRequestHash(session.accountId, input))) ||
       ('protocol' in input &&
         input.protocol === 'window-discussion-media-v1' &&
         (issued.scope.ownerKind !== 'ratings' ||

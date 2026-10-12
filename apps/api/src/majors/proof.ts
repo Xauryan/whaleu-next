@@ -35,6 +35,23 @@ WITH instant AS MATERIALIZED(SELECT clock_timestamp() now),
   LEFT JOIN whaleu_safety.account_heads s ON s.account_id=c.actor_id
   CROSS JOIN LATERAL(VALUES(d.issued_at),(d.visibility_until),(p.valid_from),(p.valid_until),(s.valid_until)) boundary(value)
   WHERE boundary.value>capture.now
+  UNION ALL
+  SELECT boundary.value FROM capture
+  JOIN whaleu_majors.major_entries e ON e.catalog_id=(capture.source->>'catalog')::uuid
+  JOIN whaleu_majors.major_discussion_comments c ON c.major_id=e.major_id
+  JOIN whaleu_community.major_discussion_media_review_decisions d ON d.id=c.media_review_decision_id
+  JOIN whaleu_community.major_discussion_media_review_policies p ON p.id=d.policy_id
+  LEFT JOIN whaleu_safety.account_heads s ON s.account_id=c.actor_id
+  CROSS JOIN LATERAL(VALUES(d.issued_at),(d.visibility_until),(p.valid_from),(p.valid_until),(s.valid_until)) boundary(value)
+  WHERE boundary.value>capture.now
+  UNION ALL
+  SELECT boundary.value FROM capture
+  JOIN whaleu_majors.major_entries e ON e.catalog_id=(capture.source->>'catalog')::uuid
+  JOIN whaleu_media.major_discussion_appearances a ON a.major_id=e.major_id
+  JOIN whaleu_media.asset_safety_heads h ON h.asset_id=a.asset_id
+  JOIN whaleu_media.asset_safety_events m ON m.id=h.event_id
+  CROSS JOIN LATERAL(VALUES(m.effective_at),(m.valid_until)) boundary(value)
+  WHERE boundary.value>capture.now
  )
  SELECT source,
   (SELECT revision::text FROM whaleu_majors.major_catalog_epoch WHERE singleton) epoch,

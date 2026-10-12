@@ -258,6 +258,7 @@ export class OwnerImageDownload<D> {
     return new Promise<Downloaded>((resolve, reject) => {
       let settled = false;
       let completed = false;
+      let enteredNative = false;
       let task: WxMediaDownloadTask | undefined;
       let headers: Record<string, string> | undefined;
       let headerCount = 0;
@@ -349,6 +350,7 @@ export class OwnerImageDownload<D> {
       }
       try {
         current();
+        enteredNative = true;
         task = this.wx.downloadFile!({
           url,
           header: token === null ? {} : { Authorization: `Bearer ${token}` },
@@ -408,8 +410,16 @@ export class OwnerImageDownload<D> {
           }
         }
       } catch {
-        releaseSlot();
         finish(new ClientError('network', 'Image download could not start'));
+        if (!enteredNative) releaseSlot();
+        else {
+          try {
+            task?.abort();
+          } catch {
+            /* A thrown native call or listener registration does not prove
+             * quiescence. Only native complete releases shared task credits. */
+          }
+        }
       }
     });
   }

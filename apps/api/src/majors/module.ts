@@ -1,3 +1,22 @@
+import {
+  MajorDiscussionV2Controller,
+  MajorDiscussionNoticesV2Controller,
+} from './discussion/controller-v2.js';
+import { MajorDiscussionMediaOwner } from './discussion/media-owner.js';
+import {
+  MajorDiscussionMediaService,
+  MAJOR_DISCUSSION_MEDIA_RUNTIME,
+} from './discussion/media/facade.js';
+import type { MajorDiscussionMediaRuntime } from './discussion/media/facade.js';
+import {
+  MajorDiscussionMediaController,
+  MajorDiscussionMultipartInterceptor,
+} from './discussion/media/controller.js';
+import { MajorDiscussionMediaThrottlingModule } from './discussion/media/module.js';
+import { DatabaseService } from '../database/database.js';
+import { IdentityService } from '../identity/identity.service.js';
+import { MediaDeliveryBudgetModule } from '../media/delivery-budget.module.js';
+import { MediaDeliveryBudgetPool } from '../media/delivery-budget.js';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.js';
 import { IdentityModule } from '../identity/identity.module.js';
@@ -22,6 +41,8 @@ import { MajorsService } from './service.js';
 import { MajorCursors } from './cursor.js';
 @Module({
   imports: [
+    MajorDiscussionMediaThrottlingModule,
+    MediaDeliveryBudgetModule,
     DatabaseModule,
     IdentityModule,
     VerificationModule,
@@ -34,12 +55,37 @@ import { MajorCursors } from './cursor.js';
     MajorDiscussionNoticeModule,
   ],
   controllers: [
+    MajorDiscussionV2Controller,
+    MajorDiscussionNoticesV2Controller,
+    MajorDiscussionMediaController,
     MajorDiscussionDeleteController,
     MajorDiscussionController,
     MajorDiscussionNoticesController,
     MajorsController,
   ],
   providers: [
+    MajorDiscussionMediaOwner,
+    MajorDiscussionMultipartInterceptor,
+    { provide: MAJOR_DISCUSSION_MEDIA_RUNTIME, useValue: null },
+    {
+      provide: MajorDiscussionMediaService,
+      inject: [
+        DatabaseService,
+        IdentityService,
+        MajorDiscussionMediaOwner,
+        MAJOR_DISCUSSION_MEDIA_RUNTIME,
+        MediaDeliveryBudgetPool,
+      ],
+      useFactory: (
+        db: DatabaseService,
+        identity: IdentityService,
+        owner: MajorDiscussionMediaOwner,
+        runtime: MajorDiscussionMediaRuntime | null,
+        budget: MediaDeliveryBudgetPool,
+      ) =>
+        new MajorDiscussionMediaService(db, identity, owner, runtime, budget),
+    },
+
     MajorDiscussionDeleteService,
     MajorDiscussionService,
     MajorDiscussionCursors,

@@ -66,6 +66,12 @@ export async function verifyMediaOwnerFenceConcurrency(
         "SELECT to_regclass('whaleu_media.window_discussion_scopes') IS NOT NULL AS present",
       )
     ).rows[0]?.present === true;
+  const majorDiscussionMediaInstalled =
+    (
+      await pool.query<{ present: boolean }>(
+        "SELECT to_regclass('whaleu_media.major_discussion_scopes') IS NOT NULL AS present",
+      )
+    ).rows[0]?.present === true;
   const sources = [
     ...historicalSources,
     ...(categoryIconInstalled ? ['category_icon_request_markers'] : []),
@@ -85,6 +91,13 @@ export async function verifyMediaOwnerFenceConcurrency(
           'window_discussion_scopes',
           'window_discussion_cancel_scopes',
           'window_discussion_appearances',
+        ]
+      : []),
+    ...(majorDiscussionMediaInstalled
+      ? [
+          'major_discussion_scopes',
+          'major_discussion_cancel_scopes',
+          'major_discussion_appearances',
         ]
       : []),
     ...(verificationEvidenceInstalled

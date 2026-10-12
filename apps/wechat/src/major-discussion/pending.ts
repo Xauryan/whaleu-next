@@ -217,6 +217,36 @@ export class PendingMajorDiscussionStore {
       return { items: [], unavailable: true };
     }
   }
+  /** New writes must not erase or bypass an unreadable optional side cache.
+   * Original-key recovery deliberately does not consume this admission gate. */
+  assertNewAdmission(accountId: string): void {
+    if (this.load(accountId)) throw unavailable();
+    this.references(accountId);
+    this.deletionLocators(accountId);
+    if (this.locatorFailures.has(accountId)) throw unavailable();
+  }
+  rememberPublicationLocator(
+    accountId: string,
+    raw: DiscussionDeleteLocator,
+  ): void {
+    try {
+      const ref = decodeDeleteLocator(raw);
+      const prior = this.deletionLocators(accountId).filter(
+        (r) => r.majorId !== ref.majorId || r.commentId !== ref.commentId,
+      );
+      const next = [ref, ...prior].slice(0, 100);
+      this.storage.set(
+        `whaleu.major-discussion.own-deletion-locators.v1:${this.origin}:${accountId}`,
+        next,
+      );
+      if (!equal(this.deletionLocators(accountId), next)) throw unavailable();
+      this.locatorFailures.delete(accountId);
+    } catch {
+      // A convenience locator never blocks a valid original receipt or
+      // overwrites malformed saved bytes during attempted recovery.
+      this.locatorFailures.add(accountId);
+    }
+  }
   private rememberDeletion(
     value: PendingMajorDiscussion,
     result: DiscussionReceipt,

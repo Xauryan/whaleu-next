@@ -1,3 +1,4 @@
+import { writeMajorDiscussionImagesOpenApi } from './major-discussion-images-openapi-document.js';
 import { writeWindowDiscussionImagesOpenApi } from './window-discussion-images-openapi-document.js';
 import { writeCanteenFloorScoresOpenApi } from './canteen-floor-scores-openapi-document.js';
 import { writeMajorDiscussionOpenApi } from './major-discussion-openapi-document.js';
@@ -314,4 +315,5 @@ await writeWindowDiscussionOpenApi(args[0] === '--check');
 await writeCanteenFloorScoresOpenApi(args[0] === '--check');
 await writeMajorDiscussionOpenApi(args[0] === '--check');
 
+await writeMajorDiscussionImagesOpenApi(process.argv.includes('--check'));
 await writeWindowDiscussionImagesOpenApi(args[0] === '--check');

@@ -122,6 +122,10 @@ process.once('message', async (input) => {
       delete require.cache[require.resolve(`${dist}app.js`)];
       emitted('app');
       app.onLaunch();
+      // Explicit legacy-client capability harness. Every original v1 and 0124
+      // assertion remains; default upgraded acceptance has its own cold worker.
+      delete app.community.majorDiscussionV2;
+      delete app.community.majorDiscussionImages;
     }
     function login(actor) {
       currentActor = actor;

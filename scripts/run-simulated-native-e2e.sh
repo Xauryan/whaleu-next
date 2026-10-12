@@ -36,6 +36,10 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/major-discussion.test.ts \
   test/integration/major-discussion-concurrency.test.ts \
   test/integration/major-discussion-delete.test.ts \
+  test/integration/major-discussion-media.test.ts \
+  test/integration/major-discussion-media-upgrade.test.ts \
+  test/integration/major-discussion-media-delete.test.ts \
+  test/integration/major-discussion-images-native-roundtrip.test.ts \
   test/integration/major-discussion-native-roundtrip.test.ts \
   test/integration/community-text-review-native-roundtrip.test.ts \
   test/integration/community-feedback.test.ts \

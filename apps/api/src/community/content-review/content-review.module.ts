@@ -1,3 +1,4 @@
+import { MajorDiscussionMediaReviewFacade } from './major-discussion-media-review.facade.js';
 import { WindowDiscussionMediaReviewFacade } from './window-discussion-media-review.facade.js';
 import { MajorDiscussionReviewFacade } from './major-discussion-review.facade.js';
 import { WindowDiscussionReviewFacade } from './window-discussion-review.facade.js';
@@ -32,6 +33,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
   providers: [
     WindowDiscussionReviewFacade,
     WindowDiscussionMediaReviewFacade,
+    MajorDiscussionMediaReviewFacade,
     MajorDiscussionReviewFacade,
     CourseCommentReviewFacade,
     DishReviewFacade,
@@ -57,6 +59,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
   exports: [
     WindowDiscussionReviewFacade,
     WindowDiscussionMediaReviewFacade,
+    MajorDiscussionMediaReviewFacade,
     MajorDiscussionReviewFacade,
     CourseCommentReviewFacade,
     DishReviewFacade,

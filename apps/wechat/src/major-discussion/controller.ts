@@ -1,3 +1,5 @@
+import { decodeDiscussionV2Page } from './v2-contract';
+import type { MajorDiscussionComposition } from './image-runtime';
 import { ClientError, clientError } from '../api/errors';
 import {
   CommunityController,
@@ -147,6 +149,9 @@ const missing = (e: unknown): boolean => {
   );
 };
 export class MajorDiscussionController extends CommunityController<MajorDiscussionView> {
+  private imageCount = 0;
+  private imageBlocked = false;
+  private imagePending = false;
   private continuation = 0;
   private selectedMajorId: string | null = null;
   private selectedRootId: string | null = null;
@@ -162,7 +167,13 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
     super(runtime, initialMajorDiscussionView, render);
     this.update({ mode });
   }
+  protected override preserveForNativePicker(): boolean {
+    return this.runtime.majorDiscussionImages?.pickerActive ?? false;
+  }
   protected override resetPrivate(): void {
+    this.imageCount = 0;
+    this.imageBlocked = false;
+    this.imagePending = false;
     this.continuation++;
     this.snapshot = null;
     this.pending = null;
@@ -206,13 +217,21 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
         this.runtime.pendingMajorDiscussion.loadForRecovery(accountId);
       const locatorState =
         this.runtime.pendingMajorDiscussion.deletionLocatorState(accountId);
+      // Recovery of a valid original v1 record is independent of optional
+      // locators and of any newer v2 metadata journal.
+      let ownReferences: readonly DiscussionOwnReference[] = [];
+      try {
+        ownReferences =
+          this.runtime.pendingMajorDiscussion.references(accountId);
+      } catch (error) {
+        if (!this.pending) throw error;
+      }
+      if (!this.pending)
+        this.runtime.pendingMajorDiscussion.assertNewAdmission(accountId);
       this.update({
         deletionLocators: locatorState.items,
         deletionLocatorUnavailable: locatorState.unavailable,
-        ownReferences:
-          this.pending?.intent.operation === 'major.discussion.delete.v1'
-            ? []
-            : this.runtime.pendingMajorDiscussion.references(accountId),
+        ownReferences,
       });
       if (this.pending) this.showPending(this.pending);
       else
@@ -334,7 +353,8 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
       async (cancel) => {
         if (notice) {
           const t = decodeDiscussionTarget(
-            await this.runtime.majorDiscussion!.target(notice.noticeId, cancel),
+            await (this.runtime.majorDiscussionV2 ??
+              this.runtime.majorDiscussion)!.target(notice.noticeId, cancel),
           );
           if (
             t.majorId !== id ||
@@ -345,8 +365,13 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
           if (cancel.isCancelled)
             throw new ClientError('cancelled', 'Cancelled');
         }
-        const p = decodeDiscussionPage(
-          await this.runtime.majorDiscussion!.list(
+        const p = (
+          this.runtime.majorDiscussionV2
+            ? decodeDiscussionV2Page
+            : decodeDiscussionPage
+        )(
+          await (this.runtime.majorDiscussionV2 ??
+            this.runtime.majorDiscussion)!.list(
             id,
             rootId,
             sort,
@@ -383,7 +408,9 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
           pageNumber,
           canNext: p.nextCursor !== null,
           canPublish:
-            storageReady && !this.pending && discussionBody(this.view.body),
+            storageReady &&
+            !this.pending &&
+            this.validComposition(this.view.body),
           status: this.pending
             ? '原讨论操作结果待确认'
             : p.items.length
@@ -415,12 +442,15 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
     this.update({
       body,
       bodyBytes: discussionBytes(body),
-      canPublish: discussionBody(body),
+      canPublish: this.validComposition(body),
     });
   }
   chooseReply(id: string | null): void {
     if (
       this.mode !== 'thread' ||
+      this.imageCount > 0 ||
+      this.imagePending ||
+      this.imageBlocked ||
       this.view.busy ||
       this.view.confirming ||
       this.view.frozen ||
@@ -431,6 +461,48 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
       id === null ? null : this.view.items.find((i) => i.id === id);
     if (id !== null && !target) return;
     this.update({ replyTarget: target ?? null });
+  }
+  private validComposition(body: string): boolean {
+    return !this.imageBlocked && discussionBody(body);
+  }
+  setImages(count: number, blocked: boolean, pending = false): void {
+    this.imageCount = count;
+    this.imagePending = pending;
+    this.imageBlocked = blocked;
+    this.update({
+      canPublish:
+        this.view.loaded &&
+        !this.view.frozen &&
+        this.validComposition(this.view.body),
+    });
+  }
+  composition(): MajorDiscussionComposition | null {
+    const p = this.snapshot;
+    if (
+      !p ||
+      !this.view.loaded ||
+      this.view.frozen ||
+      this.view.busy ||
+      this.imageBlocked
+    )
+      return null;
+    return {
+      majorId: p.majorId,
+      catalogRevision: p.catalogRevision,
+      majorRevision: p.majorRevision,
+      rootId: this.selectedRootId,
+      replyToReplyId: this.view.replyTarget?.id ?? null,
+    };
+  }
+  publication(): { context: MajorDiscussionComposition; body: string } | null {
+    const context = this.composition();
+    if (
+      !context ||
+      this.view.confirming !== 'publish' ||
+      !this.validComposition(this.view.body)
+    )
+      return null;
+    return { context, body: this.view.body };
   }
   confirmPublish(): void {
     if (
@@ -449,6 +521,8 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
   }
   confirmLike(id: string): void {
     if (
+      this.imagePending ||
+      this.imageBlocked ||
       this.view.busy ||
       this.view.confirming ||
       this.view.frozen ||
@@ -466,6 +540,8 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
   }
   confirmDelete(id: string): void {
     if (
+      this.imagePending ||
+      this.imageBlocked ||
       this.view.busy ||
       this.view.confirming ||
       this.view.frozen ||
@@ -479,6 +555,8 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
   }
   async inspectDeletion(id: string, own = false): Promise<void> {
     if (
+      this.imagePending ||
+      this.imageBlocked ||
       this.view.busy ||
       this.view.confirming ||
       this.view.frozen ||
@@ -588,6 +666,8 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
   }
   confirmUnlike(): void {
     if (
+      this.imagePending ||
+      this.imageBlocked ||
       this.view.busy ||
       this.view.confirming ||
       !this.view.canUnlike ||
@@ -600,7 +680,17 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
     this.update({ confirming: 'unlike', selectedComment: null });
   }
   async submit(): Promise<void> {
-    if (this.view.busy || this.view.frozen || !this.ready()) return;
+    if (
+      this.view.busy ||
+      this.view.frozen ||
+      this.imagePending ||
+      this.imageBlocked ||
+      !this.ready()
+    )
+      return;
+    // Upgraded publication belongs exclusively to its metadata-only v2 journal.
+    if (this.view.confirming === 'publish' && this.runtime.majorDiscussionV2)
+      return;
     const confirming = this.view.confirming,
       snapshot = this.snapshot,
       body = this.view.body,
@@ -700,6 +790,9 @@ export class MajorDiscussionController extends CommunityController<MajorDiscussi
                       command: { ...source, body },
                     },
         );
+        this.runtime.pendingMajorDiscussion!.assertNewAdmission(accountId);
+        if (this.runtime.majorDiscussionImages?.pending.load(accountId))
+          throw new ClientError('storage', '请先恢复或取消原图片讨论请求');
         const p = this.runtime.pendingMajorDiscussion!.freeze({
           version: 1,
           origin: this.runtime.pendingMajorDiscussion!.origin,
