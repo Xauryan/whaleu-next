@@ -1,3 +1,5 @@
+import type { WindowDiscussionImageRuntime } from '../window-discussion/image-runtime';
+import type { WindowDiscussionV2Gateway } from '../window-discussion/v2-gateway';
 import {
   HttpMajorDirectoryGateway,
   type MajorDirectoryGateway,
@@ -216,6 +218,8 @@ export interface CommunityRuntime {
   readonly majorDiscussion?: MajorDiscussionGateway;
   readonly pendingMajorDiscussion?: PendingMajorDiscussionStore;
   readonly windowDiscussion?: WindowDiscussionGateway;
+  readonly windowDiscussionV2?: WindowDiscussionV2Gateway;
+  readonly windowDiscussionImages?: WindowDiscussionImageRuntime;
   readonly pendingWindowDiscussion?: PendingWindowDiscussionStore;
   readonly postPins?: PostPinsGateway;
   readonly pendingPostPins?: PendingPostPinStore;

@@ -22,7 +22,7 @@ const credentials = (a: SessionCredentials): SessionCredentials => ({
   refreshExpiresAt: a.refreshExpiresAt,
 });
 test(
-  'emitted W3 App/Page/WXML → native discussion, flat reply targets, reversible likes, independent notices, receipt-first cold recovery and eligibility withdrawal through real HTTP/PostgreSQL',
+  'legacy-client capability compatibility harness: emitted W3 App/Page/WXML → native discussion, flat reply targets, reversible likes, independent notices, receipt-first cold recovery and eligibility withdrawal through real HTTP/PostgreSQL',
   { timeout: 240000 },
   async (t) => {
     const f = await windowDiscussionFixture();

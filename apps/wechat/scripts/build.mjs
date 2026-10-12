@@ -32,6 +32,8 @@ await copyAssets(path.join(root, 'src'), out);
 // implementation under a relative Mini Program path (never Node's crypto entry).
 for (const relative of [
   'community/view-contract.js',
+  'window-discussion/v2-contract.js',
+  'window-discussion/media-contract.js',
   'verification/evidence-contract.js',
   'verification/evidence-pending.js',
   'verification/student-contract.js',

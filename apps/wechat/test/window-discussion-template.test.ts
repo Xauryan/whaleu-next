@@ -140,3 +140,66 @@ test('all four routes registered and W1 and global recovery/notifications entryp
     /window-discussion-notices/,
   );
 });
+test('registered W3 image composer and controlled gallery render real actions and only local image source', () => {
+  const refs = [
+    {
+      windowId: item().windowId,
+      commentId: rootId,
+      bindingId: rootId,
+      ordinal: 0,
+    },
+  ];
+  const nodes = render('window-discussion', {
+    loaded: true,
+    items: [
+      { ...item(), protocol: 'window-discussion-v2', body: '', images: refs },
+    ],
+    imageEnabled: true,
+    imageCount: 1,
+    imageBusy: false,
+    imageFrozen: false,
+    canPublish: true,
+    galleryOpen: true,
+    gallerySrc: 'wxfile://tmp/controlled.png',
+    galleryStatus: '',
+    galleryIndex: 0,
+    galleryCount: 1,
+  });
+  assert.equal(buttons(nodes, 'onPickImage').length, 2);
+  assert.equal(buttons(nodes, 'onImage').length, 1);
+  assert.equal(buttons(nodes, 'onCloseGallery').length, 1);
+  const images = nodes.filter(
+    (node) => typeof node !== 'string' && node.tag === 'image',
+  );
+  assert.equal(images.length, 1);
+  assert.equal(
+    typeof images[0] !== 'string' && images[0]!.attrs.src,
+    'wxfile://tmp/controlled.png',
+  );
+  assert.match(text(nodes), /3 张/);
+  const closed = render('window-discussion', {
+    loaded: true,
+    items: [],
+    imageEnabled: true,
+    galleryOpen: false,
+  });
+  assert.equal(
+    closed.some((node) => typeof node !== 'string' && node.tag === 'image'),
+    false,
+  );
+});
+test('image recovery is available without public read state and offers explicit original cancellation', () => {
+  const nodes = render('window-discussion-recovery', {
+    imageEnabled: true,
+    imagePending: true,
+    imageRecoverable: true,
+    imageRequestId: rootId,
+    imageFrozen: true,
+    imageCancelConfirm: true,
+    imageStatus: '原请求待确认',
+  });
+  assert.equal(buttons(nodes, 'onRecoverImages').length, 1);
+  assert.equal(buttons(nodes, 'onRequestImageCancel').length, 1);
+  assert.equal(buttons(nodes, 'onConfirmImageCancel').length, 1);
+  assert.equal(buttons(nodes, 'onPickImage').length, 0);
+});

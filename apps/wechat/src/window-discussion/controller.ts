@@ -1,3 +1,5 @@
+import { decodeDiscussionV2Page } from './v2-contract';
+import type { WindowDiscussionComposition } from './image-runtime';
 import { ClientError, clientError } from '../api/errors';
 import {
   CommunityController,
@@ -139,6 +141,8 @@ const missing = (e: unknown): boolean => {
   );
 };
 export class WindowDiscussionController extends CommunityController<WindowDiscussionView> {
+  private imageCount = 0;
+  private imageBlocked = false;
   private continuation = 0;
   private selectedWindowId: string | null = null;
   private selectedRootId: string | null = null;
@@ -154,7 +158,12 @@ export class WindowDiscussionController extends CommunityController<WindowDiscus
     super(runtime, initialWindowDiscussionView, render);
     this.update({ mode });
   }
+  protected override preserveForNativePicker(): boolean {
+    return this.runtime.windowDiscussionImages?.pickerActive ?? false;
+  }
   protected override resetPrivate(): void {
+    this.imageCount = 0;
+    this.imageBlocked = false;
     this.continuation++;
     this.snapshot = null;
     this.pending = null;
@@ -320,10 +329,8 @@ export class WindowDiscussionController extends CommunityController<WindowDiscus
       async (cancel) => {
         if (notice) {
           const t = decodeDiscussionTarget(
-            await this.runtime.windowDiscussion!.target(
-              notice.noticeId,
-              cancel,
-            ),
+            await (this.runtime.windowDiscussionV2 ??
+              this.runtime.windowDiscussion)!.target(notice.noticeId, cancel),
           );
           if (
             t.windowId !== id ||
@@ -334,8 +341,13 @@ export class WindowDiscussionController extends CommunityController<WindowDiscus
           if (cancel.isCancelled)
             throw new ClientError('cancelled', 'Cancelled');
         }
-        const p = decodeDiscussionPage(
-          await this.runtime.windowDiscussion!.list(
+        const p = (
+          this.runtime.windowDiscussionV2
+            ? decodeDiscussionV2Page
+            : decodeDiscussionPage
+        )(
+          await (this.runtime.windowDiscussionV2 ??
+            this.runtime.windowDiscussion)!.list(
             id,
             rootId,
             sort,
@@ -372,7 +384,9 @@ export class WindowDiscussionController extends CommunityController<WindowDiscus
           pageNumber,
           canNext: p.nextCursor !== null,
           canPublish:
-            storageReady && !this.pending && discussionBody(this.view.body),
+            storageReady &&
+            !this.pending &&
+            this.validComposition(this.view.body),
           status: this.pending
             ? '原讨论操作结果待确认'
             : p.items.length
@@ -404,12 +418,14 @@ export class WindowDiscussionController extends CommunityController<WindowDiscus
     this.update({
       body,
       bodyBytes: discussionBytes(body),
-      canPublish: discussionBody(body),
+      canPublish: this.validComposition(body),
     });
   }
   chooseReply(id: string | null): void {
     if (
       this.mode !== 'thread' ||
+      this.imageCount > 0 ||
+      this.imageBlocked ||
       this.view.busy ||
       this.view.confirming ||
       this.view.frozen ||
@@ -420,6 +436,50 @@ export class WindowDiscussionController extends CommunityController<WindowDiscus
       id === null ? null : this.view.items.find((i) => i.id === id);
     if (id !== null && !target) return;
     this.update({ replyTarget: target ?? null });
+  }
+  private validComposition(body: string): boolean {
+    return (
+      !this.imageBlocked &&
+      (discussionBody(body) || (body === '' && this.imageCount > 0))
+    );
+  }
+  setImages(count: number, blocked: boolean): void {
+    this.imageCount = count;
+    this.imageBlocked = blocked;
+    this.update({
+      canPublish:
+        this.view.loaded &&
+        !this.view.frozen &&
+        this.validComposition(this.view.body),
+    });
+  }
+  composition(): WindowDiscussionComposition | null {
+    const p = this.snapshot;
+    if (
+      !p ||
+      !this.view.loaded ||
+      this.view.frozen ||
+      this.view.busy ||
+      this.imageBlocked
+    )
+      return null;
+    return {
+      windowId: p.windowId,
+      catalogRevision: p.catalogRevision,
+      windowRevision: p.windowRevision,
+      rootId: this.selectedRootId,
+      replyToReplyId: this.view.replyTarget?.id ?? null,
+    };
+  }
+  publication(): { context: WindowDiscussionComposition; body: string } | null {
+    const context = this.composition();
+    if (
+      !context ||
+      this.view.confirming !== 'publish' ||
+      !this.validComposition(this.view.body)
+    )
+      return null;
+    return { context, body: this.view.body };
   }
   confirmPublish(): void {
     if (

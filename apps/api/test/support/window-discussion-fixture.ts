@@ -110,8 +110,10 @@ export async function revokeWindowDiscussionReview(
     [decisionId],
   );
 }
-export async function windowDiscussionFixture() {
-  const f = await windowRatingFixture();
+export async function windowDiscussionFixture(
+  base?: Parameters<typeof windowRatingFixture>[0],
+) {
+  const f = await windowRatingFixture(base);
   const acceptDiscussion = async (ids: string[]) => {
     for (const id of ids) {
       await discussionHistory(f.pool, id, 'population');

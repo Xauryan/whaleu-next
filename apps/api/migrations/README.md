@@ -260,3 +260,13 @@ shape and authority, but materializes its complete catalog/mapping owner once
 per batch before projecting fields. Missing/inactive rows retain their requested
 ordinal and null source; the existing singular helper delegates to this same owner. It adds no accepted data, source importer, deadline
 exemption or widened proof budget. Migration `0121` is unchanged.
+
+`0123_window_discussion_media.sql` adds independent Window discussion v2 Review,
+ordered root/reply image sets and typed Media16 scopes/appearances. Publication
+atomically binds the exact reviewed set with original-key receipts and local
+notices; current whole-set proofs govern projections and derived-image delivery.
+The new bounded policy permits at most three JPEG/PNG images per root or reply,
+including image-only content. Existing SQL through 0122, text-v1 hash/receipt
+domains and raw text validation remain unchanged. No source/Review/provider is
+seeded, no creator mapping is invented, and no Window deletion or bound-image
+retirement policy is added. See [Window images v2](../../../docs/WINDOW_DISCUSSION_IMAGES.md).

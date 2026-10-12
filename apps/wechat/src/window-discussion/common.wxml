@@ -19,7 +19,7 @@
   <view class="card {{focusCommentId === item.id ? 'focused' : ''}}">
     <view class="section-title">{{item.author.displayName}}</view>
     <view wx:if="{{item.addressedAuthor}}" class="meta">回复 {{item.addressedAuthor.displayName}}</view>
-    <view class="body">{{item.body}}</view><view class="meta">{{item.createdAt}} · {{item.likes}} 个赞</view>
+    <view wx:if="{{item.body}}" class="body">{{item.body}}</view><view wx:if="{{item.images &amp;&amp; item.images.length}}" class="discussion-images"><button wx:for="{{item.images}}" wx:for-item="image" wx:key="bindingId" data-id="{{item.id}}" data-index="{{image.ordinal}}" bindtap="onImage" disabled="{{busy || imageBusy}}">查看图片 {{image.ordinal + 1}}</button></view><view class="meta">{{item.createdAt}} · {{item.likes}} 个赞</view>
     <button data-id="{{item.id}}" bindtap="onLike" disabled="{{busy || frozen || confirming}}">{{item.isLiked ? '取消我的赞' : '赞'}}</button>
     <button wx:if="{{mode === 'roots'}}" data-id="{{item.id}}" bindtap="onThread" disabled="{{busy}}">查看 {{item.replyCount}} 条回复 →</button>
     <button wx:elif="{{item.rootId}}" data-id="{{item.id}}" bindtap="onReply" disabled="{{busy || frozen || confirming}}">回复 {{item.author.displayName}}</button>
@@ -28,11 +28,26 @@
 <template name="discussion-form">
   <view wx:if="{{loaded &amp;&amp; !frozen}}" class="card">
     <view class="section-title">{{mode === 'thread' ? '使用公开昵称回复' : '使用公开昵称评论'}}</view>
-    <view wx:if="{{mode === 'thread'}}" class="notice">{{replyTarget ? '回复 ' + replyTarget.author.displayName : '回复主题作者'}}<button wx:if="{{replyTarget}}" bindtap="onReplyRoot" disabled="{{busy || confirming}}">改为回复主题</button></view>
-    <textarea value="{{body}}" maxlength="-1" bindinput="onBody" disabled="{{busy || confirming}}" placeholder="文字内容，不支持图片" />
+    <view wx:if="{{mode === 'thread'}}" class="notice">{{replyTarget ? '回复 ' + replyTarget.author.displayName : '回复主题作者'}}<button wx:if="{{replyTarget}}" bindtap="onReplyRoot" disabled="{{busy || imageBusy || imageFrozen || confirming}}">改为回复主题</button></view>
+    <textarea value="{{body}}" maxlength="-1" bindinput="onBody" disabled="{{busy || imageBusy || imageFrozen || confirming}}" placeholder="输入文字，也可以只发图片" />
     <view class="meta">{{bodyBytes}} / 8000 UTF-8 字节 · 保留原文</view>
-    <button bindtap="onConfirmPublish" disabled="{{busy || confirming || !canPublish}}">核对后发表</button>
+    <view wx:if="{{imageEnabled}}" class="discussion-images"><button data-source="album" bindtap="onPickImage" disabled="{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}">从相册添加图片</button><button data-source="camera" bindtap="onPickImage" disabled="{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}">拍照添加</button><view class="meta">{{imageCount}} / 3 张 · JPEG / PNG · 每张最多 5 MiB · 按添加顺序发表</view><view class="notice">如需移除图片或更改顺序，请先取消整组，待服务端确认后按新顺序重新选择。</view></view>
+    <button bindtap="onConfirmPublish" disabled="{{busy || imageBusy || imageFrozen || confirming || !canPublish}}">核对后发表</button>
   </view>
-  <view wx:if="{{confirming === 'publish'}}" class="card confirmation"><view class="section-title">确认以公开昵称发表</view><view class="body">{{body}}</view><view>文字独立于窗口分数，根评论不发送窗口创建者通知。</view><button bindtap="onSubmit" disabled="{{busy}}">确认发表原文</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回修改</button></view>
+  <view wx:if="{{confirming === 'publish'}}" class="card confirmation"><view class="section-title">确认以公开昵称发表</view><view class="body">{{body}}</view><view>将发表原文与 {{imageCount}} 张有序图片。讨论独立于窗口分数，根评论不发送窗口创建者通知。</view><button bindtap="onSubmit" disabled="{{busy}}">确认发表</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回修改</button></view>
   <view wx:if="{{confirming === 'like' &amp;&amp; selectedComment}}" class="card confirmation"><view class="section-title">确认{{selectedComment.isLiked ? '取消我的赞' : '点赞'}}</view><view class="body">{{selectedComment.body}}</view><view>只修改自己的点赞。其他设备上的新版本不会被覆盖。</view><button bindtap="onSubmit" disabled="{{busy}}">确认这次{{selectedComment.isLiked ? '取消点赞' : '点赞'}}</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回</button></view>
+</template>
+
+<template name="discussion-image-state">
+  <view wx:if="{{imageEnabled &amp;&amp; (imageStatus || imagePending || imageBusy)}}" class="card">
+    <view class="section-title">窗口图片讨论</view><view class="notice">{{imageStatus}}</view><view wx:if="{{imageBusy}}" class="meta">进度 {{imageProgress}}%</view>
+    <view wx:if="{{imagePending}}" class="meta">原请求：{{imageRequestId}}。本地只保存恢复编号；关闭页面后不会保留文字或图片文件。</view>
+    <button wx:if="{{imageRecoverable}}" bindtap="onRecoverImages" disabled="{{busy || imageBusy}}">查询原图片讨论回执</button>
+    <button wx:if="{{imageRecoverable}}" bindtap="onRequestImageCancel" disabled="{{busy || imageBusy}}">取消整组原图片及发表请求</button>
+    <view wx:if="{{imageCancelConfirm}}" class="confirmation"><view>确认取消此原请求及其图片上传？已发表的请求以原回执为准。</view><button bindtap="onConfirmImageCancel" disabled="{{busy || imageBusy}}">确认取消原请求</button><button bindtap="onCloseImageCancel" disabled="{{busy || imageBusy}}">返回</button></view>
+    <button wx:if="{{imageBusy}}" bindtap="onCancelWait">停止等待并保留恢复编号</button>
+  </view>
+</template>
+<template name="discussion-gallery">
+  <view wx:if="{{galleryOpen}}" class="discussion-gallery"><view class="gallery-card"><button bindtap="onCloseGallery">关闭图片</button><view>{{galleryIndex + 1}} / {{galleryCount}}</view><view wx:if="{{galleryStatus}}" class="notice">{{galleryStatus}}</view><image wx:if="{{gallerySrc}}" src="{{gallerySrc}}" mode="aspectFit" class="gallery-image" /><view class="actions"><button bindtap="onImagePrevious" disabled="{{galleryIndex === 0}}">上一张</button><button bindtap="onImageNext" disabled="{{galleryIndex + 1 >= galleryCount}}">下一张</button></view><view class="meta">图片仅在当前页面短暂显示，离开页面会关闭。</view></view></view>
 </template>

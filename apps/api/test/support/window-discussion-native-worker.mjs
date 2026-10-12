@@ -117,6 +117,11 @@ process.once('message', async (input) => {
       delete require.cache[require.resolve(`${dist}app.js`)];
       emitted('app');
       app.onLaunch();
+      // Deliberate legacy-client compatibility harness: preserve every existing
+      // v1 command/journal/receipt assertion. Default upgraded App/Page assembly
+      // is exercised separately by window-discussion-images-native-worker.mjs.
+      delete app.community.windowDiscussionV2;
+      delete app.community.windowDiscussionImages;
     }
     function login(actor) {
       currentActor = actor;

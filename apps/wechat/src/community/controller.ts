@@ -126,7 +126,8 @@ export abstract class CommunityController<V extends CommunityView> {
     this.unsubscribeRootHide =
       runtime.privateViews?.subscribe((accountId) => {
         // Named-block changes use their own scoped event, never the root-hide disposal path.
-        if (accountId === undefined) this.dispose();
+        if (accountId === undefined && !this.preserveForNativePicker())
+          this.dispose();
       }) ?? (() => undefined);
     this.owner = runtime.sessions.snapshot();
     this.view = initial();
@@ -171,6 +172,10 @@ export abstract class CommunityController<V extends CommunityView> {
     } as Partial<V>);
   }
   protected resetPrivate(): void {}
+  /** Only an explicitly owned native picker may suspend its page across picker-induced hide. */
+  protected preserveForNativePicker(): boolean {
+    return false;
+  }
   /** Read owners may reload after all of this controller's previous callbacks were invalidated. */
   protected onSafetyInvalidated(_previous: V): void {}
   protected update(patch: Partial<V>): void {

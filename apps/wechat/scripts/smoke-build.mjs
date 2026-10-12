@@ -12,7 +12,11 @@ import { smokeRatingOwnerEditing } from './smoke-rating-owner-editing.mjs';
 import { smokeRatingOwnerManagement } from './smoke-rating-owner-management.mjs';
 import { smokeRatingsR3A } from './smoke-ratings-r3a.mjs';
 import { smokeRatingsR3R } from './smoke-ratings-r3r.mjs';
-import { smokeRatings } from './smoke-ratings.mjs';
+import {
+  smokeRatings,
+  parse as parseWxml,
+  render as renderWxml,
+} from './smoke-ratings.mjs';
 import { smokeRatingsR2A } from './smoke-ratings-r2a.mjs';
 import { smokeRatingsR2B } from './smoke-ratings-r2b.mjs';
 import { smokeRatingsR2C } from './smoke-ratings-r2c.mjs';
@@ -47,6 +51,158 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 const dist = path.join(root, 'dist');
 assertCategoryScopedShaPackaging(dist);
+// Window media is part of the normal emitted App, not a test-only adapter.
+// Check every new module and the two SHA imports before any native bootstrap.
+for (const [module, exports] of [
+  [
+    'window-discussion/v2-contract',
+    [
+      'decodeDiscussionV2Intent',
+      'decodeDiscussionV2Page',
+      'computeDiscussionV2IntentHash',
+    ],
+  ],
+  ['window-discussion/v2-gateway', ['HttpWindowDiscussionV2Gateway']],
+  ['window-discussion/v2-pending', ['PendingWindowDiscussionV2Store']],
+  [
+    'window-discussion/media-contract',
+    [
+      'decodeWindowDiscussionMediaPrepare',
+      'decodeWindowDiscussionMediaDescriptor',
+    ],
+  ],
+  ['window-discussion/media-gateway', ['HttpWindowDiscussionMediaGateway']],
+  ['window-discussion/media-upload', ['WindowDiscussionMediaUpload']],
+  ['window-discussion/media-download', ['WindowDiscussionMediaDownload']],
+  [
+    'window-discussion/image-runtime',
+    [
+      'createWindowDiscussionImageRuntime',
+      'WindowDiscussionImageComposer',
+      'WindowDiscussionImageGallery',
+    ],
+  ],
+]) {
+  const file = path.join(dist, `${module}.js`);
+  assert.ok(
+    statSync(file).size > 0,
+    `Missing emitted Window module: ${module}`,
+  );
+  const value = require(file);
+  for (const name of exports)
+    assert.equal(typeof value[name], 'function', `${module}: ${name}`);
+}
+for (const module of [
+  'window-discussion/v2-contract',
+  'window-discussion/media-contract',
+]) {
+  const source = readFileSync(path.join(dist, `${module}.js`), 'utf8');
+  assert.match(
+    source,
+    /require\(["']\.\.\/vendor\/sha256["']\)/,
+    `${module}: browser-only SHA packaging`,
+  );
+  assert.doesNotMatch(
+    source,
+    /require\(["'](?:js-sha256|node:crypto|crypto)["']\)/,
+  );
+}
+const { WindowDiscussionMediaUpload } = require(
+  path.join(dist, 'window-discussion/media-upload.js'),
+);
+const { WindowDiscussionMediaDownload } = require(
+  path.join(dist, 'window-discussion/media-download.js'),
+);
+assert.equal(
+  Object.getPrototypeOf(WindowDiscussionMediaUpload.prototype),
+  require(path.join(dist, 'media/owner-image-upload.js')).OwnerImageUpload
+    .prototype,
+);
+assert.equal(
+  Object.getPrototypeOf(WindowDiscussionMediaDownload.prototype),
+  require(path.join(dist, 'media/owner-image-download.js')).OwnerImageDownload
+    .prototype,
+);
+const windowImageCommon = readFileSync(
+  path.join(dist, 'window-discussion/common.wxml'),
+  'utf8',
+);
+for (const handler of [
+  'onPickImage',
+  'onImage',
+  'onRecoverImages',
+  'onRequestImageCancel',
+  'onConfirmImageCancel',
+  'onCloseGallery',
+  'onImagePrevious',
+  'onImageNext',
+])
+  assert.match(windowImageCommon, new RegExp(`bindtap="${handler}"`));
+assert.match(windowImageCommon, /按添加顺序发表/);
+assert.match(windowImageCommon, /先取消整组/);
+assert.match(windowImageCommon, /src="{{gallerySrc}}"/);
+const imageTemplates = {};
+for (const node of parseWxml(windowImageCommon).children)
+  if (typeof node !== 'string' && node.tag === 'template' && node.attrs.name)
+    imageTemplates[node.attrs.name] = node;
+const flattenWindow = (nodes) =>
+  nodes.flatMap((node) =>
+    typeof node === 'string' ? [node] : [node, ...flattenWindow(node.children)],
+  );
+const galleryTree = imageTemplates['discussion-gallery'];
+assert.ok(galleryTree);
+const openGallery = flattenWindow(
+  renderWxml(
+    galleryTree.children,
+    {
+      galleryOpen: true,
+      gallerySrc: 'wxfile://tmp/window-smoke.png',
+      galleryStatus: '',
+      galleryIndex: 0,
+      galleryCount: 2,
+    },
+    imageTemplates,
+  ),
+);
+assert.equal(
+  openGallery.filter((node) => typeof node !== 'string' && node.tag === 'image')
+    .length,
+  1,
+);
+assert.equal(
+  openGallery.find((node) => typeof node !== 'string' && node.tag === 'image')
+    .attrs.src,
+  'wxfile://tmp/window-smoke.png',
+);
+const closedGallery = flattenWindow(
+  renderWxml(
+    galleryTree.children,
+    {
+      galleryOpen: false,
+      gallerySrc: '',
+      galleryStatus: '',
+      galleryIndex: 0,
+      galleryCount: 0,
+    },
+    imageTemplates,
+  ),
+);
+assert.equal(
+  closedGallery.some(
+    (node) => typeof node !== 'string' && node.tag === 'image',
+  ),
+  false,
+);
+for (const module of [
+  'window-discussion/page',
+  'window-discussion/image-runtime',
+  'window-discussion/media-download',
+])
+  assert.doesNotMatch(
+    readFileSync(path.join(dist, `${module}.js`), 'utf8'),
+    /\.previewImage\b/,
+  );
+
 let app;
 let page;
 let calls = 0;
@@ -383,6 +539,29 @@ for (const route of config.pages.filter(
   }
   if (route.startsWith('pages/window-discussion')) {
     assert.equal(current.validRoute, true, `${route}: valid W3 route`);
+    assert.equal(current.data.galleryOpen, false);
+    assert.equal(current.data.gallerySrc, '');
+    for (const handler of ['onCloseGallery', 'onImagePrevious', 'onImageNext'])
+      assert.equal(typeof current[handler], 'function', `${route}: ${handler}`);
+    if (route.includes('notices'))
+      assert.equal(typeof current.onNoticeImage, 'function');
+    else {
+      assert.equal(current.data.imageCount, 0);
+      assert.equal(current.data.imagePending, false);
+      assert.equal(current.data.imageBusy, false);
+      for (const handler of [
+        'onPickImage',
+        'onImage',
+        'onRecoverImages',
+        'onRequestImageCancel',
+        'onConfirmImageCancel',
+      ])
+        assert.equal(
+          typeof current[handler],
+          'function',
+          `${route}: ${handler}`,
+        );
+    }
     assert.ok(current.controller);
     assert.equal(current.data.loaded, false);
     assert.deepEqual(current.data.items, []);
@@ -427,6 +606,16 @@ for (const route of config.pages.filter(
     );
   current.onHide();
   assert.equal(current.controller, undefined);
+  if (route.startsWith('pages/window-discussion')) {
+    assert.equal(current.data.gallerySrc, '');
+    assert.equal(current.data.galleryOpen, false);
+    assert.equal(current.gallery, undefined);
+    if (!route.includes('notices')) {
+      assert.equal(current.images, undefined);
+      assert.equal(current.data.imageRequestId, '');
+      assert.equal(current.data.imageCount, 0);
+    }
+  }
   if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
   else if (route === 'pages/rating-category-create/rating-category-create')

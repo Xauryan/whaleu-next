@@ -1,3 +1,4 @@
+import { decodeDiscussionV2Notices } from './v2-contract';
 import {
   CommunityController,
   initialCommunityView,
@@ -71,8 +72,13 @@ export class WindowDiscussionNoticesController extends CommunityController<Windo
     });
     await this.run(
       async (c) => {
-        const p = decodeDiscussionNotices(
-          await this.runtime.windowDiscussion!.notices(cursor, c),
+        const p = (
+          this.runtime.windowDiscussionV2
+            ? decodeDiscussionV2Notices
+            : decodeDiscussionNotices
+        )(
+          await (this.runtime.windowDiscussionV2 ??
+            this.runtime.windowDiscussion)!.notices(cursor, c),
         );
         if (p.nextCursor !== null && p.nextCursor === cursor)
           invalidDiscussion();
@@ -99,7 +105,8 @@ export class WindowDiscussionNoticesController extends CommunityController<Windo
     await this.run(
       async (c) => {
         const t = decodeDiscussionTarget(
-          await this.runtime.windowDiscussion!.target(id, c),
+          await (this.runtime.windowDiscussionV2 ??
+            this.runtime.windowDiscussion)!.target(id, c),
         );
         if (
           t.windowId !== notice.target.windowId ||
@@ -134,7 +141,8 @@ export class WindowDiscussionNoticesController extends CommunityController<Windo
     await this.run(
       async (c) => {
         const r = decodeDiscussionRead(
-          await this.runtime.windowDiscussion!.read(id, c),
+          await (this.runtime.windowDiscussionV2 ??
+            this.runtime.windowDiscussion)!.read(id, c),
         );
         if (r.noticeId !== id) invalidDiscussion();
         return r;

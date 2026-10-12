@@ -27,6 +27,9 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/scoped-post-pin-proofs.test.ts \
   test/integration/scoped-post-pins-native-roundtrip.test.ts \
   test/integration/window-discussion.test.ts \
+  test/integration/window-discussion-media.test.ts \
+  test/integration/window-discussion-media-upgrade.test.ts \
+  test/integration/window-discussion-images-native-roundtrip.test.ts \
   test/integration/window-discussion-concurrency.test.ts \
   test/integration/window-discussion-native-roundtrip.test.ts \
   test/integration/major-directory.test.ts \

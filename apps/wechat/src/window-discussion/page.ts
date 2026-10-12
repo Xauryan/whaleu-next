@@ -1,3 +1,11 @@
+import {
+  initialWindowDiscussionImageView,
+  initialWindowDiscussionGalleryView,
+  type WindowDiscussionImageComposer,
+  type WindowDiscussionImageGallery,
+  type WindowDiscussionImageView,
+} from './image-runtime';
+import { decodeDiscussionV2Item, type DiscussionV2Notice } from './v2-contract';
 import type { WhaleuApp } from '../app';
 import { isRecord } from '../api/errors';
 import { DirectoryNavigator } from '../directory/navigation';
@@ -12,10 +20,25 @@ import {
   initialWindowDiscussionNoticesView,
 } from './notices-controller';
 import type { DiscussionTarget } from './contract';
-type Tap = { currentTarget: { dataset: { id?: string; sort?: string } } };
+type Tap = {
+  currentTarget: {
+    dataset: { id?: string; sort?: string; index?: number; source?: string };
+  };
+};
 export function registerWindowDiscussionPage(mode: DiscussionMode): void {
   Page({
-    data: { ...initialWindowDiscussionView(), mode },
+    data: {
+      ...initialWindowDiscussionView(),
+      ...initialWindowDiscussionImageView(),
+      ...initialWindowDiscussionGalleryView(),
+      imageEnabled: false,
+      imageCancelConfirm: false,
+      mode,
+    },
+    imageView: initialWindowDiscussionImageView() as WindowDiscussionImageView,
+    images: undefined as WindowDiscussionImageComposer | undefined,
+    gallery: undefined as WindowDiscussionImageGallery | undefined,
+    pickerSuspended: false,
     windowId: null as string | null,
     rootId: null as string | null,
     validRoute: false,
@@ -52,6 +75,11 @@ export function registerWindowDiscussionPage(mode: DiscussionMode): void {
         : null;
     },
     onShow() {
+      if (this.pickerSuspended && this.controller && this.images) {
+        this.pickerSuspended = false;
+        this.images.resumePicker();
+        return;
+      }
       this.onHide();
       const runtime = getApp<WhaleuApp>().community;
       if (!runtime || !this.validRoute) {
@@ -82,15 +110,36 @@ export function registerWindowDiscussionPage(mode: DiscussionMode): void {
         runtime.privateViews?.subscribe((account) => {
           if (account === undefined) this.navigator?.dispose();
         }),
-        runtime.safetyChanges?.subscribe(() => this.navigator?.dispose()),
+        runtime.safetyChanges?.subscribe(() => {
+          this.navigator?.dispose();
+          this.images?.clear();
+          this.gallery?.clear();
+        }),
       ];
       this.unsubscribe = () => stops.forEach((stop) => stop?.());
       this.controller = new WindowDiscussionController(runtime, mode, (view) =>
         this.setData({ ...view }),
       );
+      if (runtime.windowDiscussionImages) {
+        this.setData({ imageEnabled: true });
+        this.images = runtime.windowDiscussionImages.createComposer((view) => {
+          this.imageView = view;
+          this.setData({ ...view });
+          this.controller?.setImages(
+            view.imageCount,
+            view.imageFrozen || view.imageBusy,
+          );
+        });
+        this.gallery = runtime.windowDiscussionImages.createGallery((view) =>
+          this.setData({ ...view }),
+        );
+        this.images.restore();
+      }
       void this.controller.load(this.windowId, this.rootId, this.notice);
     },
     onRefresh() {
+      this.images?.restore();
+      this.gallery?.clear();
       this.navigator?.dispose();
       this.navigator = new DirectoryNavigator(wx, () =>
         this.setData({ error: '暂不能打开讨论，请重试' }),
@@ -98,9 +147,11 @@ export function registerWindowDiscussionPage(mode: DiscussionMode): void {
       void this.controller?.reload();
     },
     onNext() {
+      this.gallery?.clear();
       void this.controller?.next();
     },
     onSort(e: Tap) {
+      this.gallery?.clear();
       void this.controller?.setSort(e.currentTarget.dataset.sort);
     },
     onBody(e: { detail: { value: string } }) {
@@ -119,12 +170,74 @@ export function registerWindowDiscussionPage(mode: DiscussionMode): void {
       this.controller?.chooseReply(null);
     },
     onThread(e: Tap) {
+      this.gallery?.clear();
       this.navigator?.open(
         this.controller?.threadPath(e.currentTarget.dataset.id ?? '') ?? null,
       );
     },
-    onSubmit() {
-      void this.controller?.submit();
+    async onSubmit() {
+      if (this.images && this.data.confirming === 'publish') {
+        const input = this.controller?.publication();
+        if (!input || this.imageView.imageBusy) return;
+        this.gallery?.clear();
+        await this.images.publish(input.context, input.body);
+        this.controller?.cancel();
+        await this.controller?.reload();
+      } else if (!this.imageView.imageBusy && !this.imageView.imageFrozen)
+        await this.controller?.submit();
+    },
+    onPickImage(e: Tap) {
+      const context = this.controller?.composition();
+      if (!context || this.imageView.imageBusy || this.imageView.imageFrozen)
+        return;
+      this.gallery?.clear();
+      void this.images?.pick(
+        context,
+        e.currentTarget.dataset.source === 'camera' ? 'camera' : 'album',
+      );
+    },
+    onRecoverImages() {
+      void this.images?.recover().then((receipt) => {
+        if (receipt) void this.controller?.reload();
+      });
+    },
+    onRequestImageCancel() {
+      if (!this.imageView.imageBusy) this.setData({ imageCancelConfirm: true });
+    },
+    onCloseImageCancel() {
+      if (!this.imageView.imageBusy)
+        this.setData({ imageCancelConfirm: false });
+    },
+    async onConfirmImageCancel() {
+      if (this.imageView.imageBusy || !this.data.imageCancelConfirm) return;
+      this.setData({ imageCancelConfirm: false });
+      const receipt = await this.images?.cancelOriginal();
+      if (receipt) {
+        this.controller?.cancel();
+        await this.controller?.reload();
+      }
+    },
+    onImage(e: Tap) {
+      const item = [
+        ...(this.data.root ? [this.data.root] : []),
+        ...this.data.items,
+      ].find((value) => value.id === e.currentTarget.dataset.id);
+      if (!item || !('protocol' in item) || this.imageView.imageBusy) return;
+      const current = decodeDiscussionV2Item(item);
+      if (current.images.length)
+        void this.gallery?.open(
+          current.images,
+          Number(e.currentTarget.dataset.index ?? 0),
+        );
+    },
+    onImagePrevious() {
+      void this.gallery?.move(-1);
+    },
+    onImageNext() {
+      void this.gallery?.move(1);
+    },
+    onCloseGallery() {
+      this.gallery?.clear();
     },
     onCloseConfirmation() {
       this.controller?.closeConfirmation();
@@ -142,6 +255,9 @@ export function registerWindowDiscussionPage(mode: DiscussionMode): void {
       void this.controller?.confirmCancellation();
     },
     onCancelWait() {
+      this.images?.clear();
+      this.images?.restore();
+      this.gallery?.clear();
       this.controller?.cancel();
     },
     onOwnWindow(e: { detail: { value: string } }) {
@@ -162,6 +278,22 @@ export function registerWindowDiscussionPage(mode: DiscussionMode): void {
       );
     },
     onHide() {
+      this.gallery?.clear();
+      if (this.images?.suspendPicker()) {
+        this.pickerSuspended = true;
+        return;
+      }
+      this.images?.dispose();
+      this.images = undefined;
+      this.gallery?.dispose();
+      this.gallery = undefined;
+      this.pickerSuspended = false;
+      this.imageView = initialWindowDiscussionImageView();
+      this.setData({
+        ...initialWindowDiscussionImageView(),
+        ...initialWindowDiscussionGalleryView(),
+        imageCancelConfirm: false,
+      });
       this.unsubscribe?.();
       this.unsubscribe = undefined;
       this.navigator?.dispose();
@@ -170,13 +302,19 @@ export function registerWindowDiscussionPage(mode: DiscussionMode): void {
       this.controller = undefined;
     },
     onUnload() {
+      this.images?.clear();
+      this.pickerSuspended = false;
       this.onHide();
     },
   });
 }
 export function registerWindowDiscussionNoticesPage(): void {
   Page({
-    data: initialWindowDiscussionNoticesView(),
+    data: {
+      ...initialWindowDiscussionNoticesView(),
+      ...initialWindowDiscussionGalleryView(),
+    },
+    gallery: undefined as WindowDiscussionImageGallery | undefined,
     validRoute: false,
     controller: undefined as WindowDiscussionNoticesController | undefined,
     navigator: undefined as DirectoryNavigator | undefined,
@@ -212,15 +350,22 @@ export function registerWindowDiscussionNoticesPage(): void {
         runtime.privateViews?.subscribe((a) => {
           if (a === undefined) this.navigator?.dispose();
         }),
-        runtime.safetyChanges?.subscribe(() => this.navigator?.dispose()),
+        runtime.safetyChanges?.subscribe(() => {
+          this.navigator?.dispose();
+          this.gallery?.clear();
+        }),
       ];
       this.unsubscribe = () => stops.forEach((stop) => stop?.());
       this.controller = new WindowDiscussionNoticesController(runtime, (view) =>
         this.setData({ ...view }),
       );
+      this.gallery = runtime.windowDiscussionImages?.createGallery((view) =>
+        this.setData({ ...view }),
+      );
       void this.controller.reload();
     },
     onRefresh() {
+      this.gallery?.clear();
       this.navigator?.dispose();
       this.navigator = new DirectoryNavigator(wx, () =>
         this.setData({ error: '暂不能打开通知，请重试' }),
@@ -228,20 +373,45 @@ export function registerWindowDiscussionNoticesPage(): void {
       void this.controller?.reload();
     },
     onNext() {
+      this.gallery?.clear();
       void this.controller?.next();
     },
+    onNoticeImage(e: Tap) {
+      const notice = (this.data.items as readonly DiscussionV2Notice[]).find(
+        (value) => value.noticeId === e.currentTarget.dataset.id,
+      );
+      if (
+        notice?.status === 'available' &&
+        notice.kind === 'reply' &&
+        notice.preview.thumbnail
+      )
+        void this.gallery?.open([notice.preview.thumbnail]);
+    },
+    onCloseGallery() {
+      this.gallery?.clear();
+    },
+    onImagePrevious() {
+      void this.gallery?.move(-1);
+    },
+    onImageNext() {
+      void this.gallery?.move(1);
+    },
     onOpen(e: Tap) {
+      this.gallery?.clear();
       void this.controller?.open(e.currentTarget.dataset.id ?? '', (path) =>
         this.navigator?.open(path),
       );
     },
     onRead(e: Tap) {
+      this.gallery?.clear();
       void this.controller?.read(e.currentTarget.dataset.id ?? '');
     },
     onCancelWait() {
       this.controller?.cancel();
     },
     onHide() {
+      this.gallery?.dispose();
+      this.gallery = undefined;
       this.unsubscribe?.();
       this.unsubscribe = undefined;
       this.navigator?.dispose();

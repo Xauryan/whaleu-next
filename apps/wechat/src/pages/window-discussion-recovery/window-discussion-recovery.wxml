@@ -8,3 +8,6 @@
 <button wx:if="{{canUnlike}}" bindtap="onUnlike" disabled="{{busy || frozen || confirming}}">核对后取消我的赞</button>
 <view wx:if="{{confirming === 'unlike'}}" class="confirmation"><view>确认取消当前账号对评论 {{ownCommentDraft}} 的赞？</view><button bindtap="onSubmit" disabled="{{busy}}">确认取消我的赞</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回</button></view></view>
 <navigator class="link" url="/pages/window-discussion-notices/window-discussion-notices">窗口讨论通知 →</navigator></view>
+
+<template is="discussion-image-state" data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}" />
+<template is="discussion-gallery" data="{{galleryOpen,gallerySrc,galleryStatus,galleryIndex,galleryCount}}" />

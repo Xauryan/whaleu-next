@@ -91,6 +91,7 @@ export class NativeMediaReadBridge {
     private readonly root: string,
     private readonly owner:
       | 'private-messages'
+      | 'window-discussions'
       | 'community'
       | 'school-configuration'
       | 'organizations'
@@ -103,6 +104,7 @@ export class NativeMediaReadBridge {
     port: number,
     owner:
       | 'private-messages'
+      | 'window-discussions'
       | 'community'
       | 'school-configuration'
       | 'organizations'
@@ -161,23 +163,30 @@ export class NativeMediaReadBridge {
     assert.equal(url.origin, nativeOrigin);
     assert.match(
       url.pathname,
-      this.owner === 'private-messages'
-        ? /^\/v3\/media\/private-messages\/conversations\/[^/]+\/messages\/[^/]+\/bindings\/[^/]+\/(thumb-v1|display-v1)$/
-        : this.owner === 'errands'
-          ? /^\/v3\/media\/errands\/orders\/[a-f0-9-]{36}\/(public[0-2]|private[0-2])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-          : this.owner === 'verification-evidence'
-            ? /^\/v3\/media\/verification-evidence\/applications\/[a-f0-9-]{36}\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-            : this.owner === 'announcements'
-              ? /^\/v3\/media\/announcements\/(public|management)\/announcements\/[a-f0-9-]{36}\/slots\/gallery[0-8]\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-              : this.owner === 'activities'
-                ? /^\/v3\/media\/activities\/(public|management)\/activities\/[a-f0-9-]{36}\/slots\/(cover|gallery[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-                : this.owner === 'organizations'
-                  ? /^\/v3\/media\/organizations\/(public|management)\/organizations\/[a-f0-9-]{36}\/slots\/(avatar|mainQr|managerContact|linkedOfficialQr|introImage[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-                  : this.owner === 'school-configuration'
-                    ? /^\/v3\/media\/school-configuration\/(entries\/(treehole|trading|errand|official_account|admin)|errands\/[a-f0-9-]{36})\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-                    : /^\/v1\/media\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i,
+      this.owner === 'window-discussions'
+        ? /^\/v3\/media\/window-discussions\/windows\/[a-f0-9-]{36}\/comments\/[a-f0-9-]{36}\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+        : this.owner === 'private-messages'
+          ? /^\/v3\/media\/private-messages\/conversations\/[^/]+\/messages\/[^/]+\/bindings\/[^/]+\/(thumb-v1|display-v1)$/
+          : this.owner === 'errands'
+            ? /^\/v3\/media\/errands\/orders\/[a-f0-9-]{36}\/(public[0-2]|private[0-2])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+            : this.owner === 'verification-evidence'
+              ? /^\/v3\/media\/verification-evidence\/applications\/[a-f0-9-]{36}\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+              : this.owner === 'announcements'
+                ? /^\/v3\/media\/announcements\/(public|management)\/announcements\/[a-f0-9-]{36}\/slots\/gallery[0-8]\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+                : this.owner === 'activities'
+                  ? /^\/v3\/media\/activities\/(public|management)\/activities\/[a-f0-9-]{36}\/slots\/(cover|gallery[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+                  : this.owner === 'organizations'
+                    ? /^\/v3\/media\/organizations\/(public|management)\/organizations\/[a-f0-9-]{36}\/slots\/(avatar|mainQr|managerContact|linkedOfficialQr|introImage[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+                    : this.owner === 'school-configuration'
+                      ? /^\/v3\/media\/school-configuration\/(entries\/(treehole|trading|errand|official_account|admin)|errands\/[a-f0-9-]{36})\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+                      : /^\/v1\/media\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i,
     );
-    if (this.owner === 'errands') {
+    if (this.owner === 'window-discussions') {
+      assert.deepEqual([...url.searchParams.keys()], ['ordinal']);
+      assert.match(url.searchParams.get('ordinal') ?? '', /^[0-2]$/);
+      assert.deepEqual(Object.keys(input.header), ['Authorization']);
+      assert.ok(input.header['Authorization']);
+    } else if (this.owner === 'errands') {
       assert.deepEqual([...url.searchParams.keys()], ['revision']);
       assert.match(url.searchParams.get('revision') ?? '', /^[1-9][0-9]*$/);
       assert.deepEqual(Object.keys(input.header), ['Authorization']);

@@ -1,3 +1,21 @@
+import { WindowDiscussionMediaService } from './media/facade.js';
+import { WindowDiscussionMediaOwner } from './media-owner.js';
+import { WindowDiscussionMediaReviewFacade } from '../../../community/content-review/window-discussion-media-review.facade.js';
+import {
+  WINDOW_DISCUSSION_V2,
+  windowDiscussionIntentHashV2,
+  windowDiscussionReceiptV2Schema,
+  windowDiscussionPageV2Schema,
+  windowDiscussionNoticePageV2Schema,
+} from './contracts-v2.js';
+import type {
+  WindowRootPublishV2,
+  WindowReplyPublishV2,
+  WindowDiscussionOperationV2,
+  WindowDiscussionReceiptV2,
+  WindowDiscussionCancelV2,
+  WindowDiscussionItemV2,
+} from './contracts-v2.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -44,13 +62,43 @@ const profiles = requiredOwnerEpoch(
   profileCountProofOwner,
   'WINDOW_DISCUSSION_HISTORY_UNAVAILABLE',
 );
-type Command = WindowRootPublish | WindowReplyPublish | WindowDiscussionLike;
+type LegacyCommand =
+  WindowRootPublish | WindowReplyPublish | WindowDiscussionLike;
+type Command = LegacyCommand | WindowRootPublishV2 | WindowReplyPublishV2;
+type Operation = WindowDiscussionOperation | WindowDiscussionOperationV2;
+type Receipt = WindowDiscussionReceipt | WindowDiscussionReceiptV2;
+const receiptSchema = (operation: string) =>
+  operation.endsWith('.v2')
+    ? windowDiscussionReceiptV2Schema
+    : windowDiscussionReceiptSchema;
+const intentHash = (
+  actor: string,
+  window: string,
+  subject: string | null,
+  operation: Operation,
+  command: Command,
+) =>
+  operation.endsWith('.v2')
+    ? windowDiscussionIntentHashV2(
+        actor,
+        window,
+        subject,
+        operation as WindowDiscussionOperationV2,
+        command as WindowRootPublishV2 | WindowReplyPublishV2,
+      )
+    : windowDiscussionIntentHash(
+        actor,
+        window,
+        subject,
+        operation as WindowDiscussionOperation,
+        command as LegacyCommand,
+      );
 export function windowDiscussionIntentHash(
   actorId: string,
   windowId: string,
   subjectId: string | null,
   operation: WindowDiscussionOperation,
-  command: Command,
+  command: LegacyCommand,
 ) {
   return createHash('sha256')
     .update(
@@ -70,6 +118,7 @@ interface Row {
   created_at: Date;
   time: string;
   status: string;
+  publication_version: number;
   likes: string;
   own_revision: string | null;
   own_active: boolean | null;
@@ -84,6 +133,12 @@ interface Own {
 @Injectable()
 export class WindowDiscussionService {
   constructor(
+    @Inject(WindowDiscussionMediaService)
+    private readonly media: WindowDiscussionMediaService,
+    @Inject(WindowDiscussionMediaOwner)
+    private readonly mediaOwner: WindowDiscussionMediaOwner,
+    @Inject(WindowDiscussionMediaReviewFacade)
+    private readonly mediaReview: WindowDiscussionMediaReviewFacade,
     @Inject(DatabaseService) private readonly db: DatabaseService,
     @Inject(IdentityService) private readonly identity: IdentityService,
     @Inject(RatingVerificationFacade)
@@ -116,8 +171,8 @@ export class WindowDiscussionService {
         throw error;
       });
   }
-  private async session(token: string, tx: PoolClient) {
-    await lockSafetyPolicy(tx);
+  private async session(token: string, tx: PoolClient, mediaWrite = false) {
+    await lockSafetyPolicy(tx, mediaWrite);
     return this.identity.session(token, tx);
   }
   private async eligible(actor: string, tx: PoolClient) {
@@ -197,7 +252,7 @@ export class WindowDiscussionService {
   private async rows(actor: string, id: string, tx: PoolClient) {
     const result = (
       await tx.query<{ rows: unknown[]; until: string }>(
-        `WITH instant AS MATERIALIZED(SELECT clock_timestamp() now), candidates AS MATERIALIZED(SELECT c.* FROM whaleu_ratings.window_discussion_comments c WHERE c.window_id=$1 ORDER BY c.id LIMIT 1001) SELECT coalesce((SELECT jsonb_agg(jsonb_build_object('id',c.id,'window_id',c.window_id,'root_id',c.root_id,'reply_to_reply_id',c.reply_to_reply_id,'reply_to_actor_id',c.reply_to_actor_id,'actor_id',c.actor_id,'body',c.body,'created_at',c.created_at,'time',(extract(epoch FROM c.created_at)*1000000)::bigint::text,'status',whaleu_ratings.window_discussion_visibility(c.id,$2,instant.now),'likes',(SELECT count(*)::text FROM whaleu_ratings.window_discussion_like_heads h JOIN whaleu_ratings.window_discussion_like_events e ON e.id=h.revision WHERE h.window_id=c.window_id AND h.comment_id=c.id AND e.active),'own_revision',(SELECT h.revision FROM whaleu_ratings.window_discussion_like_heads h WHERE h.window_id=c.window_id AND h.comment_id=c.id AND h.actor_id=$2),'own_active',(SELECT e.active FROM whaleu_ratings.window_discussion_like_heads h JOIN whaleu_ratings.window_discussion_like_events e ON e.id=h.revision WHERE h.window_id=c.window_id AND h.comment_id=c.id AND h.actor_id=$2)) ORDER BY c.id) FROM candidates c),'[]'::jsonb) rows,least(instant.now+interval '10 minutes',whaleu_ratings.window_discussion_deadline($1,instant.now))::text until FROM instant`,
+        `WITH instant AS MATERIALIZED(SELECT clock_timestamp() now), candidates AS MATERIALIZED(SELECT c.* FROM whaleu_ratings.window_discussion_comments c WHERE c.window_id=$1 ORDER BY c.id LIMIT 1001) SELECT coalesce((SELECT jsonb_agg(jsonb_build_object('id',c.id,'window_id',c.window_id,'root_id',c.root_id,'reply_to_reply_id',c.reply_to_reply_id,'reply_to_actor_id',c.reply_to_actor_id,'actor_id',c.actor_id,'publication_version',c.publication_version,'body',c.body,'created_at',c.created_at,'time',(extract(epoch FROM c.created_at)*1000000)::bigint::text,'status',whaleu_ratings.window_discussion_visibility(c.id,$2,instant.now),'likes',(SELECT count(*)::text FROM whaleu_ratings.window_discussion_like_heads h JOIN whaleu_ratings.window_discussion_like_events e ON e.id=h.revision WHERE h.window_id=c.window_id AND h.comment_id=c.id AND e.active),'own_revision',(SELECT h.revision FROM whaleu_ratings.window_discussion_like_heads h WHERE h.window_id=c.window_id AND h.comment_id=c.id AND h.actor_id=$2),'own_active',(SELECT e.active FROM whaleu_ratings.window_discussion_like_heads h JOIN whaleu_ratings.window_discussion_like_events e ON e.id=h.revision WHERE h.window_id=c.window_id AND h.comment_id=c.id AND h.actor_id=$2)) ORDER BY c.id) FROM candidates c),'[]'::jsonb) rows,least(instant.now+interval '10 minutes',whaleu_ratings.window_discussion_deadline($1,instant.now))::text until FROM instant`,
         [id, actor],
       )
     ).rows[0]!;
@@ -231,7 +286,8 @@ export class WindowDiscussionService {
     row: Row,
     rows: Row[],
     tx: PoolClient,
-  ): Promise<WindowDiscussionItem> {
+    v2 = false,
+  ): Promise<WindowDiscussionItem | WindowDiscussionItemV2> {
     const target = row.reply_to_reply_id
       ? rows.find(
           (r) =>
@@ -241,6 +297,12 @@ export class WindowDiscussionService {
         )
       : undefined;
     return {
+      ...(v2
+        ? {
+            protocol: WINDOW_DISCUSSION_V2,
+            images: await this.imageReferences(row, tx),
+          }
+        : {}),
       id: row.id,
       windowId: row.window_id,
       rootId: row.root_id,
@@ -258,11 +320,29 @@ export class WindowDiscussionService {
       myMembershipRevision: row.own_revision,
     };
   }
+  private async imageReferences(
+    row: Pick<Row, 'id' | 'window_id' | 'publication_version'>,
+    tx: PoolClient,
+  ) {
+    if (row.publication_version !== 2) return [];
+    return (
+      await tx.query<{
+        windowId: string;
+        commentId: string;
+        bindingId: string;
+        ordinal: number;
+      }>(
+        `SELECT window_id "windowId",comment_id "commentId",binding_id "bindingId",ordinal FROM whaleu_media.window_discussion_appearances WHERE comment_id=$1 AND window_id=$2 ORDER BY ordinal`,
+        [row.id, row.window_id],
+      )
+    ).rows;
+  }
   page(
     token: string,
     id: string,
     query: WindowDiscussionQuery,
     rootId: string | null = null,
+    v2 = false,
   ) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -270,7 +350,11 @@ export class WindowDiscussionService {
         source = await discussionSource(id, tx),
         epoch = await discussionEpoch(tx),
         profile = await profiles(tx),
+        mediaEpoch = await this.media.retainCurrent(tx),
+        topology = v2 ? await this.mediaOwner.retainTopology(tx) : null,
         snapshot = await this.rows(session.accountId, id, tx);
+      if (!v2 && snapshot.rows.some((r) => r.publication_version === 2))
+        throw new ApplicationError('WINDOW_DISCUSSION_HISTORY_UNAVAILABLE');
       const root = rootId
         ? snapshot.rows.find(
             (r) =>
@@ -280,7 +364,9 @@ export class WindowDiscussionService {
       if (rootId && !root)
         throw new ApplicationError('WINDOW_DISCUSSION_NOT_FOUND');
       const scope = discussionCursorScope([
-        'window-discussion-v1',
+        v2 ? 'window-discussion-v2' : 'window-discussion-v1',
+        mediaEpoch,
+        topology,
         session.accountId,
         session.sessionId,
         id,
@@ -337,18 +423,21 @@ export class WindowDiscussionService {
                 tx,
               )
             : null;
-      const items: WindowDiscussionItem[] = [];
+      const items: (WindowDiscussionItem | WindowDiscussionItemV2)[] = [];
       for (const row of chosen)
-        items.push(await this.project(row, snapshot.rows, tx));
+        items.push(await this.project(row, snapshot.rows, tx, v2));
       const rootView = root
-        ? await this.project(root, snapshot.rows, tx)
+        ? await this.project(root, snapshot.rows, tx, v2)
         : null;
       await retainDiscussion(session.accountId, session.sessionId, id, tx, {
         source,
         epoch,
       });
       await this.identity.session(token, tx);
-      return windowDiscussionPageSchema.parse({
+      return (
+        v2 ? windowDiscussionPageV2Schema : windowDiscussionPageSchema
+      ).parse({
+        ...(v2 ? { protocol: WINDOW_DISCUSSION_V2 } : {}),
         windowId: id,
         catalogRevision: source.catalog,
         windowRevision: source.revision,
@@ -390,9 +479,9 @@ export class WindowDiscussionService {
     session: string,
     id: string,
     subject: string | null,
-    operation: WindowDiscussionOperation,
+    operation: Operation,
     command: Command,
-    receipt: WindowDiscussionReceipt,
+    receipt: Receipt,
     tx: PoolClient,
   ) {
     await tx.query(
@@ -405,7 +494,7 @@ export class WindowDiscussionService {
         subject,
         operation,
         command,
-        windowDiscussionIntentHash(actor, id, subject, operation, command),
+        intentHash(actor, id, subject, operation, command),
         receipt,
       ],
     );
@@ -461,26 +550,158 @@ export class WindowDiscussionService {
       true,
     );
   }
+  publishV2(token: string, id: string, command: WindowRootPublishV2) {
+    return this.mutate(
+      token,
+      id,
+      null,
+      'window.discussion.root.v2',
+      command,
+      false,
+    );
+  }
+  replyV2(
+    token: string,
+    id: string,
+    root: string,
+    command: WindowReplyPublishV2,
+  ) {
+    return this.mutate(
+      token,
+      id,
+      root,
+      'window.discussion.reply.v2',
+      command,
+      false,
+    );
+  }
+  private async mediaCancelPrior(actor: string, key: string, tx: PoolClient) {
+    return (
+      await tx.query<{
+        window_id: string;
+        root_id: string | null;
+        operation: string;
+        intent_hash: string | null;
+        receipt: unknown;
+      }>(
+        'SELECT window_id,root_id,operation,intent_hash,receipt FROM whaleu_ratings.window_discussion_media_cancels WHERE actor_id=$1 AND request_id=$2',
+        [actor, key],
+      )
+    ).rows[0];
+  }
+  private assertMediaCancel(
+    fence: {
+      window_id: string;
+      root_id: string | null;
+      operation: string;
+      intent_hash: string | null;
+    },
+    window: string,
+    root: string | null,
+    operation: string,
+    hash: string | null,
+  ) {
+    if (
+      fence.window_id !== window ||
+      fence.root_id !== root ||
+      fence.operation !== operation ||
+      (fence.intent_hash !== null && fence.intent_hash !== hash)
+    )
+      throw new ApplicationError('REQUEST_CONFLICT');
+  }
+  receiptV2(token: string, key: string) {
+    return this.run(async (tx) => {
+      const session = await this.session(token, tx);
+      const prior =
+        (await this.prior(session.accountId, key, tx)) ??
+        (await this.mediaCancelPrior(session.accountId, key, tx));
+      if (!prior) throw new ApplicationError('REQUEST_NOT_FOUND');
+      await this.identity.session(token, tx);
+      const parsed = windowDiscussionReceiptV2Schema.safeParse(prior.receipt);
+      if (!parsed.success) throw new ApplicationError('REQUEST_CONFLICT');
+      return parsed.data;
+    });
+  }
+  cancelV2(token: string, key: string, input: WindowDiscussionCancelV2) {
+    return this.run(async (tx) => {
+      const session = await this.session(token, tx),
+        actor = session.accountId,
+        root = 'rootId' in input ? input.rootId : null;
+      await tx.query(
+        'SELECT whaleu_ratings.window_discussion_lock($1,$2,NULL)',
+        [actor, key],
+      );
+      const prior = await this.prior(actor, key, tx);
+      if (prior) {
+        if (input.intentHash === null || prior.intent_hash !== input.intentHash)
+          throw new ApplicationError('REQUEST_CONFLICT');
+        const parsed = windowDiscussionReceiptV2Schema.safeParse(prior.receipt);
+        if (
+          !parsed.success ||
+          parsed.data.operation !== input.operation ||
+          parsed.data.windowId !== input.windowId ||
+          ('rootId' in parsed.data ? parsed.data.rootId : null) !== root
+        )
+          throw new ApplicationError('REQUEST_CONFLICT');
+        await this.identity.session(token, tx);
+        return parsed.data;
+      }
+      const fence = await this.mediaCancelPrior(actor, key, tx);
+      if (fence) {
+        this.assertMediaCancel(
+          fence,
+          input.windowId,
+          root,
+          input.operation,
+          input.intentHash,
+        );
+        return windowDiscussionReceiptV2Schema.parse(fence.receipt);
+      }
+      const receipt = windowDiscussionReceiptV2Schema.parse({
+        requestId: key,
+        windowId: input.windowId,
+        operation: input.operation,
+        ...(root ? { rootId: root } : {}),
+        outcome: 'rejected',
+        code: 'WINDOW_DISCUSSION_CANCELLED',
+      });
+      await tx.query(
+        'INSERT INTO whaleu_ratings.window_discussion_media_cancels(actor_id,request_id,session_id,window_id,root_id,operation,intent_hash,receipt) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+        [
+          actor,
+          key,
+          session.sessionId,
+          input.windowId,
+          root,
+          input.operation,
+          input.intentHash,
+          receipt,
+        ],
+      );
+      await this.identity.session(token, tx);
+      return receipt;
+    });
+  }
   private mutate(
     token: string,
     id: string,
     subject: string | null,
-    operation: WindowDiscussionOperation,
+    operation: Operation,
     command: Command,
     cancel: boolean,
   ) {
     return this.run(async (tx) => {
-      const session = await this.session(token, tx),
+      // Media scope/binding statement writers require the exclusive policy
+      // gate. Acquire it before the publication key, never upgrade a shared
+      // gate while a same-key waiter still owns the other shared gate.
+      const session = await this.session(token, tx, operation.endsWith('.v2')),
         actor = session.accountId,
-        hash = windowDiscussionIntentHash(
-          actor,
-          id,
-          subject,
-          operation,
-          command,
-        ),
+        hash = intentHash(actor, id, subject, operation, command),
         pub = operation !== 'window.discussion.like.v1',
-        isReply = operation === 'window.discussion.reply.v1';
+        isReply =
+          operation === 'window.discussion.reply.v1' ||
+          operation === 'window.discussion.reply.v2',
+        v2 = operation.endsWith('.v2');
       await tx.query('SELECT whaleu_ratings.window_discussion_lock($1,$2,$3)', [
         actor,
         command.clientRequestId,
@@ -491,7 +712,18 @@ export class WindowDiscussionService {
         if (prior.intent_hash !== hash)
           throw new ApplicationError('REQUEST_CONFLICT');
         await this.identity.session(token, tx);
-        return windowDiscussionReceiptSchema.parse(prior.receipt);
+        return receiptSchema(operation).parse(prior.receipt);
+      }
+      if (v2) {
+        const fence = await this.mediaCancelPrior(
+          actor,
+          command.clientRequestId,
+          tx,
+        );
+        if (fence) {
+          this.assertMediaCancel(fence, id, subject, operation, hash);
+          return windowDiscussionReceiptV2Schema.parse(fence.receipt);
+        }
       }
       const base = {
         requestId: command.clientRequestId,
@@ -500,7 +732,7 @@ export class WindowDiscussionService {
         ...(isReply ? { rootId: subject } : pub ? {} : { commentId: subject }),
       };
       if (cancel) {
-        const receipt = windowDiscussionReceiptSchema.parse({
+        const receipt = receiptSchema(operation).parse({
           ...base,
           outcome: 'rejected',
           code: 'WINDOW_DISCUSSION_CANCELLED',
@@ -524,6 +756,11 @@ export class WindowDiscussionService {
       let source: DiscussionSource | undefined,
         history: string | null = null;
       if (positive) {
+        await this.mediaOwner.retainTopology(tx);
+        // Legacy publication and likes do not write Media. Retain the epoch
+        // before their target read so an image sibling cannot change unseen.
+        // V2 publication captures after its own atomic binding writes instead.
+        if (!v2) await this.media.retainCurrent(tx);
         await this.eligible(actor, tx);
         source = await discussionSource(id, tx);
       } else if (!own) {
@@ -531,19 +768,20 @@ export class WindowDiscussionService {
         if (!history)
           throw new ApplicationError('WINDOW_DISCUSSION_HISTORY_UNAVAILABLE');
       }
-      let receipt: WindowDiscussionReceipt;
+      let receipt: Receipt;
       if (
         source &&
         (source.catalog !== command.expectedCatalogRevision ||
           source.revision !== command.expectedWindowRevision)
       )
-        receipt = windowDiscussionReceiptSchema.parse({
+        receipt = receiptSchema(operation).parse({
           ...base,
           outcome: 'rejected',
           code: 'WINDOW_REVISION_CONFLICT',
         });
       else if (pub) {
-        const publication = command as WindowReplyPublish,
+        const publication = command as
+            WindowReplyPublish | WindowReplyPublishV2,
           root = isReply
             ? await this.target(actor, id, subject!, tx, null)
             : null,
@@ -557,25 +795,60 @@ export class WindowDiscussionService {
                   root!.id,
                 )
               : null;
-        const decision = await this.review.consume(
-          {
-            version: 1,
-            purpose: operation as
-              'window.discussion.root.v1' | 'window.discussion.reply.v1',
-            actorId: actor,
-            requestId: command.clientRequestId,
-            windowId: id,
-            catalogRevision: command.expectedCatalogRevision,
-            windowRevision: command.expectedWindowRevision,
-            body: publication.body,
-            rootId: root?.id ?? null,
-            replyToReplyId: target?.id ?? null,
-            replyToActorId: target?.actor_id ?? null,
-          },
-          tx,
-        );
+        const images = 'images' in publication ? publication.images : [];
+        const mediaContext = v2
+          ? {
+              windowId: id,
+              publicationRequestId: command.clientRequestId,
+              catalogRevision: command.expectedCatalogRevision,
+              windowRevision: command.expectedWindowRevision,
+              rootId: root?.id ?? null,
+              replyToReplyId: target?.id ?? null,
+              contextDigest: (
+                await this.mediaOwner.context(
+                  actor,
+                  {
+                    windowId: id,
+                    publicationRequestId: command.clientRequestId,
+                    catalogRevision: command.expectedCatalogRevision,
+                    windowRevision: command.expectedWindowRevision,
+                    rootId: root?.id ?? null,
+                    replyToReplyId: target?.id ?? null,
+                  },
+                  tx,
+                )
+              ).contextDigest,
+            }
+          : null;
+        if (mediaContext)
+          await this.media.draftFacts(actor, mediaContext, images, tx, true);
+        const envelope = {
+          version: 1 as const,
+          purpose: operation as
+            'window.discussion.root.v1' | 'window.discussion.reply.v1',
+          actorId: actor,
+          requestId: command.clientRequestId,
+          windowId: id,
+          catalogRevision: command.expectedCatalogRevision,
+          windowRevision: command.expectedWindowRevision,
+          body: publication.body,
+          rootId: root?.id ?? null,
+          replyToReplyId: target?.id ?? null,
+          replyToActorId: target?.actor_id ?? null,
+        };
+        const decision = v2
+          ? await this.mediaReview.consume(
+              {
+                ...envelope,
+                version: 2,
+                purpose: operation as WindowDiscussionOperationV2,
+                images,
+              },
+              tx,
+            )
+          : await this.review.consume(envelope, tx);
         if (decision.status === 'reject')
-          receipt = windowDiscussionReceiptSchema.parse({
+          receipt = receiptSchema(operation).parse({
             ...base,
             outcome: 'rejected',
             code: 'CONTENT_REJECTED',
@@ -585,7 +858,7 @@ export class WindowDiscussionService {
           const cid = randomUUID(),
             row = (
               await tx.query<{ created_at: Date }>(
-                'INSERT INTO whaleu_ratings.window_discussion_comments(id,window_id,root_id,reply_to_reply_id,reply_to_actor_id,actor_id,request_id,catalog_id,window_revision,population_assertion_id,review_decision_id,body) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING created_at',
+                'INSERT INTO whaleu_ratings.window_discussion_comments(id,window_id,root_id,reply_to_reply_id,reply_to_actor_id,actor_id,request_id,catalog_id,window_revision,population_assertion_id,review_decision_id,body,publication_version,image_set,media_review_decision_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING created_at',
                 [
                   cid,
                   id,
@@ -597,12 +870,26 @@ export class WindowDiscussionService {
                   source!.catalog,
                   source!.revision,
                   source!.population,
-                  decision.decisionId,
+                  v2 ? null : decision.decisionId,
                   publication.body,
+                  v2 ? 2 : 1,
+                  JSON.stringify(images),
+                  v2 ? decision.decisionId : null,
                 ],
               )
             ).rows[0]!;
-          receipt = windowDiscussionReceiptSchema.parse({
+          if (mediaContext) {
+            await this.media.acceptAndBind(
+              cid,
+              actor,
+              mediaContext,
+              images,
+              tx,
+            );
+            if (root) await this.target(actor, id, root.id, tx, null);
+            if (target) await this.target(actor, id, target.id, tx, root!.id);
+          }
+          receipt = receiptSchema(operation).parse({
             ...base,
             outcome: 'applied',
             commentId: cid,
@@ -621,13 +908,13 @@ export class WindowDiscussionService {
         )
           throw new ApplicationError('WINDOW_DISCUSSION_NOT_FOUND');
         if ((own?.id ?? null) !== like.expectedMembershipRevision)
-          receipt = windowDiscussionReceiptSchema.parse({
+          receipt = receiptSchema(operation).parse({
             ...base,
             outcome: 'rejected',
             code: 'WINDOW_DISCUSSION_MEMBERSHIP_CONFLICT',
           });
         else if ((own?.active ?? false) === like.active)
-          receipt = windowDiscussionReceiptSchema.parse({
+          receipt = receiptSchema(operation).parse({
             ...base,
             outcome: 'noop',
             active: like.active,
@@ -664,7 +951,7 @@ export class WindowDiscussionService {
               'INSERT INTO whaleu_ratings.window_discussion_like_heads(window_id,comment_id,actor_id,revision) VALUES($1,$2,$3,$4)',
               [id, subject, actor, revision],
             );
-          receipt = windowDiscussionReceiptSchema.parse({
+          receipt = receiptSchema(operation).parse({
             ...base,
             outcome: 'applied',
             active: like.active,
@@ -686,6 +973,7 @@ export class WindowDiscussionService {
         receipt,
         tx,
       );
+      await this.media.retainCurrent(tx);
       await retainDiscussion(actor, session.sessionId, id, tx, {
         ...(source ? { source } : {}),
         ...(history ? { history } : {}),
@@ -700,7 +988,9 @@ export class WindowDiscussionService {
         prior = await this.prior(session.accountId, key, tx);
       if (!prior) throw new ApplicationError('REQUEST_NOT_FOUND');
       await this.identity.session(token, tx);
-      return windowDiscussionReceiptSchema.parse(prior.receipt);
+      const parsed = windowDiscussionReceiptSchema.safeParse(prior.receipt);
+      if (!parsed.success) throw new ApplicationError('REQUEST_CONFLICT');
+      return parsed.data;
     });
   }
   private async noticeView(
@@ -708,6 +998,7 @@ export class WindowDiscussionService {
     actor: string,
     session: string,
     tx: PoolClient,
+    v2 = false,
   ) {
     const base = {
       noticeId: row.id,
@@ -745,13 +1036,27 @@ export class WindowDiscussionService {
       'SAFETY_UNAVAILABLE',
     );
     const sender = senderFact.status;
-    if (!target || target.status !== 'allow' || sender !== 'allow')
+    await this.media.retainCurrent(tx);
+    if (
+      !target ||
+      target.status !== 'allow' ||
+      sender !== 'allow' ||
+      (!v2 && target.publication_version === 2)
+    )
       return { ...base, status: 'unavailable' as const };
     return {
       ...base,
       status: 'available' as const,
       kind: row.kind,
       preview: {
+        ...(v2
+          ? {
+              thumbnail:
+                row.kind === 'reply'
+                  ? ((await this.imageReferences(target, tx))[0] ?? null)
+                  : null,
+            }
+          : {}),
         text: Array.from(target.body).slice(0, 50).join(''),
         author: await this.author(row.actor_id, tx),
       },
@@ -765,14 +1070,19 @@ export class WindowDiscussionService {
   noticePage(
     token: string,
     query: Pick<WindowDiscussionQuery, 'limit' | 'cursor'>,
+    v2 = false,
   ) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
         access = await this.eligible(session.accountId, tx),
         epoch = await this.notices.epoch(tx),
+        mediaEpoch = await this.media.retainCurrent(tx),
+        topology = v2 ? await this.mediaOwner.retainTopology(tx) : null,
         profile = await profiles(tx),
         scope = discussionCursorScope([
-          'window-discussion-notices-v1',
+          v2 ? 'window-discussion-notices-v2' : 'window-discussion-notices-v1',
+          mediaEpoch,
+          topology,
           session.accountId,
           session.sessionId,
           access,
@@ -800,7 +1110,13 @@ export class WindowDiscussionService {
       const items = [];
       for (const row of chosen)
         items.push(
-          await this.noticeView(row, session.accountId, session.sessionId, tx),
+          await this.noticeView(
+            row,
+            session.accountId,
+            session.sessionId,
+            tx,
+            v2,
+          ),
         );
       const nextCursor =
           more && last
@@ -821,18 +1137,25 @@ export class WindowDiscussionService {
         unreadCount = await this.notices.unread(session.accountId, tx);
       await this.notices.retain(epoch, tx);
       await this.identity.session(token, tx);
-      return windowDiscussionNoticePageSchema.parse({
+      return (
+        v2
+          ? windowDiscussionNoticePageV2Schema
+          : windowDiscussionNoticePageSchema
+      ).parse({
+        ...(v2 ? { protocol: WINDOW_DISCUSSION_V2 } : {}),
         items,
         nextCursor,
         unreadCount,
       });
     });
   }
-  noticeTarget(token: string, id: string) {
+  noticeTarget(token: string, id: string, v2 = false) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
       await this.eligible(session.accountId, tx);
       await profiles(tx);
+      await this.media.retainCurrent(tx);
+      if (v2) await this.mediaOwner.retainTopology(tx);
       const epoch = await this.notices.epoch(tx),
         row = await this.notices.find(session.accountId, id, tx),
         view = await this.noticeView(
@@ -840,6 +1163,7 @@ export class WindowDiscussionService {
           session.accountId,
           session.sessionId,
           tx,
+          v2,
         );
       if (view.status !== 'available')
         throw new ApplicationError('WINDOW_DISCUSSION_NOT_FOUND');

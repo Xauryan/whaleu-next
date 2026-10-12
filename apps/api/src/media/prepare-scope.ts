@@ -1,4 +1,13 @@
 import {
+  prepareWindowDiscussionMediaSchema,
+  windowDiscussionMediaRequestHash,
+} from './contracts-window-discussion.js';
+import type { PrepareWindowDiscussionMediaInput } from './contracts-window-discussion.js';
+import type {
+  AuthorizedWindowDiscussionMediaEdit,
+  WindowDiscussionMediaDraftOwnerPort,
+} from './window-discussion-prepare-scope.js';
+import {
   preparePrivateMessageMediaSchema,
   privateMessageMediaRequestHash,
 } from './contracts-private-message.js';
@@ -169,6 +178,7 @@ export class MediaPrepareScopes {
         | PrepareMediaV4Input
         | PrepareProfileMediaInput
         | PrepareRatingsMediaInput
+        | PrepareWindowDiscussionMediaInput
         | PreparePrivateMessageMediaInput
         | PrepareErrandMediaInput
         | PrepareVerificationEvidenceMediaInput
@@ -182,6 +192,7 @@ export class MediaPrepareScopes {
         | AuthorizedMediaDraft
         | AuthorizedProfileMediaEdit
         | AuthorizedRatingsMediaEdit
+        | AuthorizedWindowDiscussionMediaEdit
         | AuthorizedPrivateMessageMediaEdit
         | AuthorizedErrandMediaEdit
         | AuthorizedVerificationEvidenceMediaEdit
@@ -206,6 +217,7 @@ export class MediaPrepareScopes {
     private readonly verificationEvidenceOwner?: VerificationEvidenceMediaDraftOwnerPort,
     private readonly errandOwner?: ErrandMediaDraftOwnerPort,
     private readonly privateMessageOwner?: PrivateMessageMediaDraftOwnerPort,
+    private readonly windowDiscussionOwner?: WindowDiscussionMediaDraftOwnerPort,
   ) {}
   async authorizeRatingsDiscussionBatch(
     actor: string,
@@ -316,6 +328,51 @@ export class MediaPrepareScopes {
       !mediaIdSchema.safeParse(scope.serverScopeId).success ||
       scope.scopeRevision !==
         verificationEvidenceMediaRequestHash(actor, input) ||
+      !Number.isSafeInteger(scope.expiresAt) ||
+      transactionReadEpoch(tx) !== epoch
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+    Object.freeze(input.declaration);
+    Object.freeze(input);
+    const capability: MediaPrepareScope = Object.freeze({
+      [brand]: true as const,
+    });
+    this.issued.set(capability, {
+      tx,
+      epoch,
+      input,
+      scope: Object.freeze({ ...scope }),
+    });
+    return capability;
+  }
+  async authorizeWindowDiscussion(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    const input = prepareWindowDiscussionMediaSchema.parse(raw),
+      actor = mediaIdSchema.parse(actorAccountId),
+      epoch = transactionReadEpoch(tx);
+    if (!epoch || !this.windowDiscussionOwner)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const scope = await this.windowDiscussionOwner.authorizePrepare(
+      actor,
+      input,
+      tx,
+    );
+    if (
+      scope.actorAccountId !== actor ||
+      scope.ownerKind !== 'ratings' ||
+      scope.resourceKind !== 'window_discussion_image' ||
+      scope.targetKind !== 'edit' ||
+      scope.contentVersion !== 1 ||
+      scope.audience !== 'content-gated' ||
+      scope.purpose !== 'window-discussion-image' ||
+      scope.slot !== 'images' ||
+      scope.ordinal !== input.ordinal ||
+      !mediaIdSchema.safeParse(scope.serverScopeId).success ||
+      scope.scopeRevision !== windowDiscussionMediaRequestHash(actor, input) ||
       !Number.isSafeInteger(scope.expiresAt) ||
       transactionReadEpoch(tx) !== epoch
     )
@@ -835,6 +892,7 @@ export class MediaPrepareScopes {
       | PrepareMediaV4Input
       | PrepareProfileMediaInput
       | PrepareRatingsMediaInput
+      | PrepareWindowDiscussionMediaInput
       | PreparePrivateMessageMediaInput
       | PrepareErrandMediaInput
       | PrepareVerificationEvidenceMediaInput
@@ -848,6 +906,7 @@ export class MediaPrepareScopes {
       | AuthorizedMediaDraft
       | AuthorizedProfileMediaEdit
       | AuthorizedRatingsMediaEdit
+      | AuthorizedWindowDiscussionMediaEdit
       | AuthorizedPrivateMessageMediaEdit
       | AuthorizedErrandMediaEdit
       | AuthorizedVerificationEvidenceMediaEdit

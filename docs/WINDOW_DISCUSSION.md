@@ -109,6 +109,11 @@ numeric ID, catalog acceptance or publishing actor cannot establish that recipie
 the limitation. An independently accepted creator-mapping owner with provenance,
 withdrawal and current proofs is a remaining follow-on, not a guessed notification.
 
+Both reply notice kinds navigate the causal new reply in W3, whereas the pinned
+legacy Window handler used parentId navigation. This already-published Next
+difference is preserved by [the independent v2 image extension](WINDOW_DISCUSSION_IMAGES.md);
+it is not silently reversed as image parity.
+
 Notices expose current safe previews or an unavailable shell. Fresh target lookup
 precedes native navigation and is checked again by the receiving thread. Marking a
 notice read neither restores visibility nor grants source access.
@@ -175,3 +180,9 @@ legacy boundary race: one request applied, the other returned HTTP 500
 W3-source reruns passed 16/16 R1 tests, but do not erase the observed baseline
 race. The generic implementation and assertions remain unchanged in this slice;
 that independent generic race needs its own fix and validation.
+
+## Forward image extension
+
+The historical W3 text validation record above remains unchanged.
+[Window images v2](WINDOW_DISCUSSION_IMAGES.md) documents the independent forward
+protocol, mixed-population compatibility and new bounded image policy.

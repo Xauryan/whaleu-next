@@ -48,8 +48,10 @@ async function writeHistory(
   );
   return assertion;
 }
-export async function windowRatingFixture() {
-  const f = await directoryRuntimeFixture(),
+export async function windowRatingFixture(
+  base?: Awaited<ReturnType<typeof directoryRuntimeFixture>>,
+) {
+  const f = base ?? (await directoryRuntimeFixture()),
     windows: SyntheticWindow[] = [],
     canteenId = randomUUID(),
     canteenRevision = randomUUID(),
