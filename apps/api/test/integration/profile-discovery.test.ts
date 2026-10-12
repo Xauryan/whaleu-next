@@ -26,6 +26,7 @@ import {
   discoveryCursorBucket,
 } from '../../src/community/discovery-cursors.js';
 import { profileCursorScope } from '../../src/profile-discovery/cursor.js';
+import { currentCategoryCursorScope } from '../../src/community/current-category-cursor.js';
 import { DatabaseService } from '../../src/database/database.js';
 import { CommunityProfileDiscoveryFacade } from '../../src/community/profile-discovery.facade.js';
 import { hashToken } from '../../src/identity/tokens.js';
@@ -764,9 +765,14 @@ test(
           );
           const database = app!.get(DatabaseService);
           const cursors = app!.get(DiscoveryCursorRepository);
-          const oldPrecisionCursor = await database.transaction((tx) =>
+          // Match the current navigation scope so this fixture reaches the
+          // intended obsolete-precision check, not an earlier scope rejection.
+          const oldPrecisionCursor = await database.transaction(async (tx) =>
             cursors.create(
-              profileCursorScope(publicId, 'posts', { limit: 1 }, null),
+              await currentCategoryCursorScope(
+                profileCursorScope(publicId, 'posts', { limit: 1 }, null),
+                tx,
+              ),
               discoveryCursorBucket(null),
               {
                 v: 1,
