@@ -1,0 +1,64 @@
+<view class="screen">
+  <view class="eyebrow">WHALEU · 课程评论</view><view class="title">课程文字评论</view>
+  <view class="notice">{{status}}</view>
+  <view wx:if="{{error}}" class="notice error">{{error}}</view>
+  <view wx:if="{{receiptStatus}}" class="notice">{{receiptStatus}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看课程评论 →</navigator>
+  <button wx:if="{{hasSession}}" bindtap="onRefresh" disabled="{{busy}}">重新核验当前评论</button>
+  <button wx:if="{{busy}}" bindtap="onCancelWait">停止等待，保留原请求</button>
+  <view wx:if="{{frozen}}" class="card">
+    <view class="section-title">原操作结果待确认</view>
+    <view class="notice">原账号、原文、目标、版本与请求编号保持不变。返回、退出、切换排序或登录不会取消已发送的操作。</view>
+    <view wx:if="{{recoveryCourseId}}" class="meta">原课程：{{recoveryCourseId}}</view>
+    <block wx:if="{{recoveryOperation === 'course.comment.publish.v1'}}"><view class="meta">原评论原文</view><text class="comment-body" selectable="{{true}}">{{recoveryBody}}</text></block>
+    <view wx:if="{{recoveryOperation === 'course.comment.like.v1'}}" class="meta">原点赞评论：{{recoveryCommentId}}</view>
+    <button bindtap="onRecover" disabled="{{busy}}">查询原回执</button>
+    <button bindtap="onRetry" disabled="{{busy || confirming === 'cancel'}}">先查回执，再重试原请求</button>
+    <button bindtap="onRequestCancellation" disabled="{{busy || confirming === 'cancel'}}">查询是否可以取消原请求</button>
+    <view wx:if="{{receiptMissing}}" class="notice">未查到回执不代表原请求已取消；只有服务端确认取消后才能更换请求。</view>
+  </view>
+  <view wx:if="{{confirming === 'cancel'}}" class="card confirmation">
+    <view class="section-title">确认取消原操作</view>
+    <view class="notice">服务端会锁定原请求。若它已完成，将返回原结果；若尚未完成，将记录取消，阻止原请求随后写入。断网时仍保留原请求。</view>
+    <button bindtap="onConfirmCancellation" disabled="{{busy}}">确认请求服务端取消</button>
+    <button bindtap="onCloseConfirmation" disabled="{{busy}}">保留原请求</button>
+  </view>
+  <block wx:if="{{courseId}}">
+    <view class="card"><view class="section-title">评论排序</view>
+      <button data-sort="likes" bindtap="onSort" disabled="{{busy}}">{{sort === 'likes' ? '当前：按点赞数' : '按点赞数'}}</button>
+      <button data-sort="time" bindtap="onSort" disabled="{{busy}}">{{sort === 'time' ? '当前：按时间' : '按时间'}}</button>
+      <view class="notice">仅展示评论文字、点赞数与发布时间。每个账号对同一条评论只能赞一次，不能取消赞。</view>
+    </view>
+    <view wx:if="{{restartRequired}}" class="notice">评论或排序已变化，旧分页已清除，请重新加载第一页。</view>
+    <block wx:if="{{loaded}}">
+      <view wx:if="{{items.length === 0}}" class="card">当前已确认没有课程评论。</view>
+      <view wx:for="{{items}}" wx:key="id" class="card">
+        <text class="comment-body" selectable="{{true}}">{{item.body}}</text>
+        <view class="meta">{{item.likes}} 个赞 · {{item.createdAt}}</view>
+        <button data-id="{{item.id}}" bindtap="onConfirmLike" disabled="{{busy || frozen || confirming}}">点赞</button>
+      </view>
+      <view class="meta">第 {{pageNumber}} 页</view>
+      <button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button>
+      <view wx:if="{{!canNext}}" class="notice">已到当前列表末尾</view>
+      <view wx:if="{{!frozen}}" class="card">
+        <view class="section-title">发表文字评论</view>
+        <textarea class="comment-input" value="{{body}}" maxlength="8000" bindinput="onBody" disabled="{{busy || confirming}}" placeholder="输入评论原文" />
+        <view class="meta">{{bodyBytes}} / 8000 UTF-8 字节</view>
+        <view class="notice">按原文提交，不会自动删改空格或换行。可以发表多条不同评论；每次都需单独确认。</view>
+        <button bindtap="onConfirmPublish" disabled="{{busy || !canPublish || confirming}}">核对评论原文</button>
+      </view>
+    </block>
+  </block>
+  <view wx:if="{{confirming === 'publish'}}" class="card confirmation">
+    <view class="section-title">确认发表这份原文</view><text class="comment-body" selectable="{{true}}">{{body}}</text>
+    <view class="notice">确认后先保存原文与请求编号再发送；未确认结果前不能替换原文或新建请求。</view>
+    <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认发表</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回修改</button>
+  </view>
+  <view wx:if="{{confirming === 'like' &amp;&amp; selectedComment}}" class="card confirmation">
+    <view class="section-title">确认不可撤销的点赞</view><text class="comment-body" selectable="{{true}}">{{selectedComment.body}}</text>
+    <view class="notice">每个账号对这条评论只能赞一次，不能取消。</view>
+    <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认点赞一次</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回评论</button>
+  </view>
+  <navigator wx:if="{{courseId}}" class="link" url="/pages/course-rating-detail/course-rating-detail?courseId={{courseId}}">返回课程详情 →</navigator>
+  <navigator class="link" url="/pages/course-ratings/course-ratings">课程目录 →</navigator>
+</view>

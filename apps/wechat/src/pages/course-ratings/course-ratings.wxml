@@ -1,5 +1,6 @@
 <import src="../../course-ratings/common.wxml" />
 <view class="screen">
+  <navigator class="link" url="/pages/course-comments/course-comments">课程评论独立回执恢复 →</navigator>
   <view class="eyebrow">WHALEU · 课程评分</view>
   <view class="title">找课程，查看三个独立均分</view>
   <view class="notice">此处为新课程评分页面。只展示已核验来源；浏览校区不授予评分权限。</view>

@@ -3,6 +3,7 @@
   <view class="eyebrow">WHALEU · 课程评分</view><view class="title">课程详情</view>
   <template is="course-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryCourseId,recoveryScores,busy,restartRequired}}" />
   <block wx:if="{{loaded &amp;&amp; detail}}">
+    <navigator class="link" url="/pages/course-comments/course-comments?courseId={{detail.course.id}}">查看与发表课程文字评论 →</navigator>
     <view class="card"><template is="course-facts" data="{{course:detail.course}}" /><view class="meta">来源校区标识：{{detail.course.sourceCampusKey}}</view><view class="meta">已核验目录版本：{{detail.catalogRevision}}</view><view class="notice">来源标识用于保留目录映射，不授予校区或评分权限。</view></view>
     <view class="card"><view class="section-title">三个独立均分</view><template is="course-summary" data="{{summary:detail.course.summary}}" /></view>
     <view class="card">

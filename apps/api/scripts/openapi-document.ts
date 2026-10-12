@@ -515,6 +515,10 @@ export async function renderErrandsOpenApiDocument(): Promise<string> {
 
 /** Tooling-only rating routes. No live database, issuer or provider. */
 export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { CourseCommentsController } =
+    await import('../src/ratings/courses/comments/controller.js');
+  const { CourseCommentsService } =
+    await import('../src/ratings/courses/comments/service.js');
   const { CourseRatingsController } =
     await import('../src/ratings/courses/controller.js');
   const { CourseRatingsService } =
@@ -712,6 +716,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
   };
   const testing = await Test.createTestingModule({
     controllers: [
+      CourseCommentsController,
       CourseRatingsController,
       RatingCategoryIconManagementController,
       RatingCategoryIconRequestController,
@@ -779,6 +784,16 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       { provide: RatingSubscriptionsService, useValue: {} },
       { provide: RatingSubscriptionUpdatesReadService, useValue: {} },
       { provide: RatingsService, useValue: {} },
+      {
+        provide: CourseCommentsService,
+        useValue: {
+          page: fail,
+          publish: fail,
+          like: fail,
+          receipt: fail,
+          cancel: fail,
+        },
+      },
       {
         provide: CourseRatingsService,
         useValue: {

@@ -8,6 +8,7 @@ import {
   checkpointTransactionDeadlines,
   clearTransactionDeadlines,
   registerTransactionDeadline,
+  registerTransactionExactDeadline,
   registerOptionalTransactionDeadline,
   restoreTransactionDeadlines,
   startTransactionDeadlines,
@@ -326,4 +327,41 @@ test('optional callback failures and unexpected database errors cannot become su
     (error) => error === failure,
   );
   assert.equal(f.commands.at(-1), 'ROLLBACK');
+});
+
+test('exact PostgreSQL deadlines retain microseconds through final clock and savepoint rollback', async () => {
+  const seen: { sql: string; values: unknown[] | undefined }[] = [];
+  let expired: string[] = [];
+  const tx = {
+    query: async (sql: string, values: unknown[] | undefined) => {
+      seen.push({ sql, values });
+      return {
+        rows: sql.includes('WITH instant AS MATERIALIZED')
+          ? [{ now: new Date(100), expired }]
+          : sql === clock
+            ? [{ now: new Date(100) }]
+            : [],
+      };
+    },
+  } as unknown as PoolClient;
+  startTransactionDeadlines(tx);
+  const checkpoint = checkpointTransactionDeadlines(tx);
+  registerTransactionExactDeadline(
+    tx,
+    '2026-10-11 23:00:00.000999+00',
+    'CONTENT_REVIEW_UNAVAILABLE',
+  );
+  await checkTransactionDeadlines(tx);
+  assert.deepEqual(seen.at(-1)!.values, [['2026-10-11 23:00:00.000999+00']]);
+  assert.match(seen.at(-1)!.sql, /until<=instant.now/);
+  expired = ['1'];
+  await assert.rejects(
+    checkTransactionDeadlines(tx),
+    errorIs('CONTENT_REVIEW_UNAVAILABLE'),
+  );
+  restoreTransactionDeadlines(tx, checkpoint);
+  const before = seen.length;
+  await checkTransactionDeadlines(tx);
+  assert.equal(seen.length, before);
+  clearTransactionDeadlines(tx);
 });

@@ -1,3 +1,4 @@
+import * as courseComments from '../src/ratings/courses/comments/contracts.js';
 import * as courses from '../src/ratings/courses/contracts.js';
 import * as discussionMedia from '../src/ratings/scoped/discussion-media-contracts.js';
 import * as discussionProjection from '../src/ratings/discussion-media-projection-contracts.js';
@@ -947,6 +948,31 @@ test('legacy, scoped, category management and category icon operations have exac
   for (const [path, method, , operationId] of categoryIconCases)
     assert.equal(doc.paths[path]![method]!.operationId, operationId);
   const courseCases = [
+    [
+      '/v1/ratings/courses/{id}/comments',
+      'get',
+      courseComments.courseCommentPageSchema,
+    ],
+    [
+      '/v1/ratings/courses/{id}/comments',
+      'post',
+      courseComments.courseCommentReceiptSchema,
+    ],
+    [
+      '/v1/ratings/courses/{id}/comments/{commentId}/like',
+      'post',
+      courseComments.courseCommentReceiptSchema,
+    ],
+    [
+      '/v1/ratings/courses/comment-requests/{requestId}',
+      'get',
+      courseComments.courseCommentReceiptSchema,
+    ],
+    [
+      '/v1/ratings/courses/comment-requests/{requestId}/cancel',
+      'post',
+      courseComments.courseCommentReceiptSchema,
+    ],
     ['/v1/ratings/courses', 'get', courses.coursePageSchema],
     ['/v1/ratings/courses/{id}', 'get', courses.courseDetailSchema],
     ['/v1/ratings/courses/{id}/my-score', 'get', courses.courseOwnSchema],
@@ -1145,8 +1171,9 @@ test('discussion4 exposes strict UUID and closed kind path parameters', async ()
 
 test('course first-score has separately typed strict immutable input and six source-specific operations', async () => {
   const doc = JSON.parse(await render()) as OpenAPIObject;
-  const coursePaths = Object.keys(doc.paths).filter((path) =>
-    path.startsWith('/v1/ratings/courses'),
+  const coursePaths = Object.keys(doc.paths).filter(
+    (path) =>
+      path.startsWith('/v1/ratings/courses') && !path.includes('comment'),
   );
   assert.equal(coursePaths.length, 6);
   const body =
@@ -1167,4 +1194,31 @@ test('course first-score has separately typed strict immutable input and six sou
     doc.paths['/v1/ratings/courses/{id}/first-score']!.delete,
     undefined,
   );
+});
+
+test('course comments expose distinct strict publish/like/cancel inputs without weakening score operations', async () => {
+  const doc = JSON.parse(await render()) as OpenAPIObject;
+  for (const [path, schema] of [
+    [
+      '/v1/ratings/courses/{id}/comments',
+      courseComments.courseCommentPublishSchema,
+    ],
+    [
+      '/v1/ratings/courses/{id}/comments/{commentId}/like',
+      courseComments.courseCommentLikeSchema,
+    ],
+    [
+      '/v1/ratings/courses/comment-requests/{requestId}/cancel',
+      courseComments.courseCommentCancelSchema,
+    ],
+  ] as const) {
+    const body = doc.paths[path]!.post!.requestBody!;
+    assert.ok(!('$ref' in body));
+    assert.deepEqual(
+      body.content['application/json']!.schema,
+      z.toJSONSchema(schema, { io: 'input', target: 'openapi-3.0' }),
+    );
+    assert.equal(doc.paths[path]!.put, undefined);
+    assert.equal(doc.paths[path]!.delete, undefined);
+  }
 });

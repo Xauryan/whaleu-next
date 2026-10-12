@@ -1,3 +1,8 @@
+import { AuthorizationModule } from '../../authorization/authorization.module.js';
+import { ContentReviewModule } from '../../community/content-review/content-review.module.js';
+import { CourseCommentsController } from './comments/controller.js';
+import { CourseCommentsService } from './comments/service.js';
+import { CourseCommentCursors } from './comments/cursor.js';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../database/database.js';
 import { IdentityModule } from '../../identity/identity.module.js';
@@ -12,6 +17,8 @@ import { CourseRepository } from './repository.js';
 import { CourseCursors } from './cursor.js';
 @Module({
   imports: [
+    AuthorizationModule,
+    ContentReviewModule,
     DatabaseModule,
     IdentityModule,
     VerificationModule,
@@ -20,7 +27,13 @@ import { CourseCursors } from './cursor.js';
     DiscoveryContinuationModule,
     RatingRequestThrottlingModule,
   ],
-  controllers: [CourseRatingsController],
-  providers: [CourseRatingsService, CourseRepository, CourseCursors],
+  controllers: [CourseCommentsController, CourseRatingsController],
+  providers: [
+    CourseCommentsService,
+    CourseCommentCursors,
+    CourseRatingsService,
+    CourseRepository,
+    CourseCursors,
+  ],
 })
 export class CourseRatingsModule {}

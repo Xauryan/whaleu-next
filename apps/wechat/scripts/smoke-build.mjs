@@ -238,6 +238,7 @@ for (const route of config.pages.filter(
       ? { courseId: '11111111-1111-4111-8111-111111111111' }
       : [
             'pages/course-ratings/course-ratings',
+            'pages/course-comments/course-comments',
             'pages/activity-list/activity-list',
             'pages/activity-publish/activity-publish',
             'pages/announcement-edit/announcement-edit',

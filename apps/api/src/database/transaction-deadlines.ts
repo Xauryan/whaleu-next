@@ -4,6 +4,10 @@ import type { ApplicationErrorCode } from '../http/application-error.js';
 /** Internal owner facts only. A deadline is registered only while its canonical
  * source is locked. The transaction wrapper checks after ALL deferred waits. */
 const deadlines = new WeakMap<PoolClient, Map<ApplicationErrorCode, number>>();
+const exactDeadlines = new WeakMap<
+  PoolClient,
+  { until: string; code: ApplicationErrorCode }[]
+>();
 const readEpochs = new WeakMap<PoolClient, object>();
 const optionalDeadlines = new WeakMap<
   PoolClient,
@@ -82,6 +86,7 @@ export function hasTransactionDeadlines(tx: PoolClient): boolean {
 
 export function startTransactionDeadlines(tx: PoolClient) {
   deadlines.set(tx, new Map());
+  exactDeadlines.set(tx, []);
   readEpochs.set(tx, Object.freeze({}));
   optionalDeadlines.set(tx, []);
   optionalProofs.set(tx, []);
@@ -89,6 +94,7 @@ export function startTransactionDeadlines(tx: PoolClient) {
 }
 export function clearTransactionDeadlines(tx: PoolClient) {
   deadlines.delete(tx);
+  exactDeadlines.delete(tx);
   readEpochs.delete(tx);
   optionalDeadlines.delete(tx);
   optionalProofs.delete(tx);
@@ -108,14 +114,41 @@ export function registerTransactionDeadline(
     Math.min(current.get(code) ?? Number.POSITIVE_INFINITY, until),
   );
 }
+/** PostgreSQL-owned timestamp text retains sub-millisecond authority. No Date
+ * conversion is used, and the final instant is sampled after every owner proof. */
+export function registerTransactionExactDeadline(
+  tx: PoolClient,
+  until: string | null,
+  code: ApplicationErrorCode,
+) {
+  if (until === null) return;
+  const registry = exactDeadlines.get(tx);
+  if (
+    !registry ||
+    typeof until !== 'string' ||
+    until.length < 10 ||
+    until.length > 80 ||
+    registry.length >= 128
+  )
+    throw new ApplicationError(code);
+  if (!registry.some((f) => f.until === until && f.code === code))
+    registry.push({ until, code });
+}
 export async function checkTransactionDeadlines(tx: PoolClient) {
   const current = deadlines.get(tx);
+  const exact = exactDeadlines.get(tx) ?? [];
   const optional = optionalDeadlines.get(tx) ?? [];
   const proofs = optionalProofs.get(tx) ?? [];
   const required = [...(requiredProofs.get(tx)?.values() ?? [])].filter(
     (entry) => entry.facts.length > 0,
   );
-  if (!current?.size && !optional.length && !proofs.length && !required.length)
+  if (
+    !current?.size &&
+    !exact.length &&
+    !optional.length &&
+    !proofs.length &&
+    !required.length
+  )
     return;
   await tx.query('SET CONSTRAINTS ALL IMMEDIATE');
   // Flush every deferred wait before taking any final fence. No mandatory source
@@ -124,9 +157,21 @@ export async function checkTransactionDeadlines(tx: PoolClient) {
   const invalid = new Set<OptionalTransactionProof>();
   for (const proof of proofs)
     if (!(await validateOptionalProof(tx, proof))) invalid.add(proof);
-  const now = (
-    await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
-  ).rows[0]!.now.getTime();
+  const instant = exact.length
+    ? (
+        await tx.query<{ now: Date; expired: string[] }>(
+          `WITH instant AS MATERIALIZED (SELECT clock_timestamp() now) SELECT now, ARRAY(SELECT ordinal::text FROM unnest($1::timestamptz[]) WITH ORDINALITY d(until,ordinal) WHERE NOT isfinite(until) OR until<=instant.now) expired FROM instant`,
+          [exact.map((f) => f.until)],
+        )
+      ).rows[0]!
+    : (
+        await tx.query<{ now: Date; expired?: string[] }>(
+          'SELECT clock_timestamp() AS now',
+        )
+      ).rows[0]!;
+  for (const ordinal of instant.expired ?? [])
+    throw new ApplicationError(exact[Number(ordinal) - 1]!.code);
+  const now = instant.now.getTime();
   if (!Number.isFinite(now))
     throw new ApplicationError('COMMUNITY_UNAVAILABLE');
   for (const [code, until] of current ?? [])
@@ -139,12 +184,18 @@ export async function checkTransactionDeadlines(tx: PoolClient) {
 
 const optionalCheckpoints = new WeakMap<
   Map<ApplicationErrorCode, number>,
-  { deadlines: number; proofs: number; required: Map<object, number> }
+  {
+    deadlines: number;
+    exact: number;
+    proofs: number;
+    required: Map<object, number>;
+  }
 >();
 export function checkpointTransactionDeadlines(tx: PoolClient) {
   const snapshot = new Map(deadlines.get(tx));
   optionalCheckpoints.set(snapshot, {
     deadlines: optionalDeadlines.get(tx)?.length ?? 0,
+    exact: exactDeadlines.get(tx)?.length ?? 0,
     proofs: optionalProofs.get(tx)?.length ?? 0,
     required: new Map(
       [...(requiredProofs.get(tx)?.entries() ?? [])].map(([owner, entry]) => [
@@ -165,6 +216,7 @@ export function restoreTransactionDeadlines(
     const size = optionalCheckpoints.get(checkpoint);
     if (size !== undefined) {
       optionalDeadlines.get(tx)?.splice(size.deadlines);
+      exactDeadlines.get(tx)?.splice(size.exact);
       optionalProofs.get(tx)?.splice(size.proofs);
       const required = requiredProofs.get(tx);
       for (const [owner, entry] of required ?? []) {

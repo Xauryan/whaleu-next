@@ -132,8 +132,8 @@ WeChat platform transport/storage callbacks and accepted test source facts are
 synthetic. No numeric-score review provider is needed or activated. Local emitted
 simulation is not a physical device, real provider or production acceptance claim.
 
-Course comments/Classcomment anonymity and one-time likes, major/department
-comments, canteen floors, windows' signed −10..10 ratings/comments and dish
+Course comments are now covered by the bounded [C2 contract](COURSE_COMMENTS.md).
+Major/department comments, canteen floors, windows' signed −10..10 ratings/comments and dish
 endorsements remain pending. They retain distinct source semantics and histories;
 none is converted into generic courses or generic integer 1–5 targets.
 

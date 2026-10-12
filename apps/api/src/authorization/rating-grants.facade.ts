@@ -143,6 +143,24 @@ export function ratingGrantScope(
 /** Exact active grants, including proof of absence. Never a chosen region. */
 @Injectable()
 export class RatingAuthorizationFacade {
+  /** Legacy-equivalent base publication only; developer is not a source admin role. */
+  async courseCommentBase(accountId: string, tx: PoolClient) {
+    enableRequiredTransactionProof(tx, proof);
+    const observed = await capture(accountId, tx);
+    const fingerprint = ownerFingerprint(observed);
+    registerRequiredTransactionFact(
+      tx,
+      proof,
+      `${accountId}:${fingerprint}`,
+      Object.freeze({ accountId, fingerprint }),
+    );
+    return {
+      allowed: observed.grants.some(
+        (g) => g.role === 'school_admin' || g.role === 'super_admin',
+      ),
+      fingerprint,
+    };
+  }
   async scope(accountId: string, tx: PoolClient): Promise<RatingGrantScope> {
     enableRequiredTransactionProof(tx, proof);
     const locked = await tx.query(

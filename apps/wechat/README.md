@@ -552,3 +552,13 @@ mutually exclusive department/category filters, all ten independent half-step
 choices for each of three axes, and original-key recovery. Production catalog
 availability remains source-gated; synthetic verification does not prove legacy
 course-page parity or real-device acceptance.
+
+## Course text comments
+
+Fresh course details link to the dedicated `course-comments` page. Its bounded
+likes/time list exposes only comment ID, exact text, like count and timestamp.
+Publication and irreversible once-only likes use separate confirmation,
+account/origin recovery, receipt-first retries and server-confirmed cancellation.
+The three-axis C1 score remains separate. Independent source/comment/like
+history and exact text Review must be available; no production approval or
+history source is invented. See [native course comments](docs/course-comments.md).

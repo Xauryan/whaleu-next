@@ -1,3 +1,4 @@
+import { CourseCommentReviewFacade } from './course-comment-review.facade.js';
 import { RatingCategoryIconReviewFacade } from './rating-category-icon-review.facade.js';
 import { TextReviewRuntime } from '../text-review/runtime.js';
 import { ProfileAvatarReviewFacade } from './profile-avatar-review.facade.js';
@@ -25,6 +26,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
 @Module({
   imports: [CampusModule],
   providers: [
+    CourseCommentReviewFacade,
     RatingCategoryIconReviewFacade,
     TextReviewRuntime,
     ProfileAvatarReviewFacade,
@@ -45,6 +47,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
     LocalApprovedContentVisibility,
   ],
   exports: [
+    CourseCommentReviewFacade,
     RatingCategoryIconReviewFacade,
     TextReviewRuntime,
     ProfileAvatarReviewFacade,

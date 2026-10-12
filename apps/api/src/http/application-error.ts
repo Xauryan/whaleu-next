@@ -3,6 +3,27 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  COURSE_COMMENT_HISTORY_UNAVAILABLE: {
+    status: 503,
+    message: 'Course comment or like history is unavailable',
+  },
+  COURSE_COMMENT_NOT_FOUND: {
+    status: 404,
+    message: 'Course comment is unavailable',
+  },
+  COURSE_COMMENT_BASE_REQUIRED: {
+    status: 403,
+    message:
+      'Current verified-base eligibility is required to publish a course comment',
+  },
+  COURSE_COMMENT_ALREADY_LIKED: {
+    status: 409,
+    message: 'The original course comment like cannot be changed',
+  },
+  COURSE_COMMENT_CANCELLED: {
+    status: 409,
+    message: 'The original course comment command was cancelled',
+  },
   COURSE_CATALOG_UNAVAILABLE: {
     status: 503,
     message: 'Accepted course catalog is unavailable',

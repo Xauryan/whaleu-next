@@ -41,6 +41,10 @@ business modules, real-provider and native-device acceptance, production schema
 mapping, and reconciled data migration are still required. No production rollout
 or production data changes are part of these development milestones.
 
+A bounded [specialist course-comments slice](docs/COURSE_COMMENTS.md) adds
+reviewed author-undisclosed text, permanent likes and original-request recovery;
+real comment/like history and production Review remain unavailable.
+
 See the [feature-parity checklist](docs/FEATURE_PARITY.md) for the required scope.
 
 A separate [semantic search slice](docs/design/semantic-search.md) adds full-scope
