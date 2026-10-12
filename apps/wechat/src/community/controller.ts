@@ -40,6 +40,14 @@ export const reasonMessage = (code: string | null): string =>
     MEDIA_UNAVAILABLE: '图片上传与审核服务尚未接入',
     NOTICE_NOT_FOUND: '此更新不存在或不属于当前账号，请刷新列表',
     POST_NOT_FOUND: '帖子不存在或当前不可查看',
+    ADMIN_POST_REMOVAL_UNAVAILABLE:
+      '当前不能确认帖子管理状态；待确认的原请求请继续查询回执',
+    ADMIN_POST_REMOVAL_TARGET_NOT_ALLOWED:
+      '此帖当前不适用于原发布地区管理员删除',
+    ADMIN_POST_REMOVAL_OWN_POST:
+      '这是你发布的帖子，请返回帖子详情使用“删除我的帖子”',
+    ADMIN_POST_REMOVAL_STALE: '帖子状态已变化，请重新核验并确认',
+    ADMIN_POST_REMOVAL_CANCELLED: '原管理员删除请求已取消',
     PROFILE_AVATAR_MODERATION_UNAVAILABLE:
       '此内容当前不能用于管理头像；待确认的原请求请继续查询回执',
     PROFILE_AVATAR_MODERATION_STALE: '头像或资料版本已变化，请重新核验并确认',

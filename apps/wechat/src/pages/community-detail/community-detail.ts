@@ -1172,6 +1172,35 @@ Page({
   onPostLikeCancel() {
     this.postLikeMutations?.cancel();
   },
+  onAdminPostRemoval() {
+    const post = this.data.post;
+    if (
+      !post ||
+      this.data.busy ||
+      this.data.needsReload ||
+      this.data.block.busy ||
+      this.data.block.frozen ||
+      this.data.report.busy ||
+      this.data.report.frozen
+    )
+      return;
+    if (post.viewer.isSelf) {
+      this.controller?.requestDelete('post', this.postId);
+      return;
+    }
+    this.namedAvatarController?.clear();
+    this.mediaGalleryController?.clear();
+    this.mediaReadController?.clear();
+    if (!wx.navigateTo) {
+      this.setData({ error: '当前环境不能打开帖子管理，请重试' });
+      return;
+    }
+    wx.navigateTo({
+      success: () => undefined,
+      url: `/pages/admin-post-removal/admin-post-removal?kind=post&id=${encodeURIComponent(post.id)}`,
+      fail: () => this.setData({ error: '暂不能打开帖子管理，请重试' }),
+    });
+  },
   onDeletePost() {
     this.controller?.requestDelete('post', this.postId);
   },

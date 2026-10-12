@@ -644,3 +644,12 @@ This remains a partial text-only slice. Images and real source/history
 import and production authorization/Review issuance remain unfinished. Focused
 unit, transport and bounded WXML tests use synthetic facts; they do not establish
 WeChat DevTools, physical-device, provider or production acceptance.
+
+## Original-region administrator post removal
+
+- The actual detail page offers a separate “管理员删除帖子（先核验权限）” button for other people's named or anonymous posts. Own posts keep the existing author-delete confirmation. The dedicated `admin-post-removal` page accepts a post locator only; current original-region permission and exact source version come from the server. It never resolves the anonymous author or uses a visible role label as authority
+- Confirmation explains that the post and its discussion become unavailable, the author receives a private notice, and no administrator restore path exists. This bounded action does not issue an account restriction, edit Profile, alter grants, or invent a jury verdict
+- A separate account/API-origin journal freezes the UUIDv4, post locator, exact target version and `remove_post` action, with domain-separated SHA-256 and durable readback before dispatch. An unresolved request blocks replacement. Cold recovery, explicit identical retry and durable cancellation keep the original key and do not need a readable source or current management grant. Stopping a wait never means server cancellation; a cancellation that loses to application returns the applied result
+- Session-generation, account, API-origin and hide boundaries reject old callbacks and clear page content. Confirmed application invalidates current content/private/media readers even if local journal cleanup fails; that failure keeps the recovery barrier. Back/reopen uses fresh reads rather than an old post snapshot
+- The author-only system-notice union adds `admin_post_removed` with the fixed text “你的帖子已被管理员删除”. No deleted-content link, preview, account identity or administrator identity is rendered. Existing jury, nickname and avatar notices keep their separate contracts
+- Focused controller/gateway/journal tests, an emitted build smoke, and `apps/api/test/integration/admin-post-removal-native-roundtrip.test.ts` cover this slice. The live roundtrip uses actual emitted App/Page/WXML and ordinary HTTP/PostgreSQL with synthetic authority and native callbacks. Physical-device rendering, real-provider/source acceptance and production activation remain separate gates

@@ -35,6 +35,7 @@ const project = (row: StoredSystemNotice): SystemNoticeView => {
     case 'profile_nickname_reset':
       return { ...base, kind: row.kind, nickname: row.nickname };
     case 'profile_custom_avatar_cleared':
+    case 'admin_post_removed':
       return { ...base, kind: row.kind };
     default:
       return unknownNotice(row);

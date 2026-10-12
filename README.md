@@ -179,3 +179,8 @@ Independent [canteen-floor scalar scores](docs/CANTEEN_FLOOR_SCORES.md) add raw-
 selection, fractional 1–5 first-active publication and original-request recovery.
 Floor history and population are independent of Window scores; production import,
 optional comments/images and whole-canteen summaries remain gated.
+
+A bounded [ordinary administrator post-removal slice](docs/API_ADMIN_POST_REMOVAL.md)
+adds source-bound original-region post removal with an independent private notice,
+exact causal proofs, existing paged cleanup and native original-key recovery.
+General bans, role management and production/device acceptance remain open.

@@ -3,6 +3,26 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  ADMIN_POST_REMOVAL_STALE: {
+    status: 409,
+    message: 'The post changed. Read its current removal options again.',
+  },
+  ADMIN_POST_REMOVAL_CANCELLED: {
+    status: 409,
+    message: 'The removal request was cancelled.',
+  },
+  ADMIN_POST_REMOVAL_UNAVAILABLE: {
+    status: 503,
+    message: 'Post removal is temporarily unavailable.',
+  },
+  ADMIN_POST_REMOVAL_TARGET_NOT_ALLOWED: {
+    status: 403,
+    message: 'This post is outside the supported administration scope.',
+  },
+  ADMIN_POST_REMOVAL_OWN_POST: {
+    status: 403,
+    message: 'Use the existing author deletion action for your own post.',
+  },
   PROFILE_AVATAR_MODERATION_STALE: {
     status: 409,
     message: 'Profile revision changed',

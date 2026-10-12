@@ -711,3 +711,12 @@ original-key native recovery. The result is the existing unselected-avatar state
 not legacy random-default-image parity. Target/ancestor image proof remains exact
 through the permitted avatar detach; ordinary runtime/provider/source acceptance
 gates remain closed. See [the contract](API_PROFILE_AVATAR_MODERATION.md).
+
+Scoped ordinary administrator post-removal development slice: native-origin
+original-regional `sync:none` posts have an independent exact administrative
+cause, private author notice, canonical tombstone/pin/cleanup ownership and
+original-key native recovery. Named and anonymous content remain content targets;
+self-post deletion keeps the existing author path and Experience. This does not
+complete bans/unbans, comment/reply administration, role management, associated
+campus/university-city scope, provider/device acceptance or full moderation parity.
+See [scope, source and exact contract](API_ADMIN_POST_REMOVAL.md).

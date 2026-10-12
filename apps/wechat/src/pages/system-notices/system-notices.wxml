@@ -1,7 +1,7 @@
 <view class="screen">
   <view class="eyebrow">WHALEU · 系统通知</view>
   <view class="title">我的系统通知</view>
-  <view class="notice">这里仅展示本账号收到的处理结果，包括帖子陪审团移除结果、公开昵称重置和自定义头像清除；不展示原内容、来源链接或处理者身份。</view>
+  <view class="notice">这里仅展示本账号收到的处理结果，包括帖子陪审团移除结果、公开昵称重置、自定义头像清除和管理员删帖；不展示原内容、来源链接或处理者身份。</view>
   <view class="status" aria-role="status">{{status}}</view>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <view wx:if="{{loaded}}" class="section-title">系统通知未读 {{unreadCount}} 条</view>
@@ -25,6 +25,9 @@
     <view wx:elif="{{item.kind === 'profile_custom_avatar_cleared'}}">
       <view class="section-title">自定义头像已被管理员清除</view>
       <view class="body">可重新选择头像</view>
+    </view>
+    <view wx:elif="{{item.kind === 'admin_post_removed'}}">
+      <view class="section-title">你的帖子已被管理员删除</view>
     </view>
     <button wx:if="{{!item.readAt}}" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy}}">标记此条已读</button>
   </view>

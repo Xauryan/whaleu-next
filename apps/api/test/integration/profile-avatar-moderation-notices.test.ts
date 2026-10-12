@@ -278,7 +278,7 @@ test(
         );
         assert.equal(
           JSON.parse(Buffer.from(first.nextCursor, 'base64url').toString()).v,
-          3,
+          4,
         );
         const scope = `system-notices:${createHash('sha256')
           .update(

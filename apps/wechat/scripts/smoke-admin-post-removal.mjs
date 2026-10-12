@@ -1,0 +1,397 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parse, render } from './smoke-ratings.mjs';
+const require = createRequire(import.meta.url);
+
+/** Actual emitted Page/gateway/storage/WXML; only transport and platform are synthetic. */
+export async function smokeAdminPostRemoval({ dist }) {
+  const emitted = (name) => require(path.join(dist, `${name}.js`));
+  const { ApiClient } = emitted('api/client');
+  const { ClientError } = emitted('api/errors');
+  const { SessionStore } = emitted('auth/session');
+  const { createCommunityRuntime } = emitted('community/runtime');
+  const id = (n) => `${String(n).padStart(8, '0')}-ca71-4ca7-8ca7-ca71ca71ca71`;
+  const accountId = id(1),
+    origin = 'https://admin-post-removal.example';
+  const sessions = new SessionStore();
+  const login = (account = accountId) =>
+    sessions.completeLogin(sessions.beginLogin(), {
+      accountId: account,
+      sessionId: id(3),
+      accessToken: `wu_a_${'a'.repeat(43)}`,
+      refreshToken: `wu_r_${'b'.repeat(43)}`,
+      expiresAt: 1900000000000,
+      refreshExpiresAt: 1900600000000,
+    });
+  login();
+  const storage = new Map(),
+    receipts = new Map(),
+    requests = [],
+    notices = [],
+    removed = new Set();
+  const createdAt = '2026-10-12T00:00:00.000Z';
+  const older = [
+    {
+      noticeId: id(50),
+      kind: 'post_jury_removed',
+      createdAt,
+      readAt: null,
+      keepVotes: 5,
+      removeVotes: 6,
+    },
+    {
+      noticeId: id(51),
+      kind: 'profile_nickname_reset',
+      createdAt,
+      readAt: null,
+      nickname: '违规昵称Ab123Z',
+    },
+    {
+      noticeId: id(52),
+      kind: 'profile_custom_avatar_cleared',
+      createdAt,
+      readAt: null,
+    },
+  ];
+  const native = {
+    getStorageSync: (key) => storage.get(key),
+    setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
+    removeStorageSync: (key) => storage.delete(key),
+  };
+  let runtime,
+    counter = 100,
+    writes = 0,
+    loseAfterCommit = false,
+    dropBeforeRecord = false,
+    managementUnavailable = false;
+  let targetVersion = 'a'.repeat(64);
+  const transport = {
+    async send(request) {
+      const url = new URL(request.url);
+      assert.equal(url.origin, origin);
+      assert.ok(request.headers.Authorization);
+      requests.push({
+        path: url.pathname,
+        method: request.method,
+        body: request.body,
+      });
+      let body;
+      if (url.pathname === '/v1/community/admin-post-removal/management') {
+        assert.equal(request.method, 'GET');
+        assert.deepEqual([...url.searchParams.keys()].sort(), ['id', 'kind']);
+        if (managementUnavailable || removed.has(url.searchParams.get('id')))
+          throw new ClientError('http', 'Synthetic current target unavailable');
+        body = {
+          target: {
+            kind: url.searchParams.get('kind'),
+            id: url.searchParams.get('id'),
+          },
+          targetVersion,
+          canRemove: true,
+        };
+      } else if (
+        /^\/v1\/community\/admin-post-removal\/commands(?:\/cancel)?$/.test(
+          url.pathname,
+        )
+      ) {
+        assert.equal(request.method, 'POST');
+        const command = request.body,
+          cancelling = url.pathname.endsWith('/cancel');
+        const pending = runtime.pendingAdminPostRemoval.load(accountId);
+        assert.deepEqual(
+          pending.command,
+          command,
+          'Durable readback must precede every dispatch',
+        );
+        assert.equal(pending.phase, cancelling ? 'cancel' : 'submit');
+        assert.deepEqual(Object.keys(command).sort(), [
+          'action',
+          'clientRequestId',
+          'expectedTargetVersion',
+          'target',
+        ]);
+        assert.deepEqual(Object.keys(command.target).sort(), ['id', 'kind']);
+        assert.equal(command.target.kind, 'post');
+        if (dropBeforeRecord) {
+          dropBeforeRecord = false;
+          throw new ClientError('timeout', 'Not recorded');
+        }
+        body = receipts.get(command.clientRequestId);
+        if (!body) {
+          const base = {
+            requestId: command.clientRequestId,
+            target: command.target,
+            expectedTargetVersion: command.expectedTargetVersion,
+            action: command.action,
+          };
+          if (cancelling)
+            body = {
+              ...base,
+              outcome: 'rejected',
+              code: 'ADMIN_POST_REMOVAL_CANCELLED',
+            };
+          else if (
+            targetVersion !== command.expectedTargetVersion ||
+            removed.has(command.target.id)
+          )
+            body = {
+              ...base,
+              outcome: 'rejected',
+              code: 'ADMIN_POST_REMOVAL_STALE',
+            };
+          else {
+            writes++;
+            removed.add(command.target.id);
+            body = {
+              ...base,
+              outcome: 'applied',
+              eventId: id(counter++),
+              recordedAt: createdAt,
+            };
+            notices.push({
+              noticeId: id(counter++),
+              kind: 'admin_post_removed',
+              createdAt,
+              readAt: null,
+            });
+          }
+          receipts.set(command.clientRequestId, body);
+        }
+        if (loseAfterCommit) {
+          loseAfterCommit = false;
+          throw new ClientError('timeout', 'Committed response lost');
+        }
+      } else if (
+        url.pathname.startsWith('/v1/community/admin-post-removal/requests/')
+      ) {
+        assert.equal(request.method, 'GET');
+        const found = receipts.get(url.pathname.split('/').at(-1));
+        body = found
+          ? { state: 'recorded', receipt: found }
+          : { state: 'not_recorded' };
+      } else if (url.pathname === '/v1/me/system-notices') {
+        body = {
+          items: [...older, ...notices],
+          nextCursor: null,
+          unreadCount: 3 + notices.filter((n) => !n.readAt).length,
+        };
+      } else if (/^\/v1\/me\/system-notices\/[^/]+\/read$/.test(url.pathname)) {
+        const notice = notices.find(
+          (n) => n.noticeId === url.pathname.split('/').at(-2),
+        );
+        assert.ok(notice);
+        notice.readAt ??= createdAt;
+        body = {
+          noticeId: notice.noticeId,
+          readAt: notice.readAt,
+          unreadCount: 3 + notices.filter((n) => !n.readAt).length,
+        };
+      } else
+        throw Error(
+          `Unexpected admin post removal smoke route: ${url.pathname}`,
+        );
+      return { status: 200, headers: {}, body };
+    },
+  };
+  const api = new ApiClient(origin, transport, sessions, {
+    refresh: async () => {
+      throw Error('No automatic auth replay');
+    },
+  });
+  runtime = createCommunityRuntime({ api, sessions }, native, origin);
+  runtime.newRequestId = async () => id(counter++);
+  const app = { community: runtime, identity: { api, sessions } };
+  const previous = { Page: globalThis.Page, getApp: globalThis.getApp },
+    pages = [];
+  const flush = async () => {
+    for (let n = 0; n < 160; n++) await Promise.resolve();
+  };
+  const mount = (name = 'admin-post-removal', query = {}) => {
+    let definition;
+    globalThis.Page = (value) => {
+      definition = value;
+    };
+    const file = path.join(dist, `pages/${name}/${name}.js`);
+    delete require.cache[require.resolve(file)];
+    require(file);
+    const page = {
+      ...definition,
+      data: structuredClone(definition.data),
+      setData(patch) {
+        Object.assign(this.data, patch);
+      },
+    };
+    pages.push(page);
+    page.onLoad?.(query);
+    page.onShow();
+    return page;
+  };
+  const flatten = (nodes) =>
+    nodes.flatMap((node) =>
+      typeof node === 'string' ? [node] : [node, ...flatten(node.children)],
+    );
+  try {
+    globalThis.getApp = () => app;
+    const template = parse(
+      readFileSync(
+        path.join(dist, 'pages/admin-post-removal/admin-post-removal.wxml'),
+        'utf8',
+      ),
+    );
+    assert.ok(
+      JSON.parse(
+        readFileSync(path.join(dist, 'app.json'), 'utf8'),
+      ).pages.includes('pages/admin-post-removal/admin-post-removal'),
+    );
+    const confirm = async (page) => {
+      page.onRemovePost();
+      await flush();
+      assert.equal(page.data.confirming, 'remove');
+      const words = flatten(render(template.children, page.data, {}))
+        .filter((n) => typeof n === 'string')
+        .join(' ');
+      assert.match(words, /评论、回复将不可访问/);
+      assert.match(words, /私有系统通知/);
+      assert.match(words, /没有恢复此帖/);
+      assert.doesNotMatch(words, /super_admin|school_admin|公开昵称/);
+    };
+    let page = mount('admin-post-removal', { kind: 'post', id: id(10) });
+    await flush();
+    await confirm(page);
+    page.onClose();
+    page.onSubmit();
+    await flush();
+    assert.equal(writes, 0);
+    await confirm(page);
+    page.onSubmit();
+    page.onSubmit();
+    await flush();
+    assert.equal(writes, 1);
+    assert.equal(page.data.frozen, false);
+    assert.match(page.data.receiptStatus, /已确认删除帖子/);
+    page.onHide();
+    assert.equal(page.data.management, null);
+    page.onShow();
+    await flush();
+    assert.equal(
+      page.data.management,
+      null,
+      'Back/reopen never restores removed target authority',
+    );
+    page.onUnload();
+
+    page = mount('admin-post-removal', { kind: 'post', id: id(11) });
+    await flush();
+    await confirm(page);
+    loseAfterCommit = true;
+    page.onSubmit();
+    await flush();
+    assert.equal(writes, 2);
+    assert.equal(page.data.frozen, true);
+    const original = runtime.pendingAdminPostRemoval.load(accountId);
+    page.onUnload();
+    managementUnavailable = true;
+    login(id(4));
+    page = mount();
+    await flush();
+    assert.equal(page.data.pendingRequestId, '');
+    page.onUnload();
+    login();
+    const beforeRecovery = requests.length;
+    page = mount();
+    await flush();
+    assert.equal(page.data.pendingRequestId, original.command.clientRequestId);
+    page.onRecover();
+    await flush();
+    assert.equal(runtime.pendingAdminPostRemoval.load(accountId), null);
+    assert.equal(writes, 2);
+    assert.ok(
+      requests
+        .slice(beforeRecovery)
+        .every((r) => r.path.includes('/requests/')),
+    );
+    page.onUnload();
+    managementUnavailable = false;
+
+    page = mount('admin-post-removal', { kind: 'post', id: id(12) });
+    await flush();
+    await confirm(page);
+    dropBeforeRecord = true;
+    page.onSubmit();
+    await flush();
+    const unrecorded = runtime.pendingAdminPostRemoval.load(accountId);
+    page.onRecover();
+    await flush();
+    assert.equal(page.data.frozen, true);
+    assert.equal(
+      page.data.pendingRequestId,
+      unrecorded.command.clientRequestId,
+    );
+    page.onCancelRequest();
+    page.onConfirmCancel();
+    await flush();
+    assert.equal(
+      receipts.get(unrecorded.command.clientRequestId).code,
+      'ADMIN_POST_REMOVAL_CANCELLED',
+    );
+    assert.equal(writes, 2);
+    page.onUnload();
+
+    page = mount('admin-post-removal', { kind: 'post', id: id(13) });
+    await flush();
+    await confirm(page);
+    targetVersion = 'b'.repeat(64);
+    page.onSubmit();
+    await flush();
+    assert.match(page.data.receiptStatus, /帖子状态已变化/);
+    assert.equal(writes, 2);
+    page.onUnload();
+
+    const noticesPage = mount('system-notices');
+    await flush();
+    assert.equal(noticesPage.data.items.length, 5);
+    const noticeTree = parse(
+      readFileSync(
+        path.join(dist, 'pages/system-notices/system-notices.wxml'),
+        'utf8',
+      ),
+    );
+    const rendered = flatten(
+      render(
+        noticeTree.children,
+        { ...noticesPage.data, items: [notices[0]] },
+        {},
+      ),
+    );
+    const text = rendered.filter((n) => typeof n === 'string').join(' ');
+    assert.match(text, /你的帖子已被管理员删除/);
+    assert.doesNotMatch(text, /保留 .*票|移除 .*票/);
+    assert.ok(
+      !rendered.some((n) => typeof n !== 'string' && n.tag === 'navigator'),
+    );
+    noticesPage.onRead({
+      currentTarget: { dataset: { id: notices[0].noticeId } },
+    });
+    await flush();
+    assert.equal(noticesPage.data.items[3].readAt, createdAt);
+    assert.equal(noticesPage.data.items[0].readAt, null);
+  } finally {
+    for (const page of pages) page.onUnload?.();
+    globalThis.Page = previous.Page;
+    globalThis.getApp = previous.getApp;
+  }
+}
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  await smokeAdminPostRemoval({
+    dist: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist'),
+  });
+  console.log(
+    'Emitted admin post removal smoke passed (synthetic transport/WXML model; not device/PG acceptance)',
+  );
+}

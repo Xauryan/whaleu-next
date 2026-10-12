@@ -25,6 +25,16 @@ const schema = z.discriminatedUnion('v', [
       'profile_custom_avatar_cleared',
     ]),
   }),
+  z.strictObject({
+    v: z.literal(4),
+    ...fields,
+    kind: z.enum([
+      'post_jury_removed',
+      'profile_nickname_reset',
+      'profile_custom_avatar_cleared',
+      'admin_post_removed',
+    ]),
+  }),
 ]);
 export interface SystemNoticesSeek {
   at: string;
@@ -78,6 +88,6 @@ export function encodeSystemNoticesCursor(
   kind: SystemNoticeKind = 'post_jury_removed',
 ) {
   return Buffer.from(
-    JSON.stringify({ v: 3, scope: ownerScope(accountId), limit, at, id, kind }),
+    JSON.stringify({ v: 4, scope: ownerScope(accountId), limit, at, id, kind }),
   ).toString('base64url');
 }

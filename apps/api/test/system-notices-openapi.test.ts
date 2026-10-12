@@ -107,11 +107,12 @@ test('system notice OpenAPI retains three owner-only routes and three exact sour
       assert.equal(items.maxItems, 50);
       const union = resolve(items.items);
       const variants = (union.anyOf ?? union.oneOf ?? []).map(resolve);
-      assert.equal(variants.length, 3);
+      assert.equal(variants.length, 4);
       const fields = {
         post_jury_removed: ['keepVotes', 'removeVotes'],
         profile_nickname_reset: ['nickname'],
         profile_custom_avatar_cleared: [],
+        admin_post_removed: [],
       };
       for (const [kind, specific] of Object.entries(fields)) {
         const variant = variants.find((item) =>

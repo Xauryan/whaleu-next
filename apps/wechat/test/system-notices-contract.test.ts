@@ -294,3 +294,84 @@ test('custom avatar clear notices are minimal, immutable and reject private byte
       { kind: 'protocol' },
     );
 });
+
+test('admin post removal is a fourth minimal source-free kind with collision checks across every previous kind', () => {
+  const removed = {
+    noticeId: 'aaaaaaaa-1111-4111-8111-111111111111',
+    kind: 'admin_post_removed',
+    createdAt,
+    readAt: null,
+  } as const;
+  const previous = [
+    systemNotice(),
+    {
+      noticeId: otherId,
+      kind: 'profile_nickname_reset',
+      createdAt,
+      readAt: null,
+      nickname: '违规昵称Ab123Z',
+    } as const,
+    {
+      noticeId: replyId,
+      kind: 'profile_custom_avatar_cleared',
+      createdAt,
+      readAt: null,
+    } as const,
+  ];
+  assert.deepEqual(decodeSystemNotice(removed), removed);
+  assert.ok(Object.isFrozen(decodeSystemNotice(removed)));
+  const mixed = systemNotices([...previous, removed], 'older_opaque_cursor', 4);
+  assert.deepEqual(decodeSystemNoticesList(mixed), mixed);
+  assert.deepEqual(decodeSystemNotice({ ...removed, readAt: createdAt }), {
+    ...removed,
+    readAt: createdAt,
+  });
+  for (const key of [
+    'postId',
+    'source',
+    'sourceLink',
+    'target',
+    'preview',
+    'text',
+    'images',
+    'url',
+    'accountId',
+    'subjectId',
+    'authorId',
+    'actorId',
+    'adminId',
+    'publicId',
+    'eventId',
+    'reason',
+    'nickname',
+    'keepVotes',
+    'removeVotes',
+    'deliveredAt',
+  ])
+    assert.throws(() => decodeSystemNotice({ ...removed, [key]: otherId }), {
+      kind: 'protocol',
+    });
+  for (const older of previous) {
+    assert.throws(() =>
+      decodeSystemNoticesList(
+        systemNotices([older, { ...removed, noticeId: older.noticeId }]),
+      ),
+    );
+    assert.throws(() =>
+      decodeSystemNoticesList(
+        systemNotices([
+          older,
+          { ...removed, noticeId: older.noticeId.toUpperCase() },
+        ]),
+      ),
+    );
+  }
+  for (const patch of [
+    { kind: 'unknown' },
+    { kind: 'post_jury_removed' },
+    { noticeId: 'bad' },
+    { createdAt: '2026-02-30T00:00:00.000Z' },
+    { readAt: 'yesterday' },
+  ])
+    assert.throws(() => decodeSystemNotice({ ...removed, ...patch }));
+});

@@ -455,11 +455,30 @@ test('native avatar notice renderer uses fixed honest text without a source, old
   );
   const branch = template
     .split("item.kind === 'profile_custom_avatar_cleared'")[1]
-    ?.split('<button')[0];
+    ?.split(/<view wx:elif|<button/)[0];
   assert.ok(branch);
   assert.match(branch, /自定义头像已被管理员清除/);
   assert.match(branch, /可重新选择头像/);
   assert.doesNotMatch(branch, /<image|<navigator|\burl=|\bsrc=|默认|{{item\./);
   for (const kind of ['post_jury_removed', 'profile_nickname_reset'])
+    assert.ok(template.includes(`item.kind === '${kind}'`));
+});
+
+test('native admin-removal notice renderer is fixed and exposes no deleted source or participant identity', () => {
+  const template = readFileSync(
+    path.resolve(__dirname, '../src/pages/system-notices/system-notices.wxml'),
+    'utf8',
+  );
+  const branch = template
+    .split("item.kind === 'admin_post_removed'")[1]
+    ?.split(/<view wx:elif|<button/)[0];
+  assert.ok(branch);
+  assert.match(branch, /你的帖子已被管理员删除/);
+  assert.doesNotMatch(branch, /<image|<navigator|\burl=|\bsrc=|{{item\./);
+  for (const kind of [
+    'post_jury_removed',
+    'profile_nickname_reset',
+    'profile_custom_avatar_cleared',
+  ])
     assert.ok(template.includes(`item.kind === '${kind}'`));
 });

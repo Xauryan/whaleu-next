@@ -1,4 +1,9 @@
 import {
+  HttpAdminPostRemovalGateway,
+  type AdminPostRemovalGateway,
+} from '../admin-post-removal/gateway';
+import { PendingAdminPostRemovalStore } from '../admin-post-removal/pending';
+import {
   HttpProfileAvatarModerationGateway,
   type ProfileAvatarModerationGateway,
 } from '../profile-avatar-moderation/gateway';
@@ -236,6 +241,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly adminPostRemoval?: AdminPostRemovalGateway;
+  readonly pendingAdminPostRemoval?: PendingAdminPostRemovalStore;
   readonly profileAvatarModeration?: ProfileAvatarModerationGateway;
   readonly pendingProfileAvatarModeration?: PendingProfileAvatarModerationStore;
   readonly profileModeration?: ProfileModerationGateway;
@@ -436,6 +443,10 @@ export function createCommunityRuntime(
     pendingWindowDiscussion: new PendingWindowDiscussionStore(storage, origin),
     ...(identity.api
       ? { windowDiscussion: new HttpWindowDiscussionGateway(identity.api) }
+      : {}),
+    pendingAdminPostRemoval: new PendingAdminPostRemovalStore(storage, origin),
+    ...(identity.api
+      ? { adminPostRemoval: new HttpAdminPostRemovalGateway(identity.api) }
       : {}),
     pendingProfileAvatarModeration: new PendingProfileAvatarModerationStore(
       storage,

@@ -1,3 +1,5 @@
+import { AdminPostRemovalService } from './admin-removal/service.js';
+import { AdminPostRemovalController } from './admin-removal/controller.js';
 import { ProfileModerationTargetFacade } from './profile-moderation-target.facade.js';
 import { CategoryReclassificationController } from './category-reclassification/controller.js';
 import { CategoryReclassificationService } from './category-reclassification/service.js';
@@ -315,6 +317,7 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    AdminPostRemovalController,
     CategoryReclassificationController,
     OwnerVisibilityController,
     PostPinsController,
@@ -348,6 +351,7 @@ export class CommunityRecoveryController {
     CommunityRecoveryController,
   ],
   exports: [
+    AdminPostRemovalService,
     ProfileModerationTargetFacade,
     CommunityExperienceSourceFacade,
     CommunityProfileDiscoveryFacade,
@@ -359,6 +363,7 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    AdminPostRemovalService,
     ProfileModerationTargetFacade,
     CategoryReclassificationService,
     OwnerVisibilityService,

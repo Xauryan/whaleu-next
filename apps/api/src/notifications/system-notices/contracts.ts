@@ -43,10 +43,15 @@ export const profileCustomAvatarClearedNoticeViewSchema = z.strictObject({
   ...noticeFields,
   kind: z.literal('profile_custom_avatar_cleared'),
 });
+export const adminPostRemovedNoticeViewSchema = z.strictObject({
+  ...noticeFields,
+  kind: z.literal('admin_post_removed'),
+});
 export const systemNoticeViewSchema = z.discriminatedUnion('kind', [
   postJuryRemovalNoticeViewSchema,
   profileNicknameResetNoticeViewSchema,
   profileCustomAvatarClearedNoticeViewSchema,
+  adminPostRemovedNoticeViewSchema,
 ]);
 export const systemNoticesUnreadSchema = z.strictObject({
   unreadCount: z.number().int().min(0).max(2147483647),
