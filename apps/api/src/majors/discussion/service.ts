@@ -45,6 +45,13 @@ const profiles = requiredOwnerEpoch(
   profileCountProofOwner,
   'MAJOR_DISCUSSION_HISTORY_UNAVAILABLE',
 );
+type MajorDirectorySummary =
+  | { kind: 'unavailable' }
+  | {
+      kind: 'known';
+      rootCount: number;
+      hotComment: { id: string; body: string; likes: number } | null;
+    };
 type Command = MajorRootPublish | MajorReplyPublish | MajorDiscussionLike;
 export function majorDiscussionIntentHash(
   actorId: string,
@@ -383,54 +390,73 @@ export class MajorDiscussionService {
     });
   }
   async summary(actor: string, session: string, id: string, tx: PoolClient) {
+    return (await this.summaries(actor, session, [id], tx)).get(id)!;
+  }
+  async summaries(
+    actor: string,
+    session: string,
+    ids: readonly string[],
+    tx: PoolClient,
+  ) {
+    const result = new Map<string, MajorDirectorySummary>();
+    if (ids.length > 50 || new Set(ids).size !== ids.length)
+      throw new ApplicationError('MAJOR_DISCUSSION_BUDGET_UNAVAILABLE');
+    if (!ids.length) return result;
     const epoch = await discussionEpoch(tx);
     await profiles(tx);
-    const observation = (
-      await tx.query<{ source: DiscussionSource | null }>(
-        'SELECT whaleu_majors.major_discussion_source($1,clock_timestamp()) source',
-        [id],
+    const captures = (
+      await tx.query<{
+        ordinal: string;
+        major_id: string;
+        source: DiscussionSource | null;
+      }>(
+        'WITH instant AS MATERIALIZED(SELECT clock_timestamp() now) SELECT s.ordinal::text ordinal,s.major_id,s.source FROM instant CROSS JOIN LATERAL whaleu_majors.major_discussion_sources($1::uuid[],instant.now) s ORDER BY s.ordinal',
+        [ids],
       )
-    ).rows[0]!.source;
-    let summary:
-      | { kind: 'unavailable' }
-      | {
-          kind: 'known';
-          rootCount: number;
-          hotComment: { id: string; body: string; likes: number } | null;
-        } = { kind: 'unavailable' };
-    if (observation?.population && observation.likes) {
-      try {
-        const snapshot = await this.rows(actor, id, tx);
-        const roots = snapshot.rows.filter(
-          (row) => row.root_id === null && row.status === 'allow',
-        );
-        roots.sort(
-          (a, b) =>
-            Number(b.likes) - Number(a.likes) ||
-            b.created_at.getTime() - a.created_at.getTime() ||
-            b.id.localeCompare(a.id),
-        );
-        const hot = roots[0];
-        summary = {
-          kind: 'known',
-          rootCount: roots.length,
-          hotComment: hot
-            ? { id: hot.id, body: hot.body, likes: Number(hot.likes) }
-            : null,
-        };
-      } catch (error) {
-        if (
-          !(error instanceof ApplicationError) ||
-          ![
-            'CONTENT_REVIEW_UNAVAILABLE',
-            'MAJOR_DISCUSSION_BUDGET_UNAVAILABLE',
-          ].includes(error.code)
-        )
-          throw error;
+    ).rows;
+    if (captures.length !== ids.length)
+      throw new ApplicationError('MAJOR_DISCUSSION_HISTORY_UNAVAILABLE');
+    for (const [index, id] of ids.entries()) {
+      const capture = captures[index]!;
+      if (capture.ordinal !== String(index + 1) || capture.major_id !== id)
+        throw new ApplicationError('MAJOR_DISCUSSION_HISTORY_UNAVAILABLE');
+      const observation = capture.source;
+      let summary: MajorDirectorySummary = { kind: 'unavailable' };
+      if (observation?.population && observation.likes) {
+        try {
+          const snapshot = await this.rows(actor, id, tx);
+          const roots = snapshot.rows.filter(
+            (row) => row.root_id === null && row.status === 'allow',
+          );
+          roots.sort(
+            (a, b) =>
+              Number(b.likes) - Number(a.likes) ||
+              b.created_at.getTime() - a.created_at.getTime() ||
+              b.id.localeCompare(a.id),
+          );
+          const hot = roots[0];
+          summary = {
+            kind: 'known',
+            rootCount: roots.length,
+            hotComment: hot
+              ? { id: hot.id, body: hot.body, likes: Number(hot.likes) }
+              : null,
+          };
+        } catch (error) {
+          if (
+            !(error instanceof ApplicationError) ||
+            ![
+              'CONTENT_REVIEW_UNAVAILABLE',
+              'MAJOR_DISCUSSION_BUDGET_UNAVAILABLE',
+            ].includes(error.code)
+          )
+            throw error;
+        }
       }
+      await retainDiscussion(actor, session, id, tx, { observation, epoch });
+      result.set(id, summary);
     }
-    await retainDiscussion(actor, session, id, tx, { observation, epoch });
-    return summary;
+    return result;
   }
   private async target(
     actor: string,

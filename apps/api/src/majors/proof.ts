@@ -10,6 +10,41 @@ import {
   registerTransactionExactDeadline,
 } from '../database/transaction-deadlines.js';
 import type { RequiredTransactionProof } from '../database/transaction-deadlines.js';
+/** One complete source at one instant. Scalar epoch reads prevent unanalysed
+ * boolean-singleton tables from multiplying the estimated result cardinality.
+ * All catalog entries (including inactive/off-page entries) still contribute
+ * every future history, Review, policy and author-Safety boundary. */
+export const majorCatalogCaptureSql = `
+WITH instant AS MATERIALIZED(SELECT clock_timestamp() now),
+ capture AS MATERIALIZED(
+  SELECT now,whaleu_majors.major_catalog_source(now) source FROM instant
+ ),
+ boundaries AS (
+  SELECT boundary.value FROM capture
+  JOIN whaleu_majors.major_entries e ON e.catalog_id=(capture.source->>'catalog')::uuid
+  JOIN whaleu_majors.major_discussion_history_heads h ON h.major_id=e.major_id
+  JOIN whaleu_majors.major_discussion_history_assertions a ON a.id=h.assertion_id
+  CROSS JOIN LATERAL(VALUES(a.accepted_at),(a.valid_until)) boundary(value)
+  WHERE boundary.value>capture.now
+  UNION ALL
+  SELECT boundary.value FROM capture
+  JOIN whaleu_majors.major_entries e ON e.catalog_id=(capture.source->>'catalog')::uuid
+  JOIN whaleu_majors.major_discussion_comments c ON c.major_id=e.major_id
+  JOIN whaleu_community.major_discussion_review_decisions d ON d.id=c.review_decision_id
+  JOIN whaleu_community.major_discussion_review_policies p ON p.id=d.policy_id
+  LEFT JOIN whaleu_safety.account_heads s ON s.account_id=c.actor_id
+  CROSS JOIN LATERAL(VALUES(d.issued_at),(d.visibility_until),(p.valid_from),(p.valid_until),(s.valid_until)) boundary(value)
+  WHERE boundary.value>capture.now
+ )
+ SELECT source,
+  (SELECT revision::text FROM whaleu_majors.major_catalog_epoch WHERE singleton) epoch,
+  (SELECT revision::text FROM whaleu_majors.major_discussion_epoch WHERE singleton) content,
+  (SELECT revision::text FROM whaleu_community.major_discussion_review_epoch WHERE singleton) review,
+  least(capture.now+interval '10 minutes',
+   whaleu_majors.major_discussion_access_deadline($1,$2,capture.now),
+   whaleu_majors.major_discussion_source_boundary(capture.now),
+   (SELECT min(value) FROM boundaries))::text until
+ FROM capture`;
 export async function majorCatalog(
   tx: PoolClient,
   actor: string,
@@ -19,23 +54,27 @@ export async function majorCatalog(
   const row = (
     await tx.query<{
       source: { catalog: string } | null;
-      epoch: string;
-      content: string;
-      review: string;
+      epoch: string | null;
+      content: string | null;
+      review: string | null;
       until: string;
-    }>(
-      `WITH instant AS MATERIALIZED(SELECT clock_timestamp() now) SELECT whaleu_majors.major_catalog_source(instant.now) source,c.revision::text epoch,d.revision::text content,r.revision::text review,least(instant.now+interval '10 minutes',whaleu_majors.major_discussion_access_deadline($1,$2,instant.now),whaleu_majors.major_discussion_source_boundary(instant.now),(SELECT min(whaleu_majors.major_discussion_deadline(e.major_id,instant.now)) FROM whaleu_majors.major_entries e WHERE e.catalog_id=(whaleu_majors.major_catalog_source(instant.now)->>'catalog')::uuid))::text until FROM instant CROSS JOIN whaleu_majors.major_catalog_epoch c CROSS JOIN whaleu_majors.major_discussion_epoch d CROSS JOIN whaleu_community.major_discussion_review_epoch r WHERE c.singleton AND d.singleton AND r.singleton`,
-      [actor, session],
-    )
+    }>(majorCatalogCaptureSql, [actor, session])
   ).rows[0];
-  if (!row?.source) throw new ApplicationError('MAJOR_CATALOG_UNAVAILABLE');
+  if (!row?.source || !row.epoch || !row.content || !row.review)
+    throw new ApplicationError('MAJOR_CATALOG_UNAVAILABLE');
   if (retainDeadline)
     registerTransactionExactDeadline(
       tx,
       row.until,
       'MAJOR_CATALOG_UNAVAILABLE',
     );
-  return { ...row, source: row.source };
+  return {
+    ...row,
+    source: row.source,
+    epoch: row.epoch,
+    content: row.content,
+    review: row.review,
+  };
 }
 type Fact = {
   actor: string;

@@ -34,14 +34,18 @@ export async function discussionSource(id: string, tx: PoolClient) {
   );
   return row.source;
 }
+export const majorDiscussionEpochSql = `SELECT
+ (SELECT revision::text FROM whaleu_majors.major_discussion_epoch WHERE singleton) content,
+ (SELECT revision::text FROM whaleu_community.major_discussion_review_epoch WHERE singleton) review`;
 export async function discussionEpoch(tx: PoolClient) {
   const r = (
-    await tx.query<{ content: string; review: string }>(
-      'SELECT c.revision::text content,r.revision::text review FROM whaleu_majors.major_discussion_epoch c CROSS JOIN whaleu_community.major_discussion_review_epoch r WHERE c.singleton AND r.singleton',
+    await tx.query<{ content: string | null; review: string | null }>(
+      majorDiscussionEpochSql,
     )
   ).rows[0];
-  if (!r) throw new ApplicationError('MAJOR_DISCUSSION_HISTORY_UNAVAILABLE');
-  return r;
+  if (!r?.content || !r.review)
+    throw new ApplicationError('MAJOR_DISCUSSION_HISTORY_UNAVAILABLE');
+  return { content: r.content, review: r.review };
 }
 interface Fact {
   actor: string;
@@ -53,6 +57,17 @@ interface Fact {
   history: string | null;
   publish: boolean;
 }
+export const majorDiscussionProofSql = `
+ WITH instant AS MATERIALIZED(SELECT clock_timestamp() now),
+ inputs AS MATERIALIZED(SELECT * FROM unnest($1::uuid[],$2::uuid[],$3::uuid[],$4::boolean[]) WITH ORDINALITY f(actor,session_id,major_id,publish,ordinal)),
+ sources AS MATERIALIZED(SELECT s.* FROM instant CROSS JOIN LATERAL whaleu_majors.major_discussion_sources($3::uuid[],instant.now) s)
+ SELECT inputs.ordinal::text ordinal,inputs.major_id,
+  whaleu_identity.major_rating_session(inputs.actor,inputs.session_id,instant.now) session,
+  whaleu_majors.major_access(inputs.actor,inputs.session_id,instant.now) access,
+  CASE WHEN inputs.publish THEN whaleu_majors.major_publish_base(inputs.actor,instant.now) ELSE true END base,
+  sources.source,whaleu_majors.major_discussion_history(inputs.major_id,'likes',instant.now)::text history
+ FROM inputs CROSS JOIN instant LEFT JOIN sources ON sources.ordinal=inputs.ordinal AND sources.major_id=inputs.major_id
+ ORDER BY inputs.ordinal`;
 const proof: RequiredTransactionProof<Fact> = {
   maximumFacts: 50,
   failureCode: 'MAJOR_DISCUSSION_HISTORY_UNAVAILABLE',
@@ -63,27 +78,31 @@ const proof: RequiredTransactionProof<Fact> = {
       async (read) => {
         await read.query('SELECT whaleu_majors.major_discussion_fence()');
         const epoch = await discussionEpoch(read);
-        for (const f of facts) {
-          const row = (
-            await read.query<{
-              session: boolean;
-              access: boolean;
-              source: DiscussionSource | null;
-              history: string | null;
-            }>(
-              `WITH instant AS MATERIALIZED(SELECT clock_timestamp() now) SELECT whaleu_identity.major_rating_session($1,$2,instant.now) session,whaleu_majors.major_access($1,$2,instant.now) access,whaleu_majors.major_discussion_source($3,instant.now) source,whaleu_majors.major_discussion_history($3,'likes',instant.now)::text history FROM instant`,
-              [f.actor, f.session, f.major],
-            )
-          ).rows[0]!;
+        const rows = (
+          await read.query<{
+            ordinal: string;
+            major_id: string;
+            session: boolean;
+            access: boolean;
+            base: boolean;
+            source: DiscussionSource | null;
+            history: string | null;
+          }>(majorDiscussionProofSql, [
+            facts.map((f) => f.actor),
+            facts.map((f) => f.session),
+            facts.map((f) => f.major),
+            facts.map((f) => f.publish),
+          ])
+        ).rows;
+        if (rows.length !== facts.length)
+          throw new ApplicationError('MAJOR_DISCUSSION_HISTORY_UNAVAILABLE');
+        for (const [index, f] of facts.entries()) {
+          const row = rows[index]!;
           if (
+            row.ordinal !== String(index + 1) ||
+            row.major_id !== f.major ||
             !row.session ||
-            (f.publish &&
-              !(
-                await read.query<{ allowed: boolean }>(
-                  'SELECT whaleu_majors.major_publish_base($1,clock_timestamp()) allowed',
-                  [f.actor],
-                )
-              ).rows[0]!.allowed) ||
+            (f.publish && !row.base) ||
             epoch.content !== f.epoch ||
             (f.review !== null && epoch.review !== f.review) ||
             (f.source !== null &&

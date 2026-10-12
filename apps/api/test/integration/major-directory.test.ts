@@ -340,3 +340,440 @@ test(
     );
   },
 );
+
+test(
+  'cold Major capture plans stay scalar and retain full off-page inactive history, Review and Safety deadlines',
+  { timeout: 180000 },
+  async (t) => {
+    const { majorCatalog, majorCatalogCaptureSql } =
+      await import('../../src/majors/proof.js');
+    const { discussionEpoch, majorDiscussionEpochSql } =
+      await import('../../src/majors/discussion/proof.js');
+    const f = await majorDiscussionFixture();
+    t.after(() => f.close());
+    const publisher = await f.actor({ identity: false });
+    const reader = await f.actor({
+      affiliation: 'unverified',
+      identity: false,
+    });
+    const session = (
+      await f.pool.query<{ id: string }>(
+        'SELECT id FROM whaleu_identity.sessions WHERE account_id=$1',
+        [reader.accountId],
+      )
+    ).rows[0]!.id;
+    const rows = Array.from({ length: 1000 }, (_, departmentId) =>
+      f.add({ departmentId }),
+    );
+    const offPage = rows.at(-1)!;
+    const catalog = await f.accept(rows);
+    const get = () =>
+      request(f.app.getHttpServer())
+        .get('/v1/majors')
+        .set('Authorization', 'Bearer ' + reader.accessToken);
+    await f.acceptDiscussion([
+      ...rows.slice(0, 50).map((row) => row.id),
+      offPage.id,
+    ]);
+    const time = (
+      await f.pool.query<{ now: Date }>('SELECT clock_timestamp() now')
+    ).rows[0]!.now.getTime();
+    const visibility = new Date(time + 180000);
+    const command = f.root(catalog, offPage, 'Complete off-page boundary');
+    await reviewMajorDiscussion(
+      f.pool,
+      publisher.accountId,
+      offPage.id,
+      command,
+      null,
+      'allow',
+      { visibilityUntil: visibility },
+    );
+    ok(
+      await request(f.app.getHttpServer())
+        .post(`/v1/majors/${offPage.id}/discussion`)
+        .set('Authorization', 'Bearer ' + publisher.accessToken)
+        .send(command),
+    );
+    rows[rows.length - 1] = { ...offPage, active: false };
+    await f.accept(rows);
+    const future = new Date(time + 120000),
+      assertion = randomUUID();
+    await f.pool.query(
+      "INSERT INTO whaleu_majors.major_discussion_history_assertions(id,major_id,kind,coverage,source_reference,policy_reference,accepted_at,valid_until) VALUES($1,$2,'likes','unknown','synthetic:future-offpage','synthetic:preserve-all-boundaries',$3,$4)",
+      [assertion, offPage.id, future, new Date(time + 3600000)],
+    );
+    await f.pool.query(
+      "UPDATE whaleu_majors.major_discussion_history_heads SET assertion_id=$2 WHERE major_id=$1 AND kind='likes'",
+      [offPage.id, assertion],
+    );
+    const read = async () => {
+      const instant = (
+        await f.pool.query<{ now: string }>(
+          'SELECT clock_timestamp()::text now',
+        )
+      ).rows[0]!.now;
+      const values = [reader.accountId, session, instant];
+      const current = (
+        await f.pool.query(
+          majorCatalogCaptureSql.replace(
+            'clock_timestamp() now',
+            '$3::timestamptz now',
+          ),
+          values,
+        )
+      ).rows[0];
+      const oracle = (
+        await f.pool.query(
+          `SELECT least($3::timestamptz+interval '10 minutes',whaleu_majors.major_discussion_access_deadline($1,$2,$3),whaleu_majors.major_discussion_source_boundary($3),(SELECT min(whaleu_majors.major_discussion_deadline(e.major_id,$3)) FROM whaleu_majors.major_entries e WHERE e.catalog_id=(whaleu_majors.major_catalog_source($3)->>'catalog')::uuid))::text until`,
+          values,
+        )
+      ).rows[0];
+      assert.equal(
+        current.until,
+        oracle.until,
+        'set-oriented result equals the complete original per-Major boundary oracle',
+      );
+      return current;
+    };
+    assert.equal(
+      new Date((await read()).until).getTime(),
+      future.getTime(),
+      'future-issued history on an inactive off-page Major is not pruned',
+    );
+    await discussionHistory(f.pool, offPage.id, 'likes');
+    assert.equal(
+      new Date((await read()).until).getTime(),
+      visibility.getTime(),
+      'off-page Review visibility remains a boundary',
+    );
+    const safety = new Date(time + 60000);
+    await f.pool.query(
+      'UPDATE whaleu_safety.account_heads SET valid_until=$2 WHERE account_id=$1',
+      [publisher.accountId, safety],
+    );
+    assert.equal(
+      new Date((await read()).until).getTime(),
+      safety.getTime(),
+      'off-page author Safety is independent of the reader access deadline',
+    );
+    const firstPage = await get();
+    ok(firstPage);
+    assert.equal(firstPage.body.totalCount, 999);
+    assert.equal(firstPage.body.items.length, 20);
+    assert.ok(
+      firstPage.body.items.every(
+        (item: { summary: unknown }) =>
+          JSON.stringify(item.summary) ===
+          JSON.stringify({ kind: 'known', rootCount: 0, hotComment: null }),
+      ),
+    );
+    assert.equal(typeof firstPage.body.nextCursor, 'string');
+    const nextPage = await request(f.app.getHttpServer())
+      .get('/v1/majors?cursor=' + encodeURIComponent(firstPage.body.nextCursor))
+      .set('Authorization', 'Bearer ' + reader.accessToken);
+    ok(nextPage);
+    assert.equal(nextPage.body.totalCount, 999);
+    assert.equal(nextPage.body.items[0].id, rows[20]!.id);
+    assert.notEqual(nextPage.body.items[0].id, firstPage.body.items[0].id);
+    const maximumPage = await request(f.app.getHttpServer())
+      .get('/v1/majors?limit=50')
+      .set('Authorization', 'Bearer ' + reader.accessToken);
+    ok(maximumPage);
+    assert.equal(maximumPage.body.items.length, 50);
+    assert.ok(
+      maximumPage.body.items.every(
+        (item: { summary: unknown }) =>
+          JSON.stringify(item.summary) ===
+          JSON.stringify({ kind: 'known', rootCount: 0, hotComment: null }),
+      ),
+    );
+    const maximumNext = await request(f.app.getHttpServer())
+      .get(
+        '/v1/majors?limit=50&cursor=' +
+          encodeURIComponent(maximumPage.body.nextCursor),
+      )
+      .set('Authorization', 'Bearer ' + reader.accessToken);
+    ok(maximumNext);
+    assert.equal(maximumNext.body.items.length, 50);
+    assert.equal(maximumNext.body.items[0].id, rows[50]!.id);
+    await f.pool.query(
+      "UPDATE whaleu_campus.campuses SET full_name=full_name||' changed' WHERE id=$1",
+      [rows[0]!.campusId],
+    );
+    ok(
+      await request(f.app.getHttpServer())
+        .get(
+          '/v1/majors?cursor=' + encodeURIComponent(firstPage.body.nextCursor),
+        )
+        .set('Authorization', 'Bearer ' + reader.accessToken),
+      409,
+    );
+    const afterMapping = await get();
+    ok(afterMapping);
+    await f.pool.query(
+      "UPDATE whaleu_majors.major_catalog_head SET state='withdrawn'",
+    );
+    await f.pool.query(
+      "UPDATE whaleu_majors.major_catalog_head SET state='accepted'",
+    );
+    ok(
+      await request(f.app.getHttpServer())
+        .get(
+          '/v1/majors?cursor=' +
+            encodeURIComponent(afterMapping.body.nextCursor),
+        )
+        .set('Authorization', 'Bearer ' + reader.accessToken),
+      409,
+    );
+    assert.equal(
+      (
+        await f.pool.query(
+          "SELECT count(*)::int n FROM pg_stats WHERE schemaname IN ('whaleu_majors','whaleu_community') AND tablename IN ('major_catalog_epoch','major_discussion_epoch','major_discussion_review_epoch')",
+        )
+      ).rows[0]!.n,
+      0,
+      'fresh singleton tables have no ANALYZE statistics',
+    );
+    const diagnostics = [];
+    for (const [name, sql, values] of [
+      ['catalog', majorCatalogCaptureSql, [reader.accountId, session]],
+      ['discussion', majorDiscussionEpochSql, []],
+    ] as const) {
+      const plan = (
+        await f.pool.query(
+          'EXPLAIN (ANALYZE, BUFFERS, SETTINGS, FORMAT JSON) ' + sql,
+          [...values],
+        )
+      ).rows[0]['QUERY PLAN'][0];
+      assert.equal(
+        plan.Plan['Plan Rows'],
+        1,
+        'singleton ownership must not estimate a Cartesian population',
+      );
+      assert.ok(plan.Plan['Total Cost'] < 100000, JSON.stringify(plan));
+      diagnostics.push({
+        name,
+        rows: plan.Plan['Plan Rows'],
+        cost: plan.Plan['Total Cost'],
+        executionMs: plan['Execution Time'],
+        jit: plan.JIT ?? null,
+      });
+    }
+    const sourceBody = (
+      await f.pool.query<{ body: string }>(
+        "SELECT prosrc body FROM pg_proc WHERE oid='whaleu_majors.major_discussion_sources(uuid[],timestamptz)'::regprocedure",
+      )
+    ).rows[0]!.body;
+    const sourceSql = sourceBody
+      .replace(/\bids\b/g, '$1::uuid[]')
+      .replace(/\binstant\b/g, '$2::timestamptz');
+    const now = (
+      await f.pool.query<{ now: string }>('SELECT clock_timestamp()::text now')
+    ).rows[0]!.now;
+    const sourcePlan = (
+      await f.pool.query(
+        'EXPLAIN (ANALYZE, VERBOSE, FORMAT JSON) ' + sourceSql,
+        [rows.slice(0, 50).map((row) => row.id), now],
+      )
+    ).rows[0]['QUERY PLAN'][0];
+    assert.equal(
+      (
+        JSON.stringify(sourcePlan).match(
+          /whaleu_majors\.major_catalog_source\(/g,
+        ) ?? []
+      ).length,
+      1,
+      'the actual projection plan evaluates the complete Major source exactly once',
+    );
+    diagnostics.push({
+      name: 'discussion-sources-50',
+      rows: sourcePlan.Plan['Plan Rows'],
+      cost: sourcePlan.Plan['Total Cost'],
+      executionMs: sourcePlan['Execution Time'],
+      jit: sourcePlan.JIT ?? null,
+    });
+    const missingId = randomUUID();
+    const sourceIds = [rows[0]!.id, offPage.id, missingId, rows[0]!.id];
+    const projected = (
+      await f.pool.query(
+        'SELECT ordinal::text ordinal,major_id,source FROM whaleu_majors.major_discussion_sources($1,$2)',
+        [sourceIds, now],
+      )
+    ).rows;
+    assert.deepEqual(
+      projected.map((row) => [row.ordinal, row.major_id]),
+      sourceIds.map((id, index) => [String(index + 1), id]),
+    );
+    assert.equal(projected[1]!.source, null);
+    assert.equal(projected[2]!.source, null);
+    assert.deepEqual(projected[0]!.source, projected[3]!.source);
+    const { readFileSync } = await import('node:fs');
+    const original = readFileSync(
+      new URL('../../migrations/0121_major_discussion.sql', import.meta.url),
+      'utf8',
+    ).match(
+      /CREATE FUNCTION whaleu_majors\.major_discussion_source\([^]*?AS \$\$([^]*?)\$\$;/,
+    )![1]!;
+    const originalSql = original
+      .replace(/\bwid\b/g, '$1::uuid')
+      .replace(/\binstant\b/g, '$2::timestamptz');
+    for (const id of [rows[0]!.id, offPage.id, randomUUID()]) {
+      assert.equal(
+        (
+          await f.pool.query(
+            `SELECT (${originalSql}) IS NOT DISTINCT FROM whaleu_majors.major_discussion_source($1,$2) same`,
+            [id, now],
+          )
+        ).rows[0]!.same,
+        true,
+        'forward migration preserves the exact original source shape and missing/inactive null',
+      );
+    }
+    t.diagnostic(
+      JSON.stringify({
+        majorColdPlans: diagnostics,
+        environment: (
+          await f.pool.query(
+            "SELECT version() version,pg_jit_available() jit_available,current_setting('jit') jit,current_setting('jit_above_cost') jit_above_cost,current_setting('TimeZone') timezone,(SELECT datcollate FROM pg_database WHERE datname=current_database()) collate",
+          )
+        ).rows[0],
+      }),
+    );
+    for (const table of [
+      'whaleu_majors.major_catalog_epoch',
+      'whaleu_majors.major_discussion_epoch',
+      'whaleu_community.major_discussion_review_epoch',
+    ]) {
+      const tx = await f.pool.connect();
+      await tx.query('BEGIN');
+      try {
+        await tx.query(`DELETE FROM ${table}`);
+        await assert.rejects(
+          majorCatalog(tx, reader.accountId, session, false),
+          { code: 'MAJOR_CATALOG_UNAVAILABLE' },
+        );
+        if (!table.endsWith('major_catalog_epoch'))
+          await assert.rejects(discussionEpoch(tx), {
+            code: 'MAJOR_DISCUSSION_HISTORY_UNAVAILABLE',
+          });
+      } finally {
+        await tx.query('ROLLBACK');
+        tx.release();
+      }
+    }
+  },
+);
+
+test(
+  'missing catalog epoch fails direct discussion reads and positive commands at the existing owner fence',
+  { timeout: 120000 },
+  async (t) => {
+    const f = await majorDiscussionFixture();
+    t.after(() => f.close());
+    const actor = await f.actor({ identity: false }),
+      major = f.add(),
+      catalog = await f.accept([major]),
+      http = f.app.getHttpServer();
+    await f.acceptDiscussion([major.id]);
+    const get = (path: string) =>
+      request(http)
+        .get(base + path)
+        .set('Authorization', 'Bearer ' + actor.accessToken);
+    const post = (path: string, body: object) =>
+      request(http)
+        .post(base + path)
+        .set('Authorization', 'Bearer ' + actor.accessToken)
+        .send(body);
+    const original = f.root(catalog, major, 'original before epoch loss');
+    await reviewMajorDiscussion(f.pool, actor.accountId, major.id, original);
+    const published = await post(`/${major.id}/discussion`, original);
+    ok(published);
+    ok(await get(`/${major.id}/discussion`));
+    const fresh = f.root(catalog, major, 'must roll back without epoch'),
+      reply = f.reply(catalog, major, 'reply must roll back without epoch');
+    await reviewMajorDiscussion(f.pool, actor.accountId, major.id, fresh);
+    await reviewMajorDiscussion(
+      f.pool,
+      actor.accountId,
+      major.id,
+      reply,
+      published.body.commentId,
+    );
+    await f.pool.query('DELETE FROM whaleu_majors.major_catalog_epoch');
+    const source = (
+      await f.pool.query(
+        'SELECT whaleu_majors.major_catalog_source(clock_timestamp()) catalog,whaleu_majors.major_discussion_source($1,clock_timestamp()) discussion',
+        [major.id],
+      )
+    ).rows[0]!;
+    assert.equal(source.catalog.epoch, null);
+    assert.ok(
+      source.discussion,
+      'capture alone is not the authorization fence',
+    );
+    for (const path of [
+      `/${major.id}/discussion`,
+      `/${major.id}/discussion/${published.body.commentId}`,
+    ]) {
+      const response = await get(path);
+      ok(response, 503);
+      assert.equal(
+        response.body.error.code,
+        'MAJOR_DISCUSSION_HISTORY_UNAVAILABLE',
+      );
+    }
+    const like = f.like(catalog, major);
+    for (const [path, command] of [
+      [`/${major.id}/discussion`, fresh],
+      [`/${major.id}/discussion/${published.body.commentId}/replies`, reply],
+      [`/${major.id}/discussion/${published.body.commentId}/like`, like],
+    ] as const) {
+      const response = await post(path, command);
+      ok(response, 503);
+      assert.equal(
+        response.body.error.code,
+        'MAJOR_DISCUSSION_HISTORY_UNAVAILABLE',
+      );
+    }
+    assert.equal(
+      (
+        await f.pool.query(
+          'SELECT count(*)::int n FROM whaleu_majors.major_discussion_commands WHERE request_id=ANY($1::uuid[])',
+          [
+            [
+              fresh.clientRequestId,
+              reply.clientRequestId,
+              like.clientRequestId,
+            ],
+          ],
+        )
+      ).rows[0]!.n,
+      0,
+      'unavailable authority creates no terminal command or receipt',
+    );
+    assert.equal(
+      (
+        await f.pool.query(
+          'SELECT count(*)::int n FROM whaleu_majors.major_discussion_comments WHERE major_id=$1',
+          [major.id],
+        )
+      ).rows[0]!.n,
+      1,
+    );
+    assert.equal(
+      (
+        await f.pool.query(
+          'SELECT count(*)::int n FROM whaleu_majors.major_discussion_like_events WHERE major_id=$1',
+          [major.id],
+        )
+      ).rows[0]!.n,
+      0,
+    );
+    const receipt = await get(
+      `/discussion-requests/${original.clientRequestId}`,
+    );
+    ok(receipt);
+    assert.deepEqual(receipt.body, published.body);
+  },
+);

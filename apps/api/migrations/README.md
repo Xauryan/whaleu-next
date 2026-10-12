@@ -254,3 +254,9 @@ commands and per-transition local notice obligations. Major has no score or
 creator-recipient requirement. Earlier SQL remains unchanged; 0120 remains the separate canteen-floor owner. Empty storage creates no production source,
 history or issuer. Images, legitimate soft deletion and real import remain
 separate gates. See [Major partial scope](../../../docs/MAJOR_DISCUSSION.md).
+
+`0122_major_source_capture.sql` preserves the original Major discussion-source
+shape and authority, but materializes its complete catalog/mapping owner once
+per batch before projecting fields. Missing/inactive rows retain their requested
+ordinal and null source; the existing singular helper delegates to this same owner. It adds no accepted data, source importer, deadline
+exemption or widened proof budget. Migration `0121` is unchanged.

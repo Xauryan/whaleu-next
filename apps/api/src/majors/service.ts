@@ -5,7 +5,10 @@ import { IdentityService } from '../identity/identity.service.js';
 import { RatingVerificationFacade } from '../verification/rating-eligibility.facade.js';
 import { RatingSafetyFacade } from '../safety/rating.facade.js';
 import { lockSafetyPolicy } from '../safety/locks.js';
-import { requiredOwnerEpoch } from '../database/required-owner-proof.js';
+import {
+  requiredOwnerEpoch,
+  ownerFingerprint,
+} from '../database/required-owner-proof.js';
 import { profileCountProofOwner } from '../profile/count-epochs.js';
 import { ApplicationError } from '../http/application-error.js';
 import { MajorDiscussionService } from './discussion/service.js';
@@ -80,7 +83,10 @@ export class MajorsService {
       )
     ).rows;
   }
-  private async item(row: Row, actor: string, session: string, tx: PoolClient) {
+  private item(
+    row: Row,
+    summary: Awaited<ReturnType<MajorDiscussionService['summary']>>,
+  ) {
     return {
       id: row.major_id,
       majorRevision: row.revision,
@@ -89,7 +95,7 @@ export class MajorsService {
       departmentId: row.department_id,
       collegeName: row.college_name,
       majorName: row.major_name,
-      summary: await this.discussion.summary(actor, session, row.major_id, tx),
+      summary,
     };
   }
   departments(token: string) {
@@ -128,7 +134,7 @@ export class MajorsService {
         'major-directory-v1',
         c.session.accountId,
         c.session.sessionId,
-        c.capture.source,
+        ownerFingerprint(c.capture.source),
         c.capture.epoch,
         c.capture.content,
         c.capture.review,
@@ -153,11 +159,15 @@ export class MajorsService {
         more = remaining.length > query.limit,
         chosen = remaining.slice(0, query.limit),
         last = chosen.at(-1);
-      const items = [];
-      for (const row of chosen)
-        items.push(
-          await this.item(row, c.session.accountId, c.session.sessionId, tx),
-        );
+      const summaries = await this.discussion.summaries(
+        c.session.accountId,
+        c.session.sessionId,
+        chosen.map((row) => row.major_id),
+        tx,
+      );
+      const items = chosen.map((row) =>
+        this.item(row, summaries.get(row.major_id)!),
+      );
       const nextCursor =
         more && last
           ? await this.cursors.create(
@@ -196,12 +206,13 @@ export class MajorsService {
           (r) => r.major_id === id,
         );
       if (!row) throw new ApplicationError('MAJOR_NOT_FOUND');
-      const item = await this.item(
-        row,
+      const summary = await this.discussion.summary(
         c.session.accountId,
         c.session.sessionId,
+        row.major_id,
         tx,
       );
+      const item = this.item(row, summary);
       retainMajorCatalog(
         c.session.accountId,
         c.session.sessionId,
@@ -222,19 +233,24 @@ export class MajorsService {
         source = all.find((row) => row.major_id === id);
       if (!source) throw new ApplicationError('MAJOR_NOT_FOUND');
       const rows = all
-          .filter((row) => row.major_id !== id)
-          .sort(
-            (a, b) =>
-              Number(b.department_id === source.department_id) -
-                Number(a.department_id === source.department_id) ||
-              a.department_id - b.department_id ||
-              a.major_id.localeCompare(b.major_id),
-          ),
-        items = [];
-      for (const row of rows.slice(0, limit))
-        items.push(
-          await this.item(row, c.session.accountId, c.session.sessionId, tx),
+        .filter((row) => row.major_id !== id)
+        .sort(
+          (a, b) =>
+            Number(b.department_id === source.department_id) -
+              Number(a.department_id === source.department_id) ||
+            a.department_id - b.department_id ||
+            a.major_id.localeCompare(b.major_id),
         );
+      const chosen = rows.slice(0, limit);
+      const summaries = await this.discussion.summaries(
+        c.session.accountId,
+        c.session.sessionId,
+        chosen.map((row) => row.major_id),
+        tx,
+      );
+      const items = chosen.map((row) =>
+        this.item(row, summaries.get(row.major_id)!),
+      );
       retainMajorCatalog(
         c.session.accountId,
         c.session.sessionId,

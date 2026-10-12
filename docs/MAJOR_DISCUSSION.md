@@ -142,6 +142,30 @@ and subsequently wait are not promised a COMMIT-clock callback; statement/deferr
 checks linearize when they execute. No production authority is derived from fixture
 acceptance or a chosen campus.
 
+### Cold-schema catalog capture
+
+Forward migration `0122_major_source_capture.sql` materializes the existing
+Major discussion-source owner exactly once per batch before projecting its
+fields; every `0121` byte and singular-helper return field is retained. Summary
+reads and final proofs share the canonical database-only batch capture, preserving
+requested ordinals and null/missing results. Each actor, session, publication
+base, history and source is still checked independently. Catalog and discussion epoch reads are scalar, with explicit rejection of any
+missing epoch. They never form an estimated Cartesian product of unanalysed
+boolean-singleton tables. One materialized complete catalog/source snapshot and
+one shared instant feed set-oriented deadline aggregation. Every current-catalog
+entry, including inactive and off-page entries, retains the original future
+history, Review issuance/visibility, policy and author-Safety boundaries. The
+existing 100 ms statement / 500 ms owner-proof budgets and NOWAIT fences remain.
+
+Directory continuation scopes bind the SHA-256 owner fingerprint of the entire
+source snapshot, including mappings and catalog ABA, rather than passing that
+potentially large JSON through the shared 512-node cursor-metadata encoder. No
+source facts or shared bounds are removed; old/different scopes require restart.
+Cold-schema PostgreSQL regression checks cover plan cardinality/cost, missing
+epochs, full 1,000-entry catalogs with default-20 and maximum-50 HTTP pages,
+mapping changes and catalog ABA,
+and deadline equality against the original per-Major SQL boundary functions.
+
 ## Typed HTTP and native surface
 
 Bearer authenticated, strict request/response codecs, shared account request budget,
