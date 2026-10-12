@@ -1,3 +1,5 @@
+import { resolvePostCategories } from '../category-reclassification/read-proof.js';
+import { currentCategoryCursorScope } from '../current-category-cursor.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { APP_CONFIG } from '../../config/config.js';
@@ -110,7 +112,10 @@ export class HotFeedService {
             if (!(await this.phones.verified(actor, tx)))
               throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
           }
-          const scope = hotCursorScope(query, session);
+          const scope = await currentCategoryCursorScope(
+            hotCursorScope(query, session),
+            tx,
+          );
           const position = query.cursor
             ? await this.cursors.get(query.cursor, scope, tx, (value) =>
                 hotPositionSchema.parse(value),
@@ -143,6 +148,7 @@ export class HotFeedService {
             else if (id === guard?.id)
               throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
           }
+          await resolvePostCategories([...held.keys()], tx);
           // Guard intentionally has no score/vector check: accepted exposure and
           // live score movement cannot force a restart. Publication/scope is stable.
           if (guard) {

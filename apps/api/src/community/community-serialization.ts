@@ -1,3 +1,5 @@
+import { batchCategoryChildContextAllowed } from './category-reclassification/child-context.js';
+import { resolvePostCategory } from './category-reclassification/read-proof.js';
 import { ownerPostVisibilityAllowed } from './owner-visibility/read-proof.js';
 import type { VisibilityPurpose } from './community-policy.js';
 import type { MediaReadPurpose } from '../media/owner-proof.js';
@@ -137,6 +139,8 @@ export class CommunitySerializer {
     tx: PoolClient,
     purpose: MediaReadPurpose = 'list-projection',
   ): Promise<PostView> {
+    const currentCategory = await resolvePostCategory(post.id, tx);
+    if (currentCategory === null) throw new ApplicationError('POST_NOT_FOUND');
     const publicEligible = await ownerPostVisibilityAllowed(
       post.id,
       post.account_id,
@@ -154,6 +158,14 @@ export class CommunitySerializer {
     );
     if (comments.rows.length > 1024)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    await batchCategoryChildContextAllowed(
+      comments.rows.map((row) => ({
+        kind: 'comment' as const,
+        id: row.id,
+        postId: row.post_id,
+      })),
+      tx,
+    );
     let commentCount = 0,
       replyCount = 0;
     for (const comment of comments.rows)
@@ -218,7 +230,7 @@ export class CommunitySerializer {
           requirePublication(
             commentAuthority,
             space,
-            post.category,
+            currentCategory,
             mode,
             'publish_comment',
             post.author_mode,
@@ -262,7 +274,7 @@ export class CommunitySerializer {
           : { kind: 'none' },
       id: post.id,
       space: { id: space.id, kind: space.kind, name: space.name },
-      category: post.category,
+      category: currentCategory,
       text: post.text,
       images: await this.images('post', post.id, tx, viewer, purpose),
       author: await this.author(post, post, tx),
@@ -381,6 +393,14 @@ export class CommunitySerializer {
     );
     if (rows.rows.length > 1024)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    await batchCategoryChildContextAllowed(
+      rows.rows.map((row) => ({
+        kind: 'reply' as const,
+        id: row.id,
+        postId: row.post_id,
+      })),
+      tx,
+    );
     const visible: StoredReply[] = [];
     for (const reply of rows.rows)
       if (await this.access.visible(viewer, reply, tx, purpose))

@@ -1,3 +1,4 @@
+import { bindCategoryChildContext } from './category-reclassification/child-context.js';
 import { FeedbackNotificationsFacade } from '../notifications/feedback/facade.js';
 import { requireFeedbackSpace } from './feedback/topic.js';
 import { canonicalEnvelope } from './content-review/contracts.js';
@@ -430,6 +431,14 @@ export class PublicationService {
             await this.repository.persona(postId, actor, tx);
           await this.repository.attach('comment', id, images, tx);
           await this.bind(approval, 'comment', id, tx, images);
+          if (approval)
+            await bindCategoryChildContext(
+              approval,
+              'comment',
+              id,
+              clientRequestId,
+              tx,
+            );
           await this.repository.event(
             `comment:${id}:created`,
             'comment_created',

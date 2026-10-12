@@ -13,8 +13,10 @@ import {
 import { postApprovalEnvelope } from './community-runtime-fixtures.js';
 import { publishPostSchema } from '../../src/community/contracts.js';
 import type { Category } from '../../src/community/contracts.js';
-export async function postPinFixture() {
-  const f = await directoryRuntimeFixture();
+export async function postPinFixture(
+  options: Parameters<typeof directoryRuntimeFixture>[1] = {},
+) {
+  const f = await directoryRuntimeFixture(undefined, options);
   await seedReviewPolicy(f.pool);
   const bind = async (
     spaceId: string,

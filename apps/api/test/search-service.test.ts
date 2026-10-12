@@ -1,3 +1,7 @@
+import {
+  untouchedCategoryRows,
+  untouchedCategoryChildRows,
+} from './support/category-read-facts.js';
 import { searchMembershipFingerprint } from '../src/community/search/scope.js';
 import type { CommunitySearchScopeResolver } from '../src/community/search/scope.js';
 import type { CommunityPhoneContinuation } from '../src/community/phone-continuation.js';
@@ -145,6 +149,26 @@ function harness(
   const tx = {
     query: async (sql: string, values: unknown[] = []) => {
       events.push(sql);
+      if (
+        sql.startsWith(
+          'SELECT version::text FROM whaleu_community.post_category_read_epoch',
+        )
+      )
+        return { rows: [{ version: '0' }] };
+      if (sql.startsWith('SELECT requested.post_id'))
+        return {
+          rows: untouchedCategoryRows(
+            values[0] as string[],
+            new Map(rows.map((row) => [row.post.id, row.post])),
+          ),
+        };
+      if (sql.startsWith('SELECT q.kind,q.id,q.post_id'))
+        return {
+          rows: untouchedCategoryChildRows(
+            values[0] as string,
+            new Set(rows.map((row) => row.post.id)),
+          ),
+        };
       if (sql.startsWith('BEGIN')) pending = [];
       if (sql === 'ROLLBACK')
         for (const token of pending) records.delete(token);

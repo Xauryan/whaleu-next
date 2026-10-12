@@ -1,3 +1,6 @@
+import { resolvePostCategories } from '../category-reclassification/read-proof.js';
+import { currentCategoryCursorScope } from '../current-category-cursor.js';
+import { ownerCursorScope } from '../cursor-scope.js';
 import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
 import { APP_CONFIG } from '../../config/config.js';
 import type { RuntimeConfig } from '../../config/config.js';
@@ -126,8 +129,17 @@ export class SavedReadService {
     return this.community.database.transaction(
       async (tx) => {
         enableSafetyRelationshipProof(tx);
-        const actor = await this.access.actor(token, tx),
-          seek = savedCursor(query.cursor, actor, query.limit);
+        const actor = await this.access.actor(token, tx);
+        const categoryScope = await currentCategoryCursorScope(
+          ownerCursorScope('saved', actor),
+          tx,
+        );
+        const seek = savedCursor(
+          query.cursor,
+          actor,
+          query.limit,
+          categoryScope,
+        );
         // One bounded, current policy-filtered set feeds total, pagination and items.
         // Over the bound we fail honestly rather than return an unfiltered total.
         const candidates = (
@@ -138,6 +150,10 @@ export class SavedReadService {
         ).rows;
         if (candidates.length > 1024)
           throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+        await resolvePostCategories(
+          candidates.map((candidate) => candidate.post_id),
+          tx,
+        );
         const visible: {
           post: StoredPost;
           space: CommunitySpace;
@@ -207,6 +223,7 @@ export class SavedReadService {
                   last.saveEpochId,
                   actor,
                   query.limit,
+                  categoryScope,
                 )
               : null,
         };

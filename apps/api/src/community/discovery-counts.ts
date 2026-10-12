@@ -156,6 +156,8 @@ export class CommunityDiscoveryCounts {
         let seen = 0;
         let mediaRequired = false;
         for (;;) {
+          // Reclassification cannot cross trading membership. This original
+          // owner/time scan stays indexed; batch facts prove current visibility.
           const candidates: PostPosition[] = (
             await read.query<PostPosition>(
               `SELECT id,CASE WHEN isfinite(published_at)

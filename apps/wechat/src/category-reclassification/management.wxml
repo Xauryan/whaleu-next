@@ -1,0 +1,29 @@
+<template name="category-reclassification">
+  <view wx:if="{{category.management &amp;&amp; category.management.canChange}}" class="card">
+    <view class="section-title">管理员分类管理</view>
+    <view>当前分类：{{labels[category.management.currentCategory]}} · 版本 {{category.management.revision}}</view>
+    <view class="notice">仅展示服务端当前允许的目标分类。分类变更不重新发布帖子，展示仍须通过当前审核与安全校验。</view>
+    <view class="chips">
+      <button wx:for="{{category.management.targets}}" wx:key="*this" data-id="{{category.management.postId}}" data-category="{{item}}" bindtap="onCategoryChoose" disabled="{{category.busy || category.frozen}}">{{labels[item]}}</button>
+    </view>
+  </view>
+  <view wx:if="{{category.confirming === 'change'}}" class="card">
+    <view>确认将此帖从「{{labels[category.management.currentCategory]}}」改为「{{labels[category.desired]}}」？</view>
+    <view class="notice">按当前版本提交；版本已变化时需要重新确认。</view>
+    <button bindtap="onCategorySubmit" disabled="{{category.busy || category.frozen}}">确认分类变更</button>
+    <button bindtap="onCategoryClose" disabled="{{category.busy}}">返回</button>
+  </view>
+  <view wx:if="{{category.frozen}}" class="card">
+    <view>原分类请求待确认：{{category.pendingPostId}} · {{labels[category.pendingTargetCategory]}} · {{category.pendingPhase === 'cancel' ? '取消请求' : '提交请求'}}</view>
+    <view class="notice">查询不到回执不代表原请求不会完成。确认结果或取消成功前不能创建新请求，请保留本机数据。</view>
+    <button bindtap="onCategoryRecover" disabled="{{category.busy || !category.pendingRequestId}}">查询原分类回执</button>
+    <button bindtap="onCategoryRetry" disabled="{{category.busy || !category.pendingRequestId}}">重试原分类请求</button>
+    <button bindtap="onCategoryCancel" disabled="{{category.busy || !category.pendingRequestId}}">取消原分类请求</button>
+  </view>
+  <view wx:if="{{category.confirming === 'cancel'}}" class="card">
+    <view>确认取消原分类请求？已完成的请求仍返回原结果，不会自动改回原分类。</view>
+    <button bindtap="onCategoryConfirmCancel" disabled="{{category.busy}}">确认取消原请求</button>
+    <button bindtap="onCategoryClose" disabled="{{category.busy}}">返回</button>
+  </view>
+  <view wx:if="{{category.error || category.receiptStatus}}" class="notice" aria-role="status">{{category.error || category.receiptStatus}}</view>
+</template>

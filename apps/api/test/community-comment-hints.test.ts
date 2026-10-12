@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { PoolClient } from 'pg';
+import { untouchedCategoryRows } from './support/category-read-facts.js';
 import { CommunitySerializer } from '../src/community/community-serialization.js';
 import type { Authority } from '../src/community/community-policy.js';
 import type { CommunitySpace } from '../src/community/contracts.js';
@@ -12,14 +13,14 @@ import {
 } from '../src/database/transaction-deadlines.js';
 
 const space: CommunitySpace = {
-  id: 'synthetic-space',
+  id: '10000000-0000-4000-8000-000000000001',
   kind: 'regional',
   operatingRegionId: 'synthetic-region',
   name: 'Synthetic region',
   isActive: true,
 };
 const post: StoredPost = {
-  id: 'synthetic-post',
+  id: '10000000-0000-4000-8000-000000000002',
   space_id: space.id,
   account_id: 'synthetic-owner',
   category: 'discussion',
@@ -116,6 +117,13 @@ test('local review comment hints resolve full current eligibility without granti
       const currentPost = { ...post, ...scenario.post };
       const tx = {
         query: async (sql: string, args: unknown[] = []) => {
+          if (sql.startsWith('SELECT requested.post_id'))
+            return {
+              rows: untouchedCategoryRows(
+                args[0] as string[],
+                new Map([[currentPost.id, currentPost]]),
+              ),
+            };
           if (
             sql.includes('LEFT JOIN whaleu_community.post_owner_visibility')
           ) {

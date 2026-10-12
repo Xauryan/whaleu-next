@@ -53,6 +53,19 @@ test('real module inventory equals the old complete glob exactly once, with shar
   );
 });
 
+test('scoped category SQL and emitted journey retain explicit Community ownership', () => {
+  const plan = createModulePlan(discoverFiles(), readModules());
+  const community = plan.shards.find(
+    (shard) => shard.id === 'community-media-1',
+  );
+  assert.ok(community);
+  for (const name of [
+    'category-reclassification.test.ts',
+    'category-reclassification-native-roundtrip.test.ts',
+  ])
+    assert.ok(community.files.includes(`test/integration/${name}`));
+});
+
 test('nine-job matrix leaves both stable Campus shards after the other seven jobs', () => {
   const plan = createModulePlan(discoverFiles(), readModules());
   assert.deepEqual(

@@ -1,3 +1,6 @@
+import { resolvePostCategory } from '../category-reclassification/read-proof.js';
+import { batchCategoryChildContextAllowed } from '../category-reclassification/child-context.js';
+import type { CategoryChildTarget } from '../category-reclassification/child-context.js';
 import { readOwnerPostVisibility } from '../owner-visibility/read-proof.js';
 import {
   CONTENT_MEDIA_PROOF,
@@ -14,6 +17,8 @@ type CanonicalProof = Pick<
   authorMode: 'named' | 'anonymous';
   postOwner: string;
   ownerHidden: boolean;
+  postId: string;
+  categoryChildren: readonly CategoryChildTarget[];
 };
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -115,6 +120,14 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
     if (stored.kind !== 'allow') return stored;
     let postOwner = binding.account_id;
     let ownerHidden = false;
+    const postId =
+      kind === 'post'
+        ? id
+        : stored.value.parents.find((parent) => parent.kind === 'post')?.id;
+    if (!postId) return { kind: 'unavailable' };
+    const categoryChildren = new Map<string, CategoryChildTarget>();
+    if (kind !== 'post')
+      categoryChildren.set(`${kind}:${id}`, { kind, id, postId });
     if (kind === 'post') {
       ownerHidden = (await readOwnerPostVisibility(id, tx)).ownerHidden;
       if (
@@ -146,6 +159,8 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
       if (prior) {
         postOwner = prior.postOwner;
         ownerHidden = prior.ownerHidden;
+        for (const child of prior.categoryChildren)
+          categoryChildren.set(`${child.kind}:${child.id}`, child);
         continue;
       }
       const decision = await this.visible(
@@ -161,6 +176,8 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
       if (decision.kind !== 'allow') return decision;
       postOwner = decision.value.postOwner;
       ownerHidden = decision.value.ownerHidden;
+      for (const child of decision.value.categoryChildren)
+        categoryChildren.set(`${child.kind}:${child.id}`, child);
     }
     return {
       kind: 'allow',
@@ -170,6 +187,10 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
         authorMode: binding.envelope.authorMode,
         postOwner,
         ownerHidden,
+        postId,
+        categoryChildren: Object.freeze(
+          [...categoryChildren.values()].map((child) => Object.freeze(child)),
+        ),
       }),
     };
   }
@@ -220,6 +241,21 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
           binding.account_id !== subject.namedAccountId)
       )
         return { kind: 'unavailable' };
+      // Finish the entire original canonical ancestry before interpreting a
+      // missing overlay as denial. Otherwise a revoked category policy could
+      // hide unknown original Review or an invalid canonical definition.
+      if ((await resolvePostCategory(result.value.postId, tx)) === null)
+        return { kind: 'deny', reason: 'POST_NOT_FOUND' };
+      const contexts = await batchCategoryChildContextAllowed(
+        result.value.categoryChildren,
+        tx,
+      );
+      if (
+        result.value.categoryChildren.some(
+          (child) => contexts.get(`${child.kind}:${child.id}`) !== true,
+        )
+      )
+        return { kind: 'deny', reason: 'POST_NOT_FOUND' };
       return { kind: 'allow', value: undefined };
     } catch {
       return { kind: 'unavailable' };

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import type { PoolClient } from 'pg';
+import { untouchedCategoryRows } from './support/category-read-facts.js';
 import {
   approvalDigest,
   canonicalEnvelope,
@@ -461,6 +462,22 @@ test('base visibility requires explicit kind/version, exact author/payload, pare
   const base = new LocalApprovedContentVisibility(approvals, definitions),
     tx = {
       query: async (sql: string, args: unknown[]) => {
+        if (sql.startsWith('SELECT requested.post_id'))
+          return {
+            rows: untouchedCategoryRows(
+              args[0] as string[],
+              new Map([
+                [
+                  id,
+                  {
+                    id,
+                    category: envelope.category,
+                    space_id: envelope.spaceId,
+                  },
+                ],
+              ]),
+            ),
+          };
         assert.ok(
           sql.includes('LEFT JOIN whaleu_community.post_owner_visibility'),
         );

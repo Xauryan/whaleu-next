@@ -1,3 +1,5 @@
+import { resolvePostCategory } from '../category-reclassification/read-proof.js';
+import { ApplicationError } from '../../http/application-error.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { CommunitySerializer } from '../community-serialization.js';
@@ -30,11 +32,13 @@ export class SearchHitSerializer {
     tx: PoolClient,
     mode: 'literal' | 'semantic' = 'literal',
   ): Promise<SearchHit> {
+    const currentCategory = await resolvePostCategory(post.id, tx);
+    if (currentCategory === null) throw new ApplicationError('POST_NOT_FOUND');
     const base = {
       contentId: candidate.id,
       postId: post.id,
       space: { id: space.id, kind: space.kind, name: space.name },
-      category: post.category,
+      category: currentCategory,
       tradingSubtype: listing?.subtype ?? null,
       tradingUrgency: listing?.urgency ?? null,
       createdAt: candidate.at,

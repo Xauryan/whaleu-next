@@ -1,8 +1,10 @@
+import { fencePostCategorySources } from './category-reclassification/read-proof.js';
 import type { PoolClient } from 'pg';
 
 /** Final-only bounded fallback. All locks are acquired NOWAIT after every
  * mandatory source/deferred wait; following snapshot reads never row-lock. */
 export async function fenceSmallCommunityCount(tx: PoolClient): Promise<void> {
+  await fencePostCategorySources(tx);
   await tx.query(`LOCK TABLE
     whaleu_community.comment_images,
     whaleu_community.comment_likes,

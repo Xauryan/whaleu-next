@@ -1,3 +1,4 @@
+import { batchCategoryChildContextAllowed } from '../category-reclassification/child-context.js';
 import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
@@ -40,6 +41,14 @@ export class DiscussionReadService {
         );
         if (rows.rows.length > 1024)
           throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+        await batchCategoryChildContextAllowed(
+          rows.rows.map((row) => ({
+            kind: 'comment' as const,
+            id: row.id,
+            postId: row.post_id,
+          })),
+          tx,
+        );
         const visible: StoredComment[] = [];
         for (const row of rows.rows)
           if (await this.access.visible(actor, row, tx, 'detail_projection'))

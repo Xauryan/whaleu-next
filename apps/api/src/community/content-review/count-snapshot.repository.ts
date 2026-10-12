@@ -1,3 +1,5 @@
+import { readPostCategorySnapshot } from '../category-reclassification/read-proof.js';
+import { batchCategoryChildContextSnapshot } from '../category-reclassification/child-context.js';
 import { Injectable } from '@nestjs/common';
 import { types } from 'pg';
 import type { PoolClient } from 'pg';
@@ -141,6 +143,22 @@ export class ContentReviewCountRepository {
         ['deleted_at', 'created_at'],
       ),
     );
+    const categorySnapshot = await readPostCategorySnapshot(postIds, tx);
+    const childContext = await batchCategoryChildContextSnapshot(
+      [
+        ...[...roots.values()].map((row) => ({
+          kind: 'comment' as const,
+          id: row.id,
+          postId: row.post_id,
+        })),
+        ...[...replies.values()].map((row) => ({
+          kind: 'reply' as const,
+          id: row.id,
+          postId: row.post_id,
+        })),
+      ],
+      tx,
+    );
     const spaceIds = unique([...posts.values()].map((post) => post.space_id));
     const spaces = byId(
       await budget.rows<DefinitionSpace>(
@@ -262,6 +280,8 @@ export class ContentReviewCountRepository {
       roots,
       replies,
       spaces,
+      categorySnapshot,
+      childContext,
       bindings,
       approvals,
       images,

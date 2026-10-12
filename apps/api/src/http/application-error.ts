@@ -3,6 +3,18 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  POST_CATEGORY_STALE: {
+    status: 409,
+    message: 'Post category revision changed',
+  },
+  POST_CATEGORY_UNAVAILABLE: {
+    status: 503,
+    message: 'Post category change is unavailable',
+  },
+  POST_CATEGORY_CANCELLED: {
+    status: 409,
+    message: 'Post category change was cancelled',
+  },
   POST_OWNER_VISIBILITY_STALE: {
     status: 409,
     message: 'Post visibility has changed',

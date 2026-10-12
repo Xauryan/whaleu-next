@@ -1,3 +1,5 @@
+import { CategoryReclassificationController } from './category-reclassification/controller.js';
+import { CategoryReclassificationService } from './category-reclassification/service.js';
 import { OwnerVisibilityController } from './owner-visibility/controller.js';
 import { OwnerVisibilityService } from './owner-visibility/service.js';
 import { OwnerVisibilityRepository } from './owner-visibility/repository.js';
@@ -312,6 +314,7 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    CategoryReclassificationController,
     OwnerVisibilityController,
     PostPinsController,
     PostPinRecoveryController,
@@ -354,6 +357,7 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    CategoryReclassificationService,
     OwnerVisibilityService,
     OwnerVisibilityRepository,
     PostPinsService,

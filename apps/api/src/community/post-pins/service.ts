@@ -1,3 +1,4 @@
+import { resolvePostCategory } from '../category-reclassification/read-proof.js';
 import { lockSafetyPolicy } from '../../safety/locks.js';
 import { hashToken } from '../../identity/tokens.js';
 import { beginPostPinProof, retainPostPinProof } from './proof.js';
@@ -220,10 +221,14 @@ export class PostPinsService {
         return { spaceId: space.id, status: 'available', items: [] };
       }
       const post = await this.repository.post(pin.post_id, tx);
+      const currentCategory = await resolvePostCategory(post.id, tx);
       if (
         !this.supported(scope, post) ||
-        (query.category && query.category !== post.category) ||
-        !(await this.access.visible(actor, post, tx, 'list_projection'))
+        (currentCategory !== null &&
+          query.category &&
+          query.category !== currentCategory) ||
+        !(await this.access.visible(actor, post, tx, 'list_projection')) ||
+        currentCategory === null
       )
         return { spaceId: space.id, status: 'available', items: [] };
       const trade = (

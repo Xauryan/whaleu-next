@@ -1,3 +1,7 @@
+import {
+  untouchedCategoryRows,
+  untouchedCategoryChildRows,
+} from './support/category-read-facts.js';
 import type { CommunityExperienceSourceCapture } from '../src/community/experience-source/capture.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
@@ -62,7 +66,8 @@ function fixture(collision = false) {
     rootId = collision ? postId : randomUUID(),
     replyId = collision ? postId : randomUUID(),
     spaceId = randomUUID(),
-    regionId = randomUUID();
+    regionId = randomUUID(),
+    categoryEventId = randomUUID();
   const now = Date.parse('2026-10-07T00:00:00.000Z');
   const post: DefinitionPost = {
     id: postId,
@@ -102,6 +107,21 @@ function fixture(collision = false) {
     sequence: '1',
   };
   const snapshot: CountReviewSnapshot = {
+    categorySnapshot: {
+      get categories() {
+        return new Map([[postId, post.category]]);
+      },
+      validUntil: null,
+      exactValidUntil: null,
+    },
+    childContext: {
+      exactValidUntil: null,
+      allowed: new Map([
+        [contentKey('comment', rootId), true],
+        [contentKey('reply', replyId), true],
+      ]),
+      validUntil: null,
+    },
     posts: new Map([[postId, post]]),
     roots: new Map([[rootId, root]]),
     replies: new Map([[replyId, reply]]),
@@ -228,6 +248,45 @@ function fixture(collision = false) {
   const tx = {
     query: async (sql: string, args: unknown[] = []) => {
       const one = (value: unknown) => ({ rows: value ? [value] : [] });
+      if (sql.startsWith('SELECT q.kind,q.id,q.post_id'))
+        return {
+          rows: untouchedCategoryChildRows(
+            args[0] as string,
+            new Set(snapshot.posts.keys()),
+          ),
+        };
+      if (sql.startsWith('SELECT requested.post_id'))
+        return {
+          rows: untouchedCategoryRows(args[0] as string[], snapshot.posts).map(
+            (row) =>
+              snapshot.categorySnapshot.categories.get(row.postId) === null
+                ? {
+                    ...row,
+                    headPostId: row.postId,
+                    headCategory: 'scenery',
+                    revision: 1,
+                    eventId: categoryEventId,
+                    headXmin: '100',
+                  }
+                : row,
+          ),
+        };
+      if (sql.startsWith('WITH category_read_live AS MATERIALIZED'))
+        return {
+          rows: (args[0] as string[]).map((id) => ({
+            postId: id,
+            livePostId: null,
+            liveCategory: null,
+            liveRevision: null,
+            liveEventId: null,
+            policyId: null,
+            reviewId: null,
+            validUntil: null,
+            batchValidUntil: null,
+            batchValidUntilMs: null,
+            batchValidUntilMicros: null,
+          })),
+        };
       if (/^(SAVEPOINT|ROLLBACK TO SAVEPOINT|RELEASE SAVEPOINT) /.test(sql))
         return { rows: [] };
       if (sql.includes('clock_timestamp')) return one({ now: new Date(now) });
@@ -457,6 +516,8 @@ function fixture(collision = false) {
     tx,
     scalarPost,
     scalarLiked,
+    access,
+    base,
     setCurrent: (value: typeof current) => {
       current = value;
     },
@@ -644,8 +705,12 @@ test('conditional denial horizons are retained without registering locked transa
 test('snapshot repository uses bounded set-oriented SQL with byte guards and no row locks', async () => {
   const queries: string[] = [];
   const tx = {
-    query: async (sql: string) => {
+    query: async (sql: string, values: unknown[] = []) => {
       queries.push(sql);
+      if (sql.startsWith('SELECT requested.post_id'))
+        return {
+          rows: untouchedCategoryRows(values[0] as string[], new Map()),
+        };
       return sql.includes('clock_timestamp')
         ? { rows: [{ now: new Date() }] }
         : { rows: [] };
@@ -660,7 +725,11 @@ test('snapshot repository uses bounded set-oriented SQL with byte guards and no 
     },
     tx,
   );
-  assert.equal(queries.length, 9);
+  assert.equal(queries.length, 10);
+  assert.equal(
+    queries.filter((sql) => sql.startsWith('SELECT requested.post_id')).length,
+    1,
+  );
   assert.ok(queries.every((sql) => !/FOR (SHARE|UPDATE)/.test(sql)));
   assert.equal(
     queries.filter((sql) => sql.includes('count_snapshot_source')).length,
@@ -1074,4 +1143,112 @@ test('failed Media prefetch is consumed only after current liked membership, wit
     'unknown',
   );
   assert.equal(current.mediaRequired, true);
+});
+
+test('exact count snapshot reports current category while canonical approval stays original', async () => {
+  const f = fixture();
+  const original = f.post.category;
+  f.snapshot.categorySnapshot = {
+    categories: new Map([[f.post.id, 'scenery']]),
+    validUntil: f.snapshot.now + 1000,
+    exactValidUntil: null,
+  };
+  const result = await f.facade.evaluatePosts([f.post.id], f.viewer, f.tx);
+  assert.equal(result.facts.get(f.post.id)?.decision, 'allow');
+  assert.equal(result.facts.get(f.post.id)?.post?.category, 'scenery');
+  assert.equal(result.optionalUntil, f.snapshot.now + 1000);
+  assert.equal(f.post.category, original);
+});
+
+test('invalid classification and child context never inherit original count approval', async () => {
+  const f = fixture();
+  f.snapshot.categorySnapshot = {
+    categories: new Map([[f.post.id, null]]),
+    validUntil: null,
+    exactValidUntil: null,
+  };
+  const post = await f.facade.evaluatePosts([f.post.id], f.viewer, f.tx);
+  assert.equal(post.facts.get(f.post.id)?.decision, 'deny');
+  assert.equal(post.facts.get(f.post.id)?.post, null);
+  f.snapshot.categorySnapshot = {
+    categories: new Map([[f.post.id, f.post.category]]),
+    validUntil: null,
+    exactValidUntil: null,
+  };
+  f.snapshot.childContext = {
+    allowed: new Map(),
+    validUntil: null,
+    exactValidUntil: null,
+  };
+  const child = await f.facade.evaluateLiked([f.membership], f.viewer, f.tx);
+  assert.equal(
+    child.facts.get(`reply:${f.membership.like_id}`)?.decision,
+    'deny',
+  );
+});
+
+test('moved classification denial cannot mask unknown original post or child ancestry Review', async () => {
+  for (const defect of ['missing', 'unknown', 'definition'] as const) {
+    const f = fixture();
+    f.snapshot.categorySnapshot = {
+      categories: new Map([[f.post.id, null]]),
+      validUntil: null,
+      exactValidUntil: null,
+    };
+    const binding = f.snapshot.bindings.get(contentKey('post', f.post.id))!;
+    if (defect === 'missing') f.snapshot.approvals.delete(binding.decision_id);
+    else if (defect === 'unknown')
+      f.snapshot.approvals.get(binding.decision_id)!.event_coverage = 'unknown';
+    else f.post.text = 'Changed outside the original approval';
+    assert.equal(await f.scalarPost(), 'unknown', defect);
+    for (const [kind, content] of [
+      ['comment', f.root],
+      ['reply', f.reply],
+    ] as const) {
+      const subject = {
+        contentKind: kind,
+        contentId: content.id,
+        contentVersion: 1 as const,
+        authorMode: 'named' as const,
+        namedAccountId: content.account_id,
+      };
+      assert.equal(
+        (await f.base.check(f.viewer, subject, f.tx, 'list_projection')).kind,
+        'unavailable',
+        `${defect}:${kind}`,
+      );
+      await assert.rejects(
+        f.access.visibilityDecision(f.viewer, content, f.tx, 'list_projection'),
+        (error) =>
+          error instanceof ApplicationError &&
+          error.code === 'COMMUNITY_UNAVAILABLE',
+      );
+    }
+    const post = await f.facade.evaluatePosts([f.post.id], f.viewer, f.tx);
+    assert.equal(post.facts.get(f.post.id)?.decision, 'unknown', defect);
+    const liked = await f.facade.evaluateLiked([f.membership], f.viewer, f.tx);
+    assert.equal(
+      liked.facts.get(`reply:${f.membership.like_id}`)?.decision,
+      'unknown',
+      defect,
+    );
+  }
+});
+
+test('known revoked category policy denies only after complete original approval', async () => {
+  const f = fixture();
+  f.snapshot.categorySnapshot = {
+    categories: new Map([[f.post.id, null]]),
+    validUntil: null,
+    exactValidUntil: null,
+  };
+  assert.equal(await f.scalarPost(), 'deny');
+  assert.equal(await f.scalarLiked(), 'deny');
+  const posts = await f.facade.evaluatePosts([f.post.id], f.viewer, f.tx);
+  assert.equal(posts.facts.get(f.post.id)?.decision, 'deny');
+  const liked = await f.facade.evaluateLiked([f.membership], f.viewer, f.tx);
+  assert.equal(
+    liked.facts.get(`reply:${f.membership.like_id}`)?.decision,
+    'deny',
+  );
 });

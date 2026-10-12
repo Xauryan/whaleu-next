@@ -1,4 +1,9 @@
 import {
+  CategoryReclassificationController,
+  initialCategoryReclassificationView,
+} from '../../category-reclassification/controller';
+import { reclassificationLabels } from '../../category-reclassification/contract';
+import {
   OwnerPostVisibilityController,
   initialOwnerVisibilityView,
 } from '../../owner-post-visibility/controller';
@@ -79,6 +84,8 @@ import {
 } from '../../community/poll-controller';
 Page({
   data: {
+    categoryManagement: initialCategoryReclassificationView(),
+    reclassificationLabels,
     ownerVisibility: initialOwnerVisibilityView(),
     postPin: initialPinDetailView(),
     namedAvatar: initialNamedAvatarView(),
@@ -101,6 +108,34 @@ Page({
     postLikeMutation: initialPostLikeMutationView(),
     tradingMutation: initialTradingMutationView(),
     tradingContacts: initialTradingContactsView(),
+  },
+  categoryController: undefined as
+    CategoryReclassificationController | undefined,
+  onCategoryChoose(event: {
+    currentTarget: { dataset: { id: string; category: string } };
+  }) {
+    void this.categoryController?.request(
+      event.currentTarget.dataset.id,
+      event.currentTarget.dataset.category,
+    );
+  },
+  onCategorySubmit() {
+    void this.categoryController?.submit();
+  },
+  onCategoryRecover() {
+    void this.categoryController?.recover();
+  },
+  onCategoryRetry() {
+    void this.categoryController?.recover(true);
+  },
+  onCategoryCancel() {
+    this.categoryController?.requestCancellation();
+  },
+  onCategoryConfirmCancel() {
+    void this.categoryController?.confirmCancellation();
+  },
+  onCategoryClose() {
+    this.categoryController?.closeConfirmation();
   },
   ownerVisibilityController: undefined as
     OwnerPostVisibilityController | undefined,
@@ -215,6 +250,8 @@ Page({
     void this.pinController?.confirmCancellation();
   },
   onShow() {
+    this.categoryController?.dispose();
+    this.categoryController = undefined;
     this.ownerVisibilityController?.dispose();
     this.ownerVisibilityController = undefined;
     this.pinController?.dispose();
@@ -278,6 +315,28 @@ Page({
       this.setData({ error: '帖子地址无效或环境尚未初始化' });
       return;
     }
+    this.categoryController = new CategoryReclassificationController(
+      runtime,
+      (view) => {
+        this.setData({ categoryManagement: view });
+        if (view.frozen) {
+          this.pinController?.clear();
+          this.mediaGalleryController?.clear();
+          this.namedAvatarController?.clear();
+          this.identityOverlay?.clear();
+          this.overlayTargets = '';
+        }
+      },
+      () => {
+        if (!runtime.safetyChanges) {
+          void this.controller?.load();
+          void Promise.resolve().then(() =>
+            this.categoryController?.load(this.postId),
+          );
+        }
+      },
+    );
+    void this.categoryController.load(this.postId);
     this.ownerVisibilityController = new OwnerPostVisibilityController(
       runtime,
       (view) => {
@@ -585,7 +644,8 @@ Page({
           this.data.block.busy ||
           this.data.block.frozen ||
           this.data.interaction.busy ||
-          this.data.interaction.frozen
+          this.data.interaction.frozen ||
+          this.data.categoryManagement.frozen
         ) {
           this.mediaGalleryController?.clear();
           this.namedAvatarController?.clear();
@@ -607,13 +667,14 @@ Page({
               this.controller?.readGeneration === readGeneration &&
               this.data.loaded &&
               !this.data.ownerVisibility.frozen &&
+              !this.data.categoryManagement.frozen &&
               this.data.post?.id === post.id
             )
               void pins?.load(post.id);
           });
         } else this.pinController?.clear();
 
-        if (post)
+        if (post && !this.data.categoryManagement.frozen)
           void this.mediaGalleryController?.select({
             kind: 'post',
             id: post.id,
@@ -651,7 +712,8 @@ Page({
       this.data.report.busy ||
       this.data.report.frozen ||
       this.data.interaction.busy ||
-      this.data.interaction.frozen
+      this.data.interaction.frozen ||
+      this.data.categoryManagement.frozen
     )
       return;
     this.namedAvatarController?.clear();
@@ -1038,7 +1100,8 @@ Page({
       this.data.block.busy ||
       this.data.block.frozen ||
       this.data.report.busy ||
-      this.data.report.frozen
+      this.data.report.frozen ||
+      this.data.categoryManagement.frozen
     )
       return;
     // Avatar admission is non-preemptive: retain Community sources and budget.
@@ -1072,6 +1135,7 @@ Page({
     this.namedAvatarController?.imageFailed();
   },
   onReload() {
+    void this.categoryController?.load(this.postId);
     void this.ownerVisibilityController?.load(this.postId);
     this.namedAvatarController?.clear();
     this.reportMutations?.dismiss();
@@ -1150,6 +1214,8 @@ Page({
     this.savedMutations?.cancel();
   },
   onHide() {
+    this.categoryController?.dispose();
+    this.categoryController = undefined;
     this.ownerVisibilityController?.dispose();
     this.ownerVisibilityController = undefined;
     this.pinController?.dispose();
@@ -1199,6 +1265,8 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.categoryController?.dispose();
+    this.categoryController = undefined;
     this.ownerVisibilityController?.dispose();
     this.ownerVisibilityController = undefined;
     this.pinController?.dispose();

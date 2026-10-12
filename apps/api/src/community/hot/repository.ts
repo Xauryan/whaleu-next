@@ -33,6 +33,9 @@ export class HotRepository {
     after: HotAnchor | null,
     tx: PoolClient,
   ): Promise<HotCandidate[]> {
+    // Hot has no category filter. The bounded nine-category regional move
+    // cannot change space or trading membership; global posts cannot move.
+    // Keep score candidates independent of classification proof planning.
     return (
       await tx.query<HotCandidate>(
         `SELECT p.id,p.space_id AS "spaceId",${published} AS at,hs.score::text

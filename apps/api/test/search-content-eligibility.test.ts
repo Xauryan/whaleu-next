@@ -221,6 +221,18 @@ test('ancestor lifecycle and review evidence bind reply certificates', () => {
   assert.equal(check(), 'unknown');
   nodes.set(`comment:${root}`, { ...rootNode, visibility: 'hidden' });
   assert.equal(check(), 'deny');
+  nodes.set(`post:${id}`, {
+    ...node,
+    current_classification_allowed: false,
+    event_coverage: 'unknown',
+  });
+  nodes.set(`comment:${root}`, rootNode);
+  assert.equal(check(), 'unknown');
+  nodes.set(`post:${id}`, { ...node, current_classification_allowed: false });
+  nodes.set(`comment:${root}`, { ...rootNode, event_coverage: 'unknown' });
+  assert.equal(check(), 'unknown');
+  nodes.set(`comment:${root}`, rootNode);
+  assert.equal(check(), 'deny');
 });
 test('an arbitrary ID list or forged SQL handle is not owner authority', () => {
   assert.throws(() =>
@@ -276,6 +288,48 @@ test('legacy certificates require explicit current empty attachments for the ent
       images: [{ assetId, digest, position: 0 }],
       expected_images: [{ assetId, digest }],
     }).decision,
+    'unknown',
+  );
+});
+
+test('current classification and child context gate immutable search certificates independently', () => {
+  assert.equal(
+    evaluate({ current_classification_allowed: false }).decision,
+    'deny',
+  );
+  assert.equal(evaluate({ current_context_allowed: false }).decision, 'deny');
+  assert.equal(
+    evaluate({ current_classification_until: now - 1 }).decision,
+    'unknown',
+  );
+  const result = evaluate({
+    current_classification_allowed: true,
+    current_context_allowed: true,
+    current_classification_until: now + 1000,
+  });
+  assert.equal(result.decision, 'allow');
+  assert.equal(result.validUntil, now + 1000);
+  assert.equal(
+    certificate.valid_until,
+    null,
+    'The original canonical certificate remains immutable',
+  );
+});
+
+test('category denial preserves missing and unknown original semantic evidence', () => {
+  assert.equal(
+    evaluate({ current_classification_allowed: false }, null).decision,
+    'unknown',
+  );
+  assert.equal(
+    evaluate({
+      current_classification_allowed: false,
+      event_coverage: 'unknown',
+    }).decision,
+    'unknown',
+  );
+  assert.equal(
+    evaluate({ current_context_allowed: false, generation: null }).decision,
     'unknown',
   );
 });

@@ -1,3 +1,6 @@
+import { CURRENT_CATEGORY_POSTS_SQL } from '../current-category-sql.js';
+import { readPostCategorySnapshot } from '../category-reclassification/read-proof.js';
+import { batchCategoryChildContextSnapshot } from '../category-reclassification/child-context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
@@ -114,6 +117,9 @@ export interface SearchContentNode extends ApprovalMetadata {
   images?: readonly { assetId: string; digest: string; position: number }[];
   media_fact?: MediaContentFact;
   exact_time_valid: boolean;
+  current_classification_allowed?: boolean;
+  current_context_allowed?: boolean;
+  current_classification_until?: number | null;
   read_at?: Date;
 }
 interface StructuralRow extends SearchCandidate {
@@ -123,6 +129,7 @@ interface StructuralRow extends SearchCandidate {
   certificate: unknown;
   certificate_v2?: unknown;
   current_revision: unknown;
+  current_category: string;
 }
 /** Internal transaction handle, never an HTTP DTO or a bag of caller supplied
  * IDs. SQL consumers must assert its lifetime before using either relation. */
@@ -198,10 +205,11 @@ export function evaluateSearchContentCertificate(
     (certificate.certificate_version === 1 ||
       certificateV2Schema.safeParse(certificate).success);
   let until: number | null = null;
+  let classificationUntil: number | null = null;
   const consumed: unknown[] = [];
   const finish = (decision: SearchContentDecision): Conditional => ({
     decision,
-    validUntil: until,
+    validUntil: minimum(until, classificationUntil),
     ...(certificate?.certificate_version === 2
       ? {
           eligibilityRevision: [
@@ -219,6 +227,10 @@ export function evaluateSearchContentCertificate(
     const node = nodes.get(`${kind}:${id}`);
     if (!node || node.deleted_at || node.visibility !== 'approved')
       return finish('deny');
+    classificationUntil = minimum(
+      classificationUntil,
+      node.current_classification_until ?? null,
+    );
     if (kind === 'post' && (!scope.active || !scope.regionActive))
       return finish('deny');
     if (
@@ -298,6 +310,20 @@ export function evaluateSearchContentCertificate(
     (certificate.valid_until?.getTime() ?? null) !== until ||
     (until !== null && until <= now)
   )
+    return finish('unknown');
+  // Missing category evidence can be caused by unknown original Review. Only
+  // the complete original certificate/ancestry proof may precede this denial.
+  if (
+    ancestry.some(([kind, id]) => {
+      const node = nodes.get(`${kind}:${id}`)!;
+      return (
+        node.current_classification_allowed === false ||
+        node.current_context_allowed === false
+      );
+    })
+  )
+    return finish('deny');
+  if (classificationUntil !== null && classificationUntil <= now)
     return finish('unknown');
   return finish('allow');
 }
@@ -440,6 +466,41 @@ export class ContentReviewSearchEligibilityFacade {
           3 * ids('comment').length +
           3 * ids('reply').length,
       );
+      const categorySnapshot = await readPostCategorySnapshot(
+        [...new Set(rows.map((node) => node.post_id))],
+        tx,
+      );
+      const childContext = await batchCategoryChildContextSnapshot(
+        rows.flatMap((node) =>
+          node.kind === 'post'
+            ? []
+            : [
+                {
+                  kind: node.kind,
+                  id: node.id,
+                  postId: node.post_id,
+                },
+              ],
+        ),
+        tx,
+      );
+      const classificationUntil = minimum(
+        categorySnapshot.validUntil,
+        childContext.validUntil,
+      );
+      registerTransactionDeadline(
+        tx,
+        classificationUntil,
+        'COMMUNITY_UNAVAILABLE',
+      );
+      for (const node of rows) {
+        node.current_classification_allowed =
+          categorySnapshot.categories.get(node.post_id) != null;
+        node.current_context_allowed =
+          node.kind === 'post' ||
+          childContext.allowed.get(`${node.kind}:${node.id}`) === true;
+        node.current_classification_until = classificationUntil;
+      }
       const grouped = new Map<string, typeof images>();
       for (const image of images) {
         const key = `${image.kind}:${image.id}`;
@@ -894,15 +955,15 @@ export class ContentReviewSearchEligibilityFacade {
        sp.is_active AS space_active,sp.kind AS space_kind,sp.operating_region_id AS region_id,
        CASE WHEN c.content_id IS NULL THEN NULL ELSE to_jsonb(c) END AS certificate,
        ${v2Installed ? 'CASE WHEN cv2.content_id IS NULL THEN NULL ELSE to_jsonb(cv2) END' : 'NULL::jsonb'} AS certificate_v2,
-       whaleu_semantic.source_revision(s.kind,s.id) AS current_revision
-      FROM structural s JOIN whaleu_community.posts p ON p.id=s.post_id
+       p.current_category,whaleu_semantic.source_revision(s.kind,s.id) AS current_revision
+      FROM structural s JOIN ${CURRENT_CATEGORY_POSTS_SQL} p ON p.id=s.post_id
       LEFT JOIN whaleu_community.spaces sp ON sp.id=p.space_id
       LEFT JOIN whaleu_semantic.certificates c ON c.index_space_key=$10 AND c.kind=s.kind AND c.content_id=s.id
       ${v2Installed ? 'LEFT JOIN whaleu_semantic.certificates_v2 cv2 ON cv2.index_space_key=$10 AND cv2.kind=s.kind AND cv2.content_id=s.id' : ''}
       WHERE p.visibility='approved' AND p.deleted_at IS NULL AND s.kind=ANY($11::text[]) AND (($1::uuid IS NOT NULL AND p.space_id=$1)
-       OR ($1::uuid IS NULL AND ((p.space_id=ANY($2::uuid[]) AND p.category=ANY($12::text[]))
-         OR (p.space_id=ANY($3::uuid[]) AND p.category IN ('discussion','feedback')))))
-       AND ($4::text IS NULL OR p.category=$4)
+       OR ($1::uuid IS NULL AND ((p.space_id=ANY($2::uuid[]) AND p.current_category=ANY($12::text[]))
+         OR (p.space_id=ANY($3::uuid[]) AND p.current_category IN ('discussion','feedback')))))
+       AND ($4::text IS NULL OR p.current_category=$4)
        AND ($5::text IS NULL OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.subtype=$5))
        AND (NOT $6::boolean OR NOT EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='urgent'))
        AND ($7::uuid IS NULL OR p.id=$7) AND ($8::timestamptz IS NULL OR s.at>=$8::timestamptz)
@@ -935,6 +996,34 @@ export class ContentReviewSearchEligibilityFacade {
       if (!parsed.success) throw unavailable();
       return parsed.data;
     });
+    // Metadata snapshot shares the already captured Community whole-scope epoch.
+    // Keep this batched; a 100k semantic corpus is never a scalar proof loop.
+    const categoryIds = [
+      ...new Set(candidates.map((candidate) => candidate.postId)),
+    ];
+    const categories = new Map<string, string | null>();
+    for (let offset = 0; offset < categoryIds.length; offset += 256) {
+      const snapshot = await readPostCategorySnapshot(
+        categoryIds.slice(offset, offset + 256),
+        tx,
+      );
+      registerTransactionDeadline(
+        tx,
+        snapshot.validUntil,
+        'COMMUNITY_UNAVAILABLE',
+      );
+      for (const [id, category] of snapshot.categories)
+        categories.set(id, category);
+    }
+    if (
+      rows.rows.some(
+        (row) =>
+          !categories.has(row.postId) ||
+          (categories.get(row.postId) !== null &&
+            categories.get(row.postId) !== row.current_category),
+      )
+    )
+      throw unavailable();
     const regionIds = [
       ...new Set(
         rows.rows.flatMap((row) => (row.region_id ? [row.region_id] : [])),

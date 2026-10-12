@@ -14,6 +14,14 @@ This is a greenfield TypeScript/WXML/WXSS Mini Program. It is **not a complete W
 
 `test/community-runtime-policy.test.ts` checks the unchanged closed contracts, rejected authority injection, unavailable versus terminal receipts, independent interactions, separate root/reply mode handling and lifecycle ownership. `scripts/smoke-runtime-policy.mjs`, run by `npm run build -w @whaleu/wechat`, executes emitted native page handlers with the real gateway/decoders against synthetic responses. That compiled smoke is distinct from the separate real-AppModule HTTP/PostgreSQL acceptance suite. Neither establishes WeChat DevTools rendering, physical-device or provider acceptance.
 
+## Scoped category reclassification
+
+- Community detail exposes category management only when the server returns `canChange` and exact allowed target categories. The nine-category client vocabulary is not a policy, crosswalk, role grant or production activation. Unsupported posts have no change controls; native never guesses authority from ownership, a developer role, pin permissions or browsing campus.
+- Confirmation refreshes metadata and freezes the exact UUIDv4, post, expected revision and target category in an account/API-origin journal, with write/readback before dispatch. Category changes do not alter original publication identity or synthesize publication, notification, reward or pin requests. Same-category requests still require an authoritative unchanged receipt.
+- Lost replies, unavailable recovery, cold restart and `not_recorded` retain the original key. Explicit retries reuse the exact stored command; cancel phase is durable before dispatch. A terminal matching receipt is required before replacement. Recovery does not depend on a readable detail or successful management lookup. Account/login-epoch, API environment and late-callback isolation follow the existing owner-visibility flow.
+- Settled receipts invalidate current readers, private identity views and Media before fresh reads. Pending category changes suppress stale pin read acknowledgement and private image/avatar reopening. Receipt metadata never acts as permission to display content.
+- Focused coverage is in `test/category-reclassification.test.ts`; `scripts/smoke-category-reclassification.mjs` exercises emitted runtime, registered native handlers, exact HTTP bodies, a synthetic pets → scenery → pets journey and cold recovery. The normal emitted smoke includes it. Tests require owner-coordinated execution; source addition alone is not validation or production/device/PostgreSQL acceptance.
+
 ## Community C1 and recovery
 
 - `WhaleuApp.community` is the typed root facade. Native pages and small controllers reuse the existing session/API transport, cancellation and login-epoch ownership. There is no legacy wire adapter, fake post feed or synthetic verification switch in runtime code

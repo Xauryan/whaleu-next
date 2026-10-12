@@ -1,3 +1,4 @@
+import { bindCategoryChildContext } from '../category-reclassification/child-context.js';
 import type { TextReviewStatus } from '../text-review/contracts.js';
 import { withDiscussionMediaMutation } from '../../media/discussion-ancestor-proof.js';
 import { authorizeDiscussionPublication } from './publication-target.js';
@@ -144,6 +145,14 @@ export class ReplyPublicationService {
           );
           await this.repository.attach('reply', id, assets, tx);
           await this.approval.bind(approval, 'reply', id, tx, assets);
+          if (approval)
+            await bindCategoryChildContext(
+              approval,
+              'reply',
+              id,
+              body.clientRequestId,
+              tx,
+            );
           await this.repository.event(
             `reply:${id}:created`,
             'reply_created',

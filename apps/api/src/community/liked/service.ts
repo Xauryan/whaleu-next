@@ -1,3 +1,6 @@
+import { batchCategoryChildContextAllowed } from '../category-reclassification/child-context.js';
+import { resolvePostCategories } from '../category-reclassification/read-proof.js';
+import { currentCategoryCursorScope } from '../current-category-cursor.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import {
@@ -87,6 +90,22 @@ export class LikedHistoryService {
       ),
     ].sort())
       replies.set(id, await this.community.reply(id, tx, true));
+    await resolvePostCategories([...posts.keys()], tx);
+    await batchCategoryChildContextAllowed(
+      [
+        ...[...roots.values()].map((row) => ({
+          kind: 'comment' as const,
+          id: row.id,
+          postId: row.post_id,
+        })),
+        ...[...replies.values()].map((row) => ({
+          kind: 'reply' as const,
+          id: row.id,
+          postId: row.post_id,
+        })),
+      ],
+      tx,
+    );
     return { posts, roots, replies };
   }
 
@@ -97,7 +116,10 @@ export class LikedHistoryService {
         enableSafetyRelationshipProof(tx);
         const session = await this.identity.session(token, tx);
         const actor = session.accountId;
-        const scope = likedCursorScope(actor, session.sessionId, query.limit);
+        const scope = await currentCategoryCursorScope(
+          likedCursorScope(actor, session.sessionId, query.limit),
+          tx,
+        );
         const position = query.cursor
           ? await this.cursors.get(query.cursor, scope, tx, (value) =>
               positionSchema.parse(value),

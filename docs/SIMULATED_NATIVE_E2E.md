@@ -197,3 +197,21 @@ re-like, exact local-notice targets, pagination and account/origin/background
 interruption. Complete [scope and outstanding parity](MAJOR_DISCUSSION.md) remain
 separate from an executed validation result. Real source/provider/device/import
 or production activation is not implied.
+
+## Bounded scoped category reclassification
+
+The explicit runner includes `category-reclassification-native-roundtrip.test.ts`.
+It loads the emitted native App/Page/WXML and uses ordinary AppModule HTTP with
+disposable PostgreSQL for the named, text-only regional pets→scenery→pets journey.
+Accepted issuer, crosswalk, directed policy and exact Review facts are explicitly
+synthetic. Original publication bytes and old child approvals remain unchanged;
+new children carry supplemental exact current-parent approval. The journey covers
+original-key response-loss recovery/cancellation, independent owner hiding,
+current category projections, durable administrator authority and queued-grant
+revocation. Unsupported categories/media/distribution and production activation
+are not established by this simulation.
+
+The native bundle smoke invokes `smoke-category-reclassification.mjs` through the
+existing emitted smoke entrypoint. CI registers both the SQL invariants and native
+roundtrip files under the existing `community-media` owner; the matrix remains
+nine jobs with its existing maximum parallelism of eight.

@@ -1,3 +1,7 @@
+import {
+  untouchedCategoryRows,
+  untouchedCategoryChildRows,
+} from './support/category-read-facts.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -480,6 +484,20 @@ function fixture(collision = false) {
     query: async (sql: string, args: unknown[] = []) => {
       calls.push({ sql, args });
       const one = (value: unknown) => ({ rows: value ? [value] : [] });
+      if (sql.startsWith('SELECT q.kind,q.id,q.post_id'))
+        return {
+          rows: untouchedCategoryChildRows(
+            args[0] as string,
+            new Set([post.id]),
+          ),
+        };
+      if (sql.startsWith('SELECT requested.post_id'))
+        return {
+          rows: untouchedCategoryRows(
+            args[0] as string[],
+            new Map([[post.id, post]]),
+          ),
+        };
       if (sql.includes('clock_timestamp')) return one({ now: new Date(now) });
       if (sql.includes('whaleu_identity.accounts'))
         return one(accountExists ? { id: args[0] } : undefined);
@@ -569,7 +587,8 @@ function fixture(collision = false) {
         call.sql.includes(sql) &&
         !(
           sql === 'whaleu_community.posts' &&
-          call.sql.includes('post_owner_visibility')
+          (call.sql.includes('post_owner_visibility') ||
+            call.sql.includes('post_category_'))
         ) &&
         (id === undefined || call.args.includes(id)),
     ).length;

@@ -1,3 +1,10 @@
+import { batchCategoryChildContextAllowed } from './category-reclassification/child-context.js';
+import { currentCategoryCursorScope } from './current-category-cursor.js';
+import { CURRENT_CATEGORY_POSTS_SQL } from './current-category-sql.js';
+import {
+  resolvePostCategory,
+  resolvePostCategories,
+} from './category-reclassification/read-proof.js';
 import { retainOwnerRestoreCapability } from './owner-visibility/capability.js';
 import {
   ownerPostVisibilityAllowed,
@@ -144,16 +151,18 @@ export class FeedService {
           if (!current.phoneVerified)
             throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
         }
-        const scope =
+        const scope = await currentCategoryCursorScope(
           `feed:${space.id}:${query.category ?? '*'}` +
-          (query.tradingSubtype ? `:trading:${query.tradingSubtype}` : '');
+            (query.tradingSubtype ? `:trading:${query.tradingSubtype}` : ''),
+          tx,
+        );
         let seek = decodeCursor(query.cursor, scope, query.limit);
         const items: PostView[] = [];
         let scanned = 0;
         // Read candidates in bounded batches; filtering never turns an invisible row into a public cursor.
         while (items.length <= query.limit) {
           const rows = await tx.query<StoredPost>(
-            `SELECT * FROM whaleu_community.posts WHERE space_id=$1 AND ($2::text IS NULL OR category=$2) AND deleted_at IS NULL AND visibility='approved' AND ($5::text IS NULL OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=posts.id AND t.subtype=$5)) AND ($2::text IS NOT NULL OR NOT EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=posts.id AND t.urgency='urgent')) AND ($3::timestamptz IS NULL OR (published_at,id)<($3::timestamptz,$4::uuid)) ORDER BY published_at DESC,id DESC LIMIT 32 FOR SHARE`,
+            `SELECT p.* FROM whaleu_community.posts p JOIN ${CURRENT_CATEGORY_POSTS_SQL} classified ON classified.id=p.id WHERE classified.space_id=$1 AND ($2::text IS NULL OR classified.current_category=$2) AND p.deleted_at IS NULL AND p.visibility='approved' AND ($5::text IS NULL OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.subtype=$5)) AND ($2::text IS NOT NULL OR NOT EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='urgent')) AND ($3::timestamptz IS NULL OR (classified.published_at,classified.id)<($3::timestamptz,$4::uuid)) ORDER BY classified.published_at DESC,classified.id DESC LIMIT 32 FOR SHARE OF p`,
             [
               space.id,
               query.category ?? null,
@@ -166,9 +175,18 @@ export class FeedService {
           if (scanned > 1024)
             throw new ApplicationError('COMMUNITY_UNAVAILABLE');
           if (!rows.rows.length) break;
+          await resolvePostCategories(
+            rows.rows.map((post) => post.id),
+            tx,
+          );
           for (const post of rows.rows) {
             seek = { at: post.published_at.toISOString(), id: post.id };
-            if (await this.access.visible(actor, post, tx, 'list_projection'))
+            const currentCategory = await resolvePostCategory(post.id, tx);
+            if (
+              (await this.access.visible(actor, post, tx, 'list_projection')) &&
+              currentCategory !== null &&
+              (!query.category || query.category === currentCategory)
+            )
               items.push(
                 await this.serializer.post(post, space, actor, authority, tx),
               );
@@ -269,6 +287,9 @@ export class FeedService {
           result.reason = decision.reason;
         }
         if (decision.kind !== 'allow') return result;
+        const currentCategory = await resolvePostCategory(post.id, tx);
+        if (currentCategory === null)
+          throw new ApplicationError('POST_NOT_FOUND');
         for (const mode of ['named', 'anonymous'] as const) {
           if (result.forcedAuthorMode && mode !== result.forcedAuthorMode)
             continue;
@@ -276,7 +297,7 @@ export class FeedService {
             requirePublication(
               decision.value,
               space,
-              post.category,
+              currentCategory,
               mode,
               'publish_comment',
               post.author_mode,
@@ -371,6 +392,14 @@ export class FeedService {
           if (scanned > 1024)
             throw new ApplicationError('COMMUNITY_UNAVAILABLE');
           if (!rows.rows.length) break;
+          await batchCategoryChildContextAllowed(
+            rows.rows.map((row) => ({
+              kind: 'comment' as const,
+              id: row.id,
+              postId: row.post_id,
+            })),
+            tx,
+          );
           for (const comment of rows.rows) {
             seek = { at: comment.created_at.toISOString(), id: comment.id };
             if (
@@ -489,7 +518,7 @@ export class FeedService {
   ): Promise<{ items: OwnPublication[]; nextCursor: string | null }> {
     return this.repository.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);
-      const scope = 'own';
+      const scope = await currentCategoryCursorScope('own', tx);
       const seek: Seek | null = decodeCursor(query.cursor, scope, query.limit);
       const rows = await tx.query<StoredPost>(
         `SELECT p.* FROM whaleu_community.posts p WHERE p.account_id=$1 AND ($2::timestamptz IS NULL OR (p.published_at,p.id)<($2::timestamptz,$3::uuid)) ORDER BY p.published_at DESC,p.id DESC LIMIT $4 FOR SHARE OF p`,
@@ -503,12 +532,17 @@ export class FeedService {
       // statement snapshot could otherwise precede a concurrent writer's commit.
       for (const post of rows.rows.slice(0, query.limit))
         visibility.set(post.id, await readOwnerPostVisibility(post.id, tx));
+      const categories = await resolvePostCategories(
+        rows.rows.slice(0, query.limit).map((post) => post.id),
+        tx,
+      );
       const items: OwnPublication[] = rows.rows
         .slice(0, query.limit)
+        .filter((post) => categories.get(post.id) != null)
         .map((post) => ({
           id: post.id,
           spaceId: post.space_id,
-          category: post.category,
+          category: categories.get(post.id)!,
           status: post.deleted_at
             ? 'deleted'
             : post.visibility === 'hidden'
@@ -525,13 +559,15 @@ export class FeedService {
         }));
       for (const item of items)
         await retainOwnerRestoreCapability(actor, item.ownerVisibility, tx);
-      const last = items.at(-1);
+      // Advance over suppressed metadata too, so an invalid overlay cannot
+      // trap private-history pagination or expose its original category.
+      const last = rows.rows.slice(0, query.limit).at(-1);
       return {
         items,
         nextCursor:
           rows.rows.length > query.limit && last
             ? encodeCursor(
-                { at: last.publishedAt, id: last.id },
+                { at: last.published_at.toISOString(), id: last.id },
                 scope,
                 query.limit,
               )

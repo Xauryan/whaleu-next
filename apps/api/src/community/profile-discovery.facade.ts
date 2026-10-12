@@ -1,3 +1,5 @@
+import { resolvePostCategories } from './category-reclassification/read-proof.js';
+import { currentCategoryCursorScope } from './current-category-cursor.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
@@ -79,6 +81,8 @@ export class CommunityProfileDiscoveryFacade {
   ): Promise<Candidate[]> {
     return (
       await tx.query<Candidate>(
+        // This slice cannot enter or leave trading. Preserve the original
+        // owner/time index; canonical current-category gates run on the batch.
         `SELECT id,to_char(published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS scan_at FROM whaleu_community.posts
        WHERE account_id=$1 AND author_mode='named' AND visibility='approved' AND deleted_at IS NULL
        AND (category='trading')=$2 ${after ? 'AND (published_at,id)<($3::timestamptz,$4::uuid)' : ''}
@@ -165,8 +169,11 @@ export class CommunityProfileDiscoveryFacade {
     tx: PoolClient,
   ): Promise<void> {
     if (cursor)
-      await this.cursors.get(cursor, scope, tx, (value) =>
-        positionSchema.parse(value),
+      await this.cursors.get(
+        cursor,
+        await currentCategoryCursorScope(scope, tx),
+        tx,
+        (value) => positionSchema.parse(value),
       );
   }
 
@@ -183,6 +190,7 @@ export class CommunityProfileDiscoveryFacade {
     tx: PoolClient,
     verifySession: () => Promise<void>,
   ): Promise<ProfileContentPage> {
+    scope = await currentCategoryCursorScope(scope, tx);
     const position = query.cursor
       ? await this.cursors.get(query.cursor, scope, tx, (value) =>
           positionSchema.parse(value),
@@ -199,6 +207,15 @@ export class CommunityProfileDiscoveryFacade {
       throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
     const candidates = await this.candidates(owner, kind, seek, tx);
     await this.lockCandidates(candidates, guard, tx);
+    await resolvePostCategories(
+      [
+        ...new Set([
+          ...candidates.map((item) => item.id),
+          ...(guard ? [guard.id] : []),
+        ]),
+      ],
+      tx,
+    );
     if (guard) {
       const item = await this.eligible(
         guard.id,

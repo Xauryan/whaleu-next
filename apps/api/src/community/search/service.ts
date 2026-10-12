@@ -1,3 +1,9 @@
+import { batchCategoryChildContextAllowed } from '../category-reclassification/child-context.js';
+import { currentCategoryCursorScope } from '../current-category-cursor.js';
+import {
+  resolvePostCategory,
+  resolvePostCategories,
+} from '../category-reclassification/read-proof.js';
 import { createHash } from 'node:crypto';
 import type { ContentReviewSearchEligibilityFacade } from '../content-review/search-eligibility.facade.js';
 import type { SemanticCorpusRepository } from './semantic/corpus-repository.js';
@@ -108,6 +114,19 @@ export class SearchService {
     listing: { subtype: TradingSubtype; urgency: 'normal' | 'urgent' } | null;
   } | null> {
     const post = await this.repository.post(candidate.postId, tx, false, read);
+    const currentCategory = await resolvePostCategory(post.id, tx);
+    // A null live overlay may reflect unknown original Review. Let the
+    // canonical owner distinguish unknown from a known classification denial.
+    if (currentCategory === null) {
+      await this.access.visible(
+        actor,
+        post,
+        tx,
+        candidate.kind === 'post' ? 'list_projection' : 'direct_post',
+        read,
+      );
+      return null;
+    }
     if (post.space_id !== candidate.spaceId)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     if (
@@ -115,11 +134,12 @@ export class SearchService {
         ? post.space_id !== scope.spaceId
         : !(
             (scope.regionalSpaceIds.includes(post.space_id) &&
-              categorySchema.safeParse(post.category).success) ||
+              categorySchema.safeParse(currentCategory).success) ||
             (scope.globalSpaceIds.includes(post.space_id) &&
-              (post.category === 'discussion' || post.category === 'feedback'))
+              (currentCategory === 'discussion' ||
+                currentCategory === 'feedback'))
           )) ||
-      (scope.category !== null && post.category !== scope.category) ||
+      (scope.category !== null && currentCategory !== scope.category) ||
       (scope.postId !== null && post.id !== scope.postId) ||
       post.deleted_at !== null ||
       post.visibility !== 'approved'
@@ -283,6 +303,18 @@ export class SearchService {
       )
         throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     }
+    await resolvePostCategories(
+      [...new Set([...held.values()].map((item) => item.postId))],
+      tx,
+    );
+    await batchCategoryChildContextAllowed(
+      [...held.values()].flatMap((item) =>
+        item.kind === 'post'
+          ? []
+          : [{ kind: item.kind, id: item.id, postId: item.postId }],
+      ),
+      tx,
+    );
     return held;
   }
 
@@ -314,7 +346,10 @@ export class SearchService {
         );
         const scopeFingerprint = semanticFingerprint([
           'semantic-index-enumeration-v1',
-          searchCursorScope(query, session),
+          await currentCategoryCursorScope(
+            searchCursorScope(query, session),
+            tx,
+          ),
           resolved?.membershipFingerprint ?? null,
         ]);
         if (checkpoint && checkpoint.scopeFingerprint !== scopeFingerprint)
@@ -521,7 +556,10 @@ export class SearchService {
           }
           const fingerprint = semanticFingerprint([
             'semantic-scope-oracle-v1',
-            searchCursorScope(query, session),
+            await currentCategoryCursorScope(
+              searchCursorScope(query, session),
+              tx,
+            ),
             resolved?.membershipFingerprint ?? null,
             eligibility,
           ]);
@@ -664,7 +702,10 @@ export class SearchService {
           }
           const fingerprint = semanticFingerprint([
             'semantic-full-corpus-v1',
-            searchCursorScope(query, session),
+            await currentCategoryCursorScope(
+              searchCursorScope(query, session),
+              tx,
+            ),
             resolved?.membershipFingerprint ?? null,
             selection.fingerprint,
           ]);
@@ -749,7 +790,10 @@ export class SearchService {
             if (!(await this.phones.verified(actor, tx)))
               throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
           }
-          const scopeHash = searchCursorScope(query, session);
+          const scopeHash = await currentCategoryCursorScope(
+            searchCursorScope(query, session),
+            tx,
+          );
           const position: SearchPosition | FederatedSearchPosition | null =
             query.cursor
               ? await this.cursors.get(query.cursor, scopeHash, tx, (value) =>

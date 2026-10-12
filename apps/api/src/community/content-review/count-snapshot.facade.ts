@@ -119,17 +119,21 @@ function publicFact(
   snapshot: CountReviewSnapshot,
 ): CountSnapshotFact {
   const listing = post ? snapshot.listings.get(post.id) : undefined;
+  const currentCategory = post
+    ? snapshot.categorySnapshot.categories.get(post.id)
+    : null;
   return {
     ...result,
-    post: post
-      ? {
-          id: post.id,
-          account_id: post.account_id,
-          author_mode: post.author_mode,
-          category: post.category,
-          space_id: post.space_id,
-        }
-      : null,
+    post:
+      post && currentCategory
+        ? {
+            id: post.id,
+            account_id: post.account_id,
+            author_mode: post.author_mode,
+            category: currentCategory,
+            space_id: post.space_id,
+          }
+        : null,
     listing: listing
       ? { subtype: listing.subtype, resolution: listing.resolution! }
       : null,
@@ -246,7 +250,7 @@ class SnapshotEvaluator {
             id,
             accepted.value.envelope.scope,
           );
-          result = then(result, () => conditional(stored));
+          result = then(result, () => conditional(stored, null));
           if (stored.kind === 'allow') {
             const images = stored.value.envelope.images;
             if (images.length) {
@@ -318,6 +322,36 @@ class SnapshotEvaluator {
       )
         return unknown();
       return allowed();
+    });
+    // The original Review/definition/ancestry proof above must preserve unknown
+    // even when the same missing source also makes current classification null.
+    result = then(result, () => {
+      const postId = kind === 'post' ? id : (content as StoredComment).post_id;
+      if (!this.snapshot.categorySnapshot.categories.has(postId))
+        return unknown();
+      const children =
+        kind === 'post'
+          ? []
+          : kind === 'comment'
+            ? [contentKey('comment', id)]
+            : [
+                contentKey('comment', (content as StoredReply).root_comment_id),
+                contentKey('reply', id),
+              ];
+      const classification =
+        this.snapshot.categorySnapshot.categories.get(postId) === null ||
+        children.some(
+          (key) => this.snapshot.childContext.allowed.get(key) !== true,
+        )
+          ? denied()
+          : allowed();
+      return {
+        ...classification,
+        optionalUntil: minimum(
+          this.snapshot.categorySnapshot.validUntil,
+          this.snapshot.childContext.validUntil,
+        ),
+      };
     });
     return result;
   }

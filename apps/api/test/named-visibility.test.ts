@@ -2,6 +2,10 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { PoolClient } from 'pg';
+import {
+  untouchedCategoryRows,
+  untouchedCategoryChildRows,
+} from './support/category-read-facts.js';
 import { CommunityAccessService } from '../src/community/community-access.service.js';
 import type {
   CommunityVisibilityPort,
@@ -34,6 +38,12 @@ import { startTransactionDeadlines } from '../src/database/transaction-deadlines
 import { verified } from './support/community-fixtures.js';
 
 const viewer = 'viewer';
+const contentIds = {
+  post: '10000000-0000-4000-8000-000000000001',
+  comment: '10000000-0000-4000-8000-000000000002',
+  reply: '10000000-0000-4000-8000-000000000003',
+  space: '10000000-0000-4000-8000-000000000004',
+} as const;
 const purposes = [
   'list_projection',
   'direct_post',
@@ -50,8 +60,8 @@ const errorIs = (code: string) => (error: unknown) =>
  * database lease, environment switches, or production fixture adapters. */
 function fixture() {
   const post: StoredPost = {
-    id: 'post',
-    space_id: 'space',
+    id: contentIds.post,
+    space_id: contentIds.space,
     account_id: 'post-author',
     category: 'discussion',
     text: 'A post',
@@ -62,7 +72,7 @@ function fixture() {
     published_at: now,
   };
   const comment: StoredComment = {
-    id: 'comment',
+    id: contentIds.comment,
     post_id: post.id,
     account_id: 'comment-author',
     text: 'A comment',
@@ -73,7 +83,7 @@ function fixture() {
   };
   const reply: StoredReply = {
     ...comment,
-    id: 'reply',
+    id: contentIds.reply,
     account_id: 'reply-author',
     text: 'A reply',
     root_comment_id: comment.id,
@@ -81,7 +91,7 @@ function fixture() {
     sequence: '1',
   };
   const space: CommunitySpace = {
-    id: 'space',
+    id: contentIds.space,
     kind: 'regional',
     name: 'Synthetic',
     isActive: true,
@@ -108,6 +118,20 @@ function fixture() {
   const tx = {
     query: async (sql: string, args: unknown[] = []) => {
       trace.push('query');
+      if (sql.startsWith('SELECT requested.post_id'))
+        return {
+          rows: untouchedCategoryRows(
+            args[0] as string[],
+            new Map([[state.post.id, state.post]]),
+          ),
+        };
+      if (sql.startsWith('SELECT q.kind,q.id,q.post_id'))
+        return {
+          rows: untouchedCategoryChildRows(
+            args[0] as string,
+            new Set([state.post.id]),
+          ),
+        };
       if (sql.includes('LEFT JOIN whaleu_community.post_owner_visibility')) {
         assert.equal(args[0], state.post.id);
         return {
@@ -248,7 +272,7 @@ test('base denial and unavailability short-circuit every named-block purpose', a
         await f.visibility.check(
           viewer,
           {
-            contentId: 'post',
+            contentId: contentIds.post,
             contentKind: 'post',
             contentVersion: 1,
             authorMode: 'named',
@@ -297,7 +321,7 @@ test('guest and self checks retain the base policy without looking up a named pa
     for (const accountId of [null, 'author']) {
       const f = fixture();
       const subject: VisibilitySubject = {
-        contentId: 'post',
+        contentId: contentIds.post,
         contentKind: 'post',
         contentVersion: 1,
         authorMode: 'named',
@@ -384,7 +408,7 @@ test('only opted-in direct post access explains an outgoing block', async () => 
       incoming: false,
     });
     await assert.rejects(
-      f.access.accessiblePost('post', viewer, f.tx, false, explain),
+      f.access.accessiblePost(contentIds.post, viewer, f.tx, false, explain),
       errorIs(explain ? 'POST_BLOCKED_BY_YOU' : 'POST_NOT_FOUND'),
     );
     assert.deepEqual(
@@ -402,7 +426,13 @@ test('only opted-in direct post access explains an outgoing block', async () => 
     incoming: true,
   });
   await assert.rejects(
-    incoming.access.accessiblePost('post', viewer, incoming.tx, false, true),
+    incoming.access.accessiblePost(
+      contentIds.post,
+      viewer,
+      incoming.tx,
+      false,
+      true,
+    ),
     errorIs('POST_NOT_FOUND'),
   );
 });
@@ -419,7 +449,7 @@ test('live content and active scope are checked before an own-block explanation'
     if (unavailable === 'scope')
       f.state.scopeError = new ApplicationError('COMMUNITY_SCOPE_UNAVAILABLE');
     await assert.rejects(
-      f.access.accessiblePost('post', viewer, f.tx, false, true),
+      f.access.accessiblePost(contentIds.post, viewer, f.tx, false, true),
       errorIs('POST_NOT_FOUND'),
     );
     assert.equal(f.checks.length, 0);
@@ -437,7 +467,7 @@ test('base unavailability is not rewritten as a hidden post or an own-block expl
   const f = fixture();
   f.state.base = { kind: 'unavailable' };
   await assert.rejects(
-    f.access.accessiblePost('post', viewer, f.tx, false, true),
+    f.access.accessiblePost(contentIds.post, viewer, f.tx, false, true),
     errorIs('COMMUNITY_UNAVAILABLE'),
   );
   assert.equal(f.directionCalls.length, 0);
@@ -473,7 +503,7 @@ test('comment access checks the parent directly and projects the child one way, 
       incoming: true,
     });
     const result = await f.access.accessibleComment(
-      'comment',
+      contentIds.comment,
       viewer,
       f.tx,
       write,
@@ -482,8 +512,8 @@ test('comment access checks the parent directly and projects the child one way, 
     assert.deepEqual(
       f.checks.map(({ subject, purpose }) => [subject.contentId, purpose]),
       [
-        ['post', 'direct_post'],
-        ['comment', 'detail_projection'],
+        [contentIds.post, 'direct_post'],
+        [contentIds.comment, 'detail_projection'],
       ],
     );
     assert.ok(
@@ -502,14 +532,14 @@ test('reply access checks the parent directly, then private detail children with
   for (const child of [f.state.comment, f.state.reply]) {
     f.state.blocks.set(child.account_id, { outgoing: false, incoming: true });
   }
-  const result = await f.access.accessibleReply('reply', viewer, f.tx);
+  const result = await f.access.accessibleReply(contentIds.reply, viewer, f.tx);
   assert.equal(result.reply, f.state.reply);
   assert.deepEqual(
     f.checks.map(({ subject, purpose }) => [subject.contentId, purpose]),
     [
-      ['post', 'direct_post'],
-      ['comment', 'detail_projection'],
-      ['reply', 'detail_projection'],
+      [contentIds.post, 'direct_post'],
+      [contentIds.comment, 'detail_projection'],
+      [contentIds.reply, 'detail_projection'],
     ],
   );
   assert.ok(f.trace.indexOf('post:false') < f.trace.indexOf('comment:true'));
@@ -529,13 +559,13 @@ test('blocked parent stops descendant access before child visibility or locked r
     });
     await assert.rejects(
       kind === 'comment'
-        ? f.access.accessibleComment('comment', viewer, f.tx)
-        : f.access.accessibleReply('reply', viewer, f.tx),
+        ? f.access.accessibleComment(contentIds.comment, viewer, f.tx)
+        : f.access.accessibleReply(contentIds.reply, viewer, f.tx),
       errorIs('POST_NOT_FOUND'),
     );
     assert.deepEqual(
       f.checks.map(({ subject }) => subject.contentId),
-      ['post'],
+      [contentIds.post],
     );
     assert.equal(f.trace.includes('comment:true'), false);
     assert.equal(f.trace.includes('reply:true'), false);
@@ -551,8 +581,8 @@ test('outgoing child blocks produce child-not-found without the direct-post expl
     });
     await assert.rejects(
       kind === 'comment'
-        ? f.access.accessibleComment('comment', viewer, f.tx)
-        : f.access.accessibleReply('reply', viewer, f.tx),
+        ? f.access.accessibleComment(contentIds.comment, viewer, f.tx)
+        : f.access.accessibleReply(contentIds.reply, viewer, f.tx),
       errorIs(kind === 'comment' ? 'COMMENT_NOT_FOUND' : 'REPLY_NOT_FOUND'),
     );
     assert.equal(f.checks.at(-1)?.purpose, 'detail_projection');
@@ -591,7 +621,7 @@ test('formation roster checks the parent directly then projects members without 
   const formations = {
     find: async () => ({
       id: 'formation',
-      post_id: 'post',
+      post_id: contentIds.post,
       capacity: 5,
       theme: 'A meetup',
       reconciliation: 'current',
@@ -625,7 +655,7 @@ test('formation roster checks the parent directly then projects members without 
     [
       [
         {
-          contentId: 'post',
+          contentId: contentIds.post,
           contentKind: 'post',
           contentVersion: 1,
           authorMode: 'anonymous',
@@ -634,7 +664,7 @@ test('formation roster checks the parent directly then projects members without 
       ],
       [
         {
-          contentId: 'post',
+          contentId: contentIds.post,
           contentKind: 'post',
           contentVersion: 1,
           authorMode: 'anonymous',
@@ -643,7 +673,7 @@ test('formation roster checks the parent directly then projects members without 
       ],
       [
         {
-          contentId: 'post',
+          contentId: contentIds.post,
           contentKind: 'post',
           contentVersion: 1,
           authorMode: 'anonymous',
@@ -668,7 +698,7 @@ test('a reverse-only named block keeps the formation feed card visible but withh
   const formations = {
     find: async () => ({
       id: 'formation',
-      post_id: 'post',
+      post_id: contentIds.post,
       capacity: 5,
       theme: 'A meetup',
       reconciliation: 'current',
@@ -699,8 +729,8 @@ test('a reverse-only named block keeps the formation feed card visible but withh
   assert.deepEqual(
     f.checks.map(({ subject, purpose }) => [subject.contentId, purpose]),
     [
-      ['post', 'list_projection'],
-      ['post', 'direct_post'],
+      [contentIds.post, 'list_projection'],
+      [contentIds.post, 'direct_post'],
     ],
   );
 });
@@ -713,7 +743,11 @@ test('privileged identity facade still applies direct parent and one-way child v
       incoming: true,
     });
     const service = new CommunityContentIdentityService(f.repository, f.access);
-    const result = await service.resolve({ kind, id: kind }, viewer, f.tx);
+    const result = await service.resolve(
+      { kind, id: f.state[kind].id },
+      viewer,
+      f.tx,
+    );
     assert.equal(result?.accountId, f.state[kind].account_id);
     assert.equal(f.checks[0]?.purpose, 'direct_post');
     assert.equal(
@@ -725,7 +759,10 @@ test('privileged identity facade still applies direct parent and one-way child v
       outgoing: true,
       incoming: false,
     });
-    assert.equal(await service.resolve({ kind, id: kind }, viewer, f.tx), null);
+    assert.equal(
+      await service.resolve({ kind, id: f.state[kind].id }, viewer, f.tx),
+      null,
+    );
   }
 });
 
@@ -735,7 +772,8 @@ test('formation identity resolution projects a creator persona or named joiner w
     f.state.post.author_mode = 'anonymous';
     const accountId = isCreator ? f.state.post.account_id : 'joiner-account';
     f.state.queryRows = (sql) => {
-      if (sql.startsWith('SELECT f.post_id')) return [{ post_id: 'post' }];
+      if (sql.startsWith('SELECT f.post_id'))
+        return [{ post_id: contentIds.post }];
       if (sql.startsWith('SELECT m.account_id')) {
         return [{ account_id: accountId, is_creator: isCreator }];
       }
@@ -755,7 +793,7 @@ test('formation identity resolution projects a creator persona or named joiner w
       [
         [
           {
-            contentId: 'post',
+            contentId: contentIds.post,
             contentKind: 'post',
             contentVersion: 1,
             authorMode: 'anonymous',
@@ -764,7 +802,7 @@ test('formation identity resolution projects a creator persona or named joiner w
         ],
         [
           {
-            contentId: 'post',
+            contentId: contentIds.post,
             contentKind: 'post',
             contentVersion: 1,
             authorMode: 'anonymous',
@@ -803,7 +841,11 @@ test('update eligibility uses direct parent and list child purposes before const
     saved,
     f.identity,
   );
-  const target = { postId: 'post', commentId: 'comment', replyId: 'reply' };
+  const target = {
+    postId: contentIds.post,
+    commentId: contentIds.comment,
+    replyId: contentIds.reply,
+  };
   const recipient = {
     accountId: viewer,
     reason: 'direct',
@@ -816,9 +858,9 @@ test('update eligibility uses direct parent and list child purposes before const
   assert.deepEqual(
     f.checks.map(({ subject, purpose }) => [subject.contentId, purpose]),
     [
-      ['post', 'direct_post'],
-      ['comment', 'list_projection'],
-      ['reply', 'list_projection'],
+      [contentIds.post, 'direct_post'],
+      [contentIds.comment, 'list_projection'],
+      [contentIds.reply, 'list_projection'],
     ],
   );
   assert.equal(previews, 1);

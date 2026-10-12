@@ -1,4 +1,9 @@
 import {
+  HttpCategoryReclassificationGateway,
+  type CategoryReclassificationGateway,
+} from '../category-reclassification/gateway';
+import { PendingCategoryReclassificationStore } from '../category-reclassification/pending';
+import {
   HttpOwnerPostVisibilityGateway,
   type OwnerPostVisibilityGateway,
 } from '../owner-post-visibility/gateway';
@@ -221,6 +226,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly categoryReclassification?: CategoryReclassificationGateway;
+  readonly pendingCategoryReclassification?: PendingCategoryReclassificationStore;
   readonly ownerPostVisibility?: OwnerPostVisibilityGateway;
   readonly pendingOwnerPostVisibility?: PendingOwnerPostVisibilityStore;
   readonly majors?: MajorDirectoryGateway;
@@ -415,6 +422,17 @@ export function createCommunityRuntime(
     pendingWindowDiscussion: new PendingWindowDiscussionStore(storage, origin),
     ...(identity.api
       ? { windowDiscussion: new HttpWindowDiscussionGateway(identity.api) }
+      : {}),
+    pendingCategoryReclassification: new PendingCategoryReclassificationStore(
+      storage,
+      origin,
+    ),
+    ...(identity.api
+      ? {
+          categoryReclassification: new HttpCategoryReclassificationGateway(
+            identity.api,
+          ),
+        }
       : {}),
     pendingOwnerPostVisibility: new PendingOwnerPostVisibilityStore(
       storage,

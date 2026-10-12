@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import type { PoolClient } from 'pg';
+import { categorySchema } from '../src/community/contracts.js';
+import type { CommunitySpace } from '../src/community/contracts.js';
+import { reclassificationCategorySchema } from '../src/community/category-reclassification/contracts.js';
+import { HotRepository } from '../src/community/hot/repository.js';
 import { loadConfig } from '../src/config/config.js';
 import { manualProcessingConfig } from '../src/config/manual-processing.js';
 import { hotQuerySchema, HOT_RANGES } from '../src/community/hot/contracts.js';
@@ -129,6 +134,77 @@ test('hot exact decimal ordering and strict private position never use lexicogra
   );
   assert.notEqual(hotCursorScope(query, null), scope);
 });
+
+test('hot original indexed candidates depend on the fixed regional nine-category membership invariant', async () => {
+  assert.deepEqual(reclassificationCategorySchema.options, [
+    'discussion',
+    'confession',
+    'companions',
+    'pets',
+    'internships',
+    'scenery',
+    'dorms',
+    'research',
+    'deep_sea',
+  ]);
+  for (const category of reclassificationCategorySchema.options) {
+    assert.ok(categorySchema.safeParse(category).success);
+    assert.equal(
+      hotQuerySchema.safeParse({ spaceId, category }).success,
+      false,
+      'Adding category-filtered hot requires current-category candidates',
+    );
+  }
+  assert.equal(
+    reclassificationCategorySchema.safeParse('trading').success,
+    false,
+  );
+  assert.equal(
+    reclassificationCategorySchema.safeParse('feedback').success,
+    false,
+  );
+  const statements: { sql: string; values: unknown[] }[] = [];
+  const tx = {
+    query: async (sql: string, values: unknown[] = []) => {
+      statements.push({ sql, values });
+      return { rows: [] };
+    },
+  } as unknown as PoolClient;
+  const repository = new HotRepository();
+  const query = hotQuerySchema.parse({ spaceId });
+  for (const kind of ['regional', 'global'] as const) {
+    const space: CommunitySpace = {
+      id: spaceId,
+      kind,
+      name: 'Synthetic hot scope',
+      isActive: true,
+      operatingRegionId: kind === 'regional' ? randomUUID() : null,
+    };
+    await repository.candidates(
+      space,
+      query,
+      '2026-10-12T00:00:00.000000Z',
+      null,
+      tx,
+    );
+    await repository.structurallyAllowed(
+      randomUUID(),
+      space,
+      query,
+      '2026-10-12T00:00:00.000000Z',
+      tx,
+    );
+    const [candidates, structural] = statements.slice(-2);
+    const categories =
+      kind === 'regional' ? categorySchema.options : ['discussion', 'feedback'];
+    assert.deepEqual(candidates!.values[1], categories);
+    assert.deepEqual(structural!.values[2], categories);
+    for (const statement of [candidates!, structural!]) {
+      assert.match(statement.sql, /whaleu_community\.posts p/);
+      assert.doesNotMatch(statement.sql, /post_category_|UNION ALL/);
+    }
+  }
+});
 test('hot certificates require exact full current independent proofs; time age alone does not expire them', () => {
   const snapshot = hotSnapshot(),
     certificate = hotCertificate(snapshot);
@@ -230,6 +306,13 @@ test('read uses elapsed publication hours, current state proof and no processing
   assert.match(repository!, /make_interval\(hours=>\$4::integer\*24\)/);
   assert.doesNotMatch(repository!, /make_interval\(days/);
   assert.match(service!, /currentHotScoreCertificate/);
+  assert.match(
+    service!,
+    /resolvePostCategories\(\[\.\.\.held\.keys\(\)\], tx\)/,
+  );
+  assert.match(service!, /this\.access\.visible/);
+  assert.match(service!, /this\.serializer\.post/);
+  assert.match(service!, /currentCategoryCursorScope/);
   assert.doesNotMatch(
     service!,
     /\.refresh\(|\.processNext\(|\.processSelected\(|\.enroll\(/,

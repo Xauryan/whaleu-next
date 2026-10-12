@@ -12,6 +12,7 @@ export function savedCursor(
   cursor: string | undefined,
   accountId: string,
   limit: number,
+  currentCategoryScope?: string,
 ) {
   if (!cursor) return null;
   try {
@@ -21,7 +22,8 @@ export function savedCursor(
       JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')),
     );
     if (
-      parsed.scope !== ownerCursorScope('saved', accountId) ||
+      parsed.scope !==
+        (currentCategoryScope ?? ownerCursorScope('saved', accountId)) ||
       parsed.limit !== limit
     )
       throw new Error();
@@ -35,11 +37,12 @@ export function encodeSavedCursor(
   id: string,
   accountId: string,
   limit: number,
+  currentCategoryScope?: string,
 ) {
   return Buffer.from(
     JSON.stringify({
       v: 1,
-      scope: ownerCursorScope('saved', accountId),
+      scope: currentCategoryScope ?? ownerCursorScope('saved', accountId),
       limit,
       at,
       id,

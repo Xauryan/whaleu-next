@@ -1,3 +1,4 @@
+import { CURRENT_CATEGORY_POSTS_SQL } from '../current-category-sql.js';
 import type { SearchReadContext } from '../content-review/search-read-context.js';
 import { searchListing } from '../content-review/search-source-reads.js';
 import { Injectable } from '@nestjs/common';
@@ -60,9 +61,14 @@ function columns(kind: SearchKind): string {
     ${kind === 'post' ? 'NULL::uuid' : kind === 'comment' ? 'c.id' : 'r.root_comment_id'} AS "rootCommentId",
     to_char(${alias}.${time} AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS at`;
 }
-function from(kind: SearchKind): string {
+function from(kind: SearchKind, classified = false): string {
   const { table, alias } = sources[kind];
-  return `whaleu_community.${table} ${alias}${kind === 'post' ? '' : ` JOIN whaleu_community.posts p ON p.id=${alias}.post_id`}`;
+  const posts = classified
+    ? CURRENT_CATEGORY_POSTS_SQL
+    : 'whaleu_community.posts';
+  return kind === 'post'
+    ? `${posts} p`
+    : `whaleu_community.${table} ${alias} JOIN ${posts} p ON p.id=${alias}.post_id`;
 }
 
 /** Structural navigation only. No keyword, body, named relationship, contact,
@@ -78,12 +84,12 @@ export class SearchRepository {
       const { alias, time } = sources[kind];
       const ordinal = SEARCH_KIND_ORDER[kind];
       return `(SELECT ${columns(kind)},${alias}.${time} AS sort_at,${ordinal} AS sort_kind
-        FROM ${from(kind)}
+        FROM ${from(kind, true)}
         WHERE '${kind}'=ANY($13::text[])
           AND (($1::uuid IS NOT NULL AND p.space_id=$1)
-            OR ($1::uuid IS NULL AND ((p.space_id=ANY($2::uuid[]) AND p.category=ANY($14::text[]))
-              OR (p.space_id=ANY($3::uuid[]) AND p.category IN ('discussion','feedback')))))
-          AND ($4::text IS NULL OR p.category=$4)
+            OR ($1::uuid IS NULL AND ((p.space_id=ANY($2::uuid[]) AND p.current_category=ANY($14::text[]))
+              OR (p.space_id=ANY($3::uuid[]) AND p.current_category IN ('discussion','feedback')))))
+          AND ($4::text IS NULL OR p.current_category=$4)
           AND p.deleted_at IS NULL AND p.visibility='approved'
           ${kind === 'post' ? '' : `AND ${alias}.deleted_at IS NULL AND ${alias}.visibility='approved'`}
           AND ($5::text IS NULL OR EXISTS (SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.subtype=$5))

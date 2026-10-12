@@ -1,3 +1,5 @@
+import { resolvePostCategory } from './category-reclassification/read-proof.js';
+import { categoryChildContextAllowed } from './category-reclassification/child-context.js';
 import { ownerPostVisibilityAllowed } from './owner-visibility/read-proof.js';
 import type { SearchReadContext } from './content-review/search-read-context.js';
 import {
@@ -99,6 +101,8 @@ export class CommunityAccessService {
         : 'post_id' in content
           ? 'comment'
           : 'post';
+    const postId =
+      contentKind === 'post' ? content.id : (content as StoredComment).post_id;
     const reference = {
       contentId: content.id,
       contentKind,
@@ -121,6 +125,16 @@ export class CommunityAccessService {
     );
     if (result.kind === 'unavailable')
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    if (result.kind !== 'allow') return result;
+    // Classification evidence can be absent because original Review is unknown.
+    // Preserve the canonical owner's unavailable verdict before overlay denial.
+    if ((await resolvePostCategory(postId, tx)) === null)
+      return { kind: 'deny', reason: 'POST_NOT_FOUND' };
+    if (
+      contentKind !== 'post' &&
+      !(await categoryChildContextAllowed(contentKind, content.id, postId, tx))
+    )
+      return { kind: 'deny', reason: 'POST_NOT_FOUND' };
     return result;
   }
   async visible(

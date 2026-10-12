@@ -165,6 +165,16 @@ test(
               'whaleu_community.formations',
               'whaleu_community.poll_options',
               'whaleu_community.polls',
+              'whaleu_community.post_category_child_bindings',
+              'whaleu_community.post_category_events',
+              'whaleu_community.post_category_heads',
+              'whaleu_community.post_category_issuer_withdrawals',
+              'whaleu_community.post_category_issuers',
+              'whaleu_community.post_category_policies',
+              'whaleu_community.post_category_policy_heads',
+              'whaleu_community.post_category_policy_withdrawals',
+              'whaleu_community.post_category_review_withdrawals',
+              'whaleu_community.post_category_reviews',
               'whaleu_community.post_images',
               'whaleu_community.post_likes',
               'whaleu_community.post_owner_visibility',
@@ -179,11 +189,19 @@ test(
               'whaleu_safety.blocks',
             ],
           );
+          const sourceOwners: Readonly<
+            Record<string, (typeof owners)[number]>
+          > = {
+            whaleu_campus: 'campus',
+            whaleu_community: 'community',
+            whaleu_safety: 'safety',
+          };
           for (const table of tables) {
-            const owner = table.schema.replace(
-              'whaleu_',
-              '',
-            ) as (typeof owners)[number];
+            const owner = sourceOwners[table.schema];
+            assert.ok(
+              owner,
+              `Unregistered epoch source owner: ${table.schema}.${table.table}`,
+            );
             const before = BigInt(await epoch(owner));
             await pool.query(
               `UPDATE ${table.schema}.${table.table} SET ${table.column}=${table.column} WHERE false`,
