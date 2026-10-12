@@ -8,7 +8,7 @@ filters, optional-success branches, or production activation steps.
 
 ```text
 plan (inventory + CI guards) ───────────────────────┐
-native-checks (types + tests + build + artifact) ───┴─> main-integration (8 jobs)
+native-checks (types + tests + build + artifact) ───┴─> main-integration (9 jobs)
 foundation (lint + formatting + statistics + search evaluation + DB guards)
 api-checks (types + OpenAPI + tests + build)
 semantic-integration (isolated optional pgvector)
@@ -32,27 +32,73 @@ coverage is updated deliberately. The local `npm run check` command is unchanged
 Each filename belongs to exactly one subshard. Multi-owner and cross-domain tests
 are retained, not dropped or run only when a guessed source path changes.
 
-| Module                                  | Main responsibility                                                                            | Jobs | Initial files |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------- | ---: | ------------: |
-| Community and media                     | Community components, publication, media and native media flows                                |    1 |            59 |
-| Ratings discussions and scoped catalogs | Scoped ratings, discussion media, replies and random reads                                     |    1 |            35 |
-| Campus services                         | Activities, announcements, errands, organizations, courses, windows and dishes                 |    1 |            41 |
-| Ratings targets and effects             | Target management/deletion, likes, subscriptions and effects                                   |    1 |            51 |
-| Ratings category catalog                | Categories, category icons, management and cross-owner media proofs                            |    2 |            32 |
-| Shared cross-owner contracts            | Database, authorization, Safety, search/discovery, experience, notifications and school policy |    1 |            55 |
-| Identity profiles and messaging         | Identity, verification, profiles, messaging and private images                                 |    1 |            27 |
+| Module                                  | Main responsibility                                                                            | Jobs | 317-file snapshot |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------- | ---: | ----------------: |
+| Community and media                     | Community components, publication, media and native media flows                                |    1 |                59 |
+| Ratings discussions and scoped catalogs | Scoped ratings, discussion media, replies and random reads                                     |    1 |                36 |
+| Ratings targets and effects             | Target management/deletion, likes, subscriptions and effects                                   |    1 |                51 |
+| Ratings category catalog                | Categories, category icons, management and cross-owner media proofs                            |    2 |                32 |
+| Shared cross-owner contracts            | Database, authorization, Safety, search/discovery, experience, notifications and school policy |    1 |                58 |
+| Identity profiles and messaging         | Identity, verification, profiles, messaging and private images                                 |    1 |                27 |
+| Campus services                         | Activities, announcements, errands, organizations, majors, courses, windows and dishes         |    2 |                54 |
 
-The initial map covers 300 files at source commit
-`285d98493a473197a820576df2a9fce9037f9e8b`; the executable inventory, rather than
+The table records the 317-file inventory at source commit
+`fca344bb116ddda9a4bb2950a948125b63de6982`; the executable inventory, rather than
 this snapshot table, is authoritative as features are added. Category subshards
 were explicitly balanced using observed test durations. Existing assignments do
 not change when an unrelated test is added.
 
-The generated matrix has eight standard `ubuntu-24.04` jobs, bounded by
+The generated matrix has nine standard `ubuntu-24.04` jobs, bounded by
 `max-parallel: 8`, with `fail-fast: false`. Each has its own fresh PostgreSQL 18.6
 container and still uses `--test-concurrency=1` within that database. The command
 and job timeouts remain 7,200 seconds and 150 minutes. Optional pgvector retains
 its independent pinned image, namespace probe, admission and cleanup.
+
+### Stable Campus split and scheduling limits
+
+The other seven PostgreSQL shards appear first in the generated matrix. Campus
+operations (activities, announcements, errands, organizations and Major) is
+entry eight; courses and dining (canteens, courses, dishes and windows) is entry
+nine. At the 317-file snapshot these are **36 and 18 files**. Both retain the
+`campus-services` module and its owners; every assignment is an explicit filename
+in the manifest, with no runtime wildcard bucketing or timing-based reshuffling.
+The inventory guard checks all nine IDs in order, the two semantic assignments,
+new Window image coverage and exact-once equality with the full glob. New Major
+files belong in the first Campus shard; new course/dining files in the second.
+
+The next baseline, `51437e41187ceb5ab1817153b2870ada38679f37`, adds
+`major-discussion-delete.test.ts` explicitly to Campus 1/2: **318 total files,
+55 Campus files, split 37/18**. Its added runtime is not included in the
+317-file timing model below. Splitting leaves this baseline’s corpus digest
+unchanged; guards compare against the complete glob rather than freezing
+inventory at either snapshot.
+
+Evidence: [317-file run 38232825662](https://github.com/Xauryan/whaleu-next/actions/runs/38232825662)
+at that exact source commit took **24m59s**. Campus passed 417/417 and took
+**22m07s**; the run failed an unrelated Community/media source-inventory assertion.
+It is timing evidence, not a green full-suite baseline. The 93 Campus top-level
+cases uniquely map to all 54 files. Their bodies total 1,168.136s; the Node total
+is 1,292.334s, leaving 124.198s unassigned process/setup overhead. Job overhead
+outside Node is 34.666s. Nested cases are not added again.
+
+Using those measured bodies, allocating the Node residual by file count and
+adding one setup/cleanup overhead to each split job gives **17m37s** for Campus
+operations and **5m04s** for courses/dining. Assuming the first eight matrix
+entries start together, the ninth starts after the fastest other job (13m42s)
+and completes around 18m46s. Unchanged Community/media at 19m57s then bounds the
+PostgreSQL phase. This models roughly **2m10s saved (9% of total wall time)**,
+with roughly 35s extra aggregate runner time for one additional job. It does not
+predict a halving of CI time or require raising `max-parallel: 8`.
+
+These are **estimates, not measured split-run improvements**. The failed
+Community/media job included diagnostics, scheduler order is not a guaranteed
+start order, available slots can vary, and setup overhead is not necessarily
+uniform. New tests (including later Major/soft-delete work) need fresh timing.
+A full successful exact-commit hosted run must verify all nine consumers,
+actual start order, cleanup, total/aggregate runner time and the final gate.
+Keep native build/smoke once, the same immutable artifact/provenance checks,
+serial files and isolated fresh databases; no cache or workflow safety boundary
+changes accompany this split.
 
 ### Adding or moving tests
 
@@ -120,7 +166,7 @@ barrier. Caching installed dependencies would add risk for little gain.
 A scheduling model assigned the observed top-level test durations to their source
 files: 6,793 seconds of test bodies, excluding about 641 seconds of process/setup
 inside the old test steps. It then added a conservative 45 seconds of job setup
-per new module job. The same eight jobs yield these lower-bound estimates:
+per new module job. The original eight-job layout yielded these lower-bound estimates:
 
 | Concurrent main jobs | Modeled PostgreSQL wall time | Modeled aggregate runner time |
 | -------------------: | ---------------------------: | ----------------------------: |
@@ -131,9 +177,8 @@ per new module job. The same eight jobs yield these lower-bound estimates:
 These are **projections, not measured speedups**. They omit queueing, the new
 native-check dependency duration, unallocated per-file overhead and six newer
 Dish/private-image tests absent from the W1 reference. Source growth and runner
-variance can change the bottleneck. The first full hosted run must establish
-actual module durations, total wall time and aggregate runner time before any
-performance claim. Raising parallelism from four to eight does not multiply test
+variance can change the bottleneck. That initial projection does not establish a measured speedup for the current
+nine-job layout; use the exact-version Campus evidence and limits above. Raising parallelism from four to eight does not multiply test
 work, though eight job setups cost more than the previous four.
 
 The repository is public and uses standard runners. GitHub documents free standard

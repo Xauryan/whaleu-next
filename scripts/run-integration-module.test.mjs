@@ -39,18 +39,64 @@ const mutate = (fn) => {
 test('real module inventory equals the old complete glob exactly once, with shared owners', () => {
   const inventory = discoverFiles();
   const plan = createModulePlan(inventory, readModules());
-  assert.equal(plan.totalShards, 8);
+  assert.equal(plan.totalShards, 9);
   assert.equal(plan.totalFiles, inventory.length);
   assert.equal(plan.filesSha256, createShardPlan(inventory, 4).filesSha256);
   assert.deepEqual(
     plan.shards.flatMap((shard) => shard.files).sort(),
     inventory,
   );
-  assert.equal(new Set(plan.shards.map((shard) => shard.id)).size, 8);
+  assert.equal(new Set(plan.shards.map((shard) => shard.id)).size, 9);
   assert.ok(
     plan.shards.find((shard) => shard.module === 'shared-foundation').owners
       .length > 1,
   );
+});
+
+test('nine-job matrix leaves both stable Campus shards after the other seven jobs', () => {
+  const plan = createModulePlan(discoverFiles(), readModules());
+  assert.deepEqual(
+    plan.shards.map((shard) => shard.id),
+    [
+      'community-media-1',
+      'ratings-discussion-1',
+      'ratings-targets-effects-1',
+      'ratings-catalog-1',
+      'ratings-catalog-2',
+      'shared-foundation-1',
+      'identity-messaging-1',
+      'campus-services-1',
+      'campus-services-2',
+    ],
+  );
+  const campus = plan.shards.slice(-2);
+  assert.deepEqual(
+    campus.map((shard) => shard.shard),
+    ['1/2', '2/2'],
+  );
+  assert.deepEqual(campus[0].owners, campus[1].owners);
+  const inventory = discoverFiles();
+  for (const [offset, families] of [
+    [0, /^(activity|announcement|errand|major|organization)-/],
+    [1, /^(canteen|course|dish|window)-/],
+  ]) {
+    // Assert stable semantic ownership; selection itself uses explicit filenames.
+    assert.deepEqual(
+      campus[offset].files,
+      inventory.filter((file) => families.test(file.split('/').at(-1))),
+    );
+  }
+  assert.ok(
+    campus[0].files.includes(
+      'test/integration/major-discussion-delete.test.ts',
+    ),
+  );
+  for (const name of [
+    'window-discussion-images-native-roundtrip.test.ts',
+    'window-discussion-media-upgrade.test.ts',
+    'window-discussion-media.test.ts',
+  ])
+    assert.ok(campus[1].files.includes(`test/integration/${name}`));
 });
 
 test('mapping is deterministic and explicit; new tests, stale entries and duplicates fail closed', () => {
