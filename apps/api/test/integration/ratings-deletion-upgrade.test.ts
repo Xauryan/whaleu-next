@@ -45,6 +45,7 @@ test('0053 upgrades populated 0052 without rewriting legacy receipts, authors, e
     fileURLToPath(new URL('../../migrations', import.meta.url)),
   );
   await runMigrations(f.pool, migrations, { mode: 'up' });
+  await f.restartApp();
   assert.deepEqual(await snapshot(), before);
   for (const table of [
     'target_origin_sources',

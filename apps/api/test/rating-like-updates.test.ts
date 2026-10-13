@@ -1,3 +1,8 @@
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
+import {
+  startTransactionDeadlines,
+  clearTransactionDeadlines,
+} from '../src/database/transaction-deadlines.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -50,9 +55,10 @@ function client(
     host: '127.0.0.1',
     connection: { stream: { remoteAddress: '127.0.0.1' } },
     query: async (sql: string, values: unknown[] = []) =>
-      sql === 'SELECT current_database() AS name'
+      unpunishedAccountPolicyObservation(sql, values) ??
+      (sql === 'SELECT current_database() AS name'
         ? { rows: [{ name: 'whaleu_test' }] }
-        : query(sql, values),
+        : query(sql, values)),
   } as unknown as PoolClient;
 }
 function available() {
@@ -507,8 +513,15 @@ test('Rating like reader keeps private source IDs out of DTO and rereads state a
   let unavailable = false;
   const service = new RatingLikeUpdatesReadService(
     {
-      transaction: async (run: (tx: PoolClient) => Promise<unknown>) =>
-        run(client()),
+      transaction: async (run: (tx: PoolClient) => Promise<unknown>) => {
+        const tx = client();
+        startTransactionDeadlines(tx);
+        try {
+          return await run(tx);
+        } finally {
+          clearTransactionDeadlines(tx);
+        }
+      },
     } as never,
     {
       session: async () => {

@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { ApplicationError } from '../../http/application-error.js';
 import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
@@ -13,6 +14,7 @@ export class FeedbackService {
     @Inject(CommunityAccessService)
     private readonly access: CommunityAccessService,
   ) {}
+  @AccountPolicy('browse', 'entry')
   topic() {
     return this.repository.database.transaction(async (tx) => {
       const row = (
@@ -26,6 +28,7 @@ export class FeedbackService {
       return { topic: 'feedback' as const, space };
     });
   }
+  @AccountPolicy('browse', 'entry')
   contacts(token: string, postId: string) {
     return this.repository.database.transaction(
       async (tx) => {

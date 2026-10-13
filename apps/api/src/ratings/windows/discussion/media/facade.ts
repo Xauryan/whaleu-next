@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../../../safety/account-policy/decorator.js';
 import { WindowDiscussionMediaRequiredProof } from '../../../../media/window-discussion-required-proof.js';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -180,6 +181,7 @@ export class WindowDiscussionMediaService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   prepare(token: string, raw: unknown) {
     return this.authorized(token, async (session, tx) => {
       const input = prepareWindowDiscussionMediaSchema.parse(raw),
@@ -209,6 +211,7 @@ export class WindowDiscussionMediaService {
       return this.recovery.status(session.accountId, prepared.intentId, tx);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, requestId: string) {
     return this.authorized(
       token,
@@ -216,6 +219,7 @@ export class WindowDiscussionMediaService {
       false,
     );
   }
+  @AccountPolicy('browse', 'entry')
   status(token: string, intentId: string) {
     return this.authorized(
       token,
@@ -223,16 +227,19 @@ export class WindowDiscussionMediaService {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelRequest(token: string, requestId: string, raw: unknown) {
     return this.authorized(token, (s, tx) =>
       this.recovery.cancelRequest(s.accountId, requestId, raw, tx),
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, intentId: string) {
     return this.authorized(token, (s, tx) =>
       this.recovery.cancel(s.accountId, intentId, tx),
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   async grant(token: string, intentId: string) {
     const result = await this.authorized(token, async (s, tx) => {
       const ingress = this.requireIngress();
@@ -260,6 +267,7 @@ export class WindowDiscussionMediaService {
       protocol: WINDOW_DISCUSSION_MEDIA_PROTOCOL,
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   async finalize(token: string, intentId: string) {
     const before = await this.status(token, intentId);
     if (
@@ -329,6 +337,7 @@ export class WindowDiscussionMediaService {
       );
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   observed(result: MediaUploadObserved) {
     const { version: _version, ...observed } = result;
     void _version;
@@ -386,6 +395,7 @@ export class WindowDiscussionMediaService {
     );
     return { images, safety, revision };
   }
+  @AccountPolicy('browse', 'entry')
   descriptor(token: string, reference: WindowDiscussionMediaReadTarget) {
     return this.database.transaction(
       async (tx) => {
@@ -402,6 +412,7 @@ export class WindowDiscussionMediaService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   open(
     token: string,
     reference: WindowDiscussionMediaReadTarget,

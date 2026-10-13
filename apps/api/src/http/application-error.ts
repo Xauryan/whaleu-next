@@ -3,6 +3,36 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  SAFETY_ACCESS_SUSPENDED: {
+    status: 403,
+    message:
+      'Account access is suspended. Your status, notices and private appeals remain available.',
+  },
+  SAFETY_MODERATION_NOT_FOUND: {
+    status: 404,
+    message: 'The private moderation record is unavailable.',
+  },
+  SAFETY_MODERATION_UNAVAILABLE: {
+    status: 503,
+    message: 'Account moderation is temporarily unavailable.',
+  },
+  SAFETY_MODERATION_STALE: {
+    status: 409,
+    message: 'The punishment changed. Read its current status again.',
+  },
+  SAFETY_MODERATION_CANCELLED: {
+    status: 409,
+    message: 'The moderation request was cancelled.',
+  },
+  SAFETY_MODERATION_TARGET_PROTECTED: {
+    status: 403,
+    message: 'This account is protected from punishment.',
+  },
+  SAFETY_MODERATION_PERMANENT: {
+    status: 409,
+    message:
+      'An active permanent punishment must be released before a finite replacement.',
+  },
   SCHOOL_ADMIN_MANAGEMENT_STALE: {
     status: 409,
     message:

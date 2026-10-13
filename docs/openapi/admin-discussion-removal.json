@@ -11,7 +11,7 @@
   },
   "info": {
     "contact": {},
-    "description": "Remove one currently readable native-origin root comment or reply in its original regional scope with sync:none. Named and anonymous content remains content targets only; private authors never become public account locators. Exact school-admin or super-admin grant, phone, Safety, Review, source version and current Media remain required. The selected child alone is tombstoned; a root releases its own comment pin and hides its thread by ancestry, while a reply preserves siblings and references. The canonical component capture and bounded media-cleanup obligation remain independent. No notification is sent. No owner-deletion Experience, jury verdict, ban, role grant or provider is created. Actor-owned recovery and cancellation need only the same active account and current session token.",
+    "description": "Remove one currently readable native-origin root comment or reply in its original regional scope with sync:none. Named and anonymous content remains content targets only; private authors never become public account locators. Exact school-admin or super-admin grant, phone, Safety, Review, source version and current Media remain required. The selected child alone is tombstoned; a root releases its own comment pin and hides its thread by ancestry, while a reply preserves siblings and references. The canonical component capture and bounded media-cleanup obligation remain independent. Version1 sends no author notification; selected version2 adds a private deletion notice and a separately caused punishment notice. Version1 creates no account punishment; explicit version2 may atomically issue Safety mute or suspension for the exact original author. No owner-deletion Experience, jury verdict, role grant or provider is created. Actor-owned recovery and cancellation need only the same active account and current session token.",
     "title": "WhaleU scoped administrator discussion removal",
     "version": "1"
   },
@@ -21,60 +21,128 @@
       "post": {
         "operationId": "adminDiscussionRemovalCommand",
         "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "action": {
-                    "enum": ["remove_discussion"],
-                    "type": "string"
-                  },
-                  "clientRequestId": {
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
-                    "type": "string"
-                  },
-                  "expectedTargetVersion": {
-                    "pattern": "^[a-f0-9]{64}$",
-                    "type": "string"
-                  },
-                  "target": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                        "type": "string"
-                      },
-                      "kind": {
-                        "enum": ["comment", "reply"],
-                        "type": "string"
-                      }
-                    },
-                    "required": ["kind", "id"],
-                    "type": "object"
-                  }
-                },
-                "required": [
-                  "clientRequestId",
-                  "target",
-                  "expectedTargetVersion",
-                  "action"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
+                  "anyOf": [
+                    {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "enum": ["remove_discussion"],
+                              "type": "string"
+                            },
+                            "eventId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "expectedTargetVersion": {
+                              "pattern": "^[a-f0-9]{64}$",
+                              "type": "string"
+                            },
+                            "outcome": {
+                              "enum": ["applied"],
+                              "type": "string"
+                            },
+                            "recordedAt": {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                              "type": "string"
+                            },
+                            "target": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "id": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": ["comment", "reply"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind", "id"],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "requestId",
+                            "target",
+                            "expectedTargetVersion",
+                            "action",
+                            "outcome",
+                            "eventId",
+                            "recordedAt"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "enum": ["remove_discussion"],
+                              "type": "string"
+                            },
+                            "code": {
+                              "enum": [
+                                "ADMIN_DISCUSSION_REMOVAL_STALE",
+                                "ADMIN_DISCUSSION_REMOVAL_CANCELLED"
+                              ],
+                              "type": "string"
+                            },
+                            "expectedTargetVersion": {
+                              "pattern": "^[a-f0-9]{64}$",
+                              "type": "string"
+                            },
+                            "outcome": {
+                              "enum": ["rejected"],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                              "type": "string"
+                            },
+                            "target": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "id": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": ["comment", "reply"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind", "id"],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "requestId",
+                            "target",
+                            "expectedTargetVersion",
+                            "action",
+                            "outcome",
+                            "code"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
                     {
                       "additionalProperties": false,
                       "properties": {
@@ -95,6 +163,34 @@
                           "enum": ["applied"],
                           "type": "string"
                         },
+                        "punishment": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "punishmentId": {
+                              "allOf": [
+                                {
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                {
+                                  "pattern": "^[0-9a-f-]+$",
+                                  "type": "string"
+                                }
+                              ],
+                              "type": "string"
+                            },
+                            "revision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["punishmentId", "kind", "revision"],
+                          "type": "object"
+                        },
                         "recordedAt": {
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
@@ -104,6 +200,67 @@
                           "format": "uuid",
                           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
                           "type": "string"
+                        },
+                        "selection": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "duration": {
+                              "oneOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": ["permanent"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": ["finite"],
+                                      "type": "string"
+                                    },
+                                    "unit": {
+                                      "enum": ["minutes", "hours", "days"],
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "exclusiveMinimum": true,
+                                      "maximum": 2147483647,
+                                      "minimum": 0,
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": ["kind", "unit", "value"],
+                                  "type": "object"
+                                }
+                              ]
+                            },
+                            "expectedRevision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "reason": {
+                              "maxLength": 255,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "duration",
+                            "reason",
+                            "expectedRevision"
+                          ],
+                          "type": "object"
                         },
                         "target": {
                           "additionalProperties": false,
@@ -120,6 +277,10 @@
                           },
                           "required": ["kind", "id"],
                           "type": "object"
+                        },
+                        "version": {
+                          "enum": [2],
+                          "type": "number"
                         }
                       },
                       "required": [
@@ -129,7 +290,10 @@
                         "action",
                         "outcome",
                         "eventId",
-                        "recordedAt"
+                        "recordedAt",
+                        "version",
+                        "selection",
+                        "punishment"
                       ],
                       "type": "object"
                     },
@@ -160,6 +324,67 @@
                           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
                           "type": "string"
                         },
+                        "selection": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "duration": {
+                              "oneOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": ["permanent"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": ["finite"],
+                                      "type": "string"
+                                    },
+                                    "unit": {
+                                      "enum": ["minutes", "hours", "days"],
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "exclusiveMinimum": true,
+                                      "maximum": 2147483647,
+                                      "minimum": 0,
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": ["kind", "unit", "value"],
+                                  "type": "object"
+                                }
+                              ]
+                            },
+                            "expectedRevision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "reason": {
+                              "maxLength": 255,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "duration",
+                            "reason",
+                            "expectedRevision"
+                          ],
+                          "type": "object"
+                        },
                         "target": {
                           "additionalProperties": false,
                           "properties": {
@@ -175,6 +400,10 @@
                           },
                           "required": ["kind", "id"],
                           "type": "object"
+                        },
+                        "version": {
+                          "enum": [2],
+                          "type": "number"
                         }
                       },
                       "required": [
@@ -183,7 +412,9 @@
                         "expectedTargetVersion",
                         "action",
                         "outcome",
-                        "code"
+                        "code",
+                        "version",
+                        "selection"
                       ],
                       "type": "object"
                     }
@@ -207,60 +438,128 @@
       "post": {
         "operationId": "adminDiscussionRemovalCancel",
         "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "action": {
-                    "enum": ["remove_discussion"],
-                    "type": "string"
-                  },
-                  "clientRequestId": {
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
-                    "type": "string"
-                  },
-                  "expectedTargetVersion": {
-                    "pattern": "^[a-f0-9]{64}$",
-                    "type": "string"
-                  },
-                  "target": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                        "type": "string"
-                      },
-                      "kind": {
-                        "enum": ["comment", "reply"],
-                        "type": "string"
-                      }
-                    },
-                    "required": ["kind", "id"],
-                    "type": "object"
-                  }
-                },
-                "required": [
-                  "clientRequestId",
-                  "target",
-                  "expectedTargetVersion",
-                  "action"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
+                  "anyOf": [
+                    {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "enum": ["remove_discussion"],
+                              "type": "string"
+                            },
+                            "eventId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "expectedTargetVersion": {
+                              "pattern": "^[a-f0-9]{64}$",
+                              "type": "string"
+                            },
+                            "outcome": {
+                              "enum": ["applied"],
+                              "type": "string"
+                            },
+                            "recordedAt": {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                              "type": "string"
+                            },
+                            "target": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "id": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": ["comment", "reply"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind", "id"],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "requestId",
+                            "target",
+                            "expectedTargetVersion",
+                            "action",
+                            "outcome",
+                            "eventId",
+                            "recordedAt"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "enum": ["remove_discussion"],
+                              "type": "string"
+                            },
+                            "code": {
+                              "enum": [
+                                "ADMIN_DISCUSSION_REMOVAL_STALE",
+                                "ADMIN_DISCUSSION_REMOVAL_CANCELLED"
+                              ],
+                              "type": "string"
+                            },
+                            "expectedTargetVersion": {
+                              "pattern": "^[a-f0-9]{64}$",
+                              "type": "string"
+                            },
+                            "outcome": {
+                              "enum": ["rejected"],
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                              "type": "string"
+                            },
+                            "target": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "id": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": ["comment", "reply"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind", "id"],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "requestId",
+                            "target",
+                            "expectedTargetVersion",
+                            "action",
+                            "outcome",
+                            "code"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
                     {
                       "additionalProperties": false,
                       "properties": {
@@ -281,6 +580,34 @@
                           "enum": ["applied"],
                           "type": "string"
                         },
+                        "punishment": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "punishmentId": {
+                              "allOf": [
+                                {
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                {
+                                  "pattern": "^[0-9a-f-]+$",
+                                  "type": "string"
+                                }
+                              ],
+                              "type": "string"
+                            },
+                            "revision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["punishmentId", "kind", "revision"],
+                          "type": "object"
+                        },
                         "recordedAt": {
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
@@ -290,6 +617,67 @@
                           "format": "uuid",
                           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
                           "type": "string"
+                        },
+                        "selection": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "duration": {
+                              "oneOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": ["permanent"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": ["finite"],
+                                      "type": "string"
+                                    },
+                                    "unit": {
+                                      "enum": ["minutes", "hours", "days"],
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "exclusiveMinimum": true,
+                                      "maximum": 2147483647,
+                                      "minimum": 0,
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": ["kind", "unit", "value"],
+                                  "type": "object"
+                                }
+                              ]
+                            },
+                            "expectedRevision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "reason": {
+                              "maxLength": 255,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "duration",
+                            "reason",
+                            "expectedRevision"
+                          ],
+                          "type": "object"
                         },
                         "target": {
                           "additionalProperties": false,
@@ -306,6 +694,10 @@
                           },
                           "required": ["kind", "id"],
                           "type": "object"
+                        },
+                        "version": {
+                          "enum": [2],
+                          "type": "number"
                         }
                       },
                       "required": [
@@ -315,7 +707,10 @@
                         "action",
                         "outcome",
                         "eventId",
-                        "recordedAt"
+                        "recordedAt",
+                        "version",
+                        "selection",
+                        "punishment"
                       ],
                       "type": "object"
                     },
@@ -346,6 +741,67 @@
                           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
                           "type": "string"
                         },
+                        "selection": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "duration": {
+                              "oneOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": ["permanent"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": ["finite"],
+                                      "type": "string"
+                                    },
+                                    "unit": {
+                                      "enum": ["minutes", "hours", "days"],
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "exclusiveMinimum": true,
+                                      "maximum": 2147483647,
+                                      "minimum": 0,
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": ["kind", "unit", "value"],
+                                  "type": "object"
+                                }
+                              ]
+                            },
+                            "expectedRevision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "reason": {
+                              "maxLength": 255,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "duration",
+                            "reason",
+                            "expectedRevision"
+                          ],
+                          "type": "object"
+                        },
                         "target": {
                           "additionalProperties": false,
                           "properties": {
@@ -361,6 +817,10 @@
                           },
                           "required": ["kind", "id"],
                           "type": "object"
+                        },
+                        "version": {
+                          "enum": [2],
+                          "type": "number"
                         }
                       },
                       "required": [
@@ -369,7 +829,9 @@
                         "expectedTargetVersion",
                         "action",
                         "outcome",
-                        "code"
+                        "code",
+                        "version",
+                        "selection"
                       ],
                       "type": "object"
                     }
@@ -392,27 +854,7 @@
     "/v1/community/admin-discussion-removal/management": {
       "get": {
         "operationId": "adminDiscussionRemovalManagement",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "kind",
-            "required": true,
-            "schema": {
-              "enum": ["comment", "reply"],
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "content": {
@@ -423,6 +865,73 @@
                     "canRemove": {
                       "enum": [true],
                       "type": "boolean"
+                    },
+                    "punishmentOptions": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "access_suspension": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "current": {
+                              "additionalProperties": false,
+                              "nullable": true,
+                              "properties": {
+                                "endsAt": {
+                                  "format": "date-time",
+                                  "nullable": true,
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                  "type": "string"
+                                },
+                                "punishmentId": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["punishmentId", "endsAt"],
+                              "type": "object"
+                            },
+                            "revision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["revision", "current"],
+                          "type": "object"
+                        },
+                        "interaction_mute": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "current": {
+                              "additionalProperties": false,
+                              "nullable": true,
+                              "properties": {
+                                "endsAt": {
+                                  "format": "date-time",
+                                  "nullable": true,
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                  "type": "string"
+                                },
+                                "punishmentId": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["punishmentId", "endsAt"],
+                              "type": "object"
+                            },
+                            "revision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["revision", "current"],
+                          "type": "object"
+                        }
+                      },
+                      "required": ["interaction_mute", "access_suspension"],
+                      "type": "object"
                     },
                     "target": {
                       "additionalProperties": false,
@@ -465,18 +974,7 @@
     "/v1/community/admin-discussion-removal/requests/{requestId}": {
       "get": {
         "operationId": "adminDiscussionRemovalRecovery",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "requestId",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "content": {
@@ -487,7 +985,123 @@
                       "additionalProperties": false,
                       "properties": {
                         "receipt": {
-                          "oneOf": [
+                          "anyOf": [
+                            {
+                              "oneOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "action": {
+                                      "enum": ["remove_discussion"],
+                                      "type": "string"
+                                    },
+                                    "eventId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    "expectedTargetVersion": {
+                                      "pattern": "^[a-f0-9]{64}$",
+                                      "type": "string"
+                                    },
+                                    "outcome": {
+                                      "enum": ["applied"],
+                                      "type": "string"
+                                    },
+                                    "recordedAt": {
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                      "type": "string"
+                                    },
+                                    "requestId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                                      "type": "string"
+                                    },
+                                    "target": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "id": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "kind": {
+                                          "enum": ["comment", "reply"],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["kind", "id"],
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "requestId",
+                                    "target",
+                                    "expectedTargetVersion",
+                                    "action",
+                                    "outcome",
+                                    "eventId",
+                                    "recordedAt"
+                                  ],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "action": {
+                                      "enum": ["remove_discussion"],
+                                      "type": "string"
+                                    },
+                                    "code": {
+                                      "enum": [
+                                        "ADMIN_DISCUSSION_REMOVAL_STALE",
+                                        "ADMIN_DISCUSSION_REMOVAL_CANCELLED"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "expectedTargetVersion": {
+                                      "pattern": "^[a-f0-9]{64}$",
+                                      "type": "string"
+                                    },
+                                    "outcome": {
+                                      "enum": ["rejected"],
+                                      "type": "string"
+                                    },
+                                    "requestId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                                      "type": "string"
+                                    },
+                                    "target": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "id": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "kind": {
+                                          "enum": ["comment", "reply"],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["kind", "id"],
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "requestId",
+                                    "target",
+                                    "expectedTargetVersion",
+                                    "action",
+                                    "outcome",
+                                    "code"
+                                  ],
+                                  "type": "object"
+                                }
+                              ]
+                            },
                             {
                               "additionalProperties": false,
                               "properties": {
@@ -508,6 +1122,41 @@
                                   "enum": ["applied"],
                                   "type": "string"
                                 },
+                                "punishment": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "interaction_mute",
+                                        "access_suspension"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "punishmentId": {
+                                      "allOf": [
+                                        {
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        {
+                                          "pattern": "^[0-9a-f-]+$",
+                                          "type": "string"
+                                        }
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "revision": {
+                                      "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "punishmentId",
+                                    "kind",
+                                    "revision"
+                                  ],
+                                  "type": "object"
+                                },
                                 "recordedAt": {
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
@@ -517,6 +1166,74 @@
                                   "format": "uuid",
                                   "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
                                   "type": "string"
+                                },
+                                "selection": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "duration": {
+                                      "oneOf": [
+                                        {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "kind": {
+                                              "enum": ["permanent"],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["kind"],
+                                          "type": "object"
+                                        },
+                                        {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "kind": {
+                                              "enum": ["finite"],
+                                              "type": "string"
+                                            },
+                                            "unit": {
+                                              "enum": [
+                                                "minutes",
+                                                "hours",
+                                                "days"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "exclusiveMinimum": true,
+                                              "maximum": 2147483647,
+                                              "minimum": 0,
+                                              "type": "integer"
+                                            }
+                                          },
+                                          "required": ["kind", "unit", "value"],
+                                          "type": "object"
+                                        }
+                                      ]
+                                    },
+                                    "expectedRevision": {
+                                      "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "enum": [
+                                        "interaction_mute",
+                                        "access_suspension"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "reason": {
+                                      "maxLength": 255,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "duration",
+                                    "reason",
+                                    "expectedRevision"
+                                  ],
+                                  "type": "object"
                                 },
                                 "target": {
                                   "additionalProperties": false,
@@ -533,6 +1250,10 @@
                                   },
                                   "required": ["kind", "id"],
                                   "type": "object"
+                                },
+                                "version": {
+                                  "enum": [2],
+                                  "type": "number"
                                 }
                               },
                               "required": [
@@ -542,7 +1263,10 @@
                                 "action",
                                 "outcome",
                                 "eventId",
-                                "recordedAt"
+                                "recordedAt",
+                                "version",
+                                "selection",
+                                "punishment"
                               ],
                               "type": "object"
                             },
@@ -573,6 +1297,74 @@
                                   "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
                                   "type": "string"
                                 },
+                                "selection": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "duration": {
+                                      "oneOf": [
+                                        {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "kind": {
+                                              "enum": ["permanent"],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": ["kind"],
+                                          "type": "object"
+                                        },
+                                        {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "kind": {
+                                              "enum": ["finite"],
+                                              "type": "string"
+                                            },
+                                            "unit": {
+                                              "enum": [
+                                                "minutes",
+                                                "hours",
+                                                "days"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "exclusiveMinimum": true,
+                                              "maximum": 2147483647,
+                                              "minimum": 0,
+                                              "type": "integer"
+                                            }
+                                          },
+                                          "required": ["kind", "unit", "value"],
+                                          "type": "object"
+                                        }
+                                      ]
+                                    },
+                                    "expectedRevision": {
+                                      "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "enum": [
+                                        "interaction_mute",
+                                        "access_suspension"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "reason": {
+                                      "maxLength": 255,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "duration",
+                                    "reason",
+                                    "expectedRevision"
+                                  ],
+                                  "type": "object"
+                                },
                                 "target": {
                                   "additionalProperties": false,
                                   "properties": {
@@ -588,6 +1380,10 @@
                                   },
                                   "required": ["kind", "id"],
                                   "type": "object"
+                                },
+                                "version": {
+                                  "enum": [2],
+                                  "type": "number"
                                 }
                               },
                               "required": [
@@ -596,7 +1392,9 @@
                                 "expectedTargetVersion",
                                 "action",
                                 "outcome",
-                                "code"
+                                "code",
+                                "version",
+                                "selection"
                               ],
                               "type": "object"
                             }

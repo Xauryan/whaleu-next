@@ -1,3 +1,4 @@
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -37,6 +38,8 @@ function fixture() {
   const tx = {
     query: async (sql: string, values?: unknown[]) => {
       commands.push(sql);
+      const policy = unpunishedAccountPolicyObservation(sql, values);
+      if (policy) return policy;
       if (sql === 'SET CONSTRAINTS ALL IMMEDIATE')
         await state.beforeImmediate();
       if (
@@ -237,7 +240,28 @@ test('guest, anonymous and self bypasses create no identity relationship facts',
   });
   assert.deepEqual(f.heads, []);
   assert.deepEqual(f.batchLengths, []);
-  assert.deepEqual(f.commands, ['BEGIN', 'COMMIT']);
+  // Anonymous/self bypass relationship facts, but authenticated browsing still
+  // observes and revalidates account policy before commit.
+  const observation =
+    'SELECT * FROM whaleu_safety.account_punishment_policy_observation($1,$2)';
+  const configure =
+    "SELECT set_config('statement_timeout',$1,true),set_config('lock_timeout',$2,true)";
+  assert.deepEqual(f.commands, [
+    'BEGIN',
+    observation,
+    observation,
+    'SET CONSTRAINTS ALL IMMEDIATE',
+    "SELECT current_setting('transaction_isolation') isolation,current_setting('statement_timeout') statement_timeout,current_setting('lock_timeout') lock_timeout",
+    configure,
+    `LOCK TABLE whaleu_safety.account_punishments,
+      whaleu_safety.account_punishment_heads,
+      whaleu_safety.account_punishment_terminals IN SHARE MODE NOWAIT`,
+    configure,
+    observation,
+    configure,
+    'SELECT clock_timestamp() AS now',
+    'COMMIT',
+  ]);
 });
 
 test('checkpoint rollback prunes appended relationship facts and reusable dedupe keys', async () => {

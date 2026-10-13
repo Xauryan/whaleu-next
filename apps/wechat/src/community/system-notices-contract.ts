@@ -1,3 +1,8 @@
+import {
+  decodePunishment,
+  type PunishmentView,
+  type Decision,
+} from '../account-moderation/contract';
 import { isRecord } from '../api/errors';
 import { isUuid } from '../profile/contract';
 import { cursor, exact, invalid, timestamp } from './contract';
@@ -26,11 +31,29 @@ export interface ProfileCustomAvatarClearedNotice {
 }
 export interface AdminPostRemovedNotice {
   readonly noticeId: string;
-  readonly kind: 'admin_post_removed';
+  readonly kind: 'admin_post_removed' | 'admin_discussion_removed';
   readonly createdAt: string;
   readonly readAt: string | null;
 }
+export interface AccountPunishmentNotice {
+  readonly kind: 'account_punishment_issued' | 'account_punishment_released';
+  readonly noticeId: string;
+  readonly createdAt: string;
+  readonly readAt: string | null;
+  readonly punishment: PunishmentView;
+}
+export interface AccountAppealNotice {
+  readonly kind: 'account_appeal_decided';
+  readonly noticeId: string;
+  readonly createdAt: string;
+  readonly readAt: string | null;
+  readonly appealId: string;
+  readonly outcome: Decision;
+  readonly reason: string;
+}
 export type SystemNotice =
+  | AccountPunishmentNotice
+  | AccountAppealNotice
   | PostJuryRemovedNotice
   | ProfileNicknameResetNotice
   | ProfileCustomAvatarClearedNotice
@@ -58,8 +81,59 @@ const utcMilliseconds = (value: unknown): value is string =>
 export function decodeSystemNotice(value: unknown): SystemNotice {
   if (!isRecord(value)) invalid();
   if (
+    value.kind === 'account_punishment_issued' ||
+    value.kind === 'account_punishment_released' ||
+    value.kind === 'account_appeal_decided'
+  ) {
+    exact(value, [
+      'noticeId',
+      'kind',
+      'createdAt',
+      'readAt',
+      ...(value.kind === 'account_appeal_decided'
+        ? ['appealId', 'outcome', 'reason']
+        : ['punishment']),
+    ]);
+    if (
+      !isUuid(value.noticeId) ||
+      !utcMilliseconds(value.createdAt) ||
+      !(value.readAt === null || utcMilliseconds(value.readAt))
+    )
+      invalid();
+    if (value.kind === 'account_appeal_decided') {
+      if (
+        !isUuid(value.appealId) ||
+        !['upheld', 'released', 'closed_no_longer_effective'].includes(
+          String(value.outcome),
+        ) ||
+        typeof value.reason !== 'string' ||
+        value.reason.length < 1 ||
+        value.reason.length > 255
+      )
+        invalid();
+      return Object.freeze({
+        noticeId: value.noticeId,
+        kind: value.kind,
+        createdAt: value.createdAt,
+        readAt: value.readAt,
+        appealId: value.appealId,
+        outcome: value.outcome as Decision,
+        reason: value.reason,
+      });
+    }
+    return Object.freeze({
+      noticeId: value.noticeId,
+      kind: value.kind,
+      createdAt: value.createdAt,
+      readAt: value.readAt,
+      punishment: decodePunishment(value.punishment),
+    });
+  }
+
+  if (
     value.kind === 'profile_custom_avatar_cleared' ||
-    value.kind === 'admin_post_removed'
+    value.kind === 'admin_post_removed' ||
+    value.kind === 'admin_discussion_removed'
   ) {
     exact(value, ['noticeId', 'kind', 'createdAt', 'readAt']);
     if (

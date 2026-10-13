@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { batchCategoryChildContextAllowed } from '../category-reclassification/child-context.js';
 import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
 import { createHash } from 'node:crypto';
@@ -22,6 +23,7 @@ export class DiscussionReadService {
     @Inject(CommunitySerializer)
     private readonly serializer: CommunitySerializer,
   ) {}
+  @AccountPolicy('browse', 'entry')
   comments(token: string, postId: string, query: CommentsQuery) {
     return this.repository.database.transaction(
       async (tx) => {
@@ -138,6 +140,7 @@ export class DiscussionReadService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   comment(token: string, id: string) {
     return this.repository.database.transaction(
       async (tx) => {
@@ -150,6 +153,7 @@ export class DiscussionReadService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   reply(token: string, id: string) {
     return this.repository.database.transaction(
       async (tx) => {
@@ -169,6 +173,7 @@ export class DiscussionReadService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   replies(token: string, id: string, query: PageQuery) {
     return this.repository.database.transaction(
       async (tx) => {
@@ -190,6 +195,7 @@ export class DiscussionReadService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   context(
     token: string,
     postId: string,

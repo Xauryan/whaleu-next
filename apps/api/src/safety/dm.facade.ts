@@ -1,3 +1,5 @@
+import type { SafetyAction } from './account-moderation/contracts.js';
+import { currentAccountPolicyAction } from './account-policy/context.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -106,7 +108,11 @@ export class DmSafetyFacade {
       Object.freeze({ ...fact, fingerprint }) as Fact,
     );
   }
-  async requireActor(actor: string, tx: PoolClient): Promise<void> {
+  async requireActor(
+    actor: string,
+    tx: PoolClient,
+    action: SafetyAction = currentAccountPolicyAction('interaction'),
+  ): Promise<void> {
     const head = await this.records.head(actor, tx);
     if (head)
       registerTransactionDeadline(
@@ -115,7 +121,7 @@ export class DmSafetyFacade {
         'SAFETY_UNAVAILABLE',
       );
     await this.retain({ kind: 'actor', actor }, tx);
-    await this.records.restriction(actor, tx);
+    await this.records.restriction(actor, tx, action);
   }
   async namedState(
     actor: string,
@@ -171,7 +177,7 @@ export class DmSafetyFacade {
     pair(actor, peer);
     if (!z.uuid().safeParse(requestId).success)
       throw new ApplicationError('SAFETY_UNAVAILABLE');
-    await this.requireActor(actor, tx);
+    await this.requireActor(actor, tx, 'protective_cleanup');
     await this.records.rate(actor, 'block_named', tx);
     await lockNamedPair(actor, peer, tx);
     const current = (

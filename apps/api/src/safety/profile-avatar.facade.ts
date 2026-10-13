@@ -13,6 +13,6 @@ export class ProfileAvatarSafetyFacade {
   ) {}
   async requireAllowed(actor: string, tx: PoolClient): Promise<void> {
     await current(tx);
-    await this.records.restriction(actor, tx);
+    await this.records.restriction(actor, tx, 'private_self_service');
   }
 }

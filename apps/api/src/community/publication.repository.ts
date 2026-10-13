@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { CommunityMediaBatchPublicationProof } from './media/batch-publication-proof.js';
 import type { MediaBatchPublicationCancellation } from '../media/batch-protocol.js';
 import { TextReviewSubmission } from './text-review/contracts.js';
@@ -292,6 +293,7 @@ export class PublicationRepository {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelReview(
     token: string,
     requestId: string,
@@ -323,6 +325,7 @@ export class PublicationRepository {
       return result;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   reviewStatus(token: string, requestId: string): Promise<TextReviewStatus> {
     return this.repository.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);
@@ -335,6 +338,7 @@ export class PublicationRepository {
       return result;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, requestId: string): Promise<PublicationReceipt> {
     return this.repository.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);

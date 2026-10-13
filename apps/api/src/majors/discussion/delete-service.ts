@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -123,6 +124,7 @@ export class MajorDiscussionDeleteService {
       )
     ).rows[0];
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, key: string) {
     return this.run(async (tx) => {
       const session = await this.identity.session(token, tx),
@@ -132,6 +134,7 @@ export class MajorDiscussionDeleteService {
       return majorDiscussionDeleteReceiptSchema.parse(prior.receipt);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, key: string, input: MajorDiscussionDeleteCancel) {
     if (key !== input.command.clientRequestId)
       throw new ApplicationError('REQUEST_CONFLICT');
@@ -143,6 +146,7 @@ export class MajorDiscussionDeleteService {
       true,
     );
   }
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   delete(
     token: string,
     major: string,
@@ -151,6 +155,7 @@ export class MajorDiscussionDeleteService {
   ) {
     return this.mutate(token, major, comment, command, false);
   }
+  @AccountPolicy('browse', 'entry')
   capability(
     token: string,
     major: string,

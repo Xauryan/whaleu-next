@@ -1,3 +1,6 @@
+import { enforceAccountPunishment } from './account-moderation/policy.js';
+import type { SafetyAction } from './account-moderation/contracts.js';
+import { currentAccountPolicyAction } from './account-policy/context.js';
 import { registerTransactionDeadline } from '../database/transaction-deadlines.js';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -36,7 +39,21 @@ export class SafetyRepository {
       ).rows[0] ?? null
     );
   }
-  async restriction(accountId: string, tx: PoolClient): Promise<number | null> {
+  async restriction(
+    accountId: string,
+    tx: PoolClient,
+    action: SafetyAction = currentAccountPolicyAction('interaction'),
+  ): Promise<number | null> {
+    const until = await this.baseRestriction(accountId, tx);
+    await enforceAccountPunishment(accountId, action, tx);
+    return until;
+  }
+  /** Existing target/source eligibility, not actor permission. New punishments
+   * must not suppress every historical contribution or another actor's review. */
+  async baseRestriction(
+    accountId: string,
+    tx: PoolClient,
+  ): Promise<number | null> {
     const head = await this.head(accountId, tx);
     const now = (
       await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
@@ -68,7 +85,7 @@ export class SafetyRepository {
   }> {
     let status: 'allowed' | 'restricted' | 'unavailable' = 'allowed';
     try {
-      await this.restriction(accountId, tx);
+      await this.restriction(accountId, tx, 'private_self_service');
     } catch (error) {
       if (!(error instanceof ApplicationError)) throw error;
       if (error.code === 'SAFETY_ACTION_RESTRICTED') status = 'restricted';

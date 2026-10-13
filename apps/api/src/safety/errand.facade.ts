@@ -57,6 +57,9 @@ export class SafetyErrandFacade {
   async requireAllowed(accountId: string, tx: PoolClient) {
     await this.records.restriction(accountId, tx);
   }
+  async requireSourceAllowed(accountId: string, tx: PoolClient) {
+    await this.records.baseRestriction(accountId, tx);
+  }
   async requireFeature(
     accountId: string,
     action: 'publish' | 'accept',

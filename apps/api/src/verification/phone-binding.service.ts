@@ -1,3 +1,5 @@
+import { enforceAccountPunishment } from '../safety/account-moderation/policy.js';
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -99,6 +101,7 @@ export class PhoneBindingService {
       )
     ).rows[0];
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   async reserve(
     token: string,
     id: string,
@@ -114,6 +117,11 @@ export class PhoneBindingService {
           if (old.replaces_request_id !== replaces) throw unavailable();
           return receipt(old, id, await this.now(tx));
         }
+        await enforceAccountPunishment(
+          actor.accountId,
+          'private_self_service',
+          tx,
+        );
         if (
           !(await this.identity.wechatAppAccount(
             actor.accountId,
@@ -166,6 +174,7 @@ export class PhoneBindingService {
       }),
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   async read(token: string, id: string): Promise<PhoneReceipt> {
     return this.guard(() =>
       this.database.transaction(async (tx) => {
@@ -176,6 +185,7 @@ export class PhoneBindingService {
       }),
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   async close(token: string, id: string): Promise<PhoneReceipt> {
     return this.guard(() =>
       this.database.transaction(async (tx) => {
@@ -199,6 +209,7 @@ export class PhoneBindingService {
       }),
     );
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   async authorize(
     token: string,
     id: string,
@@ -216,6 +227,11 @@ export class PhoneBindingService {
             dispatch: false,
             result: receipt(row, id, await this.now(tx)),
           };
+        await enforceAccountPunishment(
+          actor.accountId,
+          'private_self_service',
+          tx,
+        );
         if (
           row.app_id !== this.config.WECHAT_APP_ID ||
           !(await this.identity.wechatAppAccount(

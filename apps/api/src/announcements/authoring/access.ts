@@ -1,3 +1,4 @@
+import { AccountPolicyFor } from '../../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { IdentityService } from '../../identity/identity.service.js';
@@ -192,6 +193,7 @@ export class AnnouncementAuthoringAccess implements AnnouncementMediaAccessPort 
   retainMediaCurrent(id: string, tx: PoolClient) {
     return requireNativeCurrent('entry', id, tx);
   }
+  @AccountPolicyFor(() => 'browse', 'entry')
   async authorizeMediaRead(
     token: string | null,
     target: AnnouncementMediaReadTarget,

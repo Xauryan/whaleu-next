@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { RatingDeletionRepository } from './deletion/repository.js';
 import { RatingRootOrderCursors } from './like-order-cursor.js';
 import { RatingRootOrderRepository } from './like-order-repository.js';
@@ -79,6 +80,7 @@ export class RatingsService {
       throw error;
     }
   }
+  @AccountPolicy('browse', 'entry')
   context(token: string) {
     return this.run(async (tx) =>
       ratingContextSchema.parse(await this.access.context(token, tx)),
@@ -133,6 +135,7 @@ export class RatingsService {
       epoch: [safety, review, await this.records.navigation(tx)],
     };
   }
+  @AccountPolicy('browse', 'entry')
   categories(token: string, query: RatingCategoryQuery) {
     return this.run(async (tx) => {
       const { access, catalog, epoch } = await this.navigation(
@@ -197,6 +200,7 @@ export class RatingsService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   targets(token: string, query: RatingTargetQuery) {
     return this.run(async (tx) => {
       const { access, catalog, epoch } = await this.navigation(
@@ -265,6 +269,7 @@ export class RatingsService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   target(token: string, id: string, regionId: string | null) {
     return this.run(async (tx) => {
       const access = await this.access.resolve(token, regionId, tx, {
@@ -277,6 +282,7 @@ export class RatingsService {
       return result;
     });
   }
+  @AccountPolicy('browse', 'entry')
   myScore(token: string, id: string, regionId: string | null) {
     return this.run(async (tx) => {
       const access = await this.access.resolve(token, regionId, tx, {
@@ -291,6 +297,7 @@ export class RatingsService {
       return result;
     });
   }
+  @AccountPolicy('browse', 'entry')
   summary(token: string, id: string, regionId: string | null) {
     return this.run(async (tx) => {
       await this.access.resolve(token, regionId, tx, { phone: true });
@@ -362,6 +369,7 @@ export class RatingsService {
       allowedActions: { delete: isMine },
     });
   }
+  @AccountPolicy('browse', 'entry')
   comments(token: string, id: string, query: RatingCommentQuery) {
     if (query.sort !== undefined || query.order !== undefined)
       return this.orderedComments(token, id, query);
@@ -509,6 +517,7 @@ export class RatingsService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   comment(token: string, id: string, regionId: string | null) {
     return this.run(async (tx) => {
       const access = await this.access.resolve(token, regionId, tx, {
@@ -529,6 +538,7 @@ export class RatingsService {
       return result;
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   setScore(token: string, id: string, command: SetRatingScore) {
     return this.requests.execute(
       token,
@@ -572,6 +582,7 @@ export class RatingsService {
       body: command.body,
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   createComment(token: string, id: string, command: CreateRatingComment) {
     return this.requests.execute(
       token,
@@ -614,6 +625,7 @@ export class RatingsService {
       },
     );
   }
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   deleteComment(token: string, id: string, command: DeleteRatingComment) {
     return this.requests.execute(
       token,
@@ -638,6 +650,7 @@ export class RatingsService {
       },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.requests.receipt(token, id);
   }

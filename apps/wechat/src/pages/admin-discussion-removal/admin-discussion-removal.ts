@@ -8,7 +8,14 @@ import {
   initialAdminDiscussionRemovalView,
 } from '../../admin-discussion-removal/controller';
 Page({
-  data: { ...initialAdminDiscussionRemovalView(), addressError: '' },
+  data: {
+    ...initialAdminDiscussionRemovalView(),
+    addressError: '',
+    punishmentKind: 'none',
+    punishmentUnit: 'days',
+    punishmentValue: '7',
+    punishmentReason: '',
+  },
   target: null as AdminDiscussionRemovalTarget | null,
   controller: undefined as AdminDiscussionRemovalController | undefined,
   onLoad(query: { kind?: string; id?: string } = {}) {
@@ -42,9 +49,56 @@ Page({
     void this.controller?.load(this.target ?? undefined);
   },
   onRemoveDiscussion() {
+    this.setData({
+      punishmentKind: 'none',
+      punishmentUnit: 'days',
+      punishmentValue: '7',
+      punishmentReason: '',
+    });
     if (this.target) void this.controller?.request(this.target);
   },
+  onPunishmentKind(event: { detail: { value: string } }) {
+    this.setData({ punishmentKind: event.detail.value });
+  },
+  onPunishmentUnit(event: { detail: { value: string } }) {
+    this.setData({ punishmentUnit: event.detail.value });
+  },
+  onPunishmentValue(event: { detail: { value: string } }) {
+    this.setData({ punishmentValue: event.detail.value });
+  },
+  onPunishmentReason(event: { detail: { value: string } }) {
+    this.setData({ punishmentReason: event.detail.value });
+  },
   onSubmit() {
+    const kind = this.data.punishmentKind;
+    const options = this.data.management?.punishmentOptions;
+    if (
+      kind !== 'none' &&
+      kind !== 'interaction_mute' &&
+      kind !== 'access_suspension'
+    )
+      return;
+    if (kind !== 'none' && !options) return;
+    if (
+      !this.controller?.selectPunishment(
+        kind === 'none'
+          ? null
+          : {
+              kind,
+              expectedRevision: options![kind].revision,
+              reason: this.data.punishmentReason.trim(),
+              duration:
+                this.data.punishmentUnit === 'permanent'
+                  ? { kind: 'permanent' }
+                  : {
+                      kind: 'finite',
+                      unit: this.data.punishmentUnit,
+                      value: Number(this.data.punishmentValue),
+                    },
+            },
+      )
+    )
+      return;
     getApp<WhaleuApp>().profileAvatar?.invalidate();
     void this.controller?.submit();
   },

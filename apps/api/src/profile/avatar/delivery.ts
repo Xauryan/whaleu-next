@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import type { MediaDeliveryBudgetPool } from '../../media/delivery-budget.js';
 import { randomUUID } from 'node:crypto';
 import type { Socket } from 'node:net';
@@ -36,6 +37,7 @@ export class ProfileAvatarDelivery {
         )
       : null;
   }
+  @AccountPolicy('browse', 'entry')
   async open(
     token: string | null,
     profileId: string,

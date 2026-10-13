@@ -1,3 +1,5 @@
+import { decodeRemovalPunishmentSelection } from './punishment';
+import type { RemovalPunishmentSelection } from './punishment';
 import { ClientError } from '../api/errors';
 import {
   CommunityController,
@@ -27,6 +29,7 @@ import type { PendingAdminPostRemovalStore } from './pending';
 export interface AdminPostRemovalView extends CommunityView {
   /** True only while an exact-target management read is available. */
   readonly loaded: boolean;
+  readonly selectedPunishment: RemovalPunishmentSelection | null;
   readonly ownPost: boolean;
   readonly applied: boolean;
   readonly target: AdminPostRemovalTarget | null;
@@ -41,6 +44,7 @@ export interface AdminPostRemovalView extends CommunityView {
 }
 export const initialAdminPostRemovalView = (): AdminPostRemovalView => ({
   ...initialCommunityView(),
+  selectedPunishment: null,
   loaded: false,
   ownPost: false,
   applied: false,
@@ -219,10 +223,36 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
       !sameAdminPostRemovalTarget(management.target, target)
     )
       return;
-    this.update({ confirming: 'remove' });
+    this.update({ confirming: 'remove', selectedPunishment: null });
   }
   closeConfirmation(): void {
-    if (!this.view.busy) this.update({ confirming: null });
+    if (!this.view.busy)
+      this.update({ confirming: null, selectedPunishment: null });
+  }
+  selectPunishment(raw: unknown | null): boolean {
+    if (this.view.busy || this.view.frozen || this.view.confirming !== 'remove')
+      return false;
+    try {
+      if (raw === null) {
+        this.update({ selectedPunishment: null });
+        return true;
+      }
+      const selected = decodeRemovalPunishmentSelection(raw, true);
+      if (
+        !this.view.management?.punishmentOptions ||
+        selected.expectedRevision !==
+          this.view.management.punishmentOptions[selected.kind].revision
+      )
+        throw new ClientError(
+          'protocol',
+          'Current punishment revision required',
+        );
+      this.update({ selectedPunishment: selected, error: '' });
+      return true;
+    } catch (error) {
+      this.update({ error: communityError(error) });
+      return false;
+    }
   }
   async submit(): Promise<void> {
     if (
@@ -234,6 +264,7 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
       !this.view.management?.canRemove
     )
       return;
+    const selection = this.view.selectedPunishment;
     const management = this.view.management,
       account = this.accountId()!,
       owner = this.owner;
@@ -246,6 +277,7 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const command = decodeAdminPostRemovalCommand({
           clientRequestId,
+          ...(selection ? { version: 2, punishment: selection } : {}),
           target: management.target,
           action: 'remove_post',
           expectedTargetVersion: management.targetVersion,
@@ -333,11 +365,13 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
       management: null,
       applied: receipt.outcome === 'applied',
       receiptStatus:
-        receipt.outcome === 'applied'
-          ? '已确认删除帖子；帖子和讨论现已不可访问，作者已收到私有系统通知。没有恢复此帖的管理入口'
-          : receipt.code === 'ADMIN_POST_REMOVAL_STALE'
-            ? '帖子状态已变化，原请求未删除新状态，请重新加载并确认'
-            : '原管理员删除请求已取消；已经删除的帖子不会恢复',
+        receipt.outcome === 'applied' && receipt.version === 2
+          ? `已确认删除及${receipt.punishment?.kind === 'access_suspension' ? '封号' : '禁言'}；作者已收到私有删除通知和处罚通知`
+          : receipt.outcome === 'applied'
+            ? '已确认删除帖子；帖子和讨论现已不可访问，作者已收到私有系统通知。没有恢复此帖的管理入口'
+            : receipt.code === 'ADMIN_POST_REMOVAL_STALE'
+              ? '帖子状态已变化，原请求未删除新状态，请重新加载并确认'
+              : '原管理员删除请求已取消；已经删除的帖子不会恢复',
     });
     // Clear pooled media, identity overlays and list snapshots before fresh reads.
     this.runtime.safetyChanges?.invalidate(account);

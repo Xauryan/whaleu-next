@@ -6,6 +6,8 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
+import { AccountPolicyInterceptor } from '../src/safety/account-policy/interceptor.js';
+import { controllerUnitAccountPolicy } from './support/controller-unit-account-policy.js';
 import { loadConfig } from '../src/config/config.js';
 import { DatabaseService } from '../src/database/database.js';
 import { configureHttp } from '../src/http/http.js';
@@ -102,6 +104,9 @@ before(async () => {
     imports: [AppModule.register(config)],
     controllers: [ErrorController],
   })
+    // Error-envelope unit: synthetic ErrorController routes have no production policy.
+    .overrideProvider(AccountPolicyInterceptor)
+    .useValue(controllerUnitAccountPolicy)
     .overrideProvider(DatabaseService)
     .useValue({ ready: async () => databaseReady })
     .compile();

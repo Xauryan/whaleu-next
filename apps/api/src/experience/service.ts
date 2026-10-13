@@ -1,3 +1,5 @@
+import { enforceAccountPunishment } from '../safety/account-moderation/policy.js';
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -50,6 +52,7 @@ export class ExperienceService {
       return fn(owner, tx);
     });
   }
+  @AccountPolicy('private_self_service', 'entry')
   summary(token: string): Promise<ExperienceSummary> {
     return this.read(token, async (owner, tx) => {
       const state = await this.records.state(owner, tx),
@@ -101,6 +104,7 @@ export class ExperienceService {
       };
     });
   }
+  @AccountPolicy('private_self_service', 'entry')
   recordsPage(token: string, query: ExperiencePageQuery) {
     return this.read(token, async (owner, tx) => ({
       ...(await this.records.recordPage(owner, query, tx)),
@@ -109,6 +113,7 @@ export class ExperienceService {
         ('partial' as const),
     }));
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string): Promise<ExperienceReceipt> {
     return this.read(token, async (owner, tx) => {
       const found = await this.records.request(owner, id, tx);
@@ -116,6 +121,7 @@ export class ExperienceService {
       return found.receipt;
     });
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   signIn(token: string, requestId: string): Promise<ExperienceReceipt> {
     return this.database.transaction(async (tx) => {
       const owner = (await this.identity.session(token, tx)).accountId,
@@ -127,6 +133,7 @@ export class ExperienceService {
           throw new ApplicationError('EXPERIENCE_REQUEST_CONFLICT');
         return existing.receipt;
       }
+      await enforceAccountPunishment(owner, 'private_self_service', tx);
       await lockExperienceEnrollment(tx);
       await lockExperienceOwner(tx, owner);
       const state = await this.records.state(owner, tx);
@@ -142,6 +149,7 @@ export class ExperienceService {
       return receipt;
     });
   }
+  @AccountPolicy('private_self_service', 'entry')
   appearance(token: string): Promise<AppearanceView> {
     return this.read(token, (owner, tx) => this.appearanceView(owner, tx));
   }
@@ -192,6 +200,7 @@ export class ExperienceService {
       revision: selected?.revision ?? '0',
     };
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   selectAppearance(
     token: string,
     input: AppearanceIntent,
@@ -211,6 +220,7 @@ export class ExperienceService {
           throw new ApplicationError('EXPERIENCE_REQUEST_CONFLICT');
         return prior.receipt;
       }
+      await enforceAccountPunishment(owner, 'private_self_service', tx);
       await lockExperienceOwner(tx, owner, true);
       const view = await this.appearanceView(owner, tx);
       let code: AppearanceRejection | null = null;
@@ -263,11 +273,13 @@ export class ExperienceService {
       return receipt;
     });
   }
+  @AccountPolicy('private_self_service', 'entry')
   unlocks(token: string) {
     return this.read(token, async (owner, tx) => ({
       items: await this.records.notices(owner, tx),
     }));
   }
+  @AccountPolicy('passive_bookkeeping', 'entry')
   acknowledge(token: string, id: string) {
     return this.database.transaction(async (tx) => {
       const owner = (await this.identity.session(token, tx)).accountId;

@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { observeCategoryInputs, retainCategoryInputs } from './input-proof.js';
 import type { CategoryInputFact } from './input-proof.js';
 import { currentCategoryCursorScope } from '../current-category-cursor.js';
@@ -153,6 +154,7 @@ export class CategoryReclassificationService {
         policy.definition.descendantMedia === 'retain_current_media_proof')
     );
   }
+  @AccountPolicy('privileged_read', 'entry')
   async management(token: string, postId: string): Promise<CategoryManagement> {
     return this.run(async (tx) => {
       const session = await this.identity.session(token, tx);
@@ -225,6 +227,7 @@ export class CategoryReclassificationService {
       };
     });
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   async command(
     token: string,
     command: ReclassificationCommand,
@@ -512,6 +515,7 @@ export class CategoryReclassificationService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   async recovery(token: string, requestId: string) {
     return this.run(async (tx) => {
       const session = await this.identity.session(token, tx);

@@ -609,7 +609,7 @@ test('late management and close/hide never restore confirmation or persist a com
   assert.equal(s.commands.length, 0);
 });
 
-test('HTTP family uses target-only management query and original command body for cancel without automatic auth replay', async () => {
+test('HTTP family uses exact v2 source management query and original command body for cancel without automatic auth replay', async () => {
   const s = setup(),
     transport = new ScriptedTransport();
   let refreshes = 0;
@@ -625,7 +625,10 @@ test('HTTP family uses target-only management query and original command body fo
   await gateway.management(target, cancel);
   const url = new URL(transport.requests[0]!.url);
   assert.equal(url.pathname, '/v1/community/admin-post-removal/management');
-  assert.deepEqual(Object.fromEntries(url.searchParams), target);
+  assert.deepEqual(Object.fromEntries(url.searchParams), {
+    ...target,
+    version: '2',
+  });
   transport.reply(receipt());
   await gateway.submit(command(), cancel);
   assert.match(transport.requests[1]!.url, /\/admin-post-removal\/commands$/);

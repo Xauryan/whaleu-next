@@ -1,3 +1,7 @@
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+} from '../../safety/account-policy/decorator.js';
 import type { ErrandsService } from '../../errands/service.js';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -182,6 +186,7 @@ export class SchoolQrMediaService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   prepare(token: string, raw: unknown) {
     return this.authorized(token, async (session, tx) => {
       const input = prepareSchoolQrMediaSchema.parse(raw),
@@ -206,6 +211,7 @@ export class SchoolQrMediaService {
       return this.recovery.status(session.accountId, prepared.intentId, tx);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, requestId: string) {
     return this.authorized(
       token,
@@ -213,6 +219,7 @@ export class SchoolQrMediaService {
       false,
     );
   }
+  @AccountPolicy('browse', 'entry')
   status(token: string, intentId: string) {
     return this.authorized(
       token,
@@ -220,16 +227,19 @@ export class SchoolQrMediaService {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelRequest(token: string, requestId: string, raw: unknown) {
     return this.authorized(token, (s, tx) =>
       this.recovery.cancelRequest(s.accountId, requestId, raw, tx),
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, intentId: string) {
     return this.authorized(token, (s, tx) =>
       this.recovery.cancel(s.accountId, intentId, tx),
     );
   }
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   async grant(token: string, intentId: string) {
     const result = await this.authorized(token, async (s, tx) => {
       const ingress = this.requireIngress();
@@ -253,6 +263,7 @@ export class SchoolQrMediaService {
       protocol: SCHOOL_QR_MEDIA_PROTOCOL,
     });
   }
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   async finalize(token: string, intentId: string) {
     const before = await this.status(token, intentId);
     if (
@@ -314,6 +325,7 @@ export class SchoolQrMediaService {
       );
     });
   }
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   observed(result: MediaUploadObserved) {
     const { version: _version, ...observed } = result;
     void _version;
@@ -390,6 +402,13 @@ export class SchoolQrMediaService {
     };
     return this.describe(token, request, tx);
   }
+  @AccountPolicyFor(
+    (args) =>
+      args[1] !== null && typeof args[1] === 'object' && 'regionId' in args[1]
+        ? 'privileged_read'
+        : 'browse',
+    'entry',
+  )
   async descriptor(
     token: string | null,
     target: { campusId: string } | { regionId: string } | { orderId: string },
@@ -412,6 +431,13 @@ export class SchoolQrMediaService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicyFor(
+    (args) =>
+      args[1] !== null && typeof args[1] === 'object' && 'regionId' in args[1]
+        ? 'privileged_read'
+        : 'browse',
+    'entry',
+  )
   open(
     token: string | null,
     target: { campusId: string } | { regionId: string } | { orderId: string },
@@ -530,6 +556,7 @@ export class SchoolQrMediaService {
       requestId,
     };
   }
+  @AccountPolicyFor(() => 'browse', 'entry')
   private async authorizeRead(
     token: string | null,
     request: SchoolQrReadRequest,

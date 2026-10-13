@@ -1,3 +1,8 @@
+import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+} from '../../safety/account-policy/decorator.js';
 import { resolvePostCategory } from '../category-reclassification/read-proof.js';
 import { lockSafetyPolicy } from '../../safety/locks.js';
 import { hashToken } from '../../identity/tokens.js';
@@ -31,6 +36,17 @@ import type {
   PinDetail,
   PinSlot,
 } from './contracts.js';
+function pinAccountPolicy(command: PinCommand) {
+  switch (command.operation) {
+    case 'read':
+      return 'passive_bookkeeping';
+    case 'pin':
+    case 'unpin':
+      return 'content_management';
+    default:
+      throw new Error('Unknown pin account policy operation');
+  }
+}
 interface Scope {
   id: string;
   space_id: string;
@@ -157,6 +173,7 @@ export class PostPinsService {
       readAt: read?.read_at.toISOString() ?? null,
     };
   }
+  @AccountPolicy('browse', 'entry')
   async list(token: string | null, query: PinQuery): Promise<PinPage> {
     return this.run(async (tx) => {
       enableSafetyRelationshipProof(tx);
@@ -272,6 +289,7 @@ export class PostPinsService {
       return result;
     });
   }
+  @AccountPolicy('browse', 'entry')
   async slot(token: string, spaceId: string): Promise<PinSlot> {
     return this.run(async (tx) => {
       enableSafetyRelationshipProof(tx);
@@ -339,6 +357,7 @@ export class PostPinsService {
       };
     });
   }
+  @AccountPolicy('browse', 'entry')
   async detail(token: string, postId: string): Promise<PinDetail> {
     return this.run(async (tx) => {
       enableSafetyRelationshipProof(tx);
@@ -427,6 +446,10 @@ export class PostPinsService {
       return result;
     });
   }
+  @AccountPolicyFor(
+    (args) => pinAccountPolicy(args[1] as PinCommand),
+    'owner_after_recovery',
+  )
   async command(
     token: string,
     command: PinCommand,
@@ -476,6 +499,7 @@ export class PostPinsService {
       if (cancel)
         receipt = { ...base, outcome: 'rejected', code: 'POST_PIN_CANCELLED' };
       else {
+        await enforceAccountPunishment(actor, pinAccountPolicy(command), tx);
         await lockSafetyPolicy(tx);
         await beginPostPinProof(tx);
         const reference =
@@ -634,6 +658,7 @@ export class PostPinsService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   async receipt(token: string, requestId: string): Promise<PinReceipt> {
     return this.run(async (tx) => {
       const actor = await this.access.actor(token, tx),

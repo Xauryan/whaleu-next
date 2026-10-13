@@ -1,3 +1,5 @@
+import { noticeContentAllowed } from '../safety/account-policy/notice-projection.js';
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { enableSafetyRelationshipProof } from '../safety/relationship-proof.js';
 import { lockSafetyPolicy } from '../safety/locks.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -28,6 +30,8 @@ export class UpdatesReadService {
       createdAt: row.created_at.toISOString(),
       readAt: row.read_at?.toISOString() ?? null,
     };
+    if (!(await noticeContentAllowed(row.recipient_account_id, tx)))
+      return { ...base, status: 'unavailable' };
     const target = {
       postId: row.post_id,
       commentId: row.comment_id,
@@ -53,6 +57,7 @@ export class UpdatesReadService {
         }
       : { ...base, status: 'unavailable' };
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   list(token: string, query: UpdatesQuery): Promise<UpdatesPage> {
     return this.database.transaction(
       async (tx) => {
@@ -90,6 +95,7 @@ export class UpdatesReadService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   unreadCount(token: string) {
     return this.database.transaction(async (tx) => {
       await lockSafetyPolicy(tx);
@@ -100,6 +106,7 @@ export class UpdatesReadService {
       return { unreadCount };
     });
   }
+  @AccountPolicy('browse', 'entry')
   target(token: string, noticeId: string) {
     return this.database.transaction(
       async (tx) => {
@@ -123,6 +130,7 @@ export class UpdatesReadService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   markRead(token: string, noticeId: string) {
     return this.database.transaction(async (tx) => {
       await lockSafetyPolicy(tx);

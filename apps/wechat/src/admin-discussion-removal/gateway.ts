@@ -49,7 +49,7 @@ export class HttpAdminDiscussionRemovalGateway implements AdminDiscussionRemoval
         successStatus: 200,
         decode: decodeAdminDiscussionRemovalManagement,
       },
-      { cancellation, query: { ...target } },
+      { cancellation, query: { ...target, version: '2' } },
     );
     if (!sameAdminDiscussionRemovalTarget(result.target, target))
       invalidAdminDiscussionRemoval();
@@ -72,7 +72,24 @@ export class HttpAdminDiscussionRemovalGateway implements AdminDiscussionRemoval
         successStatus: 200,
         decode: decodeAdminDiscussionRemovalReceipt,
       },
-      { cancellation, body: { ...command, target: { ...command.target } } },
+      {
+        cancellation,
+        body: {
+          clientRequestId: command.clientRequestId,
+          expectedTargetVersion: command.expectedTargetVersion,
+          action: command.action,
+          ...(command.version === 2 ? { version: 2 } : {}),
+          target: { ...command.target },
+          ...(command.punishment
+            ? {
+                punishment: {
+                  ...command.punishment,
+                  duration: { ...command.punishment.duration },
+                },
+              }
+            : {}),
+        },
+      },
     );
     matchAdminDiscussionRemovalReceipt(command, result);
     return result;

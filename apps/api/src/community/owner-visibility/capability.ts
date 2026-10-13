@@ -55,6 +55,7 @@ export async function retainOwnerRestoreCapability(
   view.canChange = false;
   let head: SafetyCapabilityHead | null = null;
   let available = false;
+  let punishmentFingerprint: string | null = null;
   await tx.query('SAVEPOINT owner_restore_capability');
   try {
     await boundedOwnerProof(tx, 'SAFETY_UNAVAILABLE', async (read) => {
@@ -63,7 +64,15 @@ export async function retainOwnerRestoreCapability(
         (
           await read.query<{ now: Date }>('SELECT clock_timestamp() AS now')
         ).rows[0]?.now.getTime() ?? NaN;
-      available = allowed(head, now);
+      const punishment = (
+        await read.query<{ allowed: boolean; fingerprint: string }>(
+          `SELECT whaleu_safety.account_punishment_allows($1,'interaction') allowed,
+         whaleu_safety.account_punishment_fingerprint($1) fingerprint`,
+          [actor],
+        )
+      ).rows[0];
+      available = allowed(head, now) && punishment?.allowed === true;
+      punishmentFingerprint = punishment?.fingerprint ?? null;
     });
   } catch {
     // An unsuccessful rollback is fatal; no poisoned transaction is disguised
@@ -86,7 +95,22 @@ export async function retainOwnerRestoreCapability(
         (
           await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
         ).rows[0]?.now.getTime() ?? NaN;
-      return allowed(current, now) && ownerFingerprint(current) === fingerprint;
+      await tx.query(`LOCK TABLE whaleu_safety.account_punishments,
+        whaleu_safety.account_punishment_heads,
+        whaleu_safety.account_punishment_terminals IN SHARE MODE NOWAIT`);
+      const punishment = (
+        await tx.query<{ allowed: boolean; fingerprint: string }>(
+          `SELECT whaleu_safety.account_punishment_allows($1,'interaction') allowed,
+         whaleu_safety.account_punishment_fingerprint($1) fingerprint`,
+          [actor],
+        )
+      ).rows[0];
+      return (
+        allowed(current, now) &&
+        ownerFingerprint(current) === fingerprint &&
+        punishment?.allowed === true &&
+        punishment.fingerprint === punishmentFingerprint
+      );
     },
     invalidate: () => {
       view.canChange = false;

@@ -375,3 +375,17 @@ test('admin post removal is a fourth minimal source-free kind with collision che
   ])
     assert.throws(() => decodeSystemNotice({ ...removed, ...patch }));
 });
+
+test('compound discussion deletion notice remains private and source-free', () => {
+  const notice = {
+    noticeId: requestId,
+    kind: 'admin_discussion_removed',
+    createdAt,
+    readAt: null,
+  };
+  assert.deepEqual(decodeSystemNotice(notice), notice);
+  for (const key of ['targetId', 'postId', 'authorId', 'text', 'moderatorId'])
+    assert.throws(() => decodeSystemNotice({ ...notice, [key]: otherId }), {
+      kind: 'protocol',
+    });
+});

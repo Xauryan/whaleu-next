@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 /** Independent synthetic Major source/crosswalk acceptance; never production data. */
 import { randomUUID } from 'node:crypto';
 import { inTransaction } from '../../src/database/database.js';
@@ -78,5 +79,5 @@ export async function majorCatalogFixture(
       majors.splice(0, majors.length, ...rows);
       return catalog;
     });
-  return { ...f, majors, add, accept };
+  return extendLiveFixture(f, { majors, add, accept });
 }

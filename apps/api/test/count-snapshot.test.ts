@@ -1,3 +1,4 @@
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
 import {
   untouchedCategoryRows,
   untouchedCategoryChildRows,
@@ -247,6 +248,8 @@ function fixture(collision = false) {
   for (const kind of ['post', 'comment', 'reply'] as const) bind(kind);
   const tx = {
     query: async (sql: string, args: unknown[] = []) => {
+      const policy = unpunishedAccountPolicyObservation(sql, args);
+      if (policy) return policy;
       const one = (value: unknown) => ({ rows: value ? [value] : [] });
       if (sql.startsWith('SELECT q.kind,q.id,q.post_id'))
         return {

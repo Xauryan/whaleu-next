@@ -1,0 +1,3956 @@
+{
+  "components": {
+    "schemas": {},
+    "securitySchemes": {
+      "accessToken": {
+        "description": "Current opaque WhaleU access token. Private records require exact owner authentication. Management requires current global super-admin authority; original-key recovery and cancellation belong to the original actor.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "Separate Safety mute and access suspension. Mute only limits interaction and content management; suspension retains current authenticated own status, local notices and private appeals. Issuance remains a compound content-removal command in its source owner. Global super administrators review private cases and release exact punishment references. Original-key recovery and cancellation remain session-owned; no provider delivery or administrator notification is implied.",
+    "title": "WhaleU recoverable account moderation and private appeals",
+    "version": "1"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/v1/me/safety/appeal-commands": {
+      "post": {
+        "operationId": "accountAppealsCommand",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "action": {
+                    "enum": ["submit_appeal"],
+                    "type": "string"
+                  },
+                  "clientRequestId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                    "type": "string"
+                  },
+                  "punishment": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": ["interaction_mute", "access_suspension"],
+                        "type": "string"
+                      },
+                      "punishmentId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "revision": {
+                        "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["punishmentId", "kind", "revision"],
+                    "type": "object"
+                  },
+                  "text": {
+                    "maxLength": 4000,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": ["clientRequestId", "action", "punishment", "text"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["submit_appeal"],
+                          "type": "string"
+                        },
+                        "appealId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied"],
+                          "type": "string"
+                        },
+                        "punishment": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "punishmentId": {
+                              "allOf": [
+                                {
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                {
+                                  "pattern": "^[0-9a-f-]+$",
+                                  "type": "string"
+                                }
+                              ],
+                              "type": "string"
+                            },
+                            "revision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["punishmentId", "kind", "revision"],
+                          "type": "object"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "reusedOpenCase": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "action",
+                        "punishment",
+                        "outcome",
+                        "appealId",
+                        "recordedAt",
+                        "reusedOpenCase"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["submit_appeal"],
+                          "type": "string"
+                        },
+                        "code": {
+                          "enum": [
+                            "SAFETY_MODERATION_STALE",
+                            "SAFETY_MODERATION_CANCELLED"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "punishment": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "punishmentId": {
+                              "allOf": [
+                                {
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                {
+                                  "pattern": "^[0-9a-f-]+$",
+                                  "type": "string"
+                                }
+                              ],
+                              "type": "string"
+                            },
+                            "revision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["punishmentId", "kind", "revision"],
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "action",
+                        "punishment",
+                        "outcome",
+                        "code"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private account punishment appeals"]
+      }
+    },
+    "/v1/me/safety/appeal-commands/cancel": {
+      "post": {
+        "operationId": "accountAppealsCancel",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "action": {
+                    "enum": ["submit_appeal"],
+                    "type": "string"
+                  },
+                  "clientRequestId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                    "type": "string"
+                  },
+                  "punishment": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": ["interaction_mute", "access_suspension"],
+                        "type": "string"
+                      },
+                      "punishmentId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "revision": {
+                        "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["punishmentId", "kind", "revision"],
+                    "type": "object"
+                  },
+                  "text": {
+                    "maxLength": 4000,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": ["clientRequestId", "action", "punishment", "text"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["submit_appeal"],
+                          "type": "string"
+                        },
+                        "appealId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied"],
+                          "type": "string"
+                        },
+                        "punishment": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "punishmentId": {
+                              "allOf": [
+                                {
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                {
+                                  "pattern": "^[0-9a-f-]+$",
+                                  "type": "string"
+                                }
+                              ],
+                              "type": "string"
+                            },
+                            "revision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["punishmentId", "kind", "revision"],
+                          "type": "object"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "reusedOpenCase": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "action",
+                        "punishment",
+                        "outcome",
+                        "appealId",
+                        "recordedAt",
+                        "reusedOpenCase"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["submit_appeal"],
+                          "type": "string"
+                        },
+                        "code": {
+                          "enum": [
+                            "SAFETY_MODERATION_STALE",
+                            "SAFETY_MODERATION_CANCELLED"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "punishment": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "punishmentId": {
+                              "allOf": [
+                                {
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                {
+                                  "pattern": "^[0-9a-f-]+$",
+                                  "type": "string"
+                                }
+                              ],
+                              "type": "string"
+                            },
+                            "revision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["punishmentId", "kind", "revision"],
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "action",
+                        "punishment",
+                        "outcome",
+                        "code"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private account punishment appeals"]
+      }
+    },
+    "/v1/me/safety/appeal-requests/{requestId}": {
+      "get": {
+        "operationId": "accountAppealsRecovery",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "receipt": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "action": {
+                                  "enum": ["submit_appeal"],
+                                  "type": "string"
+                                },
+                                "appealId": {
+                                  "allOf": [
+                                    {
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "pattern": "^[0-9a-f-]+$",
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "type": "string"
+                                },
+                                "outcome": {
+                                  "enum": ["applied"],
+                                  "type": "string"
+                                },
+                                "punishment": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "interaction_mute",
+                                        "access_suspension"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "punishmentId": {
+                                      "allOf": [
+                                        {
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        {
+                                          "pattern": "^[0-9a-f-]+$",
+                                          "type": "string"
+                                        }
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "revision": {
+                                      "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "punishmentId",
+                                    "kind",
+                                    "revision"
+                                  ],
+                                  "type": "object"
+                                },
+                                "recordedAt": {
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                  "type": "string"
+                                },
+                                "requestId": {
+                                  "allOf": [
+                                    {
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "pattern": "^[0-9a-f-]+$",
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "type": "string"
+                                },
+                                "reusedOpenCase": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "requestId",
+                                "action",
+                                "punishment",
+                                "outcome",
+                                "appealId",
+                                "recordedAt",
+                                "reusedOpenCase"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "action": {
+                                  "enum": ["submit_appeal"],
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "enum": [
+                                    "SAFETY_MODERATION_STALE",
+                                    "SAFETY_MODERATION_CANCELLED"
+                                  ],
+                                  "type": "string"
+                                },
+                                "outcome": {
+                                  "enum": ["rejected"],
+                                  "type": "string"
+                                },
+                                "punishment": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "interaction_mute",
+                                        "access_suspension"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "punishmentId": {
+                                      "allOf": [
+                                        {
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        {
+                                          "pattern": "^[0-9a-f-]+$",
+                                          "type": "string"
+                                        }
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "revision": {
+                                      "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "punishmentId",
+                                    "kind",
+                                    "revision"
+                                  ],
+                                  "type": "object"
+                                },
+                                "requestId": {
+                                  "allOf": [
+                                    {
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "pattern": "^[0-9a-f-]+$",
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "requestId",
+                                "action",
+                                "punishment",
+                                "outcome",
+                                "code"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "state": {
+                          "enum": ["recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "receipt"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "state": {
+                          "enum": ["not_recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private account punishment appeals"]
+      }
+    },
+    "/v1/me/safety/appeals": {
+      "get": {
+        "operationId": "accountAppealsList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 1024,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": "20",
+              "pattern": "^(?:[1-9]|[1-4][0-9]|50)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "appealId": {
+                            "allOf": [
+                              {
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              {
+                                "pattern": "^[0-9a-f-]+$",
+                                "type": "string"
+                              }
+                            ],
+                            "type": "string"
+                          },
+                          "decision": {
+                            "additionalProperties": false,
+                            "nullable": true,
+                            "properties": {
+                              "outcome": {
+                                "enum": [
+                                  "upheld",
+                                  "released",
+                                  "closed_no_longer_effective"
+                                ],
+                                "type": "string"
+                              },
+                              "reason": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "recordedAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                "type": "string"
+                              }
+                            },
+                            "required": ["outcome", "reason", "recordedAt"],
+                            "type": "object"
+                          },
+                          "punishment": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "canAppeal": {
+                                "type": "boolean"
+                              },
+                              "endsAt": {
+                                "format": "date-time",
+                                "nullable": true,
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                "type": "string"
+                              },
+                              "kind": {
+                                "enum": [
+                                  "interaction_mute",
+                                  "access_suspension"
+                                ],
+                                "type": "string"
+                              },
+                              "openAppealId": {
+                                "allOf": [
+                                  {
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "pattern": "^[0-9a-f-]+$",
+                                    "type": "string"
+                                  }
+                                ],
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "punishmentId": {
+                                "allOf": [
+                                  {
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "pattern": "^[0-9a-f-]+$",
+                                    "type": "string"
+                                  }
+                                ],
+                                "type": "string"
+                              },
+                              "reason": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "recordedAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                "type": "string"
+                              },
+                              "revision": {
+                                "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                                "type": "string"
+                              },
+                              "startsAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                "type": "string"
+                              },
+                              "state": {
+                                "enum": [
+                                  "active",
+                                  "expired",
+                                  "superseded",
+                                  "released"
+                                ],
+                                "type": "string"
+                              },
+                              "terminal": {
+                                "additionalProperties": false,
+                                "nullable": true,
+                                "properties": {
+                                  "cause": {
+                                    "enum": [
+                                      "expired",
+                                      "superseded",
+                                      "manually_released",
+                                      "appeal_released"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "effectiveAt": {
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                    "type": "string"
+                                  },
+                                  "reason": {
+                                    "maxLength": 255,
+                                    "minLength": 1,
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["cause", "effectiveAt", "reason"],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "punishmentId",
+                              "kind",
+                              "revision",
+                              "reason",
+                              "startsAt",
+                              "endsAt",
+                              "recordedAt",
+                              "state",
+                              "terminal",
+                              "canAppeal",
+                              "openAppealId"
+                            ],
+                            "type": "object"
+                          },
+                          "state": {
+                            "enum": ["pending", "decided"],
+                            "type": "string"
+                          },
+                          "submittedAt": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "text": {
+                            "maxLength": 4000,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "appealId",
+                          "punishment",
+                          "text",
+                          "submittedAt",
+                          "state",
+                          "decision"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 50,
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "maxLength": 1024,
+                      "minLength": 1,
+                      "nullable": true,
+                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private account punishment appeals"]
+      }
+    },
+    "/v1/me/safety/appeals/{appealId}": {
+      "get": {
+        "operationId": "accountAppealsDetail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appealId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "appealId": {
+                      "allOf": [
+                        {
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        {
+                          "pattern": "^[0-9a-f-]+$",
+                          "type": "string"
+                        }
+                      ],
+                      "type": "string"
+                    },
+                    "decision": {
+                      "additionalProperties": false,
+                      "nullable": true,
+                      "properties": {
+                        "outcome": {
+                          "enum": [
+                            "upheld",
+                            "released",
+                            "closed_no_longer_effective"
+                          ],
+                          "type": "string"
+                        },
+                        "reason": {
+                          "maxLength": 255,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["outcome", "reason", "recordedAt"],
+                      "type": "object"
+                    },
+                    "punishment": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "canAppeal": {
+                          "type": "boolean"
+                        },
+                        "endsAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": ["interaction_mute", "access_suspension"],
+                          "type": "string"
+                        },
+                        "openAppealId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "punishmentId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "reason": {
+                          "maxLength": 255,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "revision": {
+                          "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                          "type": "string"
+                        },
+                        "startsAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "active",
+                            "expired",
+                            "superseded",
+                            "released"
+                          ],
+                          "type": "string"
+                        },
+                        "terminal": {
+                          "additionalProperties": false,
+                          "nullable": true,
+                          "properties": {
+                            "cause": {
+                              "enum": [
+                                "expired",
+                                "superseded",
+                                "manually_released",
+                                "appeal_released"
+                              ],
+                              "type": "string"
+                            },
+                            "effectiveAt": {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                              "type": "string"
+                            },
+                            "reason": {
+                              "maxLength": 255,
+                              "minLength": 1,
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "required": ["cause", "effectiveAt", "reason"],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "punishmentId",
+                        "kind",
+                        "revision",
+                        "reason",
+                        "startsAt",
+                        "endsAt",
+                        "recordedAt",
+                        "state",
+                        "terminal",
+                        "canAppeal",
+                        "openAppealId"
+                      ],
+                      "type": "object"
+                    },
+                    "state": {
+                      "enum": ["pending", "decided"],
+                      "type": "string"
+                    },
+                    "submittedAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                      "type": "string"
+                    },
+                    "text": {
+                      "maxLength": 4000,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "appealId",
+                    "punishment",
+                    "text",
+                    "submittedAt",
+                    "state",
+                    "decision"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private account punishment appeals"]
+      }
+    },
+    "/v1/me/safety/punishments": {
+      "get": {
+        "operationId": "ownAccountPunishments",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 1024,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": "20",
+              "pattern": "^(?:[1-9]|[1-4][0-9]|50)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "canAppeal": {
+                            "type": "boolean"
+                          },
+                          "endsAt": {
+                            "format": "date-time",
+                            "nullable": true,
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["interaction_mute", "access_suspension"],
+                            "type": "string"
+                          },
+                          "openAppealId": {
+                            "allOf": [
+                              {
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              {
+                                "pattern": "^[0-9a-f-]+$",
+                                "type": "string"
+                              }
+                            ],
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "punishmentId": {
+                            "allOf": [
+                              {
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              {
+                                "pattern": "^[0-9a-f-]+$",
+                                "type": "string"
+                              }
+                            ],
+                            "type": "string"
+                          },
+                          "reason": {
+                            "maxLength": 255,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "recordedAt": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "revision": {
+                            "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                            "type": "string"
+                          },
+                          "startsAt": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "state": {
+                            "enum": [
+                              "active",
+                              "expired",
+                              "superseded",
+                              "released"
+                            ],
+                            "type": "string"
+                          },
+                          "terminal": {
+                            "additionalProperties": false,
+                            "nullable": true,
+                            "properties": {
+                              "cause": {
+                                "enum": [
+                                  "expired",
+                                  "superseded",
+                                  "manually_released",
+                                  "appeal_released"
+                                ],
+                                "type": "string"
+                              },
+                              "effectiveAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                "type": "string"
+                              },
+                              "reason": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": ["cause", "effectiveAt", "reason"],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "punishmentId",
+                          "kind",
+                          "revision",
+                          "reason",
+                          "startsAt",
+                          "endsAt",
+                          "recordedAt",
+                          "state",
+                          "terminal",
+                          "canAppeal",
+                          "openAppealId"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 50,
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "maxLength": 1024,
+                      "minLength": 1,
+                      "nullable": true,
+                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Own account punishment status"]
+      }
+    },
+    "/v1/me/safety/punishments/{id}": {
+      "get": {
+        "operationId": "ownAccountPunishment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "canAppeal": {
+                      "type": "boolean"
+                    },
+                    "endsAt": {
+                      "format": "date-time",
+                      "nullable": true,
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": ["interaction_mute", "access_suspension"],
+                      "type": "string"
+                    },
+                    "openAppealId": {
+                      "allOf": [
+                        {
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        {
+                          "pattern": "^[0-9a-f-]+$",
+                          "type": "string"
+                        }
+                      ],
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "punishmentId": {
+                      "allOf": [
+                        {
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        {
+                          "pattern": "^[0-9a-f-]+$",
+                          "type": "string"
+                        }
+                      ],
+                      "type": "string"
+                    },
+                    "reason": {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "recordedAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                      "type": "string"
+                    },
+                    "revision": {
+                      "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                      "type": "string"
+                    },
+                    "startsAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": ["active", "expired", "superseded", "released"],
+                      "type": "string"
+                    },
+                    "terminal": {
+                      "additionalProperties": false,
+                      "nullable": true,
+                      "properties": {
+                        "cause": {
+                          "enum": [
+                            "expired",
+                            "superseded",
+                            "manually_released",
+                            "appeal_released"
+                          ],
+                          "type": "string"
+                        },
+                        "effectiveAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "reason": {
+                          "maxLength": 255,
+                          "minLength": 1,
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": ["cause", "effectiveAt", "reason"],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "punishmentId",
+                    "kind",
+                    "revision",
+                    "reason",
+                    "startsAt",
+                    "endsAt",
+                    "recordedAt",
+                    "state",
+                    "terminal",
+                    "canAppeal",
+                    "openAppealId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Own account punishment status"]
+      }
+    },
+    "/v1/me/safety/status": {
+      "get": {
+        "operationId": "ownAccountPunishmentStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "checkedAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                      "type": "string"
+                    },
+                    "coverage": {
+                      "enum": ["complete", "unavailable"],
+                      "type": "string"
+                    },
+                    "current": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "canAppeal": {
+                            "type": "boolean"
+                          },
+                          "endsAt": {
+                            "format": "date-time",
+                            "nullable": true,
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["interaction_mute", "access_suspension"],
+                            "type": "string"
+                          },
+                          "openAppealId": {
+                            "allOf": [
+                              {
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              {
+                                "pattern": "^[0-9a-f-]+$",
+                                "type": "string"
+                              }
+                            ],
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "punishmentId": {
+                            "allOf": [
+                              {
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              {
+                                "pattern": "^[0-9a-f-]+$",
+                                "type": "string"
+                              }
+                            ],
+                            "type": "string"
+                          },
+                          "reason": {
+                            "maxLength": 255,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "recordedAt": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "revision": {
+                            "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                            "type": "string"
+                          },
+                          "startsAt": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "state": {
+                            "enum": [
+                              "active",
+                              "expired",
+                              "superseded",
+                              "released"
+                            ],
+                            "type": "string"
+                          },
+                          "terminal": {
+                            "additionalProperties": false,
+                            "nullable": true,
+                            "properties": {
+                              "cause": {
+                                "enum": [
+                                  "expired",
+                                  "superseded",
+                                  "manually_released",
+                                  "appeal_released"
+                                ],
+                                "type": "string"
+                              },
+                              "effectiveAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                "type": "string"
+                              },
+                              "reason": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": ["cause", "effectiveAt", "reason"],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "punishmentId",
+                          "kind",
+                          "revision",
+                          "reason",
+                          "startsAt",
+                          "endsAt",
+                          "recordedAt",
+                          "state",
+                          "terminal",
+                          "canAppeal",
+                          "openAppealId"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 2,
+                      "type": "array"
+                    },
+                    "effective": {
+                      "enum": [
+                        "clear",
+                        "interaction_mute",
+                        "access_suspension",
+                        "unavailable"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": ["coverage", "effective", "checkedAt", "current"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Own account punishment status"]
+      }
+    },
+    "/v1/safety/appeal-management/appeals": {
+      "get": {
+        "operationId": "accountAppealManagementList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 1024,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": "20",
+              "pattern": "^(?:[1-9]|[1-4][0-9]|50)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "appealId": {
+                            "allOf": [
+                              {
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              {
+                                "pattern": "^[0-9a-f-]+$",
+                                "type": "string"
+                              }
+                            ],
+                            "type": "string"
+                          },
+                          "canDecide": {
+                            "type": "boolean"
+                          },
+                          "decision": {
+                            "additionalProperties": false,
+                            "nullable": true,
+                            "properties": {
+                              "outcome": {
+                                "enum": [
+                                  "upheld",
+                                  "released",
+                                  "closed_no_longer_effective"
+                                ],
+                                "type": "string"
+                              },
+                              "reason": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "recordedAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                "type": "string"
+                              }
+                            },
+                            "required": ["outcome", "reason", "recordedAt"],
+                            "type": "object"
+                          },
+                          "punishment": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "canAppeal": {
+                                "type": "boolean"
+                              },
+                              "endsAt": {
+                                "format": "date-time",
+                                "nullable": true,
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                "type": "string"
+                              },
+                              "kind": {
+                                "enum": [
+                                  "interaction_mute",
+                                  "access_suspension"
+                                ],
+                                "type": "string"
+                              },
+                              "openAppealId": {
+                                "allOf": [
+                                  {
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "pattern": "^[0-9a-f-]+$",
+                                    "type": "string"
+                                  }
+                                ],
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "punishmentId": {
+                                "allOf": [
+                                  {
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "pattern": "^[0-9a-f-]+$",
+                                    "type": "string"
+                                  }
+                                ],
+                                "type": "string"
+                              },
+                              "reason": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "recordedAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                "type": "string"
+                              },
+                              "revision": {
+                                "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                                "type": "string"
+                              },
+                              "startsAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                "type": "string"
+                              },
+                              "state": {
+                                "enum": [
+                                  "active",
+                                  "expired",
+                                  "superseded",
+                                  "released"
+                                ],
+                                "type": "string"
+                              },
+                              "terminal": {
+                                "additionalProperties": false,
+                                "nullable": true,
+                                "properties": {
+                                  "cause": {
+                                    "enum": [
+                                      "expired",
+                                      "superseded",
+                                      "manually_released",
+                                      "appeal_released"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "effectiveAt": {
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                    "type": "string"
+                                  },
+                                  "reason": {
+                                    "maxLength": 255,
+                                    "minLength": 1,
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["cause", "effectiveAt", "reason"],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "punishmentId",
+                              "kind",
+                              "revision",
+                              "reason",
+                              "startsAt",
+                              "endsAt",
+                              "recordedAt",
+                              "state",
+                              "terminal",
+                              "canAppeal",
+                              "openAppealId"
+                            ],
+                            "type": "object"
+                          },
+                          "state": {
+                            "enum": ["pending", "decided"],
+                            "type": "string"
+                          },
+                          "stateVersion": {
+                            "pattern": "^[a-f0-9]{64}$",
+                            "type": "string"
+                          },
+                          "submittedAt": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "text": {
+                            "maxLength": 4000,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "appealId",
+                          "punishment",
+                          "text",
+                          "submittedAt",
+                          "state",
+                          "decision",
+                          "stateVersion",
+                          "canDecide"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 50,
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "maxLength": 1024,
+                      "minLength": 1,
+                      "nullable": true,
+                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private account punishment appeals"]
+      }
+    },
+    "/v1/safety/appeal-management/appeals/{appealId}": {
+      "get": {
+        "operationId": "accountAppealManagementDetail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appealId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "appealId": {
+                      "allOf": [
+                        {
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        {
+                          "pattern": "^[0-9a-f-]+$",
+                          "type": "string"
+                        }
+                      ],
+                      "type": "string"
+                    },
+                    "canDecide": {
+                      "type": "boolean"
+                    },
+                    "decision": {
+                      "additionalProperties": false,
+                      "nullable": true,
+                      "properties": {
+                        "outcome": {
+                          "enum": [
+                            "upheld",
+                            "released",
+                            "closed_no_longer_effective"
+                          ],
+                          "type": "string"
+                        },
+                        "reason": {
+                          "maxLength": 255,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["outcome", "reason", "recordedAt"],
+                      "type": "object"
+                    },
+                    "punishment": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "canAppeal": {
+                          "type": "boolean"
+                        },
+                        "endsAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": ["interaction_mute", "access_suspension"],
+                          "type": "string"
+                        },
+                        "openAppealId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "punishmentId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "reason": {
+                          "maxLength": 255,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "revision": {
+                          "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                          "type": "string"
+                        },
+                        "startsAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "active",
+                            "expired",
+                            "superseded",
+                            "released"
+                          ],
+                          "type": "string"
+                        },
+                        "terminal": {
+                          "additionalProperties": false,
+                          "nullable": true,
+                          "properties": {
+                            "cause": {
+                              "enum": [
+                                "expired",
+                                "superseded",
+                                "manually_released",
+                                "appeal_released"
+                              ],
+                              "type": "string"
+                            },
+                            "effectiveAt": {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                              "type": "string"
+                            },
+                            "reason": {
+                              "maxLength": 255,
+                              "minLength": 1,
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "required": ["cause", "effectiveAt", "reason"],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "punishmentId",
+                        "kind",
+                        "revision",
+                        "reason",
+                        "startsAt",
+                        "endsAt",
+                        "recordedAt",
+                        "state",
+                        "terminal",
+                        "canAppeal",
+                        "openAppealId"
+                      ],
+                      "type": "object"
+                    },
+                    "state": {
+                      "enum": ["pending", "decided"],
+                      "type": "string"
+                    },
+                    "stateVersion": {
+                      "pattern": "^[a-f0-9]{64}$",
+                      "type": "string"
+                    },
+                    "submittedAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                      "type": "string"
+                    },
+                    "text": {
+                      "maxLength": 4000,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "appealId",
+                    "punishment",
+                    "text",
+                    "submittedAt",
+                    "state",
+                    "decision",
+                    "stateVersion",
+                    "canDecide"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private account punishment appeals"]
+      }
+    },
+    "/v1/safety/appeal-management/commands": {
+      "post": {
+        "operationId": "accountAppealManagementCommand",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "action": {
+                    "enum": ["decide_appeal"],
+                    "type": "string"
+                  },
+                  "appealId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "clientRequestId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                    "type": "string"
+                  },
+                  "decision": {
+                    "enum": [
+                      "upheld",
+                      "released",
+                      "closed_no_longer_effective"
+                    ],
+                    "type": "string"
+                  },
+                  "expectedStateVersion": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "clientRequestId",
+                  "action",
+                  "appealId",
+                  "expectedStateVersion",
+                  "decision",
+                  "reason"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["decide_appeal"],
+                          "type": "string"
+                        },
+                        "appealId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "decision": {
+                          "enum": [
+                            "upheld",
+                            "released",
+                            "closed_no_longer_effective"
+                          ],
+                          "type": "string"
+                        },
+                        "eventId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied"],
+                          "type": "string"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "action",
+                        "appealId",
+                        "outcome",
+                        "decision",
+                        "eventId",
+                        "recordedAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["decide_appeal"],
+                          "type": "string"
+                        },
+                        "appealId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "code": {
+                          "enum": [
+                            "SAFETY_MODERATION_STALE",
+                            "SAFETY_MODERATION_CANCELLED"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "action",
+                        "appealId",
+                        "outcome",
+                        "code"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private account punishment appeals"]
+      }
+    },
+    "/v1/safety/appeal-management/commands/cancel": {
+      "post": {
+        "operationId": "accountAppealManagementCancel",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "action": {
+                    "enum": ["decide_appeal"],
+                    "type": "string"
+                  },
+                  "appealId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "clientRequestId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                    "type": "string"
+                  },
+                  "decision": {
+                    "enum": [
+                      "upheld",
+                      "released",
+                      "closed_no_longer_effective"
+                    ],
+                    "type": "string"
+                  },
+                  "expectedStateVersion": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "clientRequestId",
+                  "action",
+                  "appealId",
+                  "expectedStateVersion",
+                  "decision",
+                  "reason"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["decide_appeal"],
+                          "type": "string"
+                        },
+                        "appealId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "decision": {
+                          "enum": [
+                            "upheld",
+                            "released",
+                            "closed_no_longer_effective"
+                          ],
+                          "type": "string"
+                        },
+                        "eventId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied"],
+                          "type": "string"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "action",
+                        "appealId",
+                        "outcome",
+                        "decision",
+                        "eventId",
+                        "recordedAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["decide_appeal"],
+                          "type": "string"
+                        },
+                        "appealId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "code": {
+                          "enum": [
+                            "SAFETY_MODERATION_STALE",
+                            "SAFETY_MODERATION_CANCELLED"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "action",
+                        "appealId",
+                        "outcome",
+                        "code"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private account punishment appeals"]
+      }
+    },
+    "/v1/safety/appeal-management/requests/{requestId}": {
+      "get": {
+        "operationId": "accountAppealManagementRecovery",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "receipt": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "action": {
+                                  "enum": ["decide_appeal"],
+                                  "type": "string"
+                                },
+                                "appealId": {
+                                  "allOf": [
+                                    {
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "pattern": "^[0-9a-f-]+$",
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "type": "string"
+                                },
+                                "decision": {
+                                  "enum": [
+                                    "upheld",
+                                    "released",
+                                    "closed_no_longer_effective"
+                                  ],
+                                  "type": "string"
+                                },
+                                "eventId": {
+                                  "allOf": [
+                                    {
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "pattern": "^[0-9a-f-]+$",
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "type": "string"
+                                },
+                                "outcome": {
+                                  "enum": ["applied"],
+                                  "type": "string"
+                                },
+                                "recordedAt": {
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                  "type": "string"
+                                },
+                                "requestId": {
+                                  "allOf": [
+                                    {
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "pattern": "^[0-9a-f-]+$",
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "requestId",
+                                "action",
+                                "appealId",
+                                "outcome",
+                                "decision",
+                                "eventId",
+                                "recordedAt"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "action": {
+                                  "enum": ["decide_appeal"],
+                                  "type": "string"
+                                },
+                                "appealId": {
+                                  "allOf": [
+                                    {
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "pattern": "^[0-9a-f-]+$",
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "enum": [
+                                    "SAFETY_MODERATION_STALE",
+                                    "SAFETY_MODERATION_CANCELLED"
+                                  ],
+                                  "type": "string"
+                                },
+                                "outcome": {
+                                  "enum": ["rejected"],
+                                  "type": "string"
+                                },
+                                "requestId": {
+                                  "allOf": [
+                                    {
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "pattern": "^[0-9a-f-]+$",
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "requestId",
+                                "action",
+                                "appealId",
+                                "outcome",
+                                "code"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "state": {
+                          "enum": ["recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "receipt"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "state": {
+                          "enum": ["not_recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private account punishment appeals"]
+      }
+    },
+    "/v1/safety/punishment-management/commands": {
+      "post": {
+        "operationId": "accountPunishmentRelease",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "action": {
+                    "enum": ["release"],
+                    "type": "string"
+                  },
+                  "clientRequestId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                    "type": "string"
+                  },
+                  "expectedStateVersion": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "punishment": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": ["interaction_mute", "access_suspension"],
+                        "type": "string"
+                      },
+                      "punishmentId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "revision": {
+                        "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["punishmentId", "kind", "revision"],
+                    "type": "object"
+                  },
+                  "reason": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "clientRequestId",
+                  "action",
+                  "punishment",
+                  "expectedStateVersion",
+                  "reason"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["release"],
+                          "type": "string"
+                        },
+                        "eventId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied"],
+                          "type": "string"
+                        },
+                        "punishment": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "punishmentId": {
+                              "allOf": [
+                                {
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                {
+                                  "pattern": "^[0-9a-f-]+$",
+                                  "type": "string"
+                                }
+                              ],
+                              "type": "string"
+                            },
+                            "revision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["punishmentId", "kind", "revision"],
+                          "type": "object"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "action",
+                        "punishment",
+                        "outcome",
+                        "eventId",
+                        "recordedAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["release"],
+                          "type": "string"
+                        },
+                        "code": {
+                          "enum": [
+                            "SAFETY_MODERATION_STALE",
+                            "SAFETY_MODERATION_CANCELLED"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "punishment": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "punishmentId": {
+                              "allOf": [
+                                {
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                {
+                                  "pattern": "^[0-9a-f-]+$",
+                                  "type": "string"
+                                }
+                              ],
+                              "type": "string"
+                            },
+                            "revision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["punishmentId", "kind", "revision"],
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "action",
+                        "punishment",
+                        "outcome",
+                        "code"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Global account punishment management"]
+      }
+    },
+    "/v1/safety/punishment-management/commands/cancel": {
+      "post": {
+        "operationId": "accountPunishmentReleaseCancel",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "action": {
+                    "enum": ["release"],
+                    "type": "string"
+                  },
+                  "clientRequestId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                    "type": "string"
+                  },
+                  "expectedStateVersion": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "punishment": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": ["interaction_mute", "access_suspension"],
+                        "type": "string"
+                      },
+                      "punishmentId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      },
+                      "revision": {
+                        "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["punishmentId", "kind", "revision"],
+                    "type": "object"
+                  },
+                  "reason": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "clientRequestId",
+                  "action",
+                  "punishment",
+                  "expectedStateVersion",
+                  "reason"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["release"],
+                          "type": "string"
+                        },
+                        "eventId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied"],
+                          "type": "string"
+                        },
+                        "punishment": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "punishmentId": {
+                              "allOf": [
+                                {
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                {
+                                  "pattern": "^[0-9a-f-]+$",
+                                  "type": "string"
+                                }
+                              ],
+                              "type": "string"
+                            },
+                            "revision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["punishmentId", "kind", "revision"],
+                          "type": "object"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "action",
+                        "punishment",
+                        "outcome",
+                        "eventId",
+                        "recordedAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["release"],
+                          "type": "string"
+                        },
+                        "code": {
+                          "enum": [
+                            "SAFETY_MODERATION_STALE",
+                            "SAFETY_MODERATION_CANCELLED"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "punishment": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "enum": ["interaction_mute", "access_suspension"],
+                              "type": "string"
+                            },
+                            "punishmentId": {
+                              "allOf": [
+                                {
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                {
+                                  "pattern": "^[0-9a-f-]+$",
+                                  "type": "string"
+                                }
+                              ],
+                              "type": "string"
+                            },
+                            "revision": {
+                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["punishmentId", "kind", "revision"],
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "allOf": [
+                            {
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^[0-9a-f-]+$",
+                              "type": "string"
+                            }
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "action",
+                        "punishment",
+                        "outcome",
+                        "code"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Global account punishment management"]
+      }
+    },
+    "/v1/safety/punishment-management/punishments": {
+      "get": {
+        "operationId": "accountPunishmentManagementList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 1024,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": "20",
+              "pattern": "^(?:[1-9]|[1-4][0-9]|50)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "canAppeal": {
+                            "type": "boolean"
+                          },
+                          "canRelease": {
+                            "type": "boolean"
+                          },
+                          "endsAt": {
+                            "format": "date-time",
+                            "nullable": true,
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["interaction_mute", "access_suspension"],
+                            "type": "string"
+                          },
+                          "openAppealId": {
+                            "allOf": [
+                              {
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              {
+                                "pattern": "^[0-9a-f-]+$",
+                                "type": "string"
+                              }
+                            ],
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "punishmentId": {
+                            "allOf": [
+                              {
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              {
+                                "pattern": "^[0-9a-f-]+$",
+                                "type": "string"
+                              }
+                            ],
+                            "type": "string"
+                          },
+                          "reason": {
+                            "maxLength": 255,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "recordedAt": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "revision": {
+                            "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                            "type": "string"
+                          },
+                          "startsAt": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "state": {
+                            "enum": [
+                              "active",
+                              "expired",
+                              "superseded",
+                              "released"
+                            ],
+                            "type": "string"
+                          },
+                          "stateVersion": {
+                            "pattern": "^[a-f0-9]{64}$",
+                            "type": "string"
+                          },
+                          "terminal": {
+                            "additionalProperties": false,
+                            "nullable": true,
+                            "properties": {
+                              "cause": {
+                                "enum": [
+                                  "expired",
+                                  "superseded",
+                                  "manually_released",
+                                  "appeal_released"
+                                ],
+                                "type": "string"
+                              },
+                              "effectiveAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                "type": "string"
+                              },
+                              "reason": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": ["cause", "effectiveAt", "reason"],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "punishmentId",
+                          "kind",
+                          "revision",
+                          "reason",
+                          "startsAt",
+                          "endsAt",
+                          "recordedAt",
+                          "state",
+                          "terminal",
+                          "canAppeal",
+                          "openAppealId",
+                          "stateVersion",
+                          "canRelease"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 50,
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "maxLength": 1024,
+                      "minLength": 1,
+                      "nullable": true,
+                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Global account punishment management"]
+      }
+    },
+    "/v1/safety/punishment-management/punishments/{id}": {
+      "get": {
+        "operationId": "accountPunishmentManagementDetail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "canAppeal": {
+                      "type": "boolean"
+                    },
+                    "canRelease": {
+                      "type": "boolean"
+                    },
+                    "endsAt": {
+                      "format": "date-time",
+                      "nullable": true,
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": ["interaction_mute", "access_suspension"],
+                      "type": "string"
+                    },
+                    "openAppealId": {
+                      "allOf": [
+                        {
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        {
+                          "pattern": "^[0-9a-f-]+$",
+                          "type": "string"
+                        }
+                      ],
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "punishmentId": {
+                      "allOf": [
+                        {
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        {
+                          "pattern": "^[0-9a-f-]+$",
+                          "type": "string"
+                        }
+                      ],
+                      "type": "string"
+                    },
+                    "reason": {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "recordedAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                      "type": "string"
+                    },
+                    "revision": {
+                      "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                      "type": "string"
+                    },
+                    "startsAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": ["active", "expired", "superseded", "released"],
+                      "type": "string"
+                    },
+                    "stateVersion": {
+                      "pattern": "^[a-f0-9]{64}$",
+                      "type": "string"
+                    },
+                    "terminal": {
+                      "additionalProperties": false,
+                      "nullable": true,
+                      "properties": {
+                        "cause": {
+                          "enum": [
+                            "expired",
+                            "superseded",
+                            "manually_released",
+                            "appeal_released"
+                          ],
+                          "type": "string"
+                        },
+                        "effectiveAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "reason": {
+                          "maxLength": 255,
+                          "minLength": 1,
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": ["cause", "effectiveAt", "reason"],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "punishmentId",
+                    "kind",
+                    "revision",
+                    "reason",
+                    "startsAt",
+                    "endsAt",
+                    "recordedAt",
+                    "state",
+                    "terminal",
+                    "canAppeal",
+                    "openAppealId",
+                    "stateVersion",
+                    "canRelease"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Global account punishment management"]
+      }
+    },
+    "/v1/safety/punishment-management/punishments/{id}/history": {
+      "get": {
+        "operationId": "accountPunishmentManagementHistory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 1024,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": "20",
+              "pattern": "^(?:[1-9]|[1-4][0-9]|50)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "canAppeal": {
+                            "type": "boolean"
+                          },
+                          "endsAt": {
+                            "format": "date-time",
+                            "nullable": true,
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["interaction_mute", "access_suspension"],
+                            "type": "string"
+                          },
+                          "openAppealId": {
+                            "allOf": [
+                              {
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              {
+                                "pattern": "^[0-9a-f-]+$",
+                                "type": "string"
+                              }
+                            ],
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "punishmentId": {
+                            "allOf": [
+                              {
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              {
+                                "pattern": "^[0-9a-f-]+$",
+                                "type": "string"
+                              }
+                            ],
+                            "type": "string"
+                          },
+                          "reason": {
+                            "maxLength": 255,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "recordedAt": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "revision": {
+                            "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                            "type": "string"
+                          },
+                          "startsAt": {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                            "type": "string"
+                          },
+                          "state": {
+                            "enum": [
+                              "active",
+                              "expired",
+                              "superseded",
+                              "released"
+                            ],
+                            "type": "string"
+                          },
+                          "terminal": {
+                            "additionalProperties": false,
+                            "nullable": true,
+                            "properties": {
+                              "cause": {
+                                "enum": [
+                                  "expired",
+                                  "superseded",
+                                  "manually_released",
+                                  "appeal_released"
+                                ],
+                                "type": "string"
+                              },
+                              "effectiveAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                "type": "string"
+                              },
+                              "reason": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": ["cause", "effectiveAt", "reason"],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "punishmentId",
+                          "kind",
+                          "revision",
+                          "reason",
+                          "startsAt",
+                          "endsAt",
+                          "recordedAt",
+                          "state",
+                          "terminal",
+                          "canAppeal",
+                          "openAppealId"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 50,
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "maxLength": 1024,
+                      "minLength": 1,
+                      "nullable": true,
+                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Global account punishment management"]
+      }
+    },
+    "/v1/safety/punishment-management/requests/{requestId}": {
+      "get": {
+        "operationId": "accountPunishmentReleaseRecovery",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "receipt": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "action": {
+                                  "enum": ["release"],
+                                  "type": "string"
+                                },
+                                "eventId": {
+                                  "allOf": [
+                                    {
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "pattern": "^[0-9a-f-]+$",
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "type": "string"
+                                },
+                                "outcome": {
+                                  "enum": ["applied"],
+                                  "type": "string"
+                                },
+                                "punishment": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "interaction_mute",
+                                        "access_suspension"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "punishmentId": {
+                                      "allOf": [
+                                        {
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        {
+                                          "pattern": "^[0-9a-f-]+$",
+                                          "type": "string"
+                                        }
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "revision": {
+                                      "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "punishmentId",
+                                    "kind",
+                                    "revision"
+                                  ],
+                                  "type": "object"
+                                },
+                                "recordedAt": {
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                  "type": "string"
+                                },
+                                "requestId": {
+                                  "allOf": [
+                                    {
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "pattern": "^[0-9a-f-]+$",
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "requestId",
+                                "action",
+                                "punishment",
+                                "outcome",
+                                "eventId",
+                                "recordedAt"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "action": {
+                                  "enum": ["release"],
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "enum": [
+                                    "SAFETY_MODERATION_STALE",
+                                    "SAFETY_MODERATION_CANCELLED"
+                                  ],
+                                  "type": "string"
+                                },
+                                "outcome": {
+                                  "enum": ["rejected"],
+                                  "type": "string"
+                                },
+                                "punishment": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "interaction_mute",
+                                        "access_suspension"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "punishmentId": {
+                                      "allOf": [
+                                        {
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        {
+                                          "pattern": "^[0-9a-f-]+$",
+                                          "type": "string"
+                                        }
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "revision": {
+                                      "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "punishmentId",
+                                    "kind",
+                                    "revision"
+                                  ],
+                                  "type": "object"
+                                },
+                                "requestId": {
+                                  "allOf": [
+                                    {
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "pattern": "^[0-9a-f-]+$",
+                                      "type": "string"
+                                    }
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "requestId",
+                                "action",
+                                "punishment",
+                                "outcome",
+                                "code"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "state": {
+                          "enum": ["recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "receipt"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "state": {
+                          "enum": ["not_recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Global account punishment management"]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

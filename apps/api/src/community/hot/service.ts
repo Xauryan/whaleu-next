@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { resolvePostCategories } from '../category-reclassification/read-proof.js';
 import { currentCategoryCursorScope } from '../current-category-cursor.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -93,6 +94,7 @@ export class HotFeedService {
       previous = candidate;
     }
   }
+  @AccountPolicy('browse', 'entry')
   async read(token: string | null, query: HotQuery): Promise<HotPage> {
     if (this.config.HOT_FEED_PROCESSING === 'disabled')
       throw new ApplicationError('HOT_FEED_UNAVAILABLE');

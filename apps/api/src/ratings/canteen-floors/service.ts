@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { hashToken } from '../../identity/tokens.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
@@ -82,6 +83,7 @@ export class FloorRatingsService {
       safety: await this.safety.navigation(tx),
     };
   }
+  @AccountPolicy('browse', 'entry')
   catalog(token: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
@@ -100,6 +102,7 @@ export class FloorRatingsService {
       return result;
     });
   }
+  @AccountPolicy('browse', 'entry')
   detail(token: string, id: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
@@ -123,9 +126,11 @@ export class FloorRatingsService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   async own(token: string, id: string) {
     return (await this.detail(token, id)).myScore;
   }
+  @AccountPolicy('browse', 'entry')
   async summary(token: string, id: string) {
     return (await this.detail(token, id)).floor.summary;
   }
@@ -170,6 +175,7 @@ export class FloorRatingsService {
       throw new ApplicationError('REQUEST_CONFLICT');
     return floorReceiptSchema.parse(prior.receipt);
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   setScore(
     token: string,
     id: string,
@@ -246,6 +252,7 @@ export class FloorRatingsService {
       return floorReceiptSchema.parse(receipt);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -255,6 +262,7 @@ export class FloorRatingsService {
       return floorReceiptSchema.parse(prior.receipt);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, id: string, body: FloorCancel) {
     return this.run(async (tx) => {
       if (id !== body.command.clientRequestId)

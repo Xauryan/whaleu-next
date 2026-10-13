@@ -36,6 +36,17 @@ export class ErrandAccessService {
     return session;
   }
   async actorCommon(accountId: string, tx: PoolClient) {
+    await this.commonEligibility(accountId, tx, false);
+  }
+  /** Existing publication source eligibility is not the current reader's action. */
+  async sourceCommon(accountId: string, tx: PoolClient) {
+    await this.commonEligibility(accountId, tx, true);
+  }
+  private async commonEligibility(
+    accountId: string,
+    tx: PoolClient,
+    source: boolean,
+  ) {
     const phone = await this.phones.resolve(accountId, tx);
     if (phone.status === 'unverified')
       throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
@@ -46,7 +57,8 @@ export class ErrandAccessService {
       phone.validUntil,
       'VERIFICATION_UNAVAILABLE',
     );
-    await this.safety.requireAllowed(accountId, tx);
+    if (source) await this.safety.requireSourceAllowed(accountId, tx);
+    else await this.safety.requireAllowed(accountId, tx);
   }
   async base(accountId: string, tx: PoolClient) {
     const affiliation = await this.affiliations.resolve(accountId, tx);

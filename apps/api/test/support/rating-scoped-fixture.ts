@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 /** Disposable synthetic issuers and real AppModule owners. No runtime provider,
  * final-projection inserts, disabled constraints, production rows or secrets. */
 import assert from 'node:assert/strict';
@@ -249,8 +250,8 @@ export async function ratingScopedFixture(maximumMigration?: number) {
       ...topology.regions.filter((r) => r.isActive).map((r) => r.regionId),
       'global',
     ]);
-    const owner = f.app.get(CampusRatingScopedContextFacade),
-      releases = f.app.get(RatingScopedReleaseRepository);
+    const owner = () => f.app.get(CampusRatingScopedContextFacade),
+      releases = () => f.app.get(RatingScopedReleaseRepository);
     const categoryIds = new Map(
       scopeKeys.map((key) => [key, new Set<string>()]),
     );
@@ -612,8 +613,8 @@ export async function ratingScopedFixture(maximumMigration?: number) {
       const run = async (tx: PoolClient) => {
         const actor = options.actor ?? creator,
           proof = options.domain
-            ? await owner.resolveLegacyCompatDomain(options.domain, tx)
-            : await owner.resolveRandomCandidates(
+            ? await owner().resolveLegacyCompatDomain(options.domain, tx)
+            : await owner().resolveRandomCandidates(
                 { accountId: actor.accountId, affiliation: actor.facts },
                 { kind: 'institution_with_global', anchorCampusId: campusA },
                 tx,
@@ -631,7 +632,7 @@ export async function ratingScopedFixture(maximumMigration?: number) {
           source,
           'A synthetic complete affected-domain issuance is required as a release cause',
         );
-        return releases.publish(
+        return releases().publish(
           proof,
           options.activate
             ? {
@@ -729,8 +730,7 @@ export async function ratingScopedFixture(maximumMigration?: number) {
         scopeKeys: keys,
         payload: { enabled: true, scopeKeys: canonicalKeys(keys) },
       });
-    return {
-      ...f,
+    return extendLiveFixture(f, {
       creator,
       campusA,
       campusB,
@@ -761,7 +761,7 @@ export async function ratingScopedFixture(maximumMigration?: number) {
         withCommunityScopeWriter(f.pool, (tx) =>
           writeRatingScopedApproval(tx, envelope, options),
         ),
-    };
+    });
   } catch (error) {
     await f.close();
     throw error;

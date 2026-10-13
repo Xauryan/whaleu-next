@@ -1,3 +1,4 @@
+import { extendLiveFixture } from '../live-fixture.js';
 /** Explicit disposable Profile test DI. This fixture does not activate any
  * production provider, catalogue asset pack, device adapter or Review issuer. */
 import assert from 'node:assert/strict';
@@ -57,7 +58,11 @@ export async function syntheticProfileRuntimeFixture(
   });
   try {
     await seedReviewPolicy(base.pool);
-    return { ...base, profile: base.app.get(ProfileAvatarService) };
+    return extendLiveFixture(base, {
+      get profile() {
+        return base.app.get(ProfileAvatarService);
+      },
+    });
   } catch (error) {
     await base.close();
     throw error;

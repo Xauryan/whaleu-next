@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { CampusService } from '../campus/campus.service.js';
 import { preferencesSchema, validCommentDefaults } from './contracts.js';
@@ -8,7 +9,10 @@ import type {
   ProfilePatch,
 } from './contracts.js';
 import { ProfileRepository } from './profile.repository.js';
-import type { StoredProfile } from './profile.repository.js';
+import type {
+  ProfileSelfEditIdentity,
+  StoredProfile,
+} from './profile.repository.js';
 
 @Injectable()
 export class ProfileService {
@@ -16,10 +20,16 @@ export class ProfileService {
     @Inject(ProfileRepository) private readonly repository: ProfileRepository,
     @Inject(CampusService) private readonly campuses: CampusService,
   ) {}
+  @AccountPolicy('private_self_service', 'entry')
   async get(accountId: string): Promise<OwnProfile> {
     return this.view(await this.repository.get(accountId));
   }
-  async update(accountId: string, patch: ProfilePatch): Promise<OwnProfile> {
+  @AccountPolicy('private_self_service', 'entry')
+  async update(
+    accountId: string,
+    patch: ProfilePatch,
+    identity: ProfileSelfEditIdentity,
+  ): Promise<OwnProfile> {
     const profile = await this.repository.update(
       accountId,
       patch.expectedRevision,
@@ -27,12 +37,15 @@ export class ProfileService {
         ...(patch.nickname === undefined ? {} : { nickname: patch.nickname }),
         ...(patch.bio === undefined ? {} : { bio: patch.bio }),
       }),
+      identity,
     );
     return this.view(profile);
   }
+  @AccountPolicy('private_self_service', 'entry')
   async updatePreferences(
     accountId: string,
     patch: PreferencesPatch,
+    identity: ProfileSelfEditIdentity,
   ): Promise<OwnProfile> {
     const profile = await this.repository.update(
       accountId,
@@ -46,12 +59,15 @@ export class ProfileService {
           throw new BadRequestException('Invalid request');
         return { preferences };
       },
+      identity,
     );
     return this.view(profile);
   }
+  @AccountPolicy('private_self_service', 'entry')
   async selectCampus(
     accountId: string,
     selection: CampusSelection,
+    identity: ProfileSelfEditIdentity,
   ): Promise<OwnProfile> {
     const profile = await this.repository.update(
       accountId,
@@ -60,6 +76,7 @@ export class ProfileService {
         await this.campuses.requireSelectable(selection.campusId, transaction);
         return { selectedCampusId: selection.campusId };
       },
+      identity,
     );
     return this.view(profile);
   }

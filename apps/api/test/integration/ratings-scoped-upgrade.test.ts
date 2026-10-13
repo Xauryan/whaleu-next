@@ -43,6 +43,7 @@ test(
       fileURLToPath(new URL('../../migrations', import.meta.url)),
     );
     await runMigrations(f.pool, migrations, { mode: 'up' });
+    await f.restartApp();
     const after = await snapshot(f.pool, tables);
     const catalogKey = 'whaleu_experience.title_catalog';
     const catalog = after[catalogKey] as { row: Record<string, unknown> }[];

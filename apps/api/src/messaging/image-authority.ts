@@ -1,3 +1,4 @@
+import { AccountPolicyFor } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -179,6 +180,7 @@ export class MessagingImageAuthority implements PrivateMessageMediaAccessPort {
     if (row?.conversation_id !== target.conversationId)
       throw new ApplicationError('MEDIA_REQUEST_CONFLICT');
   }
+  @AccountPolicyFor(() => 'browse', 'entry')
   async authorizeRead(
     token: string,
     target: { conversationId: string; messageId: string; bindingId?: string },

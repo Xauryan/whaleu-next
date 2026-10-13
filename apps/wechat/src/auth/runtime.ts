@@ -59,10 +59,28 @@ export function createIdentityRuntime(
     new WechatLogin(wx, clock),
     clock,
   );
+  let restrictionNavigationEpoch: number | undefined;
   return {
     sessions,
     auth,
-    api: new ApiClient(origin, transport, sessions, auth),
+    api: new ApiClient(origin, transport, sessions, auth, 15_000, () => {
+      const ticket = sessions.snapshot();
+      if (
+        !ticket.credentials ||
+        restrictionNavigationEpoch === ticket.epoch ||
+        !wx.navigateTo
+      )
+        return;
+      restrictionNavigationEpoch = ticket.epoch;
+      wx.navigateTo({
+        url: '/pages/account-status/account-status',
+        success() {},
+        fail() {
+          if (restrictionNavigationEpoch === ticket.epoch)
+            restrictionNavigationEpoch = undefined;
+        },
+      });
+    }),
     ...(startupError ? { startupError } : {}),
   };
 }

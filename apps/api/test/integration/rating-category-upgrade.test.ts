@@ -186,6 +186,7 @@ test('M3A real 0057 to 0058 upgrade preserves every old row, request hash, recei
     migrations.filter((m) => Number(m.name.slice(0, 4)) <= 58),
     { mode: 'up' },
   );
+  await f.restartApp(58);
   assert.deepEqual(
     await snapshot(f.pool, tables),
     before,

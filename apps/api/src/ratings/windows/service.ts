@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -84,6 +85,7 @@ export class WindowRatingsService {
       safety: await this.safety.navigation(tx),
     };
   }
+  @AccountPolicy('browse', 'entry')
   catalog(token: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
@@ -102,6 +104,7 @@ export class WindowRatingsService {
       return result;
     });
   }
+  @AccountPolicy('browse', 'entry')
   page(token: string, query: WindowQuery) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -162,6 +165,7 @@ export class WindowRatingsService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   detail(token: string, id: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
@@ -185,9 +189,11 @@ export class WindowRatingsService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   async own(token: string, id: string) {
     return (await this.detail(token, id)).myScore;
   }
+  @AccountPolicy('browse', 'entry')
   async summary(token: string, id: string) {
     return (await this.detail(token, id)).window.summary;
   }
@@ -232,6 +238,7 @@ export class WindowRatingsService {
       throw new ApplicationError('REQUEST_CONFLICT');
     return windowReceiptSchema.parse(prior.receipt);
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   setScore(
     token: string,
     id: string,
@@ -327,6 +334,7 @@ export class WindowRatingsService {
       return windowReceiptSchema.parse(receipt);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -336,6 +344,7 @@ export class WindowRatingsService {
       return windowReceiptSchema.parse(prior.receipt);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, id: string, body: WindowCancel) {
     return this.run(async (tx) => {
       if (id !== body.command.clientRequestId)

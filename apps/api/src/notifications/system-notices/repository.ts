@@ -1,3 +1,4 @@
+import type { PunishmentView } from '../../safety/account-moderation/contracts.js';
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -28,13 +29,25 @@ export interface StoredProfileCustomAvatarClearedNotice extends StoredSystemNoti
 }
 export interface StoredAdminPostRemovedNotice extends StoredSystemNoticeBase {
   event_id: string;
-  kind: 'admin_post_removed';
+  kind: 'admin_post_removed' | 'admin_discussion_removed';
+}
+export interface StoredAccountPunishmentNotice extends StoredSystemNoticeBase {
+  kind: 'account_punishment_issued' | 'account_punishment_released';
+  punishment: PunishmentView;
+}
+export interface StoredAccountAppealNotice extends StoredSystemNoticeBase {
+  kind: 'account_appeal_decided';
+  appeal_id: string;
+  outcome: 'upheld' | 'released' | 'closed_no_longer_effective';
+  reason: string;
 }
 export type StoredSystemNotice =
   | StoredPostJuryRemovalNotice
   | StoredProfileNicknameResetNotice
   | StoredProfileCustomAvatarClearedNotice
-  | StoredAdminPostRemovedNotice;
+  | StoredAdminPostRemovedNotice
+  | StoredAccountPunishmentNotice
+  | StoredAccountAppealNotice;
 
 @Injectable()
 export class SystemNoticesRepository {
@@ -75,6 +88,15 @@ export class SystemNoticesRepository {
           UNION ALL
           SELECT count(*) AS unread_count FROM whaleu_notifications.admin_post_removal_notices
           WHERE recipient_account_id=$1 AND read_at IS NULL
+          UNION ALL
+          SELECT count(*) AS unread_count FROM whaleu_notifications.account_punishment_notices
+          WHERE recipient_account_id=$1 AND read_at IS NULL
+          UNION ALL
+          SELECT count(*) AS unread_count FROM whaleu_notifications.account_appeal_notices
+          WHERE recipient_account_id=$1 AND read_at IS NULL
+          UNION ALL
+          SELECT count(*) AS unread_count FROM whaleu_notifications.admin_discussion_removal_notices
+          WHERE recipient_account_id=$1 AND read_at IS NULL
         ) notices`,
         [accountId],
       )
@@ -90,26 +112,47 @@ export class SystemNoticesRepository {
       await tx.query<StoredSystemNotice>(
         `SELECT * FROM (
           (SELECT id,decision_id,NULL::uuid AS event_id,recipient_account_id,kind,
-            keep_votes,remove_votes,NULL::text AS nickname,created_at,read_at
+            keep_votes,remove_votes,NULL::text AS nickname,created_at,read_at,NULL::jsonb AS punishment,NULL::uuid AS appeal_id,NULL::text AS outcome,NULL::text AS reason
           FROM whaleu_notifications.system_notices WHERE recipient_account_id=$1
           AND ($2::timestamptz IS NULL OR (created_at,id,kind COLLATE "C")<($2::timestamptz,$3::uuid,$4::text COLLATE "C"))
           ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5)
           UNION ALL
           (SELECT id,NULL::uuid AS decision_id,event_id,recipient_account_id,kind,
-            NULL::integer AS keep_votes,NULL::integer AS remove_votes,nickname,created_at,read_at
+            NULL::integer AS keep_votes,NULL::integer AS remove_votes,nickname,created_at,read_at,NULL::jsonb AS punishment,NULL::uuid AS appeal_id,NULL::text AS outcome,NULL::text AS reason
           FROM whaleu_notifications.profile_moderation_notices WHERE recipient_account_id=$1
           AND ($2::timestamptz IS NULL OR (created_at,id,kind COLLATE "C")<($2::timestamptz,$3::uuid,$4::text COLLATE "C"))
           ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5)
           UNION ALL
           (SELECT id,NULL::uuid AS decision_id,event_id,recipient_account_id,kind,
-            NULL::integer AS keep_votes,NULL::integer AS remove_votes,NULL::text AS nickname,created_at,read_at
+            NULL::integer AS keep_votes,NULL::integer AS remove_votes,NULL::text AS nickname,created_at,read_at,NULL::jsonb AS punishment,NULL::uuid AS appeal_id,NULL::text AS outcome,NULL::text AS reason
           FROM whaleu_notifications.profile_avatar_moderation_notices WHERE recipient_account_id=$1
           AND ($2::timestamptz IS NULL OR (created_at,id,kind COLLATE "C")<($2::timestamptz,$3::uuid,$4::text COLLATE "C"))
           ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5)
           UNION ALL
           (SELECT id,NULL::uuid AS decision_id,event_id,recipient_account_id,kind,
-            NULL::integer AS keep_votes,NULL::integer AS remove_votes,NULL::text AS nickname,created_at,read_at
+            NULL::integer AS keep_votes,NULL::integer AS remove_votes,NULL::text AS nickname,created_at,read_at,NULL::jsonb AS punishment,NULL::uuid AS appeal_id,NULL::text AS outcome,NULL::text AS reason
           FROM whaleu_notifications.admin_post_removal_notices WHERE recipient_account_id=$1
+          AND ($2::timestamptz IS NULL OR (created_at,id,kind COLLATE "C")<($2::timestamptz,$3::uuid,$4::text COLLATE "C"))
+          ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5)
+          UNION ALL
+          (SELECT n.id,NULL::uuid AS decision_id,n.event_id,n.recipient_account_id,n.kind,
+            NULL::integer AS keep_votes,NULL::integer AS remove_votes,NULL::text AS nickname,n.created_at,n.read_at,
+            whaleu_safety.account_punishment_view(n.punishment_id) punishment,NULL::uuid AS appeal_id,NULL::text AS outcome,NULL::text AS reason
+          FROM whaleu_notifications.account_punishment_notices n WHERE n.recipient_account_id=$1
+          AND ($2::timestamptz IS NULL OR (n.created_at,n.id,n.kind COLLATE "C")<($2::timestamptz,$3::uuid,$4::text COLLATE "C"))
+          ORDER BY n.created_at DESC,n.id DESC,n.kind COLLATE "C" DESC LIMIT $5)
+          UNION ALL
+          (SELECT id,decision_id,NULL::uuid AS event_id,recipient_account_id,kind,
+            NULL::integer AS keep_votes,NULL::integer AS remove_votes,NULL::text AS nickname,created_at,read_at,
+            NULL::jsonb AS punishment,appeal_id,outcome,reason
+          FROM whaleu_notifications.account_appeal_notices WHERE recipient_account_id=$1
+          AND ($2::timestamptz IS NULL OR (created_at,id,kind COLLATE "C")<($2::timestamptz,$3::uuid,$4::text COLLATE "C"))
+          ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5)
+          UNION ALL
+          (SELECT id,NULL::uuid AS decision_id,event_id,recipient_account_id,kind,
+            NULL::integer AS keep_votes,NULL::integer AS remove_votes,NULL::text AS nickname,created_at,read_at,
+            NULL::jsonb AS punishment,NULL::uuid AS appeal_id,NULL::text AS outcome,NULL::text AS reason
+          FROM whaleu_notifications.admin_discussion_removal_notices WHERE recipient_account_id=$1
           AND ($2::timestamptz IS NULL OR (created_at,id,kind COLLATE "C")<($2::timestamptz,$3::uuid,$4::text COLLATE "C"))
           ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5)
         ) notices ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT $5`,
@@ -161,6 +204,21 @@ export class SystemNoticesRepository {
        SET read_at=COALESCE(read_at,date_trunc('milliseconds',clock_timestamp()))
        WHERE id=$1 AND recipient_account_id=$2
        RETURNING id,event_id,recipient_account_id,kind,created_at,read_at`;
+    } else if (identity.kind === 'admin_discussion_removed') {
+      statement = `UPDATE whaleu_notifications.admin_discussion_removal_notices
+       SET read_at=COALESCE(read_at,date_trunc('milliseconds',clock_timestamp()))
+       WHERE id=$1 AND recipient_account_id=$2 RETURNING id,event_id,recipient_account_id,kind,created_at,read_at`;
+    } else if (
+      identity.kind === 'account_punishment_issued' ||
+      identity.kind === 'account_punishment_released'
+    ) {
+      statement = `UPDATE whaleu_notifications.account_punishment_notices
+       SET read_at=COALESCE(read_at,date_trunc('milliseconds',clock_timestamp()))
+       WHERE id=$1 AND recipient_account_id=$2 RETURNING id,event_id,recipient_account_id,kind,created_at,read_at`;
+    } else if (identity.kind === 'account_appeal_decided') {
+      statement = `UPDATE whaleu_notifications.account_appeal_notices
+       SET read_at=COALESCE(read_at,date_trunc('milliseconds',clock_timestamp()))
+       WHERE id=$1 AND recipient_account_id=$2 RETURNING id,appeal_id,recipient_account_id,kind,outcome,reason,created_at,read_at`;
     } else {
       throw new ApplicationError('SYSTEM_NOTICES_UNAVAILABLE');
     }

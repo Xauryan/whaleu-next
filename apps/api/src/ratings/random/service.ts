@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { ZodError } from 'zod';
 import { DatabaseService } from '../../database/database.js';
@@ -34,6 +35,7 @@ export class RatingRandomService {
     @Inject(RatingSafetyFacade) private readonly safety: RatingSafetyFacade,
     @Inject(RatingRandomDraw) private readonly draw: RatingRandomDraw,
   ) {}
+  @AccountPolicy('browse', 'entry')
   async select(token: string, query: RatingRandomQuery) {
     try {
       return await this.database.transaction(

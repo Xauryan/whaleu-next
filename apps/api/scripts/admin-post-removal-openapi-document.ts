@@ -41,7 +41,7 @@ export async function createAdminPostRemovalOpenApiDocument(): Promise<OpenAPIOb
         .setOpenAPIVersion('3.0.3')
         .setTitle('WhaleU scoped administrator post removal')
         .setDescription(
-          'Remove one currently readable native-origin post in its original regional scope with sync:none. Named and anonymous posts remain content targets only; private authors never become public account locators. Exact school-admin or super-admin grant, phone, Safety, Review, source version and current Media remain required. The canonical tombstone closes pins and creates the existing durable bounded cleanup obligation, plus one independent private author notice. No owner-deletion Experience, jury verdict, ban, role grant or provider is created. Actor-owned recovery and cancellation need only the same active account and current session token.',
+          'Remove one currently readable native-origin post in its original regional scope with sync:none. Named and anonymous posts remain content targets only; private authors never become public account locators. Exact school-admin or super-admin grant, phone, Safety, Review, source version and current Media remain required. The canonical tombstone closes pins and creates the existing durable bounded cleanup obligation, plus one independent private author notice. Version1 creates no account punishment; explicit version2 may atomically issue Safety mute or suspension for the exact original author. No owner-deletion Experience, jury verdict, role grant or provider is created. Actor-owned recovery and cancellation need only the same active account and current session token.',
         )
         .setVersion('1')
         .addSecurity('accessToken', {

@@ -1,3 +1,5 @@
+import { enforceAccountPunishment } from '../safety/account-moderation/policy.js';
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { timingSafeEqual } from 'node:crypto';
 import { DatabaseService } from '../database/database.js';
@@ -28,6 +30,7 @@ export class ExperienceRedemptionService {
     @Inject(RedemptionAttemptBudget)
     private readonly budget: RedemptionAttemptBudget,
   ) {}
+  @AccountPolicy('private_self_service', 'entry')
   capability(token: string) {
     return this.database.transaction(async (tx) => {
       await this.identity.session(token, tx);
@@ -43,6 +46,7 @@ export class ExperienceRedemptionService {
       };
     });
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   redeem(token: string, input: RedemptionIntent): Promise<RedemptionReceipt> {
     return this.database.transaction(async (tx) => {
       const owner = (await this.identity.session(token, tx)).accountId;
@@ -72,6 +76,7 @@ export class ExperienceRedemptionService {
           throw new ApplicationError('EXPERIENCE_REQUEST_CONFLICT');
         return prior.receipt as RedemptionReceipt;
       }
+      await enforceAccountPunishment(owner, 'private_self_service', tx);
       if (!(await this.budget.permit(owner)))
         throw new ApplicationError('EXPERIENCE_REDEMPTION_RATE_LIMITED');
       await lockExperienceOwner(tx, owner, true);

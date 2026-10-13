@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -88,6 +89,7 @@ export class CourseRatingsService {
       summary: await this.records.summary(row.course_id, tx),
     });
   }
+  @AccountPolicy('browse', 'entry')
   page(token: string, query: CourseQuery) {
     return this.run(async (tx) => {
       const session = await this.authenticate(token, tx),
@@ -154,6 +156,7 @@ export class CourseRatingsService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   detail(token: string, id: string) {
     return this.run(async (tx) => {
       const session = await this.authenticate(token, tx);
@@ -173,12 +176,15 @@ export class CourseRatingsService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   async own(token: string, id: string) {
     return (await this.detail(token, id)).myScore;
   }
+  @AccountPolicy('browse', 'entry')
   async summary(token: string, id: string) {
     return (await this.detail(token, id)).course.summary;
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   firstScore(
     token: string,
     id: string,
@@ -267,6 +273,7 @@ export class CourseRatingsService {
       return courseReceiptSchema.parse(receipt);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.run(async (tx) => {
       // Historical recovery intentionally reveals only this actor's original tuple;

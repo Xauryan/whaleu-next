@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import type { MediaIngressStorage } from '../../media/ingress-storage.js';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -127,6 +128,7 @@ export class ProfileAvatarService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   async command(token: string, raw: unknown): Promise<AvatarReceipt> {
     const command = avatarCommandSchema.parse(raw);
     return this.authorized(token, async (session, tx) => {
@@ -261,6 +263,7 @@ export class ProfileAvatarService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recoverCommand(
     token: string,
     requestId: string,
@@ -301,6 +304,7 @@ export class ProfileAvatarService {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelCommand(
     token: string,
     requestId: string,
@@ -496,6 +500,7 @@ export class ProfileAvatarService {
       throw error;
     }
   }
+  @AccountPolicy('private_self_service', 'entry')
   ownCurrent(token: string): Promise<AvatarCurrent> {
     return this.authorized(
       token,
@@ -509,6 +514,7 @@ export class ProfileAvatarService {
       false,
     );
   }
+  @AccountPolicy('browse', 'entry')
   publicCurrent(
     token: string | null,
     profileId: string,
@@ -526,6 +532,7 @@ export class ProfileAvatarService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   catalog() {
     return this.database.transaction(
       async (tx) =>

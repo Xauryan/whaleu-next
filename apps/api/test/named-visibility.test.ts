@@ -1,3 +1,4 @@
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -117,6 +118,9 @@ function fixture() {
   };
   const tx = {
     query: async (sql: string, args: unknown[] = []) => {
+      // Account overlay is a separate unpunished fixture leaf; owner traces stay scoped.
+      const policy = unpunishedAccountPolicyObservation(sql, args);
+      if (policy) return policy;
       trace.push('query');
       if (sql.startsWith('SELECT requested.post_id'))
         return {

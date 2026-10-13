@@ -1,3 +1,8 @@
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+  operationAccountPolicy,
+} from '../safety/account-policy/decorator.js';
 import { ErrandMediaService } from './media/facade.js';
 import { MediaCurrentDenied } from '../media/asset-repository.js';
 import { ErrandPublicationService } from './publication-service.js';
@@ -145,6 +150,7 @@ export class ErrandsService {
       )),
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   publish(token: string, body: PublishErrand) {
     const { clientRequestId, ...intent } = body;
     return this.requests.execute(
@@ -190,6 +196,16 @@ export class ErrandsService {
       },
     );
   }
+  @AccountPolicyFor(
+    (args) =>
+      operationAccountPolicy(args[2], {
+        cancel: 'protective_cleanup',
+        delete: 'protective_cleanup',
+        accept: 'interaction',
+        complete: 'interaction',
+      }),
+    'owner_after_recovery',
+  )
   command(
     token: string,
     id: string,
@@ -274,9 +290,11 @@ export class ErrandsService {
       },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.requests.receipt(token, id);
   }
+  @AccountPolicy('browse', 'entry')
   contacts(token: string) {
     return this.run(async (tx) => {
       const actor = await this.access.common(token, tx);
@@ -318,6 +336,7 @@ export class ErrandsService {
   }
   /** Media byte authority reuses the actual order-read gates. Management grants
    * do not create a private participant relationship. */
+  @AccountPolicyFor(() => 'browse', 'entry')
   async mediaAuthority(
     token: string,
     target: ErrandMediaReadTarget,
@@ -356,6 +375,7 @@ export class ErrandsService {
       media,
     };
   }
+  @AccountPolicy('browse', 'entry')
   detail(token: string, id: string) {
     return this.run(async (tx) => {
       const { actor, row, relation } = await this.readableOrder(token, id, tx);
@@ -418,9 +438,11 @@ export class ErrandsService {
       return errandDetailSchema.parse(detail);
     });
   }
+  @AccountPolicy('browse', 'entry')
   list(token: string, query: ErrandsQuery) {
     return this.page(token, { kind: 'discovery', query });
   }
+  @AccountPolicy('browse', 'entry')
   own(token: string, query: OwnErrandsQuery) {
     return this.page(token, { kind: 'own', query });
   }

@@ -1,3 +1,4 @@
+import { AccountPolicyFor } from '../../../safety/account-policy/decorator.js';
 import { campusCountProofOwner } from '../../../campus/count-epochs.js';
 import { windowEpoch } from '../proof.js';
 import { profileCountProofOwner } from '../../../profile/count-epochs.js';
@@ -265,6 +266,7 @@ export class WindowDiscussionMediaOwner implements WindowDiscussionMediaAccessPo
       );
     }
   }
+  @AccountPolicyFor(() => 'browse', 'entry')
   async authorizeRead(
     token: string,
     reference: WindowDiscussionReference,

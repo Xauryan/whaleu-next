@@ -1,3 +1,4 @@
+import { AccountPolicy } from './account-policy/decorator.js';
 import {
   checkpointTransactionDeadlines,
   restoreTransactionDeadlines,
@@ -132,6 +133,7 @@ export class NamedBlockService {
     )
       throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
   }
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   block(token: string, body: BlockRequest): Promise<BlockResult> {
     return this.mutate(
       token,
@@ -141,6 +143,7 @@ export class NamedBlockService {
       body,
     );
   }
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   unblock(
     token: string,
     id: string,
@@ -311,6 +314,7 @@ export class NamedBlockService {
           : null,
     };
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, requestId: string): Promise<BlockResult> {
     return this.transaction(false, async (tx) => {
       const actor = (await this.identity.session(token, tx)).accountId;
@@ -327,6 +331,7 @@ export class NamedBlockService {
       return result;
     });
   }
+  @AccountPolicy('private_self_service', 'entry')
   status(token: string, id: string): Promise<BlockState> {
     return this.transaction(false, async (tx) => {
       const actor = (await this.identity.session(token, tx)).accountId;
@@ -337,6 +342,7 @@ export class NamedBlockService {
       return result;
     });
   }
+  @AccountPolicy('private_self_service', 'entry')
   list(token: string, query: OwnBlocksQuery): Promise<OwnBlocksPage> {
     return this.transaction(false, async (tx) => {
       const actor = (await this.identity.session(token, tx)).accountId;

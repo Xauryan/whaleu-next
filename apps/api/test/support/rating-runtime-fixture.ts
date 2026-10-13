@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 /** Synthetic isolated facts through normal AppModule and canonical owner tables.
  * No runtime issuer, approval override, production data or historical zero. */
 import assert from 'node:assert/strict';
@@ -110,8 +111,7 @@ export async function setRatingReviewState(
   });
 }
 export async function ratingRuntimeFixture(maximumMigration?: number) {
-  const f = await directoryRuntimeFixture(maximumMigration),
-    http = f.app.getHttpServer();
+  const f = await directoryRuntimeFixture(maximumMigration);
   type Actor = Awaited<ReturnType<typeof f.actor>>;
   const auth = (r: request.Test, a: Actor) =>
     r.set('Authorization', `Bearer ${a.accessToken}`);
@@ -305,7 +305,9 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
   ) => {
     const approval = await approveRating(f.pool, envelope(a, c, t, input));
     const response = await auth(
-      request(http).post(`/v1/ratings/targets/${t.id}/comments`),
+      request(f.app.getHttpServer()).post(
+        `/v1/ratings/targets/${t.id}/comments`,
+      ),
       a,
     ).send(input);
     assert.equal(response.status, 200, JSON.stringify(response.body));
@@ -322,7 +324,16 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
       input,
     };
   };
-  return { ...f, http, auth, catalog, body, envelope, publish };
+  return extendLiveFixture(f, {
+    get http() {
+      return f.app.getHttpServer();
+    },
+    auth,
+    catalog,
+    body,
+    envelope,
+    publish,
+  });
 }
 export type RatingRuntimeFixture = Awaited<
   ReturnType<typeof ratingRuntimeFixture>

@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { currentCategoryIconDescriptor } from '../category-management/icon-current.js';
 import {
   ratingDiscussionMediaRootSchema,
@@ -339,6 +340,7 @@ export class RatingScopedReadService {
     await this.projection.qualifyTarget(target.row, tx);
     return target;
   }
+  @AccountPolicy('browse', 'entry')
   categories(token: string, query: CategoryQuery, includeIcon = false) {
     return this.run(
       token,
@@ -405,6 +407,7 @@ export class RatingScopedReadService {
       includeIcon ? 5 : 2,
     );
   }
+  @AccountPolicy('browse', 'entry')
   categoryIcon(token: string, id: string, query: ReadQuery) {
     return this.run(
       token,
@@ -428,6 +431,7 @@ export class RatingScopedReadService {
       5,
     );
   }
+  @AccountPolicy('browse', 'entry')
   targets(token: string, query: TargetQuery, includeCover = false) {
     return this.run(
       token,
@@ -514,6 +518,7 @@ export class RatingScopedReadService {
       includeCover ? 3 : 2,
     );
   }
+  @AccountPolicy('browse', 'entry')
   target(token: string, id: string, query: ReadQuery, includeCover = false) {
     return this.run(
       token,
@@ -533,6 +538,7 @@ export class RatingScopedReadService {
       includeCover ? 3 : 2,
     );
   }
+  @AccountPolicy('browse', 'entry')
   myScore(token: string, id: string, query: ReadQuery) {
     return this.run(token, query, async (scope, tx) => {
       await this.targetRow(scope, id, tx);
@@ -541,12 +547,14 @@ export class RatingScopedReadService {
       );
     });
   }
+  @AccountPolicy('browse', 'entry')
   summary(token: string, id: string, query: ReadQuery) {
     return this.run(token, query, async (scope, tx) => {
       await this.targetRow(scope, id, tx);
       return ratingSummarySchema.parse(await this.records.summary(id, tx));
     });
   }
+  @AccountPolicy('browse', 'entry')
   composerContext(
     token: string,
     targetId: string,
@@ -613,6 +621,7 @@ export class RatingScopedReadService {
     if (envelopes.length)
       await currentRatingDiscussionMediaBatch(envelopes, actor, tx);
   }
+  @AccountPolicy('browse', 'entry')
   comments(
     token: string,
     id: string,
@@ -719,6 +728,7 @@ export class RatingScopedReadService {
     );
     return { target, root, rootView, rootCanReply };
   }
+  @AccountPolicy('browse', 'entry')
   comment(
     token: string,
     id: string,
@@ -741,6 +751,7 @@ export class RatingScopedReadService {
       discussionMedia ? 4 : 2,
     );
   }
+  @AccountPolicy('browse', 'entry')
   thread(
     token: string,
     rootId: string,
@@ -856,6 +867,7 @@ export class RatingScopedReadService {
       continuation: more ? (items.length ? 'more' : 'scan') : 'end',
     });
   }
+  @AccountPolicy('browse', 'entry')
   listReplies(
     token: string,
     rootId: string,
@@ -869,6 +881,7 @@ export class RatingScopedReadService {
       discussionMedia ? 4 : 2,
     );
   }
+  @AccountPolicy('browse', 'entry')
   reply(token: string, id: string, query: ReadQuery, discussionMedia = false) {
     return this.run(
       token,
@@ -892,6 +905,7 @@ export class RatingScopedReadService {
       discussionMedia ? 4 : 2,
     );
   }
+  @AccountPolicy('browse', 'entry')
   locateReply(
     token: string,
     id: string,
@@ -917,6 +931,7 @@ export class RatingScopedReadService {
       discussionMedia ? 4 : 2,
     );
   }
+  @AccountPolicy('browse', 'entry')
   likeState(
     token: string,
     kind: 'comment' | 'reply',
@@ -1014,12 +1029,14 @@ export class RatingScopedReadService {
         : { status: 'unavailable' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   subscriptionState(token: string, id: string, query: ReadQuery) {
     return this.run(token, query, async (scope, tx) => {
       await this.targetRow(scope, id, tx);
       return this.subscriptionView(scope, id, tx);
     });
   }
+  @AccountPolicy('browse', 'entry')
   subscriptionStates(
     token: string,
     command: z.infer<typeof ratingScopedSubscriptionQuerySchema>,
@@ -1053,6 +1070,7 @@ export class RatingScopedReadService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   listSubscriptions(token: string, query: PageQuery, includeCover = false) {
     return this.run(
       token,

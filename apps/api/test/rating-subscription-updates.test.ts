@@ -1,3 +1,8 @@
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
+import {
+  startTransactionDeadlines,
+  clearTransactionDeadlines,
+} from '../src/database/transaction-deadlines.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -33,7 +38,10 @@ const local = () =>
   ({
     host: '127.0.0.1',
     connection: { stream: { remoteAddress: '127.0.0.1' } },
-    query: async () => ({ rows: [{ name: 'whaleu_test' }] }),
+    query: async (sql: string, args: unknown[] = []) =>
+      unpunishedAccountPolicyObservation(sql, args) ?? {
+        rows: [{ name: 'whaleu_test' }],
+      },
   }) as unknown as PoolClient;
 function notice() {
   return {
@@ -410,7 +418,14 @@ test('subscription read keeps source checks before owner, exact timestamps and n
   const tx = local();
   const service = new RatingSubscriptionUpdatesReadService(
     {
-      transaction: async (fn: (t: PoolClient) => Promise<unknown>) => fn(tx),
+      transaction: async (fn: (t: PoolClient) => Promise<unknown>) => {
+        startTransactionDeadlines(tx);
+        try {
+          return await fn(tx);
+        } finally {
+          clearTransactionDeadlines(tx);
+        }
+      },
     } as never,
     {
       session: async () => {

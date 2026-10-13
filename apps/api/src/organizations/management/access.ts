@@ -1,3 +1,4 @@
+import { AccountPolicyFor } from '../../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
@@ -286,6 +287,7 @@ export class OrganizationAccess implements OrganizationMediaAccessPort {
   retainMediaCurrent(id: string, tx: PoolClient) {
     return requireOrganizationCurrent(id, tx);
   }
+  @AccountPolicyFor(() => 'browse', 'entry')
   async authorizeMediaRead(
     token: string,
     target: OrganizationMediaReadTarget,

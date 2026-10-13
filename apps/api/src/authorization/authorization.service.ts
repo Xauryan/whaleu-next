@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.js';
@@ -18,6 +19,7 @@ export class AuthorizationService {
     private readonly repository: AuthorizationRepository,
   ) {}
 
+  @AccountPolicy('private_self_service', 'entry')
   capabilities(token: string): Promise<AuthorizationCapabilities> {
     return this.database.transaction(async (transaction) => {
       const actor = await this.identity.session(token, transaction);

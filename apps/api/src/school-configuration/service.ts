@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { ErrandsService } from '../errands/service.js';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -91,11 +92,13 @@ export class SchoolConfigurationService {
       throw error;
     }
   }
+  @AccountPolicy('privileged_read', 'entry')
   capabilities(token: string) {
     return this.run(async (tx) =>
       schoolCapabilitiesSchema.parse(await this.access.capabilities(token, tx)),
     );
   }
+  @AccountPolicy('browse', 'entry')
   public(token: string | null, campusId: string) {
     return this.run(async (tx) => {
       const context = await this.access.browse(token, campusId, tx),
@@ -122,6 +125,7 @@ export class SchoolConfigurationService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   errandOrder(token: string, orderId: string) {
     return this.run(async (tx) => {
       const context = await this.errands.targetContext(token, orderId, tx),
@@ -141,6 +145,7 @@ export class SchoolConfigurationService {
       });
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   management(token: string, regionId: string | undefined) {
     return this.run(async (tx) => {
       const context = await this.access.management(token, regionId, tx),
@@ -166,6 +171,7 @@ export class SchoolConfigurationService {
       });
     });
   }
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   save(
     token: string,
     regionId: string,
@@ -236,6 +242,7 @@ export class SchoolConfigurationService {
       );
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, requestId: string, requestHash: string) {
     return this.run(async (tx) => {
       const session = await this.access.authenticate(token, tx),
@@ -266,6 +273,7 @@ export class SchoolConfigurationService {
       });
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, requestId: string) {
     return this.run(async (tx) => {
       const session = await this.access.authenticate(token, tx);

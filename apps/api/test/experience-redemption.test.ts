@@ -1,3 +1,8 @@
+import {
+  startTransactionDeadlines,
+  clearTransactionDeadlines,
+} from '../src/database/transaction-deadlines.js';
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -87,12 +92,21 @@ function harness(
   const queries: unknown[] = [];
   const tx = {
     query: async (sql: string, params: unknown[]) => {
+      const policy = unpunishedAccountPolicyObservation(sql, params);
+      if (policy) return policy; // Existing assertions count redemption owner SQL only.
       queries.push([sql, params]);
       return { rows: [], rowCount: 0 };
     },
   } as unknown as PoolClient;
   const database = {
-    transaction: async <T>(fn: (tx: PoolClient) => Promise<T>) => fn(tx),
+    transaction: async <T>(fn: (tx: PoolClient) => Promise<T>) => {
+      startTransactionDeadlines(tx);
+      try {
+        return await fn(tx);
+      } finally {
+        clearTransactionDeadlines(tx);
+      }
+    },
   } as DatabaseService;
   const identity = {
     session: async () => ({ accountId: 'synthetic-owner' }),

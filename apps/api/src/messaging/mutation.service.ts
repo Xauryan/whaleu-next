@@ -1,3 +1,7 @@
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+} from '../safety/account-policy/decorator.js';
 import { canonicalDmEnvelope } from '../community/content-review/dm-contracts.js';
 import { PrivateMessageMediaService } from './media/facade.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -63,6 +67,7 @@ export class MessagingMutationService {
     return (await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now'))
       .rows[0]!.now;
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   open(token: string, body: z.infer<typeof dmOpenSchema>) {
     return this.requests.execute(
       token,
@@ -175,6 +180,7 @@ export class MessagingMutationService {
       },
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   send(token: string, id: string, body: z.infer<typeof dmSendSchema>) {
     return this.requests.execute(
       token,
@@ -275,6 +281,7 @@ export class MessagingMutationService {
       },
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   sendImage(
     token: string,
     id: string,
@@ -397,6 +404,7 @@ export class MessagingMutationService {
       },
     );
   }
+  @AccountPolicy('passive_bookkeeping', 'entry')
   read(token: string, id: string, requestId: string, observationId: string) {
     return this.requests.execute(
       token,
@@ -443,6 +451,10 @@ export class MessagingMutationService {
       },
     );
   }
+  @AccountPolicyFor(
+    (args) => (args[3] === 'hide' ? 'protective_cleanup' : 'interaction'),
+    'owner_after_recovery',
+  )
   visibility(
     token: string,
     id: string,
@@ -487,6 +499,7 @@ export class MessagingMutationService {
       },
     );
   }
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   recall(token: string, id: string, messageId: string, requestId: string) {
     return this.requests.execute(
       token,
@@ -542,6 +555,7 @@ export class MessagingMutationService {
       },
     );
   }
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   block(token: string, id: string, requestId: string) {
     return this.requests.execute(
       token,

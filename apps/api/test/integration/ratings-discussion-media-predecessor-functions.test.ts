@@ -71,6 +71,7 @@ test('0082 to discussion upgrade preserves all ten predecessor function bodies a
     ),
     { mode: 'up' },
   );
+  await f.restartApp(83);
   for (const [index, [schema, name]] of names.entries()) {
     const previous = before[index]!,
       clone = await read(schema, `${name}_pre_discussion_media`);

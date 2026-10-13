@@ -1,3 +1,4 @@
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
 import {
   untouchedCategoryRows,
   untouchedCategoryChildRows,
@@ -482,6 +483,9 @@ function fixture(collision = false) {
     regionActive = true;
   const tx = {
     query: async (sql: string, args: unknown[] = []) => {
+      // Account overlay is a separate unpunished fixture leaf; owner traces stay scoped.
+      const policy = unpunishedAccountPolicyObservation(sql, args);
+      if (policy) return policy;
       calls.push({ sql, args });
       const one = (value: unknown) => ({ rows: value ? [value] : [] });
       if (sql.startsWith('SELECT q.kind,q.id,q.post_id'))

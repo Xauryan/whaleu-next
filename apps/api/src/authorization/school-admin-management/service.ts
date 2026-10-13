@@ -1,3 +1,5 @@
+import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -267,6 +269,7 @@ export class SchoolAdminManagementService {
       management,
     };
   }
+  @AccountPolicy('privileged_read', 'entry')
   management(
     token: string,
     targetProfile: string,
@@ -286,6 +289,7 @@ export class SchoolAdminManagementService {
       ).management;
     });
   }
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   async command(
     token: string,
     command: SchoolAdminManagementCommand,
@@ -351,6 +355,7 @@ export class SchoolAdminManagementService {
           throw new ApplicationError('REQUEST_CONFLICT');
         return schoolAdminManagementReceiptSchema.parse(previous.receipt);
       }
+      await enforceAccountPunishment(actor, 'noncontent_management', tx);
       const resolved = await this.resolve(
         actor,
         command.targetProfileId,
@@ -477,6 +482,7 @@ export class SchoolAdminManagementService {
       ...(command.action === 'revoke' ? {} : { regionId: command.regionId }),
     };
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recovery(token: string, request: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);

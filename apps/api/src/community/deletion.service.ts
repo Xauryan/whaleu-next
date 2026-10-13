@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { lockSafetyPolicy } from '../safety/locks.js';
 import { MEDIA_ATTACHMENT } from './community-policy.js';
 import type { MediaAttachmentPort } from './community-policy.js';
@@ -17,6 +18,7 @@ export class DeletionService {
     private readonly access: CommunityAccessService,
     @Inject(MEDIA_ATTACHMENT) private readonly media: MediaAttachmentPort,
   ) {}
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   post(token: string, id: string): Promise<void> {
     return this.repository.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);
@@ -46,6 +48,7 @@ export class DeletionService {
       );
     });
   }
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   comment(token: string, id: string): Promise<void> {
     return this.repository.database.transaction(async (tx) => {
       await lockSafetyPolicy(tx, true);

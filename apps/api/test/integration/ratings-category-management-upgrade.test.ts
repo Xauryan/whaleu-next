@@ -191,6 +191,7 @@ test(
     const tables = await originalTables(f.pool),
       before = await oldColumnBytes(f.pool, tables);
     await runMigrations(f.pool, await migrationsThrough(69), { mode: 'up' });
+    await f.restartApp(69);
     assert.deepEqual(
       await oldColumnBytes(f.pool, tables),
       before,

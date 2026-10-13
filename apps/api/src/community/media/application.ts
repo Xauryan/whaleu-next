@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import type { PoolClient } from 'pg';
 import { lockSafetyPolicy } from '../../safety/locks.js';
 import { ApplicationError } from '../../http/application-error.js';
@@ -59,6 +60,7 @@ export class CommunityMediaApplication implements MediaApplication {
     private readonly assets: MediaAssetRepository,
     private readonly delivery: MediaDeliveryService,
   ) {}
+  @AccountPolicy('interaction', 'owner_after_recovery')
   prepare(token: string, input: unknown): Promise<MediaIntentStatus> {
     return this.authorized(token, async (actor, tx) =>
       this.encode(
@@ -69,6 +71,7 @@ export class CommunityMediaApplication implements MediaApplication {
       ),
     );
   }
+  @AccountPolicy('browse', 'entry')
   status(token: string, id: string): Promise<MediaIntentStatus> {
     return this.authorized(token, async (actor, tx) => {
       await this.requireLegacyIntent(actor, id, tx);
@@ -85,6 +88,7 @@ export class CommunityMediaApplication implements MediaApplication {
         : this.encode(receipt);
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   finalize(token: string, id: string): Promise<MediaIntentStatus> {
     return this.authorized(token, async (actor, tx) => {
       await this.requireLegacyIntent(actor, id, tx);
@@ -101,12 +105,14 @@ export class CommunityMediaApplication implements MediaApplication {
         : this.encode(receipt);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, id: string): Promise<void> {
     return this.authorized(token, async (actor, tx) => {
       await this.requireLegacyIntent(actor, id, tx);
       await this.lifecycle.cancel(actor, id, tx);
     });
   }
+  @AccountPolicy('browse', 'entry')
   open(token: string, id: string, variant: MediaVariantName, range?: string) {
     return this.delivery.open(token, id, variant, range);
   }

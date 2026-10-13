@@ -1,3 +1,5 @@
+import { noticeContentAllowed } from '../../safety/account-policy/notice-projection.js';
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { RatingAuthorizationFacade } from '../../authorization/rating-grants.facade.js';
 import { MajorDiscussionMediaService } from './media/facade.js';
 import { MajorDiscussionMediaOwner } from './media-owner.js';
@@ -251,6 +253,7 @@ export class MajorDiscussionService {
     );
     return row.history;
   }
+  @AccountPolicy('browse', 'entry')
   own(token: string, id: string, comment: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -364,6 +367,7 @@ export class MajorDiscussionService {
       )
     ).rows;
   }
+  @AccountPolicy('browse', 'entry')
   page(
     token: string,
     id: string,
@@ -596,6 +600,7 @@ export class MajorDiscussionService {
       ],
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   publish(token: string, id: string, command: MajorRootPublish) {
     return this.mutate(
       token,
@@ -606,6 +611,7 @@ export class MajorDiscussionService {
       false,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   reply(token: string, id: string, root: string, command: MajorReplyPublish) {
     return this.mutate(
       token,
@@ -616,6 +622,7 @@ export class MajorDiscussionService {
       false,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   like(
     token: string,
     id: string,
@@ -631,6 +638,7 @@ export class MajorDiscussionService {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, key: string, input: MajorDiscussionCancel) {
     if (key !== input.command.clientRequestId)
       throw new ApplicationError('REQUEST_CONFLICT');
@@ -647,6 +655,7 @@ export class MajorDiscussionService {
       true,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   publishV2(token: string, id: string, command: MajorRootPublishV2) {
     return this.mutate(
       token,
@@ -657,6 +666,7 @@ export class MajorDiscussionService {
       false,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   replyV2(
     token: string,
     id: string,
@@ -706,6 +716,7 @@ export class MajorDiscussionService {
     )
       throw new ApplicationError('REQUEST_CONFLICT');
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receiptV2(token: string, key: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
@@ -719,6 +730,7 @@ export class MajorDiscussionService {
       return parsed.data;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelV2(token: string, key: string, input: MajorDiscussionCancelV2) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -1078,6 +1090,7 @@ export class MajorDiscussionService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, key: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -1101,6 +1114,8 @@ export class MajorDiscussionService {
       createdAt: row.created_at.toISOString(),
       readAt: row.read_at?.toISOString() ?? null,
     };
+    if (!(await noticeContentAllowed(actor, tx)))
+      return { ...base, status: 'unavailable' as const };
     const epoch = await discussionEpoch(tx),
       observation = (
         await tx.query<{ source: DiscussionSource | null }>(
@@ -1179,6 +1194,7 @@ export class MajorDiscussionService {
       },
     };
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   noticePage(
     token: string,
     query: Pick<MajorDiscussionQuery, 'limit' | 'cursor'>,
@@ -1259,6 +1275,7 @@ export class MajorDiscussionService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   noticeTarget(token: string, id: string, v2 = false) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
@@ -1282,6 +1299,7 @@ export class MajorDiscussionService {
       return majorDiscussionTargetSchema.parse(view.target);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   noticeRead(token: string, id: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),

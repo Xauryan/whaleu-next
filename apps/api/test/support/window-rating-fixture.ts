@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 /** Explicit synthetic source/topology acceptance, independent empty history. */
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
@@ -169,5 +170,5 @@ export async function windowRatingFixture(
     score: -10,
     ...patch,
   });
-  return { ...f, windows, add, accept, command };
+  return extendLiveFixture(f, { windows, add, accept, command });
 }

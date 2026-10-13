@@ -6,7 +6,7 @@ import type { INestApplication } from '@nestjs/common';
 import type { Pool } from 'pg';
 import { IdentityRepository } from '../../src/identity/identity.repository.js';
 import { mintToken, hashToken } from '../../src/identity/tokens.js';
-import { inTransaction } from '../../src/database/database.js';
+import { DatabaseService } from '../../src/database/database.js';
 import { CommunityAccessService } from '../../src/community/community-access.service.js';
 import { CommunityRepository } from '../../src/community/community.repository.js';
 import { publishPostSchema } from '../../src/community/contracts.js';
@@ -92,12 +92,15 @@ export function postApprovalEnvelope(
 ): Promise<EffectiveContentEnvelope>;
 export async function postApprovalEnvelope(
   app: INestApplication,
-  pool: Pool,
+  _pool: Pool,
   accountId: string,
   input: PublishPost,
 ): Promise<EffectiveContentEnvelope> {
   const body = publishPostSchema.parse(input);
-  return inTransaction(pool, async (tx) => {
+  // Keep the legacy pool argument for caller compatibility; the application
+  // owns both the connection and its transaction-scoped policy provider. An
+  // unmanaged fixture pool cannot borrow that provider, even for the same DB.
+  return app.get(DatabaseService).transaction(async (tx) => {
     await lockSafetyPolicy(tx);
     const space = await app.get(CommunityRepository).space(body.spaceId, tx);
     const authority = await app
@@ -143,13 +146,16 @@ export async function postApprovalEnvelopeV1(
 }
 export async function discussionApprovalEnvelope(
   app: INestApplication,
-  pool: Pool,
+  _pool: Pool,
   accountId: string,
   postId: string,
   body: PublishComment | PublishReply,
   rootCommentId: string | null = null,
 ): Promise<EffectiveContentEnvelopeV1> {
-  return inTransaction(pool, async (tx) => {
+  // Keep the legacy pool argument for caller compatibility; the application
+  // owns both the connection and its transaction-scoped policy provider. An
+  // unmanaged fixture pool cannot borrow that provider, even for the same DB.
+  return app.get(DatabaseService).transaction(async (tx) => {
     await lockSafetyPolicy(tx);
     const repo = app.get(CommunityRepository),
       post = await repo.post(postId, tx),

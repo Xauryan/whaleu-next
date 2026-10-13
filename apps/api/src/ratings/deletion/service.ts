@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -95,6 +96,7 @@ export class RatingDeletionService {
     this.records.retainComment(chain.root, tx);
     if (kind === 'reply') this.records.retainReply(chain.subject, tx);
   }
+  @AccountPolicy('browse', 'entry')
   ownerContext(token: string, kind: RatingDeletionKind, id: string) {
     return this.database.transaction(
       async (tx) => {
@@ -162,6 +164,7 @@ export class RatingDeletionService {
       authority.mapping?.fingerprint ?? null,
     ]);
   }
+  @AccountPolicy('privileged_read', 'entry')
   adminContext(token: string, kind: RatingDeletionKind, id: string) {
     return this.database.transaction(
       async (tx) => {
@@ -259,9 +262,11 @@ export class RatingDeletionService {
     );
     return result;
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   deleteComment(token: string, id: string, command: AdminDeleteRatingComment) {
     return this.delete(token, 'comment', id, command);
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   deleteReply(token: string, id: string, command: AdminDeleteRatingReply) {
     return this.delete(token, 'reply', id, command);
   }
@@ -427,6 +432,7 @@ export class RatingDeletionService {
       },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.requests.receipt(token, id);
   }

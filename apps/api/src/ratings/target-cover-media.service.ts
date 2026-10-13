@@ -1,3 +1,5 @@
+import { AccountPolicyFor } from '../safety/account-policy/decorator.js';
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { withRatingsMediaMutation } from '../media/ratings-discussion-mutation-proof.js';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -247,6 +249,7 @@ export class RatingTargetCoverMediaService {
     );
     return row;
   }
+  @AccountPolicyFor(() => 'browse', 'entry')
   async authorizeCurrent(
     token: string,
     request: RatingsMediaReadRequest,
@@ -336,6 +339,7 @@ export class RatingTargetCoverMediaService {
       tx,
     );
   }
+  @AccountPolicy('browse', 'entry')
   descriptor(
     token: string,
     targetId: string,

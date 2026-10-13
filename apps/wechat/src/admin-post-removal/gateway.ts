@@ -49,7 +49,7 @@ export class HttpAdminPostRemovalGateway implements AdminPostRemovalGateway {
         successStatus: 200,
         decode: decodeAdminPostRemovalManagement,
       },
-      { cancellation, query: { ...target } },
+      { cancellation, query: { ...target, version: '2' } },
     );
     if (!sameAdminPostRemovalTarget(result.target, target))
       invalidAdminPostRemoval();
@@ -72,7 +72,24 @@ export class HttpAdminPostRemovalGateway implements AdminPostRemovalGateway {
         successStatus: 200,
         decode: decodeAdminPostRemovalReceipt,
       },
-      { cancellation, body: { ...command, target: { ...command.target } } },
+      {
+        cancellation,
+        body: {
+          clientRequestId: command.clientRequestId,
+          expectedTargetVersion: command.expectedTargetVersion,
+          action: command.action,
+          ...(command.version === 2 ? { version: 2 } : {}),
+          target: { ...command.target },
+          ...(command.punishment
+            ? {
+                punishment: {
+                  ...command.punishment,
+                  duration: { ...command.punishment.duration },
+                },
+              }
+            : {}),
+        },
+      },
     );
     matchAdminPostRemovalReceipt(command, result);
     return result;

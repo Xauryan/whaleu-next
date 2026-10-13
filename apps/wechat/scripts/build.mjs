@@ -63,6 +63,7 @@ for (const relative of [
   'profile-avatar-moderation/contract.js',
   'admin-post-removal/contract.js',
   'school-admin-management/contract.js',
+  'account-moderation/contract.js',
   'admin-discussion-removal/contract.js',
   'media/upload-runtime.js',
   'media/batch-contracts.js',

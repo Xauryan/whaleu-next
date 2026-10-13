@@ -645,7 +645,7 @@ for (const kind of ['comment', 'reply'] as const) {
     assert.equal(s.commands.length, 0);
   });
 
-  test(`${kind}: HTTP family uses target-only management query and original command body for cancel without automatic auth replay`, async () => {
+  test(`${kind}: HTTP family uses exact v2 source management query and original command body for cancel without automatic auth replay`, async () => {
     const s = setup(),
       transport = new ScriptedTransport();
     let refreshes = 0;
@@ -664,7 +664,10 @@ for (const kind of ['comment', 'reply'] as const) {
       url.pathname,
       '/v1/community/admin-discussion-removal/management',
     );
-    assert.deepEqual(Object.fromEntries(url.searchParams), target);
+    assert.deepEqual(Object.fromEntries(url.searchParams), {
+      ...target,
+      version: '2',
+    });
     transport.reply(receipt());
     await gateway.submit(command(), cancel);
     assert.match(

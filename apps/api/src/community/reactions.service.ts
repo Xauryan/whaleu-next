@@ -1,3 +1,9 @@
+import { enforceAccountPunishment } from '../safety/account-moderation/policy.js';
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+  booleanAccountPolicy,
+} from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   checkpointTransactionDeadlines,
@@ -27,6 +33,15 @@ export class ReactionsService {
   ) {}
   /** A receipt records this request's result, never frozen current membership or
    * count. Exact retries cannot create a new transition after an intervening unlike. */
+  @AccountPolicyFor(
+    (args) =>
+      booleanAccountPolicy(
+        (args[2] as PostLikeIntent).liked,
+        'interaction',
+        'protective_cleanup',
+      ),
+    'owner_after_recovery',
+  )
   setLike(
     token: string,
     resource: string,
@@ -57,6 +72,11 @@ export class ReactionsService {
         await this.access.actor(token, tx);
         return row.receipt;
       }
+      await enforceAccountPunishment(
+        actor,
+        booleanAccountPolicy(liked, 'interaction', 'protective_cleanup'),
+        tx,
+      );
       const checkpoint = checkpointTransactionDeadlines(tx);
       await tx.query('SAVEPOINT post_like_work');
       let receipt: PostLikeReceipt;
@@ -125,6 +145,7 @@ export class ReactionsService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, request: string): Promise<PostLikeReceipt> {
     return this.repository.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);

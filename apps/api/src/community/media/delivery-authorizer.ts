@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import type { PoolClient } from 'pg';
 import type {
   CurrentMediaDeliveryAuthorizer,
@@ -14,6 +15,7 @@ export class CommunityMediaDeliveryAuthorizer implements CurrentMediaDeliveryAut
     private readonly assets: MediaAssetRepository,
     private readonly owners: MediaOwnerProofRegistry,
   ) {}
+  @AccountPolicy('browse', 'entry')
   async authorize(
     token: string,
     bindingId: string,

@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../../safety/account-policy/decorator.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -115,6 +116,7 @@ export class DishRecommendationsService {
     registerTransactionExactDeadline(tx, row.until, 'DISH_HISTORY_UNAVAILABLE');
     return row.history;
   }
+  @AccountPolicy('browse', 'entry')
   own(token: string, id: string, name: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -140,6 +142,7 @@ export class DishRecommendationsService {
       );
     });
   }
+  @AccountPolicy('browse', 'entry')
   page(token: string, id: string, query: DishQuery) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -292,12 +295,15 @@ export class DishRecommendationsService {
       ],
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   recommend(token: string, id: string, command: DishCommand) {
     return this.mutate(token, id, 'window.dish.recommend.v1', command, false);
   }
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   retract(token: string, id: string, command: DishCommand) {
     return this.mutate(token, id, 'window.dish.retract.v1', command, false);
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, key: string, body: DishCancel) {
     if (key !== body.command.clientRequestId)
       throw new ApplicationError('REQUEST_CONFLICT');
@@ -475,6 +481,7 @@ export class DishRecommendationsService {
       return dishReceiptSchema.parse(receipt);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, key: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),

@@ -39,14 +39,15 @@ export class SafetySearchEligibilityFacade {
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     const viewer = `$${input.viewerParameter}::uuid`;
     return `WITH safety_clock AS MATERIALIZED (
-      SELECT clock_timestamp() AS checked_at
+      SELECT clock_timestamp() AS checked_at,
+        (${viewer} IS NULL OR whaleu_safety.account_punishment_allows(${viewer},'browse')) AS actor_allowed
     ), safety_nodes AS MATERIALIZED (
       SELECT n.node_key,n.author_mode,n.named_account_id,n.purpose,
         (${viewer} IS NULL OR n.author_mode='anonymous'
           OR (n.author_mode='named' AND n.named_account_id=${viewer})) AS bypass
       FROM "${input.nodes}" n
     ), safety_facts AS MATERIALIZED (
-      SELECT n.*,
+      SELECT n.*,c.actor_allowed,
         (v.account_id IS NOT NULL AND v.block_coverage='complete'
           AND v.provenance='native_account_creation'
           AND (v.valid_until IS NULL OR
@@ -76,6 +77,7 @@ export class SafetySearchEligibilityFacade {
             OR author_mode IS NULL OR author_mode NOT IN ('anonymous','named')
             OR (author_mode='anonymous' AND named_account_id IS NOT NULL)
             OR (author_mode='named' AND named_account_id IS NULL) THEN 'unknown'
+          WHEN actor_allowed IS NOT TRUE THEN 'deny'
           WHEN bypass THEN 'allow'
           WHEN viewer_valid IS NOT TRUE
             OR (purpose='direct_post' AND author_valid IS NOT TRUE) THEN 'unknown'

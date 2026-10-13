@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { ownerPostVisibilityAllowed } from '../owner-visibility/read-proof.js';
 import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -68,6 +69,7 @@ export class PollReadService {
       },
     };
   }
+  @AccountPolicy('browse', 'entry')
   get(token: string, postId: string): Promise<PollView> {
     return this.community.database.transaction(
       async (tx) => {
@@ -98,6 +100,7 @@ export class PollReadService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   own(token: string, postId: string): Promise<OwnBallot> {
     return this.community.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);

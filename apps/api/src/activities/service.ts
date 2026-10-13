@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ZodError } from 'zod';
@@ -40,6 +41,7 @@ export class ActivitiesService {
       throw error;
     }
   }
+  @AccountPolicy('browse', 'entry')
   context(token: string) {
     return this.run(async (tx) => {
       const access = await this.access.resolve(token, null, tx);
@@ -54,6 +56,7 @@ export class ActivitiesService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   list(token: string, regionId: string, query: ActivityListQuery) {
     return this.run(async (tx) => {
       const access = await this.access.resolve(token, regionId, tx);
@@ -147,6 +150,7 @@ export class ActivitiesService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   detail(token: string, regionId: string, id: string) {
     return this.run(async (tx) => {
       const access = await this.access.resolve(token, null, tx);
@@ -162,6 +166,7 @@ export class ActivitiesService {
       return activityDetailSchema.parse(result);
     });
   }
+  @AccountPolicy('passive_bookkeeping', 'entry')
   visit(token: string, requestId: string, command: ActivityVisitCommand) {
     return this.run(async (tx) => {
       const session = await this.access.authenticate(token, tx);

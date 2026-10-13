@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { lockSafetyPolicy } from '../../safety/locks.js';
 import type { MediaIngressClaim } from '../../media/application-v2.js';
 import type { StoredObjectMeasurement } from '../../media/storage-port.js';
@@ -14,6 +15,7 @@ import type { ProfileAvatarService } from './service.js';
 
 export class ProfileAvatarUploadApplication {
   constructor(readonly owner: ProfileAvatarService) {}
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   prepare(token: string, raw: unknown) {
     return this.owner.authorized(token, async (session, tx) => {
       const input = prepareProfileMediaSchema.parse(raw),
@@ -44,6 +46,7 @@ export class ProfileAvatarUploadApplication {
       );
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, requestId: string) {
     return this.owner.authorized(
       token,
@@ -52,11 +55,13 @@ export class ProfileAvatarUploadApplication {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelRequest(token: string, requestId: string, raw: unknown) {
     return this.owner.authorized(token, (session, tx) =>
       this.owner.recovery.cancelRequest(session.accountId, requestId, raw, tx),
     );
   }
+  @AccountPolicy('private_self_service', 'entry')
   status(token: string, editId: string) {
     return this.owner.authorized(
       token,
@@ -73,6 +78,7 @@ export class ProfileAvatarUploadApplication {
       false,
     );
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   async finalize(token: string, editId: string) {
     const status = await this.status(token, editId);
     if (
@@ -97,6 +103,7 @@ export class ProfileAvatarUploadApplication {
       return this.owner.recovery.status(session.accountId, id, tx);
     });
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   async grant(token: string, editId: string) {
     const result = await this.owner.authorized(token, async (session, tx) => {
       const ingress = this.requireIngress(),
@@ -177,6 +184,7 @@ export class ProfileAvatarUploadApplication {
       );
     });
   }
+  @AccountPolicy('private_self_service', 'entry')
   observed(editId: string, result: MediaUploadObserved) {
     const { version: _version, ...observation } = result;
     void _version;

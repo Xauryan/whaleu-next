@@ -1,3 +1,7 @@
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+} from '../../safety/account-policy/decorator.js';
 import { StudentVerificationNotices } from './notices.js';
 import { lockSafetyPolicy } from '../../safety/locks.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -199,18 +203,25 @@ export class StudentVerificationService {
       evidenceExpiresAt: row.evidence_expires_at?.toISOString() ?? null,
     };
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   noticeList(token: string, page: number) {
     return this.run(async (tx) => {
       const actor = await this.access.authenticate(token, tx);
       return this.notices.list(actor.accountId, page, tx);
     });
   }
+  @AccountPolicyFor(
+    (args) =>
+      args[2] === true ? 'restricted_self_service' : 'private_self_service',
+    'entry',
+  )
   noticeTarget(token: string, id: string, markRead = false) {
     return this.run(async (tx) => {
       const actor = await this.access.authenticate(token, tx);
       return this.notices.open(actor.accountId, id, tx, markRead);
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   capabilities(token: string) {
     return this.run(async (tx) => {
       const result = await this.access.school.capabilities(token, tx);
@@ -219,6 +230,7 @@ export class StudentVerificationService {
       return result;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, key: string) {
     return this.run(async (tx) => {
       const actor = await this.access.identity.session(token, tx);
@@ -246,6 +258,7 @@ export class StudentVerificationService {
       };
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelRequest(token: string, key: string, hash: string) {
     return this.run(async (tx) => {
       const actor = await this.access.identity.session(token, tx);
@@ -283,6 +296,7 @@ export class StudentVerificationService {
       return { requestId: key, state: 'cancelled' as const, receipt: null };
     });
   }
+  @AccountPolicy('private_self_service', 'entry')
   own(token: string) {
     return this.run(async (tx) => {
       const actor = await this.access.identity.session(token, tx);
@@ -306,6 +320,11 @@ export class StudentVerificationService {
       };
     });
   }
+  @AccountPolicyFor(
+    (args) =>
+      args[2] === undefined ? 'private_self_service' : 'privileged_read',
+    'entry',
+  )
   detail(token: string, id: string, region?: string) {
     return this.run(async (tx) => {
       const actor = region
@@ -326,6 +345,7 @@ export class StudentVerificationService {
       return detail;
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   queue(token: string, region: string, page: number, cursor?: string) {
     return this.run(async (tx) => {
       const actor = await this.access.reviewer(token, region, tx);
@@ -370,6 +390,7 @@ export class StudentVerificationService {
     });
   }
 
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   reserve(token: string, input: ReserveStudent) {
     return this.run(async (tx) => {
       const actor = await this.access.authenticate(token, tx);
@@ -412,6 +433,7 @@ export class StudentVerificationService {
       return this.record(actor.accountId, input.clientRequestId, hash, row, tx);
     }, true);
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   submit(token: string, id: string, input: SubmitStudent) {
     return this.run(async (tx) => {
       const actor = await this.access.authenticate(token, tx),
@@ -463,6 +485,7 @@ export class StudentVerificationService {
       );
     }, true);
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   withdraw(token: string, id: string, input: WithdrawStudent) {
     return this.run(async (tx) => {
       const actor = await this.access.identity.session(token, tx),
@@ -509,6 +532,7 @@ export class StudentVerificationService {
       );
     }, true);
   }
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   decide(token: string, region: string, id: string, input: DecideStudent) {
     return this.run(async (tx) => {
       const actor = await this.access.reviewer(token, region, tx),

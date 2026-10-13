@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -111,6 +112,7 @@ export class ProfileModerationService {
     if (!row) throw new ApplicationError('PROFILE_MODERATION_UNAVAILABLE');
     return row;
   }
+  @AccountPolicy('privileged_read', 'entry')
   async management(
     token: string,
     target: ModerationTarget,
@@ -150,6 +152,7 @@ export class ProfileModerationService {
       });
     });
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   async command(
     token: string,
     command: ModerationCommand,
@@ -316,6 +319,7 @@ export class ProfileModerationService {
       return moderationReceiptSchema.parse(receipt);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   async recovery(token: string, requestId: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);

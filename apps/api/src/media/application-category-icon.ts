@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import type { CategoryIconMediaDescriptor } from './contracts-category-icon.js';
 import type { CategoryIconMediaReadRequest } from './category-icon-owner-proof.js';
 import { lockSafetyPolicy } from '../safety/locks.js';
@@ -52,6 +53,7 @@ export interface CategoryIconMediaOwner {
 
 export class CategoryIconUploadApplication {
   constructor(readonly owner: CategoryIconMediaOwner) {}
+  @AccountPolicy('content_management', 'owner_after_recovery')
   prepare(token: string, raw: unknown) {
     return this.owner.authorized(token, async (session, tx) => {
       const input = prepareCategoryIconMediaSchema.parse(raw),
@@ -82,6 +84,7 @@ export class CategoryIconUploadApplication {
       );
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, requestId: string) {
     return this.owner.authorized(
       token,
@@ -90,11 +93,13 @@ export class CategoryIconUploadApplication {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelRequest(token: string, requestId: string, raw: unknown) {
     return this.owner.authorized(token, (session, tx) =>
       this.owner.recovery.cancelRequest(session.accountId, requestId, raw, tx),
     );
   }
+  @AccountPolicy('browse', 'entry')
   status(token: string, editScopeId: string) {
     return this.owner.authorized(
       token,
@@ -111,6 +116,7 @@ export class CategoryIconUploadApplication {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, editScopeId: string) {
     return this.owner.authorized(token, async (session, tx) =>
       this.owner.recovery.cancel(
@@ -124,6 +130,7 @@ export class CategoryIconUploadApplication {
       ),
     );
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   async finalize(token: string, editScopeId: string) {
     const status = await this.status(token, editScopeId);
     if (
@@ -148,6 +155,7 @@ export class CategoryIconUploadApplication {
       return this.owner.recovery.status(session.accountId, id, tx);
     });
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   async grant(token: string, editScopeId: string) {
     const result = await this.owner.authorized(token, async (session, tx) => {
       const ingress = this.requireIngress(),
@@ -228,6 +236,7 @@ export class CategoryIconUploadApplication {
       );
     });
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   observed(editScopeId: string, result: MediaUploadObserved) {
     const { version: _version, ...observation } = result;
     void _version;

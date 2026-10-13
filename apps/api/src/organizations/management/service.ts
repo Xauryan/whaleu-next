@@ -1,3 +1,7 @@
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+} from '../../safety/account-policy/decorator.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -293,6 +297,7 @@ export class OrganizationService {
     );
     return receipt;
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   create(token: string, command: CreateOrganization) {
     return this.command(
       token,
@@ -345,6 +350,7 @@ export class OrganizationService {
       },
     );
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   save(token: string, id: string, command: SaveOrganization) {
     return this.command(token, id, command, async (actor, hash, tx) => {
       const row = await this.access.row(id, tx, true);
@@ -392,6 +398,7 @@ export class OrganizationService {
       );
     });
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   review(
     token: string,
     id: string,
@@ -435,6 +442,7 @@ export class OrganizationService {
       );
     });
   }
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   member(token: string, id: string, command: OrganizationMemberCommand) {
     return this.command(token, id, command, async (actor, hash, tx) => {
       const row = await this.access.row(id, tx, true);
@@ -562,6 +570,7 @@ export class OrganizationService {
       throw error;
     }
   }
+  @AccountPolicy('privileged_read', 'entry')
   lookup(token: string, id: string, profileId: string) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx),
@@ -578,6 +587,7 @@ export class OrganizationService {
       });
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   detail(token: string, id: string) {
     return this.run(async (tx) => {
       const session = await this.access.authenticate(token, tx),
@@ -630,6 +640,7 @@ export class OrganizationService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   publicDetail(token: string, regionId: string, id: string) {
     return this.run(async (tx) => {
       const session = await this.access.authenticate(token, tx);
@@ -653,6 +664,7 @@ export class OrganizationService {
       });
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   context(token: string) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx),
@@ -660,6 +672,7 @@ export class OrganizationService {
       return { regionId: home.identityRegionId };
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   capabilities(token: string) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx);
@@ -667,6 +680,10 @@ export class OrganizationService {
       return this.access.schools.capabilities(token, tx);
     });
   }
+  @AccountPolicyFor(
+    (args) => (args[1] === 'public' ? 'browse' : 'privileged_read'),
+    'entry',
+  )
   list(
     token: string,
     mode: 'mine' | 'review' | 'public',
@@ -781,6 +798,7 @@ export class OrganizationService {
       });
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, requestId: string) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx),
@@ -797,6 +815,7 @@ export class OrganizationService {
       );
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, requestId: string, requestHash: string) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx, true);

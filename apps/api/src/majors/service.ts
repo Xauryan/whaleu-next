@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { MajorDiscussionMediaRequiredProof } from '../media/major-discussion-required-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -107,6 +108,7 @@ export class MajorsService {
       summary,
     };
   }
+  @AccountPolicy('browse', 'entry')
   departments(token: string) {
     return this.run(async (tx) => {
       const c = await this.context(token, tx),
@@ -126,6 +128,7 @@ export class MajorsService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   page(token: string, query: MajorQuery) {
     return this.run(async (tx) => {
       const c = await this.context(token, tx),
@@ -209,6 +212,7 @@ export class MajorsService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   detail(token: string, id: string) {
     return this.run(async (tx) => {
       const c = await this.context(token, tx),
@@ -236,6 +240,7 @@ export class MajorsService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   related(token: string, id: string, limit: number) {
     return this.run(async (tx) => {
       const c = await this.context(token, tx),

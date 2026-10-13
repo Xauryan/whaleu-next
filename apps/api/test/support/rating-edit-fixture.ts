@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 /** Synthetic canonical owner facts only; no real issuer/provider or bypass. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -94,13 +95,12 @@ export async function ratingEditFixture(maximumMigration?: number) {
     if (receipt.outcome === 'rejected') assert.fail(JSON.stringify(receipt));
     return { before, input, prepared, reviewed, receipt };
   };
-  return {
-    ...f,
+  return extendLiveFixture(f, {
     editContext: context,
     editIntent: intent,
     prepareEdit: prepare,
     approveEdit: approval,
     commitEdit: commit,
     edit,
-  };
+  });
 }

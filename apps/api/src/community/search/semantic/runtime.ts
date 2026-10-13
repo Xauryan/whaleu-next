@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../../safety/account-policy/decorator.js';
 import { MediaContentSnapshotFacade } from '../../../media/content-snapshot.facade.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { APP_CONFIG } from '../../../config/config.js';
@@ -92,6 +93,7 @@ export class SemanticSearchRuntime {
       certificates,
     );
   }
+  @AccountPolicy('browse', 'entry')
   async search(
     token: string | null,
     query: SearchQuery,

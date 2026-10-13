@@ -61,7 +61,7 @@ export class ErrandGroupSource implements ErrandGroupSourcePort {
       !(await this.identity.activeAccount(row.publisher_id, tx))
     )
       throw new ApplicationError('ERRAND_NOT_FOUND');
-    await this.access.actorCommon(row.publisher_id, tx);
+    await this.access.sourceCommon(row.publisher_id, tx);
     await this.access.feature(row.publisher_id, 'publish', tx);
     if (
       (await this.review.current(row.id, errandEnvelope(row), tx)).kind !==

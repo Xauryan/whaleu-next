@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { lockSafetyPolicy } from '../../safety/locks.js';
 import { MediaRequiredProof } from '../../media/required-proof.js';
 import { randomUUID } from 'node:crypto';
@@ -152,6 +153,7 @@ export class ProfileAvatarModerationService {
       throw new ApplicationError('PROFILE_AVATAR_MODERATION_UNAVAILABLE');
     return true;
   }
+  @AccountPolicy('privileged_read', 'entry')
   async management(
     token: string,
     target: AvatarModerationTarget,
@@ -198,6 +200,7 @@ export class ProfileAvatarModerationService {
       });
     });
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   async command(
     token: string,
     command: AvatarModerationCommand,
@@ -437,6 +440,7 @@ export class ProfileAvatarModerationService {
       });
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   async recovery(token: string, requestId: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);

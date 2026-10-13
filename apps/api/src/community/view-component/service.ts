@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { ownerPostVisibilityAllowed } from '../owner-visibility/read-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -52,6 +53,7 @@ export class ViewReportingService {
       throw new ApplicationError('VIEW_REPORTING_UNAVAILABLE');
     }
   }
+  @AccountPolicy('passive_bookkeeping', 'entry')
   issueEpoch(token: string): Promise<ViewReportingEpoch> {
     return this.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);
@@ -89,6 +91,7 @@ export class ViewReportingService {
       });
     });
   }
+  @AccountPolicy('passive_bookkeeping', 'entry')
   report(token: string, input: ViewReport): Promise<ViewReportReceipt> {
     const epochId = input.epochId.toLowerCase(),
       batchId = input.batchId.toLowerCase();

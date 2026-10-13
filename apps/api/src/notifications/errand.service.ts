@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
@@ -75,6 +76,7 @@ export class ErrandNoticesService {
     await this.records.owner(session.accountId, tx);
     return session;
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   list(token: string, query: ErrandNoticeQuery) {
     return this.db.transaction(
       async (tx) => {
@@ -156,6 +158,7 @@ export class ErrandNoticesService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   count(token: string) {
     return this.db.transaction(
       async (tx) => {
@@ -167,6 +170,7 @@ export class ErrandNoticesService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   markRead(token: string, id: string) {
     return this.db.transaction(
       async (tx) => {

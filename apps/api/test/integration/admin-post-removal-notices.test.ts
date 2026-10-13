@@ -337,7 +337,7 @@ test(
         );
         assert.equal(
           JSON.parse(Buffer.from(first.nextCursor, 'base64url').toString()).v,
-          4,
+          5,
         );
         const scope = `system-notices:${createHash('sha256')
           .update(
@@ -347,7 +347,7 @@ test(
             ]),
           )
           .digest('hex')}`;
-        for (const v of [1, 2, 3]) {
+        for (const v of [1, 2, 3, 4]) {
           const cursor = Buffer.from(
             JSON.stringify({
               v,

@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { bindCategoryChildContext } from '../category-reclassification/child-context.js';
 import type { TextReviewStatus } from '../text-review/contracts.js';
 import { withDiscussionMediaMutation } from '../../media/discussion-ancestor-proof.js';
@@ -49,6 +50,7 @@ export class ReplyPublicationService {
     @Inject(AuthorDisplayService)
     private readonly profiles: AuthorDisplayService,
   ) {}
+
   create(
     token: string,
     rootId: string,
@@ -60,6 +62,7 @@ export class ReplyPublicationService {
     rootId: string,
     body: PublishReply,
   ): Promise<PublicationReceipt>;
+  @AccountPolicy('interaction', 'owner_after_recovery')
   create(
     token: string,
     rootId: string,

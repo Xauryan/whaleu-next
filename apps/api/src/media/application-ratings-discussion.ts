@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import type { PoolClient } from 'pg';
 import type { CurrentMediaSession } from '../identity/current-media-session.js';
 import { ApplicationError } from '../http/application-error.js';
@@ -61,12 +62,14 @@ export interface RatingsDiscussionMediaOwner {
 }
 export class RatingsDiscussionUploadApplication {
   constructor(readonly owner: RatingsDiscussionMediaOwner) {}
+  @AccountPolicy('interaction', 'owner_after_recovery')
   prepareBatch(token: string, raw: unknown) {
     return this.owner.authorized(token, (session, tx) => {
       this.requireRuntime();
       return this.owner.batches.prepare(session.accountId, raw, tx);
     });
   }
+  @AccountPolicy('browse', 'entry')
   batchStatus(token: string, id: string) {
     return this.owner.authorized(
       token,
@@ -74,6 +77,7 @@ export class RatingsDiscussionUploadApplication {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelBatchRequest(token: string, id: string, raw: unknown) {
     return this.owner.authorized(token, async (session, tx) => {
       const input = ratingsDiscussionBatchCancelRequestSchema.parse(raw);
@@ -86,6 +90,7 @@ export class RatingsDiscussionUploadApplication {
       return this.owner.batches.cancelRequest(session.accountId, id, input, tx);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recoverBatch(token: string, id: string) {
     return this.owner.authorized(
       token,
@@ -93,22 +98,26 @@ export class RatingsDiscussionUploadApplication {
       false,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   seal(token: string, raw: unknown) {
     return this.owner.authorized(token, (session, tx) => {
       this.requireRuntime();
       return this.owner.batches.seal(session.accountId, raw, tx);
     });
   }
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   remove(token: string, id: string, raw: unknown) {
     return this.owner.authorized(token, (session, tx) =>
       this.owner.batches.remove(session.accountId, id, raw, tx),
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelBatch(token: string, id: string, raw: unknown) {
     return this.owner.authorized(token, (session, tx) =>
       this.owner.batches.cancel(session.accountId, id, raw, tx),
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   prepare(token: string, raw: unknown) {
     return this.owner.authorized(token, async (session, tx) => {
       this.requireRuntime();
@@ -120,6 +129,7 @@ export class RatingsDiscussionUploadApplication {
       return this.owner.recovery.status(session.accountId, id, tx);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, id: string) {
     return this.owner.authorized(
       token,
@@ -127,6 +137,7 @@ export class RatingsDiscussionUploadApplication {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelRequest(token: string, id: string, raw: unknown) {
     return this.owner.authorized(token, async (session, tx) => {
       const input = ratingsDiscussionCancelRequestSchema.parse(raw);
@@ -144,6 +155,7 @@ export class RatingsDiscussionUploadApplication {
       );
     });
   }
+  @AccountPolicy('browse', 'entry')
   status(token: string, memberId: string) {
     return this.owner.authorized(
       token,
@@ -160,6 +172,7 @@ export class RatingsDiscussionUploadApplication {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, memberId: string) {
     return this.owner.authorized(token, async (session, tx) =>
       this.owner.recovery.cancel(
@@ -173,6 +186,7 @@ export class RatingsDiscussionUploadApplication {
       ),
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   async finalize(token: string, memberId: string) {
     const status = await this.status(token, memberId);
     if (
@@ -197,6 +211,7 @@ export class RatingsDiscussionUploadApplication {
       return this.owner.recovery.status(session.accountId, id, tx);
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   async grant(token: string, memberId: string) {
     const returned = await this.owner.authorized(token, async (session, tx) => {
       const ingress = this.requireIngress(),
@@ -271,6 +286,7 @@ export class RatingsDiscussionUploadApplication {
       );
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   observed(token: string, memberId: string, result: MediaUploadObserved) {
     return this.owner.authorized(
       token,

@@ -1,3 +1,5 @@
+import { noticeContentAllowed } from '../../safety/account-policy/notice-projection.js';
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ZodError } from 'zod';
@@ -56,6 +58,8 @@ export class RatingUpdatesReadService {
       createdAt: row.created_at,
       readAt: row.read_at,
     };
+    if (!(await noticeContentAllowed(row.recipient_account_id, tx)))
+      return { ...base, status: 'unavailable' };
     const target = {
       regionId: row.region_id,
       targetId: row.target_id,
@@ -84,6 +88,7 @@ export class RatingUpdatesReadService {
         : { ...base, status: 'unavailable' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   list(token: string, input: RatingUpdatesQuery): Promise<RatingUpdatesPage> {
     const query = ratingUpdatesQuerySchema.parse(input);
     return this.run(async (tx) => {
@@ -134,6 +139,7 @@ export class RatingUpdatesReadService {
       return ratingUpdatesPageSchema.parse({ items, nextCursor, unreadCount });
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   unreadCount(token: string) {
     return this.run(async (tx) => {
       const { accountId } = await this.identity.session(token, tx);
@@ -143,6 +149,7 @@ export class RatingUpdatesReadService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   target(token: string, noticeId: string): Promise<RatingNoticeTarget> {
     return this.run(async (tx) => {
       await lockSafetyPolicy(tx);
@@ -163,6 +170,7 @@ export class RatingUpdatesReadService {
       );
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   markRead(token: string, noticeId: string) {
     return this.run(async (tx) => {
       const { accountId } = await this.identity.session(token, tx);

@@ -73,12 +73,10 @@ export class CommunityAccessService {
     if (!accountId) return null;
     const checkpoint = checkpointTransactionDeadlines(tx);
     try {
-      const decision = await this.authorization.resolve(
-        accountId,
-        space,
-        tx,
-        context,
-      );
+      const decision = await this.authorization.resolve(accountId, space, tx, {
+        ...context,
+        safetyAction: 'interaction',
+      });
       return decision.kind === 'allow' ? decision.value : null;
     } finally {
       // Rendering action hints must not turn optional phone/safety eligibility

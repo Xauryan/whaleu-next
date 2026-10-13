@@ -1,3 +1,4 @@
+import { AccountPolicyFor } from '../safety/account-policy/decorator.js';
 import { retainRatingReadBytes } from './target-cover-current.js';
 import { withRatingsMediaMutation } from '../media/ratings-discussion-mutation-proof.js';
 import { createHash } from 'node:crypto';
@@ -440,6 +441,7 @@ export class RatingDiscussionMediaService {
       images: intent.payload.images,
     };
   }
+  @AccountPolicyFor(() => 'browse', 'entry')
   async authorizeCurrent(
     token: string,
     request: RatingsDiscussionMediaReadRequest,

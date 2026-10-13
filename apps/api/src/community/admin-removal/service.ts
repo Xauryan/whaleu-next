@@ -1,5 +1,13 @@
+import { punishmentReferenceSchema } from '../../safety/account-moderation/contracts.js';
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
+import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
+import { requireUnprotectedAccountPunishmentTarget } from '../../authorization/account-punishment-target-protection.js';
+import {
+  removalPunishmentOptions,
+  removalPunishmentOwner,
+} from './punishment.js';
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../../database/database.js';
 import { IdentityService } from '../../identity/identity.service.js';
@@ -60,6 +68,24 @@ export class AdminPostRemovalService {
     return this.database
       .transaction(work, { isolationLevel: 'read committed' })
       .catch((error: unknown) => {
+        // These exact issuer outcomes abort the complete removal transaction.
+        // Preserve their public retry/selection semantics instead of leaking SQL.
+        if (
+          error &&
+          typeof error === 'object' &&
+          'code' in error &&
+          error.code === '23514' &&
+          'constraint' in error
+        ) {
+          if (error.constraint === 'account_punishment_permanent')
+            throw new ApplicationError('SAFETY_MODERATION_PERMANENT');
+          if (error.constraint === 'account_punishment_stale')
+            throw new ApplicationError('SAFETY_MODERATION_STALE');
+          if (error.constraint === 'account_punishment_duration')
+            throw new BadRequestException('Invalid punishment duration');
+          if (error.constraint === 'account_punishment_causal')
+            throw new ApplicationError('SAFETY_MODERATION_UNAVAILABLE');
+        }
         if (
           error &&
           typeof error === 'object' &&
@@ -158,9 +184,11 @@ export class AdminPostRemovalService {
     );
     return Object.freeze({ ...observed, grantId: row.id });
   }
+  @AccountPolicy('privileged_read', 'entry')
   async management(
     token: string,
     target: AdminPostRemovalTarget,
+    withPunishment = false,
   ): Promise<AdminPostRemovalManagement> {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
@@ -182,9 +210,18 @@ export class AdminPostRemovalService {
         target,
         targetVersion: resolved.target_version,
         canRemove: true,
+        ...(withPunishment
+          ? {
+              punishmentOptions: await removalPunishmentOptions(
+                resolved.subject_id,
+                tx,
+              ),
+            }
+          : {}),
       });
     });
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   async command(
     token: string,
     command: AdminPostRemovalCommand,
@@ -219,6 +256,9 @@ export class AdminPostRemovalService {
         target: command.target,
         expectedTargetVersion: command.expectedTargetVersion,
         action: command.action,
+        ...('version' in command
+          ? { version: 2 as const, selection: command.punishment }
+          : {}),
       };
       let receipt: AdminPostRemovalReceipt;
       let grantId: string | null = null;
@@ -231,6 +271,7 @@ export class AdminPostRemovalService {
           code: 'ADMIN_POST_REMOVAL_CANCELLED',
         };
       else {
+        await enforceAccountPunishment(actor, 'content_management', tx);
         const initial = await observeAdminPostRemovalInputs(
           {
             actor,
@@ -240,6 +281,20 @@ export class AdminPostRemovalService {
           },
           tx,
         );
+        // Retain the first negative role observation before content or grant waits.
+        if ('version' in command) {
+          const subjectRow = (
+            await tx.query<{ subject_id: string }>(
+              'SELECT subject_id FROM whaleu_community.admin_post_removal_target($1)',
+              [command.target.id],
+            )
+          ).rows[0];
+          if (subjectRow)
+            await requireUnprotectedAccountPunishmentTarget(
+              subjectRow.subject_id,
+              tx,
+            );
+        }
         const resolved = await this.resolve(command.target, actor, tx);
         const selected = await this.grant(
           actor,
@@ -270,6 +325,19 @@ export class AdminPostRemovalService {
             outcome: 'applied',
             eventId: randomUUID(),
             recordedAt: now.toISOString(),
+            ...('version' in command
+              ? {
+                  version: 2 as const,
+                  selection: command.punishment,
+                  punishment: {
+                    punishmentId: randomUUID(),
+                    kind: command.punishment.kind,
+                    revision: (
+                      BigInt(command.punishment.expectedRevision) + 1n
+                    ).toString(),
+                  },
+                }
+              : {}),
           };
         }
       }
@@ -294,6 +362,33 @@ export class AdminPostRemovalService {
       )
         throw new ApplicationError('ADMIN_POST_REMOVAL_UNAVAILABLE');
       if (receipt.outcome === 'applied') {
+        if ('version' in command && 'punishment' in receipt) {
+          const recordedPunishment = punishmentReferenceSchema.parse(
+            receipt.punishment,
+          );
+          const issued = await removalPunishmentOwner.issueExact(
+            {
+              actorId: actor,
+              sessionId: session.sessionId,
+              tokenHash: hashToken(token),
+              grantId: grantId!,
+              requestId: command.clientRequestId,
+              subjectId: subject!,
+              sourceKind: command.target.kind,
+              sourceId: command.target.id,
+              sourceEventId: receipt.eventId,
+              recordedAt: receipt.recordedAt,
+            },
+            command.punishment,
+            tx,
+          );
+          if (
+            issued.punishmentId !== recordedPunishment.punishmentId ||
+            issued.revision !== recordedPunishment.revision
+          )
+            throw new ApplicationError('SAFETY_MODERATION_UNAVAILABLE');
+        }
+
         await tx.query(
           'DELETE FROM whaleu_community.comment_pins WHERE post_id=$1',
           [command.target.id],
@@ -339,6 +434,7 @@ export class AdminPostRemovalService {
       return adminPostRemovalReceiptSchema.parse(receipt);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   async recovery(token: string, requestId: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);

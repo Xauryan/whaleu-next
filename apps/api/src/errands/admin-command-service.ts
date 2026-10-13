@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { ErrandPublicationService } from './publication-service.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
@@ -58,9 +59,11 @@ export class ErrandAdminCommandService {
     @Inject(ErrandPublicationService)
     private readonly publications: ErrandPublicationService,
   ) {}
+  @AccountPolicy('content_management', 'owner_after_recovery')
   delete(token: string, orderId: string, body: AdminDeleteErrand) {
     return this.execute(token, orderId, 'admin_delete', body);
   }
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   restrictAccepter(
     token: string,
     orderId: string,
@@ -297,6 +300,7 @@ export class ErrandAdminCommandService {
       return errandManagementFailure(error);
     }
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   async receipt(token: string, requestId: string): Promise<ErrandAdminReceipt> {
     try {
       return await this.db.transaction(

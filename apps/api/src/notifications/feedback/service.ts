@@ -1,3 +1,5 @@
+import { noticeContentAllowed } from '../../safety/account-policy/notice-projection.js';
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../../database/database.js';
@@ -61,6 +63,7 @@ export class FeedbackNoticesService {
     await this.identity.session(token, tx);
     await this.authority.require(accountId, tx);
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   list(
     token: string,
     query: FeedbackNoticesQuery,
@@ -96,6 +99,7 @@ export class FeedbackNoticesService {
       };
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   unreadCount(token: string): Promise<{ unreadCount: number }> {
     return this.transaction(async (tx) => {
       const accountId = await this.actor(token, tx);
@@ -106,6 +110,7 @@ export class FeedbackNoticesService {
       return { unreadCount };
     });
   }
+  @AccountPolicy('browse', 'entry')
   target(token: string, noticeId: string): Promise<FeedbackNoticeTarget> {
     return this.transaction(async (tx) => {
       enableSafetyRelationshipProof(tx);
@@ -126,12 +131,16 @@ export class FeedbackNoticesService {
         : { noticeId: row.id, status: 'unavailable' };
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   markRead(token: string, noticeId: string): Promise<FeedbackNoticeRead> {
     return this.transaction(async (tx) => {
       enableSafetyRelationshipProof(tx);
       const accountId = await this.actor(token, tx);
       const owned = await this.repository.own(accountId, noticeId, tx);
-      if (!(await this.targets.accessible(accountId, owned.post_id, tx)))
+      if (
+        (await noticeContentAllowed(accountId, tx)) &&
+        !(await this.targets.accessible(accountId, owned.post_id, tx))
+      )
         throw new ApplicationError('NOTICE_NOT_FOUND');
       await this.repository.owner(accountId, tx, true);
       await this.repository.rate(accountId, tx);

@@ -1,3 +1,5 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
+import { AccountPunishmentOwner } from '../../safety/account-moderation/owner.js';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../../database/database.js';
@@ -14,6 +16,9 @@ import { encodeSystemNoticesCursor, systemNoticesCursor } from './cursor.js';
 import { SystemNoticesRepository } from './repository.js';
 import type { StoredSystemNotice } from './repository.js';
 
+// Stateless leaf owner; notice reads do not import the administration module or
+// require current content/grant/phone eligibility of the punished account.
+const punishmentReader = new AccountPunishmentOwner();
 const unknownNotice = (_row: never): never => {
   throw new ApplicationError('SYSTEM_NOTICES_UNAVAILABLE');
 };
@@ -25,6 +30,17 @@ const project = (row: StoredSystemNotice): SystemNoticeView => {
     readAt: row.read_at?.toISOString() ?? null,
   };
   switch (row.kind) {
+    case 'account_punishment_issued':
+    case 'account_punishment_released':
+      return { ...base, kind: row.kind, punishment: row.punishment };
+    case 'account_appeal_decided':
+      return {
+        ...base,
+        kind: row.kind,
+        appealId: row.appeal_id,
+        outcome: row.outcome,
+        reason: row.reason,
+      };
     case 'post_jury_removed':
       return {
         ...base,
@@ -36,6 +52,7 @@ const project = (row: StoredSystemNotice): SystemNoticeView => {
       return { ...base, kind: row.kind, nickname: row.nickname };
     case 'profile_custom_avatar_cleared':
     case 'admin_post_removed':
+    case 'admin_discussion_removed':
       return { ...base, kind: row.kind };
     default:
       return unknownNotice(row);
@@ -64,6 +81,7 @@ export class SystemNoticesService {
       throw new ApplicationError('SYSTEM_NOTICES_UNAVAILABLE');
     }
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   list(token: string, query: SystemNoticesQuery): Promise<SystemNoticesPage> {
     return this.transaction(async (tx) => {
       const { accountId } = await this.identity.session(token, tx);
@@ -72,6 +90,16 @@ export class SystemNoticesService {
       await this.repository.rate(accountId, tx);
       const rows = await this.repository.page(accountId, query.limit, seek, tx);
       const page = rows.slice(0, query.limit);
+      for (const row of page) {
+        if (
+          row.kind === 'account_punishment_issued' ||
+          row.kind === 'account_punishment_released'
+        )
+          row.punishment = await punishmentReader.view(
+            row.punishment.punishmentId,
+            tx,
+          );
+      }
       const last = page.at(-1);
       const unreadCount = await this.repository.count(accountId, tx);
       await this.identity.session(token, tx);
@@ -91,6 +119,7 @@ export class SystemNoticesService {
       };
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   unreadCount(token: string): Promise<{ unreadCount: number }> {
     return this.transaction(async (tx) => {
       const { accountId } = await this.identity.session(token, tx);
@@ -101,6 +130,7 @@ export class SystemNoticesService {
       return { unreadCount };
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   markRead(
     token: string,
     noticeId: string,

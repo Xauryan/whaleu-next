@@ -1,3 +1,4 @@
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -53,6 +54,8 @@ function fixture(authors: string[] = [author]) {
   const statements: { sql: string; values: unknown[] | undefined }[] = [];
   const tx = {
     query: async (sql: string, values?: unknown[]) => {
+      const policy = unpunishedAccountPolicyObservation(sql, values);
+      if (policy) return policy; // Overlay SQL is separate from original owner-query budgets.
       statements.push({ sql, values });
       if (sql.includes('FROM whaleu_campus.operating_regions')) {
         const ids = values![0] as string[];
@@ -118,6 +121,7 @@ function fixture(authors: string[] = [author]) {
       throw new Error(`Unexpected count-owner SQL: ${sql}`);
     },
   } as unknown as PoolClient;
+  startTransactionDeadlines(tx);
   return { state, statements, tx };
 }
 

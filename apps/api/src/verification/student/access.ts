@@ -1,3 +1,5 @@
+import { AccountPolicyFor } from '../../safety/account-policy/decorator.js';
+import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { SchoolConfigurationAccess } from '../../school-configuration/access.js';
@@ -49,7 +51,7 @@ export class StudentVerificationAccess {
   async applicant(row: StudentApplicationRow, tx: PoolClient) {
     if (!(await this.identity.activeAccount(row.account_id, tx)))
       throw new ApplicationError('ACCOUNT_BLOCKED');
-    await this.safety.restriction(row.account_id, tx);
+    await this.safety.baseRestriction(row.account_id, tx);
   }
   async reviewer(token: string, region: string, tx: PoolClient) {
     const auth = await this.school.management(token, region, tx);
@@ -62,6 +64,7 @@ export class StudentVerificationAccess {
     revision: number,
     tx: PoolClient,
   ) {
+    await enforceAccountPunishment(actorAccountId, 'private_self_service', tx);
     const row = await this.row(applicationId, tx);
     if (
       row.account_id !== actorAccountId ||
@@ -84,6 +87,7 @@ export class StudentVerificationAccess {
       ]),
     };
   }
+  @AccountPolicyFor(() => 'browse', 'entry')
   async authorizeRead(
     token: string,
     target: {

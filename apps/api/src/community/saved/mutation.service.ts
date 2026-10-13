@@ -1,3 +1,9 @@
+import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+  booleanAccountPolicy,
+} from '../../safety/account-policy/decorator.js';
 import {
   checkpointTransactionDeadlines,
   restoreTransactionDeadlines,
@@ -11,6 +17,21 @@ import { CommunityAccessService } from '../community-access.service.js';
 import { requireAction } from '../community-policy.js';
 import { SavedRepository } from './repository.js';
 import type { SavedIntent, SavedReceipt } from './contracts.js';
+function savedAccountPolicy(intent: SavedIntent) {
+  if (intent.operation === 'set_post_saved')
+    return booleanAccountPolicy(
+      intent.desired,
+      'interaction',
+      'protective_cleanup',
+    );
+  if (intent.operation === 'set_post_update_preference')
+    return booleanAccountPolicy(
+      intent.desired,
+      'private_self_service',
+      'protective_cleanup',
+    );
+  throw new Error('Unknown saved policy operation');
+}
 const terminal = new Set<ApplicationErrorCode>([
   'POST_NOT_FOUND',
   'COMMUNITY_SCOPE_UNAVAILABLE',
@@ -40,6 +61,10 @@ export class SavedMutationService {
   ) {}
   /** Cleanup is separately routed, reduction-only, active original account only.
    * It neither calls visibility/authority nor returns hidden parent information. */
+  @AccountPolicyFor(
+    (args) => savedAccountPolicy(args[2] as SavedIntent),
+    'owner_after_recovery',
+  )
   set(
     token: string,
     request: string,
@@ -76,6 +101,7 @@ export class SavedMutationService {
         await this.access.actor(token, tx);
         return row.receipt;
       }
+      await enforceAccountPunishment(actor, savedAccountPolicy(intent), tx);
       const deadlineCheckpoint = checkpointTransactionDeadlines(tx);
       await tx.query('SAVEPOINT saved_work');
       let receipt: SavedReceipt;
@@ -181,6 +207,7 @@ export class SavedMutationService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, requestId: string): Promise<SavedReceipt> {
     return this.community.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);

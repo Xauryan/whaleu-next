@@ -1,3 +1,4 @@
+import { hashToken } from '../../src/identity/tokens.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -347,10 +348,17 @@ test(
             [randomUUID(), 'CAMPUS_NOT_FOUND'],
           ] as const)
             await assert.rejects(
-              profiles.selectCampus(second.accountId, {
-                expectedRevision: 0,
-                campusId: id,
-              }),
+              profiles.selectCampus(
+                second.accountId,
+                {
+                  expectedRevision: 0,
+                  campusId: id,
+                },
+                {
+                  sessionId: second.sessionId,
+                  tokenHash: hashToken(second.accessToken),
+                },
+              ),
               codeIs(code),
             );
           assert.equal((await profiles.get(second.accountId)).revision, 0);
@@ -381,14 +389,28 @@ test(
         'concurrent first writes and later cross-operation writes have one winner without lost updates',
         async () => {
           const initial = await Promise.allSettled([
-            profiles.update(second.accountId, {
-              expectedRevision: 0,
-              nickname: 'Alpha',
-            }),
-            profiles.update(second.accountId, {
-              expectedRevision: 0,
-              nickname: 'Beta',
-            }),
+            profiles.update(
+              second.accountId,
+              {
+                expectedRevision: 0,
+                nickname: 'Alpha',
+              },
+              {
+                sessionId: second.sessionId,
+                tokenHash: hashToken(second.accessToken),
+              },
+            ),
+            profiles.update(
+              second.accountId,
+              {
+                expectedRevision: 0,
+                nickname: 'Beta',
+              },
+              {
+                sessionId: second.sessionId,
+                tokenHash: hashToken(second.accessToken),
+              },
+            ),
           ]);
           assert.equal(
             initial.filter(({ status }) => status === 'fulfilled').length,
@@ -402,14 +424,28 @@ test(
               codeIs('PROFILE_REVISION_CONFLICT')(initialFailure.reason),
           );
           const race = await Promise.allSettled([
-            profiles.update(first.accountId, {
-              expectedRevision: 4,
-              bio: 'winner',
-            }),
-            profiles.updatePreferences(first.accountId, {
-              expectedRevision: 4,
-              preferences: { showHotTopic: false },
-            }),
+            profiles.update(
+              first.accountId,
+              {
+                expectedRevision: 4,
+                bio: 'winner',
+              },
+              {
+                sessionId: first.sessionId,
+                tokenHash: hashToken(first.accessToken),
+              },
+            ),
+            profiles.updatePreferences(
+              first.accountId,
+              {
+                expectedRevision: 4,
+                preferences: { showHotTopic: false },
+              },
+              {
+                sessionId: first.sessionId,
+                tokenHash: hashToken(first.accessToken),
+              },
+            ),
           ]);
           assert.equal(
             race.filter(({ status }) => status === 'fulfilled').length,
@@ -531,10 +567,17 @@ test(
               [secondId],
             );
             await assert.rejects(
-              profiles.selectCampus(first.accountId, {
-                expectedRevision: 5,
-                campusId: secondId,
-              }),
+              profiles.selectCampus(
+                first.accountId,
+                {
+                  expectedRevision: 5,
+                  campusId: secondId,
+                },
+                {
+                  sessionId: first.sessionId,
+                  tokenHash: hashToken(first.accessToken),
+                },
+              ),
               codeIs('CAMPUS_UNAVAILABLE'),
             );
           } finally {

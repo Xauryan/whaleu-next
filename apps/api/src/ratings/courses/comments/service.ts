@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../../safety/account-policy/decorator.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -149,6 +150,7 @@ export class CourseCommentsService {
       ],
     );
   }
+  @AccountPolicy('browse', 'entry')
   page(token: string, id: string, query: CourseCommentQuery) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -242,6 +244,7 @@ export class CourseCommentsService {
       });
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   publish(token: string, id: string, command: CourseCommentPublish) {
     return this.mutate(
       token,
@@ -252,6 +255,7 @@ export class CourseCommentsService {
       false,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   like(
     token: string,
     id: string,
@@ -267,6 +271,7 @@ export class CourseCommentsService {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, requestId: string, input: CourseCommentCancel) {
     if (requestId !== input.command.clientRequestId)
       throw new ApplicationError('REQUEST_CONFLICT');
@@ -453,6 +458,7 @@ export class CourseCommentsService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),

@@ -1,3 +1,4 @@
+import { hashToken } from '../identity/tokens.js';
 import { MediaDeliveryBudgetModule } from '../media/delivery-budget.module.js';
 import { MediaDeliveryBudgetPool } from '../media/delivery-budget.js';
 import { ContentReviewModule } from '../community/content-review/content-review.module.js';
@@ -72,7 +73,10 @@ export class ProfileController {
     @Body(new SchemaValidationPipe(profilePatchSchema)) patch: ProfilePatch,
   ): Promise<OwnProfile> {
     const session = await this.identity.session(bearerToken(authorization));
-    return this.profiles.update(session.accountId, patch);
+    return this.profiles.update(session.accountId, patch, {
+      sessionId: session.sessionId,
+      tokenHash: hashToken(bearerToken(authorization)),
+    });
   }
   @Patch('preferences')
   async updatePreferences(
@@ -81,7 +85,10 @@ export class ProfileController {
     patch: PreferencesPatch,
   ): Promise<OwnProfile> {
     const session = await this.identity.session(bearerToken(authorization));
-    return this.profiles.updatePreferences(session.accountId, patch);
+    return this.profiles.updatePreferences(session.accountId, patch, {
+      sessionId: session.sessionId,
+      tokenHash: hashToken(bearerToken(authorization)),
+    });
   }
   @Put('campus')
   async selectCampus(
@@ -90,7 +97,10 @@ export class ProfileController {
     selection: CampusSelection,
   ): Promise<OwnProfile> {
     const session = await this.identity.session(bearerToken(authorization));
-    return this.profiles.selectCampus(session.accountId, selection);
+    return this.profiles.selectCampus(session.accountId, selection, {
+      sessionId: session.sessionId,
+      tokenHash: hashToken(bearerToken(authorization)),
+    });
   }
 }
 

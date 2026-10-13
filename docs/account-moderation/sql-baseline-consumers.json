@@ -1,0 +1,1066 @@
+{
+  "directCount": 27,
+  "transitiveCount": 91,
+  "functions": [
+    {
+      "function": "whaleu_community.admin_discussion_removal_assert_complete",
+      "source": "apps/api/migrations/0132_scoped_admin_discussion_removal.sql",
+      "sourceSha256": "3add6fa0f589a2ec031d18d84c09eda3f25884dabf30673d73b3e2904d92c193",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_community.admin_discussion_removal_supported",
+        "whaleu_profile.moderation_actor_current"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.admin_discussion_removal_command_guard",
+      "source": "apps/api/migrations/0132_scoped_admin_discussion_removal.sql",
+      "sourceSha256": "7e88f22f124e7fcbea8cb4b39c26d71489698b0c7f1dbb6b47930aad69636ca1",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_community.admin_discussion_removal_supported",
+        "whaleu_profile.moderation_actor_current"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.admin_discussion_removal_complete",
+      "source": "apps/api/migrations/0132_scoped_admin_discussion_removal.sql",
+      "sourceSha256": "f3408703bf6923965310fc2a256cd77f3a51e87f7360ed41c6de19700a7956a1",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_community.admin_discussion_removal_assert_complete"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.admin_discussion_removal_recheck_active",
+      "source": "apps/api/migrations/0132_scoped_admin_discussion_removal.sql",
+      "sourceSha256": "55149860b197ce32f90e7bc9053ed4bf587c284328e28c9b6a98558d8847185e",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_community.admin_discussion_removal_assert_complete"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.admin_discussion_removal_supported",
+      "source": "apps/api/migrations/0132_scoped_admin_discussion_removal.sql",
+      "sourceSha256": "81538707ec72ce462b7985b38c68748f2004d56be87fcb7dd8b0c425111b82c7",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.admin_post_removal_assert_complete",
+      "source": "apps/api/migrations/0131_scoped_admin_post_removal.sql",
+      "sourceSha256": "f09bf76e980e34117c06ece2d5ba58f2372b2bfb9ced786ddebb108712830ac0",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_community.admin_post_removal_supported",
+        "whaleu_profile.moderation_actor_current"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.admin_post_removal_command_guard",
+      "source": "apps/api/migrations/0131_scoped_admin_post_removal.sql",
+      "sourceSha256": "174d9b879d195ef80696813fdefbbab962526c4dfb0a48a758b473298f81be55",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_community.admin_post_removal_supported",
+        "whaleu_profile.moderation_actor_current"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.admin_post_removal_complete",
+      "source": "apps/api/migrations/0131_scoped_admin_post_removal.sql",
+      "sourceSha256": "0ace745a64f36b2446c4238105154e7da513dd3ac79cf12e70b1fc4220a2106c",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_community.admin_post_removal_assert_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.admin_post_removal_recheck_active",
+      "source": "apps/api/migrations/0131_scoped_admin_post_removal.sql",
+      "sourceSha256": "ee8806625c0039d68ed4809e95d5fdfbd5841d37880575de45f670a39acda8bf",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_community.admin_post_removal_assert_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.admin_post_removal_supported",
+      "source": "apps/api/migrations/0131_scoped_admin_post_removal.sql",
+      "sourceSha256": "4eee7ecf8bac9572a3527f46a0fc4168be55d5bf5c69ceaa5d52b0a7af4241f6",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.course_comment_binding_final",
+      "source": "apps/api/migrations/0113_course_comments.sql",
+      "sourceSha256": "cf17d447d5f7a5f7cfca0a3518bf9454b2ae7c3a1c50b97a75c54aacf817cfce",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.course_comment_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.post_category_assert_event",
+      "source": "apps/api/migrations/0127_scoped_category_reclassification.sql",
+      "sourceSha256": "a7d851bda44fa4d80b9300376f94d2f8051b25c4778b2f39a550ada3eec2ab1b",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_community.require_post_owner_restore_safety"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.post_category_complete",
+      "source": "apps/api/migrations/0127_scoped_category_reclassification.sql",
+      "sourceSha256": "cf91b5040e518709124c067c9b2fb36041a5851d37617f7439a1d0cfc20496c3",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_community.require_post_owner_restore_safety"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.post_category_event_complete",
+      "source": "apps/api/migrations/0127_scoped_category_reclassification.sql",
+      "sourceSha256": "8bcffdfdc12edad122a39f0614d932e15e55269d51d6f125679d3d05ed274684",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_community.post_category_assert_event"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.post_owner_visibility_complete",
+      "source": "apps/api/migrations/0126_owner_post_visibility.sql",
+      "sourceSha256": "b8a19f703a42b377219f9668a033f5a18773c8f4afb2f790adcc435fbf82bc80",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_community.require_post_owner_restore_safety"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.post_owner_visibility_state_guard",
+      "source": "apps/api/migrations/0126_owner_post_visibility.sql",
+      "sourceSha256": "a93b32a9a5ae07e015f00ce3c1f4d17e50fd48bce5bb30514ac75868ef4cb399",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_community.require_post_owner_restore_safety"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.profile_moderation_supported",
+      "source": "apps/api/migrations/0128_scoped_profile_nickname_moderation.sql",
+      "sourceSha256": "4046aa29fec0c844815d9895f0924adbb6c46d1c64053b55102c7bb6169aef7a",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_community.require_post_owner_restore_safety",
+      "source": "apps/api/migrations/0126_owner_post_visibility.sql",
+      "sourceSha256": "694fe4fcdc043ada7d84a771cd991286af3e9ea3556b57bce7c08c11c16bda19",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "forward_predicate",
+        "action": "interaction"
+      }
+    },
+    {
+      "function": "whaleu_majors.major_access",
+      "source": "apps/api/migrations/0121_major_discussion.sql",
+      "sourceSha256": "2e328500ce70009eb4cebe55f0e6e86eb296ddfbdd488025c7ceb6df9e4eeb68",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_safety.major_rating_allowed"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_delete_complete",
+      "source": "apps/api/migrations/0124_major_discussion_soft_delete.sql",
+      "sourceSha256": "df1e39962938cf0ccad721cdac89d9b5ee6303404b0034efddc782ca40de297d",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_majors.major_access",
+        "whaleu_majors.major_delete_fence"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_delete_fence",
+      "source": "apps/api/migrations/0124_major_discussion_soft_delete.sql",
+      "sourceSha256": "b7aa65f50b103e4f8eaa5c568feaaa0bd6ec843e42e96ab7152b3700dfdb2760",
+      "directBaselineConsumer": true,
+      "dependencies": ["whaleu_majors.major_fence"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_delete_final",
+      "source": "apps/api/migrations/0124_major_discussion_soft_delete.sql",
+      "sourceSha256": "1782f46dac80666fb8874464974300e6706167e38dec165bf289bfaabf94e633",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_majors.major_delete_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_discussion_access_deadline",
+      "source": "apps/api/migrations/0121_major_discussion.sql",
+      "sourceSha256": "f0d7ef01def4d413ab96f0bb564c078bf2a1aa55c64052af2cdb966d8a71adf2",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_discussion_complete",
+      "source": "apps/api/migrations/0125_major_discussion_media.sql",
+      "sourceSha256": "f4d14d8a924bffe537fd41ddbe80f5d7f7e2b83756bce9a12edf958ef7a09cc2",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_majors.major_access",
+        "whaleu_majors.major_discussion_visibility"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_discussion_complete_v1",
+      "source": "apps/api/migrations/0125_major_discussion_media.sql",
+      "sourceSha256": "9d0742bf722d67f7037f556438d675ae3038bfb71d871e9e2fcd39493f5c6528",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_majors.major_access",
+        "whaleu_majors.major_discussion_visibility"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_discussion_deadline",
+      "source": "apps/api/migrations/0125_major_discussion_media.sql",
+      "sourceSha256": "7bf12fffac69011b2c7c077c28868396b2b8d316100ec524a7455dba7f5e7312",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_discussion_deadline_v1",
+      "source": "apps/api/migrations/0125_major_discussion_media.sql",
+      "sourceSha256": "6e449075815e17b583005873847aa7b18693ad85841ae43a2df03476c0724be3",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_discussion_final",
+      "source": "apps/api/migrations/0121_major_discussion.sql",
+      "sourceSha256": "e03f08b4a92bb3ee4f770500a603059cece8ab40157c9d8a0ffc8705403b9897",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_majors.major_discussion_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_discussion_head_final",
+      "source": "apps/api/migrations/0121_major_discussion.sql",
+      "sourceSha256": "63e39f23f04e70719d24cca428201bb394557e3046d2e995885480babf7bbc4a",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_majors.major_discussion_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_discussion_statement_final",
+      "source": "apps/api/migrations/0121_major_discussion.sql",
+      "sourceSha256": "355a1c7cc519879928bcf7c6ee2d4f5ac06b826e2aff3d846953b4c59eb8b6e0",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_majors.major_discussion_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_discussion_visibility",
+      "source": "apps/api/migrations/0124_major_discussion_soft_delete.sql",
+      "sourceSha256": "7207a67e0f16df09f4b1381e9070868d0ddcd0905ab5751cb081b05730d7dc53",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_majors.major_discussion_visibility_base"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_discussion_visibility_base",
+      "source": "apps/api/migrations/0124_major_discussion_soft_delete.sql",
+      "sourceSha256": "bf80affeaf1d6b0d50a86ef1a8f27aa9edc32d4895828c7584cf26f1b0024d5d",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_majors.major_discussion_visibility_without_tombstone"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_discussion_visibility_without_tombstone",
+      "source": "apps/api/migrations/0125_major_discussion_media.sql",
+      "sourceSha256": "7665993f181076c93f768cccf14fe5158de4622e7ad6d8e99ca327c005db1db5",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_safety.major_discussion_named"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_majors.major_fence",
+      "source": "apps/api/migrations/0121_major_discussion.sql",
+      "sourceSha256": "7c11aa0f964976511c713e3308e33b823c47a3fd9fe3fc0c4002de7420776cfd",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_media.major_discussion_scope_guard",
+      "source": "apps/api/migrations/0125_major_discussion_media.sql",
+      "sourceSha256": "8fffbed8c957ffb5fffa92274ebf1e6400b942de144c022cfcb5f01769ed35c2",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_majors.major_discussion_visibility"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_media.window_discussion_scope_guard",
+      "source": "apps/api/migrations/0123_window_discussion_media.sql",
+      "sourceSha256": "549fb1913237ab18a87d7622cfddac3bf9e0268b069b387a3b6711f1bca907f7",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.window_discussion_visibility"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_profile.avatar_moderation_assert_complete",
+      "source": "apps/api/migrations/0129_scoped_profile_avatar_moderation.sql",
+      "sourceSha256": "7c7301c50273f28ea0f59d328c6dba329b464e75b7e2757c3fd868be11ab70b2",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_community.profile_moderation_supported",
+        "whaleu_profile.moderation_actor_current"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_profile.avatar_moderation_command_guard",
+      "source": "apps/api/migrations/0129_scoped_profile_avatar_moderation.sql",
+      "sourceSha256": "085c87f3ba42c02e646a760f1c1c7568b70c2e416e8ecdd84290b7ec0ebcc55f",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_community.profile_moderation_supported",
+        "whaleu_profile.moderation_actor_current"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_profile.avatar_moderation_complete",
+      "source": "apps/api/migrations/0129_scoped_profile_avatar_moderation.sql",
+      "sourceSha256": "a1b0d9b0789bee9898ec0d96ba6d6e947f8e39b1293abd01162d657967472e32",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_profile.avatar_moderation_assert_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_profile.avatar_moderation_recheck_active",
+      "source": "apps/api/migrations/0129_scoped_profile_avatar_moderation.sql",
+      "sourceSha256": "16fa31a1fb88913688749c7e3a1fe8aa92128629ac3f6fc193e259b7f70d8eb7",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_profile.avatar_moderation_assert_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_profile.moderation_actor_current",
+      "source": "apps/api/migrations/0128_scoped_profile_nickname_moderation.sql",
+      "sourceSha256": "c21cbc45a8dc823b5e7be802009bd9fd7226c75ed340de37bc93231b5d00fc12",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "forward_predicate",
+        "action": "privileged_read"
+      }
+    },
+    {
+      "function": "whaleu_profile.moderation_assert_complete",
+      "source": "apps/api/migrations/0128_scoped_profile_nickname_moderation.sql",
+      "sourceSha256": "fe95101436a35d2d73c4f021d7e8a72b4313d01d455f4cb121777356cf0f3fa5",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_community.profile_moderation_supported",
+        "whaleu_profile.moderation_actor_current"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_profile.moderation_command_guard",
+      "source": "apps/api/migrations/0128_scoped_profile_nickname_moderation.sql",
+      "sourceSha256": "7d450914b4fa91243499a33bb753af03fbc7a644f3ce3f53ed12bd08e687a4e1",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_community.profile_moderation_supported",
+        "whaleu_profile.moderation_actor_current"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_profile.moderation_complete",
+      "source": "apps/api/migrations/0128_scoped_profile_nickname_moderation.sql",
+      "sourceSha256": "2d9d01c5fcbb69332f94219ed546504a977cdc25dcac4f40be8fd23cdcc5d852",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_profile.moderation_assert_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_profile.moderation_recheck_active",
+      "source": "apps/api/migrations/0128_scoped_profile_nickname_moderation.sql",
+      "sourceSha256": "b2dd0d9f4fffb269426952127cfb97f454fc25c07d481193f919a3cc6d2cc814",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_profile.moderation_assert_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.category_icon_terminal_retirement_guard",
+      "source": "apps/api/migrations/0092_ratings_category_icon_delivery_retirement.sql",
+      "sourceSha256": "155177c09c8368db6a8b81b53374e9bd5cce0cf45da65e8cbc3a0e8367976114",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.category_management_actor_current"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.category_management_actor_current",
+      "source": "apps/api/migrations/0068_rating_category_management_commands.sql",
+      "sourceSha256": "0ffbf00fefb031dd6ba1ab1ab4e30b6c864aa88de7f7073db825327a299aa301",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "forward_predicate",
+        "action": "content_management"
+      }
+    },
+    {
+      "function": "whaleu_ratings.category_management_current_authority",
+      "source": "apps/api/migrations/0068_rating_category_management_commands.sql",
+      "sourceSha256": "57dfd1c6a9d936862da2b7320e43f7b1524d481088f68583fd774eddfaa1b0a4",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.category_management_actor_current"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.course_comment_access",
+      "source": "apps/api/migrations/0113_course_comments.sql",
+      "sourceSha256": "aba7065dc80e00b7de25f9f83a0ed5aa5622a84f60ba8860df755aa0595fad2e",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_safety.course_comment_allowed"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.course_comment_complete",
+      "source": "apps/api/migrations/0113_course_comments.sql",
+      "sourceSha256": "dddf9d7e45bcf538ca9021e79a8c9a9ac2c32a88b12b2fdaec511c262d6f506f",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_ratings.course_comment_access",
+        "whaleu_ratings.course_comment_fence"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.course_comment_deadline",
+      "source": "apps/api/migrations/0113_course_comments.sql",
+      "sourceSha256": "54f4912bf9d05ff558c46b64d7d3a0eae793330794830aac25352af3771d288a",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.course_comment_fence",
+      "source": "apps/api/migrations/0113_course_comments.sql",
+      "sourceSha256": "62e0950bbfc7522a52e441f0f0d5c1efddffef7ce885679bf9f1bc558d97638b",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.course_comment_final",
+      "source": "apps/api/migrations/0113_course_comments.sql",
+      "sourceSha256": "a608a963bb7add33a133da632509a5a33d7e9f2849409df9e20962de344d8fbe",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.course_comment_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.course_comment_statement_final",
+      "source": "apps/api/migrations/0113_course_comments.sql",
+      "sourceSha256": "c31a92ce050ccb95dde779ec23711933107804bb7568df3f19186c7dfeaf7d85",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.course_comment_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.dish_complete",
+      "source": "apps/api/migrations/0115_dish_recommendations.sql",
+      "sourceSha256": "1199c0b9fd49f690265f157f56696488deb134e831885e803bdfea0a43611929",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_ratings.dish_fence",
+        "whaleu_ratings.window_access"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.dish_deadline",
+      "source": "apps/api/migrations/0115_dish_recommendations.sql",
+      "sourceSha256": "2ccdb35364d11b932637d91add788377533bdc3150a7bf426039241f8dbe05bb",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.dish_fence",
+      "source": "apps/api/migrations/0115_dish_recommendations.sql",
+      "sourceSha256": "a6da443c2ab9d2e00dd328d8eb619adce8843631e1296456a842149603fda783",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.window_fence"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.dish_final",
+      "source": "apps/api/migrations/0115_dish_recommendations.sql",
+      "sourceSha256": "fd32c5db72fe472462739ae7e780591789ed1c92f2742d8ab02ac341d62fb4f3",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.dish_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.dish_head_final",
+      "source": "apps/api/migrations/0115_dish_recommendations.sql",
+      "sourceSha256": "68835765bd24970c0558434d0d0887b3fd3da94ef76545622f394e29885bd9ae",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.dish_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.dish_statement_final",
+      "source": "apps/api/migrations/0115_dish_recommendations.sql",
+      "sourceSha256": "e57c6e2ae3a86ec58c009d5689e0964dcd7d09242c95f418e6edefec559f4218",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.dish_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.dish_visibility",
+      "source": "apps/api/migrations/0115_dish_recommendations.sql",
+      "sourceSha256": "bc37595d837337e536093c14eab7a2073cc4b93439e0d59e52bd13b9e78ec4a1",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_safety.dish_contribution_status"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.floor_complete",
+      "source": "apps/api/migrations/0120_canteen_floor_scores.sql",
+      "sourceSha256": "d169129304d5948e6951cc7601f3a120b5a7ae917b5ef6cb15d2df240ef48d3b",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_ratings.floor_fence",
+        "whaleu_ratings.window_access"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.floor_fence",
+      "source": "apps/api/migrations/0120_canteen_floor_scores.sql",
+      "sourceSha256": "d1e46446c950b0c04111f4f6f4b384eed3c8f235ba071c30f538bad6ea56755e",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.floor_final",
+      "source": "apps/api/migrations/0120_canteen_floor_scores.sql",
+      "sourceSha256": "870468e7c3f74e955750e854339f4f0a6dd941c719c846c86d6303c8f2d3f5ee",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.floor_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.floor_head_final",
+      "source": "apps/api/migrations/0120_canteen_floor_scores.sql",
+      "sourceSha256": "6e595f3030b7c2174c982ab415cacd984d5b2229d9fb01483172f4f29f5bc0f2",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.floor_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.floor_statement_final",
+      "source": "apps/api/migrations/0120_canteen_floor_scores.sql",
+      "sourceSha256": "a0ea3aff3351f7ca6e6881627e04353ae5cdb87b2a794ab0ead3eb3d8f8248f8",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.floor_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_access",
+      "source": "apps/api/migrations/0114_window_ratings.sql",
+      "sourceSha256": "d55adad34c08875a02067e1a5ac4bbe927b30f288c55894787f32a0e6ed5b6a7",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_safety.window_rating_allowed"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_complete",
+      "source": "apps/api/migrations/0114_window_ratings.sql",
+      "sourceSha256": "801975a8026f4bee2e477b0e73dc7d49f2833f6eab302990f0f29444549ea4ce",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_ratings.window_access",
+        "whaleu_ratings.window_fence"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_deadline",
+      "source": "apps/api/migrations/0114_window_ratings.sql",
+      "sourceSha256": "f5b91ba6f7954018e76510c9fdfd8fd3d9a83e847e62937df79d38043d358539",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_discussion_access_deadline",
+      "source": "apps/api/migrations/0119_window_discussion.sql",
+      "sourceSha256": "090949fb2421413035e19f810e343e3180c382675289f744ae478b35e31615f1",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_discussion_complete",
+      "source": "apps/api/migrations/0123_window_discussion_media.sql",
+      "sourceSha256": "e394779c6a7cda07bdfbb01deb1f5fc4f67cde426541a8961dce975f5085e028",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_ratings.window_access",
+        "whaleu_ratings.window_discussion_fence",
+        "whaleu_ratings.window_discussion_visibility"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_discussion_complete_v1",
+      "source": "apps/api/migrations/0123_window_discussion_media.sql",
+      "sourceSha256": "a8f269996e8e6264cc6dea2db2c16dc604f30aa63949bcad4c80de71e71a57c1",
+      "directBaselineConsumer": false,
+      "dependencies": [
+        "whaleu_ratings.window_access",
+        "whaleu_ratings.window_discussion_fence",
+        "whaleu_ratings.window_discussion_visibility"
+      ],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_discussion_deadline",
+      "source": "apps/api/migrations/0123_window_discussion_media.sql",
+      "sourceSha256": "3539f85b848dada96d59d4742dba4610401aadec3aff2afcf3b60307056ef219",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_discussion_deadline_v1",
+      "source": "apps/api/migrations/0123_window_discussion_media.sql",
+      "sourceSha256": "6823509a675c789510de4b04ad42003aba3b8be04509fbaa2e88b126ce97ecb7",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_discussion_fence",
+      "source": "apps/api/migrations/0123_window_discussion_media.sql",
+      "sourceSha256": "e808f7bee4cdc1e610c6754566c141380a8e38b4a3dbcda54155ac373c563d39",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.window_fence"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_discussion_final",
+      "source": "apps/api/migrations/0119_window_discussion.sql",
+      "sourceSha256": "0f249d045fc6aafc6db9b74e0909edc763dfd85b913dc28610bfbbfb10bb3782",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.window_discussion_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_discussion_head_final",
+      "source": "apps/api/migrations/0119_window_discussion.sql",
+      "sourceSha256": "5d3dadfca884fa7d379895155884c16fbec6fc955c4ecbd49d87a5599e799321",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.window_discussion_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_discussion_statement_final",
+      "source": "apps/api/migrations/0119_window_discussion.sql",
+      "sourceSha256": "8f850d5e2fec9752de8b5a644dbee0d8bdb553ae13a90fbc2450fa18ddd66ec9",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.window_discussion_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_discussion_visibility",
+      "source": "apps/api/migrations/0119_window_discussion.sql",
+      "sourceSha256": "d4c4069d517effb1913db85b46a7cae33f7d071e4a46dcce829553556bf8e702",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.window_discussion_visibility_base"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_discussion_visibility_base",
+      "source": "apps/api/migrations/0123_window_discussion_media.sql",
+      "sourceSha256": "b32761154f7a9d0a267eef18da7c3e3bb3530f5a8e3bb4e3e1e83abfca10d03c",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_safety.window_discussion_named"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_fence",
+      "source": "apps/api/migrations/0114_window_ratings.sql",
+      "sourceSha256": "c4730d991fcbbcb6126e3c25ec722adb380276ab4b4e6ee0989e34a4aec74cf8",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_final",
+      "source": "apps/api/migrations/0114_window_ratings.sql",
+      "sourceSha256": "d2b5b923bee9d4915e10b256cdbdf41a0c3e04331725650c35c2ee76daf595c5",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.window_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_head_final",
+      "source": "apps/api/migrations/0114_window_ratings.sql",
+      "sourceSha256": "f729e185dc7f7e3dfc9df8435ac08f76128375c3e823e8c73d24939eaacb1d9f",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.window_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_ratings.window_statement_final",
+      "source": "apps/api/migrations/0114_window_ratings.sql",
+      "sourceSha256": "b8fc6e4a550c6b8ffe5a4383a83ec7bab31062dcab93b7ee779e70c785efa4d8",
+      "directBaselineConsumer": false,
+      "dependencies": ["whaleu_ratings.window_complete"],
+      "policyIntegration": {
+        "kind": "retained_owner_contract",
+        "reason": "Original deadline, source, effect, visibility or final-fence function is retained; actor overlay is composed at its explicit caller/command source and does not replace this owner proof."
+      }
+    },
+    {
+      "function": "whaleu_safety.course_comment_allowed",
+      "source": "apps/api/migrations/0113_course_comments.sql",
+      "sourceSha256": "30c1cbb613e7473df12593f89ebb6520d1b9bc18354dce3871354f640e254b45",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "forward_predicate",
+        "action": "browse"
+      }
+    },
+    {
+      "function": "whaleu_safety.dish_contribution_status",
+      "source": "apps/api/migrations/0115_dish_recommendations.sql",
+      "sourceSha256": "a2cfd8a1059bf0d6025bf81588184882799c661477e311a6160c0c722aa7173f",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "unchanged_target_authority",
+        "reason": "Historical target contribution is not the current caller; new account punishment must not hide every authored item."
+      }
+    },
+    {
+      "function": "whaleu_safety.event_shape",
+      "source": "apps/api/migrations/0014_named_blocks.sql",
+      "sourceSha256": "530497a80e665f4e4f1789f0903f2568db22f067f33da053ce0407fac5070f79",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "unchanged_import_authority",
+        "reason": "Accepted baseline source shape remains independent from punishment issue or release."
+      }
+    },
+    {
+      "function": "whaleu_safety.major_discussion_named",
+      "source": "apps/api/migrations/0121_major_discussion.sql",
+      "sourceSha256": "653287433f8cbf90554a0e76a16650fcb5583396cb54e6b05a6ea34fec915ea4",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "forward_predicate",
+        "action": "viewer_browse_not_author_punishment"
+      }
+    },
+    {
+      "function": "whaleu_safety.major_rating_allowed",
+      "source": "apps/api/migrations/0121_major_discussion.sql",
+      "sourceSha256": "5239aa3b50039c936e42adbfb09d5ea579e6eaf9d0cb4c5002288623e15007ad",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "forward_predicate",
+        "action": "browse"
+      }
+    },
+    {
+      "function": "whaleu_safety.window_discussion_named",
+      "source": "apps/api/migrations/0119_window_discussion.sql",
+      "sourceSha256": "67ece2d9655a22576c0d558a8406f7bec0ec01142ed755c3533e29ddadea63ad",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "forward_predicate",
+        "action": "viewer_browse_not_author_punishment"
+      }
+    },
+    {
+      "function": "whaleu_safety.window_rating_allowed",
+      "source": "apps/api/migrations/0114_window_ratings.sql",
+      "sourceSha256": "554c20fd7d632c3335131a79cdc472839c2ceccedc6fc51b1338346fb2887e3c",
+      "directBaselineConsumer": true,
+      "dependencies": [],
+      "policyIntegration": {
+        "kind": "forward_predicate",
+        "action": "browse"
+      }
+    }
+  ]
+}

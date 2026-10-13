@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { RatingCategoryIconRetirementOwner } from './icon-retirement.js';
 import { RatingCategoryScopedManagementService } from './scoped-service.js';
 import { RatingCategoryIconAuthority } from './icon-authority.js';
@@ -177,6 +178,7 @@ export class RatingCategoryIconManagementService {
     @Inject(RatingCategoryIconRetirementOwner)
     private readonly retirement: RatingCategoryIconRetirementOwner,
   ) {}
+  @AccountPolicy('privileged_read', 'entry')
   retirementStatus(
     token: string,
     input: { requestId: string; appearanceIds?: readonly string[] },
@@ -185,6 +187,7 @@ export class RatingCategoryIconManagementService {
       .inspectRetirement(token, input)
       .then((items) => ({ items }));
   }
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   cleanupRetirement(
     token: string,
     input: { requestId: string; appearanceIds: readonly string[] },
@@ -214,6 +217,7 @@ export class RatingCategoryIconManagementService {
       );
     return { authority, domain };
   }
+  @AccountPolicy('privileged_read', 'entry')
   context(
     token: string,
     input: { selector: RatingNavigationSelector },
@@ -345,6 +349,7 @@ export class RatingCategoryIconManagementService {
     };
     return transaction ? work(transaction) : this.run(work);
   }
+  @AccountPolicy('privileged_read', 'entry')
   entryContext(token: string, input: { selector: RatingNavigationSelector }) {
     return this.run(async (tx) => {
       const session = await this.enter(token, tx),
@@ -370,6 +375,7 @@ export class RatingCategoryIconManagementService {
         : { kind, context: await this.legacy.context(token, input, tx) };
     });
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   uploadScope(token: string, raw: RatingCategoryIconUploadScopeInput) {
     const input = ratingCategoryIconUploadScopeSchema.parse(raw);
     return this.run(async (tx) => {
@@ -395,6 +401,7 @@ export class RatingCategoryIconManagementService {
       return result;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recoverUploadScope(
     token: string,
     input: CategoryIconUploadScopeRecoveryInput,
@@ -410,6 +417,7 @@ export class RatingCategoryIconManagementService {
       return result;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelUploadScope(
     token: string,
     input: CategoryIconUploadScopeRecoveryInput,
@@ -428,6 +436,7 @@ export class RatingCategoryIconManagementService {
       return result;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, requestId: string) {
     return this.run(async (tx) => {
       const session = await this.enter(token, tx),
@@ -443,6 +452,7 @@ export class RatingCategoryIconManagementService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelByHash(token: string, raw: unknown) {
     const input = ratingCategoryIconRecoveryClosureSchema.parse(raw);
     return this.run(async (tx) => {
@@ -565,6 +575,7 @@ export class RatingCategoryIconManagementService {
       mediaSnapshot,
     };
   }
+  @AccountPolicy('privileged_read', 'entry')
   list(token: string, query: { contextId: string; contextToken: string }) {
     return this.run(async (tx) => {
       await this.enter(token, tx);
@@ -587,6 +598,7 @@ export class RatingCategoryIconManagementService {
       return result;
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   detail(
     token: string,
     query: { contextId: string; contextToken: string },
@@ -663,6 +675,7 @@ export class RatingCategoryIconManagementService {
       },
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   systemOptions(
     token: string,
     query: { contextId: string; contextToken: string },
@@ -693,6 +706,7 @@ export class RatingCategoryIconManagementService {
       return C.ratingCategorySystemOptionsSchema.parse({ items });
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   history(
     token: string,
     query: {
@@ -1032,6 +1046,7 @@ export class RatingCategoryIconManagementService {
     budget.observe({ categoryIconPreparedReview: mediaPlan });
     return mediaPlan;
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   prepare(token: string, raw: C.RatingCategoryScopedIntent) {
     const i = C.ratingCategoryScopedIntentSchema.parse(raw);
     return this.run(async (tx) => {
@@ -1197,6 +1212,7 @@ export class RatingCategoryIconManagementService {
     );
     return receipt;
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   commit(
     token: string,
     raw: {
@@ -1467,6 +1483,7 @@ export class RatingCategoryIconManagementService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, raw: C.RatingCategoryScopedIntent) {
     const i = C.ratingCategoryScopedIntentSchema.parse(raw);
     return this.run(async (tx) => {

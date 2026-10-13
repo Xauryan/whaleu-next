@@ -5,6 +5,8 @@ import { test } from 'node:test';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
+import { AccountPolicyInterceptor } from '../src/safety/account-policy/interceptor.js';
+import { controllerUnitAccountPolicy } from './support/controller-unit-account-policy.js';
 import { loadConfig } from '../src/config/config.js';
 import { DatabaseService } from '../src/database/database.js';
 import { configureHttp } from '../src/http/http.js';
@@ -315,6 +317,9 @@ test('normal AppModule registers search HTTP parsing and supplied bearer never d
       ),
     ],
   })
+    // Controller parsing/bearer unit: account policy is explicitly mocked here.
+    .overrideProvider(AccountPolicyInterceptor)
+    .useValue(controllerUnitAccountPolicy)
     .overrideProvider(DatabaseService)
     .useValue({ ready: async () => true })
     .overrideProvider(SearchService)

@@ -52,6 +52,7 @@ test(
       migrations.filter((m) => Number(m.name.slice(0, 4)) <= 96),
       { mode: 'up' },
     );
+    await f.restartApp(96);
     const expected = {
       ...before,
       functions: before.functions.map((f) =>

@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.js';
 import {
@@ -51,6 +52,7 @@ export class ExperienceRankingService {
     private readonly source: ExperienceRankingSourceFacade,
   ) {}
 
+  @AccountPolicy('browse', 'entry')
   ranking(
     token: string | null,
     query: RankingQuery,

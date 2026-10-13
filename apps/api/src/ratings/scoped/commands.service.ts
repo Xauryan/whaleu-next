@@ -1,3 +1,9 @@
+import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+  booleanAccountPolicy,
+} from '../../safety/account-policy/decorator.js';
 import { hasCurrentCategoryIconExtension } from '../category-management/icon-current.js';
 import {
   beginCategoryIconTargetMutation,
@@ -119,6 +125,31 @@ export function ratingScopedArtifactId(hash: string, kind: string): string {
   b[8] = (b[8]! & 63) | 128;
   const h = b.toString('hex');
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+function scopedAccountPolicy(intent: RatingScopedIntent) {
+  switch (intent.operation) {
+    case 'set_comment_like_scoped':
+    case 'set_reply_like_scoped':
+      return booleanAccountPolicy(
+        intent.payload.liked,
+        'interaction',
+        'protective_cleanup',
+      );
+    case 'set_target_subscription_scoped':
+      return booleanAccountPolicy(
+        intent.payload.subscribed,
+        'interaction',
+        'protective_cleanup',
+      );
+    case 'set_score_scoped':
+    case 'create_comment_scoped':
+    case 'create_reply_scoped':
+    case 'create_target_scoped':
+    case 'edit_target_scoped':
+      return 'interaction';
+    default:
+      throw new Error('Unknown scoped account policy operation');
+  }
 }
 @Injectable()
 export class RatingScopedCommands {
@@ -258,6 +289,7 @@ export class RatingScopedCommands {
       actor = scope.actor,
       hash = ratingScopedCommandHash(i),
       old = await this.preparation(actor, i.payload.clientRequestId, tx);
+    await enforceAccountPunishment(actor, scopedAccountPolicy(i), tx);
     const categoryMutation =
       executing &&
       (i.operation === 'create_target_scoped' ||
@@ -880,6 +912,7 @@ export class RatingScopedCommands {
     }
     return replacement;
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelUploadScope(token: string, raw: unknown) {
     const input = ratingTargetCoverUploadScopeSchema.parse(raw);
     return this.coverMedia.authorized(token, async (session, tx) => {
@@ -930,6 +963,7 @@ export class RatingScopedCommands {
       };
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   prepareUploadScope(token: string, raw: unknown) {
     const input = ratingTargetCoverUploadScopeSchema.parse(raw);
     return this.db.transaction(
@@ -1073,6 +1107,10 @@ export class RatingScopedCommands {
       },
     };
   }
+  @AccountPolicyFor(
+    (args) => scopedAccountPolicy(ratingScopedIntentSchema.parse(args[1])),
+    'owner_after_recovery',
+  )
   prepare(token: string, raw: RatingScopedIntent) {
     const i = ratingScopedIntentSchema.parse(raw);
     return this.db.transaction(
@@ -1160,6 +1198,7 @@ export class RatingScopedCommands {
     );
     return receipt;
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   status(token: string, requestId: string, protocolVersion?: 4) {
     return this.db.transaction(
       async (tx) => {
@@ -1181,6 +1220,7 @@ export class RatingScopedCommands {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelDiscussionByHash(token: string, requestId: string, raw: unknown) {
     const input = ratingDiscussionMediaHashCancelSchema.parse(raw);
     return this.db.transaction(
@@ -1242,6 +1282,7 @@ export class RatingScopedCommands {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, raw: RatingScopedIntent) {
     const i = ratingScopedIntentSchema.parse(raw);
     if (
@@ -1275,6 +1316,10 @@ export class RatingScopedCommands {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicyFor(
+    (args) => scopedAccountPolicy(ratingScopedIntentSchema.parse(args[1])),
+    'owner_after_recovery',
+  )
   submit(
     token: string,
     raw: RatingScopedIntent,
@@ -1569,6 +1614,7 @@ export class RatingScopedCommands {
         return this.create(scope, p, tx);
     }
   }
+  @AccountPolicy('browse', 'entry')
   editContext(
     token: string,
     targetId: string,

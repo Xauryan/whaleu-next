@@ -1,3 +1,6 @@
+import { captureProfileSelfEditIdentity } from './self-edit-proof.js';
+import { enforceAccountPunishment } from '../safety/account-moderation/policy.js';
+import { randomUUID } from 'node:crypto';
 import { lockAvatarActor } from './avatar/current-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -6,6 +9,11 @@ import { ApplicationError } from '../http/application-error.js';
 import { preferenceDefaults, preferencesSchema } from './contracts.js';
 import type { Preferences } from './contracts.js';
 
+/** Internal authenticated caller evidence; never accepted from a request body. */
+export interface ProfileSelfEditIdentity {
+  readonly sessionId: string;
+  readonly tokenHash: string;
+}
 export interface StoredProfile {
   readonly accountId: string;
   readonly nickname: string | null;
@@ -145,14 +153,47 @@ export class ProfileRepository {
       current: StoredProfile,
       transaction: PoolClient,
     ) => Promise<ProfileChanges>,
+    identity: ProfileSelfEditIdentity,
   ): Promise<StoredProfile> {
-    return this.database.transaction((transaction) =>
-      this.updateInTransaction(
-        accountId,
-        expectedRevision,
-        change,
-        transaction,
-      ),
+    return this.database.transaction(
+      async (transaction) => {
+        const causeId = randomUUID();
+        const identityHash = await captureProfileSelfEditIdentity(
+          causeId,
+          accountId,
+          identity,
+          transaction,
+        );
+        await enforceAccountPunishment(
+          accountId,
+          'private_self_service',
+          transaction,
+        );
+        return this.updateInTransaction(
+          accountId,
+          expectedRevision,
+          async (current, tx) => {
+            const changes = await change(current, tx);
+            await tx.query(
+              `INSERT INTO whaleu_profile.self_edit_causes
+             (id,actor_id,session_id,token_hash,expected_revision,patch,identity_hash)
+             VALUES($1,$2,$3,$4,$5,$6::jsonb,$7)`,
+              [
+                causeId,
+                accountId,
+                identity.sessionId,
+                identity.tokenHash,
+                expectedRevision,
+                JSON.stringify(changes),
+                identityHash,
+              ],
+            );
+            return changes;
+          },
+          transaction,
+        );
+      },
+      { isolationLevel: 'read committed' },
     );
   }
 

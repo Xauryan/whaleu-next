@@ -51,6 +51,8 @@ export interface Authority {
  * No HTTP/provider/remote work is permitted in any transactional port. These are
  * dependency-injection boundaries, never client flags or environment allowlists. */
 export interface AuthorizationContext {
+  /** Server-owned semantic purpose; never accepted from a request DTO. */
+  safetyAction?: import('../safety/account-moderation/contracts.js').SafetyAction;
   phoneOnly?: boolean;
   managementRequired?: boolean;
   publication?: boolean;

@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { batchCategoryChildContextAllowed } from './category-reclassification/child-context.js';
 import { currentCategoryCursorScope } from './current-category-cursor.js';
 import { CURRENT_CATEGORY_POSTS_SQL } from './current-category-sql.js';
@@ -54,9 +55,11 @@ export class FeedService {
     @Inject(TextReviewRuntime)
     private readonly reviews?: TextReviewRuntime,
   ) {}
+  @AccountPolicy('browse', 'entry')
   spaces(campusId: string) {
     return this.repository.spaces(campusId);
   }
+  @AccountPolicy('browse', 'entry')
   capabilities(
     token: string,
     spaceId: string,
@@ -133,6 +136,7 @@ export class FeedService {
       return result;
     });
   }
+  @AccountPolicy('browse', 'entry')
   feed(token: string | null, query: FeedQuery): Promise<FeedPage> {
     return this.repository.database.transaction(
       async (tx) => {
@@ -233,6 +237,7 @@ export class FeedService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   commentCapabilities(token: string, id: string): Promise<CommentCapabilities> {
     return this.repository.database.transaction(
       async (tx) => {
@@ -344,6 +349,7 @@ export class FeedService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   detail(token: string, id: string): Promise<PostView> {
     return this.repository.database.transaction(
       async (tx) => {
@@ -436,6 +442,7 @@ export class FeedService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   ownTrading(
     token: string,
     query: OwnTradingQuery,
@@ -512,6 +519,7 @@ export class FeedService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   own(
     token: string,
     query: PageQuery,

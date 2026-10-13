@@ -131,6 +131,7 @@ test(
       migrations.filter((m) => Number(m.name.slice(0, 4)) <= 95),
       { mode: 'up' },
     );
+    await f.restartApp(95);
     const afterFunctions = new Map(
       (await functions()).map((row) => [row.oid, row]),
     );

@@ -1,3 +1,4 @@
+import { enforceAccountPunishment } from './account-moderation/policy.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -22,6 +23,7 @@ export class ProfileVisibilityFacade {
     target: string,
     tx: PoolClient,
   ): Promise<ProfileRelationship> {
+    if (viewer) await enforceAccountPunishment(viewer, 'browse', tx);
     if (!viewer || viewer === target) return { status: 'available' };
     const directions = await this.records.directions(
       viewer,

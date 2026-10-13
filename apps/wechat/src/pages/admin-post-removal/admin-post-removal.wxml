@@ -16,7 +16,28 @@
   </view>
   <view wx:if="{{confirming === 'remove' &amp;&amp; management &amp;&amp; !frozen}}" class="card" aria-role="alert">
     <view class="section-title">确认管理员删除此帖子？</view>
-    <view class="notice">删除后，此帖子及其评论、回复将不可访问，作者会收到私有系统通知。当前没有恢复此帖的管理入口。此操作不禁言作者。已下载或正在展示的图片不会即时从所有设备消失。帖子状态变化后需要重新确认。</view>
+    <view class="notice">删除后，此帖子及其评论、回复将不可访问，作者会收到私有系统通知。当前没有恢复此帖的管理入口。未选择处罚时仅删除内容。已下载或正在展示的图片不会即时从所有设备消失。帖子状态变化后需要重新确认。</view>
+    <view wx:if="{{management.punishmentOptions}}" class="punishment-controls">
+      <view>可选：对该内容的原作者同时处罚</view>
+      <view>当前禁言：{{management.punishmentOptions.interaction_mute.current ? (management.punishmentOptions.interaction_mute.current.endsAt || '永久') : '无生效处罚'}}</view>
+      <view>当前封号：{{management.punishmentOptions.access_suspension.current ? (management.punishmentOptions.access_suspension.current.endsAt || '永久') : '无生效处罚'}}</view>
+      <radio-group bindchange="onPunishmentKind">
+        <label><radio value="none" checked="{{punishmentKind === 'none'}}" disabled="{{busy}}"/>仅删除</label>
+        <label><radio value="interaction_mute" checked="{{punishmentKind === 'interaction_mute'}}" disabled="{{busy}}"/>禁言：可浏览，限制互动</label>
+        <label><radio value="access_suspension" checked="{{punishmentKind === 'access_suspension'}}" disabled="{{busy}}"/>封号：限制大部分浏览和互动</label>
+      </radio-group>
+      <view wx:if="{{punishmentKind !== 'none'}}">
+        <view>处罚只针对该内容的原作者。删除、处罚及两条私有通知一起生效；身份验证状态保持独立。原作者仍可查看处罚原因并申诉。</view>
+        <radio-group bindchange="onPunishmentUnit">
+          <label><radio value="hours" checked="{{punishmentUnit === 'hours'}}" disabled="{{busy}}"/>小时</label>
+          <label><radio value="days" checked="{{punishmentUnit === 'days'}}" disabled="{{busy}}"/>天</label>
+          <label><radio value="permanent" checked="{{punishmentUnit === 'permanent'}}" disabled="{{busy}}"/>永久</label>
+        </radio-group>
+        <input wx:if="{{punishmentUnit !== 'permanent'}}" type="number" value="{{punishmentValue}}" bindinput="onPunishmentValue" disabled="{{busy}}" placeholder="正整数时长"/>
+        <textarea value="{{punishmentReason}}" bindinput="onPunishmentReason" disabled="{{busy}}" maxlength="255" placeholder="处罚原因（必填，最多255字）"/>
+        <view>有限时长从本次生效时重新计算。同类永久处罚须先由超级管理员解除，不能直接缩短；另一类处罚独立保留。</view>
+      </view>
+    </view>
     <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认删除帖子并通知作者</button>
     <button bindtap="onClose" disabled="{{busy}}">返回</button>
   </view>

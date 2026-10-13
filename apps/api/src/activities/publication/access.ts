@@ -1,3 +1,4 @@
+import { AccountPolicyFor } from '../../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
@@ -162,6 +163,7 @@ export class ActivityPublicationAccess implements ActivityMediaAccessPort {
   async retainMediaCurrent(id: string, tx: PoolClient) {
     await requireActivityCurrent('draft', id, tx);
   }
+  @AccountPolicyFor(() => 'browse', 'entry')
   async authorizeMediaRead(
     token: string,
     target: ActivityMediaReadTarget,

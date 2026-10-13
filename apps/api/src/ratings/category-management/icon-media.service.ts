@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import {
   CategoryIconRetirementProofRegistry,
   type CategoryIconRetirementRequest,
@@ -191,6 +192,7 @@ export class RatingCategoryIconMediaService implements CategoryIconMediaOwner {
     });
   }
 
+  @AccountPolicy('browse', 'entry')
   authorizeCurrent(
     token: string,
     request: CategoryIconMediaReadRequest,
@@ -215,6 +217,7 @@ export class RatingCategoryIconMediaService implements CategoryIconMediaOwner {
     );
   }
 
+  @AccountPolicy('browse', 'entry')
   describe(
     credential: string,
     request: CategoryIconMediaReadRequest,
@@ -234,6 +237,7 @@ export class RatingCategoryIconMediaService implements CategoryIconMediaOwner {
 
   /** Composes with an existing Category projection transaction while retaining
    * exactly the same authenticated, current-release qualification as HTTP. */
+  @AccountPolicy('browse', 'entry')
   descriptorInTransaction(
     credential: string,
     request: CategoryIconMediaReadRequest,

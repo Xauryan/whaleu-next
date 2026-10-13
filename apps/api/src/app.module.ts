@@ -1,3 +1,4 @@
+import { AccountPolicyModule } from './safety/account-policy/module.js';
 import { SchoolAdminManagementModule } from './authorization/school-admin-management/module.js';
 import { ProfileAvatarModerationModule } from './profile/avatar-moderation/module.js';
 import { ProfileModerationModule } from './profile/moderation/module.js';
@@ -83,6 +84,7 @@ export class AppModule {
         OrganizationManagementModule,
         RatingUpdatesModule,
         SafetyModule,
+        AccountPolicyModule,
         NotificationsModule,
         IdentityPrivacyModule,
         ExperienceModule,

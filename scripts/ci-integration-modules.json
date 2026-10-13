@@ -479,6 +479,14 @@
       "owners": ["community", "media"],
       "shards": [
         [
+          "account-appeals.test.ts",
+          "account-moderation-expiry.test.ts",
+          "account-moderation-migration.test.ts",
+          "account-moderation-native-roundtrip.test.ts",
+          "account-policy-consumers.test.ts",
+          "account-policy-media-delivery.test.ts",
+          "account-policy-detached-major-media.test.ts",
+          "account-punishment-causal.test.ts",
           "admin-discussion-removal-authority.test.ts",
           "admin-discussion-removal-category.test.ts",
           "admin-discussion-removal-causality.test.ts",
@@ -497,7 +505,9 @@
           "admin-post-removal-native-roundtrip.test.ts",
           "admin-post-removal-notices.test.ts",
           "admin-post-removal.test.ts",
-          "historical-command-session-retention.test.ts"
+          "historical-account-punishment-policy.test.ts",
+          "historical-command-session-retention.test.ts",
+          "profile-self-edit-causality.test.ts"
         ]
       ]
     }

@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { withDiscussionMediaMutation } from '../../media/discussion-ancestor-proof.js';
 import type { PoolClient } from 'pg';
 import type { DatabaseService } from '../../database/database.js';
@@ -95,16 +96,19 @@ export class CommunityMediaBatchApplication {
     private readonly batches: MediaBatchRepository,
     private readonly ingress: MediaIngressRepository,
   ) {}
+  @AccountPolicy('restricted_self_service', 'restricted')
   fencePublication(token: string, id: string, input: unknown) {
     return this.authorized(token, (s, tx) =>
       this.batches.fencePublication(s.accountId, id, input, tx),
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   prepareBatch(token: string, input: unknown) {
     return this.authorized(token, (s, tx) =>
       this.batches.prepare(s.accountId, input, tx),
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recoverBatch(token: string, id: string) {
     return this.authorized(
       token,
@@ -112,6 +116,7 @@ export class CommunityMediaBatchApplication {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   async cancelBatch(token: string, id: string, input: unknown) {
     const fenced = await this.authorized(token, (s, tx) =>
       this.batches.beginCancel(s.accountId, id, input, tx),
@@ -132,6 +137,7 @@ export class CommunityMediaBatchApplication {
       status,
     };
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recoverPublication(token: string, input: unknown) {
     return this.authorized(
       token,
@@ -139,26 +145,31 @@ export class CommunityMediaBatchApplication {
       false,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   layout(token: string, id: string, input: unknown) {
     return this.authorized(token, (s, tx) =>
       this.batches.layout(s.accountId, id, input, tx),
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   seal(token: string, id: string, input: unknown) {
     return this.authorized(token, (s, tx) =>
       this.batches.seal(s.accountId, id, input, tx),
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   reopen(token: string, id: string, input: unknown) {
     return this.authorized(token, (s, tx) =>
       this.batches.reopen(s.accountId, id, input, tx),
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   prepareMember(token: string, id: string, input: unknown) {
     return this.authorized(token, (s, tx) =>
       this.batches.prepareMember(s.accountId, id, input, tx),
     );
   }
+  @AccountPolicy('browse', 'entry')
   memberStatus(token: string, id: string) {
     return this.authorized(
       token,
@@ -166,6 +177,7 @@ export class CommunityMediaBatchApplication {
       false,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   async finalizeMember(token: string, id: string) {
     const status = await this.memberStatus(token, id);
     if (
@@ -188,6 +200,7 @@ export class CommunityMediaBatchApplication {
       return this.batches.memberStatus(s.accountId, id, tx);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelMember(token: string, id: string) {
     return this.authorized(token, async (s, tx) => {
       await lockMediaBatchesForIntents([id], tx, true);
@@ -205,6 +218,7 @@ export class CommunityMediaBatchApplication {
       return this.batches.memberStatus(s.accountId, id, tx);
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   async grant(token: string, id: string) {
     const result = await this.authorized(token, async (s, tx) =>
       this.ingress.grant(
@@ -225,6 +239,7 @@ export class CommunityMediaBatchApplication {
     if ('blocked' in result) throw new ApplicationError(result.blocked);
     return result;
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   admit(token: string, id: string, grantId: string) {
     return this.authorized(token, async (s, tx) =>
       this.ingress.admit(
@@ -244,6 +259,7 @@ export class CommunityMediaBatchApplication {
       ),
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   observe(
     token: string,
     claim: MediaIngressClaim,

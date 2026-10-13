@@ -1,3 +1,4 @@
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -178,7 +179,10 @@ test('feedback fan-out uses fresh grants and active accounts, deduplicates candi
 function fixture() {
   const owner = randomUUID(),
     calls: string[] = [];
-  const tx = { query: async () => ({ rows: [] }) } as unknown as PoolClient;
+  const tx = {
+    query: async (sql: string, params?: unknown[]) =>
+      unpunishedAccountPolicyObservation(sql, params) ?? { rows: [] },
+  } as unknown as PoolClient;
   let active = true,
     accessible = true,
     sessions = 0,

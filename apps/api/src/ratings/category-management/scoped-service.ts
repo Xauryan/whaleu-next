@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -125,6 +126,7 @@ export class RatingCategoryScopedManagementService {
       );
     return { authority, domain };
   }
+  @AccountPolicy('privileged_read', 'entry')
   context(
     token: string,
     input: { selector: RatingNavigationSelector },
@@ -295,6 +297,7 @@ export class RatingCategoryScopedManagementService {
     );
     return { session, row, selector, authority, domain, key, snapshot };
   }
+  @AccountPolicy('privileged_read', 'entry')
   list(token: string, query: { contextId: string; contextToken: string }) {
     return this.run(async (tx) => {
       await this.enter(token, tx);
@@ -311,6 +314,7 @@ export class RatingCategoryScopedManagementService {
       return result;
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   detail(
     token: string,
     query: { contextId: string; contextToken: string },
@@ -329,6 +333,7 @@ export class RatingCategoryScopedManagementService {
       return view;
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   systemOptions(
     token: string,
     query: { contextId: string; contextToken: string },
@@ -359,6 +364,7 @@ export class RatingCategoryScopedManagementService {
       return C.ratingCategorySystemOptionsSchema.parse({ items });
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   history(
     token: string,
     query: {
@@ -464,6 +470,7 @@ export class RatingCategoryScopedManagementService {
       expiresAt: p.valid_until.toISOString(),
     });
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   prepare(token: string, raw: C.RatingCategoryScopedIntent) {
     const i = C.ratingCategoryScopedIntentSchema.parse(raw);
     return this.run(async (tx) => {
@@ -616,6 +623,7 @@ export class RatingCategoryScopedManagementService {
     );
     return receipt;
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   commit(
     token: string,
     raw: {
@@ -775,6 +783,7 @@ export class RatingCategoryScopedManagementService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, raw: C.RatingCategoryScopedIntent) {
     const i = C.ratingCategoryScopedIntentSchema.parse(raw);
     return this.run(async (tx) => {

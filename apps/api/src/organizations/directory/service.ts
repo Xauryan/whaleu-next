@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.js';
 import { ApplicationError } from '../../http/application-error.js';
@@ -55,6 +56,7 @@ export class DirectoryService {
     @Inject(DirectoryCursorRepository)
     private readonly cursors: DirectoryCursorRepository,
   ) {}
+  @AccountPolicy('browse', 'entry')
   context(token: string) {
     return this.database.transaction(
       async (tx) => {
@@ -65,6 +67,7 @@ export class DirectoryService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   categories(token: string, regionId: string, query: DirectoryCategoryQuery) {
     return this.database.transaction(
       async (tx) => {
@@ -123,6 +126,7 @@ export class DirectoryService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   entries(token: string, regionId: string, query: DirectoryEntryQuery) {
     return this.database.transaction(
       async (tx) => {
@@ -181,6 +185,7 @@ export class DirectoryService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   detail(token: string, regionId: string, entryId: string) {
     return this.database.transaction(
       async (tx) => {

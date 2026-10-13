@@ -1,3 +1,8 @@
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
+import {
+  startTransactionDeadlines,
+  clearTransactionDeadlines,
+} from '../src/database/transaction-deadlines.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -83,7 +88,10 @@ function harness(
     saves: MaintenanceDecision[] = [],
     sql: string[] = [];
   const tx = {
-    query: async (query: string) => {
+    query: async (query: string, args: unknown[] = []) => {
+      // Error injection belongs to maintenance owner SQL, not this policy leaf.
+      const policy = unpunishedAccountPolicyObservation(query, args);
+      if (policy) return policy;
       sql.push(query);
       if (options.queryError)
         throw { code: options.queryError, constraint: options.constraint };
@@ -100,11 +108,16 @@ function harness(
   } as unknown as PoolClient;
   const database = {
     transaction: async <T>(fn: (tx: PoolClient) => Promise<T>) => {
-      const result = await fn(tx);
-      events.push('finalize');
-      if (options.finalizeError)
-        throw new ApplicationError('AUTHORIZATION_UNAVAILABLE');
-      return result;
+      startTransactionDeadlines(tx);
+      try {
+        const result = await fn(tx);
+        events.push('finalize');
+        if (options.finalizeError)
+          throw new ApplicationError('AUTHORIZATION_UNAVAILABLE');
+        return result;
+      } finally {
+        clearTransactionDeadlines(tx);
+      }
     },
   } as DatabaseService;
   const identity = {

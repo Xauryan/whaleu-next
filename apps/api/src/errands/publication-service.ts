@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -120,6 +121,7 @@ export class ErrandPublicationService {
       throw new ApplicationError('ERRAND_REVISION_CONFLICT');
     return draft;
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   create(token: string, raw: unknown) {
     const input = createErrandDraftSchema.parse(raw);
     return this.db.transaction(
@@ -226,6 +228,7 @@ export class ErrandPublicationService {
   }
   /** Reserve the exact original command before the native client can lose its
    * response. The journal subsequently needs only these IDs and hashes. */
+  @AccountPolicy('interaction', 'owner_after_recovery')
   prepare(token: string, raw: unknown) {
     const body = publishErrandV2Schema.parse(raw),
       hash = errandPublicationHash(body);
@@ -306,6 +309,7 @@ export class ErrandPublicationService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   async publish(token: string, requestId: string, requestHash: string) {
     const body = await this.db.transaction(
       async (tx) => {
@@ -411,6 +415,7 @@ export class ErrandPublicationService {
       2,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, requestId: string) {
     return this.db.transaction(
       async (tx) => {
@@ -448,6 +453,7 @@ export class ErrandPublicationService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, id: string, raw: unknown) {
     const input = cancelErrandDraftSchema.parse(raw);
     return this.db.transaction(

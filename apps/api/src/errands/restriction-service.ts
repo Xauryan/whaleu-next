@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { createHash } from 'node:crypto';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -77,9 +78,11 @@ export class ErrandRestrictionService {
     @Inject(DiscoveryContinuationFacade)
     private readonly cursors: DiscoveryContinuationFacade,
   ) {}
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   issue(token: string, body: IssueErrandRestriction) {
     return this.execute(token, 'issue', body);
   }
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   release(
     token: string,
     restrictionId: string,
@@ -210,6 +213,7 @@ export class ErrandRestrictionService {
       return errandManagementFailure(error);
     }
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   async receipt(
     token: string,
     requestId: string,
@@ -369,6 +373,7 @@ export class ErrandRestrictionService {
       'DISCOVERY_RESTART_REQUIRED',
     );
   }
+  @AccountPolicy('privileged_read', 'entry')
   async list(token: string, query: ErrandRestrictionsQuery) {
     try {
       return await this.db.transaction(
@@ -465,6 +470,7 @@ export class ErrandRestrictionService {
       return errandManagementFailure(error);
     }
   }
+  @AccountPolicy('privileged_read', 'entry')
   async history(
     token: string,
     restrictionId: string,

@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { ApplicationError } from '../../http/application-error.js';
@@ -21,6 +22,7 @@ export class PollVotingService {
     @Inject(BallotRequestsRepository)
     private readonly requests: BallotRequestsRepository,
   ) {}
+  @AccountPolicy('interaction', 'owner_after_recovery')
   cast(
     token: string,
     postId: string,

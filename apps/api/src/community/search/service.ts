@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { batchCategoryChildContextAllowed } from '../category-reclassification/child-context.js';
 import { currentCategoryCursorScope } from '../current-category-cursor.js';
 import {
@@ -750,6 +751,7 @@ export class SearchService {
     );
   }
 
+  @AccountPolicy('browse', 'entry')
   search(token: string | null, query: SearchQuery): Promise<SearchPage> {
     requireSearchMatcherRuntime();
     return this.repository.database.transaction(

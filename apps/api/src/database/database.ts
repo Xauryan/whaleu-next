@@ -1,3 +1,5 @@
+import { AccountPunishmentPolicy } from '../safety/account-moderation/policy.js';
+import { withAccountPunishmentPolicy } from '../safety/account-policy/punishment-context.js';
 import {
   startTransactionDeadlines,
   checkTransactionDeadlines,
@@ -50,6 +52,15 @@ export async function inTransaction<T>(
   operation: (client: PoolClient) => Promise<T>,
   options: TransactionOptions = {},
 ): Promise<T> {
+  return runTransaction(pool, operation, options);
+}
+
+async function runTransaction<T>(
+  pool: Pick<Pool, 'connect'>,
+  operation: (client: PoolClient) => Promise<T>,
+  options: TransactionOptions,
+  policy?: AccountPunishmentPolicy,
+): Promise<T> {
   const client = await pool.connect();
   let destroy = false;
   try {
@@ -59,10 +70,15 @@ export async function inTransaction<T>(
         : 'BEGIN',
     );
     startTransactionDeadlines(client);
-    const result = await operation(client);
-    await checkTransactionDeadlines(client);
-    await client.query('COMMIT');
-    return result;
+    const complete = async () => {
+      const result = await operation(client);
+      await checkTransactionDeadlines(client);
+      await client.query('COMMIT');
+      return result;
+    };
+    return policy
+      ? await withAccountPunishmentPolicy(client, policy, complete)
+      : await complete();
   } catch (error) {
     try {
       await client.query('ROLLBACK');
@@ -86,6 +102,8 @@ export class DatabaseService
   constructor(
     @Inject(APP_CONFIG) config: RuntimeConfig,
     @Inject(AppLogger) logger: AppLogger,
+    @Inject(AccountPunishmentPolicy)
+    private readonly punishmentPolicy: AccountPunishmentPolicy = new AccountPunishmentPolicy(),
   ) {
     this.pool = new Pool(poolOptions(config));
     this.pool.on('error', () =>
@@ -104,7 +122,7 @@ export class DatabaseService
     operation: (client: PoolClient) => Promise<T>,
     options: TransactionOptions = {},
   ): Promise<T> {
-    return inTransaction(this.pool, operation, options);
+    return runTransaction(this.pool, operation, options, this.punishmentPolicy);
   }
 
   async ready(): Promise<boolean> {
@@ -127,5 +145,8 @@ export class DatabaseService
   }
 }
 
-@Module({ providers: [DatabaseService], exports: [DatabaseService] })
+@Module({
+  providers: [DatabaseService, AccountPunishmentPolicy],
+  exports: [DatabaseService, AccountPunishmentPolicy],
+})
 export class DatabaseModule {}

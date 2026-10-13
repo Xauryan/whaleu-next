@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import {
   checkpointTransactionDeadlines,
   restoreTransactionDeadlines,
@@ -98,6 +99,7 @@ export class BallotRequestsRepository {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, requestId: string): Promise<BallotReceipt> {
     return this.community.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);

@@ -1,3 +1,8 @@
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
+import {
+  startTransactionDeadlines,
+  clearTransactionDeadlines,
+} from '../src/database/transaction-deadlines.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -72,7 +77,8 @@ function localClient(
   return {
     host,
     connection: { stream: { remoteAddress: peer } },
-    query: async () => ({ rows: [{ name }] }),
+    query: async (sql: string, args: unknown[] = []) =>
+      unpunishedAccountPolicyObservation(sql, args) ?? { rows: [{ name }] },
   } as unknown as PoolClient;
 }
 test('Rating notices use strict safe unions, exact microseconds and rating-only ancestry', () => {
@@ -552,7 +558,14 @@ function readFixture() {
     {
       transaction: async (
         operation: (client: PoolClient) => Promise<unknown>,
-      ) => operation(tx),
+      ) => {
+        startTransactionDeadlines(tx);
+        try {
+          return await operation(tx);
+        } finally {
+          clearTransactionDeadlines(tx);
+        }
+      },
     } as never,
     {
       session: async () => {

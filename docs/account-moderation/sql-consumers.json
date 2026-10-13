@@ -1,0 +1,515 @@
+[
+  {
+    "function": "whaleu_safety.course_comment_allowed",
+    "source": "apps/api/migrations/0113_course_comments.sql",
+    "sourceSha256": "30c1cbb613e7473df12593f89ebb6520d1b9bc18354dce3871354f640e254b45",
+    "classification": "Authenticated browse; fresh command sidecars independently require interaction."
+  },
+  {
+    "function": "whaleu_safety.window_rating_allowed",
+    "source": "apps/api/migrations/0114_window_ratings.sql",
+    "sourceSha256": "554c20fd7d632c3335131a79cdc472839c2ceccedc6fc51b1338346fb2887e3c",
+    "classification": "Authenticated browse; fresh command sidecars independently require interaction."
+  },
+  {
+    "function": "whaleu_safety.major_rating_allowed",
+    "source": "apps/api/migrations/0121_major_discussion.sql",
+    "sourceSha256": "5239aa3b50039c936e42adbfb09d5ea579e6eaf9d0cb4c5002288623e15007ad",
+    "classification": "Authenticated browse; fresh command sidecars independently require interaction."
+  },
+  {
+    "function": "whaleu_profile.moderation_actor_current",
+    "source": "apps/api/migrations/0128_scoped_profile_nickname_moderation.sql",
+    "sourceSha256": "c21cbc45a8dc823b5e7be802009bd9fd7226c75ed340de37bc93231b5d00fc12",
+    "classification": "Shared administrator read eligibility, retaining original baseline and authority. Fresh content commands are separately captured."
+  },
+  {
+    "function": "whaleu_ratings.category_management_actor_current",
+    "source": "apps/api/migrations/0068_rating_category_management_commands.sql",
+    "sourceSha256": "0ffbf00fefb031dd6ba1ab1ab4e30b6c864aa88de7f7073db825327a299aa301",
+    "classification": "Fresh category management; unchanged base eligibility and category source rules."
+  },
+  {
+    "function": "whaleu_community.require_post_owner_restore_safety",
+    "source": "apps/api/migrations/0126_owner_post_visibility.sql",
+    "sourceSha256": "694fe4fcdc043ada7d84a771cd991286af3e9ea3556b57bce7c08c11c16bda19",
+    "classification": "Owner restoration distributes content; hiding remains separate protective cleanup."
+  },
+  {
+    "function": "whaleu_safety.window_discussion_named",
+    "source": "apps/api/migrations/0119_window_discussion.sql",
+    "sourceSha256": "67ece2d9655a22576c0d558a8406f7bec0ec01142ed755c3533e29ddadea63ad",
+    "classification": "Viewer suspension check precedes self bypass; target baseline and named-block rules are unchanged, with no author-wide overlay suppression."
+  },
+  {
+    "function": "whaleu_safety.major_discussion_named",
+    "source": "apps/api/migrations/0121_major_discussion.sql",
+    "sourceSha256": "653287433f8cbf90554a0e76a16650fcb5583396cb54e6b05a6ea34fec915ea4",
+    "classification": "Viewer suspension check precedes self bypass; target baseline and named-block rules are unchanged, with no author-wide overlay suppression."
+  },
+  {
+    "unchangedTargetPredicates": ["whaleu_safety.dish_contribution_status"],
+    "reason": "These assess historical TARGET contributions; actor punishments must not globally suppress them."
+  },
+  {
+    "consumerSources": [
+      {
+        "relation": "whaleu_ratings.course_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "interaction",
+        "cancellation": null
+      },
+      {
+        "relation": "whaleu_ratings.course_comment_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "interaction",
+        "cancellation": "COURSE_COMMENT_CANCELLED"
+      },
+      {
+        "relation": "whaleu_ratings.window_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "interaction",
+        "cancellation": "WINDOW_SCORE_CANCELLED"
+      },
+      {
+        "relation": "whaleu_ratings.dish_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "dish",
+        "cancellation": "DISH_CANCELLED"
+      },
+      {
+        "relation": "whaleu_ratings.floor_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "interaction",
+        "cancellation": "FLOOR_SCORE_CANCELLED"
+      },
+      {
+        "relation": "whaleu_ratings.window_discussion_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "interaction",
+        "cancellation": "WINDOW_DISCUSSION_CANCELLED"
+      },
+      {
+        "relation": "whaleu_majors.major_discussion_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "interaction",
+        "cancellation": "MAJOR_DISCUSSION_CANCELLED"
+      },
+      {
+        "relation": "whaleu_majors.major_discussion_delete_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "major_delete",
+        "cancellation": "MAJOR_DISCUSSION_CANCELLED"
+      },
+      {
+        "relation": "whaleu_community.post_pin_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "post_pin",
+        "cancellation": "POST_PIN_CANCELLED"
+      },
+      {
+        "relation": "whaleu_community.post_owner_visibility_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "owner_visibility",
+        "cancellation": "POST_OWNER_VISIBILITY_CANCELLED"
+      },
+      {
+        "relation": "whaleu_community.post_category_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "content_management",
+        "cancellation": "POST_CATEGORY_CANCELLED"
+      },
+      {
+        "relation": "whaleu_profile.moderation_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "content_management",
+        "cancellation": "PROFILE_MODERATION_CANCELLED"
+      },
+      {
+        "relation": "whaleu_profile.avatar_moderation_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "content_management",
+        "cancellation": "PROFILE_AVATAR_MODERATION_CANCELLED"
+      },
+      {
+        "relation": "whaleu_community.admin_post_removal_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "content_management",
+        "cancellation": "ADMIN_POST_REMOVAL_CANCELLED"
+      },
+      {
+        "relation": "whaleu_community.admin_discussion_removal_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "content_management",
+        "cancellation": "ADMIN_DISCUSSION_REMOVAL_CANCELLED"
+      },
+      {
+        "relation": "whaleu_authorization.school_admin_management_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "noncontent_management",
+        "cancellation": "SCHOOL_ADMIN_MANAGEMENT_CANCELLED"
+      },
+      {
+        "relation": "whaleu_community.region_policy_commands",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "immutable_insert",
+        "policy": "noncontent_management",
+        "cancellation": null
+      },
+      {
+        "relation": "whaleu_experience.requests",
+        "actorKey": "owner_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "private_self_service",
+        "cancellation": null
+      },
+      {
+        "relation": "whaleu_experience.maintenance_requests",
+        "actorKey": "actor_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "noncontent_management",
+        "cancellation": null
+      },
+      {
+        "relation": "whaleu_ratings.scoped_command_preparations",
+        "actorKey": "account_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "scoped",
+        "cancellation": null
+      },
+      {
+        "relation": "whaleu_ratings.scoped_command_outcomes",
+        "actorKey": "account_id",
+        "sourceKey": ["request_id"],
+        "capture": "immutable_insert",
+        "policy": "scoped",
+        "cancellation": null
+      },
+      {
+        "relation": "whaleu_community.publication_requests",
+        "actorKey": "account_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_community.poll_ballot_requests",
+        "actorKey": "account_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_community.discussion_requests",
+        "actorKey": "account_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_community.trading_requests",
+        "actorKey": "account_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_community.formation_requests",
+        "actorKey": "account_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_community.saved_requests",
+        "actorKey": "account_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_community.post_like_requests",
+        "actorKey": "account_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_ratings.requests",
+        "actorKey": "account_id",
+        "sourceKey": ["request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_errands.requests",
+        "actorKey": "account_id",
+        "sourceKey": ["request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_messaging.requests",
+        "actorKey": "account_id",
+        "sourceKey": ["request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_safety.errand_restriction_requests",
+        "actorKey": "account_id",
+        "sourceKey": ["request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_safety.requests",
+        "actorKey": "account_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_safety.report_requests",
+        "actorKey": "account_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "fresh_terminal_insert_or_pending_to_terminal_update",
+        "policy": "exact_closed_SQL_operation_dispatch",
+        "pendingAndReplay": "No new proof for receipt NULL or zero-row historical ON CONFLICT; existing owner completion rules remain."
+      },
+      {
+        "relation": "whaleu_campus.identity_selection_requests",
+        "actorKey": "account_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "immutable_insert",
+        "policy": "exact_source_SQL_dispatch"
+      },
+      {
+        "relation": "whaleu_profile.avatar_command_receipts",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "immutable_insert",
+        "policy": "exact_source_SQL_dispatch"
+      },
+      {
+        "relation": "whaleu_verification.student_requests",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "immutable_insert",
+        "policy": "exact_source_SQL_dispatch"
+      },
+      {
+        "relation": "whaleu_organizations.organization_requests",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "immutable_insert",
+        "policy": "exact_source_SQL_dispatch"
+      },
+      {
+        "relation": "whaleu_school_configuration.requests",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "immutable_insert",
+        "policy": "exact_source_SQL_dispatch"
+      },
+      {
+        "relation": "whaleu_activities.publication_receipts",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "immutable_insert",
+        "policy": "exact_source_SQL_dispatch"
+      },
+      {
+        "relation": "whaleu_announcements.native_requests",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "immutable_insert",
+        "policy": "exact_source_SQL_dispatch"
+      },
+      {
+        "relation": "whaleu_profile.avatar_edits",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "private_self_service",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_ratings.target_cover_upload_scopes",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "interaction",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_ratings.category_icon_upload_scopes",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "content_management",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_school_configuration.qr_upload_scopes",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "noncontent_management",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_organizations.media_upload_scopes",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "content_management",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_activities.media_upload_scopes",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "content_management",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_announcements.media_upload_scopes",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "content_management",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_media.verification_evidence_scopes",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "private_self_service",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_media.errand_scopes",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "interaction",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_media.private_message_scopes",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "interaction",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_media.window_discussion_scopes",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "interaction",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_media.major_discussion_scopes",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "interaction",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_verification.phone_proofs",
+        "actorKey": "account_id",
+        "sourceKey": ["request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "private_self_service",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_verification.phone_requests",
+        "actorKey": "account_id",
+        "sourceKey": ["request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "private_self_service",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_media.upload_intents",
+        "actorKey": "actor_id",
+        "sourceKey": ["client_request_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "media_purpose",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_media.publication_batch_commands",
+        "actorKey": "publication_batches.actor_id via exact batch_id join",
+        "sourceKey": ["batch_id", "command_id"],
+        "capture": "new_scope_or_command_insert",
+        "policy": "batch",
+        "lifecycle": "No policy on stored asset author, worker/reconciliation/detach or later upload intent state updates."
+      },
+      {
+        "relation": "whaleu_profile.self_edit_causes",
+        "actorKey": "actor_id",
+        "sourceKey": ["id"],
+        "capture": "immutable_insert_after_internal_self_edit_admit",
+        "policy": "private_self_service",
+        "lifecycle": "Authenticated own cause only; existing administrator causes and authoritative import/fixture source writes stay distinct."
+      }
+    ]
+  }
+]

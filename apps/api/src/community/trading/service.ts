@@ -1,3 +1,9 @@
+import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+  operationAccountPolicy,
+} from '../../safety/account-policy/decorator.js';
 import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
 import {
   checkpointTransactionDeadlines,
@@ -27,6 +33,7 @@ export class TradingService {
     private readonly access: CommunityAccessService,
     @Inject(TradingRepository) private readonly trading: TradingRepository,
   ) {}
+  @AccountPolicy('browse', 'entry')
   contacts(token: string, postId: string) {
     return this.repository.database.transaction(
       async (tx) => {
@@ -43,6 +50,14 @@ export class TradingService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicyFor(
+    (args) =>
+      operationAccountPolicy((args[2] as SetTradingResolution).resolution, {
+        open: 'interaction',
+        resolved: 'protective_cleanup',
+      }),
+    'owner_after_recovery',
+  )
   setResolution(
     token: string,
     postId: string,
@@ -73,6 +88,14 @@ export class TradingService {
         throw new ApplicationError('REQUEST_CONFLICT');
       // Immutable replay is BEFORE current parent/authority. Never reapply old intent.
       if (row.receipt) return row.receipt;
+      await enforceAccountPunishment(
+        actor,
+        operationAccountPolicy(input.resolution, {
+          open: 'interaction',
+          resolved: 'protective_cleanup',
+        }),
+        tx,
+      );
       const deadlineCheckpoint = checkpointTransactionDeadlines(tx);
       await tx.query('SAVEPOINT trading_work');
       let receipt: TradingReceipt;
@@ -131,6 +154,7 @@ export class TradingService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, requestId: string): Promise<TradingReceipt> {
     return this.repository.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);

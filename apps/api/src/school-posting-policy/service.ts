@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ZodError } from 'zod';
@@ -119,6 +120,7 @@ export class SchoolPostingPolicyService {
       throw error;
     }
   }
+  @AccountPolicy('privileged_read', 'entry')
   management(token: string, regionId: string | undefined) {
     return this.run(async (tx) => {
       const context = await this.access.management(token, regionId, tx),
@@ -148,6 +150,7 @@ export class SchoolPostingPolicyService {
       });
     });
   }
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   save(token: string, regionId: string, command: SaveSchoolPostingPolicy) {
     return this.run(async (tx) => {
       await lockSafetyPolicy(tx, true);
@@ -211,6 +214,7 @@ export class SchoolPostingPolicyService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, requestId: string, requestHash: string) {
     return this.run(async (tx) => {
       const actor = (await this.access.authenticate(token, tx)).accountId;
@@ -237,6 +241,7 @@ export class SchoolPostingPolicyService {
       });
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, requestId: string) {
     return this.run(async (tx) => {
       const actor = (await this.access.authenticate(token, tx)).accountId;

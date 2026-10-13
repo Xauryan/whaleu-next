@@ -1,3 +1,8 @@
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+  operationAccountPolicy,
+} from '../../safety/account-policy/decorator.js';
 import { MediaCurrentDenied } from '../../media/asset-repository.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
@@ -127,6 +132,7 @@ export class ActivityPublicationService {
         : { state: 'not_recorded', requestId: key },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, key: string) {
     return this.run(async (tx) => {
       const session = await this.access.authenticate(token, tx);
@@ -134,6 +140,7 @@ export class ActivityPublicationService {
       return this.recovery(session.accountId, key, tx);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, key: string, hash: string) {
     return this.run(async (tx) => {
       const session = await this.access.authenticate(token, tx, true),
@@ -158,6 +165,16 @@ export class ActivityPublicationService {
       });
     });
   }
+  @AccountPolicyFor(
+    (args) =>
+      operationAccountPolicy((args[2] as ActivityPublicationCommand).action, {
+        create: 'content_management',
+        save: 'content_management',
+        publish: 'content_management',
+        cancel_draft: 'protective_cleanup',
+      }),
+    'owner_after_recovery',
+  )
   command(token: string, id: string, command: ActivityPublicationCommand) {
     return this.run(async (tx) => {
       const session = await this.access.authenticate(token, tx, true),
@@ -473,6 +490,7 @@ export class ActivityPublicationService {
       organizerQr: qr,
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   draft(token: string, id: string) {
     return this.run(async (tx) => {
       const session = await this.access.authenticate(token, tx),
@@ -498,6 +516,7 @@ export class ActivityPublicationService {
       });
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   organizers(token: string, query: PublicationQuery) {
     return this.run(async (tx) => {
       const session = await this.access.authenticate(token, tx),
@@ -621,6 +640,7 @@ export class ActivityPublicationService {
       organizerQr: qr,
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   detail(token: string, id: string) {
     return this.run(async (tx) => {
       const session = await this.access.authenticate(token, tx),
@@ -628,6 +648,7 @@ export class ActivityPublicationService {
       return this.item(token, row, tx);
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   list(token: string, query: PublicationQuery, mine = false) {
     return this.run(async (tx) => {
       const session = await this.access.authenticate(token, tx),

@@ -1,3 +1,9 @@
+import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+  booleanAccountPolicy,
+} from '../../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.js';
 import { ApplicationError } from '../../http/application-error.js';
@@ -45,6 +51,7 @@ export class RatingSubscriptionsService {
     @Inject(AuthorDisplayService)
     private readonly authors: AuthorDisplayService,
   ) {}
+  @AccountPolicy('private_self_service', 'entry')
   state(token: string, id: string, regionId: string | null) {
     return this.db.transaction(
       async (tx) => {
@@ -57,6 +64,7 @@ export class RatingSubscriptionsService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('private_self_service', 'entry')
   query(token: string, command: RatingSubscriptionQuery) {
     return this.db.transaction(
       async (tx) => {
@@ -101,6 +109,15 @@ export class RatingSubscriptionsService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicyFor(
+    (args) =>
+      booleanAccountPolicy(
+        (args[2] as SetRatingSubscription).subscribed,
+        'interaction',
+        'protective_cleanup',
+      ),
+    'owner_after_recovery',
+  )
   set(token: string, id: string, command: SetRatingSubscription) {
     return this.requests.execute(
       token,
@@ -108,6 +125,15 @@ export class RatingSubscriptionsService {
       'set_target_subscription',
       { targetId: id, ...command },
       async (actor, tx) => {
+        await enforceAccountPunishment(
+          actor,
+          booleanAccountPolicy(
+            command.subscribed,
+            'interaction',
+            'protective_cleanup',
+          ),
+          tx,
+        );
         const c = await this.targets.resolve(
           token,
           id,
@@ -147,6 +173,7 @@ export class RatingSubscriptionsService {
       },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.requests.receipt(token, id);
   }

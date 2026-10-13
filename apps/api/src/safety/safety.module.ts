@@ -1,3 +1,5 @@
+import { AccountAppealsModule } from './account-appeals/module.js';
+import { AccountModerationModule } from './account-moderation/module.js';
 import { AuthorizationModule } from '../authorization/authorization.module.js';
 import { SystemNoticesModule } from '../notifications/system-notices/system-notices.module.js';
 import { ReportingService } from './reporting/service.js';
@@ -16,6 +18,8 @@ import { NamedBlockController } from './controller.js';
 import { NamedBlockService } from './service.js';
 @Module({
   imports: [
+    AccountAppealsModule,
+    AccountModerationModule,
     DatabaseModule,
     AuthorizationModule,
     SystemNoticesModule,

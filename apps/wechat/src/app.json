@@ -2,6 +2,10 @@
   "pages": [
     "pages/login/login",
     "pages/status/status",
+    "pages/account-status/account-status",
+    "pages/safety-appeal/safety-appeal",
+    "pages/safety-appeal-management/safety-appeal-management",
+    "pages/safety-punishment-management/safety-punishment-management",
     "pages/profile/profile",
     "pages/experience/experience",
     "pages/experience-ranking/experience-ranking",

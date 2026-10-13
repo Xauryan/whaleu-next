@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import {
   Body,
   Controller,
@@ -24,7 +25,7 @@ import {
   adminPostRemovalReceiptSchema,
   adminPostRemovalManagementSchema,
   adminPostRemovalRecoverySchema,
-  adminPostRemovalTargetSchema,
+  adminPostRemovalManagementQuerySchema,
   adminPostRemovalRequestIdSchema,
   adminPostRemovalEmptyBodySchema,
   adminPostRemovalEmptyQuerySchema,
@@ -42,6 +43,7 @@ export class AdminPostRemovalController {
     private readonly moderation: AdminPostRemovalService,
   ) {}
   @Get('management')
+  @AccountPolicy('privileged_read', 'entry')
   @Header('Vary', 'Authorization')
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ operationId: 'adminPostRemovalManagement' })
@@ -49,16 +51,21 @@ export class AdminPostRemovalController {
   management(
     @Headers('authorization') auth: unknown,
     @Query({
-      schema: adminPostRemovalTargetSchema,
-      pipes: [new SchemaValidationPipe(adminPostRemovalTargetSchema)],
+      schema: adminPostRemovalManagementQuerySchema,
+      pipes: [new SchemaValidationPipe(adminPostRemovalManagementQuerySchema)],
     })
-    target: AdminPostRemovalTarget,
+    target: AdminPostRemovalTarget & { version?: '2' },
     @Body(new SchemaValidationPipe(adminPostRemovalEmptyBodySchema))
     _body: unknown,
   ) {
-    return this.moderation.management(bearerToken(auth), target);
+    return this.moderation.management(
+      bearerToken(auth),
+      { kind: target.kind, id: target.id },
+      target.version === '2',
+    );
   }
   @Post('commands')
+  @AccountPolicy('content_management', 'owner_after_recovery')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ operationId: 'adminPostRemovalCommand' })
@@ -79,6 +86,7 @@ export class AdminPostRemovalController {
     return this.moderation.command(bearerToken(auth), command);
   }
   @Get('requests/:requestId')
+  @AccountPolicy('restricted_self_service', 'restricted')
   @Header('Vary', 'Authorization')
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ operationId: 'adminPostRemovalRecovery' })
@@ -101,6 +109,7 @@ export class AdminPostRemovalController {
     return this.moderation.recovery(bearerToken(auth), requestId);
   }
   @Post('commands/cancel')
+  @AccountPolicy('restricted_self_service', 'restricted')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ operationId: 'adminPostRemovalCancel' })

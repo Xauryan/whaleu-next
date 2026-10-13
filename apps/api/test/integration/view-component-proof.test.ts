@@ -187,6 +187,13 @@ test(
         native(tx, false),
       );
       await runMigrations(pool, migrations, { mode: 'up' });
+      await app.close();
+      const upgraded = await Test.createTestingModule({
+        imports: [AppModule.register(config)],
+      }).compile();
+      app = upgraded.createNestApplication({ logger: false });
+      configureHttp(app);
+      await app.init();
       currentCommentSchema = true;
       await t.test(
         'migration and original HTTP publication replay do not enroll old like/subscription-known posts',

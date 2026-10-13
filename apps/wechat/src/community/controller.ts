@@ -74,7 +74,17 @@ export const reasonMessage = (code: string | null): string =>
     BLOCK_NOT_FOUND: '此屏蔽关系不存在或不属于当前账号',
     BLOCK_REVISION_CONFLICT: '屏蔽状态已变化，请刷新后再操作',
     SAFETY_UNAVAILABLE: '安全设置服务尚未就绪，请稍后重试',
-    SAFETY_ACTION_RESTRICTED: '当前账号暂不能修改安全设置',
+    SAFETY_ACTION_RESTRICTED:
+      '当前账号互动受限，请在账号状态查看原因和申诉；登录仍然有效',
+    SAFETY_ACCESS_SUSPENDED:
+      '当前账号已封号，请在账号状态查看原因、系统通知和私人申诉；登录仍然有效',
+    SAFETY_MODERATION_UNAVAILABLE:
+      '暂不能确认处罚状态，请稍后核验；未知状态不代表已恢复权限',
+    SAFETY_MODERATION_NOT_FOUND: '此处罚或私人申诉不存在，或不属于当前账号',
+    SAFETY_MODERATION_STALE: '处罚或申诉状态已变化，请重新核验并确认',
+    SAFETY_MODERATION_CANCELLED: '原请求已取消',
+    SAFETY_MODERATION_PERMANENT: '永久处罚需要先由有权管理员明确解除',
+    SAFETY_MODERATION_TARGET_PROTECTED: '此账号具有受保护身份',
     SYSTEM_NOTICES_UNAVAILABLE: '系统通知服务尚未就绪，请稍后重试',
     REPORT_TARGET_UNAVAILABLE: '此内容当前不可查看，进度不可用',
     REPORT_SELF_NOT_ALLOWED: '不能举报自己的帖子、评论或回复',

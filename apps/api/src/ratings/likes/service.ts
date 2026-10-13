@@ -1,3 +1,9 @@
+import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+  booleanAccountPolicy,
+} from '../../safety/account-policy/decorator.js';
 import { AuthorDisplayService } from '../../profile/author-display.service.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.js';
@@ -24,6 +30,7 @@ export class RatingLikesService {
     @Inject(RatingEffectsCapture)
     private readonly effects: RatingEffectsCapture,
   ) {}
+  @AccountPolicy('browse', 'entry')
   state(
     token: string,
     kind: 'comment' | 'reply',
@@ -54,6 +61,15 @@ export class RatingLikesService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicyFor(
+    (args) =>
+      booleanAccountPolicy(
+        (args[3] as SetRatingCommentLike | SetRatingReplyLike).liked,
+        'interaction',
+        'protective_cleanup',
+      ),
+    'owner_after_recovery',
+  )
   set(
     token: string,
     kind: 'comment' | 'reply',
@@ -68,6 +84,15 @@ export class RatingLikesService {
       operation,
       { [kind === 'comment' ? 'rootId' : 'replyId']: id, ...command },
       async (actor, tx) => {
+        await enforceAccountPunishment(
+          actor,
+          booleanAccountPolicy(
+            command.liked,
+            'interaction',
+            'protective_cleanup',
+          ),
+          tx,
+        );
         const c = await this.subjects.resolve(
           token,
           kind,
@@ -105,6 +130,7 @@ export class RatingLikesService {
       },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.requests.receipt(token, id);
   }

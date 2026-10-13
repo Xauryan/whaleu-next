@@ -1,3 +1,13 @@
+import {
+  decodeRemovalPunishmentSelection,
+  decodeRemovalPunishmentReference,
+  decodeRemovalPunishmentOptions,
+} from './punishment';
+import type {
+  RemovalPunishmentSelection,
+  RemovalPunishmentReference,
+  RemovalPunishmentOptions,
+} from './punishment';
 import { sha256 } from 'js-sha256';
 import { ClientError, isRecord } from '../api/errors';
 import { exact, timestamp, uuid4 } from '../community/contract';
@@ -12,14 +22,20 @@ export interface AdminPostRemovalManagement {
   readonly target: AdminPostRemovalTarget;
   readonly targetVersion: string;
   readonly canRemove: true;
+  readonly punishmentOptions?: RemovalPunishmentOptions;
 }
 export interface AdminPostRemovalCommand {
+  readonly version?: 2;
+  readonly punishment?: RemovalPunishmentSelection;
   readonly clientRequestId: string;
   readonly target: AdminPostRemovalTarget;
   readonly expectedTargetVersion: string;
   readonly action: 'remove_post';
 }
 export type AdminPostRemovalReceipt = {
+  readonly version?: 2;
+  readonly selection?: RemovalPunishmentSelection;
+  readonly punishment?: RemovalPunishmentReference;
   readonly requestId: string;
   readonly target: AdminPostRemovalTarget;
   readonly expectedTargetVersion: string;
@@ -58,7 +74,13 @@ export function decodeAdminPostRemovalTarget(
 export function decodeAdminPostRemovalManagement(
   raw: unknown,
 ): AdminPostRemovalManagement {
-  exact(raw, ['target', 'targetVersion', 'canRemove']);
+  if (!isRecord(raw)) invalidAdminPostRemoval();
+  exact(raw, [
+    'target',
+    'targetVersion',
+    'canRemove',
+    ...('punishmentOptions' in raw ? ['punishmentOptions'] : []),
+  ]);
   const target = decodeAdminPostRemovalTarget(raw.target);
   if (!version(raw.targetVersion) || raw.canRemove !== true)
     invalidAdminPostRemoval();
@@ -66,12 +88,27 @@ export function decodeAdminPostRemovalManagement(
     target,
     targetVersion: raw.targetVersion,
     canRemove: true,
+    ...('punishmentOptions' in raw
+      ? {
+          punishmentOptions: decodeRemovalPunishmentOptions(
+            raw.punishmentOptions,
+          ),
+        }
+      : {}),
   });
 }
 export function decodeAdminPostRemovalCommand(
   raw: unknown,
 ): AdminPostRemovalCommand {
-  exact(raw, ['clientRequestId', 'target', 'expectedTargetVersion', 'action']);
+  if (!isRecord(raw)) invalidAdminPostRemoval();
+  exact(raw, [
+    'clientRequestId',
+    'target',
+    'expectedTargetVersion',
+    'action',
+    ...('version' in raw ? ['version', 'punishment'] : []),
+  ]);
+  if ('version' in raw && raw.version !== 2) invalidAdminPostRemoval();
   const target = decodeAdminPostRemovalTarget(raw.target);
   if (
     !uuid4(raw.clientRequestId) ||
@@ -80,6 +117,12 @@ export function decodeAdminPostRemovalCommand(
   )
     invalidAdminPostRemoval();
   return Object.freeze({
+    ...('version' in raw
+      ? {
+          version: 2 as const,
+          punishment: decodeRemovalPunishmentSelection(raw.punishment, true),
+        }
+      : {}),
     clientRequestId: raw.clientRequestId,
     target,
     expectedTargetVersion: raw.expectedTargetVersion,
@@ -96,6 +139,13 @@ export function decodeAdminPostRemovalReceipt(
     'expectedTargetVersion',
     'action',
     'outcome',
+    ...('version' in raw
+      ? [
+          'version',
+          'selection',
+          ...(raw.outcome === 'applied' ? ['punishment'] : []),
+        ]
+      : []),
     ...(raw.outcome === 'applied' ? ['eventId', 'recordedAt'] : ['code']),
   ]);
   const target = decodeAdminPostRemovalTarget(raw.target);
@@ -114,6 +164,29 @@ export function decodeAdminPostRemovalReceipt(
       raw.code !== 'ADMIN_POST_REMOVAL_CANCELLED')
   )
     invalidAdminPostRemoval();
+  if ('version' in raw) {
+    if (raw.version !== 2) invalidAdminPostRemoval();
+    const selection = decodeRemovalPunishmentSelection(raw.selection, true);
+    if (raw.outcome === 'applied') {
+      const punishment = decodeRemovalPunishmentReference(raw.punishment);
+      if (
+        punishment.kind !== selection.kind ||
+        incrementRevision(selection.expectedRevision) !== punishment.revision
+      )
+        invalidAdminPostRemoval();
+      return Object.freeze({
+        ...raw,
+        target,
+        selection,
+        punishment,
+      }) as AdminPostRemovalReceipt;
+    }
+    return Object.freeze({
+      ...raw,
+      target,
+      selection,
+    }) as AdminPostRemovalReceipt;
+  }
   return Object.freeze({ ...raw, target }) as AdminPostRemovalReceipt;
 }
 export function matchAdminPostRemovalReceipt(
@@ -124,7 +197,10 @@ export function matchAdminPostRemovalReceipt(
     command.clientRequestId !== receipt.requestId ||
     !sameAdminPostRemovalTarget(command.target, receipt.target) ||
     command.expectedTargetVersion !== receipt.expectedTargetVersion ||
-    command.action !== receipt.action
+    command.action !== receipt.action ||
+    command.version !== receipt.version ||
+    canonical(command.punishment ?? null) !==
+      canonical(receipt.selection ?? null)
   )
     invalidAdminPostRemoval();
 }
@@ -175,7 +251,18 @@ export function adminPostRemovalCommandHash(
 ): string {
   if (!isUuid(actor)) invalidAdminPostRemoval();
   return sha256(
-    'whaleu:admin-post-removal-command:v1\n' +
+    `whaleu:admin-post-removal-command:v${command.version === 2 ? 2 : 1}\n` +
       canonical({ actor, command: decodeAdminPostRemovalCommand(command) }),
   );
+}
+
+function incrementRevision(value: string): string {
+  let carry = 1;
+  const chars = value.split('');
+  for (let i = chars.length - 1; i >= 0 && carry; i--) {
+    const n = Number(chars[i]) + carry;
+    chars[i] = String(n % 10);
+    carry = n > 9 ? 1 : 0;
+  }
+  return (carry ? '1' : '') + chars.join('');
 }

@@ -313,7 +313,7 @@ test('system notice cursors are owner, purpose and limit bound without a raw own
     { at: '2026-10-07T12:00:00Z' },
     { at: '2026-10-07T12:00:00.123+00:00' },
     { actor: owner },
-    { v: 5 },
+    { v: 6 },
     { kind: 'unknown_notice' },
     { kind: undefined },
     { v: 1 },
@@ -331,7 +331,7 @@ test('system notice cursors are owner, purpose and limit bound without a raw own
     );
 });
 
-test('all four cursor kinds are strict while existing v1 and v2 cursors remain owner and limit bound', () => {
+test('all eight cursor kinds are strict while existing v1–v4 cursors remain owner and limit bound', () => {
   const owner = randomUUID(),
     id = randomUUID(),
     at = occurredAt.toISOString();
@@ -348,7 +348,7 @@ test('all four cursor kinds are strict while existing v1 and v2 cursors remain o
     kind: 'profile_nickname_reset',
   });
   const decoded = JSON.parse(Buffer.from(encoded, 'base64url').toString());
-  assert.equal(decoded.v, 4);
+  assert.equal(decoded.v, 5);
   const legacy = Buffer.from(
     JSON.stringify({ v: 1, scope: decoded.scope, limit: 2, at, id }),
   ).toString('base64url');
@@ -365,22 +365,33 @@ test('all four cursor kinds are strict while existing v1 and v2 cursors remain o
     'profile_nickname_reset',
     'profile_custom_avatar_cleared',
     'admin_post_removed',
+    'admin_discussion_removed',
+    'account_punishment_issued',
+    'account_punishment_released',
+    'account_appeal_decided',
   ] as const) {
     const current = encodeSystemNoticesCursor(at, id, owner, 2, kind);
     readable.push(current);
     assert.deepEqual(systemNoticesCursor(current, owner, 2), { at, id, kind });
-    const v2 = encode({ ...decoded, v: 2, kind });
-    if (
-      kind === 'profile_custom_avatar_cleared' ||
-      kind === 'admin_post_removed'
-    )
-      assert.throws(
-        () => systemNoticesCursor(v2, owner, 2),
-        BadRequestException,
-      );
-    else {
-      readable.push(v2);
-      assert.deepEqual(systemNoticesCursor(v2, owner, 2), { at, id, kind });
+    for (const version of [2, 3, 4]) {
+      const previous = encode({ ...decoded, v: version, kind });
+      const allowed =
+        kind === 'post_jury_removed' ||
+        kind === 'profile_nickname_reset' ||
+        (version >= 3 && kind === 'profile_custom_avatar_cleared') ||
+        (version >= 4 && kind === 'admin_post_removed');
+      if (allowed) {
+        readable.push(previous);
+        assert.deepEqual(systemNoticesCursor(previous, owner, 2), {
+          at,
+          id,
+          kind,
+        });
+      } else
+        assert.throws(
+          () => systemNoticesCursor(previous, owner, 2),
+          BadRequestException,
+        );
     }
   }
   for (const cursor of readable) {
@@ -438,7 +449,11 @@ test('owner notices expose only immutable summary data, page by limit and retain
   for (const value of [
     f.owner,
     ...f.rows.map((row) =>
-      row.kind === 'post_jury_removed' ? row.decision_id : row.event_id,
+      row.kind === 'post_jury_removed'
+        ? row.decision_id
+        : 'event_id' in row
+          ? row.event_id
+          : row.id,
     ),
   ])
     assert.equal(serialized.includes(value), false);
@@ -737,21 +752,24 @@ test('repository uses bounded owner-keyed rates, owner-scoped SQL and atomic fir
     /FROM whaleu_notifications.admin_post_removal_notices WHERE recipient_account_id=\$1/,
   );
   assert.equal(
-    statements.at(-1)!.sql.match(/WHERE recipient_account_id=\$1/g)?.length,
-    4,
+    statements.at(-1)!.sql.match(/WHERE (?:n\.)?recipient_account_id=\$1/g)
+      ?.length,
+    7,
   );
   assert.equal(
-    statements.at(-1)!.sql.match(/\(created_at,id,kind COLLATE "C"\)</g)
+    statements
+      .at(-1)!
+      .sql.match(/\((?:n\.)?created_at,(?:n\.)?id,(?:n\.)?kind COLLATE "C"\)</g)
       ?.length,
-    4,
+    7,
   );
   assert.equal(
     statements
       .at(-1)!
       .sql.match(
-        /ORDER BY created_at DESC,id DESC,kind COLLATE "C" DESC LIMIT \$5/g,
+        /ORDER BY (?:n\.)?created_at DESC,(?:n\.)?id DESC,(?:n\.)?kind COLLATE "C" DESC LIMIT \$5/g,
       )?.length,
-    5,
+    8,
   );
   await repository.page(owner, 20, null, tx);
   assert.deepEqual(statements.at(-1)!.values, [owner, null, null, null, 21]);
@@ -781,7 +799,7 @@ test('repository uses bounded owner-keyed rates, owner-scoped SQL and atomic fir
     statements
       .at(-1)!
       .sql.match(/WHERE recipient_account_id=\$1 AND read_at IS NULL/g)?.length,
-    4,
+    7,
   );
   assert.match(
     statements.at(-1)!.sql,
@@ -795,6 +813,15 @@ test('repository uses bounded owner-keyed rates, owner-scoped SQL and atomic fir
     statements.at(-1)!.sql,
     /FROM whaleu_notifications.admin_post_removal_notices/,
   );
+  for (const source of [
+    'account_punishment_notices',
+    'account_appeal_notices',
+    'admin_discussion_removal_notices',
+  ]) {
+    assert.ok(
+      statements.at(-1)!.sql.includes(`FROM whaleu_notifications.${source}`),
+    );
+  }
   assert.deepEqual(statements.at(-1)!.values, [owner]);
 });
 

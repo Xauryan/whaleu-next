@@ -1,3 +1,4 @@
+import { punishmentViewSchema } from '../../safety/account-moderation/contracts.js';
 import { z } from 'zod';
 
 export const systemNoticesQuerySchema = z.strictObject({
@@ -47,11 +48,36 @@ export const adminPostRemovedNoticeViewSchema = z.strictObject({
   ...noticeFields,
   kind: z.literal('admin_post_removed'),
 });
+export const adminDiscussionRemovedNoticeViewSchema = z.strictObject({
+  ...noticeFields,
+  kind: z.literal('admin_discussion_removed'),
+});
+export const accountPunishmentIssuedNoticeSchema = z.strictObject({
+  ...noticeFields,
+  kind: z.literal('account_punishment_issued'),
+  punishment: punishmentViewSchema,
+});
+export const accountPunishmentReleasedNoticeSchema = z.strictObject({
+  ...noticeFields,
+  kind: z.literal('account_punishment_released'),
+  punishment: punishmentViewSchema,
+});
+export const accountAppealDecidedNoticeSchema = z.strictObject({
+  ...noticeFields,
+  kind: z.literal('account_appeal_decided'),
+  appealId: z.uuid(),
+  outcome: z.enum(['upheld', 'released', 'closed_no_longer_effective']),
+  reason: z.string().min(1).max(255),
+});
 export const systemNoticeViewSchema = z.discriminatedUnion('kind', [
   postJuryRemovalNoticeViewSchema,
   profileNicknameResetNoticeViewSchema,
   profileCustomAvatarClearedNoticeViewSchema,
   adminPostRemovedNoticeViewSchema,
+  adminDiscussionRemovedNoticeViewSchema,
+  accountPunishmentIssuedNoticeSchema,
+  accountPunishmentReleasedNoticeSchema,
+  accountAppealDecidedNoticeSchema,
 ]);
 export const systemNoticesUnreadSchema = z.strictObject({
   unreadCount: z.number().int().min(0).max(2147483647),

@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { batchCategoryChildContextAllowed } from '../category-reclassification/child-context.js';
 import { resolvePostCategories } from '../category-reclassification/read-proof.js';
 import { currentCategoryCursorScope } from '../current-category-cursor.js';
@@ -109,6 +110,7 @@ export class LikedHistoryService {
     return { posts, roots, replies };
   }
 
+  @AccountPolicy('browse', 'entry')
   list(token: string, query: LikedPageQuery): Promise<LikedPage> {
     return this.community.database.transaction(
       async (tx) => {

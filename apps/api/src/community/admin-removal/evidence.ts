@@ -9,7 +9,7 @@ export const adminPostRemovalIntentHash = (
 ): string =>
   createHash('sha256')
     .update(
-      'whaleu:admin-post-removal-command:v1\n' +
+      `whaleu:admin-post-removal-command:v${'version' in command ? 2 : 1}\n` +
         canonicalJson({ actor, command }),
     )
     .digest('hex');

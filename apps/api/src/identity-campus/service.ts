@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.js';
@@ -50,6 +51,7 @@ export class IdentityCampusService {
     const safety = await this.safety.selectionEligibility(accountId, tx);
     return { affiliation, phone, safety };
   }
+  @AccountPolicy('private_self_service', 'entry')
   state(token: string): Promise<IdentityCampusState> {
     return this.database.transaction(async (tx) => {
       await lockSafetyPolicy(tx);
@@ -108,6 +110,7 @@ export class IdentityCampusService {
       return result;
     });
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   select(
     token: string,
     intent: IdentityCampusIntent,
@@ -175,6 +178,7 @@ export class IdentityCampusService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, requestId: string): Promise<IdentityCampusReceipt> {
     return this.database.transaction(async (tx) => {
       await lockSafetyPolicy(tx);

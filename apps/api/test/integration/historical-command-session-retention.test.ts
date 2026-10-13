@@ -47,10 +47,9 @@ test(
   async (t) => {
     const f = await profileAvatarModerationFixture(false, 132);
     t.after(() => f.close());
-    const identityService = f.app.get(IdentityService);
-    const maintenance = new IdentityMaintenance(
-      f.moderationApp.get(DatabaseService),
-    );
+    const identityService = () => f.app.get(IdentityService);
+    const maintenance = () =>
+      new IdentityMaintenance(f.moderationApp.get(DatabaseService));
     const subject = await f.actor(),
       stranger = await f.actor(),
       plain = await f.actor();
@@ -111,19 +110,23 @@ test(
       ).rows;
     const originalFks = await sessionFks();
     assert.equal(originalFks.length, 4);
-    const audits = async () => {
-      const tables = (
-        await f.pool.query<{ schemaname: string; tablename: string }>(
-          `SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ('whaleu_profile','whaleu_community','whaleu_notifications')
+    const auditTables = (
+      await f.pool.query<{
+        schemaname: string;
+        tablename: string;
+        columns: string[];
+      }>(
+        `SELECT schemaname,tablename,(SELECT array_agg(column_name::text ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema=schemaname AND table_name=tablename) columns FROM pg_tables WHERE schemaname IN ('whaleu_profile','whaleu_community','whaleu_notifications')
        AND (tablename LIKE '%moderation%' OR tablename LIKE 'admin_post_removal%' OR tablename LIKE 'admin_discussion_removal%' OR tablename IN ('system_notices','system_notice_ids'))
        ORDER BY schemaname,tablename`,
-        )
-      ).rows;
+      )
+    ).rows;
+    const audits = async () => {
       const result: Record<string, unknown> = {};
-      for (const { schemaname, tablename } of tables) {
+      for (const { schemaname, tablename, columns } of auditTables) {
         result[`${schemaname}.${tablename}`] = (
           await f.pool.query(
-            `SELECT coalesce(jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text),'[]'::jsonb) value FROM "${schemaname}"."${tablename}" t`,
+            `SELECT coalesce(jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text),'[]'::jsonb) value FROM (SELECT ${columns.map((column) => `"${column}"`).join(',')} FROM "${schemaname}"."${tablename}") t`,
           )
         ).rows[0]!.value;
       }
@@ -134,7 +137,7 @@ test(
     for (const actor of terminal) {
       // Genuine Identity logout; HTTP auth mutation rate limiting is deliberately
       // unconfigured in this ordinary fixture (no provider/config override).
-      await identityService.logout(actor.accessToken);
+      await identityService().logout(actor.accessToken);
       await f.pool.query(
         "UPDATE whaleu_identity.sessions SET revoked_at=clock_timestamp()-interval '40 days' WHERE id=$1",
         [actor.sessionId],
@@ -152,7 +155,7 @@ test(
         )
       ).rows[0]!.value;
     const before = await credentials();
-    const preview = await maintenance.run({
+    const preview = await maintenance().run({
       mode: 'dry-run',
       batchSize: 100,
       retentionDays: 30,
@@ -197,7 +200,7 @@ test(
       }
     }
     await assert.rejects(
-      maintenance.run({ mode: 'apply', batchSize: 100, retentionDays: 30 }),
+      maintenance().run({ mode: 'apply', batchSize: 100, retentionDays: 30 }),
       { code: '23503' },
     );
     assert.deepEqual(
@@ -214,19 +217,40 @@ test(
       ),
       { mode: 'up' },
     );
+    await f.restartApp();
+    for (const { schemaname, tablename, columns } of auditTables) {
+      const added = (
+        await f.pool.query<{ column_name: string }>(
+          'SELECT column_name FROM information_schema.columns WHERE table_schema=$1 AND table_name=$2 AND NOT(column_name=ANY($3::text[]))',
+          [schemaname, tablename, columns],
+        )
+      ).rows;
+      for (const { column_name } of added) {
+        assert.match(column_name, /^[a-z_]+$/);
+        assert.equal(
+          (
+            await f.pool.query(
+              `SELECT 1 FROM "${schemaname}"."${tablename}" WHERE "${column_name}" IS NOT NULL`,
+            )
+          ).rowCount,
+          0,
+          'New moderation metadata cannot invent historical evidence',
+        );
+      }
+    }
     assert.deepEqual(await sessionFks(), []);
     assert.deepEqual(
       await audits(),
       originalAudits,
       'upgrade never rewrites audit evidence',
     );
-    const afterPreview = await maintenance.run({
+    const afterPreview = await maintenance().run({
       mode: 'dry-run',
       batchSize: 100,
       retentionDays: 30,
     });
     assert.deepEqual(afterPreview, preview);
-    const applied = await maintenance.run({
+    const applied = await maintenance().run({
       mode: 'apply',
       batchSize: 100,
       retentionDays: 30,
@@ -243,7 +267,7 @@ test(
       'cleanup preserves complete command, event, effect and notice history',
     );
     assert.equal(
-      (await maintenance.run({ mode: 'apply' })).candidateSessions,
+      (await maintenance().run({ mode: 'apply' })).candidateSessions,
       0,
     );
     for (const { actor, path, body, receipt, table } of records) {
@@ -278,7 +302,7 @@ test(
       profileOk(other);
       assert.deepEqual(other.body, { state: 'not_recorded' });
       assert.equal((await get(recovery, actor)).status, 401);
-      await assert.rejects(identityService.refresh(actor.refreshToken), {
+      await assert.rejects(identityService().refresh(actor.refreshToken), {
         code: 'AUTHENTICATION_REQUIRED',
       });
       assert.equal(
@@ -306,7 +330,7 @@ test(
       );
       // A newly revoked session cannot recover even though the historical record
       // and a valid account/request pair still exist.
-      await identityService.logout(fresh.accessToken);
+      await identityService().logout(fresh.accessToken);
       assert.equal((await get(recovery, fresh)).status, 401);
     }
     profileOk(await get('/v1/me/profile', subject));

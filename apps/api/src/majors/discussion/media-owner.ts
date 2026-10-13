@@ -1,3 +1,4 @@
+import { AccountPolicyFor } from '../../safety/account-policy/decorator.js';
 import { RatingAuthorizationFacade } from '../../authorization/rating-grants.facade.js';
 import { campusCountProofOwner } from '../../campus/count-epochs.js';
 async function majorEpoch(tx: PoolClient) {
@@ -292,6 +293,7 @@ export class MajorDiscussionMediaOwner implements MajorDiscussionMediaAccessPort
       );
     }
   }
+  @AccountPolicyFor(() => 'browse', 'entry')
   async authorizeRead(
     token: string,
     reference: MajorDiscussionReference,

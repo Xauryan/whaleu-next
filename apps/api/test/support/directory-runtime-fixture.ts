@@ -1,10 +1,13 @@
-/** Disposable canonical owner facts and ordinary AppModule. No replacement ports. */
+/** Disposable canonical owner facts and AppModule. Only an explicitly pinned
+ * historical schema replaces the new account-punishment overlay, never owners. */
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { INestApplication } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { Test } from '@nestjs/testing';
+import type { TestingModuleBuilder } from '@nestjs/testing';
+import { configureHistoricalAccountPolicy } from './historical-account-punishment-policy.js';
 import { Pool } from 'pg';
 import type { PoolClient } from 'pg';
 import { AppModule } from '../../src/app.module.js';
@@ -33,7 +36,10 @@ import { migrationSchemaNames } from './migration-schemas.js';
 export async function directoryRuntimeFixture(
   maximumMigration?: number,
   options: {
-    createApp?: (config: RuntimeConfig) => Promise<INestApplication>;
+    createApp?: (
+      config: RuntimeConfig,
+      configurePolicy: (builder: TestingModuleBuilder) => Promise<void>,
+    ) => Promise<INestApplication>;
   } = {},
 ) {
   const database = process.env['TEST_DATABASE_URL'];
@@ -56,9 +62,66 @@ export async function directoryRuntimeFixture(
   const pool = new Pool(poolOptions(config));
   let suite: PoolClient | undefined, app: INestApplication | undefined;
   let owns = false,
-    locked = false;
-  const cleanup = async () => {
+    locked = false,
+    closed = false;
+  let historicalPrefix = maximumMigration;
+  const startApp = async (prefix?: number) => {
+    const configurePolicy = (builder: TestingModuleBuilder) =>
+      configureHistoricalAccountPolicy(builder, config, prefix);
+    let next: INestApplication;
+    if (options.createApp)
+      next = await options.createApp(config, configurePolicy);
+    else {
+      const builder = Test.createTestingModule({
+        imports: [AppModule.register(config)],
+      });
+      await configurePolicy(builder);
+      next = (await builder.compile()).createNestApplication({ logger: false });
+    }
     try {
+      configureHttp(next);
+      await next.listen(0, '127.0.0.1');
+      return next;
+    } catch (error) {
+      await next.close();
+      throw error;
+    }
+  };
+  const currentApp = () => {
+    assert.ok(app && !closed, 'Fixture application is closed or restarting');
+    return app;
+  };
+  let restarting: Promise<void> | undefined;
+  const restartApp = async (prefix?: number) => {
+    assert.ok(
+      !closed && !restarting,
+      'Cannot restart a closed or restarting fixture',
+    );
+    const work = (async () => {
+      const old = app;
+      app = undefined;
+      await old?.close();
+      // Never mutate an old policy. A failed rebuild leaves no usable app.
+      const next = await startApp(prefix);
+      if (closed) {
+        await next.close();
+        throw new Error('Fixture closed while rebuilding');
+      }
+      app = next;
+      historicalPrefix = prefix;
+    })();
+    restarting = work;
+    try {
+      await work;
+    } finally {
+      restarting = undefined;
+    }
+  };
+  const cleanup = async () => {
+    if (closed) return;
+    closed = true;
+    try {
+      await restarting?.catch(() => undefined);
       await app?.close();
     } finally {
       try {
@@ -127,13 +190,8 @@ export async function directoryRuntimeFixture(
       ),
       { mode: 'up' },
     );
-    app = options.createApp
-      ? await options.createApp(config)
-      : await NestFactory.create(AppModule.register(config), { logger: false });
-    configureHttp(app);
-    await app.listen(0, '127.0.0.1');
-    const runtime = app,
-      scope = await seedCommunityScope(pool);
+    app = await startApp(maximumMigration);
+    const scope = await seedCommunityScope(pool);
     const certify = async (
       accountId: string,
       options: {
@@ -167,7 +225,7 @@ export async function directoryRuntimeFixture(
       return facts;
     };
     const actor = async (options: Parameters<typeof certify>[1] = {}) => {
-      const result = await createRuntimeActor(runtime);
+      const result = await createRuntimeActor(currentApp());
       const facts = await certify(result.accountId, options);
       return { ...result, facts };
     };
@@ -226,14 +284,24 @@ export async function directoryRuntimeFixture(
       return result;
     };
     return {
-      app: runtime,
+      get app() {
+        return currentApp();
+      },
+      get historicalPrefix() {
+        return historicalPrefix;
+      },
+      restartApp,
       pool,
       scope,
       actor,
       certify,
       snapshot,
       waitForLock,
-      port: Number(new URL(await runtime.getUrl()).port),
+      get port() {
+        const address = currentApp().getHttpServer().address();
+        assert.ok(address && typeof address === 'object');
+        return address.port as number;
+      },
       close: cleanup,
     };
   } catch (error) {

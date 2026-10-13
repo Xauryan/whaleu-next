@@ -22,8 +22,17 @@ function fixture() {
   let locked = false;
   const calls: string[] = [];
   const tx = {
-    query: async (sql: string) => {
+    query: async (sql: string, args: unknown[] = []) => {
       calls.push(sql);
+      // This optional hint uses a different exact query from required policy.
+      if (
+        sql ===
+        `SELECT whaleu_safety.account_punishment_allows($1,'interaction') allowed,
+         whaleu_safety.account_punishment_fingerprint($1) fingerprint`
+      ) {
+        assert.deepEqual(args, ['actor']);
+        return { rows: [{ allowed: true, fingerprint: '0'.repeat(64) }] };
+      }
       if (sql.includes('FROM whaleu_safety.account_heads')) {
         if (locked)
           throw Object.assign(new Error('busy owner'), { code: '55P03' });

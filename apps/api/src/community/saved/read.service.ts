@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { resolvePostCategories } from '../category-reclassification/read-proof.js';
 import { currentCategoryCursorScope } from '../current-category-cursor.js';
 import { ownerCursorScope } from '../cursor-scope.js';
@@ -63,6 +64,7 @@ export class SavedReadService {
       externalCapability: 'unavailable',
     };
   }
+  @AccountPolicy('private_self_service', 'entry')
   preferences(token: string, postId: string): Promise<PostUpdatePreferences> {
     return this.community.database.transaction(
       async (tx) => {
@@ -81,6 +83,7 @@ export class SavedReadService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('private_self_service', 'entry')
   status(token: string, postIds: string[]): Promise<{ items: SavedStatus[] }> {
     return this.community.database.transaction(
       async (tx) => {
@@ -125,6 +128,7 @@ export class SavedReadService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   list(token: string, query: SavedPageQuery): Promise<SavedPage> {
     return this.community.database.transaction(
       async (tx) => {

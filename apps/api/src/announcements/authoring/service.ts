@@ -1,3 +1,8 @@
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+  operationAccountPolicy,
+} from '../../safety/account-policy/decorator.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -147,12 +152,14 @@ export class AnnouncementAuthoringService {
         : { state: 'not_recorded', requestId: key },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, key: string) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx);
       return this.recovery(s.accountId, key, tx);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, key: string, hash: string) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx);
@@ -178,6 +185,7 @@ export class AnnouncementAuthoringService {
       });
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   capabilities(token: string) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx);
@@ -203,6 +211,7 @@ export class AnnouncementAuthoringService {
       }
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   regions(token: string, search: string) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx),
@@ -232,6 +241,7 @@ export class AnnouncementAuthoringService {
       updatedAt: utc(row.updated_at),
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   management(token: string, query: { cursor?: string; limit: number }) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx),
@@ -285,6 +295,7 @@ export class AnnouncementAuthoringService {
       };
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   closure(token: string, id: string) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx),
@@ -299,6 +310,7 @@ export class AnnouncementAuthoringService {
       };
     });
   }
+  @AccountPolicy('privileged_read', 'entry')
   readManaged(token: string, id: string) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx),
@@ -308,6 +320,18 @@ export class AnnouncementAuthoringService {
       return this.managed(row);
     });
   }
+  @AccountPolicyFor(
+    (args) =>
+      operationAccountPolicy((args[2] as AnnouncementCommand).action, {
+        create: 'content_management',
+        save: 'content_management',
+        publish: 'content_management',
+        update: 'content_management',
+        set_enabled: 'content_management',
+        cancel_draft: 'protective_cleanup',
+      }),
+    'owner_after_recovery',
+  )
   command(token: string, id: string, command: AnnouncementCommand) {
     return this.run(async (tx) => {
       const s = await this.access.authenticate(token, tx, true),
@@ -557,6 +581,7 @@ export class AnnouncementAuthoringService {
       ? { status: 'available' as const, items }
       : { status: 'known_empty' as const, items: [] };
   }
+  @AccountPolicy('browse', 'entry')
   list(token: string | null, query: AnnouncementListQuery) {
     return this.run(async (tx) => {
       const campus = query.campusId ?? null,
@@ -605,6 +630,7 @@ export class AnnouncementAuthoringService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   detail(token: string | null, id: string, query: AnnouncementScopeQuery) {
     return this.run(async (tx) => {
       const campus = query.campusId ?? null,
@@ -617,6 +643,7 @@ export class AnnouncementAuthoringService {
       };
     });
   }
+  @AccountPolicy('browse', 'entry')
   popup(token: string | null, query: AnnouncementScopeQuery, owner = false) {
     return this.run(async (tx) => {
       const campus = query.campusId ?? null,
@@ -650,6 +677,7 @@ export class AnnouncementAuthoringService {
           });
     });
   }
+  @AccountPolicy('passive_bookkeeping', 'entry')
   acknowledge(token: string, id: string, command: AnnouncementAckCommand) {
     return this.run(async (tx) => {
       const { row, session } = await this.access.publicRow(
@@ -673,6 +701,7 @@ export class AnnouncementAuthoringService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   changes(token: string | null, query: AnnouncementChangesQuery) {
     return this.run(async (tx) => {
       const campus = query.campusId ?? null;

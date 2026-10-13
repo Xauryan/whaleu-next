@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../../safety/account-policy/decorator.js';
 import { requireLegacyRatingFreshScope } from '../../scoped/legacy-boundary.js';
 import { RatingLegacyBridgeService } from '../../scoped/legacy-bridge.service.js';
 import { canonicalRatingTargetDefinition } from '../../../community/content-review/rating-target-definition-contracts.js';
@@ -215,6 +216,7 @@ export class RatingTargetEditService {
     }
     return { row, category, catalog };
   }
+  @AccountPolicy('browse', 'entry')
   context(token: string, targetId: string) {
     return this.database.transaction(
       async (tx) => {
@@ -285,6 +287,7 @@ export class RatingTargetEditService {
     await this.save(actor, intent.clientRequestId, receipt, tx);
     return receipt;
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   prepare(token: string, intent: PrepareRatingTargetEdit) {
     return this.database.transaction(
       async (tx) => {
@@ -429,6 +432,7 @@ export class RatingTargetEditService {
         );
     return { p, ...current, accepted };
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   commit(token: string, command: CommitRatingTargetEdit) {
     const { expectedContextRevision, ...raw } = command,
       intent = prepareRatingTargetEditSchema.parse(raw),
@@ -585,6 +589,7 @@ export class RatingTargetEditService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, intent: PrepareRatingTargetEdit) {
     return this.database.transaction(
       async (tx) => {
@@ -607,6 +612,7 @@ export class RatingTargetEditService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.database.transaction(
       async (tx) => {

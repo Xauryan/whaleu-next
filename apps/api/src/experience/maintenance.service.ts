@@ -1,3 +1,5 @@
+import { enforceAccountPunishment } from '../safety/account-moderation/policy.js';
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { registerTransactionDeadline } from '../database/transaction-deadlines.js';
@@ -48,6 +50,7 @@ export class ExperienceTitleMaintenanceService {
     private readonly maintenance: TitleMaintenanceRepository,
   ) {}
 
+  @AccountPolicy('restricted_self_service', 'restricted')
   async receipt(token: string, requestId: string): Promise<MaintenanceReceipt> {
     const result = await this.database
       .transaction<MaintenanceResult>(async (tx) => {
@@ -68,6 +71,7 @@ export class ExperienceTitleMaintenanceService {
   }
 
   /** One owner, one authenticated transaction; continuation lives in immutable receipts. */
+  @AccountPolicy('noncontent_management', 'owner_after_recovery')
   async batch(
     token: string,
     input: MaintenanceIntent,
@@ -97,6 +101,11 @@ export class ExperienceTitleMaintenanceService {
               return { errorCode: 'EXPERIENCE_MAINTENANCE_REQUEST_CONFLICT' };
             return prior.receipt;
           }
+          await enforceAccountPunishment(
+            actor.accountId,
+            'noncontent_management',
+            tx,
+          );
           const previousId =
             'previousRequestId' in input ? input.previousRequestId : null;
           const previous =

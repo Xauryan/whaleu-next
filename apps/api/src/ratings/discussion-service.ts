@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { RatingDeletionRepository } from './deletion/repository.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -94,6 +95,7 @@ export class RatingDiscussionService {
     );
     return { access, catalog, target, root, rootView, rootCanReply };
   }
+  @AccountPolicy('browse', 'entry')
   thread(token: string, rootId: string, regionId: string | null) {
     return this.run(async (tx) => {
       const c = await this.chain(token, rootId, regionId, tx);
@@ -215,9 +217,11 @@ export class RatingDiscussionService {
       continuation: more ? (items.length ? 'more' : 'scan') : 'end',
     });
   }
+  @AccountPolicy('browse', 'entry')
   listReplies(token: string, rootId: string, query: RatingReplyQuery) {
     return this.run((tx) => this.page(token, rootId, query, tx));
   }
+  @AccountPolicy('browse', 'entry')
   reply(token: string, id: string, regionId: string | null) {
     return this.run(async (tx) => {
       await this.access.authenticate(token, tx);
@@ -244,6 +248,7 @@ export class RatingDiscussionService {
       return result;
     });
   }
+  @AccountPolicy('browse', 'entry')
   locateReply(
     token: string,
     id: string,
@@ -260,6 +265,7 @@ export class RatingDiscussionService {
       });
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   createReply(token: string, rootId: string, command: CreateRatingReply) {
     return this.requests.execute(
       token,
@@ -354,6 +360,7 @@ export class RatingDiscussionService {
       },
     );
   }
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   deleteReply(token: string, id: string, command: DeleteRatingReply) {
     return this.requests.execute(
       token,
@@ -384,6 +391,7 @@ export class RatingDiscussionService {
       },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.requests.receipt(token, id);
   }

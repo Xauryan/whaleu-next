@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import {
   categoryIconCapabilities,
   requireCategoryIconCapabilities,
@@ -1071,6 +1072,7 @@ export class RatingScopedContextService {
     await this.access.recheck(token, tx);
     return freeze(context);
   }
+  @AccountPolicy('browse', 'entry')
   create(
     token: string,
     request: RatingScopedContextRequest,
@@ -1090,6 +1092,7 @@ export class RatingScopedContextService {
           },
         );
   }
+  @AccountPolicy('browse', 'entry')
   createCover(
     token: string,
     request: RatingScopedContextRequest,
@@ -1103,6 +1106,7 @@ export class RatingScopedContextService {
       ? run(tx)
       : this.db.transaction(run, { isolationLevel: 'read committed' });
   }
+  @AccountPolicy('browse', 'entry')
   createDiscussion(
     token: string,
     request: RatingScopedContextRequest,
@@ -1118,6 +1122,7 @@ export class RatingScopedContextService {
       ? run(tx)
       : this.db.transaction(run, { isolationLevel: 'read committed' });
   }
+  @AccountPolicy('browse', 'entry')
   createCategoryIcon(
     token: string,
     request: RatingScopedContextRequest,
@@ -1134,6 +1139,7 @@ export class RatingScopedContextService {
       ? run(tx)
       : this.db.transaction(run, { isolationLevel: 'read committed' });
   }
+  @AccountPolicy('browse', 'entry')
   createCategoryIconEntry(
     token: string,
     request: RatingScopedContextRequest,

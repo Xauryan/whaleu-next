@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import {
   mediaStatusV2Schema,
   mediaCancelV2Schema,
@@ -85,6 +86,7 @@ export class CommunityMediaUploadApplicationV2 implements MediaUploadApplication
   ) {
     this.recovery = new MediaRecoveryRepository(lifecycle, assets);
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   prepareV2(token: string, raw: unknown): Promise<MediaStatusV2> {
     return this.authorized(token, async (session, tx) => {
       const input = prepareMediaV2Schema.parse(raw);
@@ -112,6 +114,7 @@ export class CommunityMediaUploadApplicationV2 implements MediaUploadApplication
         .then((value) => mediaStatusV2Schema.parse(value));
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recoverRequest(token: string, id: string) {
     return this.authorized(
       token,
@@ -119,11 +122,13 @@ export class CommunityMediaUploadApplicationV2 implements MediaUploadApplication
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelRequest(token: string, id: string, input: unknown) {
     return this.authorized(token, (s, tx) =>
       this.recovery.cancelRequest(s.accountId, id, input, tx),
     );
   }
+  @AccountPolicy('browse', 'entry')
   statusV2(token: string, id: string) {
     return this.authorized(
       token,
@@ -134,6 +139,7 @@ export class CommunityMediaUploadApplicationV2 implements MediaUploadApplication
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelV2(token: string, id: string) {
     return this.authorized(token, (s, tx) =>
       this.recovery
@@ -141,6 +147,7 @@ export class CommunityMediaUploadApplicationV2 implements MediaUploadApplication
         .then((value) => mediaCancelV2Schema.parse(value)),
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   async finalizeV2(token: string, id: string): Promise<MediaStatusV2> {
     // Separate receipt-only snapshot keeps historical access independent of a
     // lost draft permission and avoids taking owner locks after intent locks.
@@ -160,6 +167,7 @@ export class CommunityMediaUploadApplicationV2 implements MediaUploadApplication
         .then((value) => mediaStatusV2Schema.parse(value));
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   async grant(token: string, id: string) {
     const result = await this.authorized(token, async (s, tx) =>
       this.ingress.grant(
@@ -177,6 +185,7 @@ export class CommunityMediaUploadApplicationV2 implements MediaUploadApplication
     if ('blocked' in result) throw new ApplicationError(result.blocked);
     return result;
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   admit(token: string, id: string, grantId: string) {
     return this.authorized(token, async (s, tx) =>
       this.ingress.admit(
@@ -193,6 +202,7 @@ export class CommunityMediaUploadApplicationV2 implements MediaUploadApplication
       ),
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   observe(
     token: string,
     claim: MediaIngressClaim,

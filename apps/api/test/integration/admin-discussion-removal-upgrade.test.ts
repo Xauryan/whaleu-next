@@ -157,6 +157,7 @@ test(
       fileURLToPath(new URL('../../migrations', import.meta.url)),
     );
     await runMigrations(f.pool, migrations, { mode: 'up' });
+    await f.restartApp();
     const auth = `Bearer ${admin.accessToken}`;
     for (const [collection, id] of [
       ['comments', root],

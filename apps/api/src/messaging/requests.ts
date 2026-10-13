@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { lockImageCommand } from './image-authority.js';
 import { retainDmDenial } from './denial-proof.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -137,6 +138,7 @@ export class MessagingRequests {
   }
   /** Session-only original-intent closure. A late original command can only
    * recover this receipt; a command already committed wins and is returned. */
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(
     token: string,
     id: string,
@@ -205,6 +207,7 @@ export class MessagingRequests {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.database.transaction(
       async (tx) => {

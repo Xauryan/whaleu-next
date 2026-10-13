@@ -92,7 +92,12 @@ async function smokeKind({ dist, kind }) {
         url.pathname === '/v1/community/admin-discussion-removal/management'
       ) {
         assert.equal(request.method, 'GET');
-        assert.deepEqual([...url.searchParams.keys()].sort(), ['id', 'kind']);
+        assert.deepEqual([...url.searchParams.keys()].sort(), [
+          'id',
+          'kind',
+          'version',
+        ]);
+        assert.equal(url.searchParams.get('version'), '2');
         if (managementUnavailable || removed.has(url.searchParams.get('id')))
           throw new ClientError('http', 'Synthetic current target unavailable');
         body = {
@@ -102,6 +107,10 @@ async function smokeKind({ dist, kind }) {
           },
           targetVersion,
           canRemove: true,
+          punishmentOptions: {
+            interaction_mute: { revision: '0', current: null },
+            access_suspension: { revision: '0', current: null },
+          },
         };
       } else if (
         /^\/v1\/community\/admin-discussion-removal\/commands(?:\/cancel)?$/.test(
@@ -122,7 +131,9 @@ async function smokeKind({ dist, kind }) {
           'action',
           'clientRequestId',
           'expectedTargetVersion',
+          ...(command.version === 2 ? ['punishment'] : []),
           'target',
+          ...(command.version === 2 ? ['version'] : []),
         ]);
         assert.deepEqual(Object.keys(command.target).sort(), ['id', 'kind']);
         assert.equal(command.target.kind, kind);
@@ -138,6 +149,9 @@ async function smokeKind({ dist, kind }) {
             target: command.target,
             expectedTargetVersion: command.expectedTargetVersion,
             action: command.action,
+            ...(command.version === 2
+              ? { version: 2, selection: structuredClone(command.punishment) }
+              : {}),
           };
           if (cancelling)
             body = {
@@ -162,6 +176,17 @@ async function smokeKind({ dist, kind }) {
               outcome: 'applied',
               eventId: id(counter++),
               recordedAt: createdAt,
+              ...(command.version === 2
+                ? {
+                    punishment: {
+                      punishmentId: id(counter++),
+                      kind: command.punishment.kind,
+                      revision: (
+                        BigInt(command.punishment.expectedRevision) + 1n
+                      ).toString(),
+                    },
+                  }
+                : {}),
             };
           }
           receipts.set(command.clientRequestId, body);
@@ -530,6 +555,75 @@ async function smokeKind({ dist, kind }) {
       noticesPage.data.items.map((item) => item.kind),
       older.map((item) => item.kind),
     );
+
+    // Keep every preceding ordinary/v1 receipt assertion. Exercise v2 using
+    // the same emitted controls, strict gateway and durable pending journal.
+    noticesPage.onUnload();
+    for (const [index, punishmentKind] of [
+      'interaction_mute',
+      'access_suspension',
+    ].entries()) {
+      page = mount('admin-discussion-removal', { kind, id: id(20 + index) });
+      await flush();
+      await confirm(page);
+      assert.deepEqual(page.data.management.punishmentOptions, {
+        interaction_mute: { revision: '0', current: null },
+        access_suspension: { revision: '0', current: null },
+      });
+      const control = (binding, handler, value) => {
+        const node = flatten(render(template.children, page.data, {})).find(
+          (n) => typeof n !== 'string' && n.attrs[binding] === handler,
+        );
+        assert.ok(node, `Actual WXML renders ${binding}=${handler}`);
+        assert.notEqual(node.attrs.disabled, 'true');
+        page[handler]({ detail: { value } });
+      };
+      control('bindchange', 'onPunishmentKind', punishmentKind);
+      control('bindchange', 'onPunishmentUnit', 'minutes');
+      control('bindinput', 'onPunishmentValue', '7');
+      const before = writes;
+      page.onSubmit();
+      await flush();
+      assert.equal(
+        writes,
+        before,
+        'A missing punishment reason cannot degrade to ordinary removal',
+      );
+      control(
+        'bindinput',
+        'onPunishmentReason',
+        'Synthetic exact causal reason',
+      );
+      loseAfterCommit = true;
+      page.onSubmit();
+      await flush();
+      const original = runtime.pendingAdminDiscussionRemoval.load(accountId);
+      assert.ok(original);
+      assert.equal(original.command.version, 2);
+      assert.deepEqual(original.command.punishment, {
+        kind: punishmentKind,
+        duration: { kind: 'finite', unit: 'minutes', value: 7 },
+        reason: 'Synthetic exact causal reason',
+        expectedRevision: '0',
+      });
+      assert.equal(writes, before + 1);
+      page.onUnload();
+      page = mount('admin-discussion-removal');
+      await flush();
+      page.onRecover();
+      await flush();
+      assert.equal(runtime.pendingAdminDiscussionRemoval.load(accountId), null);
+      assert.equal(
+        writes,
+        before + 1,
+        'Exact v2 recovery does not issue again',
+      );
+      assert.match(
+        page.data.receiptStatus,
+        punishmentKind === 'interaction_mute' ? /禁言/ : /封号/,
+      );
+      page.onUnload();
+    }
   } finally {
     for (const page of pages) page.onUnload?.();
     globalThis.Page = previous.Page;

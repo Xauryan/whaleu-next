@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 /** Synthetic disposable deletion authority. No production role/source ingress. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -89,5 +90,12 @@ export async function ratingDeletionFixture(maximumMigration?: number) {
     id: string,
     input: Record<string, unknown>,
   ) => f.auth(request(f.http).delete(path(kind, id)), actor).send(input);
-  return { ...f, grant, origin, path, context, command, remove };
+  return extendLiveFixture(f, {
+    grant,
+    origin,
+    path,
+    context,
+    command,
+    remove,
+  });
 }

@@ -83,6 +83,7 @@ test('M2B real 0056 to 0057 upgrade preserves original definitions, rotated life
     migrations.filter((m) => Number(m.name.slice(0, 4)) <= 57),
     { mode: 'up' },
   );
+  await f.restartApp(57);
   assert.deepEqual(
     await snapshot(f.pool, oldTables),
     before,

@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.js';
 import { ApplicationError } from '../http/application-error.js';
@@ -13,6 +14,7 @@ export class VerificationService {
     @Inject(VerificationRepository)
     private readonly records: VerificationRepository,
   ) {}
+  @AccountPolicy('private_self_service', 'entry')
   async ownSummary(token: string): Promise<OwnVerificationSummary> {
     try {
       return await this.database.transaction(async (transaction) => {

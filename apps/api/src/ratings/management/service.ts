@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { requireLegacyRatingFreshScope } from '../scoped/legacy-boundary.js';
 import { RatingLegacyBridgeService } from '../scoped/legacy-bridge.service.js';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
@@ -131,6 +132,7 @@ export class RatingManagementService {
     );
     return { catalog, category, source };
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   async prepare(token: string, intent: PrepareRatingTarget) {
     const result = await this.database.transaction(
       async (tx) => {
@@ -312,6 +314,7 @@ export class RatingManagementService {
     await this.access.recheck(token, tx);
     return receipt;
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, intent: PrepareRatingTarget) {
     return this.database.transaction(
       async (tx) => {
@@ -340,6 +343,7 @@ export class RatingManagementService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   create(token: string, command: CreateRatingTarget) {
     const { expectedContextRevision, ...raw } = command,
       intent = prepareRatingTargetSchema.parse(raw),
@@ -529,6 +533,7 @@ export class RatingManagementService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.database.transaction(
       async (tx) => {

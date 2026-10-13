@@ -34,6 +34,7 @@ export class ApiClient {
     private readonly sessions: SessionStore,
     private readonly auth: Pick<AuthService, 'refresh'>,
     private readonly timeoutMs = 15_000,
+    private readonly onRestriction?: (code: string) => void,
   ) {
     this.origin = normalizeOrigin(origin);
   }
@@ -93,6 +94,17 @@ export class ApiClient {
       if (options.cancellation?.isCancelled)
         throw new ClientError('cancelled', 'The request was cancelled');
       const failure = responseError(response);
+      // Safety restrictions are authenticated, nonterminal outcomes. Never retry as a guest.
+      if (
+        failure?.details.httpStatus === 403 &&
+        failure.details.serverCode === 'SAFETY_ACCESS_SUSPENDED'
+      ) {
+        try {
+          this.onRestriction?.(failure.details.serverCode);
+        } catch {
+          /* Navigation cannot replace the server denial. */
+        }
+      }
       if (
         failure?.kind === 'auth-expired' &&
         attempt === 0 &&

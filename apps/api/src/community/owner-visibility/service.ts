@@ -1,3 +1,5 @@
+import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { retainOwnerRestoreCapability } from './capability.js';
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
@@ -54,6 +56,7 @@ export class OwnerVisibilityService {
         throw error;
       });
   }
+  @AccountPolicy('browse', 'entry')
   async management(
     token: string,
     postId: string,
@@ -85,6 +88,7 @@ export class OwnerVisibilityService {
       return result;
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   async command(
     token: string,
     command: OwnerVisibilityCommand,
@@ -114,6 +118,12 @@ export class OwnerVisibilityService {
         );
         return previous.receipt;
       }
+      if (!cancel)
+        await enforceAccountPunishment(
+          actor,
+          command.ownerHidden ? 'protective_cleanup' : 'interaction',
+          tx,
+        );
       const target = await this.repository.target(
         actor,
         command.postId,
@@ -151,7 +161,7 @@ export class OwnerVisibilityService {
           // Restoring discoverability is an action. It must retain current
           // Safety coverage, without acquiring new publication/phone authority.
           await requireRestoreSafetyEpoch(tx);
-          await this.safety.restriction(actor, tx);
+          await this.safety.restriction(actor, tx, 'interaction');
           const safety = (
             await tx.query<{ until: string | null }>(
               'SELECT valid_until::text AS until FROM whaleu_safety.account_heads WHERE account_id=$1',
@@ -201,6 +211,7 @@ export class OwnerVisibilityService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   async receipt(
     token: string,
     requestId: string,

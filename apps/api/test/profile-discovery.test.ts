@@ -1,3 +1,8 @@
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
+import {
+  startTransactionDeadlines,
+  clearTransactionDeadlines,
+} from '../src/database/transaction-deadlines.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -103,7 +108,13 @@ test('profile block sources never expand report or privileged identity target ki
 test('real profile safety preserves own outgoing relationship but hides incoming private state', async () => {
   const viewer = randomUUID(),
     target = randomUUID(),
-    tx = {} as PoolClient;
+    tx = {
+      query: async (sql: string, args: unknown[] = []) => {
+        const policy = unpunishedAccountPolicyObservation(sql, args);
+        assert.ok(policy, `Unexpected profile fixture SQL: ${sql}`);
+        return policy;
+      },
+    } as unknown as PoolClient;
   const relationship = {
     relationshipId: randomUUID(),
     blocked: true as const,
@@ -121,29 +132,35 @@ test('real profile safety preserves own outgoing relationship but hides incoming
     outgoingReference: async () => relationship,
   } as unknown as SafetyRepository;
   const facade = new ProfileVisibilityFacade(records);
-  assert.deepEqual(await facade.read(null, target, tx), {
-    status: 'available',
-  });
-  assert.deepEqual(await facade.read(target, target, tx), {
-    status: 'available',
-  });
-  assert.equal(called, 0);
-  assert.deepEqual(await facade.read(viewer, target, tx), {
-    status: 'blocked_by_you',
-    relationship,
-  });
-  records.directions = async () => ({ outgoing: false, incoming: true });
-  assert.deepEqual(await facade.read(viewer, target, tx), {
-    status: 'unavailable',
-  });
-  records.directions = async () => ({ outgoing: false, incoming: false });
-  assert.deepEqual(await facade.read(viewer, target, tx), {
-    status: 'available',
-  });
-  records.directions = async () => null;
-  await assert.rejects(
-    facade.read(viewer, target, tx),
-    (error: unknown) =>
-      error instanceof ApplicationError && error.code === 'SAFETY_UNAVAILABLE',
-  );
+  startTransactionDeadlines(tx);
+  try {
+    assert.deepEqual(await facade.read(null, target, tx), {
+      status: 'available',
+    });
+    assert.deepEqual(await facade.read(target, target, tx), {
+      status: 'available',
+    });
+    assert.equal(called, 0);
+    assert.deepEqual(await facade.read(viewer, target, tx), {
+      status: 'blocked_by_you',
+      relationship,
+    });
+    records.directions = async () => ({ outgoing: false, incoming: true });
+    assert.deepEqual(await facade.read(viewer, target, tx), {
+      status: 'unavailable',
+    });
+    records.directions = async () => ({ outgoing: false, incoming: false });
+    assert.deepEqual(await facade.read(viewer, target, tx), {
+      status: 'available',
+    });
+    records.directions = async () => null;
+    await assert.rejects(
+      facade.read(viewer, target, tx),
+      (error: unknown) =>
+        error instanceof ApplicationError &&
+        error.code === 'SAFETY_UNAVAILABLE',
+    );
+  } finally {
+    clearTransactionDeadlines(tx);
+  }
 });

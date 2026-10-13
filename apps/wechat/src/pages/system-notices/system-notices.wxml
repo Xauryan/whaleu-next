@@ -1,7 +1,7 @@
 <view class="screen">
   <view class="eyebrow">WHALEU · 系统通知</view>
   <view class="title">我的系统通知</view>
-  <view class="notice">这里仅展示本账号收到的处理结果，包括帖子陪审团移除结果、公开昵称重置、自定义头像清除和管理员删帖；不展示原内容、来源链接或处理者身份。</view>
+  <view class="notice">这里仅展示本账号收到的处理结果，包括账号处罚、私人申诉决定、帖子陪审团移除结果、公开昵称重置、自定义头像清除和管理员删帖；不展示原内容、来源链接或处理者身份。</view>
   <view class="status" aria-role="status">{{status}}</view>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <view wx:if="{{loaded}}" class="section-title">系统通知未读 {{unreadCount}} 条</view>
@@ -28,6 +28,19 @@
     </view>
     <view wx:elif="{{item.kind === 'admin_post_removed'}}">
       <view class="section-title">你的帖子已被管理员删除</view>
+    </view>
+    <view wx:elif="{{item.kind === 'admin_discussion_removed'}}">
+      <view class="section-title">你的评论或回复已被管理员删除</view>
+    </view>
+    <view wx:elif="{{item.kind === 'account_punishment_issued' || item.kind === 'account_punishment_released'}}">
+      <view class="section-title">{{item.punishment.kind === 'interaction_mute' ? '禁言' : '封号'}}{{item.kind === 'account_punishment_released' ? '已解除' : '处理通知'}}</view>
+      <view>原因：{{item.punishment.reason}}</view><view>开始：{{item.punishment.startsAt}} · 结束：{{item.punishment.endsAt || '永久'}}</view>
+      <view class="notice">这是历史通知。当前状态请重新核验；禁言与封号独立生效。</view>
+      <navigator class="link" url="/pages/account-status/account-status">查看当前状态与私人申诉 →</navigator>
+    </view>
+    <view wx:elif="{{item.kind === 'account_appeal_decided'}}">
+      <view class="section-title">私人申诉处理结果</view><view>{{item.outcome === 'released' ? '已解除申诉绑定的处罚' : item.outcome === 'upheld' ? '维持原处罚' : '原处罚已失效，结案'}}</view><view>{{item.reason}}</view>
+      <navigator class="link" url="/pages/safety-appeal/safety-appeal?appealId={{item.appealId}}">查看私人申诉结果 →</navigator>
     </view>
     <button wx:if="{{!item.readAt}}" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy}}">标记此条已读</button>
   </view>

@@ -1,3 +1,5 @@
+import type { SafetyAction } from './account-moderation/contracts.js';
+import { currentAccountPolicyAction } from './account-policy/context.js';
 import { ApplicationError } from '../http/application-error.js';
 import { registerTransactionDeadline } from '../database/transaction-deadlines.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -27,10 +29,11 @@ export class RatingSafetyFacade {
   async requireDeletionAllowed(
     accountId: string,
     tx: PoolClient,
+    action: SafetyAction = currentAccountPolicyAction('protective_cleanup'),
   ): Promise<void> {
     await navigation(tx);
     try {
-      await this.records.restriction(accountId, tx);
+      await this.records.restriction(accountId, tx, action);
     } catch (error) {
       if (
         error instanceof ApplicationError &&
@@ -51,7 +54,7 @@ export class RatingSafetyFacade {
   /** Editing has the ordinary account restriction policy and may persist a
    * denial receipt. Retain negative coverage through final deferred waits too. */
   async requireEditAllowed(accountId: string, tx: PoolClient): Promise<void> {
-    await this.requireDeletionAllowed(accountId, tx);
+    await this.requireDeletionAllowed(accountId, tx, 'interaction');
   }
   navigation(tx: PoolClient): Promise<string> {
     return navigation(tx);

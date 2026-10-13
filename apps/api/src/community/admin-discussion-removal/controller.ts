@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import {
   Body,
   Controller,
@@ -24,7 +25,7 @@ import {
   adminDiscussionRemovalReceiptSchema,
   adminDiscussionRemovalManagementSchema,
   adminDiscussionRemovalRecoverySchema,
-  adminDiscussionRemovalTargetSchema,
+  adminDiscussionRemovalManagementQuerySchema,
   adminDiscussionRemovalRequestIdSchema,
   adminDiscussionRemovalEmptyBodySchema,
   adminDiscussionRemovalEmptyQuerySchema,
@@ -42,6 +43,7 @@ export class AdminDiscussionRemovalController {
     private readonly moderation: AdminDiscussionRemovalService,
   ) {}
   @Get('management')
+  @AccountPolicy('privileged_read', 'entry')
   @Header('Vary', 'Authorization')
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ operationId: 'adminDiscussionRemovalManagement' })
@@ -49,16 +51,23 @@ export class AdminDiscussionRemovalController {
   management(
     @Headers('authorization') auth: unknown,
     @Query({
-      schema: adminDiscussionRemovalTargetSchema,
-      pipes: [new SchemaValidationPipe(adminDiscussionRemovalTargetSchema)],
+      schema: adminDiscussionRemovalManagementQuerySchema,
+      pipes: [
+        new SchemaValidationPipe(adminDiscussionRemovalManagementQuerySchema),
+      ],
     })
-    target: AdminDiscussionRemovalTarget,
+    target: AdminDiscussionRemovalTarget & { version?: '2' },
     @Body(new SchemaValidationPipe(adminDiscussionRemovalEmptyBodySchema))
     _body: unknown,
   ) {
-    return this.moderation.management(bearerToken(auth), target);
+    return this.moderation.management(
+      bearerToken(auth),
+      { kind: target.kind, id: target.id },
+      target.version === '2',
+    );
   }
   @Post('commands')
+  @AccountPolicy('content_management', 'owner_after_recovery')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ operationId: 'adminDiscussionRemovalCommand' })
@@ -79,6 +88,7 @@ export class AdminDiscussionRemovalController {
     return this.moderation.command(bearerToken(auth), command);
   }
   @Get('requests/:requestId')
+  @AccountPolicy('restricted_self_service', 'restricted')
   @Header('Vary', 'Authorization')
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ operationId: 'adminDiscussionRemovalRecovery' })
@@ -101,6 +111,7 @@ export class AdminDiscussionRemovalController {
     return this.moderation.recovery(bearerToken(auth), requestId);
   }
   @Post('commands/cancel')
+  @AccountPolicy('restricted_self_service', 'restricted')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ operationId: 'adminDiscussionRemovalCancel' })

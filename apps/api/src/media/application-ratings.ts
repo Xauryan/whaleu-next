@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { lockSafetyPolicy } from '../safety/locks.js';
 import type { MediaIngressClaim } from './application-v2.js';
 import type { StoredObjectMeasurement } from './storage-port.js';
@@ -46,6 +47,7 @@ export interface RatingsTargetMediaOwner {
 
 export class RatingsTargetUploadApplication {
   constructor(readonly owner: RatingsTargetMediaOwner) {}
+  @AccountPolicy('interaction', 'owner_after_recovery')
   prepare(token: string, raw: unknown) {
     return this.owner.authorized(token, async (session, tx) => {
       const input = prepareRatingsMediaSchema.parse(raw),
@@ -76,6 +78,7 @@ export class RatingsTargetUploadApplication {
       );
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, requestId: string) {
     return this.owner.authorized(
       token,
@@ -84,11 +87,13 @@ export class RatingsTargetUploadApplication {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelRequest(token: string, requestId: string, raw: unknown) {
     return this.owner.authorized(token, (session, tx) =>
       this.owner.recovery.cancelRequest(session.accountId, requestId, raw, tx),
     );
   }
+  @AccountPolicy('browse', 'entry')
   status(token: string, editScopeId: string) {
     return this.owner.authorized(
       token,
@@ -105,6 +110,7 @@ export class RatingsTargetUploadApplication {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, editScopeId: string) {
     return this.owner.authorized(token, async (session, tx) =>
       this.owner.recovery.cancel(
@@ -118,6 +124,7 @@ export class RatingsTargetUploadApplication {
       ),
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   async finalize(token: string, editScopeId: string) {
     const status = await this.status(token, editScopeId);
     if (
@@ -142,6 +149,7 @@ export class RatingsTargetUploadApplication {
       return this.owner.recovery.status(session.accountId, id, tx);
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   async grant(token: string, editScopeId: string) {
     const result = await this.owner.authorized(token, async (session, tx) => {
       const ingress = this.requireIngress(),
@@ -222,6 +230,7 @@ export class RatingsTargetUploadApplication {
       );
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   observed(editScopeId: string, result: MediaUploadObserved) {
     const { version: _version, ...observation } = result;
     void _version;

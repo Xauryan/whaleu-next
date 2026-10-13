@@ -66,6 +66,7 @@ test('M2A upgrade leaves legacy definitions and Review/source history intact and
     ).filter((migration) => Number(migration.name.slice(0, 4)) <= 56),
     { mode: 'up' },
   );
+  await f.restartApp(56);
   assert.deepEqual(await snapshotTables(oldTables), beforeUpgrade);
   assert.equal(
     (

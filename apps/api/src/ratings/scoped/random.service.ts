@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { ratingTargetCoverContextSchema } from './target-cover-contracts.js';
 import { currentRatingTargetCoverDescriptor } from '../target-cover-current.js';
 import { ratingsMediaDescriptorSchema } from '../../media/contracts-ratings.js';
@@ -201,6 +202,7 @@ export class RatingScopedRandomService {
     private readonly projection: RatingScopedProjection,
     @Inject(RatingRandomDraw) private readonly draw: RatingRandomDraw,
   ) {}
+  @AccountPolicy('browse', 'entry')
   async select(
     token: string,
     input: RatingScopedRandomQuery,

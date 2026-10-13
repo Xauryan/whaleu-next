@@ -1,4 +1,9 @@
 import {
+  HttpModerationGateway,
+  type ModerationGateway,
+} from '../account-moderation/gateway';
+import { PendingModerationStore } from '../account-moderation/pending';
+import {
   HttpSchoolAdminManagementGateway,
   type SchoolAdminManagementGateway,
 } from '../school-admin-management/gateway';
@@ -255,6 +260,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly accountModeration?: ModerationGateway;
+  readonly pendingAccountModeration?: PendingModerationStore;
   readonly schoolAdminManagement?: SchoolAdminManagementGateway;
   readonly pendingSchoolAdminManagement?: PendingSchoolAdminManagementStore;
   readonly adminDiscussionRemoval?: AdminDiscussionRemovalGateway;
@@ -473,6 +480,10 @@ export function createCommunityRuntime(
             identity.api,
           ),
         }
+      : {}),
+    pendingAccountModeration: new PendingModerationStore(storage, origin),
+    ...(identity.api
+      ? { accountModeration: new HttpModerationGateway(identity.api) }
       : {}),
     pendingSchoolAdminManagement: new PendingSchoolAdminManagementStore(
       storage,

@@ -29,7 +29,7 @@ const builder = async (): Promise<Builder> =>
     ).href
   ) as Promise<Builder>;
 
-test('system notice OpenAPI retains three owner-only routes and three exact source-free notice kinds', async () => {
+test('system notice OpenAPI retains three owner-only routes and eight exact source-free notice kinds', async () => {
   const doc = await (await builder()).createSystemNoticesOpenApiDocument();
   assert.equal(doc.openapi, '3.0.3');
   const resolve = (schema: Schema | undefined): Schema => {
@@ -107,12 +107,16 @@ test('system notice OpenAPI retains three owner-only routes and three exact sour
       assert.equal(items.maxItems, 50);
       const union = resolve(items.items);
       const variants = (union.anyOf ?? union.oneOf ?? []).map(resolve);
-      assert.equal(variants.length, 4);
+      assert.equal(variants.length, 8);
       const fields = {
         post_jury_removed: ['keepVotes', 'removeVotes'],
         profile_nickname_reset: ['nickname'],
         profile_custom_avatar_cleared: [],
         admin_post_removed: [],
+        admin_discussion_removed: [],
+        account_punishment_issued: ['punishment'],
+        account_punishment_released: ['punishment'],
+        account_appeal_decided: ['appealId', 'outcome', 'reason'],
       };
       for (const [kind, specific] of Object.entries(fields)) {
         const variant = variants.find((item) =>
@@ -126,6 +130,35 @@ test('system notice OpenAPI retains three owner-only routes and three exact sour
           'readAt',
           ...specific,
         ]);
+        if (
+          kind === 'account_punishment_issued' ||
+          kind === 'account_punishment_released'
+        ) {
+          exactFields(resolve(variant.properties?.['punishment']), [
+            'punishmentId',
+            'kind',
+            'revision',
+            'reason',
+            'startsAt',
+            'endsAt',
+            'recordedAt',
+            'state',
+            'terminal',
+            'canAppeal',
+            'openAppealId',
+          ]);
+        }
+        if (kind === 'account_appeal_decided') {
+          assert.equal(
+            resolve(variant.properties?.['appealId']).format,
+            'uuid',
+          );
+          assert.deepEqual(resolve(variant.properties?.['outcome']).enum, [
+            'upheld',
+            'released',
+            'closed_no_longer_effective',
+          ]);
+        }
         assert.equal(resolve(variant.properties?.['noticeId']).format, 'uuid');
         assert.equal(
           resolve(variant.properties?.['createdAt']).format,

@@ -1,3 +1,4 @@
+import { noticeContentAllowed } from '../../safety/account-policy/notice-projection.js';
 import {
   boundedOwnerProof,
   ownerFingerprint,
@@ -182,9 +183,10 @@ export class StudentVerificationNotices {
         [account, (page - 1) * 20],
       )
     ).rows;
+    const contentAllowed = await noticeContentAllowed(account, tx);
     const items = [];
     for (const n of rows.slice(0, 20)) {
-      const target = await this.target(account, n, tx);
+      const target = contentAllowed ? await this.target(account, n, tx) : null;
       items.push({
         id: n.id,
         kind: n.kind,
@@ -205,9 +207,12 @@ export class StudentVerificationNotices {
       )
     ).rows[0];
     if (!notice) throw new ApplicationError('NOTICE_NOT_FOUND');
-    const target = await this.target(account, notice, tx);
+    const contentAllowed = await noticeContentAllowed(account, tx);
+    const target = contentAllowed
+      ? await this.target(account, notice, tx)
+      : null;
     await this.owner(account, tx, markRead);
-    if (markRead && target)
+    if (markRead && (target || !contentAllowed))
       await tx.query(
         'UPDATE whaleu_notifications.student_notices SET read_at=COALESCE(read_at,clock_timestamp()) WHERE id=$1',
         [id],

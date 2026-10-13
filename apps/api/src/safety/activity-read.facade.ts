@@ -10,6 +10,6 @@ export class SafetyActivityReadFacade {
     @Inject(SafetyRepository) private readonly records: SafetyRepository,
   ) {}
   async requireAllowed(accountId: string, tx: PoolClient): Promise<void> {
-    await this.records.restriction(accountId, tx);
+    await this.records.restriction(accountId, tx, 'browse');
   }
 }

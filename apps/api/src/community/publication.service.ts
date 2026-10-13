@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { bindCategoryChildContext } from './category-reclassification/child-context.js';
 import { FeedbackNotificationsFacade } from '../notifications/feedback/facade.js';
 import { requireFeedbackSpace } from './feedback/topic.js';
@@ -169,12 +170,14 @@ export class PublicationService {
       }
     );
   }
+
   post(
     token: string,
     body: PublishPost,
     reviewOnly: true,
   ): Promise<TextReviewStatus>;
   post(token: string, body: PublishPost): Promise<PublicationReceipt>;
+  @AccountPolicy('interaction', 'owner_after_recovery')
   post(
     token: string,
     body: PublishPost,
@@ -348,6 +351,7 @@ export class PublicationService {
       reviewOnly,
     );
   }
+
   comment(
     token: string,
     postId: string,
@@ -359,6 +363,7 @@ export class PublicationService {
     postId: string,
     body: PublishComment,
   ): Promise<PublicationReceipt>;
+  @AccountPolicy('interaction', 'owner_after_recovery')
   comment(
     token: string,
     postId: string,

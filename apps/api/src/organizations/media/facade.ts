@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import type { DatabaseService } from '../../database/database.js';
@@ -192,6 +193,7 @@ export class OrganizationMediaService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   prepare(token: string, raw: unknown) {
     return this.authorized(token, async (session, tx) => {
       const input = prepareOrganizationMediaSchema.parse(raw),
@@ -216,6 +218,7 @@ export class OrganizationMediaService {
       return this.recovery.status(session.accountId, prepared.intentId, tx);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, requestId: string) {
     return this.authorized(
       token,
@@ -223,6 +226,7 @@ export class OrganizationMediaService {
       false,
     );
   }
+  @AccountPolicy('browse', 'entry')
   status(token: string, intentId: string) {
     return this.authorized(
       token,
@@ -230,16 +234,19 @@ export class OrganizationMediaService {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelRequest(token: string, requestId: string, raw: unknown) {
     return this.authorized(token, (s, tx) =>
       this.recovery.cancelRequest(s.accountId, requestId, raw, tx),
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, intentId: string) {
     return this.authorized(token, (s, tx) =>
       this.recovery.cancel(s.accountId, intentId, tx),
     );
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   async grant(token: string, intentId: string) {
     const result = await this.authorized(token, async (s, tx) => {
       const ingress = this.requireIngress();
@@ -263,6 +270,7 @@ export class OrganizationMediaService {
       protocol: ORGANIZATION_MEDIA_PROTOCOL,
     });
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   async finalize(token: string, intentId: string) {
     const before = await this.status(token, intentId);
     if (
@@ -328,6 +336,7 @@ export class OrganizationMediaService {
       );
     });
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   observed(result: MediaUploadObserved) {
     const { version: _version, ...observed } = result;
     void _version;
@@ -417,6 +426,7 @@ export class OrganizationMediaService {
           tx,
         );
   }
+  @AccountPolicy('browse', 'entry')
   descriptor(token: string, target: OrganizationMediaReadTarget) {
     return this.database.transaction(
       async (tx) => {
@@ -432,6 +442,7 @@ export class OrganizationMediaService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   open(
     token: string,
     target: OrganizationMediaReadTarget,

@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.js';
@@ -63,6 +64,7 @@ export class ProfileDiscoveryService {
     };
   }
 
+  @AccountPolicy('private_self_service', 'entry')
   ownReference(token: string): Promise<{ profileId: string | null }> {
     return this.database.transaction(async (tx) => {
       await lockSafetyPolicy(tx);
@@ -73,6 +75,7 @@ export class ProfileDiscoveryService {
     });
   }
 
+  @AccountPolicy('browse', 'entry')
   profile(token: string | null, profileId: string): Promise<PublicProfile> {
     return this.database.transaction(
       async (tx) => {
@@ -134,6 +137,7 @@ export class ProfileDiscoveryService {
     );
   }
 
+  @AccountPolicy('browse', 'entry')
   list(
     token: string | null,
     profileId: string,

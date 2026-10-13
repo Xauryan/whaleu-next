@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../account-policy/decorator.js';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -91,6 +92,7 @@ export class ReportingService {
       registerTransactionDeadline(tx, fact.validUntil, code);
     }
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   report(token: string, body: ReportRequest) {
     return this.mutate(
       token,
@@ -100,6 +102,7 @@ export class ReportingService {
       body,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   vote(token: string, body: JuryVoteRequest) {
     return this.mutate(
       token,
@@ -307,6 +310,7 @@ export class ReportingService {
       throw new ApplicationError('SAFETY_UNAVAILABLE');
     return id;
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, requestId: string): Promise<ReportReceipt> {
     return this.transaction(async (tx) => {
       const actor = (await this.identity.session(token, tx)).accountId;
@@ -341,6 +345,7 @@ export class ReportingService {
       evaluatedAt: at,
     };
   }
+  @AccountPolicy('browse', 'entry')
   progress(token: string, target: ReportTarget): Promise<ReportProgress> {
     return this.transaction(async (tx) => {
       const actor = (await this.identity.session(token, tx)).accountId;

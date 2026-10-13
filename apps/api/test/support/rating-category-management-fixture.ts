@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 /** Isolated synthetic policy/grant ingress; real HTTP, owners, Review and guards. */
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -895,8 +896,7 @@ export async function ratingCategoryManagementFixture(
       );
       return receipt;
     };
-    return {
-      ...f,
+    return extendLiveFixture(f, {
       admin,
       data,
       solo,
@@ -921,7 +921,7 @@ export async function ratingCategoryManagementFixture(
       rawCategoryExecution: execution,
       finishRawCategoryExecution: finishRaw,
       insertManagedSource,
-    };
+    });
   } catch (error) {
     await f.close();
     throw error;

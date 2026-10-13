@@ -1,3 +1,8 @@
+import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
+import {
+  startTransactionDeadlines,
+  clearTransactionDeadlines,
+} from '../src/database/transaction-deadlines.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -180,9 +185,19 @@ function fixture() {
     records,
     projection,
   );
-  const tx = { query: async () => ({ rows: [] }) } as unknown as PoolClient;
+  const tx = {
+    query: async (sql: string, args: unknown[] = []) =>
+      unpunishedAccountPolicyObservation(sql, args) ?? { rows: [] },
+  } as unknown as PoolClient;
   const database = {
-    transaction: async (fn: (read: PoolClient) => Promise<unknown>) => fn(tx),
+    transaction: async (fn: (read: PoolClient) => Promise<unknown>) => {
+      startTransactionDeadlines(tx);
+      try {
+        return await fn(tx);
+      } finally {
+        clearTransactionDeadlines(tx);
+      }
+    },
   };
   const identity = {
     session: async () => ({ accountId: id(2), sessionId: id(41) }),

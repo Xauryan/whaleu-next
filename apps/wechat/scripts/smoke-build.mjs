@@ -1,3 +1,4 @@
+import { smokeAccountModeration } from './smoke-account-moderation.mjs';
 import { smokeSchoolAdminManagement } from './smoke-school-admin-management.mjs';
 import { smokeAdminDiscussionRemoval } from './smoke-admin-discussion-removal.mjs';
 import { smokeExperienceRanking } from './smoke-experience-ranking.mjs';
@@ -2715,6 +2716,7 @@ await smokeProfileModeration({ dist });
 await smokeProfileAvatarModeration({ dist });
 await smokeAdminPostRemoval({ dist });
 await smokeSchoolAdminManagement({ dist });
+await smokeAccountModeration({ dist });
 await smokeAdminDiscussionRemoval({ dist });
 await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeErrandAdminMutations({ app, dist, flush: flushTrading });

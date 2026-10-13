@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { enableSafetyRelationshipProof } from '../safety/relationship-proof.js';
 import {
   checkpointTransactionDeadlines,
@@ -48,6 +49,7 @@ export class IdentityPrivacyService {
     private readonly audit: IdentityAuditRepository,
   ) {}
 
+  @AccountPolicy('privileged_read', 'entry')
   async view(
     token: string,
     body: IdentityBatch,

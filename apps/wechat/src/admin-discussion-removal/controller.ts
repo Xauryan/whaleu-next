@@ -1,3 +1,5 @@
+import { decodeRemovalPunishmentSelection } from '../admin-post-removal/punishment';
+import type { RemovalPunishmentSelection } from '../admin-post-removal/punishment';
 import { ClientError } from '../api/errors';
 import {
   CommunityController,
@@ -27,6 +29,7 @@ import type { PendingAdminDiscussionRemovalStore } from './pending';
 export interface AdminDiscussionRemovalView extends CommunityView {
   /** True only while an exact-target management read is available. */
   readonly loaded: boolean;
+  readonly selectedPunishment: RemovalPunishmentSelection | null;
   readonly ownContent: boolean;
   readonly applied: boolean;
   readonly target: AdminDiscussionRemovalTarget | null;
@@ -42,6 +45,7 @@ export interface AdminDiscussionRemovalView extends CommunityView {
 export const initialAdminDiscussionRemovalView =
   (): AdminDiscussionRemovalView => ({
     ...initialCommunityView(),
+    selectedPunishment: null,
     loaded: false,
     ownContent: false,
     applied: false,
@@ -225,10 +229,36 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
       !sameAdminDiscussionRemovalTarget(management.target, target)
     )
       return;
-    this.update({ confirming: 'remove' });
+    this.update({ confirming: 'remove', selectedPunishment: null });
   }
   closeConfirmation(): void {
-    if (!this.view.busy) this.update({ confirming: null });
+    if (!this.view.busy)
+      this.update({ confirming: null, selectedPunishment: null });
+  }
+  selectPunishment(raw: unknown | null): boolean {
+    if (this.view.busy || this.view.frozen || this.view.confirming !== 'remove')
+      return false;
+    try {
+      if (raw === null) {
+        this.update({ selectedPunishment: null });
+        return true;
+      }
+      const selected = decodeRemovalPunishmentSelection(raw, false);
+      if (
+        !this.view.management?.punishmentOptions ||
+        selected.expectedRevision !==
+          this.view.management.punishmentOptions[selected.kind].revision
+      )
+        throw new ClientError(
+          'protocol',
+          'Current punishment revision required',
+        );
+      this.update({ selectedPunishment: selected, error: '' });
+      return true;
+    } catch (error) {
+      this.update({ error: communityError(error) });
+      return false;
+    }
   }
   async submit(): Promise<void> {
     if (
@@ -240,6 +270,7 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
       !this.view.management?.canRemove
     )
       return;
+    const selection = this.view.selectedPunishment;
     const management = this.view.management,
       account = this.accountId()!,
       owner = this.owner;
@@ -252,6 +283,7 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const command = decodeAdminDiscussionRemovalCommand({
           clientRequestId,
+          ...(selection ? { version: 2, punishment: selection } : {}),
           target: management.target,
           action: 'remove_discussion',
           expectedTargetVersion: management.targetVersion,
@@ -339,11 +371,13 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
       management: null,
       applied: receipt.outcome === 'applied',
       receiptStatus:
-        receipt.outcome === 'applied'
-          ? '已确认删除评论/回复；不会通知作者，不禁言，没有恢复此内容的管理入口'
-          : receipt.code === 'ADMIN_DISCUSSION_REMOVAL_STALE'
-            ? '评论/回复状态已变化，原请求未删除新状态，请重新加载并确认'
-            : '原管理员删除请求已取消；已经删除的评论/回复不会恢复',
+        receipt.outcome === 'applied' && receipt.version === 2
+          ? `已确认删除及${receipt.punishment?.kind === 'access_suspension' ? '封号' : '禁言'}；作者已收到私有删除通知和处罚通知`
+          : receipt.outcome === 'applied'
+            ? '已确认删除评论/回复；不会通知作者，不禁言，没有恢复此内容的管理入口'
+            : receipt.code === 'ADMIN_DISCUSSION_REMOVAL_STALE'
+              ? '评论/回复状态已变化，原请求未删除新状态，请重新加载并确认'
+              : '原管理员删除请求已取消；已经删除的评论/回复不会恢复',
     });
     // Clear pooled media, identity overlays and list snapshots before fresh reads.
     this.runtime.safetyChanges?.invalidate(account);

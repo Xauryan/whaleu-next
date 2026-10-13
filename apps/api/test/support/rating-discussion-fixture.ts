@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 /** Synthetic exact approvals with the ordinary AppModule HTTP pipeline. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -126,14 +127,13 @@ export async function ratingDiscussionFixture(maximumMigration?: number) {
     assert.equal(response.status, 200, JSON.stringify(response.body));
     return response.body;
   };
-  return {
-    ...f,
+  return extendLiveFixture(f, {
     replyBody,
     replyEnvelope,
     publishReply,
     deleteReply,
     deleteRoot,
-  };
+  });
 }
 export type RatingDiscussionFixture = Awaited<
   ReturnType<typeof ratingDiscussionFixture>

@@ -1,3 +1,4 @@
+import { enforceAccountPunishment } from './account-moderation/policy.js';
 import type { SearchReadContext } from '../community/content-review/search-read-context.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -23,6 +24,8 @@ export class NamedBlockVisibility implements CommunityVisibilityPort {
     purpose: VisibilityPurpose,
     read?: SearchReadContext,
   ): Promise<Decision> {
+    // Actor access is independent of anonymous/self relationship bypass.
+    if (viewer) await enforceAccountPunishment(viewer, 'browse', tx);
     const base = await this.base.check(viewer, subject, tx, purpose, read);
     if (base.kind !== 'allow') return base;
     if (
@@ -46,6 +49,7 @@ export class NamedBlockVisibility implements CommunityVisibilityPort {
     purpose: VisibilityPurpose,
     read?: SearchReadContext,
   ): Promise<Decision> {
+    if (viewer) await enforceAccountPunishment(viewer, 'browse', tx);
     // Private-detail children retain existing list relationship semantics.
     // Owner concealment remains an independent canonical parent gate.
     if (purpose === 'detail_projection') purpose = 'list_projection';

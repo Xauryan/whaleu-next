@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 /** Disposable canonical owner facts and real AppModule only. No runtime issuer. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -185,13 +186,12 @@ export async function ratingCategoryFixture(maximumMigration?: number) {
     if (receipt.outcome === 'rejected') assert.fail(JSON.stringify(receipt));
     return { before, input, prepared, reviewed, receipt };
   };
-  return {
-    ...f,
+  return extendLiveFixture(f, {
     categoryContext: context,
     categoryIntent: intent,
     prepareCategories: prepare,
     approveCategories: approve,
     commitCategories: commit,
     createCategories: create,
-  };
+  });
 }

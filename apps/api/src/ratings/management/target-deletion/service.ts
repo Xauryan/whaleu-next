@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -28,6 +29,7 @@ export class RatingTargetOwnerDeletionService {
     @Inject(RatingTargetOwnerDeletionRepository)
     private readonly records: RatingTargetOwnerDeletionRepository,
   ) {}
+  @AccountPolicy('browse', 'entry')
   context(token: string, id: string) {
     return this.database.transaction(
       async (tx) => {
@@ -132,6 +134,7 @@ export class RatingTargetOwnerDeletionService {
       [actor, intent.clientRequestId, canonicalJson(receipt)],
     );
   }
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   delete(token: string, targetId: string, command: DeleteRatingTarget) {
     const intent: RatingTargetDeletionIntent = { targetId, ...command };
     return this.database.transaction(
@@ -239,6 +242,7 @@ export class RatingTargetOwnerDeletionService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, intent: RatingTargetDeletionIntent) {
     return this.database.transaction(
       async (tx) => {
@@ -263,6 +267,7 @@ export class RatingTargetOwnerDeletionService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.database.transaction(
       async (tx) => {

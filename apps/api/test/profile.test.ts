@@ -1,3 +1,4 @@
+import { hashToken } from '../src/identity/tokens.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
@@ -5,6 +6,8 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
+import { AccountPolicyInterceptor } from '../src/safety/account-policy/interceptor.js';
+import { controllerUnitAccountPolicy } from './support/controller-unit-account-policy.js';
 import { CampusService } from '../src/campus/campus.service.js';
 import { campusQuerySchema } from '../src/campus/contracts.js';
 import { loadConfig } from '../src/config/config.js';
@@ -20,6 +23,7 @@ import {
 } from '../src/profile/contracts.js';
 import { ProfileService } from '../src/profile/profile.service.js';
 
+const sessionId = '33333333-3333-4333-8333-333333333333';
 const accountId = '11111111-1111-4111-8111-111111111111';
 const campusId = '22222222-2222-4222-8222-222222222222';
 const token = `wu_a_${'A'.repeat(43)}`;
@@ -196,6 +200,9 @@ before(async () => {
   const module = await Test.createTestingModule({
     imports: [AppModule.register(config)],
   })
+    // Controller DTO/auth unit: account policy is explicitly mocked, not exercised here.
+    .overrideProvider(AccountPolicyInterceptor)
+    .useValue(controllerUnitAccountPolicy)
     .overrideProvider(DatabaseService)
     .useValue({ ready: async () => true })
     .overrideProvider(IdentityService)
@@ -203,7 +210,7 @@ before(async () => {
       session: async (provided: string) => {
         assert.equal(provided, token);
         if (authFailure) throw new ApplicationError('SESSION_REVOKED');
-        return { accountId };
+        return { accountId, sessionId };
       },
     })
     .overrideProvider(CampusService)
@@ -296,13 +303,24 @@ test('strict HTTP own writes take account only from the authenticated facade', a
     .expect(200);
   assert.deepEqual(calls, [
     ['get', accountId],
-    ['update', accountId, { expectedRevision: 0, nickname: '泡泡' }],
+    [
+      'update',
+      accountId,
+      { expectedRevision: 0, nickname: '泡泡' },
+      { sessionId, tokenHash: hashToken(token) },
+    ],
     [
       'updatePreferences',
       accountId,
       { expectedRevision: 0, preferences: { hideProfilePosts: true } },
+      { sessionId, tokenHash: hashToken(token) },
     ],
-    ['selectCampus', accountId, { expectedRevision: 0, campusId }],
+    [
+      'selectCampus',
+      accountId,
+      { expectedRevision: 0, campusId },
+      { sessionId, tokenHash: hashToken(token) },
+    ],
   ]);
 });
 

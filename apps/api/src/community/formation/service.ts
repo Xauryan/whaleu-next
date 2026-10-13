@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
 import {
   checkpointTransactionDeadlines,
@@ -209,6 +210,7 @@ export class FormationService {
       },
     };
   }
+  @AccountPolicy('browse', 'entry')
   get(token: string, postId: string): Promise<FormationView> {
     return this.community.database.transaction(
       async (tx) => {
@@ -232,6 +234,7 @@ export class FormationService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   contacts(token: string, postId: string): Promise<FormationContactsView> {
     return this.community.database.transaction(
       async (tx) => {
@@ -284,6 +287,7 @@ export class FormationService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('browse', 'entry')
   own(token: string, postId: string) {
     return this.community.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);
@@ -293,6 +297,7 @@ export class FormationService {
       return own;
     });
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   join(
     token: string,
     postId: string,
@@ -393,6 +398,7 @@ export class FormationService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, requestId: string): Promise<FormationReceipt> {
     return this.community.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);

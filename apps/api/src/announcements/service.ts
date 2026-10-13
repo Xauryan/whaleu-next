@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ZodError } from 'zod';
@@ -57,6 +58,7 @@ export class AnnouncementsService {
       throw error;
     }
   }
+  @AccountPolicy('browse', 'entry')
   list(token: string | null, query: AnnouncementListQuery) {
     return this.run(async (tx) => {
       const campusId = query.campusId ?? null;
@@ -115,6 +117,7 @@ export class AnnouncementsService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   detail(token: string | null, id: string, query: AnnouncementScopeQuery) {
     return this.run(async (tx) => {
       const campusId = query.campusId ?? null;
@@ -130,6 +133,7 @@ export class AnnouncementsService {
       return announcementDetailSchema.parse(result);
     });
   }
+  @AccountPolicy('browse', 'entry')
   popup(token: string | null, query: AnnouncementScopeQuery) {
     return this.run(async (tx) => {
       const campusId = query.campusId ?? null;
@@ -144,6 +148,7 @@ export class AnnouncementsService {
       return result;
     });
   }
+  @AccountPolicy('browse', 'entry')
   ownerPopup(token: string, query: AnnouncementScopeQuery) {
     return this.run(async (tx) => {
       const campusId = query.campusId ?? null;
@@ -169,6 +174,7 @@ export class AnnouncementsService {
       return result;
     });
   }
+  @AccountPolicy('browse', 'entry')
   changes(token: string | null, query: AnnouncementChangesQuery) {
     return this.run(async (tx) => {
       const campusId = query.campusId ?? null;
@@ -182,6 +188,7 @@ export class AnnouncementsService {
       return result;
     });
   }
+  @AccountPolicy('passive_bookkeeping', 'entry')
   acknowledge(token: string, id: string, command: AnnouncementAckCommand) {
     return this.run(async (tx) => {
       const session = await this.access.resolve(token, command.campusId, tx);

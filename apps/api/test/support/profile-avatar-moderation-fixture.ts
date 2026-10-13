@@ -1,3 +1,5 @@
+import { configureHistoricalAccountPolicy } from './historical-account-punishment-policy.js';
+import { extendLiveFixture } from './live-fixture.js';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../../src/app.module.js';
 import { APP_CONFIG } from '../../src/config/config.js';
@@ -52,24 +54,43 @@ export async function profileAvatarModerationFixture(
     maximumMigration,
   );
   try {
-    const ordinary = await f.startOrdinaryRuntime();
-    // Explicit synthetic read-only Community Media leaf. Profile avatar runtime
-    // stays null, and no provider/storage/upload application is enabled here.
-    const moderationApp = mediaTargets
-      ? (
-          await Test.createTestingModule({
-            imports: [AppModule.register(f.app.get(APP_CONFIG))],
-          })
-            .overrideProvider(CONTENT_MEDIA_PROOF)
-            .useClass(CurrentContentMediaProof)
-            .compile()
-        ).createNestApplication({ logger: false })
-      : ordinary;
-    if (mediaTargets) {
-      configureHttp(moderationApp);
-      await moderationApp.listen(0, '127.0.0.1');
-    }
-    const http = moderationApp.getHttpServer();
+    let ordinary = await f.startOrdinaryRuntime();
+    const startModerationApp = async () => {
+      if (!mediaTargets) return ordinary;
+      // Keep the preexisting explicit synthetic Media leaf, plus only the
+      // exact historical overlay adapter when this fixture requests it.
+      const config = f.app.get(APP_CONFIG);
+      const builder = Test.createTestingModule({
+        imports: [AppModule.register(config)],
+      })
+        .overrideProvider(CONTENT_MEDIA_PROOF)
+        .useClass(CurrentContentMediaProof);
+      await configureHistoricalAccountPolicy(
+        builder,
+        config,
+        f.historicalPrefix,
+      );
+      const app = (await builder.compile()).createNestApplication({
+        logger: false,
+      });
+      configureHttp(app);
+      await app.listen(0, '127.0.0.1');
+      return app;
+    };
+    let moderationApp = await startModerationApp();
+    let moderationClosed = false;
+    const http = () => moderationApp.getHttpServer();
+    const restartApp = async (prefix?: number) => {
+      if (moderationApp !== ordinary && !moderationClosed) {
+        moderationClosed = true;
+        await moderationApp.close();
+      }
+      await f.closeOrdinaryRuntime(ordinary);
+      await f.restartApp(prefix);
+      ordinary = await f.startOrdinaryRuntime();
+      moderationApp = await startModerationApp();
+      moderationClosed = false;
+    };
     const grant = async (
       actor: ProfileActor,
       role: 'school_admin' | 'super_admin' | 'developer' = 'school_admin',
@@ -215,7 +236,7 @@ export async function profileAvatarModerationFixture(
       target: AvatarModerationTarget,
       admin: ProfileActor,
     ) => {
-      const response = await request(http)
+      const response = await request(http())
         .get('/v1/community/profile-avatar-moderation/management')
         .set('Authorization', `Bearer ${admin.accessToken}`)
         .query({ kind: target.kind, id: target.id });
@@ -238,7 +259,7 @@ export async function profileAvatarModerationFixture(
       body: AvatarModerationCommand,
       cancel = false,
     ) =>
-      request(http)
+      request(http())
         .post(
           `/v1/community/profile-avatar-moderation/commands${cancel ? '/cancel' : ''}`,
         )
@@ -261,14 +282,23 @@ export async function profileAvatarModerationFixture(
       );
       return { body, receipt: response.body };
     };
-    return {
-      ...f,
+    return extendLiveFixture(f, {
       bytes,
-      ordinary,
-      http,
-      moderationApp,
+      get ordinary() {
+        return ordinary;
+      },
+      get http() {
+        return http();
+      },
+      get moderationApp() {
+        return moderationApp;
+      },
+      restartApp,
       close: async () => {
-        if (moderationApp !== ordinary) await moderationApp.close();
+        if (moderationApp !== ordinary && !moderationClosed) {
+          moderationClosed = true;
+          await moderationApp.close();
+        }
         await f.close();
       },
       grant,
@@ -279,7 +309,7 @@ export async function profileAvatarModerationFixture(
       command,
       send,
       apply,
-    };
+    });
   } catch (error) {
     await f.close();
     throw error;

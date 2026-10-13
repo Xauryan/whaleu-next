@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { z, ZodError } from 'zod';
 import type { PoolClient } from 'pg';
@@ -305,6 +306,7 @@ export class ErrandAdminService {
     );
   }
 
+  @AccountPolicy('privileged_read', 'entry')
   async list(token: string, query: ErrandAdminQuery): Promise<ErrandAdminPage> {
     try {
       return await this.db.transaction(

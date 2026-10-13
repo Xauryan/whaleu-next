@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -17,12 +18,14 @@ export class CampusService {
   institutionName(id: string, transaction: PoolClient): Promise<string | null> {
     return this.repository.institutionName(id, transaction);
   }
+  @AccountPolicy('browse', 'entry')
   list(query: CampusQuery): Promise<CampusPage> {
     return this.repository.list(query);
   }
   find(id: string): Promise<Campus | null> {
     return this.repository.find(id);
   }
+  @AccountPolicy('browse', 'entry')
   async getBrowseContext(
     campusId: string,
   ): Promise<{ campus: Campus; region: OperatingRegion | null }> {

@@ -1,3 +1,4 @@
+import { observeAuthenticatedSession } from '../http/session-policy-context.js';
 import type { PoolClient } from 'pg';
 import { Inject, Injectable } from '@nestjs/common';
 import { IDENTITY_PROVIDER } from './contracts.js';
@@ -74,10 +75,15 @@ export class IdentityService {
     return { ...session, accessToken, refreshToken };
   }
   session(token: string, transaction?: PoolClient): Promise<SessionView> {
-    return this.repository.authenticate(
-      hashToken(requireToken(token, 'access')),
-      transaction,
-    );
+    // Preserve synchronous wrong-purpose validation before touching Identity or
+    // its observer; authenticated policy observation remains asynchronous.
+    const tokenHash = hashToken(requireToken(token, 'access'));
+    return this.repository
+      .authenticate(tokenHash, transaction)
+      .then(async (session) => {
+        await observeAuthenticatedSession(session, transaction);
+        return session;
+      });
   }
   logout(token: string): Promise<void> {
     return this.repository.revoke(hashToken(requireToken(token, 'access')));

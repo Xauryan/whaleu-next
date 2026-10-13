@@ -288,6 +288,7 @@ test(
       ),
       { mode: 'up' },
     );
+    await f.restartApp(88);
     assert.deepEqual(await functions(), before);
     assert.equal(
       (

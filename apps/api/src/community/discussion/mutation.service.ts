@@ -1,3 +1,9 @@
+import {
+  AccountPolicy,
+  AccountPolicyFor,
+  booleanAccountPolicy,
+  operationAccountPolicy,
+} from '../../safety/account-policy/decorator.js';
 import { lockSafetyPolicy } from '../../safety/locks.js';
 import { MEDIA_ATTACHMENT } from '../community-policy.js';
 import type { MediaAttachmentPort } from '../community-policy.js';
@@ -32,6 +38,23 @@ export class DiscussionMutationService {
     private readonly access: CommunityAccessService,
     @Inject(MEDIA_ATTACHMENT) private readonly media?: MediaAttachmentPort,
   ) {}
+  @AccountPolicyFor(
+    (args) =>
+      operationAccountPolicy(args[2], {
+        set_comment_pin: 'content_management',
+        set_comment_like: booleanAccountPolicy(
+          args[4],
+          'interaction',
+          'protective_cleanup',
+        ),
+        set_reply_like: booleanAccountPolicy(
+          args[4],
+          'interaction',
+          'protective_cleanup',
+        ),
+      }),
+    'owner_after_recovery',
+  )
   set(
     token: string,
     requestId: string,
@@ -185,6 +208,7 @@ export class DiscussionMutationService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, requestId: string): Promise<DiscussionReceipt> {
     return this.repository.database.transaction(async (tx) => {
       const actor = await this.access.actor(token, tx);
@@ -198,6 +222,7 @@ export class DiscussionMutationService {
       return row.receipt;
     });
   }
+  @AccountPolicy('protective_cleanup', 'owner_after_recovery')
   deleteReply(token: string, id: string): Promise<void> {
     return this.repository.database.transaction(async (tx) => {
       await lockSafetyPolicy(tx, true);

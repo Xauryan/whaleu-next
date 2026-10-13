@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 /** Synthetic explicit provenance only. No runtime issuer, seed or provider. */
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
@@ -148,5 +149,5 @@ export async function majorDiscussionFixture(
     active,
     expectedMembershipRevision,
   });
-  return { ...f, acceptDiscussion, root, reply, like };
+  return extendLiveFixture(f, { acceptDiscussion, root, reply, like });
 }

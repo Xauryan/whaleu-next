@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import {
   ratingDiscussionNoticeSchema,
   type RatingDiscussionNotice,
@@ -181,6 +182,7 @@ export class RatingScopedNoticeService {
           kind === 'like-updates' ? 'like' : 'reply',
         );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   list(token: string, kind: RatingScopedNoticeKind, input: NoticeQuery) {
     assertKind(kind);
     const query = ratingScopedNoticeQuerySchema.parse(input);
@@ -311,6 +313,7 @@ export class RatingScopedNoticeService {
       throw new ApplicationError('RATING_NOT_FOUND');
     return { target, subject: reply };
   }
+  @AccountPolicy('browse', 'entry')
   target(
     token: string,
     kind: RatingScopedNoticeKind,
@@ -388,6 +391,7 @@ export class RatingScopedNoticeService {
     });
   }
   /** New optional content-detail contract; old metadata pages remain exact. */
+  @AccountPolicy('browse', 'entry')
   mediaDetail(
     token: string,
     kind: RatingScopedNoticeKind,
@@ -520,6 +524,7 @@ export class RatingScopedNoticeService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   resolveLocator(
     token: string,
     input: z.infer<typeof ratingScopedResolveLocatorSchema>,

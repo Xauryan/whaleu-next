@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
@@ -19,17 +20,17 @@ export async function ratingSubscriptionUpdatesFixture() {
     ...f.app.get<RuntimeConfig>(APP_CONFIG),
     RATINGS_UPDATES_PROCESSING: 'manual' as const,
   };
-  const source = f.app.get(RatingsSubscriptionUpdatesSourceFacade),
-    projection = f.app.get(RatingSubscriptionUpdatesProjectionFacade),
-    records = f.app.get(RatingSubscriptionUpdatesRepository),
-    service = f.app.get(RatingSubscriptionsService);
+  const source = () => f.app.get(RatingsSubscriptionUpdatesSourceFacade),
+    projection = () => f.app.get(RatingSubscriptionUpdatesProjectionFacade),
+    records = () => f.app.get(RatingSubscriptionUpdatesRepository),
+    service = () => f.app.get(RatingSubscriptionsService);
   const worker = () =>
     new RatingSubscriptionUpdatesWorker(
       f.app.get(DatabaseService),
       config,
-      source,
-      projection,
-      records,
+      source(),
+      projection(),
+      records(),
     );
   const subscribe = async (
     actor: Actor,
@@ -37,7 +38,7 @@ export async function ratingSubscriptionUpdatesFixture() {
     target: Target,
     subscribed = true,
   ) => {
-    const current = await service.state(
+    const current = await service().state(
       actor.accessToken,
       target.id,
       catalog.regionId,
@@ -52,7 +53,7 @@ export async function ratingSubscriptionUpdatesFixture() {
       expectedSubscriptionRevision: current.revision,
       subscribed,
     };
-    const result = await service.set(actor.accessToken, target.id, input);
+    const result = await service().set(actor.accessToken, target.id, input);
     assert.equal(
       result.outcome,
       current.subscribed === subscribed ? 'noop' : 'applied',
@@ -107,11 +108,16 @@ export async function ratingSubscriptionUpdatesFixture() {
       setTimeout(resolve, Math.ceil(row?.wait ?? 0) + 25),
     );
   };
-  return {
-    ...f,
-    source,
-    projection,
-    records,
+  return extendLiveFixture(f, {
+    get source() {
+      return source();
+    },
+    get projection() {
+      return projection();
+    },
+    get records() {
+      return records();
+    },
     worker,
     subscribe,
     event,
@@ -120,5 +126,5 @@ export async function ratingSubscriptionUpdatesFixture() {
     processing,
     notices,
     waitRetry,
-  };
+  });
 }

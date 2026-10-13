@@ -64,12 +64,19 @@ export class RuntimeCommunityAuthorization implements CommunityAuthorizationPort
     };
     if (context.phoneOnly) return { kind: 'allow', value };
     try {
-      await this.safety.restriction(accountId, tx);
+      await this.safety.restriction(
+        accountId,
+        tx,
+        context.safetyAction ??
+          (context.publication ? 'interaction' : undefined),
+      );
     } catch (error) {
       if (error instanceof ApplicationError)
-        return error.code === 'SAFETY_ACTION_RESTRICTED'
-          ? { kind: 'deny', reason: 'COMMUNITY_ACTION_RESTRICTED' }
-          : { kind: 'unavailable' };
+        return error.code === 'SAFETY_ACCESS_SUSPENDED'
+          ? { kind: 'deny', reason: error.code }
+          : error.code === 'SAFETY_ACTION_RESTRICTED'
+            ? { kind: 'deny', reason: 'COMMUNITY_ACTION_RESTRICTED' }
+            : { kind: 'unavailable' };
       throw error;
     }
     // Phone-authorized interaction and feed continuation never load affiliation or identity selection.

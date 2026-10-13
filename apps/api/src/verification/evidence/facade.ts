@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import type { DatabaseService } from '../../database/database.js';
@@ -211,6 +212,7 @@ export class VerificationEvidenceMediaService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   prepare(token: string, raw: unknown) {
     return this.authorized(token, async (session, tx) => {
       const input = prepareVerificationEvidenceMediaSchema.parse(raw),
@@ -239,6 +241,7 @@ export class VerificationEvidenceMediaService {
       return this.recovery.status(session.accountId, prepared.intentId, tx);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   recover(token: string, requestId: string) {
     return this.authorized(
       token,
@@ -246,6 +249,7 @@ export class VerificationEvidenceMediaService {
       false,
     );
   }
+  @AccountPolicy('private_self_service', 'entry')
   status(token: string, intentId: string) {
     return this.authorized(
       token,
@@ -253,16 +257,19 @@ export class VerificationEvidenceMediaService {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelRequest(token: string, requestId: string, raw: unknown) {
     return this.authorized(token, (s, tx) =>
       this.recovery.cancelRequest(s.accountId, requestId, raw, tx),
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, intentId: string) {
     return this.authorized(token, (s, tx) =>
       this.recovery.cancel(s.accountId, intentId, tx),
     );
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   async grant(token: string, intentId: string) {
     const result = await this.authorized(token, async (s, tx) => {
       const ingress = this.requireIngress();
@@ -290,6 +297,7 @@ export class VerificationEvidenceMediaService {
       protocol: VERIFICATION_EVIDENCE_MEDIA_PROTOCOL,
     });
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   async finalize(token: string, intentId: string) {
     const before = await this.status(token, intentId);
     if (
@@ -363,6 +371,7 @@ export class VerificationEvidenceMediaService {
       );
     });
   }
+  @AccountPolicy('private_self_service', 'owner_after_recovery')
   observed(result: MediaUploadObserved) {
     const { version: _version, ...observed } = result;
     void _version;
@@ -535,6 +544,7 @@ export class VerificationEvidenceMediaService {
         return rows.length;
       });
   }
+  @AccountPolicy('private_self_service', 'entry')
   descriptor(token: string, target: VerificationEvidenceReadTarget) {
     return this.database.transaction(
       async (tx) => {
@@ -555,6 +565,7 @@ export class VerificationEvidenceMediaService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('private_self_service', 'entry')
   open(
     token: string,
     target: VerificationEvidenceReadTarget,

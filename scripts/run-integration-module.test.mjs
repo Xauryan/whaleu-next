@@ -370,7 +370,7 @@ test('scoped avatar clear keeps all eight causal and emitted specs explicitly ow
   );
 });
 
-test('Community administration owns exactly nineteen removal and historical-retention specs', () => {
+test('Community administration owns exactly twenty-nine removal, account moderation and historical-retention specs', () => {
   const plan = createModulePlan(discoverFiles(), readModules());
   const administration = plan.shards.find(
     (shard) => shard.id === 'community-administration-1',
@@ -381,6 +381,14 @@ test('Community administration owns exactly nineteen removal and historical-rete
   assert.deepEqual(administration.owners, ['community', 'media']);
   assert.equal(administration.shard, '1/1');
   assert.deepEqual(administration.files, [
+    'test/integration/account-appeals.test.ts',
+    'test/integration/account-moderation-expiry.test.ts',
+    'test/integration/account-moderation-migration.test.ts',
+    'test/integration/account-moderation-native-roundtrip.test.ts',
+    'test/integration/account-policy-consumers.test.ts',
+    'test/integration/account-policy-detached-major-media.test.ts',
+    'test/integration/account-policy-media-delivery.test.ts',
+    'test/integration/account-punishment-causal.test.ts',
     'test/integration/admin-discussion-removal-authority.test.ts',
     'test/integration/admin-discussion-removal-category.test.ts',
     'test/integration/admin-discussion-removal-causality.test.ts',
@@ -399,7 +407,9 @@ test('Community administration owns exactly nineteen removal and historical-rete
     'test/integration/admin-post-removal-native-roundtrip.test.ts',
     'test/integration/admin-post-removal-notices.test.ts',
     'test/integration/admin-post-removal.test.ts',
+    'test/integration/historical-account-punishment-policy.test.ts',
     'test/integration/historical-command-session-retention.test.ts',
+    'test/integration/profile-self-edit-causality.test.ts',
   ]);
   assert.ok(
     administration.files.every((file) => !community.files.includes(file)),
@@ -410,6 +420,18 @@ test('Community administration owns exactly nineteen removal and historical-rete
       .filter(
         (file) =>
           /\/admin-(discussion|post)-removal/.test(file) ||
+          [
+            'test/integration/account-appeals.test.ts',
+            'test/integration/account-moderation-expiry.test.ts',
+            'test/integration/account-moderation-migration.test.ts',
+            'test/integration/account-moderation-native-roundtrip.test.ts',
+            'test/integration/account-policy-consumers.test.ts',
+            'test/integration/account-policy-detached-major-media.test.ts',
+            'test/integration/account-policy-media-delivery.test.ts',
+            'test/integration/account-punishment-causal.test.ts',
+            'test/integration/historical-account-punishment-policy.test.ts',
+            'test/integration/profile-self-edit-causality.test.ts',
+          ].includes(file) ||
           file ===
             'test/integration/historical-command-session-retention.test.ts',
       )

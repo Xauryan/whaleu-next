@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 /** Real AppModule owners + disposable synthetic facts. Never mocks Review, SQL
  * guards, command kernels, sessions, publication, or effect capture. */
 import assert from 'node:assert/strict';
@@ -108,7 +109,7 @@ export async function ratingScopedCommandFixture() {
     });
     await f.publish({ activate: true });
     type Actor = Awaited<ReturnType<typeof f.actor>>;
-    const commands = f.app.get(RatingScopedCommands);
+    const commands = () => f.app.get(RatingScopedCommands);
     const read = async (
       actor: Actor,
       path: string,
@@ -178,7 +179,7 @@ export async function ratingScopedCommandFixture() {
       // Content has no separate public prepare route. Use the real command owner
       // to persist its exact envelope, then issue a synthetic acceptance for it.
       return ratingScopedPreparationSchema.parse(
-        await commands.prepare(actor.accessToken, input),
+        await commands().prepare(actor.accessToken, input),
       );
     };
     const approve = async (
@@ -335,10 +336,11 @@ export async function ratingScopedCommandFixture() {
       'likeTransitions',(SELECT count(*) FROM whaleu_ratings.like_transitions),
       'subscriptionTransitions',(SELECT count(*) FROM whaleu_ratings.subscription_transitions)) state`)
       ).rows[0]!.state;
-    return {
-      ...f,
+    return extendLiveFixture(f, {
       data,
-      scopedCommands: commands,
+      get scopedCommands() {
+        return commands();
+      },
       commandIntent: intent,
       prepareCommand: prepare,
       approveCommand: approve,
@@ -349,7 +351,7 @@ export async function ratingScopedCommandFixture() {
       scopedRead: read,
       freshSession,
       scopedEffects: effects,
-    };
+    });
   } catch (error) {
     await f.close();
     throw error;

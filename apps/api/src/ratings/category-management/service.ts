@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { requireLegacyRatingFreshScope } from '../scoped/legacy-boundary.js';
 import { RatingLegacyBridgeService } from '../scoped/legacy-bridge.service.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -343,6 +344,7 @@ export class RatingCategoryManagementService {
     }
     return { scope, heads, selected, parents, scopeRevision, parent };
   }
+  @AccountPolicy('privileged_read', 'entry')
   context(token: string, regionId: string | null) {
     return this.database.transaction(
       async (tx) => {
@@ -373,6 +375,7 @@ export class RatingCategoryManagementService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   prepare(token: string, intent: PrepareRatingCategories) {
     return this.database.transaction(
       async (tx) => {
@@ -507,6 +510,7 @@ export class RatingCategoryManagementService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('content_management', 'owner_after_recovery')
   commit(token: string, command: CommitRatingCategories) {
     const { expectedContextRevision, ...raw } = command,
       intent = prepareRatingCategoriesSchema.parse(raw),
@@ -630,6 +634,7 @@ export class RatingCategoryManagementService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, intent: PrepareRatingCategories) {
     return this.database.transaction(
       async (tx) => {
@@ -651,6 +656,7 @@ export class RatingCategoryManagementService {
       { isolationLevel: 'read committed' },
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, id: string) {
     return this.database.transaction(
       async (tx) => {

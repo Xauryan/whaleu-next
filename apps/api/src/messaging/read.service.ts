@@ -1,3 +1,4 @@
+import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { MessagingImageAuthority } from './image-authority.js';
 import { PrivateMessageMediaService } from './media/facade.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -213,6 +214,7 @@ export class MessagingReadService {
         m.sender_slot === self.slot && !m.recalled_at && row?.allowed === true,
     });
   }
+  @AccountPolicy('browse', 'entry')
   conversation(token: string, id: string) {
     return this.read(token, async (actor, tx) => {
       await this.records.coverage(actor, tx);
@@ -224,6 +226,7 @@ export class MessagingReadService {
       return this.view(actor, conversation, self, peer, tx);
     });
   }
+  @AccountPolicy('browse', 'entry')
   list(token: string, query: { cursor?: string; limit: number }) {
     return this.read(token, async (actor, tx) => {
       const coverage = await this.records.coverage(actor, tx),
@@ -282,6 +285,7 @@ export class MessagingReadService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   unread(token: string) {
     return this.read(
       token,
@@ -298,6 +302,7 @@ export class MessagingReadService {
       false,
     );
   }
+  @AccountPolicy('browse', 'entry')
   history(
     token: string,
     id: string,
@@ -354,6 +359,7 @@ export class MessagingReadService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   events(token: string, id: string, query: { cursor?: string; limit: number }) {
     return this.read(token, async (actor, tx) => {
       await this.records.coverage(actor, tx);

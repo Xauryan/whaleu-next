@@ -109,6 +109,7 @@ test(
       fileURLToPath(new URL('../../migrations', import.meta.url)),
     );
     await runMigrations(f.pool, migrations, { mode: 'up' });
+    await f.restartApp();
     const after = (
       await f.pool.query(
         `SELECT q.intent_hash,q.command::text command,q.receipt::text receipt,d.digest,c.body FROM whaleu_majors.major_discussion_commands q JOIN whaleu_majors.major_discussion_comments c ON(c.actor_id,c.request_id)=(q.actor_id,q.request_id) JOIN whaleu_community.major_discussion_review_decisions d ON d.id=c.review_decision_id WHERE q.actor_id=$1 AND q.request_id=$2`,

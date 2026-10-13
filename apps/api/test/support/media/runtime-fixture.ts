@@ -1,3 +1,6 @@
+import assert from 'node:assert/strict';
+import { extendLiveFixture } from '../live-fixture.js';
+import { configureHistoricalAccountPolicy } from '../historical-account-punishment-policy.js';
 import { MEDIA_DISCUSSION_BATCH_APPLICATION } from '../../../src/media/application-v4.js';
 import { MEDIA_BATCH_APPLICATION } from '../../../src/media/application-v3.js';
 import { MediaBatchRepository } from '../../../src/media/batch-repository.js';
@@ -20,7 +23,6 @@ import {
  * disposable loopback app. No configuration/environment switch reaches it. */
 import { Test } from '@nestjs/testing';
 import type { TestingModuleBuilder } from '@nestjs/testing';
-import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
 import type { RuntimeConfig } from '../../../src/config/config.js';
 import { configureHttp } from '../../../src/http/http.js';
@@ -73,10 +75,11 @@ export async function syntheticMediaRuntimeFixture(
   let batches!: MediaBatchRepository;
   let discussionBatches!: MediaBatchRepository;
   const lifecycle = new MediaLifecycleRepository();
+  let closed = false;
   let closeBase: (() => Promise<void>) | undefined;
   try {
     const base = await directoryRuntimeFixture(options.maximumMigration, {
-      createApp: async (runtimeConfig) => {
+      createApp: async (runtimeConfig, configurePolicy) => {
         config = runtimeConfig;
         const builder = Test.createTestingModule({
           imports: [AppModule.register(config)],
@@ -230,18 +233,27 @@ export async function syntheticMediaRuntimeFixture(
           ingressStorage,
           runtimeConfig: config,
         });
+        await configurePolicy(builder);
         const module = await builder.compile();
         return module.createNestApplication({ logger: false });
       },
     });
     closeBase = base.close;
-    return {
-      ...base,
+    return extendLiveFixture(base, {
       storage,
       ingressStorage,
       startOrdinaryRuntime: async () => {
-        // Same disposable database, genuinely ordinary AppModule, no override.
-        const app = await NestFactory.create(AppModule.register(config), {
+        // Same disposable database. Ordinary production providers except the
+        // exact test-only historical overlay when this fixture pins a prefix.
+        const builder = Test.createTestingModule({
+          imports: [AppModule.register(config)],
+        });
+        await configureHistoricalAccountPolicy(
+          builder,
+          config,
+          base.historicalPrefix,
+        );
+        const app = (await builder.compile()).createNestApplication({
           logger: false,
         });
         ordinaryApps.push(app);
@@ -249,8 +261,16 @@ export async function syntheticMediaRuntimeFixture(
         await app.listen(0, '127.0.0.1');
         return app;
       },
+      closeOrdinaryRuntime: async (app: INestApplication) => {
+        const index = ordinaryApps.indexOf(app);
+        assert.ok(index >= 0, 'Only this fixture owns the companion app');
+        ordinaryApps.splice(index, 1);
+        await app.close();
+      },
       worker: new SyntheticMediaWorker(base.pool, storage, fixtures),
       close: async () => {
+        if (closed) return;
+        closed = true;
         try {
           for (const app of ordinaryApps) await app.close();
           await base.close();
@@ -258,7 +278,7 @@ export async function syntheticMediaRuntimeFixture(
           await storage.dispose();
         }
       },
-    };
+    });
   } catch (error) {
     // Constructor/registry failures after the app starts must not strand its
     // migration lease, schemas, listening server or pool in a failed test.

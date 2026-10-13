@@ -1,3 +1,5 @@
+import { noticeContentAllowed } from '../../../safety/account-policy/notice-projection.js';
+import { AccountPolicy } from '../../../safety/account-policy/decorator.js';
 import { WindowDiscussionMediaService } from './media/facade.js';
 import { WindowDiscussionMediaOwner } from './media-owner.js';
 import { WindowDiscussionMediaReviewFacade } from '../../../community/content-review/window-discussion-media-review.facade.js';
@@ -224,6 +226,7 @@ export class WindowDiscussionService {
     );
     return row.history;
   }
+  @AccountPolicy('browse', 'entry')
   own(token: string, id: string, comment: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -337,6 +340,7 @@ export class WindowDiscussionService {
       )
     ).rows;
   }
+  @AccountPolicy('browse', 'entry')
   page(
     token: string,
     id: string,
@@ -499,6 +503,7 @@ export class WindowDiscussionService {
       ],
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   publish(token: string, id: string, command: WindowRootPublish) {
     return this.mutate(
       token,
@@ -509,6 +514,7 @@ export class WindowDiscussionService {
       false,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   reply(token: string, id: string, root: string, command: WindowReplyPublish) {
     return this.mutate(
       token,
@@ -519,6 +525,7 @@ export class WindowDiscussionService {
       false,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   like(
     token: string,
     id: string,
@@ -534,6 +541,7 @@ export class WindowDiscussionService {
       false,
     );
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancel(token: string, key: string, input: WindowDiscussionCancel) {
     if (key !== input.command.clientRequestId)
       throw new ApplicationError('REQUEST_CONFLICT');
@@ -550,6 +558,7 @@ export class WindowDiscussionService {
       true,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   publishV2(token: string, id: string, command: WindowRootPublishV2) {
     return this.mutate(
       token,
@@ -560,6 +569,7 @@ export class WindowDiscussionService {
       false,
     );
   }
+  @AccountPolicy('interaction', 'owner_after_recovery')
   replyV2(
     token: string,
     id: string,
@@ -609,6 +619,7 @@ export class WindowDiscussionService {
     )
       throw new ApplicationError('REQUEST_CONFLICT');
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receiptV2(token: string, key: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
@@ -622,6 +633,7 @@ export class WindowDiscussionService {
       return parsed.data;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   cancelV2(token: string, key: string, input: WindowDiscussionCancelV2) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -982,6 +994,7 @@ export class WindowDiscussionService {
       return receipt;
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   receipt(token: string, key: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
@@ -1005,6 +1018,8 @@ export class WindowDiscussionService {
       createdAt: row.created_at.toISOString(),
       readAt: row.read_at?.toISOString() ?? null,
     };
+    if (!(await noticeContentAllowed(actor, tx)))
+      return { ...base, status: 'unavailable' as const };
     const epoch = await discussionEpoch(tx),
       observation = (
         await tx.query<{ source: DiscussionSource | null }>(
@@ -1067,6 +1082,7 @@ export class WindowDiscussionService {
       },
     };
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   noticePage(
     token: string,
     query: Pick<WindowDiscussionQuery, 'limit' | 'cursor'>,
@@ -1149,6 +1165,7 @@ export class WindowDiscussionService {
       });
     });
   }
+  @AccountPolicy('browse', 'entry')
   noticeTarget(token: string, id: string, v2 = false) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
@@ -1172,6 +1189,7 @@ export class WindowDiscussionService {
       return windowDiscussionTargetSchema.parse(view.target);
     });
   }
+  @AccountPolicy('restricted_self_service', 'restricted')
   noticeRead(token: string, id: string) {
     return this.run(async (tx) => {
       const session = await this.session(token, tx),
