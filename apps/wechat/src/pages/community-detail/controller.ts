@@ -1,4 +1,7 @@
-import { checkDiscussionPrivacy } from '../../community/discussion-contract';
+import {
+  checkDiscussionPrivacy,
+  type Reply,
+} from '../../community/discussion-contract';
 import type { CommentQuery } from '../../community/gateway';
 import { ClientError } from '../../api/errors';
 import {
@@ -12,6 +15,7 @@ export interface DetailView extends CommunityView {
   readonly post: Post | null;
   readonly locatedComment: Comment | null;
   readonly locatedReplyId: string;
+  readonly locatedReply: Reply | null;
   readonly comments: readonly Comment[];
   readonly loaded: boolean;
   readonly sort: 'time' | 'likes';
@@ -30,6 +34,7 @@ export const initialDetailView = (): DetailView => ({
   post: null,
   locatedComment: null,
   locatedReplyId: '',
+  locatedReply: null,
   comments: [],
   loaded: false,
   sort: 'likes',
@@ -81,6 +86,7 @@ export class DetailController extends CommunityController<DetailView> {
       post: null,
       locatedComment: null,
       locatedReplyId: '',
+      locatedReply: null,
       comments: [],
       loaded: false,
       canLoadMore: false,
@@ -153,6 +159,7 @@ export class DetailController extends CommunityController<DetailView> {
           post: result.post,
           locatedComment: result.context?.comment ?? null,
           locatedReplyId: result.context?.reply?.id ?? '',
+          locatedReply: result.context?.reply ?? null,
           comments: result.comments.items,
           canLoadMore: !!this.nextCursor,
           canPrevious: pageIndex > 0,
@@ -261,9 +268,10 @@ export class DetailController extends CommunityController<DetailView> {
     const allowed =
       kind === 'post'
         ? this.view.post?.id === id && this.view.post.viewer.canDelete
-        : this.view.comments.some(
-            (item) => item.id === id && item.viewer.canDelete,
-          );
+        : [
+            ...this.view.comments,
+            ...(this.view.locatedComment ? [this.view.locatedComment] : []),
+          ].some((item) => item.id === id && item.viewer.canDelete);
     if (allowed) this.update({ deleteTarget: { kind, id } });
   }
   dismissDelete(): void {
@@ -287,6 +295,10 @@ export class DetailController extends CommunityController<DetailView> {
               this.view.locatedComment?.id === target.id
                 ? null
                 : this.view.locatedComment,
+            locatedReply:
+              this.view.locatedComment?.id === target.id
+                ? null
+                : this.view.locatedReply,
             locatedReplyId:
               this.view.locatedComment?.id === target.id
                 ? ''
@@ -301,15 +313,23 @@ export class DetailController extends CommunityController<DetailView> {
                   replyCount: Math.max(
                     0,
                     this.view.post.replyCount -
-                      (this.view.comments.find((item) => item.id === target.id)
-                        ?.replyCount ?? 0),
+                      ([
+                        ...this.view.comments,
+                        ...(this.view.locatedComment
+                          ? [this.view.locatedComment]
+                          : []),
+                      ].find((item) => item.id === target.id)?.replyCount ?? 0),
                   ),
                   discussionCount: Math.max(
                     0,
                     this.view.post.discussionCount -
                       1 -
-                      (this.view.comments.find((item) => item.id === target.id)
-                        ?.replyCount ?? 0),
+                      ([
+                        ...this.view.comments,
+                        ...(this.view.locatedComment
+                          ? [this.view.locatedComment]
+                          : []),
+                      ].find((item) => item.id === target.id)?.replyCount ?? 0),
                   ),
                 }
               : null,

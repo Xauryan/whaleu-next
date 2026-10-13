@@ -81,7 +81,11 @@ test('located reply context is separate from ordinary traversal and dedupes when
   });
   await s.controller.load();
   assert.equal(s.view().locatedReply?.id, otherId);
-  assert.equal(s.view().contextReplies.length, 1);
+  assert.equal(
+    s.view().contextReplies.length,
+    0,
+    'The separately rendered located reply is not duplicated in context rows',
+  );
   assert.deepEqual(
     s.view().replies.map((item) => item.id),
     [replyId],

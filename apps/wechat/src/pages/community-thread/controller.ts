@@ -134,7 +134,9 @@ export class ThreadController extends CommunityController<ThreadView> {
           replies: result.replies.items,
           contextReplies: result.contextReplies.filter(
             (item) =>
-              !result.replies.items.some((ordinary) => ordinary.id === item.id),
+              !result.replies.items.some(
+                (ordinary) => ordinary.id === item.id,
+              ) && result.locatedReply?.id !== item.id,
           ),
           locatedReply: result.replies.items.some(
             (item) => item.id === result.locatedReply?.id,

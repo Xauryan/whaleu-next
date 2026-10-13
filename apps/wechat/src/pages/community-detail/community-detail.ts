@@ -1204,6 +1204,69 @@ Page({
   onDeletePost() {
     this.controller?.requestDelete('post', this.postId);
   },
+  onAdminDiscussionRemoval(event: {
+    currentTarget: { dataset: { kind: string; id: string } };
+  }) {
+    if (
+      !this.data.loaded ||
+      !this.data.post ||
+      this.data.busy ||
+      this.data.needsReload ||
+      this.data.block.busy ||
+      this.data.block.frozen ||
+      this.data.report.busy ||
+      this.data.report.frozen ||
+      this.data.interaction.busy ||
+      this.data.interaction.frozen
+    )
+      return;
+    const { kind, id } = event.currentTarget.dataset;
+    if (kind !== 'comment' && kind !== 'reply') return;
+    const roots = [
+      ...this.data.comments,
+      ...(this.data.locatedComment ? [this.data.locatedComment] : []),
+    ];
+    const selected =
+      kind === 'comment'
+        ? roots.find((item) => item.id === id)
+        : (roots
+            .flatMap((item) => item.replyPreview.items)
+            .find((item) => item.id === id) ??
+          (this.data.locatedReply?.id === id ? this.data.locatedReply : null));
+    if (!selected) return;
+    if (selected.viewer.isSelf) {
+      if (kind === 'comment') {
+        this.controller?.requestDelete('comment', selected.id);
+        return;
+      }
+      const rootId = 'rootCommentId' in selected ? selected.rootCommentId : '';
+      if (!rootId) return;
+      this.namedAvatarController?.clear();
+      this.mediaGalleryController?.clear();
+      this.mediaReadController?.clear();
+      this.identityOverlay?.clear();
+      wx.navigateTo?.({
+        url: `/pages/community-thread/community-thread?postId=${encodeURIComponent(this.postId)}&rootCommentId=${encodeURIComponent(rootId)}&replyId=${encodeURIComponent(selected.id)}`,
+        success: () => undefined,
+        fail: () => this.setData({ error: '暂不能返回自己的回复，请重试' }),
+      });
+      return;
+    }
+    this.namedAvatarController?.clear();
+    this.mediaGalleryController?.clear();
+    this.mediaReadController?.clear();
+    this.identityOverlay?.clear();
+    this.overlayTargets = '';
+    if (!wx.navigateTo) {
+      this.setData({ error: '当前环境不能打开评论/回复管理，请重试' });
+      return;
+    }
+    wx.navigateTo({
+      success: () => undefined,
+      url: `/pages/admin-discussion-removal/admin-discussion-removal?kind=${kind}&id=${encodeURIComponent(selected.id)}`,
+      fail: () => this.setData({ error: '暂不能打开评论/回复管理，请重试' }),
+    });
+  },
   onDeleteComment(event: { currentTarget: { dataset: { id: string } } }) {
     this.controller?.requestDelete('comment', event.currentTarget.dataset.id);
   },

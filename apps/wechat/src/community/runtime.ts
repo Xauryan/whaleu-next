@@ -1,4 +1,9 @@
 import {
+  HttpAdminDiscussionRemovalGateway,
+  type AdminDiscussionRemovalGateway,
+} from '../admin-discussion-removal/gateway';
+import { PendingAdminDiscussionRemovalStore } from '../admin-discussion-removal/pending';
+import {
   HttpAdminPostRemovalGateway,
   type AdminPostRemovalGateway,
 } from '../admin-post-removal/gateway';
@@ -241,6 +246,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly adminDiscussionRemoval?: AdminDiscussionRemovalGateway;
+  readonly pendingAdminDiscussionRemoval?: PendingAdminDiscussionRemovalStore;
   readonly adminPostRemoval?: AdminPostRemovalGateway;
   readonly pendingAdminPostRemoval?: PendingAdminPostRemovalStore;
   readonly profileAvatarModeration?: ProfileAvatarModerationGateway;
@@ -443,6 +450,17 @@ export function createCommunityRuntime(
     pendingWindowDiscussion: new PendingWindowDiscussionStore(storage, origin),
     ...(identity.api
       ? { windowDiscussion: new HttpWindowDiscussionGateway(identity.api) }
+      : {}),
+    pendingAdminDiscussionRemoval: new PendingAdminDiscussionRemovalStore(
+      storage,
+      origin,
+    ),
+    ...(identity.api
+      ? {
+          adminDiscussionRemoval: new HttpAdminDiscussionRemovalGateway(
+            identity.api,
+          ),
+        }
       : {}),
     pendingAdminPostRemoval: new PendingAdminPostRemovalStore(storage, origin),
     ...(identity.api

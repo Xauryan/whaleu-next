@@ -1,0 +1,421 @@
+import { ClientError } from '../api/errors';
+import {
+  CommunityController,
+  communityError,
+  initialCommunityView,
+} from '../community/controller';
+import type { CommunityView } from '../community/controller';
+import type { CommunityRuntime } from '../community/runtime';
+import type { Cancellation } from '../platform/contracts';
+import {
+  decodeAdminDiscussionRemovalCommand,
+  decodeAdminDiscussionRemovalManagement,
+  decodeAdminDiscussionRemovalRecovery,
+  decodeAdminDiscussionRemovalReceipt,
+  matchAdminDiscussionRemovalReceipt,
+  decodeAdminDiscussionRemovalTarget,
+  sameAdminDiscussionRemovalTarget,
+} from './contract';
+import type {
+  AdminDiscussionRemovalManagement,
+  AdminDiscussionRemovalTarget,
+  AdminDiscussionRemovalReceipt,
+} from './contract';
+import type { PendingAdminDiscussionRemoval } from './pending';
+import type { AdminDiscussionRemovalGateway } from './gateway';
+import type { PendingAdminDiscussionRemovalStore } from './pending';
+export interface AdminDiscussionRemovalView extends CommunityView {
+  /** True only while an exact-target management read is available. */
+  readonly loaded: boolean;
+  readonly ownContent: boolean;
+  readonly applied: boolean;
+  readonly target: AdminDiscussionRemovalTarget | null;
+  readonly management: AdminDiscussionRemovalManagement | null;
+  readonly frozen: boolean;
+  readonly confirming: 'remove' | 'cancel' | null;
+  readonly pendingTarget: AdminDiscussionRemovalTarget | null;
+  readonly pendingRequestId: string;
+  readonly recovering: boolean;
+  readonly pendingPhase: 'submit' | 'cancel' | '';
+  readonly receiptStatus: string;
+}
+export const initialAdminDiscussionRemovalView =
+  (): AdminDiscussionRemovalView => ({
+    ...initialCommunityView(),
+    loaded: false,
+    ownContent: false,
+    applied: false,
+    target: null,
+    management: null,
+    frozen: false,
+    confirming: null,
+    pendingTarget: null,
+    pendingRequestId: '',
+    recovering: false,
+    pendingPhase: '',
+    receiptStatus: '',
+  });
+/** Recovery is actor/request-owned; it does not depend on a readable child DTO. */
+export class AdminDiscussionRemovalController extends CommunityController<AdminDiscussionRemovalView> {
+  private pending: PendingAdminDiscussionRemoval | null = null;
+  private receiptRead: object | null = null;
+  private readonly gateway: AdminDiscussionRemovalGateway | undefined;
+  private readonly store: PendingAdminDiscussionRemovalStore | undefined;
+  constructor(
+    runtime: CommunityRuntime,
+    render: (view: AdminDiscussionRemovalView) => void,
+    private readonly onSettled: () => void = () => undefined,
+  ) {
+    super(runtime, initialAdminDiscussionRemovalView, render);
+    this.gateway = runtime.adminDiscussionRemoval;
+    this.store = runtime.pendingAdminDiscussionRemoval;
+  }
+  protected override resetPrivate(): void {
+    // Safety resets invalidate read callbacks, not this actor's durable intent.
+    // Keep its exact pointer so missing/replaced storage cannot release the
+    // unresolved-key barrier. Session-generation checks still own every request;
+    // account loss or replacement must drop the old actor's private pointer.
+    if (this.pending?.accountId !== this.accountId()) this.pending = null;
+    this.receiptRead = null;
+  }
+  override dispose(): void {
+    super.dispose();
+    this.pending = null;
+  }
+  protected override onSafetyInvalidated(
+    previous: AdminDiscussionRemovalView,
+  ): void {
+    this.update({
+      target: previous.target,
+      receiptStatus: previous.receiptStatus,
+      applied: previous.applied,
+    });
+    // Our own invalidation must not reinterpret an applied deletion as a failed
+    // management read of the now-unavailable source.
+    if (previous.applied) {
+      if (previous.frozen) this.restore();
+      return;
+    }
+    // A late report-progress visibility denial can invalidate a receipt GET.
+    // Content invalidation must not strand an explicit original-key recovery.
+    // Resume only that actor's exact durable receipt read, never its mutation,
+    // cancellation or a new key; no readable child/management response is needed.
+    if (
+      previous.recovering &&
+      previous.frozen &&
+      this.restore() &&
+      this.pending?.command.clientRequestId === previous.pendingRequestId
+    ) {
+      void this.recover();
+      return;
+    }
+    void this.load(previous.target ?? undefined);
+  }
+  private assertEnvironment(): void {
+    if (
+      !this.gateway ||
+      !this.store ||
+      this.runtime.adminDiscussionRemoval !== this.gateway ||
+      this.runtime.pendingAdminDiscussionRemoval !== this.store
+    ) {
+      throw new ClientError(
+        'configuration',
+        'Admin discussion removal environment changed',
+      );
+    }
+  }
+  private restore(): boolean {
+    const account = this.accountId();
+    if (!account) return false;
+    try {
+      this.assertEnvironment();
+      const restored = this.store!.load(account);
+      if (this.pending && !restored)
+        throw new ClientError(
+          'storage',
+          'Original admin discussion removal journal disappeared',
+        );
+      if (this.pending) this.store!.assertOriginal(this.pending);
+      this.pending = restored;
+      this.update({
+        frozen: !!this.pending,
+        pendingTarget: this.pending?.command.target ?? null,
+        pendingRequestId: this.pending?.command.clientRequestId ?? '',
+        pendingPhase: this.pending?.phase ?? '',
+      });
+      return true;
+    } catch (error) {
+      this.update({ frozen: true, error: communityError(error) });
+      return false;
+    }
+  }
+  async load(raw?: AdminDiscussionRemovalTarget): Promise<void> {
+    if (this.view.busy || !this.available()) return;
+    if (!this.gateway || !this.store) {
+      this.update({
+        error: '当前构建尚未配置评论/回复管理 API 环境',
+        configured: false,
+      });
+      return;
+    }
+    let target: AdminDiscussionRemovalTarget | null = null;
+    try {
+      target =
+        raw === undefined ? null : decodeAdminDiscussionRemovalTarget(raw);
+    } catch (error) {
+      this.update({
+        target: null,
+        loaded: false,
+        management: null,
+        confirming: null,
+        error: communityError(error),
+      });
+      this.restore();
+      return;
+    }
+    this.update({
+      target,
+      loaded: false,
+      management: null,
+      confirming: null,
+      ownContent: false,
+      applied: false,
+    });
+    // Recovery does not depend on the target still being readable or manageable.
+    if (!this.restore() || !target || this.pending) return;
+    await this.run(
+      (cancel) => {
+        this.assertEnvironment();
+        return this.gateway!.management(target, cancel);
+      },
+      (raw) => {
+        this.assertEnvironment();
+        const management = decodeAdminDiscussionRemovalManagement(raw);
+        if (!sameAdminDiscussionRemovalTarget(management.target, target))
+          throw new ClientError(
+            'protocol',
+            'Admin discussion removal target mismatch',
+          );
+        this.update({
+          loaded: true,
+          management,
+          status: '已核验此评论/回复所属帖子的原发布地区管理权限',
+        });
+      },
+      (error) =>
+        this.update({
+          loaded: false,
+          management: null,
+          ownContent:
+            error.details.serverCode === 'ADMIN_DISCUSSION_REMOVAL_OWN_CONTENT',
+        }),
+    );
+  }
+  async request(target: AdminDiscussionRemovalTarget): Promise<void> {
+    if (this.view.busy || !this.available() || !this.restore() || this.pending)
+      return;
+    await this.load(target);
+    const management = this.view.management;
+    if (
+      this.view.busy ||
+      !this.available() ||
+      !this.restore() ||
+      this.pending ||
+      !management?.canRemove ||
+      !sameAdminDiscussionRemovalTarget(management.target, target)
+    )
+      return;
+    this.update({ confirming: 'remove' });
+  }
+  closeConfirmation(): void {
+    if (!this.view.busy) this.update({ confirming: null });
+  }
+  async submit(): Promise<void> {
+    if (
+      this.view.busy ||
+      !this.available() ||
+      this.view.confirming !== 'remove' ||
+      !this.restore() ||
+      this.pending ||
+      !this.view.management?.canRemove
+    )
+      return;
+    const management = this.view.management,
+      account = this.accountId()!,
+      owner = this.owner;
+    await this.run(
+      async (cancel) => {
+        const clientRequestId = await this.runtime.newRequestId();
+        this.runtime.sessions.assertCurrent(owner);
+        this.assertEnvironment();
+        if (cancel.isCancelled)
+          throw new ClientError('cancelled', 'Cancelled before persistence');
+        const command = decodeAdminDiscussionRemovalCommand({
+          clientRequestId,
+          target: management.target,
+          action: 'remove_discussion',
+          expectedTargetVersion: management.targetVersion,
+        });
+        this.pending = this.store!.freeze({
+          version: 1,
+          accountId: account,
+          origin: this.store!.origin,
+          phase: 'submit',
+          command,
+        });
+        this.showPending(this.pending);
+        return this.dispatch(this.pending, cancel);
+      },
+      (receipt) => this.finish(receipt),
+      () => this.restore(),
+    );
+  }
+  private showPending(pending: PendingAdminDiscussionRemoval): void {
+    this.update({
+      frozen: true,
+      loaded: false,
+      confirming: null,
+      pendingTarget: pending.command.target,
+      pendingRequestId: pending.command.clientRequestId,
+      pendingPhase: pending.phase,
+      receiptStatus: '',
+      management: null,
+    });
+  }
+  private dispatch(
+    pending: PendingAdminDiscussionRemoval,
+    cancel: Cancellation,
+  ): Promise<AdminDiscussionRemovalReceipt> {
+    this.assertEnvironment();
+    this.runtime.sessions.assertCurrent(this.owner);
+    if (pending.accountId !== this.accountId() || cancel.isCancelled)
+      throw new ClientError('cancelled', 'Original actor unavailable');
+    this.store!.assertOriginal(pending);
+    return this.gateway!.submit(
+      pending.command,
+      cancel,
+      pending.phase === 'cancel',
+    );
+  }
+  private finish(raw: AdminDiscussionRemovalReceipt): void {
+    this.assertEnvironment();
+    if (!this.pending || this.pending.accountId !== this.accountId())
+      throw new ClientError('protocol', 'Original actor unavailable');
+    const receipt = decodeAdminDiscussionRemovalReceipt(raw),
+      account = this.accountId()!;
+    matchAdminDiscussionRemovalReceipt(this.pending.command, receipt);
+    try {
+      this.store!.settle(this.pending, receipt);
+    } catch (error) {
+      // A matching applied receipt already proves this content is unavailable.
+      // Failed local cleanup must keep recovery blocked, not retain old readers.
+      if (receipt.outcome === 'applied') {
+        // Mark this page settled before synchronous linked-reader invalidation.
+        // It must not start a management read of the deleted child.
+        this.update({
+          frozen: true,
+          loaded: false,
+          management: null,
+          confirming: null,
+          error: communityError(error),
+          applied: true,
+          receiptStatus:
+            '已确认评论/回复删除；本机回执清理失败，请保留数据并继续查询原回执',
+        });
+        this.runtime.safetyChanges?.invalidate(account);
+        this.onSettled();
+        this.update({ error: communityError(error) });
+      }
+      throw error;
+    }
+    this.pending = null;
+    this.update({
+      frozen: false,
+      pendingTarget: null,
+      pendingRequestId: '',
+      pendingPhase: '',
+      confirming: null,
+      loaded: false,
+      management: null,
+      applied: receipt.outcome === 'applied',
+      receiptStatus:
+        receipt.outcome === 'applied'
+          ? '已确认删除评论/回复；不会通知作者，不禁言，没有恢复此内容的管理入口'
+          : receipt.code === 'ADMIN_DISCUSSION_REMOVAL_STALE'
+            ? '评论/回复状态已变化，原请求未删除新状态，请重新加载并确认'
+            : '原管理员删除请求已取消；已经删除的评论/回复不会恢复',
+    });
+    // Clear pooled media, identity overlays and list snapshots before fresh reads.
+    this.runtime.safetyChanges?.invalidate(account);
+    this.onSettled();
+  }
+  async recover(retry = false): Promise<void> {
+    if (this.view.busy || !this.available() || !this.restore() || !this.pending)
+      return;
+    const pending = this.pending,
+      ticket = {};
+    this.receiptRead = ticket;
+    this.update({ recovering: true });
+    try {
+      await this.run(
+        async (cancel) => {
+          this.assertEnvironment();
+          this.store!.assertOriginal(pending);
+          const result = decodeAdminDiscussionRemovalRecovery(
+            await this.gateway!.receipt(
+              pending.command.clientRequestId,
+              cancel,
+            ),
+          );
+          // A snapshot of absence never permits a fresh key. An explicit retry
+          // can only replay this durable exact command, including its cancel phase.
+          if (result.state === 'recorded') return result.receipt;
+          if (result.state === 'not_recorded' && retry)
+            return this.dispatch(pending, cancel);
+          throw new ClientError(
+            'http',
+            'Admin discussion removal receipt not settled',
+            {
+              httpStatus: 404,
+              serverCode: 'REQUEST_NOT_FOUND',
+            },
+          );
+        },
+        (receipt) => this.finish(receipt),
+        () => this.restore(),
+      );
+    } finally {
+      if (this.receiptRead === ticket) {
+        this.receiptRead = null;
+        this.update({ recovering: false });
+      }
+    }
+  }
+  requestCancellation(): void {
+    if (!this.view.busy && this.available() && this.restore() && this.pending)
+      this.update({ confirming: 'cancel' });
+  }
+  async confirmCancellation(): Promise<void> {
+    if (
+      this.view.busy ||
+      !this.available() ||
+      this.view.confirming !== 'cancel' ||
+      !this.restore() ||
+      !this.pending
+    )
+      return;
+    try {
+      this.pending = this.store!.cancel(this.pending);
+      this.showPending(this.pending);
+    } catch (error) {
+      this.update({ frozen: true, error: communityError(error) });
+      return;
+    }
+    const pending = this.pending;
+    await this.run(
+      (cancel) => this.dispatch(pending, cancel),
+      (receipt) => this.finish(receipt),
+      () => this.restore(),
+    );
+  }
+}

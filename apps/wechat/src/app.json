@@ -22,6 +22,7 @@
     "pages/profile-moderation/profile-moderation",
     "pages/profile-avatar-moderation/profile-avatar-moderation",
     "pages/admin-post-removal/admin-post-removal",
+    "pages/admin-discussion-removal/admin-discussion-removal",
     "pages/system-notices/system-notices",
     "pages/public-profile/public-profile",
     "pages/community-liked/community-liked",

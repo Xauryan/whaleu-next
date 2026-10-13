@@ -1,3 +1,4 @@
+import { smokeAdminDiscussionRemoval } from './smoke-admin-discussion-removal.mjs';
 import { smokeAdminPostRemoval } from './smoke-admin-post-removal.mjs';
 import { smokeProfileAvatarModeration } from './smoke-profile-avatar-moderation.mjs';
 import { smokeProfileModeration } from './smoke-profile-moderation.mjs';
@@ -2702,6 +2703,7 @@ await smokeCategoryReclassification({ dist });
 await smokeProfileModeration({ dist });
 await smokeProfileAvatarModeration({ dist });
 await smokeAdminPostRemoval({ dist });
+await smokeAdminDiscussionRemoval({ dist });
 await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeErrandAdminMutations({ app, dist, flush: flushTrading });
 await smokeErrandAdminNotices({ app, dist, flush: flushTrading });

@@ -70,8 +70,15 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
     this.store = runtime.pendingAdminPostRemoval;
   }
   protected override resetPrivate(): void {
-    this.pending = null;
+    // Same-owner content invalidation must not discard the unresolved intent
+    // anchor: otherwise missing or replaced storage could release its key.
+    // Network callbacks remain isolated by the base session/generation owner.
+    if (this.pending?.accountId !== this.accountId()) this.pending = null;
     this.receiptRead = null;
+  }
+  override dispose(): void {
+    super.dispose();
+    this.pending = null;
   }
   protected override onSafetyInvalidated(previous: AdminPostRemovalView): void {
     this.update({
@@ -79,6 +86,12 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
       receiptStatus: previous.receiptStatus,
       applied: previous.applied,
     });
+    // Our own invalidation must not reinterpret an applied deletion as a failed
+    // management read of the now-unavailable source.
+    if (previous.applied) {
+      if (previous.frozen) this.restore();
+      return;
+    }
     // A late report-progress visibility denial can invalidate a receipt GET.
     // Content invalidation must not strand an explicit original-key recovery.
     // Resume only that actor's exact durable receipt read, never its mutation,
@@ -90,12 +103,6 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
       this.pending?.command.clientRequestId === previous.pendingRequestId
     ) {
       void this.recover();
-      return;
-    }
-    // Our own invalidation must not reinterpret an applied deletion as a failed
-    // management read of the now-unavailable source.
-    if (previous.applied) {
-      if (previous.frozen) this.restore();
       return;
     }
     void this.load(previous.target ?? undefined);
@@ -124,6 +131,7 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
           'storage',
           'Original admin post removal journal disappeared',
         );
+      if (this.pending) this.store!.assertOriginal(this.pending);
       this.pending = restored;
       this.update({
         frozen: !!this.pending,
@@ -296,8 +304,8 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
       // A matching applied receipt already proves this content is unavailable.
       // Failed local cleanup must keep recovery blocked, not retain old readers.
       if (receipt.outcome === 'applied') {
-        this.runtime.safetyChanges?.invalidate(account);
-        this.onSettled();
+        // Mark the known terminal outcome before synchronous invalidation so a
+        // failed recovery settle cannot recursively resume its own receipt GET.
         this.update({
           frozen: true,
           loaded: false,
@@ -308,6 +316,9 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
           receiptStatus:
             '已确认帖子删除；本机回执清理失败，请保留数据并继续查询原回执',
         });
+        this.runtime.safetyChanges?.invalidate(account);
+        this.onSettled();
+        this.update({ error: communityError(error) });
       }
       throw error;
     }

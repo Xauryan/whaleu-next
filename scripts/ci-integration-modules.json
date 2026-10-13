@@ -7,6 +7,16 @@
       "owners": ["community", "media"],
       "shards": [
         [
+          "admin-discussion-removal-authority.test.ts",
+          "admin-discussion-removal-category.test.ts",
+          "admin-discussion-removal-causality.test.ts",
+          "admin-discussion-removal-concurrency.test.ts",
+          "admin-discussion-removal-current-proof.test.ts",
+          "admin-discussion-removal-delivery.test.ts",
+          "admin-discussion-removal-inventory.test.ts",
+          "admin-discussion-removal-native-roundtrip.test.ts",
+          "admin-discussion-removal-upgrade.test.ts",
+          "admin-discussion-removal.test.ts",
           "admin-post-removal-authority.test.ts",
           "admin-post-removal-causality.test.ts",
           "admin-post-removal-concurrency.test.ts",

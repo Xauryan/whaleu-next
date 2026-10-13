@@ -14,6 +14,7 @@ import {
   decodeAdminPostRemovalReceipt,
   decodeAdminPostRemovalRecovery,
   matchAdminPostRemovalReceipt,
+  adminPostRemovalCommandHash,
 } from '../src/admin-post-removal/contract';
 import type {
   AdminPostRemovalTarget,
@@ -779,4 +780,123 @@ test('known applied receipt clears content/media readers even if journal removal
   await controller.recover();
   assert.equal(s.store.load(s.accountId), null);
   assert.equal(s.commands.length, 1);
+});
+
+test('post original pending anchor survives restore or same-owner Safety reset with missing, corrupt or replaced durable intent', async (t) => {
+  for (const boundary of ['restore', 'safety'] as const)
+    for (const mode of [
+      'missing',
+      'target',
+      'version',
+      'phase',
+      'new-key',
+      'corrupt',
+    ] as const) {
+      const s = harness();
+      const safety = new SafetyChanges(s.runtime.privateViews);
+      Object.assign(s.runtime, { safetyChanges: safety });
+      const controller = s.make();
+      t.after(() => controller.dispose());
+      const original = s.freeze('cancel');
+      await controller.load();
+      let reads = 0,
+        managementReads = 0;
+      const first = deferred<AdminPostRemovalRecovery>();
+      s.gateway.receipt = (id) => {
+        assert.equal(id, original.command.clientRequestId);
+        reads++;
+        return first.promise;
+      };
+      s.gateway.management = async () => {
+        managementReads++;
+        return manage();
+      };
+      const work =
+        boundary === 'safety' ? controller.recover(true) : Promise.resolve();
+      await flush();
+      const expectedReads = boundary === 'safety' ? 1 : 0;
+      assert.equal(reads, expectedReads);
+      const key = `whaleu.admin-post-removal.pending.v1:${s.store.origin}:${s.accountId}`;
+      if (mode === 'missing') s.storage.remove(key);
+      else {
+        const replacement = command({
+          ...(mode === 'target'
+            ? { target: { kind: 'post', id: otherId } }
+            : {}),
+          ...(mode === 'version'
+            ? { expectedTargetVersion: 'b'.repeat(64) }
+            : {}),
+          ...(mode === 'new-key' ? { clientRequestId: otherId } : {}),
+        });
+        s.storage.set(key, {
+          ...original,
+          phase: mode === 'phase' ? 'submit' : original.phase,
+          command: replacement,
+          requestHash:
+            mode === 'corrupt'
+              ? '0'.repeat(64)
+              : adminPostRemovalCommandHash(s.accountId, replacement),
+        });
+      }
+      if (boundary === 'safety') safety.invalidate(s.accountId);
+      await controller.load(target);
+      await controller.request(target);
+      await controller.submit();
+      await controller.recover(true);
+      controller.requestCancellation();
+      await controller.confirmCancellation();
+      first.resolve({ state: 'not_recorded' });
+      await work;
+      assert.equal(reads, expectedReads, `${boundary}/${mode}`);
+      assert.equal(managementReads, 0, `${boundary}/${mode}`);
+      assert.equal(s.commands.length, 0, `${boundary}/${mode}`);
+      assert.equal(s.view().frozen, true, `${boundary}/${mode}`);
+      assert.equal(s.view().management, null, `${boundary}/${mode}`);
+      assert.equal(s.view().confirming, null, `${boundary}/${mode}`);
+      assert.match(s.view().error, /本地保存失败/, `${boundary}/${mode}`);
+      s.storage.set(key, original);
+      s.gateway.receipt = async (id) => {
+        assert.equal(id, original.command.clientRequestId);
+        reads++;
+        return { state: 'recorded', receipt: rejection() };
+      };
+      await controller.recover();
+      assert.equal(reads, expectedReads + 1);
+      assert.equal(s.store.load(s.accountId), null);
+      assert.equal(s.view().frozen, false);
+      assert.equal(s.commands.length, 0);
+    }
+});
+
+test('post known applied recovery with persistent storage removal failure invalidates once without automatic GET recursion', async (t) => {
+  const s = harness();
+  Object.assign(s.runtime, {
+    safetyChanges: new SafetyChanges(s.runtime.privateViews),
+  });
+  const controller = s.make();
+  t.after(() => controller.dispose());
+  s.freeze();
+  await controller.load();
+  let reads = 0,
+    invalidations = 0,
+    managementReads = 0;
+  s.gateway.management = async () => {
+    managementReads++;
+    return manage();
+  };
+  s.runtime.safetyChanges!.subscribe(() => invalidations++);
+  s.gateway.receipt = async () => {
+    reads++;
+    return { state: 'recorded', receipt: receipt() };
+  };
+  s.storage.failRemove = true;
+  await controller.recover();
+  await flush();
+  assert.equal(reads, 1);
+  assert.equal(invalidations, 1);
+  assert.equal(managementReads, 0);
+  assert.equal(s.view().applied, true);
+  assert.equal(s.view().frozen, true);
+  assert.equal(s.view().recovering, false);
+  assert.ok(s.store.load(s.accountId));
 });
