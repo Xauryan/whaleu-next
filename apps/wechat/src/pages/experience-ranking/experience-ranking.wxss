@@ -1,0 +1,24 @@
+@import '../../experience/public-display.wxss';
+.page {
+  padding: 24rpx;
+}
+.title {
+  font-size: 36rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+.hint {
+  color: #626b78;
+  font-size: 26rpx;
+  margin: 16rpx 0;
+}
+.error {
+  color: #a12424;
+  margin: 16rpx 0;
+}
+.card {
+  padding: 20rpx;
+  margin-top: 16rpx;
+  background: #fff;
+  border-radius: 16rpx;
+}

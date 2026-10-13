@@ -1,4 +1,5 @@
 import { smokeAdminDiscussionRemoval } from './smoke-admin-discussion-removal.mjs';
+import { smokeExperienceRanking } from './smoke-experience-ranking.mjs';
 import { smokeAdminPostRemoval } from './smoke-admin-post-removal.mjs';
 import { smokeProfileAvatarModeration } from './smoke-profile-avatar-moderation.mjs';
 import { smokeProfileModeration } from './smoke-profile-moderation.mjs';
@@ -2604,6 +2605,12 @@ await smokeRuntimePolicy({
   mountPage: mountTradingPage,
   flush: flushTrading,
   postWire: pollPostWire,
+});
+await smokeExperienceRanking({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
 });
 await smokeExperience({
   app,

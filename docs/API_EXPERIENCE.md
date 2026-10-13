@@ -220,12 +220,24 @@ Compiled-page tests do not establish physical WeChat/device rendering.
 
 ## Bounded known-participant ranking
 
-`GET /v1/experience/ranking` is a read-only backend capability. Its optional `limit`
+`GET /v1/experience/ranking` is a read-only capability. Its optional `limit`
 is a canonical decimal string from 1 through 50, default 50. Unknown query keys,
 repeated values, nonempty bodies and malformed authorization are rejected. An
 absent Authorization header permits guest access; a supplied token must be valid
 and remains subject to current identity/session checks. Responses use `no-store`
-and vary by Authorization. No native ranking page is included in this increment.
+and vary by Authorization. The native “已知参与者等级列表” entry in “经验与头衔”
+requests 50 once per explicit load. Direct guest entry is supported; invalid supplied
+credentials never silently become a guest read. The page uses strict public projections,
+retains server order, shows all three selection statuses and always explains incomplete
+historical coverage. Refresh/cancel/hide/unload and login boundaries clear stale cards.
+Profile taps use public profile IDs and the destination rechecks current permissions.
+There is no list persistence, avatar prefetch or mutation of personal recovery journals.
+The entry explicitly labels discarding unsaved appearance choices. API origins remain
+immutable per build and have separate session storage; reopening/reloading binds the
+current app runtime rather than a previous runtime.
+
+Native emitted/HTTP/PG acceptance is documented in
+[the native list checkpoint](acceptance/experience-ranking-native.md).
 
 The response contains `scope: "global"`, `population: "known_participants"`,
 `populationCompleteness: "incomplete"`, `selectionStatus` and `items`. Each item

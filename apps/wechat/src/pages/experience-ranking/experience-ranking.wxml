@@ -1,0 +1,14 @@
+<import src="../../experience/public-display.wxml" />
+<view class="page">
+  <view class="title">已知参与者等级列表</view>
+  <view class="hint">仅展示当前可查看的已知参与者，历史覆盖不完整。保留服务端本次返回顺序；不代表完整全站或本校排名。</view>
+  <view>{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <button bindtap="onRefresh">刷新列表</button>
+  <button wx:if="{{busy}}" bindtap="onCancel">停止加载</button>
+  <view wx:if="{{loaded &amp;&amp; items.length === 0}}" class="hint">{{selectionStatus === 'scan_limited' ? '本次扫描尚未找到可展示项，已知来源仍未查完' : '本次已检查的已知来源中没有可展示项'}}</view>
+  <view wx:for="{{items}}" wx:key="profileId" class="card">
+    <button bindtap="onProfile" data-profile-id="{{item.profileId}}" disabled="{{busy || !loaded}}">{{item.displayName}}</button>
+    <template is="public-experience-display" data="{{display: item.experienceDisplay, colors: experienceColorStyles, detailed: true}}" />
+  </view>
+</view>

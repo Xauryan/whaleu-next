@@ -4,6 +4,7 @@
     "pages/status/status",
     "pages/profile/profile",
     "pages/experience/experience",
+    "pages/experience-ranking/experience-ranking",
     "pages/verification/verification",
     "pages/phone-binding/phone-binding",
     "pages/identity-campus/identity-campus",

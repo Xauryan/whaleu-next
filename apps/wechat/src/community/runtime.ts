@@ -4,6 +4,10 @@ import {
 } from '../admin-discussion-removal/gateway';
 import { PendingAdminDiscussionRemovalStore } from '../admin-discussion-removal/pending';
 import {
+  HttpExperienceRankingGateway,
+  type ExperienceRankingGateway,
+} from '../experience/ranking-gateway';
+import {
   HttpAdminPostRemovalGateway,
   type AdminPostRemovalGateway,
 } from '../admin-post-removal/gateway';
@@ -329,6 +333,7 @@ export interface CommunityRuntime {
   readonly nativeAnnouncements?: AnnouncementsGateway;
   readonly browsingScopeChanges?: PrivateViewLifecycle;
   readonly hot?: HotGateway;
+  readonly experienceRanking?: ExperienceRankingGateway;
   readonly directory?: DirectoryGateway;
   readonly directoryScopeChanges?: PrivateViewLifecycle;
   readonly views?: ViewRuntime;
@@ -571,7 +576,12 @@ export function createCommunityRuntime(
           ),
         }
       : {}),
-    ...(identity.api ? { hot: new HttpHotGateway(identity.api) } : {}),
+    ...(identity.api
+      ? {
+          hot: new HttpHotGateway(identity.api),
+          experienceRanking: new HttpExperienceRankingGateway(identity.api),
+        }
+      : {}),
     directoryScopeChanges: new PrivateViewLifecycle(),
     ...(identity.api
       ? { directory: new HttpDirectoryGateway(identity.api) }

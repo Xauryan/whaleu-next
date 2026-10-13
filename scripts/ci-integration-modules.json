@@ -265,6 +265,7 @@
           "experience-ledger.test.ts",
           "experience-native-roundtrip.test.ts",
           "experience-public-display.test.ts",
+          "experience-ranking-native-roundtrip.test.ts",
           "experience-ranking.test.ts",
           "experience-redemption-native-roundtrip.test.ts",
           "experience-redemption-proof.test.ts",
