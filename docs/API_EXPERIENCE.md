@@ -397,3 +397,13 @@ The existing transaction wrapper flushes deferred constraints before its final
 session/grant clock checks; expiry during a later owner/proof wait cannot authorize
 a stale batch. Shared authority locks serialize revocation with a completed batch.
 Operational execution on actual accounts is separate from development acceptance.
+
+### School-administrator earned title
+
+`role_admin` / “管理员” is a special, non-level, non-redemption entitlement.
+The narrow Authorization appointment/reassignment owner may grant it with
+`school_admin_appointment` provenance and same-transaction causal evidence. It
+does not auto-equip, create a baseline/balance/coverage, or enqueue any reward or
+notice. Revocation retains ownership and selected appearance. It remains
+selectable after revocation and is never proof of current authorization. See
+[school-administrator management](API_SCHOOL_ADMIN_MANAGEMENT.md).

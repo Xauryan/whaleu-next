@@ -1,4 +1,9 @@
 import {
+  HttpSchoolAdminManagementGateway,
+  type SchoolAdminManagementGateway,
+} from '../school-admin-management/gateway';
+import { PendingSchoolAdminManagementStore } from '../school-admin-management/pending';
+import {
   HttpAdminDiscussionRemovalGateway,
   type AdminDiscussionRemovalGateway,
 } from '../admin-discussion-removal/gateway';
@@ -250,6 +255,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly schoolAdminManagement?: SchoolAdminManagementGateway;
+  readonly pendingSchoolAdminManagement?: PendingSchoolAdminManagementStore;
   readonly adminDiscussionRemoval?: AdminDiscussionRemovalGateway;
   readonly pendingAdminDiscussionRemoval?: PendingAdminDiscussionRemovalStore;
   readonly adminPostRemoval?: AdminPostRemovalGateway;
@@ -463,6 +470,17 @@ export function createCommunityRuntime(
     ...(identity.api
       ? {
           adminDiscussionRemoval: new HttpAdminDiscussionRemovalGateway(
+            identity.api,
+          ),
+        }
+      : {}),
+    pendingSchoolAdminManagement: new PendingSchoolAdminManagementStore(
+      storage,
+      origin,
+    ),
+    ...(identity.api
+      ? {
+          schoolAdminManagement: new HttpSchoolAdminManagementGateway(
             identity.api,
           ),
         }

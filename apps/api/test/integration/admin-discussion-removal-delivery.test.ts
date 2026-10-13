@@ -74,15 +74,23 @@ for (const kind of ['comment', 'reply'] as const)
             body = f.removalCommand(target, view.targetVersion);
           const open = f.storage.openExact.bind(f.storage);
           let changed = false;
+          const observation: { response?: request.Response; error?: unknown } =
+            {};
           // Community Media is authenticated-only. A guest never reaches storage;
           // separately prove the session open paused after selecting exact bytes.
           f.storage.openExact = async (object, maximum) => {
             const opened = await open(object, maximum);
             if (!changed) {
               changed = true;
-              const applied = await f.removalSend(admin, body);
-              profileOk(applied);
-              assert.equal(applied.body.outcome, 'applied');
+              try {
+                const applied = await f.removalSend(admin, body);
+                observation.response = applied;
+                profileOk(applied);
+                assert.equal(applied.body.outcome, 'applied');
+              } catch (error) {
+                observation.error = error;
+                throw error;
+              }
             }
             return opened;
           };
@@ -102,6 +110,55 @@ for (const kind of ['comment', 'reply'] as const)
             );
             pending.set('Authorization', `Bearer ${viewer.accessToken}`);
             const denied = await pending;
+            // Media deliberately translates storage-hook errors into denial.
+            // Prove the removal separately, or a swallowed assertion could make
+            // pending non-200 pass without ever committing a tombstone.
+            t.diagnostic(
+              JSON.stringify({
+                kind,
+                variant,
+                descendant,
+                removalStatus: observation.response?.status,
+                removalOutcome: observation.response?.body.outcome,
+                hookError:
+                  observation.error instanceof Error
+                    ? observation.error.message
+                    : null,
+              }),
+            );
+            assert.ifError(observation.error);
+            assert.ok(
+              observation.response,
+              'Removal response must be observed outside the storage hook',
+            );
+            profileOk(observation.response);
+            assert.equal(observation.response.body.outcome, 'applied');
+            const tombstone = (
+              await f.pool.query(
+                `SELECT deleted_at FROM whaleu_community.${kind === 'comment' ? 'root_comments' : 'replies'} WHERE id=$1`,
+                [target.id],
+              )
+            ).rows[0];
+            assert.ok(
+              tombstone?.deleted_at,
+              'Exact target tombstone must commit before fresh probes',
+            );
+            const committed = await f.pool.query(
+              `SELECT c.receipt,e.id FROM whaleu_community.admin_discussion_removal_commands c
+               JOIN whaleu_community.admin_discussion_removal_events e USING(actor_id,request_id)
+               WHERE c.actor_id=$1 AND c.request_id=$2 AND c.target_kind=$3 AND c.target_id=$4
+                 AND e.target_kind=c.target_kind AND e.target_id=c.target_id`,
+              [admin.accountId, body.clientRequestId, kind, target.id],
+            );
+            assert.equal(committed.rowCount, 1);
+            assert.deepEqual(
+              committed.rows[0]!.receipt,
+              observation.response.body,
+            );
+            assert.equal(
+              committed.rows[0]!.id,
+              observation.response.body.eventId,
+            );
             assert.equal(changed, true);
             assert.notEqual(denied.status, 200);
             assert.equal(Buffer.isBuffer(denied.body), false);

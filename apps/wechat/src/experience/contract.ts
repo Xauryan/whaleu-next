@@ -220,6 +220,7 @@ const label = (v: unknown): v is string =>
   v.trim().length > 0 &&
   Array.from(v).every((c) => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127);
 const titleKey = (v: unknown): v is string =>
+  v === 'role_admin' ||
   v === 'redeem_liangchenmeijing' ||
   v === 'default_jingxiaoyu' ||
   (typeof v === 'string' &&
@@ -458,8 +459,10 @@ function checkTitle(value: unknown, owned = false): void {
       ? value.kind !== 'default' || value.unlockLevel !== null
       : value.key === 'redeem_liangchenmeijing'
         ? value.kind !== 'limited' || value.unlockLevel !== null
-        : value.kind !== 'level' ||
-          value.unlockLevel !== Number(value.key.slice(6)))
+        : value.key === 'role_admin'
+          ? value.kind !== 'special' || value.unlockLevel !== null
+          : value.kind !== 'level' ||
+            value.unlockLevel !== Number(value.key.slice(6)))
   )
     invalidExperience();
   if (

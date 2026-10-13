@@ -1,4 +1,5 @@
 <view class="screen">
+  <view class="notice">「管理员」头衔不会自动佩戴，撤权后保留；头衔不代表当前权限。</view>
   <navigator wx:if="{{!busy}}" class="link" url="/pages/experience-ranking/experience-ranking">{{appearanceDirty ? '放弃未保存的选择并查看已知参与者等级列表' : '查看已知参与者等级列表'}}</navigator>
   <view class="eyebrow">WHALEU · 我的成长</view>
   <view class="title">经验与头衔</view>

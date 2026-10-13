@@ -1,3 +1,4 @@
+import { SchoolAdminManagementModule } from './authorization/school-admin-management/module.js';
 import { ProfileAvatarModerationModule } from './profile/avatar-moderation/module.js';
 import { ProfileModerationModule } from './profile/moderation/module.js';
 import { MajorsModule } from './majors/module.js';
@@ -65,6 +66,7 @@ export class AppModule {
         IdentityCampusModule,
         ProfileModule,
         ProfileModerationModule,
+        SchoolAdminManagementModule,
         ProfileAvatarModerationModule,
         ProfileDiscoveryModule,
         CommunityModule,

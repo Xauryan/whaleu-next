@@ -516,7 +516,30 @@ test(
         'validated FK migration backfills only immutable bridges and preserves every original row and sequence',
         async () => {
           await runMigrations(pool, migrations, { mode: 'up' });
-          assert.deepEqual(await snapshot(), before);
+          const after = await snapshot();
+          const catalogKey = 'whaleu_experience.title_catalog';
+          const additions = after[catalogKey]!.filter(
+            (bytes) =>
+              (JSON.parse(bytes) as { title_key: string }).title_key ===
+              'role_admin',
+          );
+          assert.equal(additions.length, 1);
+          assert.deepEqual(JSON.parse(additions[0]!), {
+            title_key: 'role_admin',
+            name: '管理员',
+            kind: 'special',
+            unlock_level: null,
+          });
+          assert.equal(
+            after[catalogKey]!.length,
+            before[catalogKey]!.length + 1,
+          );
+          // Only 0133's exact new catalog row is additive. Every preexisting
+          // byte of every captured table and enrollment sequence is preserved.
+          after[catalogKey] = after[catalogKey]!.filter(
+            (bytes) => bytes !== additions[0],
+          );
+          assert.deepEqual(after, before);
           assert.equal(
             (
               await pool.query(

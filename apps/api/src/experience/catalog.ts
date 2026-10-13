@@ -48,6 +48,7 @@ export interface TitleDefinition {
   unlockLevel: number | null;
 }
 export const titles: TitleDefinition[] = [
+  { key: 'role_admin', name: '管理员', kind: 'special', unlockLevel: null },
   {
     key: 'default_jingxiaoyu',
     name: '鲸小语',

@@ -64,6 +64,7 @@ export function catalog(): ExperienceCatalog {
         kind: 'limited',
         unlockLevel: null,
       },
+      { key: 'role_admin', name: '管理员', kind: 'special', unlockLevel: null },
     ],
     colors: Array.from({ length: 26 }, (_, id) => ({
       id,

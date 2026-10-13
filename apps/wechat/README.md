@@ -662,3 +662,12 @@ WeChat DevTools, physical-device, provider or production acceptance.
 - A new account/API-origin `admin-discussion-removal.pending.v1` journal freezes the UUIDv4, kind/id, version and `remove_discussion` action with an independent SHA-256 domain. Durable write/readback precedes every HTTP dispatch. Only an exact matching terminal receipt releases the key. Missing, replaced, corrupted or failed storage blocks mutation; `not_recorded` permits only an explicit retry of the original command or its persisted cancel phase.
 - Minimal recovery needs no visible source or management read. Session generations, account switches, origin replacement, Close/Stop/Hide/Unload and late callbacks remain isolated. A linked report-progress visibility denial resumes only the in-flight original-key receipt GET. A known applied receipt invalidates linked content and media even when local journal removal fails, without recursively launching receipt reads or repopulating the removed child.
 - All earlier journal namespaces and the existing four system-notice variants remain unchanged. `admin-discussion-removal.test.ts` and `smoke-admin-discussion-removal.mjs` exercise both kinds; the emitted smoke is wired into the native build. These synthetic controller/transport/WXML checks do not establish physical-device, provider, source-acceptance or production readiness. The parent validation task records actual check and disposable-PG results for the frozen tree.
+
+School-administrator management: `pages/school-admin-management/school-admin-management` accepts an
+existing public profile ID, displays eligible fixed regions, and supports explicit
+appointment, reassignment and revocation. The independent server capability
+`schoolAdminManagement` does not infer permission from highest-role labels. A
+persisted original-key journal remains recoverable after role loss. The earned
+“管理员” title is optional, not automatically worn, and retained after revocation;
+it does not represent live authority. See `../../docs/API_SCHOOL_ADMIN_MANAGEMENT.md`
+for privacy, durable cancellation and source boundaries.

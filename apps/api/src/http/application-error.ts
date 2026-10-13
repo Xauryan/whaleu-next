@@ -3,6 +3,28 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  SCHOOL_ADMIN_MANAGEMENT_STALE: {
+    status: 409,
+    message:
+      'School administrator assignment changed. Read current options again.',
+  },
+  SCHOOL_ADMIN_MANAGEMENT_CANCELLED: {
+    status: 409,
+    message: 'School administrator request was cancelled.',
+  },
+  SCHOOL_ADMIN_MANAGEMENT_UNAVAILABLE: {
+    status: 503,
+    message: 'School administrator management is temporarily unavailable.',
+  },
+  SCHOOL_ADMIN_MANAGEMENT_TARGET_NOT_ALLOWED: {
+    status: 404,
+    message:
+      'The public profile is not available for school administrator management.',
+  },
+  SCHOOL_ADMIN_MANAGEMENT_INELIGIBLE: {
+    status: 409,
+    message: 'The requested school administrator assignment is not eligible.',
+  },
   ADMIN_DISCUSSION_REMOVAL_STALE: {
     status: 409,
     message:

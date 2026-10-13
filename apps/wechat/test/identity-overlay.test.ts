@@ -24,6 +24,7 @@ const authorization = (
     global: role === 'developer' || role === 'super_admin',
     operatingRegionIds: [],
   },
+  schoolAdminManagement: role === 'super_admin',
   identityView: { allowed: role === 'developer', maxBatchSize: 20 },
 });
 const identity = (): IdentityItem => ({

@@ -1,3 +1,4 @@
+import { smokeSchoolAdminManagement } from './smoke-school-admin-management.mjs';
 import { smokeAdminDiscussionRemoval } from './smoke-admin-discussion-removal.mjs';
 import { smokeExperienceRanking } from './smoke-experience-ranking.mjs';
 import { smokeAdminPostRemoval } from './smoke-admin-post-removal.mjs';
@@ -1978,6 +1979,7 @@ app.community.identityPrivacy = {
   authorization: async () => ({
     role: 'developer',
     management: { global: true, operatingRegionIds: [] },
+    schoolAdminManagement: false,
     identityView: { allowed: true, maxBatchSize: 20 },
   }),
   identities: async (targets) => {
@@ -2265,6 +2267,7 @@ app.community.identityPrivacy = {
   authorization: async () => ({
     role: 'developer',
     management: { global: true, operatingRegionIds: [] },
+    schoolAdminManagement: false,
     identityView: { allowed: true, maxBatchSize: 20 },
   }),
   identities: async (targets) =>
@@ -2418,6 +2421,7 @@ app.community.identityPrivacy = {
   authorization: async () => ({
     role: 'developer',
     management: { global: true, operatingRegionIds: [] },
+    schoolAdminManagement: false,
     identityView: { allowed: true, maxBatchSize: 20 },
   }),
   identities: async (targets) => {
@@ -2710,6 +2714,7 @@ await smokeCategoryReclassification({ dist });
 await smokeProfileModeration({ dist });
 await smokeProfileAvatarModeration({ dist });
 await smokeAdminPostRemoval({ dist });
+await smokeSchoolAdminManagement({ dist });
 await smokeAdminDiscussionRemoval({ dist });
 await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeErrandAdminMutations({ app, dist, flush: flushTrading });

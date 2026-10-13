@@ -721,3 +721,13 @@ self-post deletion keeps the existing author path and Experience. This does not
 complete bans/unbans, comment/reply administration, role management, associated
 campus/university-city scope, provider/device acceptance or full moderation parity.
 See [scope, source and exact contract](API_ADMIN_POST_REMOVAL.md).
+
+School-administrator management adds the source-backed appointment/reassignment/
+revocation slice through strict current super authority and an existing public
+profile reference. Accepted linked-school topology plus reconciled physical
+inventory determines eligible fixed regions independently from the optional
+identity-campus default. Immutable same-key commands, causal grant transitions,
+retained optional role title and native recovery/cancel are described in
+[the school-administrator contract](API_SCHOOL_ADMIN_MANAGEMENT.md). This does not
+include general status/ban editing, global role issuance, UID search, notifications,
+real provider/data admission or production bootstrap.

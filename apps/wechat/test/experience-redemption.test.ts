@@ -47,9 +47,9 @@ function enabled() {
   return s;
 }
 
-test('exact 17 reviewed title tuples, independent unknown level and undated limited ownership', () => {
+test('exact 18 reviewed title tuples, independent unknown level and undated limited ownership', () => {
   const c = catalog();
-  assert.equal(c.titles.length, 17);
+  assert.equal(c.titles.length, 18);
   decodeExperienceCatalog(c);
   for (const titles of [
     c.titles.slice(0, 16),

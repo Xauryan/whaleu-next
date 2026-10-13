@@ -1,3 +1,4 @@
+import { writeSchoolAdminManagementOpenApi } from './school-admin-management-openapi-document.js';
 import { writeAdminDiscussionRemovalOpenApi } from './admin-discussion-removal-openapi-document.js';
 import { writeAdminPostRemovalOpenApi } from './admin-post-removal-openapi-document.js';
 import { writeProfileAvatarModerationOpenApi } from './profile-avatar-moderation-openapi-document.js';
@@ -335,3 +336,5 @@ await writeProfileAvatarModerationOpenApi(args[0] === '--check');
 await writeAdminPostRemovalOpenApi(args[0] === '--check');
 
 await writeAdminDiscussionRemovalOpenApi(args[0] === '--check');
+
+await writeSchoolAdminManagementOpenApi(args[0] === '--check');

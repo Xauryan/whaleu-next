@@ -111,9 +111,20 @@ export class IdentitySelectionRepository {
     affiliation: PublicationAffiliationMetadata,
     tx: PoolClient,
     write = false,
+    purpose: 'identity_selection' | 'school_admin_scope' = 'identity_selection',
   ): Promise<OwnCampusFacts> {
     const snapshot = await readTopology(tx);
-    const head = await readSelectionHead(accountId, tx, write);
+    // A school-management default is only an optional display hint. Do not
+    // lock a choice head or turn its history/expiry into appointment authority.
+    const head =
+      purpose === 'school_admin_scope'
+        ? ((
+            await tx.query<SelectionHead>(
+              'SELECT selection_id,revision FROM whaleu_campus.community_identity_heads WHERE account_id=$1',
+              [accountId],
+            )
+          ).rows[0] ?? null)
+        : await readSelectionHead(accountId, tx, write);
     const current = await readSelection(accountId, head, tx);
     const latest = (
       await tx.query<{ revision: number }>(
@@ -161,7 +172,9 @@ export class IdentitySelectionRepository {
     const extraIds = [
       ...new Set([
         ...snapshotIds,
-        ...(current?.campus_id ? [current.campus_id] : []),
+        ...(purpose === 'identity_selection' && current?.campus_id
+          ? [current.campus_id]
+          : []),
       ]),
     ].sort();
     const planned = (
@@ -381,7 +394,7 @@ export class IdentitySelectionRepository {
       snapshot.valid_until?.getTime() ?? null,
       affiliation.validUntil,
     );
-    if (result.selection !== 'unavailable')
+    if (purpose === 'identity_selection' && result.selection !== 'unavailable')
       registerTransactionDeadline(
         tx,
         current!.valid_until?.getTime() ?? null,

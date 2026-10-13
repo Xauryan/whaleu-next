@@ -84,6 +84,16 @@ export const reasonMessage = (code: string | null): string =>
     AFFILIATION_VERIFICATION_REQUIRED:
       '此操作需要有效的所属机构认证，不要求学号认证',
     VERIFICATION_UNAVAILABLE: '手机号或所属机构认证状态暂不可用，请稍后重试',
+    AUTHORIZATION_REQUIRED:
+      '当前账号没有此管理操作所需权限；原请求仍可继续查询回执',
+    SCHOOL_ADMIN_MANAGEMENT_UNAVAILABLE:
+      '当前不能确认学校管理员管理状态；待确认的原请求请继续查询回执',
+    SCHOOL_ADMIN_MANAGEMENT_TARGET_NOT_ALLOWED:
+      '此公开主页当前不能用于学校管理员管理',
+    SCHOOL_ADMIN_MANAGEMENT_INELIGIBLE:
+      '当前不符合学校管理员任命条件，请重新核验',
+    SCHOOL_ADMIN_MANAGEMENT_STALE: '管理状态已变化，请重新核验并明确确认',
+    SCHOOL_ADMIN_MANAGEMENT_CANCELLED: '原学校管理员管理请求已取消',
     AUTHORIZATION_UNAVAILABLE: '当前授权状态暂不可用，请稍后重试',
     JURY_NOT_FOUND: '此陪审当前不可用，请重新查询进度',
     JURY_INELIGIBLE: '帖子作者和已举报此帖的人不能参与陪审',

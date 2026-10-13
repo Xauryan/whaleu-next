@@ -31,8 +31,8 @@ number or institution match can grant a role. The grant FK points only to
 `whaleu_campus.operating_regions.id`. An inactive region does not confer active
 school-administrator capabilities.
 
-`AuthorizationService.requireRegionManagement` is a reusable server-side guard,
-not an implemented administration UI or completed management business workflow.
+`AuthorizationService.requireRegionManagement` is a reusable server-side guard.
+The separately bounded school-administrator control plane is documented below.
 Community publishing still needs its independent authoritative verification,
 moderation and visibility policy adapters. Administrative rank does not synthesize
 student/phone verification, approved content or media ownership.
@@ -49,6 +49,7 @@ Bearer authorization is required. Example response shape:
 ```json
 {
   "role": "developer",
+  "schoolAdminManagement": false,
   "management": { "global": true, "operatingRegionIds": [] },
   "identityView": { "allowed": true, "maxBatchSize": 20 }
 }
@@ -232,3 +233,14 @@ unchanged anonymous public projection, hidden/deleted/blocked content, unavailab
 and unverified numbers, metadata-only audits, immutable grant/audit constraints,
 lock races, and failure of audit INSERT and deferred transaction COMMIT. Its
 synthetic role grants never run in the normal application or a production database.
+
+## School-administrator control plane
+
+The separately bounded [school-administrator management
+contract](API_SCHOOL_ADMIN_MANAGEMENT.md) implements appointment, fixed-region
+reassignment and revocation. Its independent `schoolAdminManagement` capability
+is true only when a current actual super grant exists, including when the same
+account's highest role label is developer. Developer-only is false. Current
+school authority continues to depend on its fixed grant and active region; later
+identity-campus/affiliation changes do not automatically edit an existing grant.
+Role title ownership does not confer permission.

@@ -1,4 +1,5 @@
 export const titleNames: Readonly<Record<string, string>> = Object.freeze({
+  role_admin: '管理员',
   redeem_liangchenmeijing: '良辰美景',
   default_jingxiaoyu: '鲸小语',
   level_1: '萌新小白',

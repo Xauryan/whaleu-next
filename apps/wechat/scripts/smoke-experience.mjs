@@ -54,6 +54,7 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
       kind: 'limited',
       unlockLevel: null,
     },
+    { key: 'role_admin', name: '管理员', kind: 'special', unlockLevel: null },
   ];
   const rules = [
     'publish',
@@ -401,6 +402,6 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
   runtime.dispose();
   app.experience = original;
   console.log(
-    'Experience compiled native smoke passed: read-only GET, known zero/two owned defaults, explicit coalesced foreground POST, loss/hide/reopen/manual receipt recovery, unknown baseline and undated title/base-color selection, strict17 grouped title inventory, unavailable redemption gating, hide input clearing and lost-reply handle-only redemption recovery without auto-equip',
+    'Experience compiled native smoke passed: read-only GET, known zero/two owned defaults, explicit coalesced foreground POST, loss/hide/reopen/manual receipt recovery, unknown baseline and undated title/base-color selection, strict18 grouped title inventory, unavailable redemption gating, hide input clearing and lost-reply handle-only redemption recovery without auto-equip',
   );
 }

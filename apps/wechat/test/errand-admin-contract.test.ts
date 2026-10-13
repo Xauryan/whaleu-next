@@ -183,6 +183,7 @@ test('query and route require explicit public selectors; Unicode bounds and miss
     decodeErrandAdminAuthorization({
       ...authorization('member'),
       management: { global: true, operatingRegionIds: [] },
+      schoolAdminManagement: false,
     }),
   );
 });

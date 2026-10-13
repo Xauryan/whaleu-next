@@ -267,7 +267,7 @@ test(
         return snapshot;
       };
       await t.test(
-        'normal production wiring is unavailable and read-only; guest denial and exact 17-title metadata',
+        'normal production wiring is unavailable and read-only; guest denial and exact prior 17-title metadata plus canonical school-role title',
         async () => {
           const before = await experienceSnapshot();
           assert.equal(
@@ -295,7 +295,7 @@ test(
           const catalog = await request(app!.getHttpServer()).get(
             '/v1/experience/catalog',
           );
-          assert.equal(catalog.body.titles.length, 17);
+          assert.equal(catalog.body.titles.length, 18);
           assert.deepEqual(
             catalog.body.titles.find(
               (v: { key: string }) => v.key === titleKey,
@@ -307,7 +307,60 @@ test(
               unlockLevel: null,
             },
           );
-          assert.ok(!JSON.stringify(catalog.body).includes('role_admin'));
+          assert.deepEqual(
+            catalog.body.titles.filter(
+              (v: { key: string }) => v.key !== 'role_admin',
+            ),
+            [
+              {
+                key: 'default_jingxiaoyu',
+                name: '鲸小语',
+                kind: 'default',
+                unlockLevel: null,
+              },
+              {
+                key: 'redeem_liangchenmeijing',
+                name: '良辰美景',
+                kind: 'limited',
+                unlockLevel: null,
+              },
+              ...[
+                '萌新小白',
+                '初来乍到',
+                '崭露头角',
+                '小有名气',
+                '活跃分子',
+                '社区新星',
+                '人气达人',
+                '校园红人',
+                '意见领袖',
+                '社区元老',
+                '校园名人',
+                '风云人物',
+                '传奇人物',
+                '校园之光',
+                '一代宗师',
+              ].map((name, i) => ({
+                key: `level_${i * 2 + 1}`,
+                name,
+                kind: 'level',
+                unlockLevel: i * 2 + 1,
+              })),
+            ],
+          );
+          assert.deepEqual(
+            catalog.body.titles.filter(
+              (v: { key: string }) => v.key === 'role_admin',
+            ),
+            [
+              {
+                key: 'role_admin',
+                name: '管理员',
+                kind: 'special',
+                unlockLevel: null,
+              },
+            ],
+          );
           assert.deepEqual(await experienceSnapshot(), before);
           assert.deepEqual(
             (await get(actor, `${base}/appearance`)).body.titles
