@@ -1,7 +1,10 @@
 import { setup as experienceSetup, requestId } from './experience-helpers';
 import type { ExperienceView } from '../src/experience/controller';
+import { ExperienceRuntime } from '../src/experience/runtime';
+import { PendingExperienceStore } from '../src/experience/pending';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import test from 'node:test';
 import type { WhaleuApp } from '../src/app';
@@ -182,6 +185,7 @@ test('leaving actual personal experience Page discards only dirty UI and preserv
     onShow(): void;
     onHide(): void;
     onUnload(): void;
+    onToggleTitleRules(): void;
     onColor(event: { currentTarget: { dataset: { id: number } } }): void;
   }
   let definition: PersonalPage | undefined,
@@ -227,7 +231,58 @@ test('leaving actual personal experience Page discards only dirty UI and preserv
     );
     const journals = structuredClone([...personal.storage.data]),
       calls = structuredClone(personal.gateway.calls);
+    const beforeToggle = structuredClone(page.data);
+    page.onToggleTitleRules();
+    assert.deepEqual(page.data, { ...beforeToggle, rulesExpanded: true });
+    type Node =
+      string | { tag: string; attrs: Record<string, string>; children: Node[] };
+    const model = createRequire(__filename)('../scripts/smoke-ratings.mjs') as {
+      parse(source: string): Exclude<Node, string>;
+      render(nodes: Node[], scope: unknown, templates: object): Node[];
+    };
+    const tree = model.parse(
+      readFileSync(
+        join(__dirname, '../src/pages/experience/experience.wxml'),
+        'utf8',
+      ),
+    );
+    const flatten = (nodes: Node[]): Exclude<Node, string>[] =>
+      nodes.flatMap((node) =>
+        typeof node === 'string' ? [] : [node, ...flatten(node.children)],
+      );
+    const text = (nodes: Node[]): string =>
+      nodes
+        .map((node): string =>
+          typeof node === 'string' ? node : text(node.children),
+        )
+        .join(' ');
+    const directory = flatten(model.render(tree.children, page.data, {})).find(
+      (node) => node.attrs.id === 'level-title-rules',
+    )!;
+    assert.ok(directory);
+    const rendered = text(directory.children);
+    assert.equal((rendered.match(/规则解锁等级：/g) ?? []).length, 15);
+    for (const rule of page.data.levelTitleRules)
+      assert.ok(rendered.includes(rule.name));
+    assert.doesNotMatch(rendered, /良辰美景|鲸小语|已解锁|未解锁/);
+    assert.deepEqual(
+      flatten(directory.children)
+        .filter((node) => node.attrs.bindtap)
+        .map((node) => node.attrs.bindtap),
+      ['onToggleTitleRules'],
+    );
+    page.onToggleTitleRules();
+    assert.deepEqual(page.data, beforeToggle);
+    const collapsed = flatten(model.render(tree.children, page.data, {})).find(
+      (node) => node.attrs.id === 'level-title-rules',
+    )!;
+    assert.doesNotMatch(text(collapsed.children), /规则解锁等级：/);
+    assert.deepEqual([...personal.storage.data], journals);
+    assert.deepEqual(personal.gateway.calls, calls);
+    page.onToggleTitleRules();
     page.onHide();
+    assert.equal(page.data.rulesExpanded, false);
+    assert.deepEqual(page.data.levelTitleRules, []);
     assert.equal(page.data.appearanceDirty, false);
     const registered = await loadDefinition();
     ranking = {
@@ -247,6 +302,37 @@ test('leaving actual personal experience Page discards only dirty UI and preserv
       calls,
       'List must never replay sign-in, appearance, redemption or notice acknowledgements',
     );
+    const replacement = experienceSetup();
+    replacement.controller.dispose();
+    const newOrigin = new ExperienceRuntime(
+      replacement.sessions,
+      replacement.gateway,
+      new PendingExperienceStore(
+        personal.storage,
+        'https://replacement.example.invalid',
+      ),
+      async () => requestId,
+    );
+    try {
+      app.experience = newOrigin;
+      page.onShow();
+      await flush();
+      assert.equal(page.data.loaded, true);
+      assert.equal(page.data.rulesExpanded, false);
+      assert.equal(page.data.levelTitleRules.length, 15);
+      assert.equal(page.data.signInPending, false);
+      assert.equal(page.data.appearancePending, false);
+      assert.equal(page.data.redemptionPending, false);
+      page.onToggleTitleRules();
+      page.onUnload();
+      assert.deepEqual(page.data.levelTitleRules, []);
+      assert.equal(page.data.rulesExpanded, false);
+      assert.deepEqual([...personal.storage.data], journals);
+      assert.deepEqual(personal.gateway.calls, calls);
+    } finally {
+      newOrigin.dispose();
+      replacement.runtime.dispose();
+    }
   } finally {
     ranking?.onUnload();
     page?.onUnload();

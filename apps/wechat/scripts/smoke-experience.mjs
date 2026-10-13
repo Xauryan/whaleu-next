@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { parse, render } from './smoke-ratings.mjs';
 const require = createRequire(import.meta.url);
 /** Compiled page, real gateway/decoders and app lifecycle; synthetic transport, no native device/provider. */
 export async function smokeExperience({ app, dist, mountPage, flush }) {
@@ -271,6 +272,43 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
     /(?:bindtap|catchtap)="([^"]+)"/g,
   ))
     assert.equal(typeof page[handler], 'function');
+  const tree = parse(template);
+  const flatten = (nodes) =>
+    nodes.flatMap((node) =>
+      typeof node === 'string' ? [] : [node, ...flatten(node.children)],
+    );
+  const text = (nodes) =>
+    nodes
+      .map((node) => (typeof node === 'string' ? node : text(node.children)))
+      .join(' ');
+  const checkRules = () => {
+    const before = structuredClone(page.data),
+      calls = requests.length,
+      journals = structuredClone([...records]);
+    assert.equal(before.rulesExpanded, false);
+    page.onToggleTitleRules();
+    assert.deepEqual(page.data, { ...before, rulesExpanded: true });
+    const directory = flatten(render(tree.children, page.data, {})).find(
+      (node) => node.attrs.id === 'level-title-rules',
+    );
+    assert.ok(directory);
+    const body = text(directory.children);
+    assert.equal((body.match(/规则解锁等级：/g) ?? []).length, 15);
+    for (const title of titles.filter((title) => title.kind === 'level'))
+      assert.ok(body.includes(title.name));
+    assert.doesNotMatch(body, /良辰美景|鲸小语|已解锁|未解锁/);
+    assert.deepEqual(
+      flatten(directory.children)
+        .filter((node) => node.attrs.bindtap)
+        .map((node) => node.attrs.bindtap),
+      ['onToggleTitleRules'],
+    );
+    page.onToggleTitleRules();
+    assert.deepEqual(page.data, before);
+    assert.equal(requests.length, calls);
+    assert.deepEqual([...records], journals);
+  };
+  checkRules();
   assert.match(template, /获得日期不可用/);
   assert.match(template, /记录覆盖|recordsCoverage/);
   assert.equal(
@@ -287,7 +325,11 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
   assert.equal(requests.filter((r) => r.method === 'POST').length, 1);
   assert.ok(pending.load(accountId, 'sign_in'));
   assert.equal(page.data.signInPending, true);
+  checkRules();
+  page.onToggleTitleRules();
   app.onHide();
+  assert.equal(page.data.rulesExpanded, false);
+  assert.deepEqual(page.data.levelTitleRules, []);
   assert.equal(page.data.summary, null);
   page.onHide();
   page = mountPage(path.join(dist, 'pages/experience/experience.js'));
@@ -309,6 +351,7 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
   assert.match(page.data.balanceLabel, /基准未确认/);
   page.onTitle({ currentTarget: { dataset: { key: 'level_1' } } });
   page.onColor({ currentTarget: { dataset: { id: 0 } } });
+  checkRules();
   page.onSave();
   await flush();
   assert.equal(appearance.titleKey, 'level_1');
@@ -328,6 +371,7 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
   await flush();
   assert.equal(page.data.redemptionCode, '');
   assert.equal(page.data.redemptionPending, true);
+  checkRules();
   const handle = pending.redemption.load(accountId);
   assert.deepEqual(Object.keys(handle).sort(), [
     'accountId',

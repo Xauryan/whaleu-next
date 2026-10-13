@@ -23,6 +23,9 @@ Page({
     );
     void this.controller.load();
   },
+  onToggleTitleRules() {
+    this.controller?.toggleTitleRules();
+  },
   onReload() {
     void this.controller?.load();
   },

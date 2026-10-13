@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
@@ -417,6 +418,193 @@ test(
               ).status,
               400,
             );
+          }
+        },
+      );
+
+      await t.test(
+        'emitted personal Page renders all 15 level rules without HTTP commands, ownership inference or database writes',
+        async () => {
+          const dist = fileURLToPath(
+            new URL('../../../wechat/dist/', import.meta.url),
+          );
+          const globals = globalThis as unknown as Record<string, unknown>;
+          const prior = { Page: globals['Page'], getApp: globals['getApp'] };
+          // Keep the emitted boundary structural: a static import from the native
+          // controller would pull its separate CommonJS/WeChat project into API tsc.
+          interface PageData {
+            busy: boolean;
+            loaded: boolean;
+            error: string;
+            rulesExpanded: boolean;
+            levelTitleRules: readonly {
+              key: string;
+              name: string;
+              unlockLevel: number;
+            }[];
+            summary: { baseline: 'known' | 'baseline_unknown' } | null;
+          }
+          interface PageView {
+            data: PageData;
+            setData(patch: Partial<PageData>): void;
+            onShow(): void;
+            onHide(): void;
+            onUnload(): void;
+            onToggleTitleRules(): void;
+            onColor(event: {
+              currentTarget: { dataset: { id: number } };
+            }): void;
+          }
+          type Node =
+            | string
+            | { tag: string; attrs: Record<string, string>; children: Node[] };
+          const model =
+            require('../../../wechat/scripts/smoke-ratings.mjs') as {
+              parse(source: string): Exclude<Node, string>;
+              render(nodes: Node[], scope: unknown, templates: object): Node[];
+            };
+          const tree = model.parse(
+            readFileSync(`${dist}pages/experience/experience.wxml`, 'utf8'),
+          );
+          const flatten = (nodes: Node[]): Exclude<Node, string>[] =>
+            nodes.flatMap((node) =>
+              typeof node === 'string' ? [] : [node, ...flatten(node.children)],
+            );
+          const text = (nodes: Node[]): string =>
+            nodes
+              .map((node): string =>
+                typeof node === 'string' ? node : text(node.children),
+              )
+              .join(' ');
+          const directory = (page: PageView) =>
+            flatten(model.render(tree.children, page.data, {})).find(
+              (node) => node.attrs['id'] === 'level-title-rules',
+            );
+          const native = (path: string) => require(`${dist}${path}.js`);
+          for (const actor of [author, unknown]) {
+            const sessions = new (native('auth/session').SessionStore)();
+            sessions.completeLogin(sessions.beginLogin(), actor.credentials);
+            const clock = native('platform/clock').systemClock;
+            const auth = new (native('auth/auth-service').AuthService)(
+              sessions,
+              new (native('auth/http-auth-gateway').HttpAuthGateway)(
+                nativeOrigin,
+                transport,
+                clock,
+              ),
+              {
+                login: async () => {
+                  throw new Error('No real provider');
+                },
+              },
+              clock,
+            );
+            const api = new (native('api/client').ApiClient)(
+              nativeOrigin,
+              transport,
+              sessions,
+              auth,
+            );
+            const storage = memoryStorage();
+            const runtime = native(
+              'experience/runtime',
+            ).createExperienceRuntime(
+              {
+                sessions,
+                api,
+              },
+              storage,
+              nativeOrigin,
+              async () => randomUUID(),
+            );
+            let page: PageView | undefined;
+            try {
+              globals['getApp'] = () => ({ experience: runtime });
+              globals['Page'] = (value: PageView) => {
+                page = value;
+              };
+              const entry = `${dist}pages/experience/experience.js`;
+              delete require.cache[require.resolve(entry)];
+              require(entry);
+              assert.ok(page);
+              page.setData = function (patch) {
+                this.data = { ...this.data, ...patch };
+              };
+              const beforeLoad = await snapshot(),
+                start = transport.exchanges.length;
+              page.onShow();
+              const deadline = Date.now() + 10000;
+              while (page.data.busy && Date.now() < deadline) await delay(5);
+              assert.equal(page.data.loaded, true, page.data.error);
+              assert.equal(page.data.rulesExpanded, false);
+              assert.equal(page.data.levelTitleRules.length, 15);
+              assert.deepEqual(
+                page.data.levelTitleRules.map((rule) => rule.unlockLevel),
+                Array.from({ length: 15 }, (_, index) => index * 2 + 1),
+              );
+              assert.ok(
+                transport.exchanges
+                  .slice(start)
+                  .every((exchange) => exchange.method === 'GET'),
+              );
+              assert.ok(
+                transport.exchanges
+                  .slice(start)
+                  .some(
+                    (exchange) =>
+                      exchange.path === '/v1/experience/catalog' &&
+                      exchange.status === 200,
+                  ),
+              );
+              assert.deepEqual(await snapshot(), beforeLoad);
+              assert.equal(
+                page.data.summary!.baseline,
+                actor === unknown ? 'baseline_unknown' : 'known',
+              );
+              page.onColor({ currentTarget: { dataset: { id: 0 } } });
+              const before = structuredClone(page.data),
+                exchanges = transport.exchanges.length,
+                journals = structuredClone([...storage.values]);
+              page.onToggleTitleRules();
+              assert.deepEqual(page.data, { ...before, rulesExpanded: true });
+              const rendered = directory(page)!;
+              assert.ok(rendered);
+              const body = text(rendered.children);
+              assert.equal((body.match(/规则解锁等级：/g) ?? []).length, 15);
+              for (const rule of page.data.levelTitleRules)
+                assert.ok(body.includes(rule.name));
+              assert.doesNotMatch(body, /良辰美景|鲸小语|已解锁|未解锁/);
+              assert.deepEqual(
+                flatten(rendered.children)
+                  .filter((node) => node.attrs['bindtap'])
+                  .map((node) => node.attrs['bindtap']),
+                ['onToggleTitleRules'],
+              );
+              page.onToggleTitleRules();
+              assert.deepEqual(page.data, before);
+              assert.doesNotMatch(
+                text(directory(page)!.children),
+                /规则解锁等级：/,
+              );
+              assert.equal(transport.exchanges.length, exchanges);
+              assert.deepEqual([...storage.values], journals);
+              assert.deepEqual(
+                await snapshot(),
+                beforeLoad,
+                'Catalog interaction cannot alter balances, ledger, entitlements, receipts, unlocks or any application table/sequence',
+              );
+              page.onToggleTitleRules();
+              page.onHide();
+              assert.equal(page.data.rulesExpanded, false);
+              assert.deepEqual(page.data.levelTitleRules, []);
+              page.onToggleTitleRules();
+              assert.equal(page.data.rulesExpanded, false);
+            } finally {
+              page?.onUnload();
+              runtime.dispose();
+              globals['Page'] = prior.Page;
+              globals['getApp'] = prior.getApp;
+            }
           }
         },
       );

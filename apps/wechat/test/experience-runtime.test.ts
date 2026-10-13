@@ -12,6 +12,7 @@ import { deferred, flush } from './helpers';
 import { wireCredentials } from './identity-helpers';
 import {
   appearance,
+  catalog,
   at,
   noticeId,
   otherAccount,
@@ -582,4 +583,106 @@ test('remaining daily tasks precede completed tasks with stable order and unknow
   assert.equal(s.view().tasks[0]?.action, 'publish');
   assert.ok(s.view().tasks.every((t) => /尚未确认/.test(t.progress)));
   s.runtime.dispose();
+});
+
+test('level title rules are complete, ordered and independent of ownership or historical coverage', async () => {
+  for (const unknown of [false, true]) {
+    const s = setup();
+    s.gateway.currentSummary = unknown ? unknownSummary() : summary();
+    const retained = catalog().titles.find(
+      (title) => title.key === 'level_29',
+    )!;
+    s.gateway.currentAppearance = appearance({
+      coverage: unknown ? 'partial' : 'complete',
+      titles: [{ ...retained, earnedAt: null, recordedAt: at }],
+      titleKey: retained.key,
+    });
+    // Catalog wire order does not define the visible rule order.
+    s.gateway.catalogImpl = async () => ({
+      ...catalog(),
+      titles: [...catalog().titles].reverse(),
+    });
+    await s.controller.load();
+    assert.equal(s.view().rulesExpanded, false);
+    assert.deepEqual(
+      s.view().levelTitleRules,
+      catalog()
+        .titles.filter((title) => title.kind === 'level')
+        .map(({ key, name, unlockLevel }) => ({ key, name, unlockLevel })),
+    );
+    assert.equal(
+      s.view().titleGroups.flatMap((group) => group.titles).length,
+      1,
+    );
+    assert.equal(s.view().titleKey, 'level_29');
+    s.controller.chooseColor(0);
+    const before = structuredClone(s.view()),
+      calls = structuredClone(s.gateway.calls),
+      storage = structuredClone([...s.storage.data]);
+    s.controller.toggleTitleRules();
+    assert.deepEqual(s.view(), { ...before, rulesExpanded: true });
+    s.controller.toggleTitleRules();
+    assert.deepEqual(s.view(), before);
+    assert.deepEqual(s.gateway.calls, calls);
+    assert.deepEqual([...s.storage.data], storage);
+    s.controller.chooseTitle('level_27');
+    assert.equal(
+      s.view().titleKey,
+      'level_29',
+      'Rules do not grant or equip an unowned title',
+    );
+    s.runtime.dispose();
+  }
+});
+
+test('rule directory clears across failed reads, cancel, private-view invalidation and late session responses', async () => {
+  for (const mode of [
+    'cancel',
+    'hide',
+    'logout',
+    'account',
+    'relogin',
+    'dispose',
+    'private',
+    'failure',
+    'safety',
+  ] as const) {
+    const s = setup();
+    await s.controller.load();
+    s.controller.toggleTitleRules();
+    assert.equal(s.view().rulesExpanded, true);
+    const late = deferred<ReturnType<typeof catalog>>();
+    s.gateway.catalogImpl = () => late.promise;
+    const loading = s.controller.load();
+    assert.deepEqual(s.view().levelTitleRules, []);
+    if (mode === 'cancel') s.controller.cancel();
+    else if (mode === 'hide') s.runtime.hide();
+    else if (mode === 'logout') s.sessions.logout();
+    else if (mode === 'dispose') s.runtime.dispose();
+    else if (mode === 'private') s.runtime.privateViews.clear();
+    else if (mode !== 'failure' && mode !== 'safety')
+      s.sessions.completeLogin(
+        s.sessions.beginLogin(),
+        mode === 'account'
+          ? { ...wireCredentials('b'), accountId: otherAccount }
+          : wireCredentials('b'),
+      );
+    if (mode === 'safety')
+      late.reject(
+        new ClientError('forbidden', 'blocked', {
+          httpStatus: 403,
+          serverCode: 'ACCOUNT_BLOCKED',
+        }),
+      );
+    else if (mode === 'failure')
+      late.reject(new ClientError('network', 'offline'));
+    else late.resolve(catalog());
+    await loading;
+    if (mode === 'safety')
+      assert.equal(s.sessions.snapshot().credentials, null);
+    s.controller.toggleTitleRules();
+    assert.deepEqual(s.view().levelTitleRules, []);
+    assert.equal(s.view().rulesExpanded, false);
+    s.runtime.dispose();
+  }
 });

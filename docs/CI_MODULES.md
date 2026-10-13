@@ -139,18 +139,45 @@ specs contain 35 top-level bodies totaling **755.822s** in this baseline;
 nested subtests are not added again. This is measured body time, not a prediction
 of the new job's full wall time: setup, process residuals and queueing still apply.
 
-Candidate hosted results remain pending. The 359-file model above is historical;
-do not compare this 360-file candidate with that run as a same-corpus speedup.
-Preserve all application/test bytes and per-file verdicts; record actual matrix
-starts/completions, peak concurrency, queue delays, workflow/PG critical paths
-and aggregate job time.
-Require zero failures, skipped tests and cancellations, a successful final
-`verify` and separate Stats result. Audit all eleven main database cleanups plus
-semantic cleanup, 23 inventory reports (plan plus two per main job), twelve
-native producer/consumer provenance contexts, and every cache restore followed
-by `npm ci`. Native still builds/smokes once; compare emitted payload bytes with
-the same-corpus baseline. Fresh per-job PostgreSQL, serial file execution,
-proof budgets, cleanup, provenance and cache boundaries are unchanged.
+### Community administration split: measured same-corpus acceptance
+
+Signed commit `319b3cc910627f6aa67d80b2d5ff9d61f649e0c9` passed
+[Verify run 38345860269](https://github.com/Xauryan/whaleu-next/actions/runs/38345860269)
+and [Stats run 38345860263](https://github.com/Xauryan/whaleu-next/actions/runs/38345860263)
+on **2026-10-13**. All **19 jobs** and their final gates succeeded with zero failed,
+skipped or cancelled tests. Verify recorded **8,598 test executions**, including
+**3,382 main PostgreSQL verdicts**; Stats passed six tests. Counts include nested
+parents and repeated executions, and the PostgreSQL subset is not added twice.
+The four extra Verify tests are CI guards, not changes to the integration corpus.
+
+The same **360 integration files** and corpus digest above were preserved,
+with every file assigned exactly once to eleven shards. Only four CI
+manifest/runner/test/document files changed from the signed parent; the remaining
+3,467 tracked blobs, including application code, SQL, locks and workflows, stayed
+byte-identical. The candidate's **890 native payload files** matched the parent's
+artifact and local emitted payload exactly; ZIP bytes differ with run provenance.
+
+| Measured interval                            | Same-360 parent | Split candidate |      Difference |
+| -------------------------------------------- | --------------: | --------------: | --------------: |
+| Verify creation to last job completion       | 2,242s (37m22s) | 1,682s (28m02s) | -560s (-24.98%) |
+| PostgreSQL first start to last completion    |          2,125s |          1,563s |           -562s |
+| Summed main-job execution wall time          |         10,236s |          9,789s |           -447s |
+| Summed main-job creation-to-start queue time |          1,833s |          2,527s |           +694s |
+
+Verify ran from **04:19:07 to 04:47:09 UTC**. Administration started ninth of
+eleven main jobs, queued for 726s, and executed for 840s. Main PostgreSQL peak
+concurrency remained eight. All eleven main database cleanups and semantic
+cleanup succeeded; 23 inventory records and twelve native producer/consumer
+contexts were validated. Fifteen cache restores preceded `npm ci`. Native
+built and smoked once, with exact artifact ID/digest validation by all consumers.
+
+This is one measured same-corpus run, not a long-term 25% speed guarantee.
+Execution and queue aggregates are neither elapsed workflow time nor billed
+minutes. Creation order remains distinct from actual runner scheduling. The
+359-file model above is historical and is not this comparison's baseline. Fresh
+per-job PostgreSQL, serial file execution, proof budgets, cleanup, provenance,
+cache boundaries and timeout budgets are unchanged. Stats deployment publishes
+statistics, not the production application.
 
 ### Historical Media runtime split: same-corpus hosted experiment
 

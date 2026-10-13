@@ -52,6 +52,12 @@ interface ColorRow {
   readonly retained: boolean;
 }
 export interface ExperienceView {
+  readonly levelTitleRules: readonly {
+    readonly key: string;
+    readonly name: string;
+    readonly unlockLevel: number;
+  }[];
+  readonly rulesExpanded: boolean;
   readonly redemptionStatus: 'available' | 'unavailable';
   readonly redemptionCode: string;
   readonly redemptionPending: boolean;
@@ -96,6 +102,8 @@ export interface ExperienceView {
   readonly acknowledgementIds: readonly string[];
 }
 export const initialExperienceView = (): ExperienceView => ({
+  levelTitleRules: [],
+  rulesExpanded: false,
   redemptionStatus: 'unavailable',
   redemptionCode: '',
   redemptionPending: false,
@@ -389,6 +397,16 @@ export class ExperienceController {
         this.cursor = records.nextCursor;
         this.update({
           loaded: true,
+          levelTitleRules: catalog.titles
+            .filter(
+              (title) => title.kind === 'level' && title.unlockLevel !== null,
+            )
+            .map((title) => ({
+              key: title.key,
+              name: title.name,
+              unlockLevel: title.unlockLevel!,
+            }))
+            .sort((a, b) => a.unlockLevel - b.unlockLevel),
           redemptionStatus: redemption.status,
           titleGroups: [
             {
@@ -703,6 +721,10 @@ export class ExperienceController {
         });
       },
     );
+  }
+  toggleTitleRules(): void {
+    if (this.disposed || !this.view.loaded) return;
+    this.update({ rulesExpanded: !this.view.rulesExpanded });
   }
   cancel(): void {
     if (this.disposed) return;

@@ -53,6 +53,14 @@
     <view class="card"><view class="card-title">每日经验任务</view><view class="hint">这里只显示进度；没有额外的任务完成奖励。</view>
       <view wx:for="{{tasks}}" wx:key="action" class="row"><view>{{item.label}}</view><view class="hint">{{item.reward}}</view><view>{{item.progress}}</view></view>
     </view>
+    <view class="card" id="level-title-rules">
+      <view class="card-title">等级头衔规则一览</view>
+      <button class="secondary" bindtap="onToggleTitleRules" aria-expanded="{{rulesExpanded}}">{{rulesExpanded ? '收起等级头衔规则' : '查看等级头衔规则'}}</button>
+      <block wx:if="{{rulesExpanded}}">
+        <view class="hint">这里只展示固定规则，不表示个人已拥有或尚未拥有；已确认拥有的头衔请查看下方。</view>
+        <view wx:for="{{levelTitleRules}}" wx:key="key" class="row"><view>{{item.name}}</view><view class="hint">规则解锁等级：{{item.unlockLevel}}</view></view>
+      </block>
+    </view>
     <view class="card">
       <view class="card-title">已拥有的头衔与颜色</view>
       <view class="badge" style="{{previewStyle}}">{{previewTitle}}</view>
