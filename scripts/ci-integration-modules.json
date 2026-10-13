@@ -1,5 +1,18 @@
 {
   "version": 1,
+  "matrixOrder": [
+    "community-media-1",
+    "ratings-discussion-1",
+    "ratings-targets-effects-1",
+    "ratings-catalog-1",
+    "ratings-catalog-2",
+    "shared-foundation-1",
+    "identity-messaging-1",
+    "campus-services-1",
+    "community-administration-1",
+    "campus-services-2",
+    "media-runtime-1"
+  ],
   "groups": [
     {
       "id": "community-media",
@@ -7,24 +20,6 @@
       "owners": ["community", "media"],
       "shards": [
         [
-          "admin-discussion-removal-authority.test.ts",
-          "admin-discussion-removal-category.test.ts",
-          "admin-discussion-removal-causality.test.ts",
-          "admin-discussion-removal-concurrency.test.ts",
-          "admin-discussion-removal-current-proof.test.ts",
-          "admin-discussion-removal-delivery.test.ts",
-          "admin-discussion-removal-inventory.test.ts",
-          "admin-discussion-removal-native-roundtrip.test.ts",
-          "admin-discussion-removal-upgrade.test.ts",
-          "admin-discussion-removal.test.ts",
-          "admin-post-removal-authority.test.ts",
-          "admin-post-removal-causality.test.ts",
-          "admin-post-removal-concurrency.test.ts",
-          "admin-post-removal-current-proof.test.ts",
-          "admin-post-removal-delivery.test.ts",
-          "admin-post-removal-native-roundtrip.test.ts",
-          "admin-post-removal-notices.test.ts",
-          "admin-post-removal.test.ts",
           "category-reclassification-native-roundtrip.test.ts",
           "category-reclassification.test.ts",
           "comment-component-cli.test.ts",
@@ -465,6 +460,33 @@
           "media-pipeline.test.ts",
           "media-recovery-v2.test.ts",
           "media-upload-v2.test.ts"
+        ]
+      ]
+    },
+    {
+      "id": "community-administration",
+      "label": "Community administration and removal",
+      "owners": ["community", "media"],
+      "shards": [
+        [
+          "admin-discussion-removal-authority.test.ts",
+          "admin-discussion-removal-category.test.ts",
+          "admin-discussion-removal-causality.test.ts",
+          "admin-discussion-removal-concurrency.test.ts",
+          "admin-discussion-removal-current-proof.test.ts",
+          "admin-discussion-removal-delivery.test.ts",
+          "admin-discussion-removal-inventory.test.ts",
+          "admin-discussion-removal-native-roundtrip.test.ts",
+          "admin-discussion-removal-upgrade.test.ts",
+          "admin-discussion-removal.test.ts",
+          "admin-post-removal-authority.test.ts",
+          "admin-post-removal-causality.test.ts",
+          "admin-post-removal-concurrency.test.ts",
+          "admin-post-removal-current-proof.test.ts",
+          "admin-post-removal-delivery.test.ts",
+          "admin-post-removal-native-roundtrip.test.ts",
+          "admin-post-removal-notices.test.ts",
+          "admin-post-removal.test.ts"
         ]
       ]
     }

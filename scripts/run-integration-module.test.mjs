@@ -39,14 +39,14 @@ const mutate = (fn) => {
 test('real module inventory equals the old complete glob exactly once, with shared owners', () => {
   const inventory = discoverFiles();
   const plan = createModulePlan(inventory, readModules());
-  assert.equal(plan.totalShards, 10);
+  assert.equal(plan.totalShards, 11);
   assert.equal(plan.totalFiles, inventory.length);
   assert.equal(plan.filesSha256, createShardPlan(inventory, 4).filesSha256);
   assert.deepEqual(
     plan.shards.flatMap((shard) => shard.files).sort(),
     inventory,
   );
-  assert.equal(new Set(plan.shards.map((shard) => shard.id)).size, 10);
+  assert.equal(new Set(plan.shards.map((shard) => shard.id)).size, 11);
   assert.ok(
     plan.shards.find((shard) => shard.module === 'shared-foundation').owners
       .length > 1,
@@ -66,7 +66,7 @@ test('scoped category SQL and emitted journey retain explicit Community ownershi
     assert.ok(community.files.includes(`test/integration/${name}`));
 });
 
-test('ten-job matrix preserves the first eight jobs and Campus ninth, then appends Media runtime', () => {
+test('eleven-job matrix preserves the first eight jobs and inserts administration ninth', () => {
   const plan = createModulePlan(discoverFiles(), readModules());
   assert.deepEqual(
     plan.shards.map((shard) => shard.id),
@@ -79,11 +79,14 @@ test('ten-job matrix preserves the first eight jobs and Campus ninth, then appen
       'shared-foundation-1',
       'identity-messaging-1',
       'campus-services-1',
+      'community-administration-1',
       'campus-services-2',
       'media-runtime-1',
     ],
   );
-  const campus = plan.shards.slice(7, 9);
+  const campus = ['campus-services-1', 'campus-services-2'].map((id) =>
+    plan.shards.find((shard) => shard.id === id),
+  );
   assert.deepEqual(
     campus.map((shard) => shard.shard),
     ['1/2', '2/2'],
@@ -365,4 +368,145 @@ test('scoped avatar clear keeps all eight causal and emitted specs explicitly ow
       .sort(),
     [...causal, native].sort(),
   );
+});
+
+test('Community administration owns exactly eighteen complete removal specs', () => {
+  const plan = createModulePlan(discoverFiles(), readModules());
+  const administration = plan.shards.find(
+    (shard) => shard.id === 'community-administration-1',
+  );
+  const community = plan.shards.find(
+    (shard) => shard.id === 'community-media-1',
+  );
+  assert.deepEqual(administration.owners, ['community', 'media']);
+  assert.equal(administration.shard, '1/1');
+  assert.deepEqual(administration.files, [
+    'test/integration/admin-discussion-removal-authority.test.ts',
+    'test/integration/admin-discussion-removal-category.test.ts',
+    'test/integration/admin-discussion-removal-causality.test.ts',
+    'test/integration/admin-discussion-removal-concurrency.test.ts',
+    'test/integration/admin-discussion-removal-current-proof.test.ts',
+    'test/integration/admin-discussion-removal-delivery.test.ts',
+    'test/integration/admin-discussion-removal-inventory.test.ts',
+    'test/integration/admin-discussion-removal-native-roundtrip.test.ts',
+    'test/integration/admin-discussion-removal-upgrade.test.ts',
+    'test/integration/admin-discussion-removal.test.ts',
+    'test/integration/admin-post-removal-authority.test.ts',
+    'test/integration/admin-post-removal-causality.test.ts',
+    'test/integration/admin-post-removal-concurrency.test.ts',
+    'test/integration/admin-post-removal-current-proof.test.ts',
+    'test/integration/admin-post-removal-delivery.test.ts',
+    'test/integration/admin-post-removal-native-roundtrip.test.ts',
+    'test/integration/admin-post-removal-notices.test.ts',
+    'test/integration/admin-post-removal.test.ts',
+  ]);
+  assert.ok(
+    administration.files.every((file) => !community.files.includes(file)),
+  );
+  assert.deepEqual(
+    plan.shards
+      .flatMap((shard) => shard.files)
+      .filter((file) => /\/admin-(discussion|post)-removal/.test(file))
+      .sort(),
+    administration.files,
+  );
+});
+
+test('matrixOrder only schedules stable shards and defaults to manifest flattening', () => {
+  const original = createModulePlan(files, manifest);
+  assert.deepEqual(
+    original.shards.map(({ id }) => id),
+    ['first-1', 'first-2', 'shared-1'],
+  );
+  const reordered = mutate((m) => {
+    m.matrixOrder = ['first-2', 'shared-1', 'first-1'];
+  });
+  const snapshot = structuredClone(reordered);
+  const plan = createModulePlan(files, reordered);
+  assert.deepEqual(plan, {
+    ...original,
+    shards: [original.shards[1], original.shards[2], original.shards[0]],
+  });
+  assert.deepEqual(createModulePlan([...files].reverse(), reordered), plan);
+  assert.deepEqual(createModulePlan(files, reordered), plan);
+  assert.deepEqual(reordered, snapshot);
+  const writes = [];
+  const deps = {
+    files,
+    manifest: reordered,
+    write: (value) => writes.push(JSON.parse(value)),
+    run: () => assert.fail('dry-run cannot execute'),
+  };
+  main(['--matrix'], deps);
+  main(['--verify'], deps);
+  main(['--module', 'first', '--shard', '2/2', '--list'], deps);
+  assert.deepEqual(
+    writes[0].include,
+    plan.shards.map(({ id, module, label, shard }) => ({
+      id,
+      module,
+      label,
+      shard,
+    })),
+  );
+  assert.deepEqual(writes[1], plan);
+  assert.deepEqual(writes[2].shards, [original.shards[1]]);
+  assert.equal(
+    main(['--module', 'first', '--shard', '2/2'], {
+      ...deps,
+      run: (selected) => {
+        assert.deepEqual(selected, original.shards[1].files);
+        return 17;
+      },
+    }),
+    17,
+  );
+});
+
+test('real scheduling permutation preserves full inventory and every stable shard', () => {
+  const manifest = readModules();
+  const scheduled = createModulePlan(discoverFiles(), manifest);
+  delete manifest.matrixOrder;
+  const flattened = createModulePlan(discoverFiles(), manifest);
+  assert.equal(scheduled.filesSha256, flattened.filesSha256);
+  assert.equal(scheduled.totalFiles, flattened.totalFiles);
+  assert.deepEqual(scheduled.shards.slice(0, 8), flattened.shards.slice(0, 8));
+  for (const shard of scheduled.shards) {
+    assert.deepEqual(
+      shard,
+      flattened.shards.find(({ id }) => id === shard.id),
+    );
+  }
+});
+
+test('matrixOrder rejects incomplete, duplicate, extra and invalid IDs or types', () => {
+  for (const matrixOrder of [
+    undefined,
+    null,
+    false,
+    3,
+    'first-1',
+    {},
+    [],
+    ['first-1', 'first-2'],
+    ['first-1', 'first-2', 'shared-1', 'extra-1'],
+    ['first-1', 'first-1', 'shared-1'],
+    ['first-1', 'first-2', 'extra-1'],
+    ['first-1', 'first-2', 1],
+    ['first-1', 'first-2', null],
+    ['first-1', 'first-2', { id: 'shared-1' }],
+    ['first-1', 'first-2', ''],
+    Object.assign(new Array(3), { 0: 'first-1', 2: 'shared-1' }),
+  ]) {
+    assert.throws(
+      () =>
+        createModulePlan(
+          files,
+          mutate((m) => {
+            m.matrixOrder = matrixOrder;
+          }),
+        ),
+      /matrixOrder/,
+    );
+  }
 });

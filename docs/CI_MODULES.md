@@ -8,7 +8,7 @@ filters, optional-success branches, or production activation steps.
 
 ```text
 plan (inventory + CI guards) ───────────────────────┐
-native-checks (types + tests + build + artifact) ───┴─> main-integration (10 jobs)
+native-checks (types + tests + build + artifact) ───┴─> main-integration (11 jobs)
 foundation (lint + formatting + statistics + search evaluation + DB guards)
 api-checks (types + OpenAPI + tests + build)
 semantic-integration (isolated optional pgvector)
@@ -50,17 +50,113 @@ snapshot table, is authoritative as features are added. Existing assignments do
 not change when an unrelated test is added. Category subshards retain their
 previous explicit assignments based on observed durations.
 
-The generated matrix has ten standard `ubuntu-24.04` jobs, bounded by
+The generated matrix has eleven standard `ubuntu-24.04` jobs, bounded by
 `max-parallel: 8`, with `fail-fast: false`. Each has its own fresh PostgreSQL 18.6
 container and still uses `--test-concurrency=1` within that database. The command
 and job timeouts remain 7,200 seconds and 150 minutes. Optional pgvector retains
 its independent pinned image, namespace probe, admission and cleanup.
 
-### Media runtime split: same-corpus hosted experiment
+### Community administration split: candidate and validation boundary
 
-The original first eight matrix entries stay in place, Campus 2/2 stays ninth,
-and the new `media-runtime-1` is appended tenth. The inventory guard pins all ten
-IDs in order. It also pins the twelve moved files and the eight `media-*` files
+The current eleven-job layout moves eighteen complete `admin-post-removal` and
+`admin-discussion-removal` specs from `community-media` into
+`community-administration`, labeled **Community administration and removal**.
+It retains both `community` and `media` owners and has one `1/1` shard. The specs
+cover authority, current proofs, causal settlement, concurrency, notices,
+native roundtrips, category removal and upgrades. Category reclassification,
+publication, discovery, profile moderation and the eight retained `media-*`
+contracts stay in Community. Other modules keep their file assignments.
+The table above is the historical 333-file Media experiment, not current counts.
+
+The optional manifest `matrixOrder` is a complete, unique permutation of generated
+shard IDs. An absent field preserves group/shard flattening; an invalid type,
+missing ID, extra ID or duplicate fails admission. It changes only the generated matrix order:
+module IDs, owners, explicit files and module-local shard indices remain stable.
+All matrix, verification, selection and execution paths use the same plan.
+The first eight entries retain their previous IDs and order. Administration is
+ninth, Campus 2/2 tenth and Media runtime eleventh. Campus remains a single
+module with stable `1/2` and `2/2` selectors. GitHub documents matrix job creation
+order and the `max-parallel` concurrency bound; creation order is not a promise
+of hosted runner start order. No more than eight main jobs run simultaneously.
+Any timing model assumes an observed dispatch pattern; only the candidate run's
+actual starts and completions can establish its observed effect.
+
+At source `c51b5e2fd777d3b6166d1a4cb5980d7f4c353981`, the inventory contains
+359 files with SHA-256
+`fceeb94a5bf5e446a8086e3224aa577d8c5c85ccfa496262835a99c44f4e05f2`.
+The split preserves that corpus exactly: Community changes from 72 to 54 files,
+with eighteen in Administration. [Baseline run 38337250516](https://github.com/Xauryan/whaleu-next/actions/runs/38337250516)
+passed all 3,374 main PostgreSQL verdicts in **36m11s** overall.
+A **counterfactual model, not a measured speedup**, uses the eighteen specs'
+728.091s of top-level bodies, distributes the original 162.589s Node residual
+by file count, and charges each split job the original 35.196s external overhead.
+With eight slots, administration ninth and a 3s dispatch delay, it gives
+**28m59s** overall, approximately **7m12s (19.90%)** below that baseline.
+Repeating the full residual and using the largest observed job overhead gives
+**31m09s**; adding 60s to each split job and a 30s dispatch delay gives **32m36s**.
+These are sensitivity scenarios, not bounds or guarantees. Aggregate main-job
+wall time increases by about 35s in the primary model. It is not billed time.
+
+Hosted validation must use the same corpus on both sides. The candidate is now
+based on signed Experience commit `b4cc9b4225751405a74a0a64f142f83b60eee478`,
+which adds `experience-ranking-native-roundtrip.test.ts` to Shared foundation:
+360 files with SHA-256
+`f7cccd09da5f3c1a02efb9362ea03129b7f767715f74e698e1b047bdfbe14964`.
+The split preserves this full corpus and all other shard assignments.
+
+The **360-file hosted baseline**, [Verify run 38342524453](https://github.com/Xauryan/whaleu-next/actions/runs/38342524453),
+passed on **2026-10-13**, from **03:36:40 to 04:14:02 UTC: 37m22s**.
+All **8,594 Verify executions** passed, including **3,382 main PostgreSQL
+verdicts**. [Stats run 38342524546](https://github.com/Xauryan/whaleu-next/actions/runs/38342524546)
+passed all six tests: 03:36:41 to its last job completion at 03:37:22 UTC
+(**41s**; the API run update was one second later). All eighteen jobs across
+both workflows succeeded, with zero failed, skipped or cancelled tests.
+The native artifact contains **890 files**, byte-identical to the local emitted
+payload validated with the Experience baseline.
+
+The first eight main jobs started at 03:38:29 UTC. The following are measured
+seconds relative to that first start, not a prediction for the split:
+
+| Baseline matrix ID        | Start | Complete | Job wall time |
+| ------------------------- | ----: | -------: | ------------: |
+| community-media-1         |     0 |     2125 |          2125 |
+| ratings-discussion-1      |     0 |     1162 |          1162 |
+| ratings-targets-effects-1 |     0 |     1056 |          1056 |
+| ratings-catalog-1         |     0 |      956 |           956 |
+| ratings-catalog-2         |     0 |      983 |           983 |
+| shared-foundation-1       |     0 |      842 |           842 |
+| identity-messaging-1      |     0 |     1276 |          1276 |
+| campus-services-1         |     0 |     1177 |          1177 |
+| campus-services-2         |   845 |     1129 |           284 |
+| media-runtime-1           |   958 |     1333 |           375 |
+
+The PostgreSQL phase lasted **35m25s** with peak concurrency eight. Campus 2/2
+started 3s after Shared finished; Media runtime started 2s after Catalog 1/2
+finished. Summed main-job execution wall time was **10,236s**; summed job
+creation-to-start queue time was **1,833s**, including matrix slot waits. These
+sums are neither elapsed workflow time nor billed minutes. The eighteen admin
+specs contain 35 top-level bodies totaling **755.822s** in this baseline;
+nested subtests are not added again. This is measured body time, not a prediction
+of the new job's full wall time: setup, process residuals and queueing still apply.
+
+Candidate hosted results remain pending. The 359-file model above is historical;
+do not compare this 360-file candidate with that run as a same-corpus speedup.
+Preserve all application/test bytes and per-file verdicts; record actual matrix
+starts/completions, peak concurrency, queue delays, workflow/PG critical paths
+and aggregate job time.
+Require zero failures, skipped tests and cancellations, a successful final
+`verify` and separate Stats result. Audit all eleven main database cleanups plus
+semantic cleanup, 23 inventory reports (plan plus two per main job), twelve
+native producer/consumer provenance contexts, and every cache restore followed
+by `npm ci`. Native still builds/smokes once; compare emitted payload bytes with
+the same-corpus baseline. Fresh per-job PostgreSQL, serial file execution,
+proof budgets, cleanup, provenance and cache boundaries are unchanged.
+
+### Historical Media runtime split: same-corpus hosted experiment
+
+In that ten-job experiment the original first eight matrix entries stayed in
+place, Campus 2/2 stayed ninth, and `media-runtime-1` was appended tenth.
+The inventory guard pinned all ten IDs in order. It also pins the twelve moved files and the eight `media-*` files
 retained by Community; full-glob exact-once admission remains independent.
 
 The new group owns the binary lifecycle and process-recovery tests: foundation,
@@ -127,8 +223,8 @@ was entry eight; courses and dining (canteens, courses, dishes and windows) was
 entry nine. At source `fca344bb116ddda9a4bb2950a948125b63de6982`, the 317-file
 snapshot had **36 and 18 Campus files**. Both retained the `campus-services`
 module and its owners, with explicit filenames rather than runtime wildcard
-bucketing or timing-based reshuffling. Those two positions and semantic
-assignments remain unchanged in the current ten-job layout. The guard still
+bucketing or timing-based reshuffling. Those semantic assignments remain unchanged. In the current eleven-job
+layout, Campus 1/2 stays eighth and Campus 2/2 moves to tenth. The guard still
 checks new Window image coverage and exact-once equality with the full glob.
 New Major files belong in the first Campus shard; new course/dining files in the
 second. The 333-file candidate has **41 and 18 Campus files**.
@@ -177,6 +273,8 @@ changes accompany this split.
    `node scripts/run-integration-module.mjs --verify`.
 3. Review the full manifest and corpus digest. New unassigned files, stale
    entries, duplicates, empty shards and invalid names all fail admission.
+   When adding or removing a shard, update the complete `matrixOrder` permutation
+   deliberately; adding a file to an existing shard does not change scheduling.
 4. For a new workspace or changed root check, update the workflow and its
    coverage guard together. Do not remove a check to make the guard pass.
 
@@ -246,7 +344,7 @@ These are **projections, not measured speedups**. They omit queueing, the new
 native-check dependency duration, unallocated per-file overhead and six newer
 Dish/private-image tests absent from the W1 reference. Source growth and runner
 variance can change the bottleneck. That initial projection does not establish a measured speedup for the current
-ten-job candidate; use the exact-version evidence and limits above. Raising parallelism from four to eight does not multiply test
+eleven-job candidate; use the exact-version evidence and limits above. Raising parallelism from four to eight does not multiply test
 work, though eight job setups cost more than the previous four.
 
 The repository is public and uses standard runners. GitHub documents free standard
@@ -259,7 +357,7 @@ selected. Artifact retention is deliberately short.
 ## GitHub references
 
 - [Parallel jobs and dependencies](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-jobs)
-- [Matrix strategies, fail-fast and max-parallel](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/control-jobs-with-strategies)
+- [Matrix creation order, fail-fast and max-parallel](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/run-job-variations)
 - [Reusable workflows](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows)
 - [Dependency cache scope](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)
 - [setup-node cache behavior](https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md)

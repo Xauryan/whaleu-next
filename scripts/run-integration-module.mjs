@@ -73,12 +73,31 @@ export function createModulePlan(inputFiles, manifest) {
       `Modules must cover the integration glob exactly once; missing=${JSON.stringify(missing)}; unexpected=${JSON.stringify(unexpected)}; duplicate=${assigned.length !== new Set(assigned).size}`,
     );
   }
+  let orderedShards = shards;
+  if (Object.hasOwn(manifest, 'matrixOrder')) {
+    const { matrixOrder } = manifest;
+    const byId = new Map(shards.map((shard) => [shard.id, shard]));
+    if (
+      !Array.isArray(matrixOrder) ||
+      matrixOrder.length !== shards.length ||
+      new Set(matrixOrder).size !== shards.length ||
+      Array.from(matrixOrder).some(
+        (id) => typeof id !== 'string' || !byId.has(id),
+      )
+    ) {
+      throw new Error(
+        'matrixOrder must be a complete unique permutation of shard IDs',
+      );
+    }
+    // Scheduling changes never renumber module shards or reassign their files.
+    orderedShards = matrixOrder.map((id) => byId.get(id));
+  }
   return {
     glob: integrationGlob,
     totalFiles: files.length,
     filesSha256: createHash('sha256').update(files.join('\n')).digest('hex'),
     totalShards: shards.length,
-    shards,
+    shards: orderedShards,
   };
 }
 
