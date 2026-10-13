@@ -16,19 +16,19 @@ The sidecar's own immutability and source-trigger admission remain unchanged. A 
 
 ## Before/after attack matrix
 
-| Action | 0136 | 0137 candidate |
-| --- | --- | --- |
-| Empty source INSERT, exact 21 | New consumer rejection, even without a row | Original source statement contract; no row capture, no policy evidence minted |
-| Empty UPDATE/DELETE, six row-guarded sources | New statement rejection | Original writer/epoch touch executes; actual row count remains zero |
-| Empty UPDATE/DELETE, fifteen statement-guarded sources | Consumer rejection can preempt original | Original statement rejection remains |
-| Actual row UPDATE/DELETE, all 21 | Consumer statement rejection first | Original guard rejects first; nonempty transition fallback independently rejects if an old guard were missing |
-| TRUNCATE | Rejected | Original rejection plus retained consumer fallback; never permitted |
-| Forged sidecar INSERT or sidecar UPDATE/DELETE/TRUNCATE | Rejected | Unchanged |
-| Fresh inserted command under mute/suspension | Captured exact actor policy and validated with source/ledger proof | Unchanged |
-| Late ledger change or finite expiry after capture | Original observation invalidated | Unchanged |
-| Same-transaction zero-write ABA on scoped sources | Added guard can prevent the intended mutation test from reaching its owner | Existing epoch increments occur; retained source snapshots must reject at final fence |
-| Existing metadata maintenance / VACUUM / credential retention | Source observer can corrupt the wrong entry transaction in tests | Tests target the captured business transaction; runtime maintenance rules unchanged |
-| Unsupported writer isolation | New combined admission diagnostic masks the isolation cause | Same rejection with precise read-committed reason; old independent Course fence retained |
+| Action                                                        | 0136                                                                       | 0137 candidate                                                                                                |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Empty source INSERT, exact 21                                 | New consumer rejection, even without a row                                 | Original source statement contract; no row capture, no policy evidence minted                                 |
+| Empty UPDATE/DELETE, six row-guarded sources                  | New statement rejection                                                    | Original writer/epoch touch executes; actual row count remains zero                                           |
+| Empty UPDATE/DELETE, fifteen statement-guarded sources        | Consumer rejection can preempt original                                    | Original statement rejection remains                                                                          |
+| Actual row UPDATE/DELETE, all 21                              | Consumer statement rejection first                                         | Original guard rejects first; nonempty transition fallback independently rejects if an old guard were missing |
+| TRUNCATE                                                      | Rejected                                                                   | Original rejection plus retained consumer fallback; never permitted                                           |
+| Forged sidecar INSERT or sidecar UPDATE/DELETE/TRUNCATE       | Rejected                                                                   | Unchanged                                                                                                     |
+| Fresh inserted command under mute/suspension                  | Captured exact actor policy and validated with source/ledger proof         | Unchanged                                                                                                     |
+| Late ledger change or finite expiry after capture             | Original observation invalidated                                           | Unchanged                                                                                                     |
+| Same-transaction zero-write ABA on scoped sources             | Added guard can prevent the intended mutation test from reaching its owner | Existing epoch increments occur; retained source snapshots must reject at final fence                         |
+| Existing metadata maintenance / VACUUM / credential retention | Source observer can corrupt the wrong entry transaction in tests           | Tests target the captured business transaction; runtime maintenance rules unchanged                           |
+| Unsupported writer isolation                                  | New combined admission diagnostic masks the isolation cause                | Same rejection with precise read-committed reason; old independent Course fence retained                      |
 
 ## Transaction-scoped observation repairs
 
