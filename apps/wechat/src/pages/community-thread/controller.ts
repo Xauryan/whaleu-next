@@ -11,6 +11,7 @@ import {
 } from '../../community/discussion-contract';
 import type { CommunityRuntime } from '../../community/runtime';
 export interface ThreadView extends CommunityView {
+  readonly viewSpaceQuery: string;
   readonly post: Post | null;
   readonly root: Comment | null;
   readonly replies: readonly Reply[];
@@ -22,6 +23,7 @@ export interface ThreadView extends CommunityView {
   readonly deleteReplyId: string;
 }
 export const initialThreadView = (): ThreadView => ({
+  viewSpaceQuery: '',
   ...initialCommunityView(),
   post: null,
   root: null,
@@ -41,8 +43,14 @@ export class ThreadController extends CommunityController<ThreadView> {
     private readonly rootCommentId: string,
     private readonly replyId: string | null,
     render: (view: ThreadView) => void,
+    private readonly viewSpaceId?: string,
   ) {
     super(runtime, initialThreadView, render);
+    this.update({
+      viewSpaceQuery: viewSpaceId
+        ? `&viewSpaceId=${encodeURIComponent(viewSpaceId)}`
+        : '',
+    });
   }
   protected override resetPrivate(): void {
     this.nextCursor = null;
@@ -86,11 +94,20 @@ export class ThreadController extends CommunityController<ThreadView> {
     void this.load();
   }
   async load(): Promise<void> {
+    this.update({
+      viewSpaceQuery: this.viewSpaceId
+        ? `&viewSpaceId=${encodeURIComponent(this.viewSpaceId)}`
+        : '',
+    });
     this.clear();
     if (!this.available()) return;
     await this.run(
       async (cancel) => {
-        const post = await this.runtime.gateway!.post(this.postId, cancel);
+        const post = await this.runtime.gateway!.post(
+          this.postId,
+          cancel,
+          this.viewSpaceId,
+        );
         const root = await this.runtime.gateway!.comment(
           this.rootCommentId,
           cancel,
@@ -162,12 +179,27 @@ export class ThreadController extends CommunityController<ThreadView> {
       return;
     const after = this.nextCursor;
     await this.run(
-      (cancel) =>
-        this.runtime.gateway!.replies(this.rootCommentId, after, cancel),
-      (result) => {
+      async (cancel) => {
+        // B is only a view selector. Every continuation rechecks current B
+        // visibility before using the canonical discussion endpoint.
+        const post = this.viewSpaceId
+          ? await this.runtime.gateway!.post(
+              this.postId,
+              cancel,
+              this.viewSpaceId,
+            )
+          : this.view.post!;
+        const replies = await this.runtime.gateway!.replies(
+          this.rootCommentId,
+          after,
+          cancel,
+        );
+        return { post, replies };
+      },
+      ({ post, replies: result }) => {
         if (result.nextCursor === after)
           throw new ClientError('protocol', 'Cursor did not advance');
-        this.check(this.view.post!, this.view.root!, result.items);
+        this.check(post, this.view.root!, result.items);
         this.nextCursor = result.nextCursor;
         const replies = [
           ...new Map(
@@ -178,6 +210,7 @@ export class ThreadController extends CommunityController<ThreadView> {
           ).values(),
         ];
         this.update({
+          post,
           replies,
           contextReplies: this.view.contextReplies.filter(
             (item) => !replies.some((ordinary) => ordinary.id === item.id),

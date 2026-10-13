@@ -41,7 +41,7 @@ export async function createProfileModerationOpenApiDocument(): Promise<OpenAPIO
         .setOpenAPIVersion('3.0.3')
         .setTitle('WhaleU scoped profile nickname moderation')
         .setDescription(
-          'Content-target nickname reset for current named posts, comments and replies in the fixed original regional scope. Exact current administrator authority, readable ancestry and shared Profile revision CAS are required. The reset affects account-wide public names, including other regions; anonymous personas remain unchanged. The subject receives a private system notice. Actor-owned recovery and cancellation preserve the original request and return minimal metadata without subject identity or old/new nickname.',
+          'Content-target nickname reset for current named posts, comments and replies in the fixed original regional scope. Exact current administrator authority, readable ancestry and shared Profile revision CAS are required. The reset affects account-wide public names, including other regions; anonymous personas remain unchanged. The subject receives a private system notice. A readable named related-sync source with current content-management authority instead returns only target, canReset:false, availability:unavailable and blocker:related_sync_unsupported, including at its original campus; no display name, revision or subject identity is exposed. Fresh related-source commands are semantically unavailable and cannot mutate the profile. Actor-owned recovery and cancellation preserve the original request and return minimal metadata without subject identity or old/new nickname.',
         )
         .setVersion('1')
         .addSecurity('accessToken', {

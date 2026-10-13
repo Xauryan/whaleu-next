@@ -30,6 +30,10 @@ export const reviewOperatorCommandSchema = z.discriminatedUnion('command', [
   }),
   z.strictObject({ command: z.literal('list') }),
   z.strictObject({
+    command: z.literal('init-related-policy'),
+    basis: z.string().trim().min(1).max(1000),
+  }),
+  z.strictObject({
     command: z.literal('init-feedback'),
     basis: z.string().trim().min(1).max(1000),
   }),
@@ -104,16 +108,32 @@ export class TextReviewOperator {
         initialized: true,
       };
     }
-    if (command.command === 'init-policy') {
+    if (
+      command.command === 'init-policy' ||
+      command.command === 'init-related-policy'
+    ) {
+      const related = command.command === 'init-related-policy';
+      const policyId = related
+        ? config.COMMUNITY_RELATED_REVIEW_POLICY_ID
+        : config.COMMUNITY_TEXT_REVIEW_POLICY_ID;
+      if (!policyId)
+        throw new Error(
+          'Explicit related Review policy configuration unavailable',
+        );
       await lockSafetyPolicy(tx, true);
       await tx.query(
         `INSERT INTO whaleu_community.content_approval_policies
         (id,policy_key,version,coverage,provenance,issuer,provenance_ref,valid_from)
-        VALUES($1,'local-explicit-v1',1,'complete','accepted',$2,$3,clock_timestamp())`,
-        [config.COMMUNITY_TEXT_REVIEW_POLICY_ID, this.operator, reference],
+        VALUES($1,$4,1,'complete','accepted',$2,$3,clock_timestamp())`,
+        [
+          policyId,
+          this.operator,
+          reference,
+          related ? 'local-related-v1' : 'local-explicit-v1',
+        ],
       );
       return {
-        policyId: config.COMMUNITY_TEXT_REVIEW_POLICY_ID,
+        policyId,
         initialized: true,
       };
     }
@@ -271,7 +291,7 @@ export class TextReviewOperator {
         envelope.version,
         row.digest,
         canonicalJson(envelope),
-        config.COMMUNITY_TEXT_REVIEW_POLICY_ID,
+        this.runtime.policyId(envelope),
         command.decision,
         this.operator,
         reference,

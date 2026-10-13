@@ -60,6 +60,11 @@ export function matchPublicationReview(
 
 export function supportsTextReview(attempt: PendingAttempt): boolean {
   const payload = attempt.payload;
+  if (
+    attempt.operation === 'publish_post' &&
+    attempt.payload.syncToRelatedCampuses === true
+  )
+    return true;
   return (
     ((attempt.operation === 'publish_post' &&
       attempt.payload.category === 'feedback') ||

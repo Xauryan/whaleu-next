@@ -54,7 +54,10 @@ export class AdminPostRemovalController {
       schema: adminPostRemovalManagementQuerySchema,
       pipes: [new SchemaValidationPipe(adminPostRemovalManagementQuerySchema)],
     })
-    target: AdminPostRemovalTarget & { version?: '2' },
+    target: AdminPostRemovalTarget & {
+      version?: '2' | '3';
+      viewSpaceId?: string;
+    },
     @Body(new SchemaValidationPipe(adminPostRemovalEmptyBodySchema))
     _body: unknown,
   ) {
@@ -62,6 +65,7 @@ export class AdminPostRemovalController {
       bearerToken(auth),
       { kind: target.kind, id: target.id },
       target.version === '2',
+      target.viewSpaceId,
     );
   }
   @Post('commands')

@@ -26,6 +26,7 @@ import {
 } from './pending';
 
 interface PostingPolicyForm {
+  readonly relatedSyncEnabled: boolean;
   readonly unverifiedPostEnabled: boolean;
   readonly unverifiedCommentEnabled: boolean;
   readonly unverifiedCategories: readonly PostingPolicyCategory[];
@@ -207,7 +208,7 @@ export class SchoolPostingPolicyController {
       pending: true,
       pendingRequestId: pending.command.clientRequestId,
       pendingRegionId: pending.regionId,
-      pendingSummary: `基于版本 ${pending.command.expectedRevision}；未认证发帖${policy.unverifiedPostEnabled ? '开启' : '关闭'}；未认证评论${policy.unverifiedCommentEnabled ? '开启' : '关闭'}；分类：${policy.unverifiedCategories.map((key) => postingPolicyLabels[key]).join('、') || '无'}；有效期：${policy.expiry.kind === 'at' ? policy.expiry.validUntil : '政策豁免，不设到期时间'}`,
+      pendingSummary: `基于版本 ${pending.command.expectedRevision}；未认证发帖${policy.unverifiedPostEnabled ? '开启' : '关闭'}；未认证评论${policy.unverifiedCommentEnabled ? '开启' : '关闭'}；分类：${policy.unverifiedCategories.map((key) => postingPolicyLabels[key]).join('、') || '无'}；关联学校同步${policy.relatedSyncEnabled === true ? '开启' : policy.relatedSyncEnabled === false ? '关闭' : '保持旧版请求'}；有效期：${policy.expiry.kind === 'at' ? policy.expiry.validUntil : '政策豁免，不设到期时间'}`,
       status: '有一笔原保存请求待确认，请先查询结果或取消原请求',
     });
   }
@@ -260,6 +261,7 @@ export class SchoolPostingPolicyController {
     const policy = result.policy;
     const form: PostingPolicyForm | null = result.editable
       ? Object.freeze({
+          relatedSyncEnabled: policy?.relatedSyncEnabled ?? false,
           unverifiedPostEnabled: policy?.unverifiedPostEnabled ?? false,
           unverifiedCommentEnabled: policy?.unverifiedCommentEnabled ?? false,
           unverifiedCategories: Object.freeze([
@@ -283,7 +285,7 @@ export class SchoolPostingPolicyController {
       categories: form ? this.categoryRows(form) : [],
       effectiveAt: policy?.effectiveAt ?? '',
       currentPolicySummary: policy
-        ? `未认证发帖：${policy.unverifiedPostEnabled ? '开启' : '关闭'}；未认证评论：${policy.unverifiedCommentEnabled ? '开启' : '关闭'}；发帖分类：${policy.unverifiedCategories.map((key) => postingPolicyLabels[key]).join('、') || '无'}`
+        ? `关联学校同步：${policy.relatedSyncEnabled ? '开启' : '关闭'}；未认证发帖：${policy.unverifiedPostEnabled ? '开启' : '关闭'}；未认证评论：${policy.unverifiedCommentEnabled ? '开启' : '关闭'}；发帖分类：${policy.unverifiedCategories.map((key) => postingPolicyLabels[key]).join('、') || '无'}`
         : '',
       expiryLabel: policy
         ? policy.expiry.kind === 'at'
@@ -326,7 +328,8 @@ export class SchoolPostingPolicyController {
     if (
       !this.canEdit() ||
       (field !== 'unverifiedPostEnabled' &&
-        field !== 'unverifiedCommentEnabled')
+        field !== 'unverifiedCommentEnabled' &&
+        field !== 'relatedSyncEnabled')
     )
       return;
     this.update({
@@ -444,15 +447,19 @@ export class SchoolPostingPolicyController {
       expectedRevision = this.current.revision;
     let policy: PostingPolicyInput;
     try {
-      policy = decodePostingPolicyInput({
-        unverifiedPostEnabled: form.unverifiedPostEnabled,
-        unverifiedCommentEnabled: form.unverifiedCommentEnabled,
-        unverifiedCategories: form.unverifiedCategories,
-        expiry:
-          form.expiryKind === 'at'
-            ? { kind: 'at', validUntil: form.validUntil }
-            : { kind: 'policy_exempt' },
-      });
+      policy = decodePostingPolicyInput(
+        {
+          relatedSyncEnabled: form.relatedSyncEnabled,
+          unverifiedPostEnabled: form.unverifiedPostEnabled,
+          unverifiedCommentEnabled: form.unverifiedCommentEnabled,
+          unverifiedCategories: form.unverifiedCategories,
+          expiry:
+            form.expiryKind === 'at'
+              ? { kind: 'at', validUntil: form.validUntil }
+              : { kind: 'policy_exempt' },
+        },
+        2,
+      );
       if (
         policy.expiry.kind === 'at' &&
         Date.parse(policy.expiry.validUntil) <= this.now()
@@ -470,6 +477,7 @@ export class SchoolPostingPolicyController {
         const requestId = await this.newRequestId();
         operation.assertCurrent();
         const pending = this.journal.write(operation.actorId, regionId, {
+          version: 2,
           clientRequestId: requestId,
           expectedRevision,
           policy,

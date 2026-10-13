@@ -1,3 +1,4 @@
+import { communityDistributionGroup } from './distribution.js';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { registerTransactionDeadline } from '../../database/transaction-deadlines.js';
@@ -29,6 +30,9 @@ import {
  * absent head or treats absent coverage as empty. */
 @Injectable()
 export class CampusCommunityPolicyService {
+  distributionGroup(regionId: string, tx: PoolClient) {
+    return communityDistributionGroup(regionId, tx);
+  }
   async resolve(
     accountId: string,
     affiliation: PublicationAffiliationMetadata,

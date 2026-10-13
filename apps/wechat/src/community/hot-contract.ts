@@ -1,6 +1,14 @@
 import { isRecord } from '../api/errors';
 import { isUuid } from '../profile/contract';
-import { decodePost, exact, invalid, type Post } from './contract';
+import {
+  decodePost,
+  exact,
+  invalid,
+  relatedCampusCoverageKeys,
+  decodeRelatedCampusCoverage,
+  type RelatedCampusCoverage,
+  type Post,
+} from './contract';
 
 export const hotRanges = [
   { key: 'day', label: '最近24小时' },
@@ -23,7 +31,7 @@ export type HotContinuation =
   | 'end'
   | 'login_required'
   | 'phone_verification_required';
-export interface HotPage {
+export interface HotPage extends RelatedCampusCoverage {
   readonly items: readonly Post[];
   readonly nextCursor: string | null;
   readonly continuation: HotContinuation;
@@ -46,7 +54,12 @@ export function decodeHotIntent(value: unknown): HotIntent {
   });
 }
 export function decodeHotPage(value: unknown): HotPage {
-  exact(value, ['items', 'nextCursor', 'continuation']);
+  exact(value, [
+    'items',
+    'nextCursor',
+    'continuation',
+    ...relatedCampusCoverageKeys(value),
+  ]);
   if (!Array.isArray(value.items) || value.items.length > 10) invalid();
   const continuation = value.continuation;
   if (continuation === 'more' || continuation === 'scan_pending') {
@@ -66,6 +79,7 @@ export function decodeHotPage(value: unknown): HotPage {
   // Live score movement may repeat a post across pages; only one response is unique.
   if (new Set(items.map((item) => item.id)).size !== items.length) invalid();
   return Object.freeze({
+    ...decodeRelatedCampusCoverage(value),
     items: Object.freeze(items),
     nextCursor: value.nextCursor as string | null,
     continuation: continuation as HotContinuation,

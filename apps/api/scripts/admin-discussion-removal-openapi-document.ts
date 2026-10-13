@@ -1,3 +1,12 @@
+import {
+  adminDiscussionRemovalManagementQuerySchema,
+  adminDiscussionRemovalCommandSchema,
+  adminDiscussionRemovalRequestIdSchema,
+} from '../src/community/admin-discussion-removal/contracts.js';
+import {
+  documentScopedRemovalQuery,
+  documentScopedRemovalInputs,
+} from './scoped-removal-openapi-query.js';
 import 'reflect-metadata';
 import { readFile, writeFile } from 'node:fs/promises';
 import { format } from 'prettier';
@@ -35,13 +44,13 @@ export async function createAdminDiscussionRemovalOpenApiDocument(): Promise<Ope
   }).compile();
   const app = testing.createNestApplication({ logger: false });
   try {
-    return SwaggerModule.createDocument(
+    const document = SwaggerModule.createDocument(
       app,
       new DocumentBuilder()
         .setOpenAPIVersion('3.0.3')
         .setTitle('WhaleU scoped administrator discussion removal')
         .setDescription(
-          'Remove one currently readable native-origin root comment or reply in its original regional scope with sync:none. Named and anonymous content remains content targets only; private authors never become public account locators. Exact school-admin or super-admin grant, phone, Safety, Review, source version and current Media remain required. The selected child alone is tombstoned; a root releases its own comment pin and hides its thread by ancestry, while a reply preserves siblings and references. The canonical component capture and bounded media-cleanup obligation remain independent. Version1 sends no author notification; selected version2 adds a private deletion notice and a separately caused punishment notice. Version1 creates no account punishment; explicit version2 may atomically issue Safety mute or suspension for the exact original author. No owner-deletion Experience, jury verdict, role grant or provider is created. Actor-owned recovery and cancellation need only the same active account and current session token.',
+          'Remove one currently readable canonical native root comment or reply. Legacy v1 and compound v2 retain original-region or super-admin grants, including exact v4 inherited-root reconstruction; v2 retains protected-target checks. Pure-removal v3 requires explicit viewSpaceId and an exact current destination-region or super-admin grant for current related distribution, and carries no punishment, selection or punishment options. Named and anonymous content remains content targets only; private authors never become public account locators. Exact school-admin or super-admin grant, phone, Safety, Review, source version and current Media remain required. The selected child alone is tombstoned; a root releases its own comment pin and hides its thread by ancestry, while a reply preserves siblings and references. The canonical component capture and bounded media-cleanup obligation remain independent. Version1 sends no author notification; selected version2 adds a private deletion notice and a separately caused punishment notice. Version1 creates no account punishment; explicit version2 may atomically issue Safety mute or suspension for the exact original author. No owner-deletion Experience, jury verdict, role grant or provider is created. Actor-owned recovery and cancellation need only the same active account and current session token.',
         )
         .setVersion('1')
         .addSecurity('accessToken', {
@@ -57,6 +66,18 @@ export async function createAdminDiscussionRemovalOpenApiDocument(): Promise<Ope
         excludeDynamicDefaults: true,
       },
     );
+    documentScopedRemovalQuery(
+      document,
+      '/v1/community/admin-discussion-removal/management',
+      adminDiscussionRemovalManagementQuerySchema,
+    );
+    documentScopedRemovalInputs(
+      document,
+      '/v1/community/admin-discussion-removal',
+      adminDiscussionRemovalCommandSchema,
+      adminDiscussionRemovalRequestIdSchema,
+    );
+    return document;
   } finally {
     await app.close();
   }

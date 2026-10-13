@@ -1,7 +1,13 @@
+import type { RelatedCampusDisplay } from './related-sync/contracts.js';
+import { CommunityDistributionService } from './related-sync/service.js';
+import { distributionCursorScope } from './cursor.js';
 import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { batchCategoryChildContextAllowed } from './category-reclassification/child-context.js';
 import { currentCategoryCursorScope } from './current-category-cursor.js';
-import { CURRENT_CATEGORY_POSTS_SQL } from './current-category-sql.js';
+import {
+  CURRENT_CATEGORY_POSTS_SQL,
+  scopedCurrentCategoryPostsSql,
+} from './current-category-sql.js';
 import {
   resolvePostCategory,
   resolvePostCategories,
@@ -54,6 +60,9 @@ export class FeedService {
     @Optional()
     @Inject(TextReviewRuntime)
     private readonly reviews?: TextReviewRuntime,
+    @Optional()
+    @Inject(CommunityDistributionService)
+    private readonly distribution?: CommunityDistributionService,
   ) {}
   @AccountPolicy('browse', 'entry')
   spaces(campusId: string) {
@@ -76,6 +85,10 @@ export class FeedService {
         { publication: true },
       );
       const result: Capabilities = {
+        relatedCampusSync: {
+          availability: 'unavailable',
+          reason: 'COMMUNITY_UNAVAILABLE',
+        },
         publish: {
           availability: 'unavailable',
           reason: 'COMMUNITY_UNAVAILABLE',
@@ -93,6 +106,24 @@ export class FeedService {
       if (decision.kind === 'deny')
         result.publish = { availability: 'denied', reason: decision.reason };
       if (decision.kind !== 'allow') return result;
+      if (this.distribution) {
+        result.relatedCampusSync = await this.distribution.capability(
+          actor,
+          space,
+          category,
+          decision.value,
+          tx,
+        );
+        if (
+          result.relatedCampusSync.availability === 'allowed' &&
+          decision.value.runtime &&
+          !(await this.reviews?.relatedAvailable(space, tx))
+        )
+          result.relatedCampusSync = {
+            availability: 'unavailable',
+            reason: 'CONTENT_REVIEW_UNAVAILABLE',
+          };
+      }
       for (const mode of ['named', 'anonymous'] as const)
         try {
           requirePublication(
@@ -147,6 +178,10 @@ export class FeedService {
         if (query.category === 'feedback')
           await requireFeedbackSpace(space, tx);
         const authority = await this.access.advisory(actor, space, tx);
+        const distribution = await this.distribution?.resolveView(space, tx);
+        const relatedCampusDistribution =
+          distribution?.relatedCampusDistribution ??
+          (space.kind === 'global' ? 'complete' : 'unavailable');
         if (query.cursor) {
           if (!actor) throw new ApplicationError('AUTHENTICATION_REQUIRED');
           const current = await this.access.authority(actor, space, tx, {
@@ -156,24 +191,44 @@ export class FeedService {
             throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
         }
         const scope = await currentCategoryCursorScope(
-          `feed:${space.id}:${query.category ?? '*'}` +
-            (query.tradingSubtype ? `:trading:${query.tradingSubtype}` : ''),
+          distributionCursorScope(
+            `feed:${space.id}:${query.category ?? '*'}` +
+              (query.tradingSubtype ? `:trading:${query.tradingSubtype}` : ''),
+            distribution,
+            token,
+          ),
           tx,
         );
         let seek = decodeCursor(query.cursor, scope, query.limit);
-        const items: PostView[] = [];
+        const items: {
+          post: StoredPost;
+          display: RelatedCampusDisplay | undefined;
+        }[] = [];
         let scanned = 0;
         // Read candidates in bounded batches; filtering never turns an invisible row into a public cursor.
         while (items.length <= query.limit) {
+          const parameters: unknown[] = [
+            space.id,
+            query.category ?? null,
+            seek?.at ?? null,
+            seek?.id ?? null,
+            query.tradingSubtype ?? null,
+          ];
+          const classifiedSource =
+            distribution && this.distribution
+              ? scopedCurrentCategoryPostsSql(
+                  distribution,
+                  this.distribution,
+                  parameters,
+                )
+              : CURRENT_CATEGORY_POSTS_SQL;
+          const eligibility =
+            distribution && this.distribution
+              ? 'true'
+              : 'classified.space_id=$1';
           const rows = await tx.query<StoredPost>(
-            `SELECT p.* FROM whaleu_community.posts p JOIN ${CURRENT_CATEGORY_POSTS_SQL} classified ON classified.id=p.id WHERE classified.space_id=$1 AND ($2::text IS NULL OR classified.current_category=$2) AND p.deleted_at IS NULL AND p.visibility='approved' AND ($5::text IS NULL OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.subtype=$5)) AND ($2::text IS NOT NULL OR NOT EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='urgent')) AND ($3::timestamptz IS NULL OR (classified.published_at,classified.id)<($3::timestamptz,$4::uuid)) ORDER BY classified.published_at DESC,classified.id DESC LIMIT 32 FOR SHARE OF p`,
-            [
-              space.id,
-              query.category ?? null,
-              seek?.at ?? null,
-              seek?.id ?? null,
-              query.tradingSubtype ?? null,
-            ],
+            `SELECT p.* FROM whaleu_community.posts p JOIN ${classifiedSource} classified ON classified.id=p.id WHERE $1::uuid IS NOT NULL AND ${eligibility} AND ($2::text IS NULL OR classified.current_category=$2) AND p.deleted_at IS NULL AND p.visibility='approved' AND ($5::text IS NULL OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.subtype=$5)) AND ($2::text IS NOT NULL OR NOT EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='urgent')) AND ($3::timestamptz IS NULL OR (classified.published_at,classified.id)<($3::timestamptz,$4::uuid)) ORDER BY classified.published_at DESC,classified.id DESC LIMIT 32 FOR SHARE OF p`,
+            parameters,
           );
           scanned += rows.rows.length;
           if (scanned > 1024)
@@ -187,23 +242,68 @@ export class FeedService {
             seek = { at: post.published_at.toISOString(), id: post.id };
             const currentCategory = await resolvePostCategory(post.id, tx);
             if (
+              currentCategory === null &&
+              (post.publication_envelope_version === 4 ||
+                distribution?.remoteSpaceIds.includes(post.space_id))
+            )
+              throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+            const projection =
+              distribution && this.distribution && currentCategory !== null
+                ? await this.distribution.allows(
+                    distribution,
+                    post.id,
+                    post.space_id,
+                    currentCategory,
+                    tx,
+                  )
+                : null;
+            if (projection?.kind === 'unavailable')
+              throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+            if (
               (await this.access.visible(actor, post, tx, 'list_projection')) &&
               currentCategory !== null &&
+              projection?.kind !== 'deny' &&
               (!query.category || query.category === currentCategory)
-            )
-              items.push(
-                await this.serializer.post(post, space, actor, authority, tx),
-              );
+            ) {
+              items.push({
+                post,
+                display:
+                  projection?.kind === 'allow' ? projection.value : undefined,
+              });
+            }
             if (items.length > query.limit) break;
           }
           if (rows.rows.length < 32) break;
         }
         const hasMore = items.length > query.limit;
-        const page = items.slice(0, query.limit);
+        // Optional action hints restore the transaction read epoch. Finish every
+        // branded distribution read before serialization rather than reusing a
+        // stale handle or reparsing topology once per projected post.
+        const page: PostView[] = [];
+        for (const { post, display } of items.slice(0, query.limit)) {
+          const original =
+            post.space_id === space.id
+              ? space
+              : await this.repository.space(post.space_id, tx);
+          page.push(
+            await this.serializer.post(
+              post,
+              original,
+              actor,
+              post.space_id === space.id
+                ? authority
+                : await this.access.advisory(actor, original, tx),
+              tx,
+              'list-projection',
+              display,
+            ),
+          );
+        }
         const last = page.at(-1);
         if (!actor)
           return {
             items: page,
+            relatedCampusDistribution,
             nextCursor: null,
             continuation: hasMore ? 'login_required' : 'end',
           };
@@ -218,11 +318,13 @@ export class FeedService {
         if (!continuationAuthority?.phoneVerified)
           return {
             items: page,
+            relatedCampusDistribution,
             nextCursor: null,
             continuation: hasMore ? 'phone_verification_required' : 'end',
           };
         return {
           items: page,
+          relatedCampusDistribution,
           nextCursor:
             hasMore && last
               ? encodeCursor(
@@ -272,6 +374,9 @@ export class FeedService {
             )
           ).rows[0]?.author_mode ?? null;
         const result: CommentCapabilities = {
+          ...(post.publication_envelope_version === 4
+            ? { inheritsRelatedCampusSync: true }
+            : {}),
           lastAuthorMode: lastMode,
           availability: 'unavailable',
           reason: 'COMMUNITY_UNAVAILABLE',
@@ -325,13 +430,17 @@ export class FeedService {
         }
         const reviewAvailable =
           result.authorModes.length > 0 &&
-          post.comments_policy === 'open' &&
+          (post.publication_envelope_version === 4 ||
+            post.comments_policy === 'open') &&
           !!this.reviews &&
-          (await this.reviews.available(space, tx, post.category));
+          (post.publication_envelope_version === 4
+            ? await this.reviews.relatedAvailable(space, tx)
+            : await this.reviews.available(space, tx, post.category));
         if (
           decision.value.runtime &&
           reviewAvailable &&
-          post.category !== 'feedback'
+          post.category !== 'feedback' &&
+          post.publication_envelope_version !== 4
         )
           result.authorModes = ['named'];
         if (result.authorModes.length) {
@@ -350,7 +459,7 @@ export class FeedService {
     );
   }
   @AccountPolicy('browse', 'entry')
-  detail(token: string, id: string): Promise<PostView> {
+  detail(token: string, id: string, viewSpaceId?: string): Promise<PostView> {
     return this.repository.database.transaction(
       async (tx) => {
         enableSafetyRelationshipProof(tx);
@@ -362,6 +471,29 @@ export class FeedService {
           false,
           true,
         );
+        let projection: RelatedCampusDisplay | undefined;
+        if (viewSpaceId && viewSpaceId !== space.id) {
+          if (!this.distribution)
+            throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+          const view = await this.repository.space(viewSpaceId, tx);
+          const distribution = await this.distribution.resolveView(view, tx);
+          if (distribution.relatedCampusDistribution === 'unavailable')
+            throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+          const category = await resolvePostCategory(post.id, tx);
+          if (category === null) throw new ApplicationError('POST_NOT_FOUND');
+          const decision = await this.distribution.allows(
+            distribution,
+            post.id,
+            space.id,
+            category,
+            tx,
+          );
+          if (decision.kind === 'unavailable')
+            throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+          if (decision.kind === 'deny')
+            throw new ApplicationError('POST_NOT_FOUND');
+          projection = decision.value;
+        }
         return this.serializer.post(
           post,
           space,
@@ -369,6 +501,7 @@ export class FeedService {
           await this.access.advisory(actor, space, tx),
           tx,
           'direct-content',
+          projection,
         );
       },
       { isolationLevel: 'read committed' },

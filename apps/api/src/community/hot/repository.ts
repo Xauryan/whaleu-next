@@ -1,4 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { CommunityDistributionService } from '../related-sync/service.js';
+import type { CommunityDistributionScope } from '../related-sync/contracts.js';
+import { ApplicationError } from '../../http/application-error.js';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { z } from 'zod';
 import type { PoolClient } from 'pg';
 import type { CommunitySpace } from '../contracts.js';
@@ -18,6 +21,11 @@ const published =
   'to_char(p.published_at AT TIME ZONE \'UTC\',\'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\')';
 @Injectable()
 export class HotRepository {
+  constructor(
+    @Optional()
+    @Inject(CommunityDistributionService)
+    private readonly distribution?: CommunityDistributionService,
+  ) {}
   async clock(tx: PoolClient): Promise<string> {
     const row = (
       await tx.query<{ now: string }>(
@@ -32,7 +40,28 @@ export class HotRepository {
     clock: string,
     after: HotAnchor | null,
     tx: PoolClient,
+    distribution?: CommunityDistributionScope,
   ): Promise<HotCandidate[]> {
+    const parameters: unknown[] = [
+      space.id,
+      space.kind === 'global'
+        ? ['discussion', 'feedback']
+        : categorySchema.options,
+      clock,
+      HOT_RANGES[query.range].days,
+      after?.score ?? null,
+      after?.id ?? null,
+    ];
+    if (distribution && !this.distribution)
+      throw new ApplicationError('HOT_FEED_UNAVAILABLE');
+    const eligibility = distribution
+      ? this.distribution!.sqlPredicate(
+          distribution,
+          'p',
+          'category',
+          parameters,
+        )
+      : 'p.space_id=$1';
     // Hot has no category filter. The bounded nine-category regional move
     // cannot change space or trading membership; global posts cannot move.
     // Keep score candidates independent of classification proof planning.
@@ -40,21 +69,12 @@ export class HotRepository {
       await tx.query<HotCandidate>(
         `SELECT p.id,p.space_id AS "spaceId",${published} AS at,hs.score::text
       FROM whaleu_post_hotness.scores hs JOIN whaleu_community.posts p ON p.id=hs.post_id ${HOT_CURRENT_JOINS}
-      WHERE p.space_id=$1 AND p.category=ANY($2::text[]) AND p.deleted_at IS NULL AND p.visibility='approved'
+      WHERE $1::uuid IS NOT NULL AND ${eligibility} AND p.category=ANY($2::text[]) AND p.deleted_at IS NULL AND p.visibility='approved'
       AND p.published_at<=$3::timestamptz AND ($4::integer IS NULL OR p.published_at>=$3::timestamptz-make_interval(hours=>$4::integer*24))
       AND (p.category<>'trading' OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='normal' AND t.resolution='open'))
       AND (${HOT_CURRENT_HINT}) AND ($5::numeric IS NULL OR (hs.score,p.id)<($5::numeric,$6::uuid))
       ORDER BY hs.score DESC,p.id DESC LIMIT ${HOT_SCAN_BATCH + 1}`,
-        [
-          space.id,
-          space.kind === 'global'
-            ? ['discussion', 'feedback']
-            : categorySchema.options,
-          clock,
-          HOT_RANGES[query.range].days,
-          after?.score ?? null,
-          after?.id ?? null,
-        ],
+        parameters,
       )
     ).rows;
   }
@@ -74,22 +94,34 @@ export class HotRepository {
     query: HotQuery,
     clock: string,
     tx: PoolClient,
+    distribution?: CommunityDistributionScope,
   ): Promise<boolean> {
+    const parameters: unknown[] = [
+      id,
+      space.id,
+      space.kind === 'global'
+        ? ['discussion', 'feedback']
+        : categorySchema.options,
+      clock,
+      HOT_RANGES[query.range].days,
+    ];
+    if (distribution && !this.distribution)
+      throw new ApplicationError('HOT_FEED_UNAVAILABLE');
+    const eligibility = distribution
+      ? this.distribution!.sqlPredicate(
+          distribution,
+          'p',
+          'category',
+          parameters,
+        )
+      : 'p.space_id=$2';
     return (
       (
         await tx.query(
           `SELECT p.id FROM whaleu_community.posts p
-      WHERE p.id=$1 AND p.space_id=$2 AND p.category=ANY($3::text[]) AND p.deleted_at IS NULL AND p.visibility='approved'
+      WHERE p.id=$1 AND $2::uuid IS NOT NULL AND ${eligibility} AND p.category=ANY($3::text[]) AND p.deleted_at IS NULL AND p.visibility='approved'
       AND p.published_at<=$4::timestamptz AND ($5::integer IS NULL OR p.published_at>=$4::timestamptz-make_interval(hours=>$5::integer*24))`,
-          [
-            id,
-            space.id,
-            space.kind === 'global'
-              ? ['discussion', 'feedback']
-              : categorySchema.options,
-            clock,
-            HOT_RANGES[query.range].days,
-          ],
+          parameters,
         )
       ).rows.length === 1
     );

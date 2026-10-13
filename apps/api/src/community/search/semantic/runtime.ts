@@ -1,6 +1,7 @@
+import { CommunityDistributionService } from '../../related-sync/service.js';
 import { AccountPolicy } from '../../../safety/account-policy/decorator.js';
 import { MediaContentSnapshotFacade } from '../../../media/content-snapshot.facade.js';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { APP_CONFIG } from '../../../config/config.js';
 import type { RuntimeConfig } from '../../../config/config.js';
 import { ApplicationError } from '../../../http/application-error.js';
@@ -67,6 +68,9 @@ export class SemanticSearchRuntime {
     @Inject(SafetySearchEligibilityFacade)
     safety: SafetySearchEligibilityFacade,
     @Inject(MediaContentSnapshotFacade) media: MediaContentSnapshotFacade,
+    @Optional()
+    @Inject(CommunityDistributionService)
+    distribution?: CommunityDistributionService,
   ) {
     if (!provider || config.COMMUNITY_SEMANTIC_SEARCH === 'disabled') {
       this.engine = null;
@@ -77,6 +81,7 @@ export class SemanticSearchRuntime {
       visibility,
       campuses,
       media,
+      distribution,
     );
     const corpus = new SemanticCorpusRepository(safety);
     this.engine = new SemanticSearchEngine(

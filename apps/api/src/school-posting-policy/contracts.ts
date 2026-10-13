@@ -38,12 +38,24 @@ export const schoolPostingPolicySchema = z.strictObject({
     .refine((v) => new Set(v).size === v.length),
   expiry: postingExpirySchema,
 });
-export const saveSchoolPostingPolicySchema = z.strictObject({
+export const saveSchoolPostingPolicyV1Schema = z.strictObject({
   clientRequestId: schoolPostingRequestIdSchema,
   // The original ledger uses PostgreSQL integer, not bigint.
   expectedRevision: z.number().int().min(0).max(2147483646),
   policy: schoolPostingPolicySchema,
 });
+export const schoolPostingPolicyV2Schema = schoolPostingPolicySchema.extend({
+  relatedSyncEnabled: z.boolean(),
+});
+export const saveSchoolPostingPolicyV2Schema =
+  saveSchoolPostingPolicyV1Schema.extend({
+    version: z.literal(2),
+    policy: schoolPostingPolicyV2Schema,
+  });
+export const saveSchoolPostingPolicySchema = z.union([
+  saveSchoolPostingPolicyV1Schema,
+  saveSchoolPostingPolicyV2Schema,
+]);
 export type SaveSchoolPostingPolicy = z.infer<
   typeof saveSchoolPostingPolicySchema
 >;
@@ -85,7 +97,10 @@ export const schoolPostingViewSchema = z.strictObject({
   editable: z.boolean(),
   blocker: z.enum(['untrusted_source', 'related_sync_unsupported']).nullable(),
   policy: schoolPostingPolicySchema
-    .extend({ effectiveAt: z.iso.datetime() })
+    .extend({
+      effectiveAt: z.iso.datetime(),
+      relatedSyncEnabled: z.boolean().optional(),
+    })
     .nullable(),
 });
 export type SchoolPostingView = z.infer<typeof schoolPostingViewSchema>;
@@ -106,7 +121,11 @@ export function schoolPostingCommandHash(
   command: SaveSchoolPostingPolicy,
 ): string {
   return createHash('sha256')
-    .update('whaleu-school-posting-policy-command:v1\n')
+    .update(
+      'version' in command
+        ? 'whaleu-school-posting-policy-command:v2\n'
+        : 'whaleu-school-posting-policy-command:v1\n',
+    )
     .update(
       canonicalJson({
         actorId,

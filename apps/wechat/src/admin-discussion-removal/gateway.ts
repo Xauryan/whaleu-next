@@ -1,3 +1,4 @@
+import { isUuid } from '../profile/contract';
 import type { ApiClient } from '../api/client';
 import { uuid4 } from '../community/contract';
 import type { Cancellation } from '../platform/contracts';
@@ -22,6 +23,7 @@ export interface AdminDiscussionRemovalGateway {
   management(
     target: AdminDiscussionRemovalTarget,
     cancel: Cancellation,
+    viewSpaceId?: string,
   ): Promise<AdminDiscussionRemovalManagement>;
   submit(
     command: AdminDiscussionRemovalCommand,
@@ -38,8 +40,11 @@ export class HttpAdminDiscussionRemovalGateway implements AdminDiscussionRemoval
   async management(
     raw: AdminDiscussionRemovalTarget,
     cancellation: Cancellation,
+    viewSpaceId?: string,
   ): Promise<AdminDiscussionRemovalManagement> {
     const target = decodeAdminDiscussionRemovalTarget(raw);
+    if (viewSpaceId !== undefined && !isUuid(viewSpaceId))
+      invalidAdminDiscussionRemoval();
     const result = await this.api.request(
       {
         path: '/v1/community/admin-discussion-removal/management',
@@ -49,9 +54,22 @@ export class HttpAdminDiscussionRemovalGateway implements AdminDiscussionRemoval
         successStatus: 200,
         decode: decodeAdminDiscussionRemovalManagement,
       },
-      { cancellation, query: { ...target, version: '2' } },
+      {
+        cancellation,
+        query: {
+          ...target,
+          ...(viewSpaceId === undefined
+            ? { version: '2' }
+            : { version: '3', viewSpaceId }),
+        },
+      },
     );
-    if (!sameAdminDiscussionRemovalTarget(result.target, target))
+    if (
+      !sameAdminDiscussionRemovalTarget(result.target, target) ||
+      (viewSpaceId !== undefined &&
+        (result.version !== 3 || result.viewSpaceId !== viewSpaceId)) ||
+      (viewSpaceId === undefined && result.version === 3)
+    )
       invalidAdminDiscussionRemoval();
     return result;
   }
@@ -78,7 +96,11 @@ export class HttpAdminDiscussionRemovalGateway implements AdminDiscussionRemoval
           clientRequestId: command.clientRequestId,
           expectedTargetVersion: command.expectedTargetVersion,
           action: command.action,
-          ...(command.version === 2 ? { version: 2 } : {}),
+          ...(command.version === 3
+            ? { version: 3, viewSpaceId: command.viewSpaceId }
+            : command.version === 2
+              ? { version: 2 }
+              : {}),
           target: { ...command.target },
           ...(command.punishment
             ? {

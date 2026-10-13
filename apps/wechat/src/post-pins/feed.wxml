@@ -1,6 +1,7 @@
 <template name="scoped-post-pin">
   <view wx:if="{{postPin.item}}" class="card">
     <view class="section-title">置顶 · {{postPin.item.pin.readState === 'guest' ? '登录后记录阅读' : postPin.item.pin.readState === 'read' ? '已读' : '未读'}} · 优先级 {{postPin.item.pin.level}}</view>
+    <view wx:if="{{postPin.item.post.isRelatedCampusSync}}" class="badge">来自 {{postPin.item.post.sourceRegion.name}} · 关联学校同步</view>
     <view wx:if="{{postPin.collapsed}}" class="meta" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">已读 · {{postPin.item.post.text}}</view>
     <view wx:else>
       <view class="author">{{postPin.item.post.author.displayName}} · {{postPin.item.post.author.kind === 'anonymous' ? '分身' : '公开身份'}}</view>

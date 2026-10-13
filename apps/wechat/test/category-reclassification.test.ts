@@ -784,3 +784,29 @@ test('native detail registers category management and metadata-only recovery out
     /post\.text|post\.images|post\.author|super_admin|school_admin/,
   );
 });
+
+test('related sync unsupported category capability has no targets and cannot confirm', async (t) => {
+  const s = harness(),
+    controller = s.make();
+  t.after(() => controller.dispose());
+  const unavailable = {
+    ...manage(),
+    canChange: false,
+    targets: [],
+    blocker: 'related_sync_unsupported' as const,
+  };
+  assert.deepEqual(decodeCategoryManagement(unavailable), unavailable);
+  for (const patch of [
+    { canChange: true },
+    { targets: ['scenery'] },
+    { blocker: 'other' },
+    { subjectId: otherId },
+  ])
+    assert.throws(() => decodeCategoryManagement({ ...unavailable, ...patch }));
+  s.gateway.management = async () => unavailable;
+  await controller.request(postId, 'scenery');
+  assert.equal(s.view().confirming, null);
+  assert.match(s.view().status, /关联校区同步内容暂不支持/);
+  await controller.submit();
+  assert.equal(s.commands.length, 0);
+});

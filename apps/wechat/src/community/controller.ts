@@ -43,7 +43,7 @@ export const reasonMessage = (code: string | null): string =>
     ADMIN_DISCUSSION_REMOVAL_UNAVAILABLE:
       '当前不能确认评论/回复管理状态；待确认的原请求请继续查询回执',
     ADMIN_DISCUSSION_REMOVAL_TARGET_NOT_ALLOWED:
-      '此评论/回复当前不适用于原发布地区管理员删除',
+      '此评论/回复当前不适用于所选地区的管理员删除',
     ADMIN_DISCUSSION_REMOVAL_OWN_CONTENT:
       '这是你发布的内容，请返回原讨论使用“删除我的评论”或“删除我的回复”',
     ADMIN_DISCUSSION_REMOVAL_STALE: '评论/回复状态已变化，请重新核验并确认',
@@ -51,7 +51,7 @@ export const reasonMessage = (code: string | null): string =>
     ADMIN_POST_REMOVAL_UNAVAILABLE:
       '当前不能确认帖子管理状态；待确认的原请求请继续查询回执',
     ADMIN_POST_REMOVAL_TARGET_NOT_ALLOWED:
-      '此帖当前不适用于原发布地区管理员删除',
+      '此帖当前不适用于所选地区的管理员删除',
     ADMIN_POST_REMOVAL_OWN_POST:
       '这是你发布的帖子，请返回帖子详情使用“删除我的帖子”',
     ADMIN_POST_REMOVAL_STALE: '帖子状态已变化，请重新核验并确认',

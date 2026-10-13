@@ -104,7 +104,8 @@ export function definitionScopeDecision(
     space.id !== scope.originalSpaceId ||
     space.operating_region_id !== scope.originalRegionId ||
     !['regional', 'global'].includes(space.kind) ||
-    scope.sync !== 'none'
+    (scope.sync !== 'none' &&
+      (space.kind !== 'regional' || !scope.originalRegionId))
   )
     return { kind: 'unavailable' };
   return { kind: 'allow', value: undefined };
@@ -182,7 +183,19 @@ export function reconstructDefinition(
     }
   }
   const version =
-    kind === 'post' ? (post.publication_envelope_version ?? 1) : 1;
+    kind === 'post'
+      ? (post.publication_envelope_version ?? 1)
+      : scope.sync === 'inherited_related'
+        ? 4
+        : 1;
+  if (
+    (post.publication_envelope_version === 4) !== (version === 4) ||
+    (version === 4 &&
+      (kind === 'post'
+        ? scope.sync !== 'related'
+        : scope.sync !== 'inherited_related'))
+  )
+    return { kind: 'unavailable' };
   if (
     kind === 'post' &&
     ((version === 3 &&
@@ -200,6 +213,12 @@ export function reconstructDefinition(
     const envelope = canonicalEnvelope({
       version,
       ...(version === 2 ? { allowAnonymousDm: post.allow_anonymous_dm } : {}),
+      ...(version === 4
+        ? {
+            allowAnonymousDm:
+              kind === 'post' ? (post.allow_anonymous_dm ?? null) : null,
+          }
+        : {}),
       ...(version === 3 ? { feedback: post.feedback } : {}),
       accountId: content.account_id,
       purpose: operationForKind(kind),
@@ -237,8 +256,11 @@ export function definitionMatchesApproval(
   currentMediaProved = false,
 ): boolean {
   return (
-    approvalDigest(stored.envelope) === accepted.digest &&
     canonicalEqual(stored.envelope, accepted.envelope) &&
+    // Equal canonical JSON has the same versioned digest. Reuse the accepted
+    // parser-owned envelope's digest rather than encoding its equal reconstructed
+    // copy again; this retains both independent equality and digest checks.
+    approvalDigest(accepted.envelope) === accepted.digest &&
     (!stored.envelope.images.length || currentMediaProved)
   );
 }

@@ -1,3 +1,12 @@
+import {
+  adminPostRemovalManagementQuerySchema,
+  adminPostRemovalCommandSchema,
+  adminPostRemovalRequestIdSchema,
+} from '../src/community/admin-removal/contracts.js';
+import {
+  documentScopedRemovalQuery,
+  documentScopedRemovalInputs,
+} from './scoped-removal-openapi-query.js';
 import 'reflect-metadata';
 import { readFile, writeFile } from 'node:fs/promises';
 import { format } from 'prettier';
@@ -35,13 +44,13 @@ export async function createAdminPostRemovalOpenApiDocument(): Promise<OpenAPIOb
   }).compile();
   const app = testing.createNestApplication({ logger: false });
   try {
-    return SwaggerModule.createDocument(
+    const document = SwaggerModule.createDocument(
       app,
       new DocumentBuilder()
         .setOpenAPIVersion('3.0.3')
         .setTitle('WhaleU scoped administrator post removal')
         .setDescription(
-          'Remove one currently readable native-origin post in its original regional scope with sync:none. Named and anonymous posts remain content targets only; private authors never become public account locators. Exact school-admin or super-admin grant, phone, Safety, Review, source version and current Media remain required. The canonical tombstone closes pins and creates the existing durable bounded cleanup obligation, plus one independent private author notice. Version1 creates no account punishment; explicit version2 may atomically issue Safety mute or suspension for the exact original author. No owner-deletion Experience, jury verdict, role grant or provider is created. Actor-owned recovery and cancellation need only the same active account and current session token.',
+          'Remove one currently readable canonical native post. Legacy v1 and compound v2 retain original-region or super-admin grants, including exact v4 reconstruction; v2 retains protected-target checks. Pure-removal v3 requires explicit viewSpaceId and an exact current destination-region or super-admin grant for current related distribution, and carries no punishment, selection or punishment options. Named and anonymous posts remain content targets only; private authors never become public account locators. Exact school-admin or super-admin grant, phone, Safety, Review, source version and current Media remain required. The canonical tombstone closes pins and creates the existing durable bounded cleanup obligation, plus one independent private author notice. Version1 creates no account punishment; explicit version2 may atomically issue Safety mute or suspension for the exact original author. No owner-deletion Experience, jury verdict, role grant or provider is created. Actor-owned recovery and cancellation need only the same active account and current session token.',
         )
         .setVersion('1')
         .addSecurity('accessToken', {
@@ -57,6 +66,18 @@ export async function createAdminPostRemovalOpenApiDocument(): Promise<OpenAPIOb
         excludeDynamicDefaults: true,
       },
     );
+    documentScopedRemovalQuery(
+      document,
+      '/v1/community/admin-post-removal/management',
+      adminPostRemovalManagementQuerySchema,
+    );
+    documentScopedRemovalInputs(
+      document,
+      '/v1/community/admin-post-removal',
+      adminPostRemovalCommandSchema,
+      adminPostRemovalRequestIdSchema,
+    );
+    return document;
   } finally {
     await app.close();
   }

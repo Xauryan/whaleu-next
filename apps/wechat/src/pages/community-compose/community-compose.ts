@@ -14,6 +14,7 @@ Page({
   copySource: null as { kind: 'comment' | 'reply'; id: string } | null,
   onLoad(
     query: {
+      viewSpaceId?: string;
       spaceId?: string;
       category?: string;
       postId?: string;
@@ -29,6 +30,7 @@ Page({
         ? { kind: 'comment', id: query.copyCommentId }
         : null;
     if (
+      (query.viewSpaceId !== undefined && !isUuid(query.viewSpaceId)) ||
       (query.copyReplyId !== undefined && !isUuid(query.copyReplyId)) ||
       (query.copyCommentId !== undefined && !isUuid(query.copyCommentId)) ||
       (query.copyReplyId !== undefined && query.copyCommentId !== undefined)
@@ -46,6 +48,7 @@ Page({
         isUuid(query.rootCommentId) &&
         (query.targetReplyId === undefined || isUuid(query.targetReplyId))
           ? {
+              ...(query.viewSpaceId ? { viewSpaceId: query.viewSpaceId } : {}),
               operation: 'publish_reply',
               postId: query.postId,
               rootCommentId: query.rootCommentId,
@@ -55,9 +58,14 @@ Page({
       return;
     }
     this.target = isUuid(query.postId)
-      ? { operation: 'publish_comment', postId: query.postId }
+      ? {
+          operation: 'publish_comment',
+          postId: query.postId,
+          ...(query.viewSpaceId ? { viewSpaceId: query.viewSpaceId } : {}),
+        }
       : isUuid(query.spaceId) && isCategory(query.category)
         ? {
+            ...(query.viewSpaceId ? { viewSpaceId: query.viewSpaceId } : {}),
             operation: 'publish_post',
             spaceId: query.spaceId,
             category: query.category,
@@ -137,6 +145,9 @@ Page({
   },
   onMode(event: { currentTarget: { dataset: { mode: string } } }) {
     this.controller?.setAuthorMode(event.currentTarget.dataset.mode);
+  },
+  onRelatedCampusSync(event: { detail: { value: boolean } }) {
+    this.controller?.setRelatedCampusSync(event.detail.value);
   },
   onAllowAnonymousDm(event: { detail: { value: boolean } }) {
     this.controller?.setAllowAnonymousDm(event.detail.value);

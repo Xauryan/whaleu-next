@@ -277,7 +277,11 @@ export interface CommunityGateway {
     cancel: Cancellation,
   ): Promise<CommentCapabilities>;
   feed(query: FeedQuery, cancel: Cancellation): Promise<Feed>;
-  post(postId: string, cancel: Cancellation): Promise<Post>;
+  post(
+    postId: string,
+    cancel: Cancellation,
+    viewSpaceId?: string,
+  ): Promise<Post>;
   comments(
     postId: string,
     after: string | null,
@@ -322,6 +326,13 @@ const page = (after: string | null) => {
   if (!cursor(after)) invalid();
   return { limit: 10, ...(after ? { cursor: after } : {}) };
 };
+/** Identical explicit JSON serialization for Review and final publication. */
+const postComponentBody = (component: NonNullable<PostIntent['component']>) =>
+  component.kind === 'poll'
+    ? { ...component, options: [...component.options] }
+    : component.kind === 'formation'
+      ? { ...component, contacts: { ...component.contacts } }
+      : { kind: 'none' as const };
 export class HttpCommunityGateway implements CommunityGateway {
   constructor(private readonly api: ApiClient) {}
   async feedbackTopic(
@@ -416,10 +427,13 @@ export class HttpCommunityGateway implements CommunityGateway {
             ? { feedback: { contacts: { ...payload.feedback.contacts } } }
             : {}),
           ...(payload.component
-            ? { component: { kind: 'none' as const } }
+            ? { component: postComponentBody(payload.component) }
             : {}),
           ...(payload.allowAnonymousDm !== undefined
             ? { allowAnonymousDm: payload.allowAnonymousDm }
+            : {}),
+          ...(payload.syncToRelatedCampuses === true
+            ? { syncToRelatedCampuses: true }
             : {}),
         };
       }
@@ -1051,7 +1065,8 @@ export class HttpCommunityGateway implements CommunityGateway {
     if (
       result.items.some(
         (item) =>
-          item.space.id !== query.spaceId ||
+          (item.space.id !== query.spaceId &&
+            item.isRelatedCampusSync !== true) ||
           (query.category && item.category !== query.category) ||
           (query.tradingSubtype &&
             (item.trading?.subtype.kind !== 'known' ||
@@ -1062,10 +1077,19 @@ export class HttpCommunityGateway implements CommunityGateway {
       invalid();
     return result;
   }
-  async post(postId: string, cancel: Cancellation): Promise<Post> {
+  async post(
+    postId: string,
+    cancel: Cancellation,
+    viewSpaceId?: string,
+  ): Promise<Post> {
     const result = await this.api.request(
       endpoint(`/v1/community/posts/${id(postId)}`, decodePost),
-      { cancellation: cancel },
+      {
+        cancellation: cancel,
+        ...(viewSpaceId !== undefined
+          ? { query: { viewSpaceId: id(viewSpaceId) } }
+          : {}),
+      },
     );
     if (result.id !== postId) invalid();
     return result;
@@ -1146,12 +1170,7 @@ export class HttpCommunityGateway implements CommunityGateway {
           imageAssetIds: [...checked.imageAssetIds],
           ...(component
             ? {
-                component:
-                  component.kind === 'poll'
-                    ? { ...component, options: [...component.options] }
-                    : component.kind === 'formation'
-                      ? { ...component, contacts: { ...component.contacts } }
-                      : { kind: 'none' },
+                component: postComponentBody(component),
               }
             : {}),
         },

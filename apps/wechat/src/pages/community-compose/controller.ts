@@ -67,7 +67,7 @@ import {
 import type { PendingAttempt } from '../../community/pending-attempt';
 import type { CommunityRuntime } from '../../community/runtime';
 import type { Cancellation } from '../../platform/contracts';
-export type ComposeTarget =
+export type ComposeTarget = { readonly viewSpaceId?: string } & (
   | {
       readonly operation: 'publish_post';
       readonly spaceId: string;
@@ -79,8 +79,14 @@ export type ComposeTarget =
       readonly postId: string;
       readonly rootCommentId: string;
       readonly targetReplyId: string | null;
-    };
+    }
+);
 export interface ComposeView extends CommunityView {
+  readonly syncToRelatedCampuses: boolean;
+  readonly canChooseRelatedCampusSync: boolean;
+  readonly relatedCampusSyncNotice: string;
+  readonly viewSpaceId: string;
+  readonly viewSpaceQuery: string;
   readonly isFeedback: boolean;
   readonly feedbackDraft: FeedbackDraft;
   readonly allowAnonymousDm: boolean;
@@ -126,6 +132,11 @@ export interface ComposeView extends CommunityView {
 }
 export const initialComposeView = (): ComposeView => ({
   ...initialCommunityView(),
+  syncToRelatedCampuses: false,
+  canChooseRelatedCampusSync: false,
+  relatedCampusSyncNotice: '',
+  viewSpaceId: '',
+  viewSpaceQuery: '',
   isFeedback: false,
   feedbackDraft: emptyFeedbackDraft(),
   allowAnonymousDm: false,
@@ -376,7 +387,11 @@ export class ComposeController extends CommunityController<ComposeView> {
         const [profile, post] = await Promise.all([
           this.runtime.profiles!.profile(cancel),
           target.operation !== 'publish_post'
-            ? this.runtime.gateway!.post(target.postId, cancel)
+            ? this.runtime.gateway!.post(
+                target.postId,
+                cancel,
+                target.viewSpaceId,
+              )
             : Promise.resolve(null),
         ]);
         if (profile.accountId !== accountId)
@@ -524,6 +539,24 @@ export class ComposeController extends CommunityController<ComposeView> {
         this.identityConflict = chosen.conflict;
         this.update({
           loaded: true,
+          viewSpaceQuery: target.viewSpaceId
+            ? `&viewSpaceId=${encodeURIComponent(target.viewSpaceId)}`
+            : '',
+          viewSpaceId:
+            target.viewSpaceId ??
+            (target.operation === 'publish_post' ? target.spaceId : ''),
+          syncToRelatedCampuses: false,
+          canChooseRelatedCampusSync:
+            target.operation === 'publish_post' &&
+            !trading &&
+            !feedback &&
+            result.capability?.relatedCampusSync?.availability === 'allowed',
+          relatedCampusSyncNotice:
+            target.operation === 'publish_post' && !trading && !feedback
+              ? result.capability?.relatedCampusSync?.availability === 'allowed'
+                ? '自愿将这一条帖子展示给当前关联学校。评论、点赞和分身共用同一条内容；关联关系变化会改变展示范围。不会公开你的具体身份校区。'
+                : '当前无法启用关联学校同步，仍可按原范围发帖。需身份校区与发帖学校一致，并由服务端核验学校配置和同步策略。'
+              : '',
           isTrading: trading,
           isFeedback: feedback,
           feedbackDraft: feedback
@@ -585,6 +618,21 @@ export class ComposeController extends CommunityController<ComposeView> {
         supportsTextReview(pending) && !!this.runtime.gateway?.cancelReview,
       reviewStatus: '',
       loaded: true,
+      viewSpaceQuery: pending.viewSpaceId
+        ? `&viewSpaceId=${encodeURIComponent(pending.viewSpaceId)}`
+        : '',
+      viewSpaceId:
+        pending.viewSpaceId ??
+        (pending.operation === 'publish_post' ? pending.payload.spaceId : ''),
+      syncToRelatedCampuses:
+        pending.operation === 'publish_post' &&
+        pending.payload.syncToRelatedCampuses === true,
+      canChooseRelatedCampusSync: false,
+      relatedCampusSyncNotice:
+        pending.operation === 'publish_post' &&
+        pending.payload.syncToRelatedCampuses === true
+          ? '原请求已选择关联学校同步；恢复、重试和取消始终使用这个原始选择。'
+          : '',
       frozen: true,
       canSubmit: false,
       text: pending.payload.text,
@@ -708,6 +756,16 @@ export class ComposeController extends CommunityController<ComposeView> {
     this.persistDraft();
     this.recompute();
   }
+  setRelatedCampusSync(value: boolean): void {
+    if (
+      !this.editable() ||
+      !this.view.canChooseRelatedCampusSync ||
+      this.target?.operation !== 'publish_post'
+    )
+      return;
+    this.update({ syncToRelatedCampuses: value === true });
+    this.recompute();
+  }
   setAllowAnonymousDm(value: boolean): void {
     if (
       !this.editable() ||
@@ -720,7 +778,8 @@ export class ComposeController extends CommunityController<ComposeView> {
     this.recompute();
   }
   setRestricted(restricted: boolean): void {
-    if (!this.editable() || !this.view.canDisableComments) return;
+    if (!this.editable() || (restricted && !this.view.canDisableComments))
+      return;
     this.update({ commentsPolicy: restricted ? 'restricted' : 'open' });
     this.persistDraft();
     this.recompute();
@@ -920,10 +979,21 @@ export class ComposeController extends CommunityController<ComposeView> {
   private recompute(): void {
     const cap = this.capabilities,
       isComment = !!this.target && this.target.operation !== 'publish_post',
-      publication = isComment ? this.commentCapabilities : cap?.publish,
+      publication = isComment
+        ? this.commentCapabilities
+        : this.view.syncToRelatedCampuses
+          ? cap?.relatedCampusSync
+          : cap?.publish,
       modes = isComment
         ? this.commentCapabilities?.authorModes
-        : cap?.authorModes;
+        : this.view.syncToRelatedCampuses
+          ? (cap?.relatedCampusSync?.authorModes ?? cap?.authorModes)
+          : cap?.authorModes,
+      canDisableComments =
+        !isComment &&
+        (this.view.syncToRelatedCampuses
+          ? cap?.relatedCampusSync?.canDisableComments === true
+          : cap?.canDisableComments === true);
     let blocker = '';
     if (isComment && this.mediaMode === 'legacy' && this.runtime.mediaBatch)
       blocker = '请先恢复原帖子的图片操作';
@@ -934,14 +1004,16 @@ export class ComposeController extends CommunityController<ComposeView> {
     else if (!this.draftSaved) blocker = '草稿尚未可靠保存，暂不能发布';
     else if (!publication || publication.availability !== 'allowed')
       blocker = reasonMessage(publication?.reason ?? 'COMMUNITY_UNAVAILABLE');
+    else if (
+      this.view.syncToRelatedCampuses &&
+      (isComment || cap?.relatedCampusSync?.availability !== 'allowed')
+    )
+      blocker = '关联学校同步资格已不可确认，请重新加载并明确选择';
     else if (!modes?.includes(this.view.authorMode))
       blocker = '所选身份不被允许；不会自动改成公开身份，请自行选择';
     else if (isComment && !this.parentPost?.viewer.canComment)
       blocker = '此帖当前不可评论';
-    else if (
-      this.view.commentsPolicy === 'restricted' &&
-      !cap?.canDisableComments
-    )
+    else if (this.view.commentsPolicy === 'restricted' && !canDisableComments)
       blocker = '当前账号无权限制评论，请手动改为开放评论';
     else if (
       !boundedText(
@@ -963,6 +1035,11 @@ export class ComposeController extends CommunityController<ComposeView> {
     if (
       !blocker &&
       this.runtime.gateway?.submitReview &&
+      !this.view.syncToRelatedCampuses &&
+      !(
+        isComment &&
+        this.commentCapabilities?.inheritsRelatedCampusSync === true
+      ) &&
       modes?.length === 1 &&
       modes[0] === 'named' &&
       (isComment || cap?.mediaAvailability === 'unavailable') &&
@@ -1030,6 +1107,7 @@ export class ComposeController extends CommunityController<ComposeView> {
       blocker = '请先确认原图片的上传、审核或取消结果';
     this.update({
       blocker,
+      canDisableComments,
       canSubmit: !blocker && !this.view.frozen && this.view.loaded,
       canOpenIdentityCampus:
         this.draftSaved && !this.view.frozen && this.view.loaded,
@@ -1064,6 +1142,7 @@ export class ComposeController extends CommunityController<ComposeView> {
         ? { feedback: feedbackDraftInput(this.view.feedbackDraft) }
         : {}),
       allowAnonymousDm: this.view.allowAnonymousDm,
+      syncToRelatedCampuses: this.view.syncToRelatedCampuses,
       text: this.view.text.replace(/\r\n/g, '\n'),
       authorMode: this.view.authorMode,
       commentsPolicy: this.view.commentsPolicy,
@@ -1090,6 +1169,9 @@ export class ComposeController extends CommunityController<ComposeView> {
                 version: 1,
                 accountId,
                 operation: 'publish_post',
+                ...(target.viewSpaceId
+                  ? { viewSpaceId: target.viewSpaceId }
+                  : {}),
                 payload: decodePostIntent({
                   clientRequestId: requestId,
                   spaceId: target.spaceId,
@@ -1104,6 +1186,9 @@ export class ComposeController extends CommunityController<ComposeView> {
                   ...(draft.authorMode === 'named' && !draft.feedback
                     ? { allowAnonymousDm: draft.allowAnonymousDm }
                     : {}),
+                  ...(draft.syncToRelatedCampuses
+                    ? { syncToRelatedCampuses: true }
+                    : {}),
                 }),
               }
             : target.operation === 'publish_reply'
@@ -1111,6 +1196,9 @@ export class ComposeController extends CommunityController<ComposeView> {
                   version: 1,
                   accountId,
                   operation: 'publish_reply',
+                  ...(target.viewSpaceId
+                    ? { viewSpaceId: target.viewSpaceId }
+                    : {}),
                   postId: target.postId,
                   rootCommentId: target.rootCommentId,
                   payload: decodeReplyIntent({
@@ -1125,6 +1213,9 @@ export class ComposeController extends CommunityController<ComposeView> {
                   version: 1,
                   accountId,
                   operation: 'publish_comment',
+                  ...(target.viewSpaceId
+                    ? { viewSpaceId: target.viewSpaceId }
+                    : {}),
                   postId: target.postId,
                   payload: decodeCommentIntent({
                     clientRequestId: requestId,
@@ -1184,13 +1275,20 @@ export class ComposeController extends CommunityController<ComposeView> {
     // Recovery can outlive the original capability snapshot; never infer eligibility from a review.
     const capability =
       attempt.operation === 'publish_post'
-        ? (
-            await this.runtime.gateway!.capabilities(
+        ? await this.runtime
+            .gateway!.capabilities(
               attempt.payload.spaceId,
               attempt.payload.category,
               cancel,
             )
-          ).publish
+            .then((current) =>
+              attempt.payload.syncToRelatedCampuses === true
+                ? (current.relatedCampusSync ?? {
+                    availability: 'unavailable' as const,
+                    reason: 'COMMUNITY_UNAVAILABLE',
+                  })
+                : current.publish,
+            )
         : await this.runtime.gateway!.commentCapabilities(
             attempt.postId,
             cancel,
@@ -1718,10 +1816,18 @@ export class ComposeController extends CommunityController<ComposeView> {
     this.mediaAction = null;
     this.uploader?.dispose();
     this.batcher?.dispose();
+    this.update({
+      syncToRelatedCampuses: false,
+      canChooseRelatedCampusSync: false,
+    });
     super.dispose();
   }
   override cancel(): void {
     super.cancel();
+    if (!this.pending) {
+      this.update({ syncToRelatedCampuses: false });
+      this.recompute();
+    }
     if (this.pending)
       this.update({ frozen: true, canSubmit: false, status: '发布结果待确认' });
   }

@@ -23,7 +23,7 @@ import {
   type PostIntent,
   type Receipt,
 } from './contract';
-export type PendingAttempt =
+export type PendingAttempt = { readonly viewSpaceId?: string } & (
   | {
       readonly version: 1;
       readonly accountId: string;
@@ -44,11 +44,18 @@ export type PendingAttempt =
       readonly operation: 'publish_comment';
       readonly postId: string;
       readonly payload: CommentIntent;
-    };
+    }
+);
 function decodeAttempt(value: unknown, accountId: string): PendingAttempt {
   if (!isRecord(value)) invalid();
+  const hasView = Object.prototype.hasOwnProperty.call(value, 'viewSpaceId');
+  if (hasView && !isUuid(value.viewSpaceId)) invalid();
+  const viewContext = hasView
+    ? { viewSpaceId: value.viewSpaceId as string }
+    : {};
   if (value.operation === 'publish_reply') {
     exact(value, [
+      ...(hasView ? ['viewSpaceId'] : []),
       'version',
       'accountId',
       'operation',
@@ -67,6 +74,7 @@ function decodeAttempt(value: unknown, accountId: string): PendingAttempt {
     const payload = decodeReplyIntent(value.payload);
     if (payload.targetReplyId === value.rootCommentId) invalid();
     return Object.freeze({
+      ...viewContext,
       version: 1,
       accountId,
       operation: 'publish_reply',
@@ -76,7 +84,13 @@ function decodeAttempt(value: unknown, accountId: string): PendingAttempt {
     });
   }
   if (value.operation === 'publish_post') {
-    exact(value, ['version', 'accountId', 'operation', 'payload']);
+    exact(value, [
+      'version',
+      'accountId',
+      'operation',
+      'payload',
+      ...(hasView ? ['viewSpaceId'] : []),
+    ]);
     if (
       value.version !== 1 ||
       value.accountId !== accountId ||
@@ -84,13 +98,21 @@ function decodeAttempt(value: unknown, accountId: string): PendingAttempt {
     )
       invalid();
     return Object.freeze({
+      ...viewContext,
       version: 1,
       accountId,
       operation: 'publish_post',
       payload: decodePostIntent(value.payload),
     });
   }
-  exact(value, ['version', 'accountId', 'operation', 'postId', 'payload']);
+  exact(value, [
+    'version',
+    'accountId',
+    'operation',
+    'postId',
+    'payload',
+    ...(hasView ? ['viewSpaceId'] : []),
+  ]);
   if (
     value.version !== 1 ||
     value.accountId !== accountId ||
@@ -100,6 +122,7 @@ function decodeAttempt(value: unknown, accountId: string): PendingAttempt {
   )
     invalid();
   return Object.freeze({
+    ...viewContext,
     version: 1,
     accountId,
     operation: 'publish_comment',

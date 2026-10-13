@@ -1,0 +1,115 @@
+[
+  {
+    "envelope": {
+      "version": 1,
+      "accountId": "10000000-0000-4000-8000-000000000003",
+      "purpose": "publish_post",
+      "spaceId": "10000000-0000-4000-8000-000000000001",
+      "category": "discussion",
+      "authorMode": "named",
+      "commentsPolicy": "open",
+      "postId": null,
+      "rootCommentId": null,
+      "targetReplyId": null,
+      "text": "Golden text",
+      "images": [],
+      "component": {
+        "kind": "none"
+      },
+      "trading": null,
+      "scope": {
+        "originalSpaceId": "10000000-0000-4000-8000-000000000001",
+        "originalRegionId": "10000000-0000-4000-8000-000000000002",
+        "authorOriginRegionId": "10000000-0000-4000-8000-000000000002",
+        "identityRegionId": "10000000-0000-4000-8000-000000000002",
+        "topologySnapshotId": "10000000-0000-4000-8000-000000000004",
+        "sync": "none",
+        "configurationRevisionId": null,
+        "identityCampusId": null,
+        "identitySelectionId": null,
+        "affiliationSnapshotId": null,
+        "affiliationAssertionId": null
+      }
+    },
+    "canonical": "{\"accountId\":\"10000000-0000-4000-8000-000000000003\",\"authorMode\":\"named\",\"category\":\"discussion\",\"commentsPolicy\":\"open\",\"component\":{\"kind\":\"none\"},\"images\":[],\"postId\":null,\"purpose\":\"publish_post\",\"rootCommentId\":null,\"scope\":{\"affiliationAssertionId\":null,\"affiliationSnapshotId\":null,\"authorOriginRegionId\":\"10000000-0000-4000-8000-000000000002\",\"configurationRevisionId\":null,\"identityCampusId\":null,\"identityRegionId\":\"10000000-0000-4000-8000-000000000002\",\"identitySelectionId\":null,\"originalRegionId\":\"10000000-0000-4000-8000-000000000002\",\"originalSpaceId\":\"10000000-0000-4000-8000-000000000001\",\"sync\":\"none\",\"topologySnapshotId\":\"10000000-0000-4000-8000-000000000004\"},\"spaceId\":\"10000000-0000-4000-8000-000000000001\",\"targetReplyId\":null,\"text\":\"Golden text\",\"trading\":null,\"version\":1}",
+    "digest": "3720c04047c6a63b2ee7b8ccbcfcaf0326e5176ec606449c1245c0d7cd845767"
+  },
+  {
+    "envelope": {
+      "version": 2,
+      "accountId": "10000000-0000-4000-8000-000000000003",
+      "purpose": "publish_post",
+      "spaceId": "10000000-0000-4000-8000-000000000001",
+      "category": "discussion",
+      "authorMode": "named",
+      "commentsPolicy": "open",
+      "postId": null,
+      "rootCommentId": null,
+      "targetReplyId": null,
+      "text": "Golden text",
+      "images": [],
+      "component": {
+        "kind": "none"
+      },
+      "trading": null,
+      "scope": {
+        "originalSpaceId": "10000000-0000-4000-8000-000000000001",
+        "originalRegionId": "10000000-0000-4000-8000-000000000002",
+        "authorOriginRegionId": "10000000-0000-4000-8000-000000000002",
+        "identityRegionId": "10000000-0000-4000-8000-000000000002",
+        "topologySnapshotId": "10000000-0000-4000-8000-000000000004",
+        "sync": "none",
+        "configurationRevisionId": null,
+        "identityCampusId": null,
+        "identitySelectionId": null,
+        "affiliationSnapshotId": null,
+        "affiliationAssertionId": null
+      },
+      "allowAnonymousDm": false
+    },
+    "canonical": "{\"accountId\":\"10000000-0000-4000-8000-000000000003\",\"allowAnonymousDm\":false,\"authorMode\":\"named\",\"category\":\"discussion\",\"commentsPolicy\":\"open\",\"component\":{\"kind\":\"none\"},\"images\":[],\"postId\":null,\"purpose\":\"publish_post\",\"rootCommentId\":null,\"scope\":{\"affiliationAssertionId\":null,\"affiliationSnapshotId\":null,\"authorOriginRegionId\":\"10000000-0000-4000-8000-000000000002\",\"configurationRevisionId\":null,\"identityCampusId\":null,\"identityRegionId\":\"10000000-0000-4000-8000-000000000002\",\"identitySelectionId\":null,\"originalRegionId\":\"10000000-0000-4000-8000-000000000002\",\"originalSpaceId\":\"10000000-0000-4000-8000-000000000001\",\"sync\":\"none\",\"topologySnapshotId\":\"10000000-0000-4000-8000-000000000004\"},\"spaceId\":\"10000000-0000-4000-8000-000000000001\",\"targetReplyId\":null,\"text\":\"Golden text\",\"trading\":null,\"version\":2}",
+    "digest": "9e76c4d2afd2545815ec20ce4522f6136e0a99e4ec3c6007700186c9b0af8bfc"
+  },
+  {
+    "envelope": {
+      "version": 3,
+      "accountId": "10000000-0000-4000-8000-000000000003",
+      "purpose": "publish_post",
+      "spaceId": "10000000-0000-4000-8000-000000000001",
+      "category": "feedback",
+      "authorMode": "named",
+      "commentsPolicy": "open",
+      "postId": null,
+      "rootCommentId": null,
+      "targetReplyId": null,
+      "text": "Golden text",
+      "images": [],
+      "component": {
+        "kind": "none"
+      },
+      "trading": null,
+      "scope": {
+        "originalSpaceId": "10000000-0000-4000-8000-000000000001",
+        "originalRegionId": null,
+        "authorOriginRegionId": "10000000-0000-4000-8000-000000000002",
+        "identityRegionId": "10000000-0000-4000-8000-000000000002",
+        "topologySnapshotId": "10000000-0000-4000-8000-000000000004",
+        "sync": "none",
+        "configurationRevisionId": null,
+        "identityCampusId": null,
+        "identitySelectionId": null,
+        "affiliationSnapshotId": null,
+        "affiliationAssertionId": null
+      },
+      "feedback": {
+        "contacts": {
+          "wechat": "",
+          "qq": "",
+          "phone": ""
+        }
+      }
+    },
+    "canonical": "{\"accountId\":\"10000000-0000-4000-8000-000000000003\",\"authorMode\":\"named\",\"category\":\"feedback\",\"commentsPolicy\":\"open\",\"component\":{\"kind\":\"none\"},\"feedback\":{\"contacts\":{\"phone\":\"\",\"qq\":\"\",\"wechat\":\"\"}},\"images\":[],\"postId\":null,\"purpose\":\"publish_post\",\"rootCommentId\":null,\"scope\":{\"affiliationAssertionId\":null,\"affiliationSnapshotId\":null,\"authorOriginRegionId\":\"10000000-0000-4000-8000-000000000002\",\"configurationRevisionId\":null,\"identityCampusId\":null,\"identityRegionId\":\"10000000-0000-4000-8000-000000000002\",\"identitySelectionId\":null,\"originalRegionId\":null,\"originalSpaceId\":\"10000000-0000-4000-8000-000000000001\",\"sync\":\"none\",\"topologySnapshotId\":\"10000000-0000-4000-8000-000000000004\"},\"spaceId\":\"10000000-0000-4000-8000-000000000001\",\"targetReplyId\":null,\"text\":\"Golden text\",\"trading\":null,\"version\":3}",
+    "digest": "974aa16e3849fa7c8f548a3fa5f4b9e0c67ec311faaf4e70a6c8d42606f2c1df"
+  }
+]

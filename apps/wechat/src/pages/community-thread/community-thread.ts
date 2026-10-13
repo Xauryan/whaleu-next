@@ -57,17 +57,25 @@ Page({
   mutations: undefined as DiscussionMutationController | undefined,
   identityOverlay: undefined as IdentityOverlayController | undefined,
   postId: '',
+  viewSpaceId: '',
   rootCommentId: '',
   replyId: null as string | null,
   overlayTargets: '',
   onLoad(
-    query: { postId?: string; rootCommentId?: string; replyId?: string } = {},
+    query: {
+      postId?: string;
+      rootCommentId?: string;
+      replyId?: string;
+      viewSpaceId?: string;
+    } = {},
   ) {
     const valid =
       isUuid(query.postId) &&
+      (query.viewSpaceId === undefined || isUuid(query.viewSpaceId)) &&
       isUuid(query.rootCommentId) &&
       (query.replyId === undefined || isUuid(query.replyId));
     this.postId = valid ? query.postId! : '';
+    this.viewSpaceId = isUuid(query.viewSpaceId) ? query.viewSpaceId : '';
     this.rootCommentId = valid ? query.rootCommentId! : '';
     this.replyId = valid ? (query.replyId ?? null) : null;
     this.setData({ requestedReplyId: this.replyId ?? '' });
@@ -239,6 +247,7 @@ Page({
           void this.identityOverlay?.show(targets);
         }
       },
+      this.viewSpaceId || undefined,
     );
     void this.controller.load();
   },
@@ -559,7 +568,7 @@ Page({
       this.mediaGalleryController?.clear();
       this.identityOverlay?.clear();
       wx.navigateTo?.({
-        url: `/pages/community-detail/community-detail?postId=${encodeURIComponent(this.postId)}&rootCommentId=${encodeURIComponent(selected.id)}`,
+        url: `/pages/community-detail/community-detail?postId=${encodeURIComponent(this.postId)}&rootCommentId=${encodeURIComponent(selected.id)}${this.viewSpaceId ? `&viewSpaceId=${encodeURIComponent(this.viewSpaceId)}` : ''}`,
         success: () => undefined,
         fail: () => this.setData({ error: '暂不能返回自己的评论，请重试' }),
       });
@@ -575,7 +584,7 @@ Page({
     }
     wx.navigateTo({
       success: () => undefined,
-      url: `/pages/admin-discussion-removal/admin-discussion-removal?kind=${kind}&id=${encodeURIComponent(selected.id)}`,
+      url: `/pages/admin-discussion-removal/admin-discussion-removal?kind=${kind}&id=${encodeURIComponent(selected.id)}${this.viewSpaceId && this.viewSpaceId !== this.data.post?.space.id ? `&viewSpaceId=${encodeURIComponent(this.viewSpaceId)}` : ''}`,
       fail: () => this.setData({ error: '暂不能打开评论/回复管理，请重试' }),
     });
   },

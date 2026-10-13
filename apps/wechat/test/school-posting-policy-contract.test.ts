@@ -72,7 +72,7 @@ test('posting policy strictly separates absent, active, expired and unavailable 
     { ...active, editable: true, blocker: 'related_sync_unsupported' },
     { ...active, state: 'expired' },
     { ...active, sourceReference: 'private' },
-    { ...active, policy: { ...active.policy, relatedSyncEnabled: false } },
+    { ...active, policy: { ...active.policy, relatedSyncEnabled: 'false' } },
   ])
     assert.throws(() => decodePostingPolicyView(value));
 });

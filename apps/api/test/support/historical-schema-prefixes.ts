@@ -1,0 +1,25 @@
+// Every entry names an intentionally pinned integration fixture boundary. This
+// is not an arbitrary maximum-version compatibility mode.
+export const historicalPrefixes = new Map<number, string>([
+  [30, 'admin-discussion-removal-upgrade'],
+  [52, 'ratings-deletion-upgrade'],
+  [55, 'ratings-target-deletion-integrity before upgrade'],
+  [56, 'ratings-target-deletion-integrity / target-edit before upgrade'],
+  [57, 'ratings-target-edit-integrity / category before upgrade'],
+  [58, 'rating-category-upgrade'],
+  [61, 'ratings-scoped-upgrade'],
+  [65, 'ratings-target-cover and category-management predecessor'],
+  [69, 'ratings-category-management-upgrade'],
+  [82, 'ratings-discussion-media Media2 predecessor'],
+  [83, 'ratings-discussion-media-predecessor-functions'],
+  [87, 'rating-category-icon-old-schema / media foundation predecessor'],
+  [88, 'category-icon-media-foundation'],
+  [94, 'rating-category-digest-serialization predecessor'],
+  [95, 'rating-category-digest / release-budget predecessor'],
+  [96, 'rating-release-budget-octets'],
+  [122, 'window-discussion-media-upgrade'],
+  [124, 'major-discussion-media-upgrade'],
+  [132, 'historical-command-session-retention predecessor'],
+  [134, 'historical-command-session-retention exact terminal boundary'],
+  [137, 'related-sync native predecessor and additive replay upgrade'],
+]);

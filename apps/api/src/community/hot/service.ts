@@ -1,7 +1,16 @@
+import { CommunityDistributionService } from '../related-sync/service.js';
+import type {
+  CommunityDistributionScope,
+  RelatedCampusDisplay,
+} from '../related-sync/contracts.js';
+import { distributionCursorScope } from '../cursor.js';
 import { AccountPolicy } from '../../safety/account-policy/decorator.js';
-import { resolvePostCategories } from '../category-reclassification/read-proof.js';
+import {
+  resolvePostCategories,
+  resolvePostCategory,
+} from '../category-reclassification/read-proof.js';
 import { currentCategoryCursorScope } from '../current-category-cursor.js';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { APP_CONFIG } from '../../config/config.js';
 import type { RuntimeConfig } from '../../config/config.js';
@@ -55,6 +64,9 @@ export class HotFeedService {
     @Inject(HotRepository) private readonly hot: HotRepository,
     @Inject(HotScoreRepository) private readonly scores: HotScoreRepository,
     @Inject(HotScoreStorage) private readonly storage: HotScoreStorage,
+    @Optional()
+    @Inject(CommunityDistributionService)
+    private readonly distribution?: CommunityDistributionService,
   ) {}
   private async allowed(
     post: StoredPost,
@@ -63,20 +75,58 @@ export class HotFeedService {
     clock: string,
     actor: string | null,
     tx: PoolClient,
-  ): Promise<boolean> {
-    if (!(await this.hot.structurallyAllowed(post.id, space, query, clock, tx)))
-      return false;
+    distribution?: CommunityDistributionScope,
+  ): Promise<RelatedCampusDisplay | null> {
+    if (
+      !(await this.hot.structurallyAllowed(
+        post.id,
+        space,
+        query,
+        clock,
+        tx,
+        distribution,
+      ))
+    )
+      return null;
     if (
       post.category === 'trading' &&
       !(await this.hot.tradingAllowed(post.id, tx))
     )
-      return false;
-    return this.access.visible(actor, post, tx, 'list_projection');
+      return null;
+    let display: RelatedCampusDisplay = { isRelatedCampusSync: false };
+    if (distribution) {
+      if (!this.distribution)
+        throw new ApplicationError('HOT_FEED_UNAVAILABLE');
+      const category = await resolvePostCategory(post.id, tx);
+      if (category === null) {
+        if (
+          post.publication_envelope_version === 4 ||
+          distribution.remoteSpaceIds.includes(post.space_id)
+        )
+          throw new ApplicationError('HOT_FEED_UNAVAILABLE');
+        return null;
+      }
+      const decision = await this.distribution.allows(
+        distribution,
+        post.id,
+        post.space_id,
+        category,
+        tx,
+      );
+      if (decision.kind === 'unavailable')
+        throw new ApplicationError('HOT_FEED_UNAVAILABLE');
+      if (decision.kind === 'deny') return null;
+      display = decision.value;
+    }
+    return (await this.access.visible(actor, post, tx, 'list_projection'))
+      ? display
+      : null;
   }
   private validate(
     candidates: HotCandidate[],
     after: HotAnchor | null,
     spaceId: string,
+    distribution?: CommunityDistributionScope,
   ): void {
     if (candidates.length > HOT_SCAN_BATCH + 1)
       throw new ApplicationError('HOT_FEED_UNAVAILABLE');
@@ -85,7 +135,9 @@ export class HotFeedService {
     for (const candidate of candidates) {
       if (
         !hotCandidateSchema.safeParse(candidate).success ||
-        candidate.spaceId !== spaceId ||
+        !(distribution?.originalSpaceIds ?? [spaceId]).includes(
+          candidate.spaceId,
+        ) ||
         seen.has(candidate.id) ||
         (previous !== null && !hotAnchorFollows(candidate, previous))
       )
@@ -108,6 +160,7 @@ export class HotFeedService {
               token === null ? null : await this.identity.session(token, tx),
             actor = session?.accountId ?? null;
           const space = await this.repository.space(query.spaceId, tx);
+          const distribution = await this.distribution?.resolveView(space, tx);
           if (query.cursor) {
             if (actor === null)
               throw new ApplicationError('AUTHENTICATION_REQUIRED');
@@ -115,7 +168,10 @@ export class HotFeedService {
               throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
           }
           const scope = await currentCategoryCursorScope(
-            hotCursorScope(query, session),
+            distributionCursorScope(
+              hotCursorScope(query, session),
+              distribution,
+            ),
             tx,
           );
           const position = query.cursor
@@ -136,8 +192,9 @@ export class HotFeedService {
             clock,
             seek,
             tx,
+            distribution,
           );
-          this.validate(candidates, seek, space.id);
+          this.validate(candidates, seek, space.id, distribution);
           const held = new Map<string, HotVisible>();
           for (const id of [
             ...new Set([
@@ -166,11 +223,13 @@ export class HotFeedService {
                 clock,
                 actor,
                 tx,
+                distribution,
               ))
             )
               throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
           }
-          const items: PostView[] = [];
+          const items: { post: StoredPost; display: RelatedCampusDisplay }[] =
+            [];
           let consumed = 0,
             lastVisible = guard;
           // Fixed original batch. A newly hot unheld row waits for a later live
@@ -198,23 +257,43 @@ export class HotFeedService {
             )
               continue;
             const post = await this.repository.post(candidate.id, tx);
-            if (!(await this.allowed(post, space, query, clock, actor, tx)))
-              continue;
-            items.push(
-              await this.serializer.post(
-                post,
-                space,
-                actor,
-                await this.access.advisory(actor, space, tx),
-                tx,
-              ),
+            const display = await this.allowed(
+              post,
+              space,
+              query,
+              clock,
+              actor,
+              tx,
+              distribution,
             );
+            if (!display) continue;
+            items.push({ post, display });
             lastVisible = {
               id: candidate.id,
               spaceId: candidate.spaceId,
               at: candidate.at,
             };
             if (items.length === limit) break;
+          }
+          // Advisory projection restores read epochs, so it runs only after all
+          // candidate guards and owner-branded distribution reads are complete.
+          const page: PostView[] = [];
+          for (const { post, display } of items) {
+            const original =
+              post.space_id === space.id
+                ? space
+                : await this.repository.space(post.space_id, tx);
+            page.push(
+              await this.serializer.post(
+                post,
+                original,
+                actor,
+                await this.access.advisory(actor, original, tx),
+                tx,
+                'list-projection',
+                display,
+              ),
+            );
           }
           const emitted = (position?.emitted ?? 0) + items.length;
           const exhausted = consumed === candidates.length || emitted === cap;
@@ -252,7 +331,14 @@ export class HotFeedService {
                   tx,
                 )
               : null;
-          return { items, nextCursor, continuation };
+          return {
+            items: page,
+            nextCursor,
+            continuation,
+            relatedCampusDistribution:
+              distribution?.relatedCampusDistribution ??
+              (space.kind === 'global' ? 'complete' : 'unavailable'),
+          };
         },
         { isolationLevel: 'read committed' },
       );

@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import type { CommunityDistributionScope } from './related-sync/contracts.js';
 import { BadRequestException } from '@nestjs/common';
 import { z } from 'zod';
 import type { Seek } from './community.repository.js';
@@ -30,4 +32,28 @@ export function encodeCursor(seek: Seek, scope: string, limit: number): string {
   return Buffer.from(JSON.stringify({ v: 1, scope, limit, ...seek })).toString(
     'base64url',
   );
+}
+
+/** Compact coordinates bind viewer context without exposing it in the simple cursor. */
+export function distributionCursorScope(
+  base: string,
+  distribution?: CommunityDistributionScope,
+  viewerContext?: string | null,
+): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        'community-distribution-cursor:v1',
+        base,
+        distribution
+          ? [
+              distribution.viewSpaceId,
+              distribution.relatedCampusDistribution,
+              distribution.fingerprint,
+            ]
+          : null,
+        viewerContext ?? null,
+      ]),
+    )
+    .digest('hex');
 }

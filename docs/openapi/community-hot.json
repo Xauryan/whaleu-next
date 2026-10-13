@@ -25,6 +25,10 @@
             "nullable": true,
             "pattern": "^[A-Za-z0-9_-]{43}$",
             "type": "string"
+          },
+          "relatedCampusDistribution": {
+            "enum": ["complete", "unavailable"],
+            "type": "string"
           }
         },
         "required": ["items", "nextCursor", "continuation"],
@@ -1005,6 +1009,9 @@
             },
             "type": "array"
           },
+          "isRelatedCampusSync": {
+            "type": "boolean"
+          },
           "likeCount": {
             "maximum": 9007199254740991,
             "minimum": 0,
@@ -1022,6 +1029,21 @@
             "maximum": 9007199254740991,
             "minimum": 0,
             "type": "integer"
+          },
+          "sourceRegion": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": ["id", "name"],
+            "type": "object"
           },
           "space": {
             "additionalProperties": false,

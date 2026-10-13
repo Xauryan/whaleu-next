@@ -88,12 +88,15 @@ test(
       admin,
     ).query({ kind: 'post', id: post.id });
     ok(management);
+    const selectedManagement = moderationManagementSchema.parse(
+      management.body,
+    );
+    assert.equal(selectedManagement.canReset, true);
     const command = {
       clientRequestId: randomUUID(),
       target: { kind: 'post', id: post.id },
       action: 'reset_nickname',
-      expectedProfileRevision: moderationManagementSchema.parse(management.body)
-        .revision,
+      expectedProfileRevision: selectedManagement.revision,
     };
     const reset = () =>
       request(http)

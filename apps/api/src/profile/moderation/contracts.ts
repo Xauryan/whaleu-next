@@ -54,12 +54,20 @@ export const moderationReceiptSchema = z
       value.revision === value.expectedProfileRevision + 1,
   );
 export type ModerationReceipt = z.infer<typeof moderationReceiptSchema>;
-export const moderationManagementSchema = z.strictObject({
-  target: outputTarget,
-  displayName: z.string().min(1).max(20),
-  revision: revision.max(2147483646),
-  canReset: z.literal(true),
-});
+export const moderationManagementSchema = z.union([
+  z.strictObject({
+    target: outputTarget,
+    displayName: z.string().min(1).max(20),
+    revision: revision.max(2147483646),
+    canReset: z.literal(true),
+  }),
+  z.strictObject({
+    target: outputTarget,
+    canReset: z.literal(false),
+    availability: z.literal('unavailable'),
+    blocker: z.literal('related_sync_unsupported'),
+  }),
+]);
 export type ModerationManagement = z.infer<typeof moderationManagementSchema>;
 export const moderationRecoverySchema = z.discriminatedUnion('state', [
   z.strictObject({

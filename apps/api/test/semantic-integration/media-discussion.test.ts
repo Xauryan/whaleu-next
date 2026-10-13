@@ -15,6 +15,7 @@ import { SearchService } from '../../src/community/search/service.js';
 import { searchQuerySchema } from '../../src/community/search/contracts.js';
 import { LocalApprovedContentVisibility } from '../../src/community/content-review/local-approved-content-visibility.js';
 import { ContentReviewSearchEligibilityFacade } from '../../src/community/content-review/search-eligibility.facade.js';
+import { CommunityDistributionService } from '../../src/community/related-sync/service.js';
 import { CampusContentScopeFacade } from '../../src/campus/content-scope.facade.js';
 import { MediaContentSnapshotFacade } from '../../src/media/content-snapshot.facade.js';
 import { SafetySearchEligibilityFacade } from '../../src/safety/search-eligibility.facade.js';
@@ -88,6 +89,7 @@ test(
         f.app.get(LocalApprovedContentVisibility),
         f.app.get(CampusContentScopeFacade),
         new MediaContentSnapshotFacade(),
+        f.app.get(CommunityDistributionService),
       );
       const corpus = new SemanticCorpusRepository(
         new SafetySearchEligibilityFacade(),

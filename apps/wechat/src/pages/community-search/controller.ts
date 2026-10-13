@@ -85,6 +85,7 @@ export interface SearchResume {
   readonly submittedQuery: string;
 }
 export interface SearchView extends CommunityView {
+  readonly relatedCampusDistribution: 'complete' | 'unavailable' | '';
   readonly mode: SearchMode;
   readonly semanticDisabled: boolean;
   readonly inputDraft: string;
@@ -116,6 +117,7 @@ export interface SearchView extends CommunityView {
 }
 export const initialSearchView = (): SearchView => ({
   ...initialCommunityView(),
+  relatedCampusDistribution: '',
   mode: 'keyword',
   semanticDisabled: false,
   inputDraft: '',
@@ -226,6 +228,7 @@ export class SearchController extends CommunityController<SearchView> {
     this.stop();
     this.nextCursor = null;
     this.update({
+      relatedCampusDistribution: '',
       hits: [],
       semanticDisabled: false,
       effectiveTypes: [],
@@ -511,7 +514,7 @@ export class SearchController extends CommunityController<SearchView> {
       (item) => item.kind === kind && item.contentId === contentId,
     );
     if (!hit) return;
-    const url = searchTargetPath(hit.target);
+    const url = searchTargetPath(hit.target, this.selected?.spaceId);
     this.clearPage();
     this.update({ status: '正在打开内容，进入后会重新确认当前可查看状态' });
     await this.run(
@@ -660,6 +663,7 @@ export class SearchController extends CommunityController<SearchView> {
             Object.freeze({ ...item, key: `${item.kind}:${item.contentId}` }),
           ),
           effectiveTypes: page.effectiveTypes,
+          relatedCampusDistribution: page.relatedCampusDistribution ?? '',
           continuation: page.continuation,
           loaded: true,
           canNext: !!page.nextCursor,
@@ -673,9 +677,11 @@ export class SearchController extends CommunityController<SearchView> {
                 : page.continuation === 'phone_verification_required'
                   ? '继续查找需要手机号验证；当前版本尚未接入验证流程'
                   : page.continuation === 'end'
-                    ? pageNumber === 1 && !page.items.length
-                      ? '当前范围没有可查看的匹配内容'
-                      : '已到本次搜索末尾'
+                    ? page.relatedCampusDistribution === 'unavailable'
+                      ? '已展示本次可核验内容；关联学校范围仍待核验，请稍后刷新'
+                      : pageNumber === 1 && !page.items.length
+                        ? '当前范围没有可查看的匹配内容'
+                        : '已到本次搜索末尾'
                     : '已加载当前可查看的匹配内容',
         });
       },

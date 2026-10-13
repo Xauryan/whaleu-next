@@ -1,6 +1,12 @@
 import { isRecord } from '../api/errors';
 import { isUuid } from '../profile/contract';
 import {
+  relatedCampusDisplayKeys,
+  decodeRelatedCampusDisplay,
+  relatedCampusCoverageKeys,
+  decodeRelatedCampusCoverage,
+  type RelatedCampusDisplay,
+  type RelatedCampusCoverage,
   boundedText,
   decodeAuthor,
   displayDiscussionText,
@@ -62,7 +68,7 @@ export type SearchTarget =
       readonly rootCommentId: string;
       readonly replyId: string;
     };
-export interface SearchHit {
+export interface SearchHit extends RelatedCampusDisplay {
   readonly kind: SearchKind;
   readonly contentId: string;
   readonly postId: string;
@@ -103,10 +109,19 @@ export function canonicalSearchTimestamp(value: unknown): string {
   const fraction = value.slice(19, -1).replace('.', '');
   return `${value.slice(0, 19)}.${fraction.padEnd(6, '0')}Z`;
 }
-export function searchTargetPath(target: SearchTarget): string {
-  return target.kind === 'post'
-    ? `/pages/community-detail/community-detail?postId=${target.postId}`
-    : `/pages/community-thread/community-thread?postId=${target.postId}&rootCommentId=${target.rootCommentId}${target.kind === 'reply' ? `&replyId=${target.replyId}` : ''}`;
+export function searchTargetPath(
+  target: SearchTarget,
+  viewSpaceId?: string,
+): string {
+  if (viewSpaceId !== undefined && !isUuid(viewSpaceId)) invalid();
+  const path =
+    target.kind === 'post'
+      ? `/pages/community-detail/community-detail?postId=${target.postId}`
+      : `/pages/community-thread/community-thread?postId=${target.postId}&rootCommentId=${target.rootCommentId}${target.kind === 'reply' ? `&replyId=${target.replyId}` : ''}`;
+  return (
+    path +
+    (viewSpaceId ? `&viewSpaceId=${encodeURIComponent(viewSpaceId)}` : '')
+  );
 }
 export type SearchContinuation =
   | 'more'
@@ -114,7 +129,7 @@ export type SearchContinuation =
   | 'end'
   | 'login_required'
   | 'phone_verification_required';
-export interface SearchPage {
+export interface SearchPage extends RelatedCampusCoverage {
   readonly items: readonly SearchHit[];
   readonly effectiveTypes: readonly SearchKind[];
   readonly nextCursor: string | null;
@@ -203,6 +218,7 @@ export function decodeSearchHit(value: unknown): SearchHit {
 }
 function decodeHit(value: unknown, requireMatch: boolean): SearchHit {
   exact(value, [
+    ...relatedCampusDisplayKeys(value),
     'kind',
     'contentId',
     'postId',
@@ -294,8 +310,17 @@ function decodeHit(value: unknown, requireMatch: boolean): SearchHit {
     segments.reduce((sum, segment) => sum + [...segment.text].length, 0) > 240
   )
     invalid();
+  const display = decodeRelatedCampusDisplay(value);
+  if (
+    display.isRelatedCampusSync &&
+    (value.space.kind !== 'regional' ||
+      value.category === 'trading' ||
+      value.category === 'feedback')
+  )
+    invalid();
   return Object.freeze({
     ...value,
+    ...display,
     author,
     space: Object.freeze({ ...value.space }),
     snippet: Object.freeze({
@@ -306,7 +331,13 @@ function decodeHit(value: unknown, requireMatch: boolean): SearchHit {
   }) as unknown as SearchHit;
 }
 export function decodeSearchPage(value: unknown): SearchPage {
-  exact(value, ['items', 'nextCursor', 'continuation', 'effectiveTypes']);
+  exact(value, [
+    'items',
+    'nextCursor',
+    'continuation',
+    'effectiveTypes',
+    ...relatedCampusCoverageKeys(value),
+  ]);
   if (
     !Array.isArray(value.effectiveTypes) ||
     !value.effectiveTypes.length ||
@@ -338,6 +369,7 @@ export function decodeSearchPage(value: unknown): SearchPage {
   const effectiveTypes = value.effectiveTypes as SearchKind[];
   if (items.some((item) => !effectiveTypes.includes(item.kind))) invalid();
   return Object.freeze({
+    ...decodeRelatedCampusCoverage(value),
     effectiveTypes: Object.freeze([
       ...value.effectiveTypes,
     ]) as readonly SearchKind[],

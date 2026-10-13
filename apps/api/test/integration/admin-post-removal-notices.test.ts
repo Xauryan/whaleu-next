@@ -98,13 +98,15 @@ test(
       admin,
     ).query({ kind: post.kind, id: post.id });
     ok(nicknameView);
+    const nicknameManagement = moderationManagementSchema.parse(
+      nicknameView.body,
+    );
+    assert.equal(nicknameManagement.canReset, true);
     const nicknameCommand = {
       clientRequestId: randomUUID(),
       target: { kind: post.kind, id: post.id },
       action: 'reset_nickname',
-      expectedProfileRevision: moderationManagementSchema.parse(
-        nicknameView.body,
-      ).revision,
+      expectedProfileRevision: nicknameManagement.revision,
     };
     const reset = () =>
       request(f.http)

@@ -7,6 +7,7 @@ import { SEMANTIC_MODEL_PROVIDER } from '../../src/community/search/semantic/run
 import { indexNextSemanticBatch } from '../../src/community/search/semantic/backfill.js';
 import { installSemanticSearch } from '../../src/community/search/semantic/install.js';
 import { ContentReviewSearchEligibilityFacade } from '../../src/community/content-review/search-eligibility.facade.js';
+import { CommunityDistributionService } from '../../src/community/related-sync/service.js';
 import { LocalApprovedContentVisibility } from '../../src/community/content-review/local-approved-content-visibility.js';
 import { CampusContentScopeFacade } from '../../src/campus/content-scope.facade.js';
 import { SafetySearchEligibilityFacade } from '../../src/safety/search-eligibility.facade.js';
@@ -136,6 +137,8 @@ test(
       const certificates = new ContentReviewSearchEligibilityFacade(
         h.app.get(LocalApprovedContentVisibility),
         h.app.get(CampusContentScopeFacade),
+        undefined,
+        h.app.get(CommunityDistributionService),
       );
       const corpus = new SemanticCorpusRepository(
         new SafetySearchEligibilityFacade(),

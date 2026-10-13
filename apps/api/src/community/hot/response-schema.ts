@@ -115,6 +115,8 @@ const trading = z.strictObject({
  * schema; visible comment/reply counts retain their independent owner rules. */
 export const hotPostViewSchema = z
   .strictObject({
+    isRelatedCampusSync: bool.optional(),
+    sourceRegion: z.strictObject({ id: uuid, name: text }).optional(),
     id: uuid,
     space: z.strictObject({
       id: uuid,
@@ -152,6 +154,7 @@ export const hotPostViewSchema = z
 export const hotPageSchema = z
   .strictObject({
     items: z.array(hotPostViewSchema).max(10),
+    relatedCampusDistribution: z.enum(['complete', 'unavailable']).optional(),
     nextCursor: z
       .string()
       .regex(/^[A-Za-z0-9_-]{43}$/)

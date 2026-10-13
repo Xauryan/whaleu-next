@@ -1,5 +1,6 @@
+import { isUuid } from '../profile/contract';
 import { systemClock } from '../platform/clock';
-import { clientError } from '../api/errors';
+import { ClientError, clientError } from '../api/errors';
 import {
   CommunityController,
   communityError,
@@ -38,12 +39,14 @@ export const initialPinFeedView = (): PinFeedView => ({
 });
 export class PinFeedController extends CommunityController<PinFeedView> {
   private expire: (() => void) | undefined;
+  private spaceId: string | null = null;
   constructor(runtime: CommunityRuntime, render: (view: PinFeedView) => void) {
     super(runtime, initialPinFeedView, render);
   }
   protected override resetPrivate() {
     this.expire?.();
     this.expire = undefined;
+    this.spaceId = null;
   }
   clear() {
     this.stop();
@@ -64,6 +67,9 @@ export class PinFeedController extends CommunityController<PinFeedView> {
       (cancel) => this.runtime.postPins!.list(query, cancel),
       (raw) => {
         const result = decodePinPage(raw);
+        if (result.spaceId !== query.spaceId)
+          throw new ClientError('protocol', 'Pin view mismatch');
+        this.spaceId = result.spaceId;
         const item = result.items[0] ?? null;
         const dismissed =
           item &&
@@ -119,11 +125,12 @@ export class PinFeedController extends CommunityController<PinFeedView> {
     const item = this.view.item;
     if (
       !item ||
+      !this.spaceId ||
       Date.parse(item.pin.pinnedUntil) <= systemClock.now() ||
       !this.accountId()
     )
       return null;
-    return `/pages/community-detail/community-detail?postId=${item.post.id}`;
+    return `/pages/community-detail/community-detail?postId=${item.post.id}&viewSpaceId=${this.spaceId}`;
   }
 }
 export interface PinDetailView extends CommunityView {
@@ -158,6 +165,7 @@ export class PinDetailController extends CommunityController<PinDetailView> {
   private mutation: object | null = null;
   private postId: string | null = null;
   private slotSpaceId: string | null = null;
+  private viewSpaceId: string | null = null;
   private expire: (() => void) | undefined;
   constructor(
     runtime: CommunityRuntime,
@@ -173,6 +181,7 @@ export class PinDetailController extends CommunityController<PinDetailView> {
     this.expire = undefined;
     this.postId = null;
     this.slotSpaceId = null;
+    this.viewSpaceId = null;
   }
   protected override onSafetyInvalidated(previous: PinDetailView) {
     this.loadRecovery();
@@ -187,6 +196,7 @@ export class PinDetailController extends CommunityController<PinDetailView> {
     this.expire = undefined;
     this.postId = null;
     this.slotSpaceId = null;
+    this.viewSpaceId = null;
     this.update({
       ...(this.mutation ? {} : { busy: false }),
       detail: null,
@@ -224,6 +234,8 @@ export class PinDetailController extends CommunityController<PinDetailView> {
       (cancel) => this.runtime.postPins!.slot(spaceId, cancel),
       (raw) => {
         const slot = decodePinSlot(raw);
+        if (slot.spaceId !== spaceId)
+          throw new ClientError('protocol', 'Pin slot mismatch');
         this.update({
           slot,
           loaded: true,
@@ -247,17 +259,28 @@ export class PinDetailController extends CommunityController<PinDetailView> {
       },
     );
   }
-  async load(postId: string, autoRead = true) {
+  async load(postId: string, autoRead = true, viewSpaceId?: string) {
     this.clear();
+    if (viewSpaceId !== undefined && !isUuid(viewSpaceId)) {
+      this.update({ error: '置顶浏览地区无效' });
+      return;
+    }
     this.postId = postId;
+    this.viewSpaceId = viewSpaceId ?? null;
     if (this.mutation) return;
     if (!this.available() || !this.runtime.postPins) return;
     const storageReady = this.restore();
     let readable = false;
     await this.run(
-      (cancel) => this.runtime.postPins!.detail(postId, cancel),
+      (cancel) => this.runtime.postPins!.detail(postId, cancel, viewSpaceId),
       (raw) => {
         const detail = decodePinDetail(raw);
+        if (
+          detail.postId !== postId ||
+          (viewSpaceId !== undefined && detail.spaceId !== viewSpaceId)
+        )
+          throw new ClientError('protocol', 'Pin destination mismatch');
+        this.viewSpaceId = detail.spaceId ?? viewSpaceId ?? null;
         this.update({
           detail,
           loaded: true,
@@ -295,6 +318,11 @@ export class PinDetailController extends CommunityController<PinDetailView> {
       this.view.busy ||
       !this.restore() ||
       this.pending ||
+      !(
+        this.view.detail?.spaceId ??
+        this.view.slot?.spaceId ??
+        this.viewSpaceId
+      ) ||
       !(operation === 'pin'
         ? this.view.detail?.canPin
         : this.view.detail?.canUnpin || this.view.slot?.canUnpin)
@@ -358,9 +386,11 @@ export class PinDetailController extends CommunityController<PinDetailView> {
     const detail = this.view.detail,
       slot = this.view.slot,
       postId = this.postId ?? slot?.pin?.postId,
-      pinId = detail?.pin?.pinId ?? slot?.pin?.pinId;
+      pinId = detail?.pin?.pinId ?? slot?.pin?.pinId,
+      spaceId = detail?.spaceId ?? slot?.spaceId ?? this.viewSpaceId;
     if (
       !postId ||
+      !spaceId ||
       (operation === 'pin'
         ? !detail?.canPin
         : operation === 'unpin'
@@ -382,13 +412,22 @@ export class PinDetailController extends CommunityController<PinDetailView> {
         const command = decodePinCommand(
           operation === 'pin'
             ? {
+                version: 2,
+                spaceId,
                 clientRequestId,
                 postId,
                 operation,
                 durationHours: hours,
                 level,
               }
-            : { clientRequestId, postId, operation, pinId: pinId! },
+            : {
+                version: 2,
+                spaceId,
+                clientRequestId,
+                postId,
+                operation,
+                pinId: pinId!,
+              },
         );
         this.pending = this.runtime.pendingPostPins!.freeze({
           version: 1,
@@ -408,7 +447,7 @@ export class PinDetailController extends CommunityController<PinDetailView> {
     );
     if (applied && this.slotSpaceId) await this.loadSlot(this.slotSpaceId);
     else if (applied && this.postId === postId)
-      await this.load(postId, operation !== 'read');
+      await this.load(postId, operation !== 'read', spaceId);
   }
   private showPending(value: PendingPin) {
     this.update({
@@ -462,7 +501,8 @@ export class PinDetailController extends CommunityController<PinDetailView> {
     )
       return;
     const pending = this.pending,
-      postId = this.postId;
+      postId = this.postId,
+      viewSpaceId = this.viewSpaceId;
     let settled = false;
     await this.mutate(
       async (cancel) => {
@@ -492,7 +532,7 @@ export class PinDetailController extends CommunityController<PinDetailView> {
     );
     if (settled && this.slotSpaceId) await this.loadSlot(this.slotSpaceId);
     else if (settled && postId && this.postId === postId)
-      await this.load(postId);
+      await this.load(postId, true, viewSpaceId ?? undefined);
   }
   requestCancellation() {
     if (!this.view.busy && this.restore() && this.pending)

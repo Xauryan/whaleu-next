@@ -1,3 +1,6 @@
+import { CommunityDistributionService } from '../related-sync/service.js';
+import type { CommunityDistributionScope } from '../related-sync/contracts.js';
+import { requireContentDistributionGrant } from '../../authorization/content-distribution-grant.js';
 import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
 import {
   AccountPolicy,
@@ -66,7 +69,10 @@ interface Pin {
 }
 export const pinIntentHash = (actor: string, command: PinCommand) =>
   createHash('sha256')
-    .update('whaleu:post-pin:v1\n' + canonicalJson({ actor, command }))
+    .update(
+      `whaleu:post-pin:v${'version' in command ? command.version : 1}\n` +
+        canonicalJson({ actor, command }),
+    )
     .digest('hex');
 @Injectable()
 export class PostPinsService {
@@ -80,6 +86,8 @@ export class PostPinsService {
     private readonly serializer: CommunitySerializer,
     @Inject(PostPinAuthorityFacade)
     private readonly authority: PostPinAuthorityFacade,
+    @Inject(CommunityDistributionService)
+    private readonly distribution: CommunityDistributionService,
   ) {}
   private run<T>(work: (tx: PoolClient) => Promise<T>): Promise<T> {
     return this.repository.database
@@ -135,6 +143,28 @@ export class PostPinsService {
         ? post.category !== 'feedback'
         : post.category ===
           (scope.kind === 'feedback' ? 'feedback' : 'discussion'))
+    );
+  }
+  private async projected(
+    distributionScope: CommunityDistributionScope,
+    scope: Scope,
+    post: StoredPost,
+    tx: PoolClient,
+  ) {
+    if (post.space_id === scope.space_id)
+      return this.supported(scope, post)
+        ? { kind: 'allow' as const, value: { isRelatedCampusSync: false } }
+        : { kind: 'deny' as const, reason: 'POST_PIN_UNAVAILABLE' as const };
+    if (scope.kind !== 'regional')
+      return { kind: 'deny' as const, reason: 'POST_PIN_UNAVAILABLE' as const };
+    const category = await resolvePostCategory(post.id, tx);
+    if (category === null) return { kind: 'unavailable' as const };
+    return this.distribution.allows(
+      distributionScope,
+      post.id,
+      post.space_id,
+      category,
+      tx,
     );
   }
   private async current(scope: Scope, tx: PoolClient): Promise<Pin | null> {
@@ -197,6 +227,7 @@ export class PostPinsService {
         'authority',
       );
       const space = await this.repository.space(query.spaceId, tx);
+      const distributionScope = await this.distribution.resolveView(space, tx);
       const checkpoint = checkpointTransactionDeadlines(tx);
       let scope: Scope;
       try {
@@ -239,8 +270,16 @@ export class PostPinsService {
       }
       const post = await this.repository.post(pin.post_id, tx);
       const currentCategory = await resolvePostCategory(post.id, tx);
+      const projected = await this.projected(
+        distributionScope,
+        scope,
+        post,
+        tx,
+      );
+      if (projected.kind === 'unavailable')
+        return { spaceId: space.id, status: 'unavailable', items: [] };
       if (
-        !this.supported(scope, post) ||
+        projected.kind !== 'allow' ||
         (currentCategory !== null &&
           query.category &&
           query.category !== currentCategory) ||
@@ -259,6 +298,10 @@ export class PostPinsService {
         (!query.category && trade?.urgency === 'urgent')
       )
         return { spaceId: space.id, status: 'available', items: [] };
+      const originalSpace =
+        post.space_id === space.id
+          ? space
+          : await this.repository.space(post.space_id, tx);
       const result: PinPage = {
         spaceId: space.id,
         status: 'available',
@@ -267,10 +310,12 @@ export class PostPinsService {
             pin: await this.metadata(pin, actor, tx),
             post: await this.serializer.post(
               post,
-              space,
+              originalSpace,
               actor,
-              await this.access.advisory(actor, space, tx),
+              await this.access.advisory(actor, originalSpace, tx),
               tx,
+              'list-projection',
+              projected.value,
             ),
           },
         ],
@@ -331,6 +376,15 @@ export class PostPinsService {
         return { spaceId, status: 'unavailable', pin: null, canUnpin: false };
       }
       const pin = await this.current(scope, tx);
+      if (pin) {
+        const post = await this.repository.post(pin.post_id, tx);
+        await this.authority.require(
+          actor,
+          scope.operating_region_id,
+          tx,
+          post.space_id !== scope.space_id,
+        );
+      }
       await retainPostPinProof(
         {
           actor,
@@ -358,7 +412,11 @@ export class PostPinsService {
     });
   }
   @AccountPolicy('browse', 'entry')
-  async detail(token: string, postId: string): Promise<PinDetail> {
+  async detail(
+    token: string,
+    postId: string,
+    viewSpaceId?: string,
+  ): Promise<PinDetail> {
     return this.run(async (tx) => {
       enableSafetyRelationshipProof(tx);
       const actor = await this.access.actor(token, tx);
@@ -386,10 +444,15 @@ export class PostPinsService {
         )
       ).rows[0];
       if (!reference) throw new ApplicationError('POST_NOT_FOUND');
-      const space = await this.repository.space(reference.space_id, tx);
+      const space = await this.repository.space(
+        viewSpaceId ?? reference.space_id,
+        tx,
+      );
+      const distributionScope = await this.distribution.resolveView(space, tx);
       let scope: Scope;
       const base: PinDetail = {
         postId,
+        ...(viewSpaceId ? { spaceId: space.id } : {}),
         status: 'unavailable',
         pin: null,
         canPin: false,
@@ -410,14 +473,23 @@ export class PostPinsService {
         throw error;
       }
       const { post } = await this.access.projectionPost(postId, actor, tx);
-      if (!this.supported(scope, post)) return base;
+      if (
+        (await this.projected(distributionScope, scope, post, tx)).kind !==
+        'allow'
+      )
+        return base;
       const pin = await this.current(scope, tx);
       const own = pin?.post_id === postId ? pin : null;
       let canManage = false;
       const hintCheckpoint = checkpointTransactionDeadlines(tx);
       try {
         requireAction(await this.access.authority(actor, space, tx), 'pin');
-        await this.authority.require(actor, scope.operating_region_id, tx);
+        await this.authority.require(
+          actor,
+          scope.operating_region_id,
+          tx,
+          post.space_id !== scope.space_id,
+        );
         canManage = true;
       } catch (error) {
         if (!(error instanceof ApplicationError)) throw error;
@@ -426,6 +498,7 @@ export class PostPinsService {
       }
       const result: PinDetail = {
         postId,
+        ...(viewSpaceId ? { spaceId: space.id } : {}),
         status: 'available',
         pin: own ? await this.metadata(own, actor, tx) : null,
         canPin: canManage,
@@ -520,8 +593,21 @@ export class PostPinsService {
           throw new ApplicationError(
             command.operation === 'unpin' ? 'POST_PIN_STALE' : 'POST_NOT_FOUND',
           );
-        const space = await this.repository.space(reference.space_id, tx),
-          scope = await this.scope(space, tx, true);
+        if (
+          'version' in command &&
+          command.operation === 'unpin' &&
+          command.spaceId !== reference.space_id
+        )
+          throw new ApplicationError('POST_PIN_STALE');
+        const space = await this.repository.space(
+          'version' in command ? command.spaceId : reference.space_id,
+          tx,
+        );
+        const distributionScope =
+          command.operation !== 'unpin'
+            ? await this.distribution.resolveView(space, tx)
+            : null;
+        const scope = await this.scope(space, tx, true);
         scopeId = scope.id;
         // Minimal exact-pin closure may survive hidden/withdrawn Review. It grants
         // no content projection, new-pin authority or read acknowledgement.
@@ -530,7 +616,11 @@ export class PostPinsService {
             ? await this.repository.post(command.postId, tx)
             : (await this.access.projectionPost(command.postId, actor, tx))
                 .post;
-        if (command.operation !== 'unpin' && !this.supported(scope, post))
+        if (
+          command.operation !== 'unpin' &&
+          (await this.projected(distributionScope!, scope, post, tx)).kind !==
+            'allow'
+        )
           throw new ApplicationError('POST_PIN_UNAVAILABLE');
         if (command.operation !== 'read') {
           requireAction(await this.access.authority(actor, space, tx), 'pin');
@@ -538,7 +628,18 @@ export class PostPinsService {
             actor,
             scope.operating_region_id,
             tx,
+            post.space_id !== scope.space_id,
           );
+          if (command.operation === 'pin' && post.space_id !== scope.space_id) {
+            const selected = await requireContentDistributionGrant(
+              actor,
+              post.id,
+              space.id,
+              tx,
+              'pin',
+            );
+            grantId = selected.grantId;
+          }
         }
         await retainPostPinProof(
           {

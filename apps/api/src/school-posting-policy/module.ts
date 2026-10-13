@@ -1,3 +1,4 @@
+import { ContentReviewModule } from '../community/content-review/content-review.module.js';
 import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { DatabaseModule } from '../database/database.js';
@@ -11,6 +12,7 @@ import { SchoolPostingPolicyService } from './service.js';
 import { SchoolPostingPolicyRequestGuard } from './request-guard.js';
 @Module({
   imports: [
+    ContentReviewModule,
     DatabaseModule,
     IdentityModule,
     SchoolConfigurationModule,

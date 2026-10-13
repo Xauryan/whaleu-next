@@ -11,9 +11,12 @@ import type { Post, Category } from '../community/contract';
 import { isTradingSubtype } from '../community/trading-contract';
 import type { TradingSubtype } from '../community/trading-contract';
 export type PinCommand = { clientRequestId: string; postId: string } & (
-  | { operation: 'pin'; durationHours: number; level: 1 | 2 }
-  | { operation: 'unpin' | 'read'; pinId: string }
-);
+  { version?: never; spaceId?: never } | { version: 2; spaceId: string }
+) &
+  (
+    | { operation: 'pin'; durationHours: number; level: 1 | 2 }
+    | { operation: 'unpin' | 'read'; pinId: string }
+  );
 export type PinReceipt = {
   requestId: string;
   operation: PinCommand['operation'];
@@ -46,6 +49,7 @@ export interface PinPage {
 }
 export interface PinDetail {
   postId: string;
+  spaceId?: string;
   status: 'available' | 'unavailable';
   pin: Pin | null;
   canPin: boolean;
@@ -97,7 +101,12 @@ export function decodePinPage(value: unknown): PinPage {
     exact(item, ['pin', 'post']);
     const pin = decodePin(item.pin),
       post = decodePost(item.post);
-    if (pin.postId !== post.id || post.space.id !== value.spaceId) invalidPin();
+    if (
+      pin.postId !== post.id ||
+      (post.space.id !== value.spaceId && post.isRelatedCampusSync !== true) ||
+      (post.space.id === value.spaceId && post.isRelatedCampusSync === true)
+    )
+      invalidPin();
     return Object.freeze({ pin, post });
   });
   return Object.freeze({
@@ -107,9 +116,18 @@ export function decodePinPage(value: unknown): PinPage {
   });
 }
 export function decodePinDetail(value: unknown): PinDetail {
-  exact(value, ['postId', 'status', 'pin', 'canPin', 'canUnpin']);
+  if (!isRecord(value)) invalidPin();
+  exact(value, [
+    'postId',
+    'status',
+    'pin',
+    'canPin',
+    'canUnpin',
+    ...('spaceId' in value ? ['spaceId'] : []),
+  ]);
   if (
     !isUuid(value.postId) ||
+    ('spaceId' in value && !isUuid(value.spaceId)) ||
     !['available', 'unavailable'].includes(String(value.status)) ||
     typeof value.canPin !== 'boolean' ||
     typeof value.canUnpin !== 'boolean'
@@ -124,6 +142,7 @@ export function decodePinDetail(value: unknown): PinDetail {
     invalidPin();
   return Object.freeze({
     postId: value.postId,
+    ...('spaceId' in value ? { spaceId: value.spaceId as string } : {}),
     status: value.status as PinDetail['status'],
     pin,
     canPin: value.canPin,
@@ -132,13 +151,22 @@ export function decodePinDetail(value: unknown): PinDetail {
 }
 export function decodePinCommand(value: unknown): PinCommand {
   if (!isRecord(value)) invalidPin();
-  exact(
-    value,
-    value.operation === 'pin'
+  exact(value, [
+    ...(value.operation === 'pin'
       ? ['clientRequestId', 'operation', 'postId', 'durationHours', 'level']
-      : ['clientRequestId', 'operation', 'postId', 'pinId'],
-  );
-  if (!uuid4(value.clientRequestId) || !isUuid(value.postId)) invalidPin();
+      : ['clientRequestId', 'operation', 'postId', 'pinId']),
+    ...('version' in value ? ['version', 'spaceId'] : []),
+  ]);
+  if (
+    !uuid4(value.clientRequestId) ||
+    !isUuid(value.postId) ||
+    ('version' in value && (value.version !== 2 || !isUuid(value.spaceId)))
+  )
+    invalidPin();
+  const scope =
+    value.version === 2
+      ? { version: 2 as const, spaceId: value.spaceId as string }
+      : {};
   if (value.operation === 'pin') {
     if (
       typeof value.durationHours !== 'number' ||
@@ -149,6 +177,7 @@ export function decodePinCommand(value: unknown): PinCommand {
     )
       invalidPin();
     return Object.freeze({
+      ...scope,
       clientRequestId: value.clientRequestId,
       operation: 'pin',
       postId: value.postId,
@@ -162,6 +191,7 @@ export function decodePinCommand(value: unknown): PinCommand {
   )
     invalidPin();
   return Object.freeze({
+    ...scope,
     clientRequestId: value.clientRequestId,
     operation: value.operation,
     postId: value.postId,

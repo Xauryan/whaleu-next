@@ -7,6 +7,7 @@ import type { PoolClient } from 'pg';
 import request from 'supertest';
 import { DatabaseService, inTransaction } from '../../src/database/database.js';
 import { CommunityRepository } from '../../src/community/community.repository.js';
+import { CommunityDistributionService } from '../../src/community/related-sync/service.js';
 import { categorySchema } from '../../src/community/contracts.js';
 import { reclassificationCategorySchema } from '../../src/community/category-reclassification/contracts.js';
 import { CURRENT_CATEGORY_POSTS_SQL } from '../../src/community/current-category-sql.js';
@@ -1002,10 +1003,20 @@ test(
           await emptyCommand(body, actor);
           assert.equal(await live(post.id), undefined);
         } finally {
-          await mutation.query('ROLLBACK');
-          await revoker.query('ROLLBACK');
-          mutation.release();
-          revoker.release();
+          // A failed interleave can idle-timeout either raw transaction. Even
+          // then release both checked-out clients so fixture pool.end can finish.
+          await Promise.all(
+            [mutation, revoker].map(async (client) => {
+              let destroy = false;
+              try {
+                await client.query('ROLLBACK');
+              } catch {
+                destroy = true;
+              } finally {
+                client.release(destroy);
+              }
+            }),
+          );
         }
         // Reverse order: the valid raw command acquires its selected grant fence
         // first. Revocation then waits, legitimately serializing after commit.
@@ -2269,10 +2280,16 @@ test(
             assert.ok(feedIds.every((id) => scopedIds.has(id)));
             const database = f.app.get(DatabaseService),
               repository = f.app.get(CommunityRepository);
-            const search = await database.transaction((tx) =>
-              f.app.get(SearchRepository).candidates(
+            const search = await database.transaction(async (tx) => {
+              const space = await repository.space(f.scope.home.spaceId, tx);
+              const distribution = await f.app
+                .get(CommunityDistributionService)
+                .resolveView(space, tx);
+              assert.equal(distribution.relatedCampusDistribution, 'complete');
+              return f.app.get(SearchRepository).candidates(
                 {
                   spaceId: f.scope.home.spaceId,
+                  distribution,
                   category: 'scenery',
                   tradingSubtype: null,
                   excludeUrgentTrading: false,
@@ -2283,8 +2300,8 @@ test(
                 },
                 null,
                 tx,
-              ),
-            );
+              );
+            });
             assert.ok(search.length >= scopedIds.size && search.length <= 129);
             assert.ok(
               search.every(
@@ -2297,12 +2314,17 @@ test(
             const hot = await database.transaction(async (tx) => {
               const records = f.app.get(HotRepository),
                 space = await repository.space(f.scope.home.spaceId, tx);
+              const distribution = await f.app
+                .get(CommunityDistributionService)
+                .resolveView(space, tx);
+              assert.equal(distribution.relatedCampusDistribution, 'complete');
               return records.candidates(
                 space,
                 hotQuerySchema.parse({ spaceId: space.id, range: 'history' }),
                 await records.clock(tx),
                 null,
                 tx,
+                distribution,
               );
             });
             assert.equal(hot.length, scopedIds.size);

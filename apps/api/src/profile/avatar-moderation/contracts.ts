@@ -63,13 +63,21 @@ export const avatarModerationReceiptSchema = z
 export type AvatarModerationReceipt = z.infer<
   typeof avatarModerationReceiptSchema
 >;
-export const avatarModerationManagementSchema = z.strictObject({
-  target: outputTarget,
-  displayName: z.string().min(1).max(20),
-  revision: revision.max(2147483646),
-  canClearCustomAvatar: z.boolean(),
-  expectedAppearanceId: outputId.nullable(),
-});
+export const avatarModerationManagementSchema = z.union([
+  z.strictObject({
+    target: outputTarget,
+    displayName: z.string().min(1).max(20),
+    revision: revision.max(2147483646),
+    canClearCustomAvatar: z.boolean(),
+    expectedAppearanceId: outputId.nullable(),
+  }),
+  z.strictObject({
+    target: outputTarget,
+    canClearCustomAvatar: z.literal(false),
+    availability: z.literal('unavailable'),
+    blocker: z.literal('related_sync_unsupported'),
+  }),
+]);
 export type AvatarModerationManagement = z.infer<
   typeof avatarModerationManagementSchema
 >;

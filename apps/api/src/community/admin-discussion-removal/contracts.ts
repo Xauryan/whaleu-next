@@ -27,6 +27,10 @@ const adminDiscussionRemovalV1CommandSchema = z.strictObject({
   action: z.literal('remove_discussion'),
 });
 export const adminDiscussionRemovalCommandSchema = z.union([
+  adminDiscussionRemovalV1CommandSchema.extend({
+    version: z.literal(3),
+    viewSpaceId: id,
+  }),
   adminDiscussionRemovalV1CommandSchema,
   adminDiscussionRemovalV1CommandSchema.extend({
     version: z.literal(2),
@@ -60,6 +64,14 @@ const adminDiscussionRemovalV1ReceiptSchema = z.discriminatedUnion('outcome', [
   }),
 ]);
 export const adminDiscussionRemovalReceiptSchema = z.union([
+  adminDiscussionRemovalV1ReceiptSchema.options[0].extend({
+    version: z.literal(3),
+    viewSpaceId: outputId,
+  }),
+  adminDiscussionRemovalV1ReceiptSchema.options[1].extend({
+    version: z.literal(3),
+    viewSpaceId: outputId,
+  }),
   adminDiscussionRemovalV1ReceiptSchema,
   adminDiscussionRemovalV1ReceiptSchema.options[0]
     .extend({
@@ -90,11 +102,16 @@ const punishmentOptionSchema = z.strictObject({
     })
     .nullable(),
 });
-export const adminDiscussionRemovalManagementQuerySchema =
+export const adminDiscussionRemovalManagementQuerySchema = z.union([
   adminDiscussionRemovalTargetSchema.extend({
     version: z.literal('2').optional(),
-  });
-export const adminDiscussionRemovalManagementSchema = z.strictObject({
+  }),
+  adminDiscussionRemovalTargetSchema.extend({
+    version: z.literal('3'),
+    viewSpaceId: id,
+  }),
+]);
+const adminDiscussionRemovalV1ManagementSchema = z.strictObject({
   target: outputTarget,
   targetVersion,
   canRemove: z.literal(true),
@@ -105,6 +122,12 @@ export const adminDiscussionRemovalManagementSchema = z.strictObject({
     })
     .optional(),
 });
+export const adminDiscussionRemovalManagementSchema = z.union([
+  adminDiscussionRemovalV1ManagementSchema,
+  adminDiscussionRemovalV1ManagementSchema
+    .omit({ punishmentOptions: true })
+    .extend({ version: z.literal(3), viewSpaceId: outputId }),
+]);
 export type AdminDiscussionRemovalManagement = z.infer<
   typeof adminDiscussionRemovalManagementSchema
 >;

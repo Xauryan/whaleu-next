@@ -170,9 +170,12 @@ export class ProfileAvatarModerationController extends CommunityController<Profi
         this.update({
           loaded: true,
           management,
-          status: management.canClearCustomAvatar
-            ? '已核验此内容的头像管理权限'
-            : '当前没有可清除的自定义头像；未选择头像或目录头像不适用此操作',
+          status:
+            'availability' in management
+              ? '关联校区同步内容暂不支持头像管理'
+              : management.canClearCustomAvatar
+                ? '已核验此内容的头像管理权限'
+                : '当前没有可清除的自定义头像；未选择头像或目录头像不适用此操作',
         });
       },
       () => this.update({ loaded: false, management: null }),

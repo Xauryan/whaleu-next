@@ -555,7 +555,9 @@ test('search authorizes before matching; nonmatching and sentinel cards never se
     'effectiveTypes',
     'items',
     'nextCursor',
+    'relatedCampusDistribution',
   ]);
+  assert.equal(result.relatedCampusDistribution, 'unavailable');
   const creation = h.events.indexOf('cursor:create');
   assert.equal(h.events[creation - 1], 'session');
   assert.equal(
@@ -615,6 +617,7 @@ test('sparse matches beyond the old 1024 cap progress in bounded structural batc
     effectiveTypes: ['post'],
     nextCursor: null,
     continuation: 'end',
+    relatedCampusDistribution: 'unavailable',
   });
   assert.equal(exact.records.size, 0);
 });
@@ -654,6 +657,7 @@ test('guests and known unverified users get no successor even for empty scan bat
       effectiveTypes: ['post'],
       nextCursor: null,
       continuation: expected,
+      relatedCampusDistribution: 'unavailable',
     });
     assert.equal(h.records.size, 0);
   }

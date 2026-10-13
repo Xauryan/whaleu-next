@@ -101,17 +101,21 @@ export class SchoolPostingPolicyRepository {
     );
     await tx.query(
       `INSERT INTO whaleu_community.region_policy_revisions(id,region_id,revision,coverage_state,provenance_state,source_reference,policy_reference,unverified_post_enabled,unverified_comment_enabled,unverified_categories,related_sync_enabled,effective_at,expiry_kind,valid_until,school_admin_publication_transaction)
-      VALUES($1,$2,$3,'complete','accepted',$4,'whaleu:school-posting-policy:v1',$5,$6,$7,false,clock_timestamp(),$8,$9,pg_current_xact_id())`,
+      VALUES($1,$2,$3,'complete','accepted',$4,$10,$5,$6,$7,$11,clock_timestamp(),$8,$9,pg_current_xact_id())`,
       [
         id,
         regionId,
         revision,
-        `whaleu:school-posting-command:v1:${actor}:${command.clientRequestId}`,
+        `whaleu:school-posting-command:v${'version' in command ? 2 : 1}:${actor}:${command.clientRequestId}`,
         policy.unverifiedPostEnabled,
         policy.unverifiedCommentEnabled,
         policy.unverifiedCategories,
         policy.expiry.kind,
         policy.expiry.kind === 'at' ? policy.expiry.validUntil : null,
+        'version' in command
+          ? 'whaleu:school-posting-policy:v2'
+          : 'whaleu:school-posting-policy:v1',
+        'version' in command ? command.policy.relatedSyncEnabled : false,
       ],
     );
     const updated = await tx.query(

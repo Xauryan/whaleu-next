@@ -15,12 +15,14 @@ export class PostPinAuthorityFacade {
     actor: string,
     regionId: string | null,
     tx: PoolClient,
+    remoteRelated = false,
   ): Promise<string> {
     const grants = await this.authority.grants(actor, tx);
     const grant =
       grants.find(
         (g) =>
-          (g.role === 'developer' || g.role === 'super_admin') &&
+          ((g.role === 'developer' && !remoteRelated) ||
+            g.role === 'super_admin') &&
           g.operatingRegionId === null,
       ) ??
       grants.find(

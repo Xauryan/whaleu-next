@@ -1,3 +1,4 @@
+import { isUuid } from '../profile/contract';
 import { decodeRemovalPunishmentSelection } from '../admin-post-removal/punishment';
 import type { RemovalPunishmentSelection } from '../admin-post-removal/punishment';
 import { ClientError } from '../api/errors';
@@ -29,6 +30,7 @@ import type { PendingAdminDiscussionRemovalStore } from './pending';
 export interface AdminDiscussionRemovalView extends CommunityView {
   /** True only while an exact-target management read is available. */
   readonly loaded: boolean;
+  readonly viewSpaceId: string | null;
   readonly selectedPunishment: RemovalPunishmentSelection | null;
   readonly ownContent: boolean;
   readonly applied: boolean;
@@ -47,6 +49,7 @@ export const initialAdminDiscussionRemovalView =
     ...initialCommunityView(),
     selectedPunishment: null,
     loaded: false,
+    viewSpaceId: null,
     ownContent: false,
     applied: false,
     target: null,
@@ -91,6 +94,7 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
   ): void {
     this.update({
       target: previous.target,
+      viewSpaceId: previous.viewSpaceId,
       receiptStatus: previous.receiptStatus,
       applied: previous.applied,
     });
@@ -113,7 +117,10 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
       void this.recover();
       return;
     }
-    void this.load(previous.target ?? undefined);
+    void this.load(
+      previous.target ?? undefined,
+      previous.viewSpaceId ?? undefined,
+    );
   }
   private assertEnvironment(): void {
     if (
@@ -153,7 +160,10 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
       return false;
     }
   }
-  async load(raw?: AdminDiscussionRemovalTarget): Promise<void> {
+  async load(
+    raw?: AdminDiscussionRemovalTarget,
+    viewSpaceId?: string,
+  ): Promise<void> {
     if (this.view.busy || !this.available()) return;
     if (!this.gateway || !this.store) {
       this.update({
@@ -164,6 +174,8 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
     }
     let target: AdminDiscussionRemovalTarget | null = null;
     try {
+      if (viewSpaceId !== undefined && !isUuid(viewSpaceId))
+        throw new ClientError('protocol', 'Invalid removal view space');
       target =
         raw === undefined ? null : decodeAdminDiscussionRemovalTarget(raw);
     } catch (error) {
@@ -179,6 +191,8 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
     }
     this.update({
       target,
+      viewSpaceId: viewSpaceId ?? null,
+      selectedPunishment: null,
       loaded: false,
       management: null,
       confirming: null,
@@ -190,12 +204,18 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
     await this.run(
       (cancel) => {
         this.assertEnvironment();
-        return this.gateway!.management(target, cancel);
+        return this.gateway!.management(target, cancel, viewSpaceId);
       },
       (raw) => {
         this.assertEnvironment();
         const management = decodeAdminDiscussionRemovalManagement(raw);
-        if (!sameAdminDiscussionRemovalTarget(management.target, target))
+        if (
+          !sameAdminDiscussionRemovalTarget(management.target, target) ||
+          (viewSpaceId !== undefined &&
+            (management.version !== 3 ||
+              management.viewSpaceId !== viewSpaceId)) ||
+          (viewSpaceId === undefined && management.version === 3)
+        )
           throw new ClientError(
             'protocol',
             'Admin discussion removal target mismatch',
@@ -203,7 +223,10 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
         this.update({
           loaded: true,
           management,
-          status: '已核验此评论/回复所属帖子的原发布地区管理权限',
+          status:
+            management.version === 3
+              ? '已核验当前浏览地区的删除权限；此操作不包含账号处罚'
+              : '已核验此评论/回复所属帖子的原发布地区管理权限',
         });
       },
       (error) =>
@@ -215,10 +238,13 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
         }),
     );
   }
-  async request(target: AdminDiscussionRemovalTarget): Promise<void> {
+  async request(
+    target: AdminDiscussionRemovalTarget,
+    viewSpaceId = this.view.viewSpaceId ?? undefined,
+  ): Promise<void> {
     if (this.view.busy || !this.available() || !this.restore() || this.pending)
       return;
-    await this.load(target);
+    await this.load(target, viewSpaceId);
     const management = this.view.management;
     if (
       this.view.busy ||
@@ -283,7 +309,11 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const command = decodeAdminDiscussionRemovalCommand({
           clientRequestId,
-          ...(selection ? { version: 2, punishment: selection } : {}),
+          ...(management.version === 3
+            ? { version: 3, viewSpaceId: management.viewSpaceId }
+            : selection
+              ? { version: 2, punishment: selection }
+              : {}),
           target: management.target,
           action: 'remove_discussion',
           expectedTargetVersion: management.targetVersion,

@@ -38,12 +38,12 @@ export class LocalContentPublicationGate implements ContentPublicationGate {
     id: string,
     tx: PoolClient,
   ): Promise<void> {
-    const stored = await this.definitions.current(
-      kind,
-      id,
-      accepted.envelope.scope,
-      tx,
-    );
+    const stored =
+      kind === 'post' &&
+      accepted.envelope.version === 4 &&
+      accepted.envelope.scope.sync === 'related'
+        ? await this.definitions.newRelatedRoot(id, accepted.envelope.scope, tx)
+        : await this.definitions.current(kind, id, accepted.envelope.scope, tx);
     if (
       stored.kind !== 'allow' ||
       canonicalJson(stored.value.envelope) !== canonicalJson(accepted.envelope)

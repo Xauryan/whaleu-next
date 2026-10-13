@@ -1,4 +1,8 @@
-import { discussionAncestorAuthorization } from '../../media/discussion-ancestor-proof.js';
+import {
+  discussionAncestorAuthorization,
+  withDiscussionMediaMutation,
+} from '../../media/discussion-ancestor-proof.js';
+import { TextReviewSubmission } from '../text-review/contracts.js';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
 import type { CommunityAccessService } from '../community-access.service.js';
@@ -109,4 +113,34 @@ async function authorizeDiscussionPublicationCurrent(
     targetAccount = reply.account_id;
   }
   return { post, space, root, authority, mode, targetAccount };
+}
+
+/** A Review-only preparation is a successful read, represented by an internal
+ * sentinel at the publication boundary. Finalize the same ancestor/Media proof
+ * as an actual mutation BEFORE handing that sentinel to request/savepoint logic.
+ * Ordinary failures still escape immediately and never become queue submissions. */
+export async function withDiscussionPublicationMedia<T>(
+  tx: PoolClient,
+  input: unknown,
+  reviewOnly: boolean,
+  run: () => Promise<T>,
+): Promise<T> {
+  const outcome = await withDiscussionMediaMutation(
+    tx,
+    input,
+    async (): Promise<
+      | { kind: 'published'; value: T }
+      | { kind: 'review'; submission: TextReviewSubmission }
+    > => {
+      try {
+        return { kind: 'published', value: await run() };
+      } catch (error) {
+        if (!reviewOnly || !(error instanceof TextReviewSubmission))
+          throw error;
+        return { kind: 'review', submission: error };
+      }
+    },
+  );
+  if (outcome.kind === 'review') throw outcome.submission;
+  return outcome.value;
 }

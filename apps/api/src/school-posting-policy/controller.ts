@@ -49,7 +49,7 @@ export class SchoolPostingPolicyController {
   @ApiOperation({
     operationId: 'readSchoolPostingPolicy',
     description:
-      'Current original regional ledger; missing and expired evidence remain distinct. True school-admin fixed scope or explicit active super-admin target only. Unknown provenance or existing related-campus synchronization is read-only.',
+      'Current original regional ledger; missing and expired evidence remain distinct. True school-admin fixed scope or explicit active super-admin target only. Unknown provenance is read-only. Updated clients may explicitly edit related-campus synchronization through v2 commands.',
   })
   @ApiOkResponse({ standardSchema: schoolPostingViewSchema })
   read(
@@ -71,7 +71,7 @@ export class SchoolPostingPolicyController {
   @ApiOperation({
     operationId: 'saveSchoolPostingPolicy',
     description:
-      'Explicit current administrator CAS publication into the same immutable region policy ledger. Preserves exact request key/hash; generates accepted provenance server-side. Only nine ordinary categories; named author, phone, known affiliation and exact Review remain mandatory. Related-campus sync is not enabled by this command.',
+      'Explicit current administrator CAS publication into the same immutable region policy ledger. Preserves exact request key/hash; generates accepted provenance server-side. Only nine ordinary categories; named author, phone, known affiliation and exact Review remain mandatory. Version 2 explicitly controls related-campus synchronization: enable requires accepted current multi-region applicability; disable does not. Legacy commands cannot overwrite enabled sync.',
   })
   @ApiOkResponse({ standardSchema: schoolPostingReceiptSchema })
   save(

@@ -24,5 +24,7 @@ test('school posting documentation exposes the original-key administrator workfl
   const receipt = JSON.stringify(paths);
   assert.ok(receipt.includes('expectedRevision'));
   assert.ok(receipt.includes('policy_exempt'));
-  assert.equal(receipt.includes('relatedSyncEnabled'), false);
+  assert.equal(receipt.includes('relatedSyncEnabled'), true);
+  assert.ok(receipt.includes('related_sync_unsupported'));
+  assert.ok(receipt.includes('version'));
 });

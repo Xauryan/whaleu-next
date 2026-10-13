@@ -1,3 +1,4 @@
+import type { RelatedCampusDisplay } from './related-sync/contracts.js';
 import { batchCategoryChildContextAllowed } from './category-reclassification/child-context.js';
 import { resolvePostCategory } from './category-reclassification/read-proof.js';
 import { ownerPostVisibilityAllowed } from './owner-visibility/read-proof.js';
@@ -138,6 +139,7 @@ export class CommunitySerializer {
     authority: Authority | null,
     tx: PoolClient,
     purpose: MediaReadPurpose = 'list-projection',
+    distribution?: RelatedCampusDisplay,
   ): Promise<PostView> {
     const currentCategory = await resolvePostCategory(post.id, tx);
     if (currentCategory === null) throw new ApplicationError('POST_NOT_FOUND');
@@ -196,9 +198,12 @@ export class CommunitySerializer {
     let canComment = false;
     const reviewAvailable =
       authority?.runtime &&
-      post.comments_policy === 'open' &&
+      (post.publication_envelope_version === 4 ||
+        post.comments_policy === 'open') &&
       !!this.reviews &&
-      (await this.reviews.available(space, tx, post.category));
+      (post.publication_envelope_version === 4
+        ? await this.reviews.relatedAvailable(space, tx)
+        : await this.reviews.available(space, tx, post.category));
     // Ordinary interaction authority omits publication facts; refresh only
     // this optional hint, retaining every original publication check.
     const commentAuthority =
@@ -217,7 +222,8 @@ export class CommunitySerializer {
         if (
           commentAuthority.runtime &&
           mode !== 'named' &&
-          post.category !== 'feedback'
+          post.category !== 'feedback' &&
+          post.publication_envelope_version !== 4
         )
           continue;
         if (
@@ -264,6 +270,15 @@ export class CommunitySerializer {
     if (post.category === 'feedback' && !feedback)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     return {
+      isRelatedCampusSync: distribution?.isRelatedCampusSync ?? false,
+      ...(distribution?.isRelatedCampusSync && distribution.sourceRegion
+        ? {
+            sourceRegion: {
+              id: distribution.sourceRegion.id,
+              name: distribution.sourceRegion.name,
+            },
+          }
+        : {}),
       ...(feedback ? { feedback } : {}),
       saveCount: saved.saveCount,
       trading: await this.trading.project(post, viewer, authority, tx),
@@ -298,7 +313,8 @@ export class CommunitySerializer {
       commentsPolicy: post.comments_policy,
       allowAnonymousDm:
         post.author_mode === 'named' &&
-        post.publication_envelope_version === 2 &&
+        (post.publication_envelope_version === 2 ||
+          post.publication_envelope_version === 4) &&
         post.allow_anonymous_dm === true,
     };
   }

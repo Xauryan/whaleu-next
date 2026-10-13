@@ -76,7 +76,10 @@ const rejection = (
   outcome: 'rejected',
   code,
 });
-const manage = (): ProfileModerationManagement => ({
+const manage = (): Extract<
+  ProfileModerationManagement,
+  { displayName: string }
+> => ({
   target,
   displayName: '合成公开昵称',
   revision: 0,
@@ -730,14 +733,54 @@ test('standalone moderation page state starts unloaded and recovery-only load ne
 
 test('management display name bound matches API Unicode code points, not UTF-16 units', () => {
   const displayName = '🐋'.repeat(20);
-  assert.equal(
-    decodeProfileModerationManagement({ ...manage(), displayName }).displayName,
+  const decoded = decodeProfileModerationManagement({
+    ...manage(),
     displayName,
-  );
+  });
+  assert.ok('displayName' in decoded);
+  assert.equal(decoded.displayName, displayName);
   assert.throws(() =>
     decodeProfileModerationManagement({
       ...manage(),
       displayName: '🐋'.repeat(21),
     }),
   );
+});
+
+test('related sync unsupported management is an exact redacted capability and never opens confirmation', async (t) => {
+  const s = harness(),
+    controller = s.make();
+  t.after(() => controller.dispose());
+  for (const kind of ['post', 'comment', 'reply'] as const) {
+    const scopedTarget = { kind, id: postId };
+    const unavailable = {
+      target: scopedTarget,
+      canReset: false as const,
+      availability: 'unavailable' as const,
+      blocker: 'related_sync_unsupported' as const,
+    };
+    assert.deepEqual(
+      decodeProfileModerationManagement(unavailable),
+      unavailable,
+    );
+    for (const extra of [
+      { displayName: 'private' },
+      { revision: 0 },
+      { expectedAppearanceId: otherId },
+      { subjectId: otherId },
+      { accountId: otherId },
+      { canReset: true },
+      { blocker: 'other' },
+    ])
+      assert.throws(() =>
+        decodeProfileModerationManagement({ ...unavailable, ...extra }),
+      );
+    s.gateway.management = async () => unavailable;
+    await controller.request(scopedTarget);
+    assert.equal(s.view().loaded, true);
+    assert.equal(s.view().confirming, null);
+    assert.match(s.view().status, /关联校区同步内容暂不支持/);
+    await controller.submit();
+    assert.equal(s.commands.length, 0);
+  }
 });

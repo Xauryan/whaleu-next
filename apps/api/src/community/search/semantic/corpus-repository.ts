@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
 import { ApplicationError } from '../../../http/application-error.js';
@@ -156,6 +156,17 @@ export class SemanticCorpusRepository {
       return { candidate, key, distance, revision, bodyDigest };
     });
     relation.assertCurrent(tx);
-    return { fingerprint: state.fingerprint, candidates };
+    const fingerprint = relation.distributionFingerprint
+      ? createHash('sha256')
+          .update(
+            JSON.stringify([
+              'related-semantic-corpus:v1',
+              relation.distributionFingerprint,
+              state.fingerprint,
+            ]),
+          )
+          .digest('hex')
+      : state.fingerprint;
+    return { fingerprint, candidates };
   }
 }

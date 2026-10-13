@@ -11,7 +11,7 @@
   },
   "info": {
     "contact": {},
-    "description": "Clear only the current custom avatar from a named post, comment or reply in the fixed original regional scope. The shared Profile revision and current appearance must match. This removes the account-wide non-anonymous custom image and shows the existing unselected placeholder. No replacement bytes, fake Review, production catalog or provider is created. The subject receives a private notice. New requests and storage opens awaiting final authorization reject the old appearance; already authorized streams and downloaded bytes are not recalled. Actor-owned recovery and cancellation require only the original session and key.",
+    "description": "Clear only the current custom avatar from a named post, comment or reply in the fixed original regional scope. The shared Profile revision and current appearance must match. This removes the account-wide non-anonymous custom image and shows the existing unselected placeholder. No replacement bytes, fake Review, production catalog or provider is created. The subject receives a private notice. A readable named related-sync source with current content-management authority instead returns only target, canClearCustomAvatar:false, availability:unavailable and blocker:related_sync_unsupported, including at its original campus; no display, revision, appearance or subject identity is exposed. Fresh related-source commands cannot clear an avatar. New requests and storage opens awaiting final authorization reject the old appearance; already authorized streams and downloaded bytes are not recalled. Actor-owned recovery and cancellation require only the original session and key.",
     "title": "WhaleU scoped profile custom avatar clear",
     "version": "1"
   },
@@ -474,52 +474,96 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "canClearCustomAvatar": {
-                      "type": "boolean"
-                    },
-                    "displayName": {
-                      "maxLength": 20,
-                      "minLength": 1,
-                      "type": "string"
-                    },
-                    "expectedAppearanceId": {
-                      "format": "uuid",
-                      "nullable": true,
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                      "type": "string"
-                    },
-                    "revision": {
-                      "maximum": 2147483646,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "target": {
+                  "anyOf": [
+                    {
                       "additionalProperties": false,
                       "properties": {
-                        "id": {
+                        "canClearCustomAvatar": {
+                          "type": "boolean"
+                        },
+                        "displayName": {
+                          "maxLength": 20,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "expectedAppearanceId": {
                           "format": "uuid",
+                          "nullable": true,
                           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                           "type": "string"
                         },
-                        "kind": {
-                          "enum": ["post", "comment", "reply"],
-                          "type": "string"
+                        "revision": {
+                          "maximum": 2147483646,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "target": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["post", "comment", "reply"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "id"],
+                          "type": "object"
                         }
                       },
-                      "required": ["kind", "id"],
+                      "required": [
+                        "target",
+                        "displayName",
+                        "revision",
+                        "canClearCustomAvatar",
+                        "expectedAppearanceId"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "availability": {
+                          "enum": ["unavailable"],
+                          "type": "string"
+                        },
+                        "blocker": {
+                          "enum": ["related_sync_unsupported"],
+                          "type": "string"
+                        },
+                        "canClearCustomAvatar": {
+                          "enum": [false],
+                          "type": "boolean"
+                        },
+                        "target": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["post", "comment", "reply"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "id"],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "target",
+                        "canClearCustomAvatar",
+                        "availability",
+                        "blocker"
+                      ],
                       "type": "object"
                     }
-                  },
-                  "required": [
-                    "target",
-                    "displayName",
-                    "revision",
-                    "canClearCustomAvatar",
-                    "expectedAppearanceId"
-                  ],
-                  "type": "object"
+                  ]
                 }
               }
             },

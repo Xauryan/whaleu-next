@@ -46,6 +46,7 @@ export const publishPostSchema = z
     commentsPolicy: z.enum(['open', 'restricted']).default('open'),
     // Absence retains the historical publication intent and Review v1 bytes.
     allowAnonymousDm: z.boolean().optional(),
+    syncToRelatedCampuses: z.boolean().optional(),
     component: postComponentSchema.optional(),
     trading: tradingInputSchema.optional(),
     feedback: feedbackInputSchema.optional(),
@@ -85,6 +86,9 @@ export type PublishComment = z.infer<typeof publishCommentSchema>;
 export const idSchema = z.uuid();
 export const requestIdSchema = z.uuidv4();
 export const campusSpaceQuerySchema = z.strictObject({ campusId: z.uuid() });
+export const postViewQuerySchema = z.strictObject({
+  viewSpaceId: z.uuid().optional(),
+});
 export const capabilitiesQuerySchema = z.strictObject({
   spaceId: z.uuid(),
   category: categorySchema,
@@ -143,6 +147,8 @@ export type AuthorView =
       isPostAuthor: boolean;
     };
 export interface PostView {
+  isRelatedCampusSync?: boolean;
+  sourceRegion?: { id: string; name: string };
   feedback?: FeedbackView;
   saveCount: number;
   trading: TradingView | null;
@@ -228,6 +234,12 @@ export type PublicationReceipt =
       code: ApplicationErrorCode;
     };
 export interface Capabilities {
+  relatedCampusSync?: {
+    authorModes?: AuthorMode[];
+    canDisableComments?: boolean;
+    availability: 'allowed' | 'denied' | 'unavailable';
+    reason: ApplicationErrorCode | null;
+  };
   publish: {
     availability: 'allowed' | 'denied' | 'unavailable';
     reason: ApplicationErrorCode | null;
@@ -243,6 +255,7 @@ export interface Capabilities {
   };
 }
 export interface FeedPage {
+  relatedCampusDistribution?: 'complete' | 'unavailable';
   items: PostView[];
   nextCursor: string | null;
   continuation:
@@ -262,6 +275,7 @@ export interface OwnPublication {
 }
 
 export interface CommentCapabilities {
+  inheritsRelatedCampusSync?: boolean;
   lastAuthorMode: AuthorMode | null;
   availability: 'allowed' | 'denied' | 'unavailable';
   reason: ApplicationErrorCode | null;

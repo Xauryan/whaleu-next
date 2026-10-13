@@ -671,3 +671,13 @@ persisted original-key journal remains recoverable after role loss. The earned
 “管理员” title is optional, not automatically worn, and retained after revocation;
 it does not represent live authority. See `../../docs/API_SCHOOL_ADMIN_MANAGEMENT.md`
 for privacy, durable cancellation and source boundaries.
+
+## Related-campus ordinary-post sync
+
+The existing composer adds explicit per-post opt-in, the school posting-policy
+page adds version-2 enable/disable, and discovery retains canonical posts with
+safe viewer-relative source badges and truthful incomplete-coverage notices.
+Destination pins and pure removal preserve the original view and original-key
+recovery. Profile/avatar/category changes of related targets remain explicitly
+unavailable. See [native contracts and validation entrypoints](docs/related-campus-sync.md).
+Synthetic checks do not establish production policy/provider or device acceptance.

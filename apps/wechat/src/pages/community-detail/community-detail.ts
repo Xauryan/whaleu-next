@@ -181,6 +181,7 @@ Page({
   blockTargets: '',
   controller: undefined as DetailController | undefined,
   postId: '',
+  viewSpaceId: '',
   savedMutations: undefined as SavedMutationController | undefined,
   postLikeMutations: undefined as PostLikeMutationController | undefined,
   formationController: undefined as FormationController | undefined,
@@ -198,14 +199,21 @@ Page({
   formationOverlayTargets: '',
   formationIdentityOverlay: undefined as IdentityOverlayController | undefined,
   onLoad(
-    query: { postId?: string; rootCommentId?: string; replyId?: string } = {},
+    query: {
+      postId?: string;
+      rootCommentId?: string;
+      replyId?: string;
+      viewSpaceId?: string;
+    } = {},
   ) {
     this.postId =
       isUuid(query.postId) &&
+      (query.viewSpaceId === undefined || isUuid(query.viewSpaceId)) &&
       (query.rootCommentId === undefined || isUuid(query.rootCommentId)) &&
       (query.replyId === undefined || isUuid(query.replyId))
         ? query.postId
         : '';
+    this.viewSpaceId = isUuid(query.viewSpaceId) ? query.viewSpaceId : '';
     this.located = isUuid(query.replyId)
       ? { replyId: query.replyId }
       : isUuid(query.rootCommentId)
@@ -670,7 +678,7 @@ Page({
               !this.data.categoryManagement.frozen &&
               this.data.post?.id === post.id
             )
-              void pins?.load(post.id);
+              void pins?.load(post.id, true, this.viewSpaceId || post.space.id);
           });
         } else this.pinController?.clear();
 
@@ -696,6 +704,7 @@ Page({
         } else this.tradingContactsController?.load(null);
       },
       this.located,
+      this.viewSpaceId || undefined,
     );
     void this.controller.load();
   },
@@ -1197,7 +1206,7 @@ Page({
     }
     wx.navigateTo({
       success: () => undefined,
-      url: `/pages/admin-post-removal/admin-post-removal?kind=post&id=${encodeURIComponent(post.id)}`,
+      url: `/pages/admin-post-removal/admin-post-removal?kind=post&id=${encodeURIComponent(post.id)}${this.viewSpaceId && this.viewSpaceId !== this.data.post?.space.id ? `&viewSpaceId=${encodeURIComponent(this.viewSpaceId)}` : ''}`,
       fail: () => this.setData({ error: '暂不能打开帖子管理，请重试' }),
     });
   },
@@ -1246,7 +1255,7 @@ Page({
       this.mediaReadController?.clear();
       this.identityOverlay?.clear();
       wx.navigateTo?.({
-        url: `/pages/community-thread/community-thread?postId=${encodeURIComponent(this.postId)}&rootCommentId=${encodeURIComponent(rootId)}&replyId=${encodeURIComponent(selected.id)}`,
+        url: `/pages/community-thread/community-thread?postId=${encodeURIComponent(this.postId)}&rootCommentId=${encodeURIComponent(rootId)}&replyId=${encodeURIComponent(selected.id)}${this.viewSpaceId ? `&viewSpaceId=${encodeURIComponent(this.viewSpaceId)}` : ''}`,
         success: () => undefined,
         fail: () => this.setData({ error: '暂不能返回自己的回复，请重试' }),
       });
@@ -1263,7 +1272,7 @@ Page({
     }
     wx.navigateTo({
       success: () => undefined,
-      url: `/pages/admin-discussion-removal/admin-discussion-removal?kind=${kind}&id=${encodeURIComponent(selected.id)}`,
+      url: `/pages/admin-discussion-removal/admin-discussion-removal?kind=${kind}&id=${encodeURIComponent(selected.id)}${this.viewSpaceId && this.viewSpaceId !== this.data.post?.space.id ? `&viewSpaceId=${encodeURIComponent(this.viewSpaceId)}` : ''}`,
       fail: () => this.setData({ error: '暂不能打开评论/回复管理，请重试' }),
     });
   },

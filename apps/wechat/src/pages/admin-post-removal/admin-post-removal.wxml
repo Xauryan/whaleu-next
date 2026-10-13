@@ -1,7 +1,7 @@
 <view class="screen">
-  <view class="eyebrow">WHALEU · 原发布地区帖子管理</view>
+  <view class="eyebrow">WHALEU · 当前范围帖子管理</view>
   <view class="title">管理员删除帖子</view>
-  <view class="notice">从当前可查看的帖子核验原发布地区管理权限，匿名帖子同样适用。权限和帖子状态以服务端本次核验为准。</view>
+  <view class="notice">从当前可查看的帖子核验本次浏览范围管理权限，匿名帖子同样适用。权限和帖子状态以服务端本次核验为准。</view>
   <view class="status" aria-role="status">{{status}}</view>
   <view wx:if="{{addressError || error}}" class="error">{{addressError || error}}</view>
   <view wx:if="{{receiptStatus}}" class="notice" aria-role="status">{{receiptStatus}}</view>
@@ -17,6 +17,7 @@
   <view wx:if="{{confirming === 'remove' &amp;&amp; management &amp;&amp; !frozen}}" class="card" aria-role="alert">
     <view class="section-title">确认管理员删除此帖子？</view>
     <view class="notice">删除后，此帖子及其评论、回复将不可访问，作者会收到私有系统通知。当前没有恢复此帖的管理入口。未选择处罚时仅删除内容。已下载或正在展示的图片不会即时从所有设备消失。帖子状态变化后需要重新确认。</view>
+    <view wx:if="{{management.version === 3}}" class="notice">当前浏览地区仅支持删除内容，删除会影响所有地区的同一条内容。</view>
     <view wx:if="{{management.punishmentOptions}}" class="punishment-controls">
       <view>可选：对该内容的原作者同时处罚</view>
       <view>当前禁言：{{management.punishmentOptions.interaction_mute.current ? (management.punishmentOptions.interaction_mute.current.endsAt || '永久') : '无生效处罚'}}</view>

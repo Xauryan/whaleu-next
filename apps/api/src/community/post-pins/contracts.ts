@@ -13,7 +13,7 @@ export const pinQuerySchema = z
     tradingSubtype: tradingSubtypeSchema.optional(),
   })
   .refine((v) => !v.tradingSubtype || v.category === 'trading');
-export const pinCommandSchema = z.discriminatedUnion('operation', [
+const pinV1CommandSchema = z.discriminatedUnion('operation', [
   z.strictObject({
     clientRequestId: pinRequestIdSchema,
     operation: z.literal('pin'),
@@ -34,6 +34,24 @@ export const pinCommandSchema = z.discriminatedUnion('operation', [
     pinId: pinIdSchema,
   }),
 ]);
+export const pinCommandSchema = z.union([
+  pinV1CommandSchema,
+  pinV1CommandSchema.options[0].extend({
+    version: z.literal(2),
+    spaceId: pinIdSchema,
+  }),
+  pinV1CommandSchema.options[1].extend({
+    version: z.literal(2),
+    spaceId: pinIdSchema,
+  }),
+  pinV1CommandSchema.options[2].extend({
+    version: z.literal(2),
+    spaceId: pinIdSchema,
+  }),
+]);
+export const pinDetailQuerySchema = z.strictObject({
+  viewSpaceId: pinIdSchema.optional(),
+});
 export const pinEmptySchema = z.strictObject({});
 export type PinCommand = z.infer<typeof pinCommandSchema>;
 export type PinQuery = z.infer<typeof pinQuerySchema>;
@@ -63,6 +81,7 @@ export interface PinPage {
   items: { pin: PinMetadata; post: PostView }[];
 }
 export interface PinDetail {
+  spaceId?: string;
   postId: string;
   status: 'available' | 'unavailable';
   pin: PinMetadata | null;
@@ -102,6 +121,7 @@ export const pinPageSchema = z.strictObject({
     .max(1),
 });
 export const pinDetailSchema = z.strictObject({
+  spaceId: z.uuid().optional(),
   postId: z.uuid(),
   status: z.enum(['available', 'unavailable']),
   pin: pinMetadataSchema.nullable(),

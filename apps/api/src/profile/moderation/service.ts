@@ -119,6 +119,14 @@ export class ProfileModerationService {
   ): Promise<ModerationManagement> {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
+      if (await this.targets.relatedUnsupported(target, session.accountId, tx))
+        return moderationManagementSchema.parse({
+          target,
+          canReset: false,
+          availability: 'unavailable',
+          blocker: 'related_sync_unsupported',
+        });
+
       const initialInputs = await observeModerationInputs(
         { actor: session.accountId, grantId: null, target },
         tx,
@@ -197,6 +205,8 @@ export class ProfileModerationService {
           code: 'PROFILE_MODERATION_CANCELLED',
         };
       else {
+        if (await this.targets.relatedUnsupported(command.target, actor, tx))
+          throw new ApplicationError('PROFILE_MODERATION_TARGET_NOT_ALLOWED');
         const initialInputs = await observeModerationInputs(
           { actor, grantId: null, target: command.target },
           tx,

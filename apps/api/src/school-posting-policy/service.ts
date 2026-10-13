@@ -1,5 +1,13 @@
-import { AccountPolicy } from '../safety/account-policy/decorator.js';
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  AccountPolicy,
+  runAccountPolicy,
+} from '../safety/account-policy/decorator.js';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Optional,
+} from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ZodError } from 'zod';
 import { DatabaseService } from '../database/database.js';
@@ -20,6 +28,7 @@ import type {
   SaveSchoolPostingPolicy,
   SchoolPostingView,
 } from './contracts.js';
+import { CommunityDistributionService } from '../community/related-sync/service.js';
 import { requireSchoolPostingCurrent } from './current-proof.js';
 
 /** Expired accepted evidence is shown as history; a new explicit admin command
@@ -28,6 +37,7 @@ import { requireSchoolPostingCurrent } from './current-proof.js';
 export function projectSchoolPostingPolicy(
   row: SchoolPostingRow | null,
   now: number,
+  relatedSyncSupported = false,
 ): Omit<SchoolPostingView, 'context'> {
   if (!row)
     return {
@@ -75,9 +85,15 @@ export function projectSchoolPostingPolicy(
     revision: row.revision,
     revisionId: row.id,
     state: until !== undefined && until <= now ? 'expired' : 'active',
-    editable: !row.related_sync_enabled,
-    blocker: row.related_sync_enabled ? 'related_sync_unsupported' : null,
+    editable: relatedSyncSupported || !row.related_sync_enabled,
+    blocker:
+      !relatedSyncSupported && row.related_sync_enabled
+        ? 'related_sync_unsupported'
+        : null,
     policy: {
+      ...(relatedSyncSupported
+        ? { relatedSyncEnabled: row.related_sync_enabled }
+        : {}),
       unverifiedPostEnabled: row.unverified_post_enabled,
       unverifiedCommentEnabled: row.unverified_comment_enabled,
       unverifiedCategories:
@@ -98,6 +114,9 @@ export class SchoolPostingPolicyService {
     private readonly access: SchoolConfigurationAccess,
     @Inject(SchoolPostingPolicyRepository)
     private readonly records: SchoolPostingPolicyRepository,
+    @Optional()
+    @Inject(CommunityDistributionService)
+    private readonly distribution?: CommunityDistributionService,
   ) {}
   private async run<T>(work: (tx: PoolClient) => Promise<T>): Promise<T> {
     try {
@@ -111,6 +130,8 @@ export class SchoolPostingPolicyService {
     } catch (error) {
       if (
         error instanceof ZodError ||
+        (error instanceof ApplicationError &&
+          error.code === 'COMMUNITY_UNAVAILABLE') ||
         (typeof error === 'object' &&
           error !== null &&
           'code' in error &&
@@ -128,7 +149,7 @@ export class SchoolPostingPolicyService {
       const now = (
         await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
       ).rows[0]!.now.getTime();
-      const view = projectSchoolPostingPolicy(row, now);
+      const view = projectSchoolPostingPolicy(row, now, !!this.distribution);
       if (view.state === 'active' && row?.valid_until)
         registerTransactionDeadline(
           tx,
@@ -154,8 +175,14 @@ export class SchoolPostingPolicyService {
   save(token: string, regionId: string, command: SaveSchoolPostingPolicy) {
     return this.run(async (tx) => {
       await lockSafetyPolicy(tx, true);
-      const context = await this.access.management(token, regionId, tx),
-        actor = context.session.accountId;
+      const actor = (
+        await runAccountPolicy(
+          'restricted_self_service',
+          'restricted',
+          () => this.access.authenticate(token, tx),
+          true,
+        )
+      ).accountId;
       const hash = schoolPostingCommandHash(actor, regionId, command);
       await this.records.lockRequest(actor, command.clientRequestId, tx);
       const prior = await this.records.recover(
@@ -179,14 +206,26 @@ export class SchoolPostingPolicyService {
             ? 'SCHOOL_POSTING_POLICY_CANCELLED'
             : 'SCHOOL_POSTING_POLICY_REQUEST_CONFLICT',
         );
+      const context = await this.access.management(token, regionId, tx);
       const current = await this.records.current(regionId, tx, true);
       if ((current?.revision ?? 0) !== command.expectedRevision)
         throw new ApplicationError('SCHOOL_POSTING_POLICY_REVISION_CONFLICT');
       const now = (
         await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')
       ).rows[0]!.now.getTime();
-      if (!projectSchoolPostingPolicy(current, now).editable)
+      if (
+        !projectSchoolPostingPolicy(
+          current,
+          now,
+          'version' in command && !!this.distribution,
+        ).editable
+      )
         throw new ApplicationError('SCHOOL_POSTING_POLICY_SOURCE_UNRESOLVED');
+      if ('version' in command && command.policy.relatedSyncEnabled) {
+        if (!this.distribution)
+          throw new ApplicationError('SCHOOL_POSTING_POLICY_UNAVAILABLE');
+        await this.distribution.requirePolicyEnable(regionId, tx);
+      }
       if (command.policy.expiry.kind === 'at') {
         const until = Date.parse(command.policy.expiry.validUntil);
         if (!Number.isFinite(until) || until <= now)

@@ -23,7 +23,11 @@ import type {
 export interface PostPinsGateway {
   slot(spaceId: string, cancel: Cancellation): Promise<PinSlot>;
   list(query: PinQuery, cancel: Cancellation): Promise<PinPage>;
-  detail(postId: string, cancel: Cancellation): Promise<PinDetail>;
+  detail(
+    postId: string,
+    cancel: Cancellation,
+    viewSpaceId?: string,
+  ): Promise<PinDetail>;
   submit(
     command: PinCommand,
     cancel: Cancellation,
@@ -75,8 +79,13 @@ export class HttpPostPinsGateway implements PostPinsGateway {
       invalidPin();
     return result;
   }
-  async detail(postId: string, cancellation: Cancellation): Promise<PinDetail> {
-    if (!isUuid(postId)) invalidPin();
+  async detail(
+    postId: string,
+    cancellation: Cancellation,
+    viewSpaceId?: string,
+  ): Promise<PinDetail> {
+    if (!isUuid(postId) || (viewSpaceId !== undefined && !isUuid(viewSpaceId)))
+      invalidPin();
     const result = await this.api.request(
       {
         path: `/v1/community/posts/${postId}/pin`,
@@ -86,9 +95,16 @@ export class HttpPostPinsGateway implements PostPinsGateway {
         successStatus: 200,
         decode: decodePinDetail,
       },
-      { cancellation },
+      {
+        cancellation,
+        ...(viewSpaceId === undefined ? {} : { query: { viewSpaceId } }),
+      },
     );
-    if (result.postId !== postId) invalidPin();
+    if (
+      result.postId !== postId ||
+      (viewSpaceId !== undefined && result.spaceId !== viewSpaceId)
+    )
+      invalidPin();
     return result;
   }
   async submit(

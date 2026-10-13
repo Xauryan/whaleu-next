@@ -1,3 +1,4 @@
+import { isUuid } from '../profile/contract';
 import type { ApiClient } from '../api/client';
 import { uuid4 } from '../community/contract';
 import type { Cancellation } from '../platform/contracts';
@@ -22,6 +23,7 @@ export interface AdminPostRemovalGateway {
   management(
     target: AdminPostRemovalTarget,
     cancel: Cancellation,
+    viewSpaceId?: string,
   ): Promise<AdminPostRemovalManagement>;
   submit(
     command: AdminPostRemovalCommand,
@@ -38,8 +40,11 @@ export class HttpAdminPostRemovalGateway implements AdminPostRemovalGateway {
   async management(
     raw: AdminPostRemovalTarget,
     cancellation: Cancellation,
+    viewSpaceId?: string,
   ): Promise<AdminPostRemovalManagement> {
     const target = decodeAdminPostRemovalTarget(raw);
+    if (viewSpaceId !== undefined && !isUuid(viewSpaceId))
+      invalidAdminPostRemoval();
     const result = await this.api.request(
       {
         path: '/v1/community/admin-post-removal/management',
@@ -49,9 +54,22 @@ export class HttpAdminPostRemovalGateway implements AdminPostRemovalGateway {
         successStatus: 200,
         decode: decodeAdminPostRemovalManagement,
       },
-      { cancellation, query: { ...target, version: '2' } },
+      {
+        cancellation,
+        query: {
+          ...target,
+          ...(viewSpaceId === undefined
+            ? { version: '2' }
+            : { version: '3', viewSpaceId }),
+        },
+      },
     );
-    if (!sameAdminPostRemovalTarget(result.target, target))
+    if (
+      !sameAdminPostRemovalTarget(result.target, target) ||
+      (viewSpaceId !== undefined &&
+        (result.version !== 3 || result.viewSpaceId !== viewSpaceId)) ||
+      (viewSpaceId === undefined && result.version === 3)
+    )
       invalidAdminPostRemoval();
     return result;
   }
@@ -78,7 +96,11 @@ export class HttpAdminPostRemovalGateway implements AdminPostRemovalGateway {
           clientRequestId: command.clientRequestId,
           expectedTargetVersion: command.expectedTargetVersion,
           action: command.action,
-          ...(command.version === 2 ? { version: 2 } : {}),
+          ...(command.version === 3
+            ? { version: 3, viewSpaceId: command.viewSpaceId }
+            : command.version === 2
+              ? { version: 2 }
+              : {}),
           target: { ...command.target },
           ...(command.punishment
             ? {

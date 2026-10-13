@@ -12,6 +12,7 @@ import {
 import type { Comment, Post } from '../../community/contract';
 import type { CommunityRuntime } from '../../community/runtime';
 export interface DetailView extends CommunityView {
+  readonly viewSpaceQuery: string;
   readonly post: Post | null;
   readonly locatedComment: Comment | null;
   readonly locatedReplyId: string;
@@ -30,6 +31,7 @@ export interface DetailView extends CommunityView {
   readonly needsReload: boolean;
 }
 export const initialDetailView = (): DetailView => ({
+  viewSpaceQuery: '',
   ...initialCommunityView(),
   post: null,
   locatedComment: null,
@@ -65,8 +67,14 @@ export class DetailController extends CommunityController<DetailView> {
     ) => void = () => undefined,
     private readonly located:
       { commentId: string } | { replyId: string } | null = null,
+    private readonly viewSpaceId?: string,
   ) {
     super(runtime, initialDetailView, render);
+    this.update({
+      viewSpaceQuery: viewSpaceId
+        ? `&viewSpaceId=${encodeURIComponent(viewSpaceId)}`
+        : '',
+    });
     if (this.located) this.update({ sort: 'time' });
   }
   protected override resetPrivate(): void {
@@ -101,6 +109,11 @@ export class DetailController extends CommunityController<DetailView> {
     void this.load();
   }
   async load(): Promise<void> {
+    this.update({
+      viewSpaceQuery: this.viewSpaceId
+        ? `&viewSpaceId=${encodeURIComponent(this.viewSpaceId)}`
+        : '',
+    });
     this.resetNavigation();
     await this.read(null, 0);
   }
@@ -115,7 +128,11 @@ export class DetailController extends CommunityController<DetailView> {
     // Never expose comments until a fresh parent visibility decision has succeeded.
     await this.run(
       async (cancel) => {
-        const post = await this.runtime.gateway!.post(this.postId, cancel);
+        const post = await this.runtime.gateway!.post(
+          this.postId,
+          cancel,
+          this.viewSpaceId,
+        );
         const comments = await this.runtime.gateway!.comments(
           this.postId,
           after,
@@ -206,21 +223,36 @@ export class DetailController extends CommunityController<DetailView> {
     )
       return;
     await this.run(
-      (cancel) => this.runtime.gateway!.replies(root.id, after, cancel),
-      (result) => {
+      async (cancel) => {
+        const post = this.viewSpaceId
+          ? await this.runtime.gateway!.post(
+              this.postId,
+              cancel,
+              this.viewSpaceId,
+            )
+          : this.view.post!;
+        const replies = await this.runtime.gateway!.replies(
+          root.id,
+          after,
+          cancel,
+        );
+        return { post, replies };
+      },
+      ({ post, replies: result }) => {
         if (
           result.nextCursor === after ||
           result.items.some((item) => item.postId !== this.postId)
         )
           throw new ClientError('protocol', 'Reply continuation mismatch');
         checkDiscussionPrivacy(
-          this.view.post!,
+          post,
           result.items.flatMap((item) => [
             item.author,
             ...(item.target.status === 'available' ? [item.target.author] : []),
           ]),
         );
         this.update({
+          post,
           comments: this.view.comments.map((item) =>
             item.id === root.id
               ? {

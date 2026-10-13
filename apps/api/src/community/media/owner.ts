@@ -31,6 +31,26 @@ import type {
   OwnerReadRequest,
 } from '../../media/owner-proof.js';
 
+/** Media protocols bind the actor's existing draft scope. Distribution is bound
+ * separately by the exact publication intent and v4 Review envelope. */
+export function mediaActorScope(scope: PublicationScope) {
+  if (scope.sync === 'none') return contentScopeSchema.parse(scope);
+  return contentScopeSchema.parse({
+    originalSpaceId: scope.originalSpaceId,
+    originalRegionId: scope.originalRegionId,
+    authorOriginRegionId: scope.authorOriginRegionId,
+    identityRegionId: scope.identityRegionId,
+    topologySnapshotId: scope.topologySnapshotId,
+    sync: 'none',
+    configurationRevisionId:
+      scope.sync === 'related' ? null : scope.configurationRevisionId,
+    identityCampusId: scope.identityCampusId,
+    identitySelectionId: scope.identitySelectionId,
+    affiliationSnapshotId: scope.affiliationSnapshotId,
+    affiliationAssertionId: scope.affiliationAssertionId,
+  });
+}
+
 interface DraftRow {
   id: string;
   actor_id: string;
@@ -90,9 +110,7 @@ export class CommunityMediaOwner
   static scopeRevision(spaceId: string, scope: PublicationScope): string {
     return createHash('sha256')
       .update('whaleu-community-media-draft:v1\n')
-      .update(
-        JSON.stringify({ spaceId, scope: contentScopeSchema.parse(scope) }),
-      )
+      .update(JSON.stringify({ spaceId, scope: mediaActorScope(scope) }))
       .digest('hex');
   }
   static discussionScopeRevision(
@@ -106,7 +124,7 @@ export class CommunityMediaOwner
       .update(
         JSON.stringify({
           spaceId,
-          scope: contentScopeSchema.parse(scope),
+          scope: mediaActorScope(scope),
           postId,
           target,
         }),

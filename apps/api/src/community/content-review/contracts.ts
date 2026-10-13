@@ -7,23 +7,38 @@ import { formationComponentSchema } from '../formation/contracts.js';
 import { pollComponentSchema } from '../polls/contracts.js';
 import { tradingInputSchema } from '../trading/contracts.js';
 import { textSchema } from '../text.js';
+import type { AuthorMode, Category } from '../contracts.js';
+import type { FeedbackInput } from '../feedback/contracts.js';
+import type { FormationComponent } from '../formation/contracts.js';
+import type { PollComponent } from '../polls/contracts.js';
+import type { TradingInput } from '../trading/contracts.js';
+import type {
+  LegacyContentScope,
+  RelatedRootScope,
+  InheritedRelatedScope,
+} from './scope-contracts.js';
 
-/** Private, server-derived historical scope. Never project this into public DTOs. */
-export const contentScopeSchema = z.strictObject({
-  originalSpaceId: z.uuid(),
-  originalRegionId: z.uuid().nullable(),
-  authorOriginRegionId: z.uuid().nullable(),
-  identityRegionId: z.uuid().nullable(),
-  topologySnapshotId: z.uuid().nullable(),
-  sync: z.literal('none'),
-  configurationRevisionId: z.uuid().nullable().default(null),
-  identityCampusId: z.uuid().nullable().default(null),
-  identitySelectionId: z.uuid().nullable().default(null),
-  affiliationSnapshotId: z.uuid().nullable().default(null),
-  affiliationAssertionId: z.uuid().nullable().default(null),
-});
-export type ContentScopeSnapshot = z.input<typeof contentScopeSchema>;
-export type PublicationScope = ContentScopeSnapshot;
+import {
+  legacyContentScopeSchema,
+  relatedRootScopeSchema,
+  inheritedRelatedScopeSchema,
+} from './scope-contracts.js';
+export {
+  legacyContentScopeSchema,
+  effectiveContentScopeSchema,
+  relatedRootScopeSchema,
+  inheritedRelatedScopeSchema,
+} from './scope-contracts.js';
+export type {
+  ContentScopeSnapshot,
+  RelatedRootScope,
+  InheritedRelatedScope,
+  LegacyContentScope,
+} from './scope-contracts.js';
+export type PublicationScope =
+  import('./scope-contracts.js').ContentScopeSnapshot;
+/** Keep legacy consumers explicit; new stored/general scope readers use the union. */
+export const contentScopeSchema = legacyContentScopeSchema;
 export type ContentKind = 'post' | 'comment' | 'reply';
 const contentEnvelopeShape = {
   accountId: z.uuid(),
@@ -71,15 +86,45 @@ const contentEnvelopeV3Schema = z.strictObject({
   commentsPolicy: z.literal('open'),
   feedback: feedbackInputSchema,
 });
-export const effectiveContentEnvelopeSchema = z
+const contentEnvelopeV4Schema = z.strictObject({
+  ...contentEnvelopeShape,
+  version: z.literal(4),
+  allowAnonymousDm: z.boolean().nullable(),
+  scope: z.discriminatedUnion('sync', [
+    relatedRootScopeSchema,
+    inheritedRelatedScopeSchema,
+  ]),
+});
+const exactContentEnvelopeSchema = z
   .discriminatedUnion('version', [
     contentEnvelopeV1Schema,
     contentEnvelopeV2Schema,
     contentEnvelopeV3Schema,
+    contentEnvelopeV4Schema,
   ])
   .superRefine((value, ctx) => {
     const invalid = (message: string) =>
       ctx.addIssue({ code: 'custom', message });
+    if (value.version === 4) {
+      if (
+        value.category === 'feedback' ||
+        value.category === 'trading' ||
+        value.scope.originalRegionId === null
+      )
+        invalid('Invalid related distribution envelope');
+      if (value.purpose === 'publish_post') {
+        if (
+          value.scope.sync !== 'related' ||
+          (value.authorMode !== 'named' && value.allowAnonymousDm !== null)
+        )
+          invalid('Invalid related root scope');
+      } else if (
+        value.scope.sync !== 'inherited_related' ||
+        value.allowAnonymousDm !== null ||
+        value.scope.parentDistribution.postId !== value.postId
+      )
+        invalid('Invalid inherited distribution scope');
+    }
     if (
       value.category === 'feedback' &&
       (value.scope.originalRegionId !== null ||
@@ -131,25 +176,78 @@ export const effectiveContentEnvelopeSchema = z
         invalid('Missing root');
     }
   });
-export type EffectiveContentEnvelope = z.input<
-  typeof effectiveContentEnvelopeSchema
+export const effectiveContentEnvelopeSchema: z.ZodType<EffectiveContentEnvelope> =
+  exactContentEnvelopeSchema;
+type RequireProtocolAgreement<T extends true> = T;
+export type ContentEnvelopeProtocolAgreement = RequireProtocolAgreement<
+  [z.input<typeof exactContentEnvelopeSchema>] extends [
+    EffectiveContentEnvelope,
+  ]
+    ? [EffectiveContentEnvelope] extends [
+        z.input<typeof exactContentEnvelopeSchema>,
+      ]
+      ? true
+      : false
+    : false
 >;
-export type EffectiveContentEnvelopeV1 = Extract<
-  EffectiveContentEnvelope,
-  { version: 1 }
->;
-export type EffectiveContentEnvelopeV2 = Extract<
-  EffectiveContentEnvelope,
-  { version: 2 }
->;
+/** Explicit wire types avoid distributing Zod's implementation types through every owner. */
+interface ContentEnvelopeFields {
+  accountId: string;
+  purpose: 'publish_post' | 'publish_comment' | 'publish_reply';
+  spaceId: string;
+  category: Category;
+  authorMode: AuthorMode;
+  commentsPolicy: 'open' | 'restricted';
+  postId: string | null;
+  rootCommentId: string | null;
+  targetReplyId: string | null;
+  text: string;
+  images: { assetId: string; digest: string }[];
+  component: { kind: 'none' } | PollComponent | FormationComponent;
+  trading:
+    | (Omit<TradingInput, 'urgency'> & {
+        urgency?: 'normal' | 'urgent' | undefined;
+      })
+    | null;
+}
+export interface EffectiveContentEnvelopeV1 extends ContentEnvelopeFields {
+  version: 1;
+  scope: LegacyContentScope;
+}
+export interface EffectiveContentEnvelopeV2 extends ContentEnvelopeFields {
+  version: 2;
+  scope: LegacyContentScope;
+  purpose: 'publish_post';
+  authorMode: 'named';
+  allowAnonymousDm: boolean;
+}
+export interface EffectiveContentEnvelopeV3 extends ContentEnvelopeFields {
+  version: 3;
+  scope: LegacyContentScope;
+  purpose: 'publish_post';
+  category: 'feedback';
+  commentsPolicy: 'open';
+  feedback: FeedbackInput;
+}
+export interface EffectiveContentEnvelopeV4 extends ContentEnvelopeFields {
+  version: 4;
+  scope: RelatedRootScope | InheritedRelatedScope;
+  allowAnonymousDm: boolean | null;
+}
+export type EffectiveContentEnvelope =
+  | EffectiveContentEnvelopeV1
+  | EffectiveContentEnvelopeV2
+  | EffectiveContentEnvelopeV3
+  | EffectiveContentEnvelopeV4;
 export type EffectiveContentEnvelopeDraft =
-  | Omit<z.input<typeof contentEnvelopeV1Schema>, 'images'>
-  | Omit<z.input<typeof contentEnvelopeV2Schema>, 'images'>
-  | Omit<z.input<typeof contentEnvelopeV3Schema>, 'images'>;
+  | Omit<EffectiveContentEnvelopeV1, 'images'>
+  | Omit<EffectiveContentEnvelopeV2, 'images'>
+  | Omit<EffectiveContentEnvelopeV3, 'images'>
+  | Omit<EffectiveContentEnvelopeV4, 'images'>;
 export interface AcceptedApproval {
   decisionId: string;
   digest: string;
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   envelope: EffectiveContentEnvelope;
 }
 export interface ContentApprovalInput {
@@ -244,6 +342,7 @@ export function canonicalEnvelope(value: unknown): EffectiveContentEnvelope {
   if (typeof value === 'object' && value !== null && canonicalRoots.has(value))
     return value as EffectiveContentEnvelope;
   const envelope = effectiveContentEnvelopeSchema.parse(value);
+
   // Transformations are the same normalizations used by the publication DTOs.
   // New inputs are detached before freezing; only an internally proven result
   // can reuse identity. A caller-frozen or subsequently mutated input is reparsed.

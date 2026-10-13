@@ -314,10 +314,11 @@ export class CommunityDmEntryFacade {
         if (
           entry.kind !== 'post' ||
           post.author_mode !== 'named' ||
-          post.publication_envelope_version !== 2 ||
+          (post.publication_envelope_version !== 2 &&
+            post.publication_envelope_version !== 4) ||
           post.allow_anonymous_dm !== true ||
-          binding.envelope_version !== 2 ||
-          binding.envelope.version !== 2 ||
+          binding.envelope_version !== post.publication_envelope_version ||
+          (binding.envelope.version !== 2 && binding.envelope.version !== 4) ||
           binding.envelope.purpose !== 'publish_post' ||
           binding.envelope.allowAnonymousDm !== true
         )
@@ -340,7 +341,9 @@ export class CommunityDmEntryFacade {
         sourceNodes: definitions.map((value) => value.provenance),
         effectiveAuthorMode: subject.author_mode,
         optIn:
-          entry.kind === 'post' && post.publication_envelope_version === 2
+          entry.kind === 'post' &&
+          (post.publication_envelope_version === 2 ||
+            post.publication_envelope_version === 4)
             ? {
                 value: post.allow_anonymous_dm,
                 definitionDigest: definitions[0]!.binding.digest,

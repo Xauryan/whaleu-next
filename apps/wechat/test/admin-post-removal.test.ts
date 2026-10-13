@@ -35,6 +35,7 @@ import { PendingAdminPostRemovalStore } from '../src/admin-post-removal/pending'
 import { MemoryStorage, ScriptedTransport, deferred, flush } from './helpers';
 import {
   createdAt,
+  spaceId,
   otherId,
   postId,
   requestId,
@@ -45,13 +46,14 @@ import { wireCredentials } from './identity-helpers';
 const target: AdminPostRemovalTarget = { kind: 'post', id: postId };
 const command = (
   patch: Partial<AdminPostRemovalCommand> = {},
-): AdminPostRemovalCommand => ({
-  clientRequestId: requestId,
-  target,
-  expectedTargetVersion: 'a'.repeat(64),
-  action: 'remove_post',
-  ...patch,
-});
+): AdminPostRemovalCommand =>
+  decodeAdminPostRemovalCommand({
+    clientRequestId: requestId,
+    target,
+    expectedTargetVersion: 'a'.repeat(64),
+    action: 'remove_post',
+    ...patch,
+  });
 const receipt = (
   c = command(),
 ): Extract<AdminPostRemovalReceipt, { outcome: 'applied' }> => ({
@@ -902,4 +904,217 @@ test('post known applied recovery with persistent storage removal failure invali
   assert.equal(s.view().frozen, true);
   assert.equal(s.view().recovering, false);
   assert.ok(s.store.load(s.accountId));
+});
+
+test('pure v3 removal binds destination in strict management, intent, receipt and original recovery journal', () => {
+  const scoped = decodeAdminPostRemovalCommand({
+    ...command(),
+    version: 3,
+    viewSpaceId: spaceId,
+  });
+  const management = {
+    target,
+    targetVersion: 'a'.repeat(64),
+    canRemove: true,
+    version: 3,
+    viewSpaceId: spaceId,
+  };
+  assert.deepEqual(decodeAdminPostRemovalManagement(management), management);
+  for (const patch of [
+    { punishmentOptions: {} },
+    { viewSpaceId: 'bad' },
+    { version: 2 },
+  ])
+    assert.throws(() =>
+      decodeAdminPostRemovalManagement({ ...management, ...patch }),
+    );
+  for (const patch of [
+    { punishment: null },
+    { punishment: { kind: 'interaction_mute' } },
+    { viewSpaceId: 'bad' },
+    { spaceId },
+    { version: 2 },
+  ])
+    assert.throws(() => decodeAdminPostRemovalCommand({ ...scoped, ...patch }));
+  const outcome = decodeAdminPostRemovalReceipt({
+    ...receipt(scoped),
+    version: 3,
+    viewSpaceId: spaceId,
+  });
+  matchAdminPostRemovalReceipt(scoped, outcome);
+  assert.throws(() =>
+    matchAdminPostRemovalReceipt(
+      scoped,
+      decodeAdminPostRemovalReceipt({ ...outcome, viewSpaceId: otherId }),
+    ),
+  );
+  assert.throws(() =>
+    decodeAdminPostRemovalReceipt({ ...outcome, punishment: null }),
+  );
+  assert.notEqual(
+    adminPostRemovalCommandHash(wireCredentials().accountId, scoped),
+    adminPostRemovalCommandHash(wireCredentials().accountId, command()),
+  );
+  assert.notEqual(
+    adminPostRemovalCommandHash(wireCredentials().accountId, scoped),
+    adminPostRemovalCommandHash(
+      wireCredentials().accountId,
+      decodeAdminPostRemovalCommand({ ...scoped, viewSpaceId: otherId }),
+    ),
+  );
+  const s = harness();
+  const saved = s.store.freeze({
+    version: 1,
+    accountId: s.accountId,
+    origin: s.store.origin,
+    phase: 'submit',
+    command: scoped,
+  });
+  assert.throws(() =>
+    s.store.freeze({
+      ...saved,
+      command: decodeAdminPostRemovalCommand({
+        ...scoped,
+        viewSpaceId: otherId,
+      }),
+    }),
+  );
+  const cancelling = s.store.cancel(saved);
+  assert.equal(cancelling.command.viewSpaceId, spaceId);
+  assert.deepEqual(s.store.load(s.accountId), cancelling);
+  s.store.settle(cancelling, outcome);
+  assert.equal(s.store.load(s.accountId), null);
+});
+
+test('v3 native confirmation offers pure deletion and retries frozen destination after navigation and authority withdrawal', async (t) => {
+  const s = harness();
+  let controller = s.make();
+  t.after(() => controller.dispose());
+  s.gateway.management = async (readTarget, _cancel, destination) => {
+    assert.equal(destination, spaceId);
+    return {
+      target: readTarget,
+      targetVersion: 'a'.repeat(64),
+      canRemove: true,
+      version: 3,
+      viewSpaceId: spaceId,
+    };
+  };
+  await controller.request(target, spaceId);
+  assert.equal(s.view().confirming, 'remove');
+  assert.equal(s.view().management?.punishmentOptions, undefined);
+  assert.equal(
+    controller.selectPunishment({
+      kind: 'interaction_mute',
+      expectedRevision: '0',
+      reason: 'forged',
+      duration: { kind: 'finite', unit: 'days', value: 1 },
+    }),
+    false,
+  );
+  s.gateway.submit = async (c, _cancel, cancelling = false) => {
+    s.commands.push({ command: c, cancelling });
+    throw new ClientError('network', 'Response lost');
+  };
+  await controller.submit();
+  assert.equal(s.commands.length, 1);
+  const original = s.commands[0]!.command;
+  assert.equal(original.version, 3);
+  assert.equal(original.viewSpaceId, spaceId);
+  assert.equal('punishment' in original, false);
+  controller.dispose();
+  controller = s.make();
+  s.gateway.management = async () => {
+    throw new Error('Recovery must not reacquire withdrawn destination');
+  };
+  await controller.load(target, otherId);
+  await controller.recover(true);
+  assert.deepEqual(s.commands[1]!.command, original);
+  controller.requestCancellation();
+  await controller.confirmCancellation();
+  assert.deepEqual(s.commands[2], { command: original, cancelling: true });
+  s.gateway.receipt = async () => ({
+    state: 'recorded',
+    receipt: decodeAdminPostRemovalReceipt({
+      ...rejection(original),
+      version: 3,
+      viewSpaceId: spaceId,
+    }),
+  });
+  await controller.recover();
+  assert.equal(s.store.load(s.accountId), null);
+});
+
+test('v3 HTTP management and submit preserve explicit view scope and reject response substitution', async () => {
+  const s = setup(),
+    transport = new ScriptedTransport();
+  const api = new ApiClient('https://api.example', transport, s.sessions, {
+    refresh: async () => s.sessions.snapshot(),
+  });
+  const gateway = new HttpAdminPostRemovalGateway(api),
+    cancel = new Cancellation();
+  const management = {
+    target,
+    targetVersion: 'a'.repeat(64),
+    canRemove: true,
+    version: 3,
+    viewSpaceId: spaceId,
+  };
+  transport.reply(management);
+  await gateway.management(target, cancel, spaceId);
+  assert.deepEqual(
+    Object.fromEntries(new URL(transport.requests[0]!.url).searchParams),
+    { ...target, version: '3', viewSpaceId: spaceId },
+  );
+  const scoped = decodeAdminPostRemovalCommand({
+    ...command(),
+    version: 3,
+    viewSpaceId: spaceId,
+  });
+  transport.reply({ ...receipt(scoped), version: 3, viewSpaceId: spaceId });
+  await gateway.submit(scoped, cancel);
+  assert.deepEqual(transport.requests[1]!.body, scoped);
+  transport.reply({ ...rejection(scoped), version: 3, viewSpaceId: spaceId });
+  await gateway.submit(scoped, cancel, true);
+  assert.deepEqual(transport.requests[2]!.body, scoped);
+  transport.reply({ ...management, viewSpaceId: otherId });
+  await assert.rejects(gateway.management(target, cancel, spaceId));
+  transport.reply(manage());
+  await assert.rejects(gateway.management(target, cancel, spaceId));
+});
+
+test('legacy v1/v2 hashes remain fixed and pure v3 has its own exact destination domain', () => {
+  const selection = {
+    kind: 'interaction_mute',
+    duration: { kind: 'finite', unit: 'days', value: 7 },
+    reason: 'Golden reason',
+    expectedRevision: '0',
+  };
+  const vectors = {
+    post: [
+      '4d87bfbbb6e5713fccd4d86634171bc1cc97b45dc70b3eed45a3a950495aeb3c',
+      'c057bfa34f5e0d58c157aeb72b2c5351765a78a9a7ed34d79151e91b4e2f444e',
+      '459c5a540e68f39467503b00f76cf6ee61e449e6a95c00c1934fe00bc9cbf292',
+    ],
+  };
+  const expected = vectors[target.kind];
+  const commands = [
+    command(),
+    decodeAdminPostRemovalCommand({
+      ...command(),
+      version: 2,
+      punishment: selection,
+    }),
+    decodeAdminPostRemovalCommand({
+      ...command(),
+      version: 3,
+      viewSpaceId: spaceId,
+    }),
+  ];
+  assert.deepEqual(
+    commands.map((value) =>
+      adminPostRemovalCommandHash(wireCredentials().accountId, value),
+    ),
+    expected,
+  );
 });

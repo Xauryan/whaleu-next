@@ -73,6 +73,7 @@ export class HttpSchoolPostingPolicyGateway implements SchoolPostingPolicyGatewa
       },
       {
         body: {
+          ...(checked.version === 2 ? { version: 2 } : {}),
           clientRequestId: checked.clientRequestId,
           expectedRevision: checked.expectedRevision,
           policy: {

@@ -56,7 +56,10 @@ export class AdminDiscussionRemovalController {
         new SchemaValidationPipe(adminDiscussionRemovalManagementQuerySchema),
       ],
     })
-    target: AdminDiscussionRemovalTarget & { version?: '2' },
+    target: AdminDiscussionRemovalTarget & {
+      version?: '2' | '3';
+      viewSpaceId?: string;
+    },
     @Body(new SchemaValidationPipe(adminDiscussionRemovalEmptyBodySchema))
     _body: unknown,
   ) {
@@ -64,6 +67,7 @@ export class AdminDiscussionRemovalController {
       bearerToken(auth),
       { kind: target.kind, id: target.id },
       target.version === '2',
+      target.viewSpaceId,
     );
   }
   @Post('commands')

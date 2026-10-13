@@ -13,7 +13,7 @@
     <view class="meta">目标：{{management.target.kind}} · {{management.target.id}} · 资料版本 {{management.revision}}</view>
     <button bindtap="onResetNickname" disabled="{{busy}}">重置此账号公开昵称</button>
   </view>
-  <view wx:if="{{confirming === 'reset' &amp;&amp; management &amp;&amp; !frozen}}" class="card" aria-role="alert">
+  <view wx:if="{{confirming === 'reset' &amp;&amp; management.canReset &amp;&amp; !frozen}}" class="card" aria-role="alert">
     <view class="section-title">确认重置「{{management.displayName}}」的公开昵称？</view>
     <view class="notice">将重置此账号的公开昵称，包括其他地区的公开署名，并向对方发送私有系统通知。匿名分身保持不变。资料版本已变化时需要重新确认。</view>
     <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认重置昵称并通知对方</button>

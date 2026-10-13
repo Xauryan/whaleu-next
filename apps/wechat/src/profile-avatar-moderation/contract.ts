@@ -8,13 +8,21 @@ export interface ProfileAvatarModerationTarget {
   readonly kind: 'post' | 'comment' | 'reply';
   readonly id: string;
 }
-export interface ProfileAvatarModerationManagement {
-  readonly target: ProfileAvatarModerationTarget;
-  readonly displayName: string;
-  readonly revision: number;
-  readonly canClearCustomAvatar: boolean;
-  readonly expectedAppearanceId: string | null;
-}
+export type ProfileAvatarModerationManagement =
+  | {
+      readonly target: ProfileAvatarModerationTarget;
+      readonly displayName: string;
+      readonly revision: number;
+      readonly canClearCustomAvatar: boolean;
+      readonly expectedAppearanceId: string | null;
+    }
+  | {
+      readonly target: ProfileAvatarModerationTarget;
+      readonly canClearCustomAvatar: false;
+      readonly availability: 'unavailable';
+      readonly blocker: 'related_sync_unsupported';
+    };
+
 export interface ProfileAvatarModerationCommand {
   readonly clientRequestId: string;
   readonly target: ProfileAvatarModerationTarget;
@@ -78,6 +86,23 @@ export function decodeProfileAvatarModerationTarget(
 export function decodeProfileAvatarModerationManagement(
   raw: unknown,
 ): ProfileAvatarModerationManagement {
+  if (!isRecord(raw)) invalidProfileAvatarModeration();
+  if ('availability' in raw) {
+    exact(raw, ['target', 'canClearCustomAvatar', 'availability', 'blocker']);
+    const target = decodeProfileAvatarModerationTarget(raw.target);
+    if (
+      raw.canClearCustomAvatar !== false ||
+      raw.availability !== 'unavailable' ||
+      raw.blocker !== 'related_sync_unsupported'
+    )
+      invalidProfileAvatarModeration();
+    return Object.freeze({
+      target,
+      canClearCustomAvatar: false,
+      availability: 'unavailable',
+      blocker: 'related_sync_unsupported',
+    });
+  }
   exact(raw, [
     'target',
     'displayName',

@@ -49,6 +49,7 @@ function pageShape(
     'effectiveTypes',
     'items',
     'nextCursor',
+    'relatedCampusDistribution',
   ]);
   assert.ok(body.items.length <= limit);
   assert.equal(new Set(ids(body)).size, body.items.length);
@@ -802,6 +803,7 @@ test(
           const guest = await w.search({}, null);
           ok(guest);
           assert.deepEqual(guest.body, {
+            relatedCampusDistribution: 'complete',
             effectiveTypes: ['post'],
             items: [],
             nextCursor: null,
@@ -819,6 +821,7 @@ test(
           const first = await w.search({}, unverified);
           ok(first);
           assert.deepEqual(first.body, {
+            relatedCampusDistribution: 'complete',
             effectiveTypes: ['post'],
             items: [],
             nextCursor: null,
@@ -881,6 +884,7 @@ test(
             items: [],
             nextCursor: null,
             continuation: 'end',
+            relatedCampusDistribution: 'complete',
           });
           for (const bearer of [
             'garbage',
@@ -1164,6 +1168,7 @@ test(
             items: [],
             nextCursor: null,
             continuation: 'end',
+            relatedCampusDistribution: 'complete',
           });
           const unread = randomUUID();
           await h.mutate((tx) =>

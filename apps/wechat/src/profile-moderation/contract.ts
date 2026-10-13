@@ -7,12 +7,20 @@ export interface ProfileModerationTarget {
   readonly kind: 'post' | 'comment' | 'reply';
   readonly id: string;
 }
-export interface ProfileModerationManagement {
-  readonly target: ProfileModerationTarget;
-  readonly displayName: string;
-  readonly revision: number;
-  readonly canReset: true;
-}
+export type ProfileModerationManagement =
+  | {
+      readonly target: ProfileModerationTarget;
+      readonly displayName: string;
+      readonly revision: number;
+      readonly canReset: true;
+    }
+  | {
+      readonly target: ProfileModerationTarget;
+      readonly canReset: false;
+      readonly availability: 'unavailable';
+      readonly blocker: 'related_sync_unsupported';
+    };
+
 export interface ProfileModerationCommand {
   readonly clientRequestId: string;
   readonly target: ProfileModerationTarget;
@@ -66,6 +74,23 @@ export function decodeProfileModerationTarget(
 export function decodeProfileModerationManagement(
   raw: unknown,
 ): ProfileModerationManagement {
+  if (!isRecord(raw)) invalidProfileModeration();
+  if ('availability' in raw) {
+    exact(raw, ['target', 'canReset', 'availability', 'blocker']);
+    const target = decodeProfileModerationTarget(raw.target);
+    if (
+      raw.canReset !== false ||
+      raw.availability !== 'unavailable' ||
+      raw.blocker !== 'related_sync_unsupported'
+    )
+      invalidProfileModeration();
+    return Object.freeze({
+      target,
+      canReset: false,
+      availability: 'unavailable',
+      blocker: 'related_sync_unsupported',
+    });
+  }
   exact(raw, ['target', 'displayName', 'revision', 'canReset']);
   const target = decodeProfileModerationTarget(raw.target);
   if (

@@ -46,6 +46,7 @@ import { PendingAdminDiscussionRemovalStore } from '../src/admin-discussion-remo
 import { MemoryStorage, ScriptedTransport, deferred, flush } from './helpers';
 import {
   createdAt,
+  spaceId,
   otherId,
   postId,
   requestId,
@@ -62,13 +63,14 @@ for (const kind of ['comment', 'reply'] as const) {
   const target: AdminDiscussionRemovalTarget = { kind, id: postId };
   const command = (
     patch: Partial<AdminDiscussionRemovalCommand> = {},
-  ): AdminDiscussionRemovalCommand => ({
-    clientRequestId: requestId,
-    target,
-    expectedTargetVersion: 'a'.repeat(64),
-    action: 'remove_discussion',
-    ...patch,
-  });
+  ): AdminDiscussionRemovalCommand =>
+    decodeAdminDiscussionRemovalCommand({
+      clientRequestId: requestId,
+      target,
+      expectedTargetVersion: 'a'.repeat(64),
+      action: 'remove_discussion',
+      ...patch,
+    });
   const receipt = (
     c = command(),
   ): Extract<AdminDiscussionRemovalReceipt, { outcome: 'applied' }> => ({
@@ -1232,5 +1234,234 @@ for (const kind of ['comment', 'reply'] as const) {
       assert.equal(s.view().frozen, false, mode);
       assert.equal(s.commands.length, 0, mode);
     }
+  });
+
+  test('pure v3 removal binds destination in strict management, intent, receipt and original recovery journal', () => {
+    const scoped = decodeAdminDiscussionRemovalCommand({
+      ...command(),
+      version: 3,
+      viewSpaceId: spaceId,
+    });
+    const management = {
+      target,
+      targetVersion: 'a'.repeat(64),
+      canRemove: true,
+      version: 3,
+      viewSpaceId: spaceId,
+    };
+    assert.deepEqual(
+      decodeAdminDiscussionRemovalManagement(management),
+      management,
+    );
+    for (const patch of [
+      { punishmentOptions: {} },
+      { viewSpaceId: 'bad' },
+      { version: 2 },
+    ])
+      assert.throws(() =>
+        decodeAdminDiscussionRemovalManagement({ ...management, ...patch }),
+      );
+    for (const patch of [
+      { punishment: null },
+      { punishment: { kind: 'interaction_mute' } },
+      { viewSpaceId: 'bad' },
+      { spaceId },
+      { version: 2 },
+    ])
+      assert.throws(() =>
+        decodeAdminDiscussionRemovalCommand({ ...scoped, ...patch }),
+      );
+    const outcome = decodeAdminDiscussionRemovalReceipt({
+      ...receipt(scoped),
+      version: 3,
+      viewSpaceId: spaceId,
+    });
+    matchAdminDiscussionRemovalReceipt(scoped, outcome);
+    assert.throws(() =>
+      matchAdminDiscussionRemovalReceipt(
+        scoped,
+        decodeAdminDiscussionRemovalReceipt({
+          ...outcome,
+          viewSpaceId: otherId,
+        }),
+      ),
+    );
+    assert.throws(() =>
+      decodeAdminDiscussionRemovalReceipt({ ...outcome, punishment: null }),
+    );
+    assert.notEqual(
+      adminDiscussionRemovalCommandHash(wireCredentials().accountId, scoped),
+      adminDiscussionRemovalCommandHash(wireCredentials().accountId, command()),
+    );
+    assert.notEqual(
+      adminDiscussionRemovalCommandHash(wireCredentials().accountId, scoped),
+      adminDiscussionRemovalCommandHash(
+        wireCredentials().accountId,
+        decodeAdminDiscussionRemovalCommand({
+          ...scoped,
+          viewSpaceId: otherId,
+        }),
+      ),
+    );
+    const s = harness();
+    const saved = s.store.freeze({
+      version: 1,
+      accountId: s.accountId,
+      origin: s.store.origin,
+      phase: 'submit',
+      command: scoped,
+    });
+    assert.throws(() =>
+      s.store.freeze({
+        ...saved,
+        command: decodeAdminDiscussionRemovalCommand({
+          ...scoped,
+          viewSpaceId: otherId,
+        }),
+      }),
+    );
+    const cancelling = s.store.cancel(saved);
+    assert.equal(cancelling.command.viewSpaceId, spaceId);
+    assert.deepEqual(s.store.load(s.accountId), cancelling);
+    s.store.settle(cancelling, outcome);
+    assert.equal(s.store.load(s.accountId), null);
+  });
+
+  test('v3 native confirmation offers pure deletion and retries frozen destination after navigation and authority withdrawal', async (t) => {
+    const s = harness();
+    let controller = s.make();
+    t.after(() => controller.dispose());
+    s.gateway.management = async (readTarget, _cancel, destination) => {
+      assert.equal(destination, spaceId);
+      return {
+        target: readTarget,
+        targetVersion: 'a'.repeat(64),
+        canRemove: true,
+        version: 3,
+        viewSpaceId: spaceId,
+      };
+    };
+    await controller.request(target, spaceId);
+    assert.equal(s.view().confirming, 'remove');
+    assert.equal(s.view().management?.punishmentOptions, undefined);
+    assert.equal(
+      controller.selectPunishment({
+        kind: 'interaction_mute',
+        expectedRevision: '0',
+        reason: 'forged',
+        duration: { kind: 'finite', unit: 'days', value: 1 },
+      }),
+      false,
+    );
+    s.gateway.submit = async (c, _cancel, cancelling = false) => {
+      s.commands.push({ command: c, cancelling });
+      throw new ClientError('network', 'Response lost');
+    };
+    await controller.submit();
+    assert.equal(s.commands.length, 1);
+    const original = s.commands[0]!.command;
+    assert.equal(original.version, 3);
+    assert.equal(original.viewSpaceId, spaceId);
+    assert.equal('punishment' in original, false);
+    controller.dispose();
+    controller = s.make();
+    s.gateway.management = async () => {
+      throw new Error('Recovery must not reacquire withdrawn destination');
+    };
+    await controller.load(target, otherId);
+    await controller.recover(true);
+    assert.deepEqual(s.commands[1]!.command, original);
+    controller.requestCancellation();
+    await controller.confirmCancellation();
+    assert.deepEqual(s.commands[2], { command: original, cancelling: true });
+    s.gateway.receipt = async () => ({
+      state: 'recorded',
+      receipt: decodeAdminDiscussionRemovalReceipt({
+        ...rejection(original),
+        version: 3,
+        viewSpaceId: spaceId,
+      }),
+    });
+    await controller.recover();
+    assert.equal(s.store.load(s.accountId), null);
+  });
+
+  test('v3 HTTP management and submit preserve explicit view scope and reject response substitution', async () => {
+    const s = setup(),
+      transport = new ScriptedTransport();
+    const api = new ApiClient('https://api.example', transport, s.sessions, {
+      refresh: async () => s.sessions.snapshot(),
+    });
+    const gateway = new HttpAdminDiscussionRemovalGateway(api),
+      cancel = new Cancellation();
+    const management = {
+      target,
+      targetVersion: 'a'.repeat(64),
+      canRemove: true,
+      version: 3,
+      viewSpaceId: spaceId,
+    };
+    transport.reply(management);
+    await gateway.management(target, cancel, spaceId);
+    assert.deepEqual(
+      Object.fromEntries(new URL(transport.requests[0]!.url).searchParams),
+      { ...target, version: '3', viewSpaceId: spaceId },
+    );
+    const scoped = decodeAdminDiscussionRemovalCommand({
+      ...command(),
+      version: 3,
+      viewSpaceId: spaceId,
+    });
+    transport.reply({ ...receipt(scoped), version: 3, viewSpaceId: spaceId });
+    await gateway.submit(scoped, cancel);
+    assert.deepEqual(transport.requests[1]!.body, scoped);
+    transport.reply({ ...rejection(scoped), version: 3, viewSpaceId: spaceId });
+    await gateway.submit(scoped, cancel, true);
+    assert.deepEqual(transport.requests[2]!.body, scoped);
+    transport.reply({ ...management, viewSpaceId: otherId });
+    await assert.rejects(gateway.management(target, cancel, spaceId));
+    transport.reply(manage());
+    await assert.rejects(gateway.management(target, cancel, spaceId));
+  });
+
+  test('legacy v1/v2 hashes remain fixed and pure v3 has its own exact destination domain', () => {
+    const selection = {
+      kind: 'interaction_mute',
+      duration: { kind: 'finite', unit: 'days', value: 7 },
+      reason: 'Golden reason',
+      expectedRevision: '0',
+    };
+    const vectors = {
+      comment: [
+        '02b2beda65b4265e9388c92efa480f1d1f528b960c1efdeae231d324bc971cdb',
+        'ab86c209c2a7f87ddf75a1422d1de10c3c3c08be201131ecb6d23a81a8057281',
+        '0b6e43055597d0b32e259c7b8165b55fedd55e4cf3151b3445bdde77175919ec',
+      ],
+      reply: [
+        'fe0a4d4192a56122b0b596d4f6215572f1480dbaac5a44d1a61f3f889f125e69',
+        'b1f3a94a078070956ad2a3453bedb43a8e839da92f8e10515f4011cd5d135a64',
+        '929d34754ac7e59d346b138bea6e495aa9ed47908f4420082614cadb2c9b718f',
+      ],
+    };
+    const expected = vectors[kind];
+    const commands = [
+      command(),
+      decodeAdminDiscussionRemovalCommand({
+        ...command(),
+        version: 2,
+        punishment: selection,
+      }),
+      decodeAdminDiscussionRemovalCommand({
+        ...command(),
+        version: 3,
+        viewSpaceId: spaceId,
+      }),
+    ];
+    assert.deepEqual(
+      commands.map((value) =>
+        adminDiscussionRemovalCommandHash(wireCredentials().accountId, value),
+      ),
+      expected,
+    );
   });
 }

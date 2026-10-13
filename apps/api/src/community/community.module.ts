@@ -153,6 +153,7 @@ import { SchemaValidationPipe } from '../http/validation.js';
 import {
   campusSpaceQuerySchema,
   capabilitiesQuerySchema,
+  postViewQuerySchema,
   feedQuerySchema,
   idSchema,
   pageQuerySchema,
@@ -221,8 +222,10 @@ export class CommunityReadController {
   @Get('posts/:postId') detail(
     @Headers('authorization') auth: unknown,
     @Param('postId', new SchemaValidationPipe(idSchema)) id: string,
+    @Query(new SchemaValidationPipe(postViewQuerySchema))
+    query: { viewSpaceId?: string },
   ) {
-    return this.feeds.detail(bearerToken(auth), id);
+    return this.feeds.detail(bearerToken(auth), id, query.viewSpaceId);
   }
   @Get('posts/:postId/comment-capabilities') commentCapabilities(
     @Headers('authorization') auth: unknown,

@@ -43,10 +43,11 @@
   "paths": {
     "/v1/community/reviews/comments/{id}/replies": {
       "post": {
-        "description": "Explicit local manual review; original publication receipt and current authorization remain authoritative.",
+        "description": "Explicit local manual review; original publication receipt and current authorization remain authoritative. Replies inherit the canonical root. Their existing path/root-comment identifier, optional targetReplyId and imageAssetIds handling already canonicalizes UUIDs to lowercase before constructing the inherited envelope; this rule does not impose a new lowercase-input rejection on replies. The v4-only check runs after original-key receipt recovery and before new Review submission or approval issuance. Legacy none input schemas, normalization and hash bytes are unchanged; never rewrite a frozen historical request to lowercase.",
         "operationId": "textReviewReply",
         "parameters": [
           {
+            "description": "Existing reply handling canonicalizes the root-comment UUID to lowercase.",
             "in": "path",
             "name": "id",
             "required": true,
@@ -215,7 +216,7 @@
     },
     "/v1/community/reviews/posts": {
       "post": {
-        "description": "Explicit local manual review; original publication receipt and current authorization remain authoritative.",
+        "description": "Explicit local manual review; original publication receipt and current authorization remain authoritative. When syncToRelatedCampuses is exactly true, spaceId and every imageAssetIds entry must be canonical lowercase UUIDs. With false or an absent flag, existing legacy UUID handling remains unchanged. The v4-only check runs after original-key receipt recovery and before new Review submission or approval issuance. Legacy none input schemas, normalization and hash bytes are unchanged; never rewrite a frozen historical request to lowercase.",
         "operationId": "textReviewPost",
         "parameters": [],
         "requestBody": {
@@ -223,6 +224,60 @@
             "application/json": {
               "schema": {
                 "additionalProperties": false,
+                "allOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "properties": {
+                          "syncToRelatedCampuses": {
+                            "enum": [false],
+                            "type": "boolean"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "imageAssetIds": {
+                            "items": {
+                              "allOf": [
+                                {
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                {
+                                  "pattern": "^[0-9a-f-]+$",
+                                  "type": "string"
+                                }
+                              ],
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "spaceId": {
+                            "allOf": [
+                              {
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              {
+                                "pattern": "^[0-9a-f-]+$",
+                                "type": "string"
+                              }
+                            ],
+                            "type": "string"
+                          },
+                          "syncToRelatedCampuses": {
+                            "enum": [true],
+                            "type": "boolean"
+                          }
+                        },
+                        "required": ["syncToRelatedCampuses"],
+                        "type": "object"
+                      }
+                    ]
+                  }
+                ],
                 "properties": {
                   "allowAnonymousDm": {
                     "type": "boolean"
@@ -385,6 +440,9 @@
                     "format": "uuid",
                     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                     "type": "string"
+                  },
+                  "syncToRelatedCampuses": {
+                    "type": "boolean"
                   },
                   "text": {
                     "type": "string"
@@ -552,6 +610,37 @@
             },
             "description": "Conflicting original key or durable cancellation fence."
           },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": ["RELATED_CONTENT_CANONICAL_ID_REQUIRED"],
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message", "requestId"],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "RELATED_CONTENT_CANONICAL_ID_REQUIRED: a new v4 intent contains a noncanonical UUID in a field listed above. The v4-only check runs after original-key receipt recovery and before new Review submission or approval issuance. Legacy none input schemas, normalization and hash bytes are unchanged; never rewrite a frozen historical request to lowercase."
+          },
           "503": {
             "content": {
               "application/json": {
@@ -574,10 +663,11 @@
     },
     "/v1/community/reviews/posts/{id}/comments": {
       "post": {
-        "description": "Explicit local manual review; original publication receipt and current authorization remain authoritative.",
+        "description": "Explicit local manual review; original publication receipt and current authorization remain authoritative. When the server-resolved canonical root post uses related-sync v4, the raw post path identifier and every imageAssetIds entry must be canonical lowercase UUIDs. This condition depends on the existing root, not a client field; legacy none-root input handling remains unchanged. The v4-only check runs after original-key receipt recovery and before new Review submission or approval issuance. Legacy none input schemas, normalization and hash bytes are unchanged; never rewrite a frozen historical request to lowercase.",
         "operationId": "textReviewComment",
         "parameters": [
           {
+            "description": "Canonical lowercase UUID required only when this post is a related-sync v4 root. Legacy none-root handling is unchanged.",
             "in": "path",
             "name": "id",
             "required": true,
@@ -719,6 +809,37 @@
             },
             "description": "Conflicting original key or durable cancellation fence."
           },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": ["RELATED_CONTENT_CANONICAL_ID_REQUIRED"],
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message", "requestId"],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "RELATED_CONTENT_CANONICAL_ID_REQUIRED: a new v4 intent contains a noncanonical UUID in a field listed above. The v4-only check runs after original-key receipt recovery and before new Review submission or approval issuance. Legacy none input schemas, normalization and hash bytes are unchanged; never rewrite a frozen historical request to lowercase."
+          },
           "503": {
             "content": {
               "application/json": {
@@ -736,7 +857,44 @@
           }
         ],
         "summary": "",
-        "tags": ["Non-production text review"]
+        "tags": ["Non-production text review"],
+        "x-related-canonical-identifiers": {
+          "bodyProperties": {
+            "imageAssetIds": {
+              "items": {
+                "allOf": [
+                  {
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  {
+                    "pattern": "^[0-9a-f-]+$",
+                    "type": "string"
+                  }
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "condition": "server-resolved canonical root uses related-sync v4",
+          "pathParameters": {
+            "id": {
+              "allOf": [
+                {
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                {
+                  "pattern": "^[0-9a-f-]+$",
+                  "type": "string"
+                }
+              ],
+              "type": "string"
+            }
+          },
+          "validationOrder": "after original-key receipt recovery, before new Review submission or approval issuance"
+        }
       }
     },
     "/v1/community/reviews/requests/{requestId}": {

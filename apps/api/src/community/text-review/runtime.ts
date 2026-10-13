@@ -1,6 +1,7 @@
 import { requireFeedbackSpace } from '../feedback/topic.js';
 import { registerTransactionDeadline } from '../../database/transaction-deadlines.js';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { CommunityDistributionService } from '../related-sync/service.js';
 import type { PoolClient } from 'pg';
 import { APP_CONFIG } from '../../config/config.js';
 import type { RuntimeConfig } from '../../config/config.js';
@@ -20,6 +21,9 @@ export class TextReviewRuntime {
   constructor(
     @Inject(APP_CONFIG) readonly config: RuntimeConfig,
     @Inject(ApprovalRepository) private readonly approvals: ApprovalRepository,
+    @Optional()
+    @Inject(CommunityDistributionService)
+    private readonly distribution?: CommunityDistributionService,
   ) {}
   configured(): boolean {
     return (
@@ -66,10 +70,77 @@ export class TextReviewRuntime {
       )
     ).rows[0];
   }
+  policyId(envelope: EffectiveContentEnvelope): string | undefined {
+    return envelope.version === 4
+      ? this.config.COMMUNITY_RELATED_REVIEW_POLICY_ID
+      : this.config.COMMUNITY_TEXT_REVIEW_POLICY_ID;
+  }
+  async relatedAvailable(
+    space: Pick<CommunitySpace, 'id' | 'operatingRegionId'>,
+    tx: PoolClient,
+  ): Promise<boolean> {
+    if (
+      !this.distribution ||
+      !this.configured() ||
+      !this.config.COMMUNITY_RELATED_REVIEW_POLICY_ID ||
+      space.id !== this.config.COMMUNITY_TEXT_REVIEW_SPACE_ID ||
+      space.operatingRegionId !== this.config.COMMUNITY_TEXT_REVIEW_REGION_ID
+    )
+      return false;
+    const row = (
+      await tx.query<{ valid_until: Date | null }>(
+        `SELECT valid_until FROM whaleu_community.content_approval_policies
+       WHERE id=$1 AND policy_key='local-related-v1' AND version=1 AND coverage='complete'
+       AND provenance='accepted' AND issuer=$2 AND length(btrim(provenance_ref))>0
+       AND valid_from<=clock_timestamp() AND (valid_until IS NULL OR valid_until>clock_timestamp()) FOR SHARE`,
+        [
+          this.config.COMMUNITY_RELATED_REVIEW_POLICY_ID,
+          this.config.COMMUNITY_TEXT_REVIEW_OPERATOR,
+        ],
+      )
+    ).rows[0];
+    if (!row) return false;
+    if (row.valid_until)
+      registerTransactionDeadline(
+        tx,
+        row.valid_until.getTime(),
+        'CONTENT_REVIEW_UNAVAILABLE',
+      );
+    return true;
+  }
   async requireEnvelope(
     envelope: EffectiveContentEnvelope,
     tx: PoolClient,
   ): Promise<void> {
+    if (envelope.version === 4) {
+      if (
+        !this.distribution ||
+        !(await this.relatedAvailable(
+          {
+            id: envelope.spaceId,
+            operatingRegionId: envelope.scope.originalRegionId,
+          },
+          tx,
+        ))
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      await this.distribution.requireEnvelopeShape(envelope, tx);
+      if (
+        envelope.scope.sync === 'related' &&
+        !(
+          await tx.query(
+            `SELECT id FROM whaleu_community.related_sync_policies
+         WHERE id=$1 AND review_policy_revision_id=$2`,
+            [
+              envelope.scope.syncPolicyId,
+              this.config.COMMUNITY_RELATED_REVIEW_POLICY_ID,
+            ],
+          )
+        ).rows[0]
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      return;
+    }
     if (
       (envelope.category !== 'feedback' &&
         (envelope.authorMode !== 'named' || envelope.images.length > 0)) ||

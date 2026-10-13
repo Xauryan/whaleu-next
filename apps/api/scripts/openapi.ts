@@ -1,3 +1,4 @@
+import { writeRelatedCampusSyncOpenApi } from './related-campus-sync-openapi-document.js';
 import { writeAccountModerationOpenApi } from './account-moderation-openapi-document.js';
 import { writeSchoolAdminManagementOpenApi } from './school-admin-management-openapi-document.js';
 import { writeAdminDiscussionRemovalOpenApi } from './admin-discussion-removal-openapi-document.js';
@@ -341,3 +342,5 @@ await writeAdminDiscussionRemovalOpenApi(args[0] === '--check');
 await writeSchoolAdminManagementOpenApi(args[0] === '--check');
 
 await writeAccountModerationOpenApi(args[0] === '--check');
+
+await writeRelatedCampusSyncOpenApi(args[0] === '--check');

@@ -5,6 +5,9 @@ import { loadConfig } from '../../config/config.js';
 import { inTransaction, poolOptions } from '../../database/database.js';
 import { ApprovalRepository } from '../content-review/approval.repository.js';
 import { TextReviewRuntime } from './runtime.js';
+import { CommunityDistributionService } from '../related-sync/service.js';
+import { CampusCommunityPolicyService } from '../../campus/community-policy/campus-community-policy.service.js';
+import { RegionalCommunityPolicyService } from '../../campus/community-policy/regional-community-policy.service.js';
 import { reviewOperatorCommandSchema, TextReviewOperator } from './operator.js';
 
 async function main(): Promise<void> {
@@ -17,7 +20,14 @@ async function main(): Promise<void> {
   const config = loadConfig(process.env);
   const operator = `local:${hostname()}:${userInfo().username}`;
   const service = new TextReviewOperator(
-    new TextReviewRuntime(config, new ApprovalRepository()),
+    new TextReviewRuntime(
+      config,
+      new ApprovalRepository(),
+      new CommunityDistributionService(
+        new CampusCommunityPolicyService(),
+        new RegionalCommunityPolicyService(),
+      ),
+    ),
     operator,
   );
   const pool = new Pool({ ...poolOptions(config), max: 1 });

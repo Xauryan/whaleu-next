@@ -1,3 +1,4 @@
+import { isUuid } from '../profile/contract';
 import { decodeRemovalPunishmentSelection } from './punishment';
 import type { RemovalPunishmentSelection } from './punishment';
 import { ClientError } from '../api/errors';
@@ -29,6 +30,7 @@ import type { PendingAdminPostRemovalStore } from './pending';
 export interface AdminPostRemovalView extends CommunityView {
   /** True only while an exact-target management read is available. */
   readonly loaded: boolean;
+  readonly viewSpaceId: string | null;
   readonly selectedPunishment: RemovalPunishmentSelection | null;
   readonly ownPost: boolean;
   readonly applied: boolean;
@@ -46,6 +48,7 @@ export const initialAdminPostRemovalView = (): AdminPostRemovalView => ({
   ...initialCommunityView(),
   selectedPunishment: null,
   loaded: false,
+  viewSpaceId: null,
   ownPost: false,
   applied: false,
   target: null,
@@ -87,6 +90,7 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
   protected override onSafetyInvalidated(previous: AdminPostRemovalView): void {
     this.update({
       target: previous.target,
+      viewSpaceId: previous.viewSpaceId,
       receiptStatus: previous.receiptStatus,
       applied: previous.applied,
     });
@@ -109,7 +113,10 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
       void this.recover();
       return;
     }
-    void this.load(previous.target ?? undefined);
+    void this.load(
+      previous.target ?? undefined,
+      previous.viewSpaceId ?? undefined,
+    );
   }
   private assertEnvironment(): void {
     if (
@@ -149,7 +156,10 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
       return false;
     }
   }
-  async load(raw?: AdminPostRemovalTarget): Promise<void> {
+  async load(
+    raw?: AdminPostRemovalTarget,
+    viewSpaceId?: string,
+  ): Promise<void> {
     if (this.view.busy || !this.available()) return;
     if (!this.gateway || !this.store) {
       this.update({
@@ -160,6 +170,8 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
     }
     let target: AdminPostRemovalTarget | null = null;
     try {
+      if (viewSpaceId !== undefined && !isUuid(viewSpaceId))
+        throw new ClientError('protocol', 'Invalid removal view space');
       target = raw === undefined ? null : decodeAdminPostRemovalTarget(raw);
     } catch (error) {
       this.update({
@@ -174,6 +186,8 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
     }
     this.update({
       target,
+      viewSpaceId: viewSpaceId ?? null,
+      selectedPunishment: null,
       loaded: false,
       management: null,
       confirming: null,
@@ -185,12 +199,18 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
     await this.run(
       (cancel) => {
         this.assertEnvironment();
-        return this.gateway!.management(target, cancel);
+        return this.gateway!.management(target, cancel, viewSpaceId);
       },
       (raw) => {
         this.assertEnvironment();
         const management = decodeAdminPostRemovalManagement(raw);
-        if (!sameAdminPostRemovalTarget(management.target, target))
+        if (
+          !sameAdminPostRemovalTarget(management.target, target) ||
+          (viewSpaceId !== undefined &&
+            (management.version !== 3 ||
+              management.viewSpaceId !== viewSpaceId)) ||
+          (viewSpaceId === undefined && management.version === 3)
+        )
           throw new ClientError(
             'protocol',
             'Admin post removal target mismatch',
@@ -198,7 +218,10 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
         this.update({
           loaded: true,
           management,
-          status: '已核验此帖原发布地区的管理员删除权限',
+          status:
+            management.version === 3
+              ? '已核验当前浏览地区的删除权限；此操作不包含账号处罚'
+              : '已核验此帖原发布地区的管理员删除权限',
         });
       },
       (error) =>
@@ -209,10 +232,13 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
         }),
     );
   }
-  async request(target: AdminPostRemovalTarget): Promise<void> {
+  async request(
+    target: AdminPostRemovalTarget,
+    viewSpaceId = this.view.viewSpaceId ?? undefined,
+  ): Promise<void> {
     if (this.view.busy || !this.available() || !this.restore() || this.pending)
       return;
-    await this.load(target);
+    await this.load(target, viewSpaceId);
     const management = this.view.management;
     if (
       this.view.busy ||
@@ -277,7 +303,11 @@ export class AdminPostRemovalController extends CommunityController<AdminPostRem
           throw new ClientError('cancelled', 'Cancelled before persistence');
         const command = decodeAdminPostRemovalCommand({
           clientRequestId,
-          ...(selection ? { version: 2, punishment: selection } : {}),
+          ...(management.version === 3
+            ? { version: 3, viewSpaceId: management.viewSpaceId }
+            : selection
+              ? { version: 2, punishment: selection }
+              : {}),
           target: management.target,
           action: 'remove_post',
           expectedTargetVersion: management.targetVersion,

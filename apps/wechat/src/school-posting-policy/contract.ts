@@ -1,5 +1,5 @@
 import { sha256 } from 'js-sha256';
-import { ClientError } from '../api/errors';
+import { ClientError, isRecord } from '../api/errors';
 import { exact } from '../community/contract';
 import { isUuid } from '../profile/contract';
 
@@ -30,12 +30,14 @@ export type PostingPolicyExpiry =
   | { readonly kind: 'policy_exempt' }
   | { readonly kind: 'at'; readonly validUntil: string };
 export interface PostingPolicyInput {
+  readonly relatedSyncEnabled?: boolean;
   readonly unverifiedPostEnabled: boolean;
   readonly unverifiedCommentEnabled: boolean;
   readonly unverifiedCategories: readonly PostingPolicyCategory[];
   readonly expiry: PostingPolicyExpiry;
 }
 export interface PostingPolicyCommand {
+  readonly version?: 2;
   readonly clientRequestId: string;
   readonly expectedRevision: number;
   readonly policy: PostingPolicyInput;
@@ -136,14 +138,23 @@ export function decodePostingPolicyExpiry(value: unknown): PostingPolicyExpiry {
     validUntil: postingPolicyInstant(value.validUntil),
   });
 }
-export function decodePostingPolicyInput(value: unknown): PostingPolicyInput {
+export function decodePostingPolicyInput(
+  value: unknown,
+  version: 1 | 2 = 1,
+): PostingPolicyInput {
+  const hasSync =
+    isRecord(value) &&
+    Object.prototype.hasOwnProperty.call(value, 'relatedSyncEnabled');
+  if (hasSync !== (version === 2)) invalidPostingPolicy();
   exact(value, [
+    ...(hasSync ? ['relatedSyncEnabled'] : []),
     'unverifiedPostEnabled',
     'unverifiedCommentEnabled',
     'unverifiedCategories',
     'expiry',
   ]);
   if (
+    (hasSync && typeof value.relatedSyncEnabled !== 'boolean') ||
     typeof value.unverifiedPostEnabled !== 'boolean' ||
     typeof value.unverifiedCommentEnabled !== 'boolean' ||
     !Array.isArray(value.unverifiedCategories) ||
@@ -158,6 +169,9 @@ export function decodePostingPolicyInput(value: unknown): PostingPolicyInput {
   )
     invalidPostingPolicy();
   return Object.freeze({
+    ...(hasSync
+      ? { relatedSyncEnabled: value.relatedSyncEnabled as boolean }
+      : {}),
     unverifiedPostEnabled: value.unverifiedPostEnabled,
     unverifiedCommentEnabled: value.unverifiedCommentEnabled,
     unverifiedCategories: Object.freeze([
@@ -169,14 +183,27 @@ export function decodePostingPolicyInput(value: unknown): PostingPolicyInput {
 export function decodePostingPolicyCommand(
   value: unknown,
 ): PostingPolicyCommand {
-  exact(value, ['clientRequestId', 'expectedRevision', 'policy']);
+  const hasVersion =
+    isRecord(value) && Object.prototype.hasOwnProperty.call(value, 'version');
+  exact(value, [
+    'clientRequestId',
+    'expectedRevision',
+    'policy',
+    ...(hasVersion ? ['version'] : []),
+  ]);
+  if (hasVersion && value.version !== 2) invalidPostingPolicy();
+  const hasSync =
+    isRecord(value.policy) &&
+    Object.prototype.hasOwnProperty.call(value.policy, 'relatedSyncEnabled');
+  if (hasVersion !== hasSync) invalidPostingPolicy();
   const clientRequestId = postingPolicyRequestId(value.clientRequestId),
     expectedRevision = revision(value.expectedRevision);
   if (expectedRevision >= 2147483647) invalidPostingPolicy();
   return Object.freeze({
+    ...(hasVersion ? { version: 2 as const } : {}),
     clientRequestId,
     expectedRevision,
-    policy: decodePostingPolicyInput(value.policy),
+    policy: decodePostingPolicyInput(value.policy, hasVersion ? 2 : 1),
   });
 }
 function canonical(value: unknown): string {
@@ -210,7 +237,7 @@ export function postingPolicyCommandHash(
   command: PostingPolicyCommand,
 ): string {
   return sha256(
-    'whaleu-school-posting-policy-command:v1\n' +
+    `whaleu-school-posting-policy-command:v${command.version === 2 ? 2 : 1}\n` +
       canonical({
         actorId: postingPolicyUuid(actorId),
         regionId: postingPolicyUuid(regionId),
@@ -248,6 +275,10 @@ export function decodePostingPolicyView(value: unknown): PostingPolicyView {
   let policy: PostingPolicyView['policy'] = null;
   if (value.policy !== null) {
     exact(value.policy, [
+      ...(isRecord(value.policy) &&
+      Object.prototype.hasOwnProperty.call(value.policy, 'relatedSyncEnabled')
+        ? ['relatedSyncEnabled']
+        : []),
       'unverifiedPostEnabled',
       'unverifiedCommentEnabled',
       'unverifiedCategories',
@@ -256,7 +287,12 @@ export function decodePostingPolicyView(value: unknown): PostingPolicyView {
     ]);
     const { effectiveAt, ...input } = value.policy;
     policy = Object.freeze({
-      ...decodePostingPolicyInput(input),
+      ...decodePostingPolicyInput(
+        input,
+        Object.prototype.hasOwnProperty.call(input, 'relatedSyncEnabled')
+          ? 2
+          : 1,
+      ),
       effectiveAt: postingPolicyInstant(effectiveAt),
     });
     if (

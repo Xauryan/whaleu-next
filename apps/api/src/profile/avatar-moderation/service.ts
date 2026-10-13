@@ -61,6 +61,13 @@ export class ProfileAvatarModerationService {
       .transaction(work, { isolationLevel: 'read committed' })
       .catch((error: unknown) => {
         if (
+          error instanceof ApplicationError &&
+          error.code === 'PROFILE_MODERATION_TARGET_NOT_ALLOWED'
+        )
+          throw new ApplicationError(
+            'PROFILE_AVATAR_MODERATION_TARGET_NOT_ALLOWED',
+          );
+        if (
           error &&
           typeof error === 'object' &&
           'code' in error &&
@@ -160,6 +167,14 @@ export class ProfileAvatarModerationService {
   ): Promise<AvatarModerationManagement> {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
+      if (await this.targets.relatedUnsupported(target, session.accountId, tx))
+        return avatarModerationManagementSchema.parse({
+          target,
+          canClearCustomAvatar: false,
+          availability: 'unavailable',
+          blocker: 'related_sync_unsupported',
+        });
+
       const initial = await observeAvatarModerationInputs(
         { actor: session.accountId, grantId: null, target },
         tx,
@@ -332,6 +347,10 @@ export class ProfileAvatarModerationService {
             code: 'PROFILE_AVATAR_MODERATION_NOT_APPLICABLE',
           };
         else {
+          if (await this.targets.relatedUnsupported(command.target, actor, tx))
+            throw new ApplicationError(
+              'PROFILE_AVATAR_MODERATION_TARGET_NOT_ALLOWED',
+            );
           const now = (
             await tx.query<{ now: Date }>(
               "SELECT date_trunc('milliseconds',clock_timestamp()) now",

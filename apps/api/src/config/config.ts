@@ -50,6 +50,7 @@ const schema = z.object({
   COMMUNITY_TEXT_REVIEW_SPACE_ID: z.uuid().optional(),
   COMMUNITY_TEXT_REVIEW_REGION_ID: z.uuid().optional(),
   COMMUNITY_TEXT_REVIEW_POLICY_ID: z.uuid().optional(),
+  COMMUNITY_RELATED_REVIEW_POLICY_ID: z.uuid().optional(),
   COMMUNITY_TEXT_REVIEW_OPERATOR: z.string().min(1).max(200).optional(),
   COMMUNITY_SEMANTIC_SEARCH: z
     .enum(['disabled', 'enabled'])
@@ -141,6 +142,14 @@ export function loadConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
   )
     throw new Error(
       'Local text review requires a non-production single scope, policy and operator',
+    );
+  if (
+    config.COMMUNITY_RELATED_REVIEW_POLICY_ID &&
+    (config.NODE_ENV === 'production' ||
+      config.COMMUNITY_TEXT_REVIEW !== 'local_manual')
+  )
+    throw new Error(
+      'Related review requires explicit non-production local manual review',
     );
   if (
     config.COMMUNITY_SEMANTIC_SEARCH === 'enabled' &&

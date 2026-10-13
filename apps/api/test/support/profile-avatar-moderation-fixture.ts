@@ -241,7 +241,12 @@ export async function profileAvatarModerationFixture(
         .set('Authorization', `Bearer ${admin.accessToken}`)
         .query({ kind: target.kind, id: target.id });
       profileOk(response);
-      return avatarModerationManagementSchema.parse(response.body);
+      const result = avatarModerationManagementSchema.parse(response.body);
+      assert.ok(
+        'revision' in result,
+        'Legacy none target retains available Profile metadata',
+      );
+      return result;
     };
     const command = (
       target: AvatarModerationTarget,

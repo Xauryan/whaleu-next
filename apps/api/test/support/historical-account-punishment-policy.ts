@@ -8,30 +8,10 @@ import { readMigrations } from '../../src/database/migrations.js';
 import { ApplicationError } from '../../src/http/application-error.js';
 import { AccountPunishmentPolicy } from '../../src/safety/account-moderation/policy.js';
 
-// Every entry names an intentionally pinned integration fixture boundary. This
-// is not an arbitrary maximum-version compatibility mode.
-const historicalPrefixes = new Map<number, string>([
-  [30, 'admin-discussion-removal-upgrade'],
-  [52, 'ratings-deletion-upgrade'],
-  [55, 'ratings-target-deletion-integrity before upgrade'],
-  [56, 'ratings-target-deletion-integrity / target-edit before upgrade'],
-  [57, 'ratings-target-edit-integrity / category before upgrade'],
-  [58, 'rating-category-upgrade'],
-  [61, 'ratings-scoped-upgrade'],
-  [65, 'ratings-target-cover and category-management predecessor'],
-  [69, 'ratings-category-management-upgrade'],
-  [82, 'ratings-discussion-media Media2 predecessor'],
-  [83, 'ratings-discussion-media-predecessor-functions'],
-  [87, 'rating-category-icon-old-schema / media foundation predecessor'],
-  [88, 'category-icon-media-foundation'],
-  [94, 'rating-category-digest-serialization predecessor'],
-  [95, 'rating-category-digest / release-budget predecessor'],
-  [96, 'rating-release-budget-octets'],
-  [122, 'window-discussion-media-upgrade'],
-  [124, 'major-discussion-media-upgrade'],
-  [132, 'historical-command-session-retention predecessor'],
-  [134, 'historical-command-session-retention exact terminal boundary'],
-]);
+import { historicalPrefixes } from './historical-schema-prefixes.js';
+import { historicalCommunityDistribution } from './historical-community-distribution.js';
+import { CommunityDistributionService } from '../../src/community/related-sync/service.js';
+
 // readMigrations hashes checked-in SQL. Share this immutable manifest promise,
 // not a database-validation result; the latter must be checked on every call.
 let manifest: ReturnType<typeof readMigrations> | undefined;
@@ -83,7 +63,7 @@ export async function historicalAccountPunishmentPolicy(
   assert.equal(database.pathname, '/whaleu_test');
   assert.equal(config.PG_SSL_MODE, 'disable');
   assert.ok(
-    historicalPrefixes.has(prefix),
+    historicalPrefixes.has(prefix) && prefix < 135,
     `Unregistered historical prefix ${prefix}`,
   );
   const expected = (await checkedInManifest())
@@ -129,6 +109,10 @@ export async function configureHistoricalAccountPolicy(
 ): Promise<void> {
   if (prefix === undefined) return;
   builder
-    .overrideProvider(AccountPunishmentPolicy)
-    .useValue(await historicalAccountPunishmentPolicy(config, prefix));
+    .overrideProvider(CommunityDistributionService)
+    .useValue(await historicalCommunityDistribution(config, prefix));
+  if (prefix < 135)
+    builder
+      .overrideProvider(AccountPunishmentPolicy)
+      .useValue(await historicalAccountPunishmentPolicy(config, prefix));
 }

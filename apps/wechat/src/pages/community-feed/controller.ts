@@ -18,6 +18,7 @@ import {
 } from '../../community/contract';
 import type { CommunityRuntime } from '../../community/runtime';
 export interface FeedView extends CommunityView {
+  readonly relatedCampusDistribution: 'complete' | 'unavailable' | '';
   readonly campuses: readonly Campus[];
   readonly campusName: string;
   readonly campusId: string;
@@ -33,6 +34,7 @@ export interface FeedView extends CommunityView {
 }
 export const initialFeedView = (): FeedView => ({
   ...initialCommunityView(),
+  relatedCampusDistribution: '',
   campuses: [],
   campusName: '',
   campusId: '',
@@ -124,6 +126,8 @@ export class FeedController extends CommunityController<FeedView> {
           space: result.space,
           globalSpaces: result.spaces.global.filter((item) => item.isActive),
           posts: result.feed?.items ?? [],
+          relatedCampusDistribution:
+            result.feed?.relatedCampusDistribution ?? '',
           continuation: result.feed?.continuation ?? 'end',
           loaded: true,
           canLoadMore: !!this.nextCursor,
@@ -145,6 +149,7 @@ export class FeedController extends CommunityController<FeedView> {
       campusId: '',
       campusName: '',
       posts: [],
+      relatedCampusDistribution: '',
       space: null,
       loaded: false,
       globalSpaces: [],
@@ -211,6 +216,8 @@ export class FeedController extends CommunityController<FeedView> {
           category: 'all',
           tradingSubtype: '',
           posts: result.feed?.items ?? [],
+          relatedCampusDistribution:
+            result.feed?.relatedCampusDistribution ?? '',
           continuation: result.feed?.continuation ?? 'end',
           canLoadMore: !!this.nextCursor,
           loaded: true,
@@ -252,6 +259,7 @@ export class FeedController extends CommunityController<FeedView> {
       campusName: campus.fullName,
       space: null,
       posts: [],
+      relatedCampusDistribution: '',
       globalSpaces: [],
       category: 'all',
       tradingSubtype: '',
@@ -285,6 +293,8 @@ export class FeedController extends CommunityController<FeedView> {
           space: result.space,
           globalSpaces: result.spaces.global.filter((item) => item.isActive),
           posts: result.feed?.items ?? [],
+          relatedCampusDistribution:
+            result.feed?.relatedCampusDistribution ?? '',
           continuation: result.feed?.continuation ?? 'end',
           canLoadMore: !!this.nextCursor,
           loaded: true,
@@ -330,7 +340,12 @@ export class FeedController extends CommunityController<FeedView> {
   async refresh(): Promise<void> {
     if (!this.available(false) || !this.view.space) return;
     this.nextCursor = null;
-    this.update({ posts: [], loaded: false, canLoadMore: false });
+    this.update({
+      posts: [],
+      relatedCampusDistribution: '',
+      loaded: false,
+      canLoadMore: false,
+    });
     await this.read(false);
   }
   async more(): Promise<void> {
@@ -370,16 +385,26 @@ export class FeedController extends CommunityController<FeedView> {
           : result.items;
         this.update({
           posts: [...new Map(items.map((item) => [item.id, item])).values()],
+          relatedCampusDistribution: result.relatedCampusDistribution ?? '',
           continuation: result.continuation,
           canLoadMore: !!result.nextCursor,
           loaded: true,
           status:
-            result.items.length || append ? '已加载' : '此分类暂无可查看的帖子',
+            result.relatedCampusDistribution === 'unavailable'
+              ? '已展示本次可核验内容；关联学校范围待核验'
+              : result.items.length || append
+                ? '已加载'
+                : '此分类暂无可查看的帖子',
         });
       },
       () => {
         this.nextCursor = null;
-        this.update({ posts: [], loaded: false, canLoadMore: false });
+        this.update({
+          posts: [],
+          relatedCampusDistribution: '',
+          loaded: false,
+          canLoadMore: false,
+        });
       },
     );
   }

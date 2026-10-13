@@ -15,6 +15,7 @@ import {
 import type { CommunityRuntime } from '../../community/runtime';
 
 export interface HotView extends CommunityView {
+  readonly relatedCampusDistribution: 'complete' | 'unavailable' | '';
   readonly selectedSpaceId: string;
   readonly range: HotRange;
   readonly space: Post['space'] | null;
@@ -27,6 +28,7 @@ export interface HotView extends CommunityView {
 }
 export const initialHotView = (): HotView => ({
   ...initialCommunityView(),
+  relatedCampusDistribution: '',
   selectedSpaceId: '',
   range: 'day',
   space: null,
@@ -75,6 +77,7 @@ export class HotController extends CommunityController<HotView> {
     this.stop();
     this.nextCursor = null;
     this.update({
+      relatedCampusDistribution: '',
       space: null,
       posts: [],
       continuation: null,
@@ -163,9 +166,12 @@ export class HotController extends CommunityController<HotView> {
           this.pageIndex--;
         }
         this.update({
+          relatedCampusDistribution: page.relatedCampusDistribution ?? '',
           posts: page.items,
           // No cached names or inferred topology; an empty current page stays unnamed.
-          space: page.items[0]?.space ?? null,
+          space:
+            page.items.find((item) => item.space.id === selected.spaceId)
+              ?.space ?? null,
           continuation: page.continuation,
           loaded: true,
           canNext: !!page.nextCursor,
@@ -178,9 +184,11 @@ export class HotController extends CommunityController<HotView> {
                 : page.continuation === 'phone_verification_required'
                   ? '继续查看需要手机号验证；当前版本尚未接入验证流程'
                   : page.continuation === 'end'
-                    ? !after && !page.items.length
-                      ? '当前范围暂无符合条件的可查看热门帖子'
-                      : '已到本次浏览末尾'
+                    ? page.relatedCampusDistribution === 'unavailable'
+                      ? '已展示本次可核验内容；关联学校范围仍待核验，请稍后刷新'
+                      : !after && !page.items.length
+                        ? '当前范围暂无符合条件的可查看热门帖子'
+                        : '已到本次浏览末尾'
                     : '已加载当前可查看的热门帖子',
         });
       },

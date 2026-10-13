@@ -1,3 +1,4 @@
+import { isUuid } from '../../profile/contract';
 import type { WhaleuApp } from '../../app';
 import {
   decodeAdminDiscussionRemovalTarget,
@@ -17,11 +18,16 @@ Page({
     punishmentReason: '',
   },
   target: null as AdminDiscussionRemovalTarget | null,
+  viewSpaceId: undefined as string | undefined,
   controller: undefined as AdminDiscussionRemovalController | undefined,
-  onLoad(query: { kind?: string; id?: string } = {}) {
+  onLoad(query: { kind?: string; id?: string; viewSpaceId?: string } = {}) {
     this.target = null;
+    this.viewSpaceId = undefined;
     if (query.kind === undefined && query.id === undefined) return;
     try {
+      if (query.viewSpaceId !== undefined && !isUuid(query.viewSpaceId))
+        throw new Error('Invalid view space');
+      this.viewSpaceId = query.viewSpaceId;
       this.target = decodeAdminDiscussionRemovalTarget({
         kind: query.kind,
         id: query.id,
@@ -42,11 +48,11 @@ Page({
       (view) => this.setData({ ...view }),
       () => getApp<WhaleuApp>().profileAvatar?.invalidate(),
     );
-    void this.controller.load(this.target ?? undefined);
+    void this.controller.load(this.target ?? undefined, this.viewSpaceId);
   },
   onReload() {
     getApp<WhaleuApp>().profileAvatar?.invalidate();
-    void this.controller?.load(this.target ?? undefined);
+    void this.controller?.load(this.target ?? undefined, this.viewSpaceId);
   },
   onRemoveDiscussion() {
     this.setData({
@@ -55,7 +61,8 @@ Page({
       punishmentValue: '7',
       punishmentReason: '',
     });
-    if (this.target) void this.controller?.request(this.target);
+    if (this.target)
+      void this.controller?.request(this.target, this.viewSpaceId);
   },
   onPunishmentKind(event: { detail: { value: string } }) {
     this.setData({ punishmentKind: event.detail.value });

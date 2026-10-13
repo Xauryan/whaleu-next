@@ -40,6 +40,9 @@ export async function createSchoolPostingPolicyOpenApiDocument(): Promise<OpenAP
       new DocumentBuilder()
         .setOpenAPIVersion('3.0.3')
         .setTitle('WhaleU school posting policy')
+        .setDescription(
+          'Unversioned settings commands retain their original strict policy and hashes. Version 2 explicitly includes policy.relatedSyncEnabled and atomically saves the related-sync control with the existing posting policy under one revision CAS. Management may expose the current relatedSyncEnabled value; old writers cannot silently downgrade an enabled v2 policy and receive related_sync_unsupported. The setting governs new publication admission, not the current distribution of an existing canonical related-sync post. Recovery and cancellation preserve the original key and hash.',
+        )
         .setVersion('1')
         .addSecurity('accessToken', {
           type: 'http',

@@ -1,3 +1,4 @@
+import { requireContentDistributionGrant } from '../authorization/content-distribution-grant.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -42,6 +43,51 @@ export class ProfileModerationTargetFacade {
     @Inject(CommunityAccessService)
     private readonly access: CommunityAccessService,
   ) {}
+  /** Safe unavailable capability: validates the visible named target and an
+   * exact content-management grant, never resolves its subject Profile. */
+  async relatedUnsupported(
+    target: ModerationTarget,
+    actor: string,
+    tx: PoolClient,
+  ): Promise<boolean> {
+    const reference = (
+      await tx.query<{ post_id: string; version: number }>(
+        `SELECT n.post_id,p.publication_envelope_version version FROM whaleu_community.profile_moderation_nodes($1,$2) n JOIN whaleu_community.posts p ON p.id=n.post_id WHERE n.kind=$1 AND n.id=$2`,
+        [target.kind, target.id],
+      )
+    ).rows[0];
+    if (reference?.version !== 4) return false;
+    await lockSafetyPolicy(tx);
+    await campusProof(tx);
+    await safetyProof(tx);
+    await communityProof(tx);
+    const resolved =
+      target.kind === 'post'
+        ? await this.access
+            .accessiblePost(target.id, actor, tx, true)
+            .then((v) => ({ ...v, content: v.post }))
+        : target.kind === 'comment'
+          ? await this.access
+              .accessibleComment(target.id, actor, tx, true)
+              .then((v) => ({ ...v, content: v.comment }))
+          : await this.access
+              .accessibleReply(target.id, actor, tx, true)
+              .then((v) => ({ ...v, content: v.reply }));
+    if (resolved.content.author_mode !== 'named')
+      throw new ApplicationError('PROFILE_MODERATION_TARGET_NOT_ALLOWED');
+    if (
+      !(await this.access.visible(actor, resolved.post, tx, 'list_projection'))
+    )
+      throw new ApplicationError('POST_NOT_FOUND');
+    await requireContentDistributionGrant(
+      actor,
+      resolved.post.id,
+      null,
+      tx,
+      'profile_unavailable',
+    );
+    return true;
+  }
   async resolve(
     target: ModerationTarget,
     actor: string,

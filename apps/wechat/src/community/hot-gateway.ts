@@ -59,7 +59,8 @@ export class HttpHotGateway implements HotGateway {
       (after !== null && result.nextCursor === after) ||
       result.items.some(
         (item) =>
-          item.space.id !== intent.spaceId ||
+          (item.space.id !== intent.spaceId &&
+            item.isRelatedCampusSync !== true) ||
           item.trading?.urgency === 'urgent' ||
           item.trading?.resolution === 'resolved',
       )

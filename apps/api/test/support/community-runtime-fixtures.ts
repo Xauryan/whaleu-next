@@ -106,7 +106,11 @@ export async function postApprovalEnvelope(
     const authority = await app
       .get(CommunityAccessService)
       .authority(accountId, space, tx, { publication: true });
-    if (!authority.publicationScope) throw new Error('Canonical scope missing');
+    if (
+      !authority.publicationScope ||
+      authority.publicationScope.sync !== 'none'
+    )
+      throw new Error('Historical fixture requires canonical none scope');
     return {
       ...(body.allowAnonymousDm === undefined
         ? { version: 1 as const, authorMode: body.authorMode }
@@ -166,7 +170,11 @@ export async function discussionApprovalEnvelope(
         publication: true,
         targetPostId: post.id,
       });
-    if (!authority.publicationScope) throw new Error('Canonical scope missing');
+    if (
+      !authority.publicationScope ||
+      authority.publicationScope.sync !== 'none'
+    )
+      throw new Error('Historical fixture requires canonical none scope');
     return {
       version: 1,
       accountId,

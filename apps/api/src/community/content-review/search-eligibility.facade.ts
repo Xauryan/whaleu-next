@@ -1,4 +1,13 @@
-import { CURRENT_CATEGORY_POSTS_SQL } from '../current-category-sql.js';
+import { CommunityDistributionService } from '../related-sync/service.js';
+import {
+  readDistributionBindings,
+  distributionScopeMatches,
+} from '../related-sync/binding.js';
+import { effectiveContentScopeSchema } from './contracts.js';
+import {
+  CURRENT_CATEGORY_POSTS_SQL,
+  scopedCurrentCategoryPostsSql,
+} from '../current-category-sql.js';
 import { readPostCategorySnapshot } from '../category-reclassification/read-proof.js';
 import { batchCategoryChildContextSnapshot } from '../category-reclassification/child-context.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -117,10 +126,24 @@ export interface SearchContentNode extends ApprovalMetadata {
   images?: readonly { assetId: string; digest: string; position: number }[];
   media_fact?: MediaContentFact;
   exact_time_valid: boolean;
+  publication_envelope_version?: number;
+  envelope_version?: number;
+  distribution_scope?: unknown;
+  current_distribution_allowed?: boolean;
   current_classification_allowed?: boolean;
   current_context_allowed?: boolean;
   current_classification_until?: number | null;
   read_at?: Date;
+}
+/** Related Review is accepted only for the exact v4 node under its proved v4 root. */
+function relatedNodeProofCurrent(node: SearchContentNode): boolean {
+  if (node.publication_envelope_version !== 4 && node.envelope_version !== 4)
+    return node.current_distribution_allowed !== false;
+  return (
+    node.publication_envelope_version === 4 &&
+    node.envelope_version === 4 &&
+    node.current_distribution_allowed === true
+  );
 }
 interface StructuralRow extends SearchCandidate {
   space_active: boolean | null;
@@ -130,6 +153,8 @@ interface StructuralRow extends SearchCandidate {
   certificate_v2?: unknown;
   current_revision: unknown;
   current_category: string;
+  original_category: string;
+  publication_envelope_version: number;
 }
 /** Internal transaction handle, never an HTTP DTO or a bag of caller supplied
  * IDs. SQL consumers must assert its lifetime before using either relation. */
@@ -138,6 +163,7 @@ export interface SearchContentEligibilityRelation {
   readonly nodesTableName: string;
   readonly validUntil: number | null;
   readonly mediaAware?: boolean;
+  readonly distributionFingerprint?: string;
   assertCurrent(tx: PoolClient): void;
 }
 const handles = new WeakSet<object>();
@@ -240,6 +266,7 @@ export function evaluateSearchContentCertificate(
       !['regional', 'global'].includes(scope.kind ?? '')
     )
       return finish('unknown');
+    if (!relatedNodeProofCurrent(node)) return finish('unknown');
     if (!certified || !certificate) return finish('unknown');
     const revision = certificate.source_revision[index]!;
     consumed.push([
@@ -261,7 +288,13 @@ export function evaluateSearchContentCertificate(
       node.exact_time_valid !== true
     )
       return finish('unknown');
-    const reviewed = validateApprovalMetadata(node, false, now);
+    const reviewed = validateApprovalMetadata(
+      node,
+      false,
+      now,
+      'POST_NOT_FOUND',
+      node.envelope_version === 4 ? 'local-related-v1' : 'local-explicit-v1',
+    );
     until = minimum(until, reviewed.optionalUntil);
     if (reviewed.decision.kind !== 'allow')
       return finish(reviewed.decision.kind === 'deny' ? 'deny' : 'unknown');
@@ -381,6 +414,7 @@ export class ContentReviewSearchEligibilityFacade {
     private readonly visibility: LocalApprovedContentVisibility,
     private readonly campuses: CampusContentScopeFacade,
     private readonly media: MediaContentSnapshotFacade = new UnavailableMediaContentSnapshotFacade(),
+    private readonly distribution?: CommunityDistributionService,
   ) {}
 
   private async hasV2(tx: PoolClient): Promise<boolean> {
@@ -419,11 +453,11 @@ export class ContentReviewSearchEligibilityFacade {
              FROM whaleu_community.root_comments s JOIN wanted w ON w.kind='comment' AND w.id=s.id
            UNION ALL SELECT 'reply',s.id,s.post_id,s.root_comment_id,s.account_id,s.author_mode,s.visibility,s.deleted_at,NULL::text
              FROM whaleu_community.replies s JOIN wanted w ON w.kind='reply' AND w.id=s.id
-         ) SELECT s.*,timing.now AS read_at,g.generation,b.digest,b.decision_id,h.event_id,b.envelope->'images' AS expected_images,
+         ) SELECT s.*,root_post.publication_envelope_version,b.envelope_version,b.scope AS distribution_scope,timing.now AS read_at,g.generation,b.digest,b.decision_id,h.event_id,b.envelope->'images' AS expected_images,
          CASE WHEN cert.content_id IS NULL THEN NULL ELSE to_jsonb(cert) END AS stored_certificate,
          ${mediaAware ? 'CASE WHEN cv2.content_id IS NULL THEN NULL ELSE to_jsonb(cv2) END' : 'NULL::jsonb'} AS stored_certificate_v2,
          ${SEARCH_APPROVAL_EXACT_TIME_PREDICATE} AS exact_time_valid,${metadataProjection}
-         FROM sources s CROSS JOIN timing LEFT JOIN whaleu_semantic.source_generations g ON g.kind=s.kind AND g.content_id=s.id
+         FROM sources s CROSS JOIN timing LEFT JOIN whaleu_community.posts root_post ON root_post.id=s.post_id LEFT JOIN whaleu_semantic.source_generations g ON g.kind=s.kind AND g.content_id=s.id
          LEFT JOIN whaleu_community.content_approval_bindings b ON b.content_kind=s.kind AND b.content_id=s.id AND b.content_version=1
          LEFT JOIN whaleu_community.content_approval_decisions d ON d.id=b.decision_id
          LEFT JOIN whaleu_community.content_approval_policies p ON p.id=d.policy_revision_id
@@ -466,6 +500,30 @@ export class ContentReviewSearchEligibilityFacade {
           3 * ids('comment').length +
           3 * ids('reply').length,
       );
+      const relatedPostIds = [
+        ...new Set(
+          rows
+            .filter((node) => node.publication_envelope_version === 4)
+            .map((node) => node.post_id),
+        ),
+      ];
+      const distributionBindings = relatedPostIds.length
+        ? await readDistributionBindings(relatedPostIds, tx, budget)
+        : new Map();
+      for (const node of rows) {
+        if (node.publication_envelope_version !== 4) continue;
+        const scope = effectiveContentScopeSchema.safeParse(
+          node.distribution_scope,
+        );
+        node.current_distribution_allowed =
+          node.envelope_version === 4 &&
+          scope.success &&
+          distributionScopeMatches(
+            distributionBindings.get(node.post_id),
+            node.kind,
+            scope.data,
+          );
+      }
       const categorySnapshot = await readPostCategorySnapshot(
         [...new Set(rows.map((node) => node.post_id))],
         tx,
@@ -516,7 +574,8 @@ export class ContentReviewSearchEligibilityFacade {
           node.deleted_at ||
           node.visibility !== 'approved' ||
           (activePosts && !activePosts.has(node.post_id)) ||
-          (node.kind === 'post' && node.publication_state !== 'published')
+          (node.kind === 'post' && node.publication_state !== 'published') ||
+          !relatedNodeProofCurrent(node)
         )
           continue;
         // Review is canonical before Media. Never force unrelated Media after a
@@ -525,6 +584,10 @@ export class ContentReviewSearchEligibilityFacade {
           node,
           false,
           node.read_at?.getTime() ?? NaN,
+          'POST_NOT_FOUND',
+          node.envelope_version === 4
+            ? 'local-related-v1'
+            : 'local-explicit-v1',
         );
         const expected = exactNodeImages(node);
         if (
@@ -724,6 +787,7 @@ export class ContentReviewSearchEligibilityFacade {
       const node = nodes.get(`${kind}:${id}`);
       if (!node || node.deleted_at || node.visibility !== 'approved')
         return { decision: 'deny' };
+      if (!relatedNodeProofCurrent(node)) return { decision: 'unknown' };
       if (
         node.post_id !== candidate.postId ||
         (kind !== 'post' && node.root_comment_id !== candidate.rootCommentId) ||
@@ -753,6 +817,8 @@ export class ContentReviewSearchEligibilityFacade {
         node,
         false,
         current.now.getTime(),
+        'POST_NOT_FOUND',
+        node.envelope_version === 4 ? 'local-related-v1' : 'local-explicit-v1',
       );
       if (evaluated.decision.kind === 'unavailable')
         return { decision: 'unknown' };
@@ -941,10 +1007,38 @@ export class ContentReviewSearchEligibilityFacade {
     tx: PoolClient,
   ): Promise<SearchContentEligibilityRelation> {
     requireQwenSemanticProfile(profile);
+    if (
+      scope.distribution &&
+      (!this.distribution ||
+        scope.distribution.relatedCampusDistribution !== 'complete')
+    )
+      throw unavailable();
     await captureSemanticMediaProof(tx);
     const v2Installed = await this.hasV2(tx);
     const epoch = transactionReadEpoch(tx);
     if (!epoch) throw unavailable();
+    const parameters: unknown[] = [
+      'spaceId' in scope ? scope.spaceId : null,
+      'spaceId' in scope ? [] : scope.regionalSpaceIds,
+      'spaceId' in scope ? [] : scope.globalSpaceIds,
+      scope.category,
+      scope.tradingSubtype,
+      scope.excludeUrgentTrading,
+      scope.postId,
+      scope.from,
+      scope.to,
+      profile.indexSpaceKey,
+      scope.types,
+      categorySchema.options,
+    ];
+    const classifiedSource = scope.distribution
+      ? scopedCurrentCategoryPostsSql(
+          scope.distribution,
+          this.distribution!,
+          parameters,
+        )
+      : CURRENT_CATEGORY_POSTS_SQL;
+    const explicitEligibility = scope.distribution ? 'true' : 'p.space_id=$1';
     const rows = await tx.query<StructuralRow>(
       `WITH structural AS (
        SELECT p.id,'post'::text kind,p.id post_id,NULL::uuid root_id,p.published_at at FROM whaleu_community.posts p WHERE p.visibility='approved' AND p.deleted_at IS NULL
@@ -955,12 +1049,12 @@ export class ContentReviewSearchEligibilityFacade {
        sp.is_active AS space_active,sp.kind AS space_kind,sp.operating_region_id AS region_id,
        CASE WHEN c.content_id IS NULL THEN NULL ELSE to_jsonb(c) END AS certificate,
        ${v2Installed ? 'CASE WHEN cv2.content_id IS NULL THEN NULL ELSE to_jsonb(cv2) END' : 'NULL::jsonb'} AS certificate_v2,
-       p.current_category,whaleu_semantic.source_revision(s.kind,s.id) AS current_revision
-      FROM structural s JOIN ${CURRENT_CATEGORY_POSTS_SQL} p ON p.id=s.post_id
+       p.current_category,p.category AS original_category,p.publication_envelope_version,whaleu_semantic.source_revision(s.kind,s.id) AS current_revision
+      FROM structural s JOIN ${classifiedSource} p ON p.id=s.post_id
       LEFT JOIN whaleu_community.spaces sp ON sp.id=p.space_id
       LEFT JOIN whaleu_semantic.certificates c ON c.index_space_key=$10 AND c.kind=s.kind AND c.content_id=s.id
       ${v2Installed ? 'LEFT JOIN whaleu_semantic.certificates_v2 cv2 ON cv2.index_space_key=$10 AND cv2.kind=s.kind AND cv2.content_id=s.id' : ''}
-      WHERE p.visibility='approved' AND p.deleted_at IS NULL AND s.kind=ANY($11::text[]) AND (($1::uuid IS NOT NULL AND p.space_id=$1)
+      WHERE p.visibility='approved' AND p.deleted_at IS NULL AND s.kind=ANY($11::text[]) AND (($1::uuid IS NOT NULL AND ${explicitEligibility})
        OR ($1::uuid IS NULL AND ((p.space_id=ANY($2::uuid[]) AND p.current_category=ANY($12::text[]))
          OR (p.space_id=ANY($3::uuid[]) AND p.current_category IN ('discussion','feedback')))))
        AND ($4::text IS NULL OR p.current_category=$4)
@@ -968,20 +1062,7 @@ export class ContentReviewSearchEligibilityFacade {
        AND (NOT $6::boolean OR NOT EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='urgent'))
        AND ($7::uuid IS NULL OR p.id=$7) AND ($8::timestamptz IS NULL OR s.at>=$8::timestamptz)
        AND ($9::timestamptz IS NULL OR s.at<$9::timestamptz) LIMIT ${SEARCH_CONTENT_METADATA_LIMIT + 1}`,
-      [
-        'spaceId' in scope ? scope.spaceId : null,
-        'spaceId' in scope ? [] : scope.regionalSpaceIds,
-        'spaceId' in scope ? [] : scope.globalSpaceIds,
-        scope.category,
-        scope.tradingSubtype,
-        scope.excludeUrgentTrading,
-        scope.postId,
-        scope.from,
-        scope.to,
-        profile.indexSpaceKey,
-        scope.types,
-        categorySchema.options,
-      ],
+      parameters,
     );
     if (rows.rows.length > SEARCH_CONTENT_METADATA_LIMIT) throw unavailable();
     const candidates = rows.rows.map((row) => {
@@ -1024,6 +1105,36 @@ export class ContentReviewSearchEligibilityFacade {
       )
     )
       throw unavailable();
+    const distributionDecisions = new Map<string, 'allow' | 'deny'>();
+    if (scope.distribution) {
+      const roots = [
+        ...new Map(rows.rows.map((row) => [row.postId, row])).values(),
+      ];
+      for (let offset = 0; offset < roots.length; offset += 256) {
+        const references = roots.slice(offset, offset + 256).map((row) => {
+          const category = categorySchema.safeParse(
+            categories.get(row.postId) ?? row.original_category,
+          );
+          if (!category.success) throw unavailable();
+          return {
+            id: row.postId,
+            space_id: row.spaceId,
+            category: category.data,
+            publication_envelope_version: row.publication_envelope_version,
+          };
+        });
+        const decisions = await this.distribution!.evaluatePosts(
+          scope.distribution,
+          references,
+          tx,
+        );
+        for (const reference of references) {
+          const decision = decisions.get(reference.id);
+          if (!decision || decision.kind === 'unavailable') throw unavailable();
+          distributionDecisions.set(reference.id, decision.kind);
+        }
+      }
+    }
     const regionIds = [
       ...new Set(
         rows.rows.flatMap((row) => (row.region_id ? [row.region_id] : [])),
@@ -1149,7 +1260,10 @@ export class ContentReviewSearchEligibilityFacade {
           named_account_id:
             node?.author_mode === 'named' ? node.account_id : null,
           purpose,
-          base_decision: base.decision,
+          base_decision:
+            kind === 'post' && distributionDecisions.get(row.postId) === 'deny'
+              ? 'deny'
+              : base.decision,
           eligibility_revision: base.eligibilityRevision ?? null,
           base_valid_until:
             base.validUntil === null
@@ -1194,6 +1308,9 @@ export class ContentReviewSearchEligibilityFacade {
     const relation = Object.freeze({
       tableName,
       nodesTableName,
+      ...(scope.distribution
+        ? { distributionFingerprint: scope.distribution.fingerprint }
+        : {}),
       validUntil,
       mediaAware: [...safetyNodes.values()].some(
         (node) => node.eligibility_revision !== null,

@@ -114,7 +114,7 @@ export class HttpSearchGateway implements SearchGateway {
 function hitMatchesIntent(item: SearchHit, intent: SearchIntent): boolean {
   return !(
     (intent.scope === undefined
-      ? item.space.id !== intent.spaceId
+      ? item.space.id !== intent.spaceId && item.isRelatedCampusSync !== true
       : intent.scope !== 'all' && item.space.kind !== intent.scope) ||
     (intent.postId !== undefined && item.postId !== intent.postId) ||
     (intent.from !== undefined && item.createdAt < intent.from) ||

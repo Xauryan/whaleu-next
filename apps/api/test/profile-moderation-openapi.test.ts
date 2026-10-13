@@ -208,10 +208,40 @@ test('profile moderation OpenAPI exposes exactly four authenticated target-only 
       response.content?.['application/json']?.schema as Schema | undefined,
     );
     if (operationId === 'profileNicknameManagement') {
-      exactFields(schema, ['target', 'displayName', 'revision', 'canReset']);
-      checkTarget(schema.properties?.['target']);
-      assert.equal(resolve(schema.properties?.['displayName']).maxLength, 20);
-      assert.deepEqual(resolve(schema.properties?.['canReset']).enum, [true]);
+      const variants = (schema.anyOf ?? schema.oneOf ?? []).map(resolve);
+      assert.equal(variants.length, 2);
+      const available = variants.find(
+        (variant) => variant.properties?.['revision'],
+      );
+      const unavailable = variants.find(
+        (variant) => variant.properties?.['blocker'],
+      );
+      assert.ok(available && unavailable);
+      exactFields(available, ['target', 'displayName', 'revision', 'canReset']);
+      checkTarget(available.properties?.['target']);
+      assert.equal(
+        resolve(available.properties?.['displayName']).maxLength,
+        20,
+      );
+      assert.deepEqual(resolve(available.properties?.['canReset']).enum, [
+        true,
+      ]);
+      exactFields(unavailable, [
+        'target',
+        'canReset',
+        'availability',
+        'blocker',
+      ]);
+      checkTarget(unavailable.properties?.['target']);
+      assert.deepEqual(resolve(unavailable.properties?.['canReset']).enum, [
+        false,
+      ]);
+      assert.deepEqual(resolve(unavailable.properties?.['availability']).enum, [
+        'unavailable',
+      ]);
+      assert.deepEqual(resolve(unavailable.properties?.['blocker']).enum, [
+        'related_sync_unsupported',
+      ]);
     } else if (operationId === 'profileNicknameRecovery') {
       const variants = (schema.anyOf ?? schema.oneOf ?? []).map(resolve);
       assert.equal(variants.length, 2);

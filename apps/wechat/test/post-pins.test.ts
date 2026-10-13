@@ -6,6 +6,7 @@ import {
   decodePinCommand,
   decodePinReceipt,
   decodePinPage,
+  decodePinDetail,
   decodePinSlot,
   matchPinReceipt,
 } from '../src/post-pins/contract';
@@ -21,7 +22,12 @@ import {
   PinDetailController,
 } from '../src/post-pins/controller';
 import type { PinFeedView, PinDetailView } from '../src/post-pins/controller';
-import type { PostPinsGateway } from '../src/post-pins/gateway';
+import {
+  HttpPostPinsGateway,
+  type PostPinsGateway,
+} from '../src/post-pins/gateway';
+import { ApiClient } from '../src/api/client';
+import { Cancellation } from '../src/platform/contracts';
 import type { CommunityRuntime } from '../src/community/runtime';
 import {
   post,
@@ -31,7 +37,7 @@ import {
   otherId,
   setup,
 } from './community-helpers';
-import { MemoryStorage, deferred, flush } from './helpers';
+import { MemoryStorage, ScriptedTransport, deferred, flush } from './helpers';
 import { wireCredentials } from './identity-helpers';
 const pin = (): Pin => ({
   pinId: otherId,
@@ -163,6 +169,7 @@ function harness() {
     commands: PinCommand[] = [];
   let detail: PinDetail = {
     postId,
+    spaceId,
     status: 'available',
     pin: null,
     canPin: true,
@@ -284,6 +291,7 @@ test('detail automatic exact-pin read does not bypass malformed persistence; roo
   const s = harness();
   s.gateway.detail = async () => ({
     postId,
+    spaceId,
     status: 'available',
     pin: pin(),
     canPin: false,
@@ -378,6 +386,8 @@ test('authority-only slot closes an exact hidden pin using the same journal and 
   await controller.submit();
   assert.equal(s.commands.length, 1);
   assert.deepEqual(s.commands[0], {
+    version: 2,
+    spaceId,
     clientRequestId: requestId,
     operation: 'unpin',
     postId,
@@ -420,4 +430,150 @@ test('slot management is authority-only and drops private identities on account 
   controller.confirm('unpin');
   await controller.submit();
   assert.equal(s.commands.length, 0);
+});
+
+test('strict v2 pin commands require a destination for every operation and keep legacy recovery bytes', () => {
+  for (const operation of ['pin', 'unpin', 'read'] as const) {
+    const legacy =
+      operation === 'pin'
+        ? command()
+        : { clientRequestId: requestId, postId, operation, pinId: otherId };
+    const scoped = { ...legacy, version: 2, spaceId };
+    assert.deepEqual(decodePinCommand(legacy), legacy);
+    assert.deepEqual(decodePinCommand(scoped), scoped);
+    for (const patch of [
+      { version: 1 },
+      { version: 3 },
+      { spaceId: undefined },
+      { spaceId: 'bad' },
+      { viewSpaceId: spaceId },
+    ])
+      assert.throws(() => decodePinCommand({ ...scoped, ...patch }));
+    assert.throws(() => decodePinCommand({ ...legacy, spaceId }));
+    const s = harness();
+    const original = s.store.freeze({
+      version: 1,
+      accountId: s.accountId,
+      origin: s.store.origin,
+      phase: 'submit',
+      command: decodePinCommand(scoped),
+    });
+    assert.throws(() =>
+      s.store.freeze({
+        ...original,
+        command: decodePinCommand({ ...scoped, spaceId: otherId }),
+      }),
+    );
+    const cancelling = s.store.cancel(original);
+    assert.equal(cancelling.command.spaceId, spaceId);
+    assert.deepEqual(s.store.load(s.accountId), cancelling);
+  }
+});
+
+test('remote pin page preserves canonical post space and routes with destination rather than rewriting the source', async (t) => {
+  const remote = {
+    ...post(),
+    isRelatedCampusSync: true,
+    sourceRegion: { id: requestId, name: '原发布地区' },
+  };
+  const page = {
+    spaceId: otherId,
+    status: 'available',
+    items: [{ pin: pin(), post: remote }],
+  };
+  assert.equal(decodePinPage(page).items[0]!.post.space.id, spaceId);
+  assert.throws(() =>
+    decodePinPage({ ...page, items: [{ pin: pin(), post: post() }] }),
+  );
+  assert.throws(() => decodePinPage({ ...page, spaceId }));
+  const s = harness();
+  s.gateway.list = async () => decodePinPage(page);
+  const controller = new PinFeedController(s.runtime, () => undefined);
+  t.after(() => controller.dispose());
+  await controller.load({ spaceId: otherId });
+  assert.equal(
+    controller.route(),
+    `/pages/community-detail/community-detail?postId=${postId}&viewSpaceId=${otherId}`,
+  );
+});
+
+test('every fresh native pin operation freezes v2 exact destination and malformed or omitted destination cannot dispatch', async (t) => {
+  for (const operation of ['pin', 'unpin', 'read'] as const) {
+    const s = harness();
+    s.gateway.detail = async (_post, _cancel, destination) => {
+      assert.equal(destination, otherId);
+      return {
+        postId,
+        spaceId: otherId,
+        status: 'available',
+        pin: operation === 'pin' ? null : pin(),
+        canPin: operation === 'pin',
+        canUnpin: operation === 'unpin',
+      };
+    };
+    s.gateway.submit = async (c) => {
+      s.commands.push(c);
+      throw new ClientError('network', 'Response lost');
+    };
+    const controller = new PinDetailController(s.runtime, () => undefined);
+    t.after(() => controller.dispose());
+    await controller.load(postId, operation === 'read', otherId);
+    if (operation !== 'read') {
+      controller.confirm(operation);
+      await controller.submit();
+    }
+    assert.equal(s.commands.length, 1);
+    assert.equal(s.commands[0]!.version, 2);
+    assert.equal(s.commands[0]!.spaceId, otherId);
+    await controller.load(postId, false, spaceId);
+    await controller.recover(true);
+    assert.deepEqual(s.commands[1], s.commands[0]);
+  }
+  const s = harness();
+  s.gateway.detail = async () => ({
+    postId,
+    status: 'available',
+    pin: null,
+    canPin: true,
+    canUnpin: false,
+  });
+  const controller = new PinDetailController(s.runtime, () => undefined);
+  t.after(() => controller.dispose());
+  await controller.load(postId, false);
+  controller.confirm('pin');
+  await controller.submit();
+  assert.equal(s.commands.length, 0);
+  await controller.load(postId, false, spaceId);
+  controller.confirm('pin');
+  await controller.submit();
+  assert.equal(s.commands.length, 0);
+});
+
+test('pin HTTP detail freezes the exact optional viewing space and rejects a substituted response', async () => {
+  const s = setup(),
+    transport = new ScriptedTransport();
+  const gateway = new HttpPostPinsGateway(
+    new ApiClient('https://api.example', transport, s.sessions, {
+      refresh: async () => s.sessions.snapshot(),
+    }),
+  );
+  const cancel = new Cancellation();
+  const detail = {
+    postId,
+    spaceId,
+    status: 'available',
+    pin: null,
+    canPin: true,
+    canUnpin: false,
+  };
+  transport.reply(detail);
+  assert.deepEqual(await gateway.detail(postId, cancel, spaceId), detail);
+  assert.deepEqual(
+    Object.fromEntries(new URL(transport.requests[0]!.url).searchParams),
+    { viewSpaceId: spaceId },
+  );
+  transport.reply({ ...detail, spaceId: otherId });
+  await assert.rejects(gateway.detail(postId, cancel, spaceId));
+  assert.throws(() => decodePinDetail({ ...detail, spaceId: 'bad' }));
+  assert.throws(() => decodePinDetail({ ...detail, grantId: otherId }));
 });

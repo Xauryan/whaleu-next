@@ -49,6 +49,7 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/profile-moderation-native-roundtrip.test.ts \
   test/integration/community-text-review-native-roundtrip.test.ts \
   test/integration/community-feedback.test.ts \
+  test/integration/related-sync-native-runtime.test.ts \
   test/integration/school-configuration-native-roundtrip.test.ts \
   test/integration/school-qr-media.test.ts \
   test/integration/school-qr-native-roundtrip.test.ts \

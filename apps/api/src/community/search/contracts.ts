@@ -90,6 +90,8 @@ export type SearchTarget =
   | { kind: 'comment'; postId: string; rootCommentId: string }
   | { kind: 'reply'; postId: string; rootCommentId: string; replyId: string };
 interface SearchHitBase {
+  isRelatedCampusSync?: boolean;
+  sourceRegion?: { id: string; name: string };
   contentId: string;
   postId: string;
   space: { id: string; kind: CommunitySpace['kind']; name: string };
@@ -123,6 +125,7 @@ export type SearchHit = SearchHitBase &
       }
   );
 export interface SearchPage {
+  relatedCampusDistribution?: 'complete' | 'unavailable';
   items: SearchHit[];
   effectiveTypes: SearchKind[];
   nextCursor: string | null;

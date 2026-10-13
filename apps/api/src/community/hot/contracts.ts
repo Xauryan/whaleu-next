@@ -35,6 +35,7 @@ export const hotQuerySchema = z.strictObject({
 });
 export type HotQuery = z.infer<typeof hotQuerySchema>;
 export interface HotPage {
+  relatedCampusDistribution?: 'complete' | 'unavailable';
   items: PostView[];
   nextCursor: string | null;
   continuation:

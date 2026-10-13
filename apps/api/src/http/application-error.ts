@@ -771,6 +771,10 @@ const conditions = {
   },
   COMMENTS_DISABLED: { status: 403, message: 'Comments are disabled' },
   CONTENT_REJECTED: { status: 422, message: 'Content did not pass review' },
+  RELATED_CONTENT_CANONICAL_ID_REQUIRED: {
+    status: 422,
+    message: 'Related content publication requires lowercase canonical UUIDs.',
+  },
   CONTENT_REVIEW_UNAVAILABLE: {
     status: 503,
     message: 'Content review is unavailable',

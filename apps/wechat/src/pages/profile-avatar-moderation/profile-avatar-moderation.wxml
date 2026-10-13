@@ -8,13 +8,13 @@
   <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续 →</navigator>
   <button bindtap="onReload" disabled="{{busy}}">重新核验目标与原请求</button>
   <button wx:if="{{busy}}" bindtap="onStopWaiting">停止等待</button>
-  <view wx:if="{{management &amp;&amp; !management.canClearCustomAvatar}}" class="notice">当前没有可清除的自定义头像；未选择头像或目录头像不适用此操作。</view>
+  <view wx:if="{{management &amp;&amp; !management.canClearCustomAvatar &amp;&amp; management.availability !== 'unavailable'}}" class="notice">当前没有可清除的自定义头像；未选择头像或目录头像不适用此操作。</view>
   <view wx:if="{{management &amp;&amp; management.canClearCustomAvatar &amp;&amp; !frozen}}" class="card">
     <view class="section-title">目标公开昵称：{{management.displayName}}</view>
     <view class="meta">目标：{{management.target.kind}} · {{management.target.id}} · 资料版本 {{management.revision}}</view>
     <button bindtap="onClearCustomAvatar" disabled="{{busy}}">清除当前自定义头像</button>
   </view>
-  <view wx:if="{{confirming === 'clear' &amp;&amp; management &amp;&amp; !frozen}}" class="card" aria-role="alert">
+  <view wx:if="{{confirming === 'clear' &amp;&amp; management.canClearCustomAvatar &amp;&amp; !frozen}}" class="card" aria-role="alert">
     <view class="section-title">确认清除「{{management.displayName}}」的当前自定义头像？</view>
     <view class="notice">将清除此账号的当前自定义头像，影响包括其他地区的非匿名头像展示。清除后显示未选择头像，并向对方发送私有系统通知。匿名分身保持不变。已下载或正在展示的图片不会即时从所有设备消失。头像或资料版本已变化时需要重新确认。</view>
     <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认清除头像并通知对方</button>

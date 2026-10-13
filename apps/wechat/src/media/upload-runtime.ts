@@ -44,6 +44,9 @@ export function mediaPublicationReference(
     ...(body.allowAnonymousDm === undefined
       ? {}
       : { allowAnonymousDm: body.allowAnonymousDm }),
+    ...(body.syncToRelatedCampuses === true
+      ? { syncToRelatedCampuses: true }
+      : {}),
   };
   return Object.freeze({
     clientRequestId: body.clientRequestId,

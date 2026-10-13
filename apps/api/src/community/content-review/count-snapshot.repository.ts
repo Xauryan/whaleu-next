@@ -1,3 +1,4 @@
+import { readDistributionBindings } from '../related-sync/binding.js';
 import { readPostCategorySnapshot } from '../category-reclassification/read-proof.js';
 import { batchCategoryChildContextSnapshot } from '../category-reclassification/child-context.js';
 import { Injectable } from '@nestjs/common';
@@ -125,6 +126,12 @@ export class ContentReviewCountRepository {
         ['deleted_at', 'published_at'],
       ),
     );
+    const relatedPostIds = [...posts.values()]
+      .filter((post) => post.publication_envelope_version === 4)
+      .map((post) => post.id);
+    const distributionBindings = relatedPostIds.length
+      ? await readDistributionBindings(relatedPostIds, tx, budget)
+      : undefined;
     const roots = byId(
       await budget.rows<StoredComment>(
         tx,
@@ -178,7 +185,9 @@ export class ContentReviewCountRepository {
     // no lifecycle, verification or publication-eligibility query is introduced.
     const bindingRows = await budget.rows<ApprovalBinding>(
       tx,
-      `SELECT b.* FROM unnest($1::text[],$2::uuid[]) AS wanted(kind,id)
+      `SELECT b.content_kind,b.content_id,b.content_version,b.decision_id,b.account_id,
+       b.operation,b.envelope_version,b.digest,b.envelope,b.scope
+       FROM unnest($1::text[],$2::uuid[]) AS wanted(kind,id)
        JOIN whaleu_community.content_approval_bindings b ON b.content_kind=wanted.kind AND b.content_id=wanted.id AND b.content_version=1
        JOIN whaleu_identity.accounts a ON a.id=b.account_id`,
       [kinds, nodeIds],
@@ -277,6 +286,7 @@ export class ContentReviewCountRepository {
       ).rows[0]?.now.getTime() ?? NaN;
     return {
       posts,
+      ...(distributionBindings ? { distributionBindings } : {}),
       roots,
       replies,
       spaces,

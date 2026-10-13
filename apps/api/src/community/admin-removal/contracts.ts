@@ -25,6 +25,10 @@ const adminPostRemovalV1CommandSchema = z.strictObject({
   action: z.literal('remove_post'),
 });
 export const adminPostRemovalCommandSchema = z.union([
+  adminPostRemovalV1CommandSchema.extend({
+    version: z.literal(3),
+    viewSpaceId: id,
+  }),
   adminPostRemovalV1CommandSchema,
   adminPostRemovalV1CommandSchema
     .extend({ version: z.literal(2), punishment: punishmentSelectionSchema })
@@ -59,6 +63,14 @@ const adminPostRemovalV1ReceiptSchema = z.discriminatedUnion('outcome', [
   }),
 ]);
 export const adminPostRemovalReceiptSchema = z.union([
+  adminPostRemovalV1ReceiptSchema.options[0].extend({
+    version: z.literal(3),
+    viewSpaceId: outputId,
+  }),
+  adminPostRemovalV1ReceiptSchema.options[1].extend({
+    version: z.literal(3),
+    viewSpaceId: outputId,
+  }),
   adminPostRemovalV1ReceiptSchema,
   adminPostRemovalV1ReceiptSchema.options[0]
     .extend({
@@ -89,9 +101,14 @@ const punishmentOptionSchema = z.strictObject({
     })
     .nullable(),
 });
-export const adminPostRemovalManagementQuerySchema =
-  adminPostRemovalTargetSchema.extend({ version: z.literal('2').optional() });
-export const adminPostRemovalManagementSchema = z.strictObject({
+export const adminPostRemovalManagementQuerySchema = z.union([
+  adminPostRemovalTargetSchema.extend({ version: z.literal('2').optional() }),
+  adminPostRemovalTargetSchema.extend({
+    version: z.literal('3'),
+    viewSpaceId: id,
+  }),
+]);
+const adminPostRemovalV1ManagementSchema = z.strictObject({
   target: outputTarget,
   targetVersion,
   canRemove: z.literal(true),
@@ -102,6 +119,12 @@ export const adminPostRemovalManagementSchema = z.strictObject({
     })
     .optional(),
 });
+export const adminPostRemovalManagementSchema = z.union([
+  adminPostRemovalV1ManagementSchema,
+  adminPostRemovalV1ManagementSchema
+    .omit({ punishmentOptions: true })
+    .extend({ version: z.literal(3), viewSpaceId: outputId }),
+]);
 export type AdminPostRemovalManagement = z.infer<
   typeof adminPostRemovalManagementSchema
 >;

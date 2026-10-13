@@ -21,6 +21,8 @@ const boundedText = (maximum: number) =>
     .refine((value) => [...value].length <= maximum);
 function createSearchHitSchema(requireLiteralMatch: boolean) {
   const base = {
+    isRelatedCampusSync: z.boolean().optional(),
+    sourceRegion: z.strictObject({ id: uuid, name: z.string() }).optional(),
     contentId: uuid,
     postId: uuid,
     space: z.strictObject({
@@ -118,6 +120,7 @@ export const semanticSearchHitSchema = createSearchHitSchema(false).meta({
 export const searchPageSchema = z
   .strictObject({
     items: z.array(searchHitSchema).max(10),
+    relatedCampusDistribution: z.enum(['complete', 'unavailable']).optional(),
     effectiveTypes: z.array(searchKindSchema).min(1).max(3),
     nextCursor: z
       .string()

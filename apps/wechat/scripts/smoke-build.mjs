@@ -1,3 +1,4 @@
+import { smokeRelatedCampusSync } from './smoke-related-campus-sync.mjs';
 import { smokeAccountModeration } from './smoke-account-moderation.mjs';
 import { smokeSchoolAdminManagement } from './smoke-school-admin-management.mjs';
 import { smokeAdminDiscussionRemoval } from './smoke-admin-discussion-removal.mjs';
@@ -2605,6 +2606,13 @@ await smokeSystemNotices({
   flush: flushTrading,
 });
 await smokeRuntimePolicy({
+  app,
+  dist,
+  mountPage: mountTradingPage,
+  flush: flushTrading,
+  postWire: pollPostWire,
+});
+await smokeRelatedCampusSync({
   app,
   dist,
   mountPage: mountTradingPage,

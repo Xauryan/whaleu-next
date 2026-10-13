@@ -1,3 +1,4 @@
+import { requireContentDistributionGrant } from '../../authorization/content-distribution-grant.js';
 import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { observeCategoryInputs, retainCategoryInputs } from './input-proof.js';
 import type { CategoryInputFact } from './input-proof.js';
@@ -51,6 +52,7 @@ interface Head {
   current_category: Category;
 }
 export interface CategoryManagement {
+  blocker?: 'related_sync_unsupported';
   postId: string;
   currentCategory: Category;
   revision: number;
@@ -173,6 +175,24 @@ export class CategoryReclassificationService {
       )
         throw new ApplicationError('POST_NOT_FOUND');
       const state = await this.state(postId, tx);
+      if (post.publication_envelope_version === 4) {
+        await requireContentDistributionGrant(
+          session.accountId,
+          post.id,
+          null,
+          tx,
+          'profile_unavailable',
+        );
+        return {
+          postId,
+          currentCategory,
+          revision: state.revision,
+          canChange: false,
+          targets: [],
+          blocker: 'related_sync_unsupported',
+        };
+      }
+
       const grantId = await this.grant(session.accountId, postId, tx);
       await currentCategoryCursorScope('category-management', tx);
       const targets: ReclassificationCategory[] = [];
@@ -308,6 +328,8 @@ export class CategoryReclassificationService {
       await safetyProof(tx);
       const post = await this.repository.post(command.postId, tx, true),
         state = await this.state(post.id, tx);
+      if (post.publication_envelope_version === 4)
+        throw new ApplicationError('POST_CATEGORY_UNAVAILABLE');
       const base = {
         requestId: command.clientRequestId,
         postId: command.postId,

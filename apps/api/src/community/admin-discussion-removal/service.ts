@@ -1,3 +1,4 @@
+import { requireContentDistributionGrant } from '../../authorization/content-distribution-grant.js';
 import { punishmentReferenceSchema } from '../../safety/account-moderation/contracts.js';
 import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
@@ -174,7 +175,31 @@ export class AdminDiscussionRemovalService {
     target: AdminDiscussionRemovalTarget,
     requestId: string | null,
     tx: PoolClient,
+    viewSpaceId?: string,
   ): Promise<InputFact & { grantId: string }> {
+    if (viewSpaceId) {
+      const parent = (
+        await tx.query<{ post_id: string }>(
+          'SELECT post_id FROM whaleu_community.admin_discussion_removal_target($1,$2)',
+          [target.kind, target.id],
+        )
+      ).rows[0];
+      if (!parent)
+        throw new ApplicationError(
+          'ADMIN_DISCUSSION_REMOVAL_TARGET_NOT_ALLOWED',
+        );
+      const selected = await requireContentDistributionGrant(
+        actor,
+        parent.post_id,
+        viewSpaceId,
+        tx,
+      );
+      const observed = await observeAdminDiscussionRemovalInputs(
+        { actor, grantId: selected.grantId, target, requestId, viewSpaceId },
+        tx,
+      );
+      return Object.freeze({ ...observed, grantId: selected.grantId });
+    }
     const grants = await this.authorization.grants(actor, tx);
     const row = (
       await tx.query<{ id: string }>(
@@ -189,16 +214,40 @@ export class AdminDiscussionRemovalService {
     );
     return Object.freeze({ ...observed, grantId: row.id });
   }
+  private async version(
+    actor: string,
+    grantId: string,
+    target: AdminDiscussionRemovalTarget,
+    viewSpaceId: string,
+    tx: PoolClient,
+  ): Promise<string> {
+    const row = (
+      await tx.query<{ version: string }>(
+        'SELECT whaleu_community.related_removal_target_version($1,$2,$3,$4,$5) version',
+        [actor, grantId, target.kind, target.id, viewSpaceId],
+      )
+    ).rows[0];
+    if (!row)
+      throw new ApplicationError('ADMIN_DISCUSSION_REMOVAL_UNAVAILABLE');
+    return row.version;
+  }
   @AccountPolicy('privileged_read', 'entry')
   async management(
     token: string,
     target: AdminDiscussionRemovalTarget,
     withPunishment = false,
+    viewSpaceId?: string,
   ): Promise<AdminDiscussionRemovalManagement> {
     return this.run(async (tx) => {
       const session = await this.session(token, tx);
       const initial = await observeAdminDiscussionRemovalInputs(
-        { actor: session.accountId, grantId: null, target, requestId: null },
+        {
+          actor: session.accountId,
+          grantId: null,
+          target,
+          requestId: null,
+          ...(viewSpaceId ? { viewSpaceId } : {}),
+        },
         tx,
       );
       const resolved = await this.resolve(target, session.accountId, tx);
@@ -208,14 +257,24 @@ export class AdminDiscussionRemovalService {
         target,
         null,
         tx,
+        viewSpaceId,
       );
       await retainAdminDiscussionRemovalInputs(initial, tx);
       await retainAdminDiscussionRemovalInputs(selected, tx);
       return adminDiscussionRemovalManagementSchema.parse({
         target,
-        targetVersion: resolved.target_version,
+        targetVersion: viewSpaceId
+          ? await this.version(
+              session.accountId,
+              selected.grantId,
+              target,
+              viewSpaceId,
+              tx,
+            )
+          : resolved.target_version,
+        ...(viewSpaceId ? { version: 3, viewSpaceId } : {}),
         canRemove: true,
-        ...(withPunishment
+        ...(withPunishment && !viewSpaceId
           ? {
               punishmentOptions: await removalPunishmentOptions(
                 resolved.subject_id,
@@ -261,9 +320,11 @@ export class AdminDiscussionRemovalService {
         target: command.target,
         expectedTargetVersion: command.expectedTargetVersion,
         action: command.action,
-        ...('version' in command
-          ? { version: 2 as const, selection: command.punishment }
-          : {}),
+        ...('version' in command && command.version === 3
+          ? { version: 3 as const, viewSpaceId: command.viewSpaceId }
+          : 'version' in command && command.version === 2
+            ? { version: 2 as const, selection: command.punishment }
+            : {}),
       };
       let receipt: AdminDiscussionRemovalReceipt;
       let grantId: string | null = null;
@@ -285,11 +346,14 @@ export class AdminDiscussionRemovalService {
             grantId: null,
             target: command.target,
             requestId: command.clientRequestId,
+            ...('version' in command && command.version === 3
+              ? { viewSpaceId: command.viewSpaceId }
+              : {}),
           },
           tx,
         );
         // Retain the first negative role observation before content or grant waits.
-        if ('version' in command) {
+        if ('version' in command && command.version === 2) {
           const subjectRow = (
             await tx.query<{ subject_id: string }>(
               'SELECT subject_id FROM whaleu_community.admin_discussion_removal_target($1,$2)',
@@ -309,6 +373,9 @@ export class AdminDiscussionRemovalService {
           command.target,
           command.clientRequestId,
           tx,
+          'version' in command && command.version === 3
+            ? command.viewSpaceId
+            : undefined,
         );
         await retainAdminDiscussionRemovalInputs(initial, tx);
         await retainAdminDiscussionRemovalInputs(selected, tx);
@@ -316,7 +383,16 @@ export class AdminDiscussionRemovalService {
         subject = resolved.subject_id;
         postId = resolved.post_id;
         rootId = resolved.root_id;
-        targetVersion = resolved.target_version;
+        targetVersion =
+          'version' in command && command.version === 3
+            ? await this.version(
+                actor,
+                grantId,
+                command.target,
+                command.viewSpaceId,
+                tx,
+              )
+            : resolved.target_version;
         if (targetVersion !== command.expectedTargetVersion)
           receipt = {
             ...base,
@@ -334,7 +410,7 @@ export class AdminDiscussionRemovalService {
             outcome: 'applied',
             eventId: randomUUID(),
             recordedAt: now.toISOString(),
-            ...('version' in command
+            ...('version' in command && command.version === 2
               ? {
                   version: 2 as const,
                   selection: command.punishment,
@@ -372,7 +448,11 @@ export class AdminDiscussionRemovalService {
       )
         throw new ApplicationError('ADMIN_DISCUSSION_REMOVAL_UNAVAILABLE');
       if (receipt.outcome === 'applied') {
-        if ('version' in command && 'punishment' in receipt) {
+        if (
+          'version' in command &&
+          command.version === 2 &&
+          'punishment' in receipt
+        ) {
           const recordedPunishment = punishmentReferenceSchema.parse(
             receipt.punishment,
           );

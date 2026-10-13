@@ -1,3 +1,4 @@
+import { documentRelatedCanonicalIdentifiers } from './related-campus-identifiers-openapi.js';
 import 'reflect-metadata';
 import { format } from 'prettier';
 import { Test } from '@nestjs/testing';
@@ -1391,7 +1392,7 @@ export async function createUsableTextOpenApiDocument(): Promise<OpenAPIObject> 
   }).compile();
   const app = testing.createNestApplication({ logger: false });
   try {
-    return SwaggerModule.createDocument(
+    const document = SwaggerModule.createDocument(
       app,
       new DocumentBuilder()
         .setOpenAPIVersion('3.0.3')
@@ -1410,6 +1411,17 @@ export async function createUsableTextOpenApiDocument(): Promise<OpenAPIObject> 
         excludeDynamicDefaults: true,
       },
     );
+    for (const [path, kind, parameter] of [
+      ['/v1/community/reviews/posts', 'post', undefined],
+      ['/v1/community/reviews/posts/{id}/comments', 'comment', 'id'],
+      ['/v1/community/reviews/comments/{id}/replies', 'reply', 'id'],
+    ] as const) {
+      const operation = document.paths[path]?.post;
+      if (!operation)
+        throw new Error(`Missing actual related Review route ${path}`);
+      documentRelatedCanonicalIdentifiers(operation, kind, parameter);
+    }
+    return document;
   } finally {
     await app.close();
   }

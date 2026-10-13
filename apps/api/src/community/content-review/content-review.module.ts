@@ -1,3 +1,4 @@
+import { CommunityDistributionService } from '../related-sync/service.js';
 import { MajorDiscussionMediaReviewFacade } from './major-discussion-media-review.facade.js';
 import { WindowDiscussionMediaReviewFacade } from './window-discussion-media-review.facade.js';
 import { MajorDiscussionReviewFacade } from './major-discussion-review.facade.js';
@@ -31,6 +32,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
 @Module({
   imports: [CampusModule],
   providers: [
+    CommunityDistributionService,
     WindowDiscussionReviewFacade,
     WindowDiscussionMediaReviewFacade,
     MajorDiscussionMediaReviewFacade,
@@ -57,6 +59,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
     LocalApprovedContentVisibility,
   ],
   exports: [
+    CommunityDistributionService,
     WindowDiscussionReviewFacade,
     WindowDiscussionMediaReviewFacade,
     MajorDiscussionMediaReviewFacade,

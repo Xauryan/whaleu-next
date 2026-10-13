@@ -94,25 +94,30 @@ export const reclassificationEmptyBodySchema = z.union([
   z.strictObject({}),
 ]);
 
-export const categoryManagementSchema = z.strictObject({
-  postId: id,
-  currentCategory: z.enum([
-    'discussion',
-    'feedback',
-    'confession',
-    'companions',
-    'pets',
-    'internships',
-    'scenery',
-    'dorms',
-    'research',
-    'deep_sea',
-    'trading',
-  ]),
-  revision,
-  canChange: z.boolean(),
-  targets: z.array(reclassificationCategorySchema).max(9),
-});
+export const categoryManagementSchema = z
+  .strictObject({
+    postId: id,
+    currentCategory: z.enum([
+      'discussion',
+      'feedback',
+      'confession',
+      'companions',
+      'pets',
+      'internships',
+      'scenery',
+      'dorms',
+      'research',
+      'deep_sea',
+      'trading',
+    ]),
+    revision,
+    canChange: z.boolean(),
+    blocker: z.literal('related_sync_unsupported').optional(),
+    targets: z.array(reclassificationCategorySchema).max(9),
+  })
+  .refine(
+    (v) => v.blocker === undefined || (!v.canChange && v.targets.length === 0),
+  );
 export const categoryRequestIdSchema = requestId;
 export const categoryPostIdSchema = id;
 export const categoryEmptyQuerySchema = z.strictObject({});

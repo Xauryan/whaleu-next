@@ -18,40 +18,70 @@ export interface AdminPostRemovalTarget {
   readonly kind: 'post';
   readonly id: string;
 }
-export interface AdminPostRemovalManagement {
+export type AdminPostRemovalManagement = {
   readonly target: AdminPostRemovalTarget;
   readonly targetVersion: string;
   readonly canRemove: true;
-  readonly punishmentOptions?: RemovalPunishmentOptions;
-}
-export interface AdminPostRemovalCommand {
-  readonly version?: 2;
-  readonly punishment?: RemovalPunishmentSelection;
+} & (
+  | {
+      readonly version?: never;
+      readonly viewSpaceId?: never;
+      readonly punishmentOptions?: RemovalPunishmentOptions;
+    }
+  | {
+      readonly version: 3;
+      readonly viewSpaceId: string;
+      readonly punishmentOptions?: never;
+    }
+);
+export type AdminPostRemovalCommand = {
   readonly clientRequestId: string;
   readonly target: AdminPostRemovalTarget;
   readonly expectedTargetVersion: string;
   readonly action: 'remove_post';
-}
+} & (
+  | {
+      readonly version?: 2;
+      readonly punishment?: RemovalPunishmentSelection;
+      readonly viewSpaceId?: never;
+    }
+  | {
+      readonly version: 3;
+      readonly viewSpaceId: string;
+      readonly punishment?: never;
+    }
+);
 export type AdminPostRemovalReceipt = {
-  readonly version?: 2;
-  readonly selection?: RemovalPunishmentSelection;
-  readonly punishment?: RemovalPunishmentReference;
   readonly requestId: string;
   readonly target: AdminPostRemovalTarget;
   readonly expectedTargetVersion: string;
   readonly action: 'remove_post';
 } & (
   | {
-      readonly outcome: 'applied';
-      readonly eventId: string;
-      readonly recordedAt: string;
+      readonly version?: 2;
+      readonly selection?: RemovalPunishmentSelection;
+      readonly punishment?: RemovalPunishmentReference;
+      readonly viewSpaceId?: never;
     }
   | {
-      readonly outcome: 'rejected';
-      readonly code:
-        'ADMIN_POST_REMOVAL_STALE' | 'ADMIN_POST_REMOVAL_CANCELLED';
+      readonly version: 3;
+      readonly viewSpaceId: string;
+      readonly selection?: never;
+      readonly punishment?: never;
     }
-);
+) &
+  (
+    | {
+        readonly outcome: 'applied';
+        readonly eventId: string;
+        readonly recordedAt: string;
+      }
+    | {
+        readonly outcome: 'rejected';
+        readonly code:
+          'ADMIN_POST_REMOVAL_STALE' | 'ADMIN_POST_REMOVAL_CANCELLED';
+      }
+  );
 export type AdminPostRemovalRecovery =
   | { readonly state: 'recorded'; readonly receipt: AdminPostRemovalReceipt }
   | { readonly state: 'not_recorded' };
@@ -79,11 +109,25 @@ export function decodeAdminPostRemovalManagement(
     'target',
     'targetVersion',
     'canRemove',
-    ...('punishmentOptions' in raw ? ['punishmentOptions'] : []),
+    ...(raw.version === 3
+      ? ['version', 'viewSpaceId']
+      : 'punishmentOptions' in raw
+        ? ['punishmentOptions']
+        : []),
   ]);
   const target = decodeAdminPostRemovalTarget(raw.target);
   if (!version(raw.targetVersion) || raw.canRemove !== true)
     invalidAdminPostRemoval();
+  if (raw.version === 3) {
+    if (!isUuid(raw.viewSpaceId)) invalidAdminPostRemoval();
+    return Object.freeze({
+      version: 3,
+      viewSpaceId: raw.viewSpaceId,
+      target,
+      targetVersion: raw.targetVersion,
+      canRemove: true,
+    });
+  }
   return Object.freeze({
     target,
     targetVersion: raw.targetVersion,
@@ -106,9 +150,15 @@ export function decodeAdminPostRemovalCommand(
     'target',
     'expectedTargetVersion',
     'action',
-    ...('version' in raw ? ['version', 'punishment'] : []),
+    ...(raw.version === 3
+      ? ['version', 'viewSpaceId']
+      : 'version' in raw
+        ? ['version', 'punishment']
+        : []),
   ]);
-  if ('version' in raw && raw.version !== 2) invalidAdminPostRemoval();
+  if ('version' in raw && raw.version !== 2 && raw.version !== 3)
+    invalidAdminPostRemoval();
+  if (raw.version === 3 && !isUuid(raw.viewSpaceId)) invalidAdminPostRemoval();
   const target = decodeAdminPostRemovalTarget(raw.target);
   if (
     !uuid4(raw.clientRequestId) ||
@@ -117,12 +167,14 @@ export function decodeAdminPostRemovalCommand(
   )
     invalidAdminPostRemoval();
   return Object.freeze({
-    ...('version' in raw
-      ? {
-          version: 2 as const,
-          punishment: decodeRemovalPunishmentSelection(raw.punishment, true),
-        }
-      : {}),
+    ...(raw.version === 3
+      ? { version: 3 as const, viewSpaceId: raw.viewSpaceId as string }
+      : 'version' in raw
+        ? {
+            version: 2 as const,
+            punishment: decodeRemovalPunishmentSelection(raw.punishment, true),
+          }
+        : {}),
     clientRequestId: raw.clientRequestId,
     target,
     expectedTargetVersion: raw.expectedTargetVersion,
@@ -139,13 +191,15 @@ export function decodeAdminPostRemovalReceipt(
     'expectedTargetVersion',
     'action',
     'outcome',
-    ...('version' in raw
-      ? [
-          'version',
-          'selection',
-          ...(raw.outcome === 'applied' ? ['punishment'] : []),
-        ]
-      : []),
+    ...(raw.version === 3
+      ? ['version', 'viewSpaceId']
+      : 'version' in raw
+        ? [
+            'version',
+            'selection',
+            ...(raw.outcome === 'applied' ? ['punishment'] : []),
+          ]
+        : []),
     ...(raw.outcome === 'applied' ? ['eventId', 'recordedAt'] : ['code']),
   ]);
   const target = decodeAdminPostRemovalTarget(raw.target);
@@ -164,6 +218,10 @@ export function decodeAdminPostRemovalReceipt(
       raw.code !== 'ADMIN_POST_REMOVAL_CANCELLED')
   )
     invalidAdminPostRemoval();
+  if (raw.version === 3) {
+    if (!isUuid(raw.viewSpaceId)) invalidAdminPostRemoval();
+    return Object.freeze({ ...raw, target }) as AdminPostRemovalReceipt;
+  }
   if ('version' in raw) {
     if (raw.version !== 2) invalidAdminPostRemoval();
     const selection = decodeRemovalPunishmentSelection(raw.selection, true);
@@ -199,6 +257,7 @@ export function matchAdminPostRemovalReceipt(
     command.expectedTargetVersion !== receipt.expectedTargetVersion ||
     command.action !== receipt.action ||
     command.version !== receipt.version ||
+    command.viewSpaceId !== receipt.viewSpaceId ||
     canonical(command.punishment ?? null) !==
       canonical(receipt.selection ?? null)
   )
@@ -251,7 +310,7 @@ export function adminPostRemovalCommandHash(
 ): string {
   if (!isUuid(actor)) invalidAdminPostRemoval();
   return sha256(
-    `whaleu:admin-post-removal-command:v${command.version === 2 ? 2 : 1}\n` +
+    `whaleu:admin-post-removal-command:v${command.version ?? 1}\n` +
       canonical({ actor, command: decodeAdminPostRemovalCommand(command) }),
   );
 }

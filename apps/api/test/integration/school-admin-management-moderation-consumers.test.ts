@@ -277,6 +277,7 @@ async function prepareModeration(
     };
   } else if (kind === 'nickname') {
     const view = moderationManagementSchema.parse(response.body);
+    assert.equal(view.canReset, true);
     body = {
       clientRequestId: randomUUID(),
       target: view.target,

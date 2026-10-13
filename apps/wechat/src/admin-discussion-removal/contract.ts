@@ -18,40 +18,71 @@ export interface AdminDiscussionRemovalTarget {
   readonly kind: 'comment' | 'reply';
   readonly id: string;
 }
-export interface AdminDiscussionRemovalManagement {
+export type AdminDiscussionRemovalManagement = {
   readonly target: AdminDiscussionRemovalTarget;
   readonly targetVersion: string;
   readonly canRemove: true;
-  readonly punishmentOptions?: RemovalPunishmentOptions;
-}
-export interface AdminDiscussionRemovalCommand {
-  readonly version?: 2;
-  readonly punishment?: RemovalPunishmentSelection;
+} & (
+  | {
+      readonly version?: never;
+      readonly viewSpaceId?: never;
+      readonly punishmentOptions?: RemovalPunishmentOptions;
+    }
+  | {
+      readonly version: 3;
+      readonly viewSpaceId: string;
+      readonly punishmentOptions?: never;
+    }
+);
+export type AdminDiscussionRemovalCommand = {
   readonly clientRequestId: string;
   readonly target: AdminDiscussionRemovalTarget;
   readonly expectedTargetVersion: string;
   readonly action: 'remove_discussion';
-}
+} & (
+  | {
+      readonly version?: 2;
+      readonly punishment?: RemovalPunishmentSelection;
+      readonly viewSpaceId?: never;
+    }
+  | {
+      readonly version: 3;
+      readonly viewSpaceId: string;
+      readonly punishment?: never;
+    }
+);
 export type AdminDiscussionRemovalReceipt = {
-  readonly version?: 2;
-  readonly selection?: RemovalPunishmentSelection;
-  readonly punishment?: RemovalPunishmentReference;
   readonly requestId: string;
   readonly target: AdminDiscussionRemovalTarget;
   readonly expectedTargetVersion: string;
   readonly action: 'remove_discussion';
 } & (
   | {
-      readonly outcome: 'applied';
-      readonly eventId: string;
-      readonly recordedAt: string;
+      readonly version?: 2;
+      readonly selection?: RemovalPunishmentSelection;
+      readonly punishment?: RemovalPunishmentReference;
+      readonly viewSpaceId?: never;
     }
   | {
-      readonly outcome: 'rejected';
-      readonly code:
-        'ADMIN_DISCUSSION_REMOVAL_STALE' | 'ADMIN_DISCUSSION_REMOVAL_CANCELLED';
+      readonly version: 3;
+      readonly viewSpaceId: string;
+      readonly selection?: never;
+      readonly punishment?: never;
     }
-);
+) &
+  (
+    | {
+        readonly outcome: 'applied';
+        readonly eventId: string;
+        readonly recordedAt: string;
+      }
+    | {
+        readonly outcome: 'rejected';
+        readonly code:
+          | 'ADMIN_DISCUSSION_REMOVAL_STALE'
+          | 'ADMIN_DISCUSSION_REMOVAL_CANCELLED';
+      }
+  );
 export type AdminDiscussionRemovalRecovery =
   | {
       readonly state: 'recorded';
@@ -86,11 +117,25 @@ export function decodeAdminDiscussionRemovalManagement(
     'target',
     'targetVersion',
     'canRemove',
-    ...('punishmentOptions' in raw ? ['punishmentOptions'] : []),
+    ...(raw.version === 3
+      ? ['version', 'viewSpaceId']
+      : 'punishmentOptions' in raw
+        ? ['punishmentOptions']
+        : []),
   ]);
   const target = decodeAdminDiscussionRemovalTarget(raw.target);
   if (!version(raw.targetVersion) || raw.canRemove !== true)
     invalidAdminDiscussionRemoval();
+  if (raw.version === 3) {
+    if (!isUuid(raw.viewSpaceId)) invalidAdminDiscussionRemoval();
+    return Object.freeze({
+      version: 3,
+      viewSpaceId: raw.viewSpaceId,
+      target,
+      targetVersion: raw.targetVersion,
+      canRemove: true,
+    });
+  }
   return Object.freeze({
     target,
     targetVersion: raw.targetVersion,
@@ -113,9 +158,16 @@ export function decodeAdminDiscussionRemovalCommand(
     'target',
     'expectedTargetVersion',
     'action',
-    ...('version' in raw ? ['version', 'punishment'] : []),
+    ...(raw.version === 3
+      ? ['version', 'viewSpaceId']
+      : 'version' in raw
+        ? ['version', 'punishment']
+        : []),
   ]);
-  if ('version' in raw && raw.version !== 2) invalidAdminDiscussionRemoval();
+  if ('version' in raw && raw.version !== 2 && raw.version !== 3)
+    invalidAdminDiscussionRemoval();
+  if (raw.version === 3 && !isUuid(raw.viewSpaceId))
+    invalidAdminDiscussionRemoval();
   const target = decodeAdminDiscussionRemovalTarget(raw.target);
   if (
     !uuid4(raw.clientRequestId) ||
@@ -124,12 +176,14 @@ export function decodeAdminDiscussionRemovalCommand(
   )
     invalidAdminDiscussionRemoval();
   return Object.freeze({
-    ...('version' in raw
-      ? {
-          version: 2 as const,
-          punishment: decodeRemovalPunishmentSelection(raw.punishment, false),
-        }
-      : {}),
+    ...(raw.version === 3
+      ? { version: 3 as const, viewSpaceId: raw.viewSpaceId as string }
+      : 'version' in raw
+        ? {
+            version: 2 as const,
+            punishment: decodeRemovalPunishmentSelection(raw.punishment, false),
+          }
+        : {}),
     clientRequestId: raw.clientRequestId,
     target,
     expectedTargetVersion: raw.expectedTargetVersion,
@@ -146,13 +200,15 @@ export function decodeAdminDiscussionRemovalReceipt(
     'expectedTargetVersion',
     'action',
     'outcome',
-    ...('version' in raw
-      ? [
-          'version',
-          'selection',
-          ...(raw.outcome === 'applied' ? ['punishment'] : []),
-        ]
-      : []),
+    ...(raw.version === 3
+      ? ['version', 'viewSpaceId']
+      : 'version' in raw
+        ? [
+            'version',
+            'selection',
+            ...(raw.outcome === 'applied' ? ['punishment'] : []),
+          ]
+        : []),
     ...(raw.outcome === 'applied' ? ['eventId', 'recordedAt'] : ['code']),
   ]);
   const target = decodeAdminDiscussionRemovalTarget(raw.target);
@@ -171,6 +227,10 @@ export function decodeAdminDiscussionRemovalReceipt(
       raw.code !== 'ADMIN_DISCUSSION_REMOVAL_CANCELLED')
   )
     invalidAdminDiscussionRemoval();
+  if (raw.version === 3) {
+    if (!isUuid(raw.viewSpaceId)) invalidAdminDiscussionRemoval();
+    return Object.freeze({ ...raw, target }) as AdminDiscussionRemovalReceipt;
+  }
   if ('version' in raw) {
     if (raw.version !== 2) invalidAdminDiscussionRemoval();
     const selection = decodeRemovalPunishmentSelection(raw.selection, false);
@@ -206,6 +266,7 @@ export function matchAdminDiscussionRemovalReceipt(
     command.expectedTargetVersion !== receipt.expectedTargetVersion ||
     command.action !== receipt.action ||
     command.version !== receipt.version ||
+    command.viewSpaceId !== receipt.viewSpaceId ||
     canonical(command.punishment ?? null) !==
       canonical(receipt.selection ?? null)
   )
@@ -258,7 +319,7 @@ export function adminDiscussionRemovalCommandHash(
 ): string {
   if (!isUuid(actor)) invalidAdminDiscussionRemoval();
   return sha256(
-    `whaleu:admin-discussion-removal-command:v${command.version === 2 ? 2 : 1}\n` +
+    `whaleu:admin-discussion-removal-command:v${command.version ?? 1}\n` +
       canonical({
         actor,
         command: decodeAdminDiscussionRemovalCommand(command),

@@ -168,7 +168,9 @@ export class ProfileModerationController extends CommunityController<ProfileMode
         this.update({
           loaded: true,
           management,
-          status: '已核验此内容的昵称管理权限',
+          status: management.canReset
+            ? '已核验此内容的昵称管理权限'
+            : '关联校区同步内容暂不支持昵称管理',
         });
       },
       () => this.update({ loaded: false, management: null }),

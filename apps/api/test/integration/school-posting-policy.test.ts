@@ -316,7 +316,7 @@ test(
         },
       );
       await t.test(
-        'unknown evidence and related sync are explicit read-only blockers; another scope is not overwritten',
+        'unknown evidence stays read-only; enabled sync is explicit in updated management and legacy writes cannot overwrite it',
         async () => {
           await setRegionPolicy(f.pool, f.scope.related.regionId, {
             provenanceState: 'unknown',
@@ -335,8 +335,9 @@ test(
             unverifiedCategories: ['discussion'],
           });
           view = await read(superAdmin, f.scope.foreign.regionId);
-          assert.equal(view.body.blocker, 'related_sync_unsupported');
-          assert.equal(view.body.editable, false);
+          assert.equal(view.body.blocker, null);
+          assert.equal(view.body.editable, true);
+          assert.equal(view.body.policy.relatedSyncEnabled, true);
           assert.equal(
             (await save(command(1), superAdmin, f.scope.foreign.regionId)).body
               .error.code,

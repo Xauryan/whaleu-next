@@ -20,6 +20,7 @@ import { SchemaValidationPipe } from '../../http/validation.js';
 import { bearerToken } from '../../identity/tokens.js';
 import {
   pinCommandSchema,
+  pinDetailQuerySchema,
   pinSlotQuerySchema,
   pinSlotSchema,
   pinEmptySchema,
@@ -75,11 +76,14 @@ export class PostPinsController {
   detail(
     @Headers('authorization') auth: unknown,
     @Param('postId', new SchemaValidationPipe(pinIdSchema)) id: string,
-    @Query(new SchemaValidationPipe(pinEmptySchema))
-    _query: Record<string, never>,
+    @Query({
+      schema: pinDetailQuerySchema,
+      pipes: [new SchemaValidationPipe(pinDetailQuerySchema)],
+    })
+    query: { viewSpaceId?: string },
     @Body(new SchemaValidationPipe(pinEmptyBodySchema)) _body: unknown,
   ) {
-    return this.pins.detail(bearerToken(auth), id);
+    return this.pins.detail(bearerToken(auth), id, query.viewSpaceId);
   }
   @Post('post-pin-commands')
   @ApiBearerAuth('accessToken')

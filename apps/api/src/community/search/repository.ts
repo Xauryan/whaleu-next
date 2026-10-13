@@ -1,7 +1,12 @@
-import { CURRENT_CATEGORY_POSTS_SQL } from '../current-category-sql.js';
+import { CommunityDistributionService } from '../related-sync/service.js';
+import type { CommunityDistributionScope } from '../related-sync/contracts.js';
+import {
+  CURRENT_CATEGORY_POSTS_SQL,
+  scopedCurrentCategoryPostsSql,
+} from '../current-category-sql.js';
 import type { SearchReadContext } from '../content-review/search-read-context.js';
 import { searchListing } from '../content-review/search-source-reads.js';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
 import { ApplicationError } from '../../http/application-error.js';
@@ -26,8 +31,12 @@ interface SearchStructuralFilters {
 }
 export type SearchStructuralScope = SearchStructuralFilters &
   (
-    | { readonly spaceId: string }
     | {
+        readonly spaceId: string;
+        readonly distribution?: CommunityDistributionScope;
+      }
+    | {
+        readonly distribution?: never;
         readonly regionalSpaceIds: readonly string[];
         readonly globalSpaceIds: readonly string[];
       }
@@ -61,11 +70,8 @@ function columns(kind: SearchKind): string {
     ${kind === 'post' ? 'NULL::uuid' : kind === 'comment' ? 'c.id' : 'r.root_comment_id'} AS "rootCommentId",
     to_char(${alias}.${time} AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS at`;
 }
-function from(kind: SearchKind, classified = false): string {
+function from(kind: SearchKind, posts = 'whaleu_community.posts'): string {
   const { table, alias } = sources[kind];
-  const posts = classified
-    ? CURRENT_CATEGORY_POSTS_SQL
-    : 'whaleu_community.posts';
   return kind === 'post'
     ? `${posts} p`
     : `whaleu_community.${table} ${alias} JOIN ${posts} p ON p.id=${alias}.post_id`;
@@ -75,18 +81,49 @@ function from(kind: SearchKind, classified = false): string {
  * resolution, matching-derived rank or cross-owner table enters this query. */
 @Injectable()
 export class SearchRepository {
+  constructor(
+    @Optional()
+    @Inject(CommunityDistributionService)
+    private readonly distribution?: CommunityDistributionService,
+  ) {}
   async candidates(
     scope: SearchStructuralScope,
     after: SearchAnchor | null,
     tx: PoolClient,
   ): Promise<SearchCandidate[]> {
+    const parameters: unknown[] = [
+      'spaceId' in scope ? scope.spaceId : null,
+      'spaceId' in scope ? [] : scope.regionalSpaceIds,
+      'spaceId' in scope ? [] : scope.globalSpaceIds,
+      scope.category,
+      scope.tradingSubtype,
+      scope.excludeUrgentTrading,
+      scope.postId,
+      scope.from,
+      scope.to,
+      after?.at ?? null,
+      after ? SEARCH_KIND_ORDER[after.kind] : null,
+      after?.id ?? null,
+      scope.types,
+      categorySchema.options,
+    ];
+    if (scope.distribution && !this.distribution)
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    const classifiedSource = scope.distribution
+      ? scopedCurrentCategoryPostsSql(
+          scope.distribution,
+          this.distribution!,
+          parameters,
+        )
+      : CURRENT_CATEGORY_POSTS_SQL;
+    const explicitEligibility = scope.distribution ? 'true' : 'p.space_id=$1';
     const branches = (['post', 'comment', 'reply'] as const).map((kind) => {
       const { alias, time } = sources[kind];
       const ordinal = SEARCH_KIND_ORDER[kind];
       return `(SELECT ${columns(kind)},${alias}.${time} AS sort_at,${ordinal} AS sort_kind
-        FROM ${from(kind, true)}
+        FROM ${from(kind, classifiedSource)}
         WHERE '${kind}'=ANY($13::text[])
-          AND (($1::uuid IS NOT NULL AND p.space_id=$1)
+          AND (($1::uuid IS NOT NULL AND ${explicitEligibility})
             OR ($1::uuid IS NULL AND ((p.space_id=ANY($2::uuid[]) AND p.current_category=ANY($14::text[]))
               OR (p.space_id=ANY($3::uuid[]) AND p.current_category IN ('discussion','feedback')))))
           AND ($4::text IS NULL OR p.current_category=$4)
@@ -105,22 +142,7 @@ export class SearchRepository {
       await tx.query<SearchCandidate>(
         `SELECT id,kind,"spaceId","postId","rootCommentId",at FROM (${branches.join('\nUNION ALL\n')}) candidates
        ORDER BY sort_at DESC,sort_kind ASC,id DESC LIMIT ${SEARCH_SCAN_BATCH + 1}`,
-        [
-          'spaceId' in scope ? scope.spaceId : null,
-          'spaceId' in scope ? [] : scope.regionalSpaceIds,
-          'spaceId' in scope ? [] : scope.globalSpaceIds,
-          scope.category,
-          scope.tradingSubtype,
-          scope.excludeUrgentTrading,
-          scope.postId,
-          scope.from,
-          scope.to,
-          after?.at ?? null,
-          after ? SEARCH_KIND_ORDER[after.kind] : null,
-          after?.id ?? null,
-          scope.types,
-          categorySchema.options,
-        ],
+        parameters,
       )
     ).rows;
   }

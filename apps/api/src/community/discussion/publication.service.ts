@@ -1,8 +1,10 @@
 import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { bindCategoryChildContext } from '../category-reclassification/child-context.js';
 import type { TextReviewStatus } from '../text-review/contracts.js';
-import { withDiscussionMediaMutation } from '../../media/discussion-ancestor-proof.js';
-import { authorizeDiscussionPublication } from './publication-target.js';
+import {
+  authorizeDiscussionPublication,
+  withDiscussionPublicationMedia,
+} from './publication-target.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { ApplicationError } from '../../http/application-error.js';
@@ -110,7 +112,13 @@ export class ReplyPublicationService {
               effectiveAuthorMode: mode,
             },
             {
-              version: 1,
+              ...(await this.approval.discussionScope(
+                authority,
+                space,
+                post.id,
+                post.publication_envelope_version,
+                tx,
+              )),
               accountId: actor,
               purpose: 'publish_reply',
               spaceId: space.id,
@@ -123,11 +131,6 @@ export class ReplyPublicationService {
               text: body.text,
               component: { kind: 'none' },
               trading: null,
-              scope: this.approval.scope(
-                authority,
-                space.id,
-                space.operatingRegionId,
-              ),
             },
             {
               clientRequestId: body.clientRequestId,
@@ -187,7 +190,12 @@ export class ReplyPublicationService {
           };
         };
         return body.imageAssetIds.length > 0
-          ? withDiscussionMediaMutation(tx, { actor, body }, publish)
+          ? withDiscussionPublicationMedia(
+              tx,
+              { actor, body },
+              reviewOnly,
+              publish,
+            )
           : publish();
       },
       reviewOnly,

@@ -45,6 +45,7 @@ import {
   canonicalEnvelope,
   approvalDigest,
   operationForKind,
+  canonicalEqual,
 } from '../src/community/content-review/contracts.js';
 import type {
   ContentKind,
@@ -58,6 +59,8 @@ import {
 } from '../src/community/content-review/count-snapshot.repository.js';
 import type { CountReviewSnapshot } from '../src/community/content-review/count-snapshot.repository.js';
 import type { DefinitionPost } from '../src/community/content-review/definition-validation.js';
+import { definitionMatchesApproval } from '../src/community/content-review/definition-validation.js';
+import type { CurrentContent } from '../src/community/content-review/definition-validation.js';
 import { LocalApprovedContentVisibility } from '../src/community/content-review/local-approved-content-visibility.js';
 import type { LikedCandidate } from '../src/community/liked/repository.js';
 
@@ -743,6 +746,28 @@ test('snapshot repository uses bounded set-oriented SQL with byte guards and no 
       .filter((sql) => sql.includes('count_snapshot_source'))
       .every((sql) => sql.includes('octet_length') && sql.includes('LIMIT')),
   );
+  const bindingQuery = queries.find((sql) =>
+    sql.includes('JOIN whaleu_community.content_approval_bindings b'),
+  )!;
+  assert.deepEqual(
+    bindingQuery
+      .match(/SELECT (b\.content_kind[\s\S]*?)\s+FROM unnest/)![1]!
+      .replace(/\s+/g, '')
+      .split(','),
+    [
+      'b.content_kind',
+      'b.content_id',
+      'b.content_version',
+      'b.decision_id',
+      'b.account_id',
+      'b.operation',
+      'b.envelope_version',
+      'b.digest',
+      'b.envelope',
+      'b.scope',
+    ],
+  );
+  assert.doesNotMatch(bindingQuery, /b\.\*|bound_at|related_actor_/);
 });
 
 test('oversized snapshot payload and excessive candidate/node batches fail optional-only', async () => {
@@ -1253,5 +1278,87 @@ test('known revoked category policy denies only after complete original approval
   assert.equal(
     liked.facts.get(`reply:${f.membership.like_id}`)?.decision,
     'deny',
+  );
+});
+
+test('exact definition equality reuses accepted digest without relaxing any canonical field or Media proof', () => {
+  const f = fixture();
+  const binding = f.snapshot.bindings.get(contentKey('post', f.post.id))!;
+  const stored: CurrentContent = {
+    envelope: canonicalEnvelope(binding.envelope),
+    authorAccountId: f.post.account_id,
+    authorMode: f.post.author_mode,
+    parents: [],
+  };
+  const accepted = {
+    envelope: stored.envelope,
+    digest: approvalDigest(stored.envelope),
+  };
+  const original = (value: typeof accepted, media = false) =>
+    approvalDigest(stored.envelope) === value.digest &&
+    canonicalEqual(stored.envelope, value.envelope) &&
+    (!stored.envelope.images.length || media);
+  const reordered = Object.fromEntries(
+    Object.entries(structuredClone(accepted.envelope)).reverse(),
+  ) as unknown as EffectiveContentEnvelope;
+  assert.equal(
+    definitionMatchesApproval(stored, { ...accepted, envelope: reordered }),
+    true,
+  );
+  for (const mutate of [
+    (value: Record<string, unknown>) => {
+      value['version'] = 4;
+    },
+    (value: Record<string, unknown>) => {
+      value['text'] = 'Different canonical text';
+    },
+    (value: Record<string, unknown>) => {
+      value['postId'] = randomUUID();
+    },
+    (value: Record<string, unknown>) => {
+      value['rootCommentId'] = randomUUID();
+    },
+    (value: Record<string, unknown>) => {
+      value['targetReplyId'] = randomUUID();
+    },
+    (value: Record<string, unknown>) => {
+      value['images'] = [{ assetId: randomUUID(), digest: 'a'.repeat(64) }];
+    },
+    (value: Record<string, unknown>) => {
+      value['allowAnonymousDm'] = false;
+    },
+    (value: Record<string, unknown>) => {
+      value['scope'] = {
+        ...(value['scope'] as object),
+        identityRegionId: randomUUID(),
+      };
+    },
+    (value: Record<string, unknown>) => {
+      value['extra'] = null;
+    },
+  ]) {
+    const envelope = structuredClone(accepted.envelope);
+    mutate(envelope as unknown as Record<string, unknown>);
+    const changed = { ...accepted, envelope };
+    assert.equal(definitionMatchesApproval(stored, changed), original(changed));
+    assert.equal(definitionMatchesApproval(stored, changed), false);
+  }
+  assert.equal(
+    definitionMatchesApproval(stored, { ...accepted, digest: '0'.repeat(64) }),
+    false,
+  );
+  const imageEnvelope = canonicalEnvelope({
+    ...structuredClone(stored.envelope),
+    images: [{ assetId: randomUUID(), digest: 'b'.repeat(64) }],
+  });
+  const imageStored = { ...stored, envelope: imageEnvelope };
+  const imageAccepted = {
+    envelope: imageEnvelope,
+    digest: approvalDigest(imageEnvelope),
+  };
+  assert.equal(definitionMatchesApproval(imageStored, imageAccepted), false);
+  assert.equal(
+    definitionMatchesApproval(imageStored, imageAccepted, true),
+    true,
   );
 });

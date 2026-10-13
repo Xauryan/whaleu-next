@@ -39,6 +39,7 @@ export function hotPageShape(page: HotPage, limit = 10) {
     'continuation',
     'items',
     'nextCursor',
+    'relatedCampusDistribution',
   ]);
   assert.ok(page.items.length <= limit);
   assert.equal(new Set(hotIds(page)).size, page.items.length);

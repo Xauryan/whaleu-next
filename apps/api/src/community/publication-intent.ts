@@ -16,5 +16,8 @@ export function postIntent(body: PublishPost) {
     ...(body.allowAnonymousDm === undefined
       ? {}
       : { allowAnonymousDm: body.allowAnonymousDm }),
+    ...(body.syncToRelatedCampuses === true
+      ? { syncToRelatedCampuses: true as const }
+      : {}),
   };
 }

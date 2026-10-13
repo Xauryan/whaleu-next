@@ -29,8 +29,9 @@
     <view wx:if="{{blocker}}" class="error">{{blocker}}</view>
   </view>
   <view wx:if="{{form}}" class="card">
-    <view class="card-title">未认证用户的发布例外</view>
-    <view class="hint">仅针对已确认未认证的用户；身份或来源未知时仍不可用。两个开关分别控制帖子与评论。</view>
+    <view class="card-title">学校发布策略</view>
+    <view class="row"><text>允许新帖子选择关联学校同步</text><switch checked="{{form.relatedSyncEnabled}}" data-field="relatedSyncEnabled" bindchange="onSwitch" disabled="{{busy || pending || storageBlocked || !editable}}" /></view><view class="notice">开启须有当前有效的关联学校和已接受的同步策略；用户仍须逐帖主动选择。关闭仅阻止新的同步发布，不移除已发布帖子的关联学校展示。</view>
+<view class="hint">仅针对已确认未认证的用户；身份或来源未知时仍不可用。两个开关分别控制帖子与评论。</view>
     <label class="switch-row"><text>允许未认证用户发帖</text><switch checked="{{form.unverifiedPostEnabled}}" data-field="unverifiedPostEnabled" bindchange="onSwitch" disabled="{{busy || pending || storageBlocked || !editable}}" /></label>
     <label class="switch-row"><text>允许未认证用户评论／回复</text><switch checked="{{form.unverifiedCommentEnabled}}" data-field="unverifiedCommentEnabled" bindchange="onSwitch" disabled="{{busy || pending || storageBlocked || !editable}}" /></label>
     <view class="field-title">允许未认证发帖的分类</view>

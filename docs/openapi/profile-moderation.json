@@ -11,7 +11,7 @@
   },
   "info": {
     "contact": {},
-    "description": "Content-target nickname reset for current named posts, comments and replies in the fixed original regional scope. Exact current administrator authority, readable ancestry and shared Profile revision CAS are required. The reset affects account-wide public names, including other regions; anonymous personas remain unchanged. The subject receives a private system notice. Actor-owned recovery and cancellation preserve the original request and return minimal metadata without subject identity or old/new nickname.",
+    "description": "Content-target nickname reset for current named posts, comments and replies in the fixed original regional scope. Exact current administrator authority, readable ancestry and shared Profile revision CAS are required. The reset affects account-wide public names, including other regions; anonymous personas remain unchanged. The subject receives a private system notice. A readable named related-sync source with current content-management authority instead returns only target, canReset:false, availability:unavailable and blocker:related_sync_unsupported, including at its original campus; no display name, revision or subject identity is exposed. Fresh related-source commands are semantically unavailable and cannot mutate the profile. Actor-owned recovery and cancellation preserve the original request and return minimal metadata without subject identity or old/new nickname.",
     "title": "WhaleU scoped profile nickname moderation",
     "version": "1"
   },
@@ -436,41 +436,90 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "canReset": {
-                      "enum": [true],
-                      "type": "boolean"
-                    },
-                    "displayName": {
-                      "maxLength": 20,
-                      "minLength": 1,
-                      "type": "string"
-                    },
-                    "revision": {
-                      "maximum": 2147483646,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "target": {
+                  "anyOf": [
+                    {
                       "additionalProperties": false,
                       "properties": {
-                        "id": {
-                          "format": "uuid",
-                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "canReset": {
+                          "enum": [true],
+                          "type": "boolean"
+                        },
+                        "displayName": {
+                          "maxLength": 20,
+                          "minLength": 1,
                           "type": "string"
                         },
-                        "kind": {
-                          "enum": ["post", "comment", "reply"],
-                          "type": "string"
+                        "revision": {
+                          "maximum": 2147483646,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "target": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["post", "comment", "reply"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "id"],
+                          "type": "object"
                         }
                       },
-                      "required": ["kind", "id"],
+                      "required": [
+                        "target",
+                        "displayName",
+                        "revision",
+                        "canReset"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "availability": {
+                          "enum": ["unavailable"],
+                          "type": "string"
+                        },
+                        "blocker": {
+                          "enum": ["related_sync_unsupported"],
+                          "type": "string"
+                        },
+                        "canReset": {
+                          "enum": [false],
+                          "type": "boolean"
+                        },
+                        "target": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["post", "comment", "reply"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "id"],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "target",
+                        "canReset",
+                        "availability",
+                        "blocker"
+                      ],
                       "type": "object"
                     }
-                  },
-                  "required": ["target", "displayName", "revision", "canReset"],
-                  "type": "object"
+                  ]
                 }
               }
             },

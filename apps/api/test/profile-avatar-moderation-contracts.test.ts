@@ -594,19 +594,44 @@ test('avatar moderation OpenAPI artifact exposes exactly four authenticated targ
       response.content?.['application/json']?.schema as Schema | undefined,
     );
     if (operationId === 'profileAvatarClearManagement') {
-      exact(schema, [
+      const variants = (schema.anyOf ?? schema.oneOf ?? []).map(resolve);
+      assert.equal(variants.length, 2);
+      const available = variants.find((v) => v.properties?.['revision']);
+      const unavailable = variants.find((v) => v.properties?.['blocker']);
+      assert.ok(available && unavailable);
+      exact(available, [
         'target',
         'displayName',
         'revision',
         'canClearCustomAvatar',
         'expectedAppearanceId',
       ]);
-      checkTarget(schema.properties?.['target']);
-      assert.equal(resolve(schema.properties?.['displayName']).maxLength, 20);
+      checkTarget(available.properties?.['target']);
       assert.equal(
-        resolve(schema.properties?.['canClearCustomAvatar']).type,
+        resolve(available.properties?.['displayName']).maxLength,
+        20,
+      );
+      assert.equal(
+        resolve(available.properties?.['canClearCustomAvatar']).type,
         'boolean',
       );
+      exact(unavailable, [
+        'target',
+        'canClearCustomAvatar',
+        'availability',
+        'blocker',
+      ]);
+      checkTarget(unavailable.properties?.['target']);
+      assert.deepEqual(
+        resolve(unavailable.properties?.['canClearCustomAvatar']).enum,
+        [false],
+      );
+      assert.deepEqual(resolve(unavailable.properties?.['availability']).enum, [
+        'unavailable',
+      ]);
+      assert.deepEqual(resolve(unavailable.properties?.['blocker']).enum, [
+        'related_sync_unsupported',
+      ]);
     } else if (operationId === 'profileAvatarClearRecovery') {
       const variants = (schema.anyOf ?? schema.oneOf ?? []).map(resolve);
       assert.equal(variants.length, 2);

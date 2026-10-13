@@ -71,6 +71,7 @@ test(
       assert.equal(response.headers['cache-control'], 'no-store');
       assert.match(String(response.headers['vary']), /Authorization/i);
       const result = moderationManagementSchema.parse(response.body);
+      assert.equal(result.canReset, true);
       assert.deepEqual(Object.keys(result).sort(), [
         'canReset',
         'displayName',

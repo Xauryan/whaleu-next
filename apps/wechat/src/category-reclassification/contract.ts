@@ -41,6 +41,7 @@ export interface CategoryManagement {
   readonly currentCategory: Category;
   readonly revision: number;
   readonly canChange: boolean;
+  readonly blocker?: 'related_sync_unsupported';
   readonly targets: readonly ReclassificationCategory[];
 }
 export interface ReclassificationCommand {
@@ -90,8 +91,19 @@ const revision = (value: unknown, max = 2147483647): value is number =>
   value >= 0 &&
   value <= max;
 export function decodeCategoryManagement(raw: unknown): CategoryManagement {
-  exact(raw, ['postId', 'currentCategory', 'revision', 'canChange', 'targets']);
+  if (!isRecord(raw)) invalidReclassification();
+  exact(raw, [
+    'postId',
+    'currentCategory',
+    'revision',
+    'canChange',
+    'targets',
+    ...('blocker' in raw ? ['blocker'] : []),
+  ]);
   if (
+    ('blocker' in raw &&
+      (raw.blocker !== 'related_sync_unsupported' ||
+        raw.canChange !== false)) ||
     !isUuid(raw.postId) ||
     !isCategory(raw.currentCategory) ||
     !revision(raw.revision) ||
@@ -112,6 +124,9 @@ export function decodeCategoryManagement(raw: unknown): CategoryManagement {
     currentCategory: raw.currentCategory,
     revision: raw.revision,
     canChange: raw.canChange,
+    ...('blocker' in raw
+      ? { blocker: 'related_sync_unsupported' as const }
+      : {}),
     targets: Object.freeze([...raw.targets]),
   });
 }

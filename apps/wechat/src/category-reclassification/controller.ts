@@ -154,7 +154,12 @@ export class CategoryReclassificationController extends CommunityController<Cate
           );
         this.update({
           management,
-          status: management.canChange ? '' : '此帖子当前不能更改分类',
+          status:
+            management.blocker === 'related_sync_unsupported'
+              ? '关联校区同步内容暂不支持更改分类'
+              : management.canChange
+                ? ''
+                : '此帖子当前不能更改分类',
         });
       },
       (error) => {

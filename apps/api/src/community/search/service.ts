@@ -1,3 +1,6 @@
+import { CommunityDistributionService } from '../related-sync/service.js';
+import type { RelatedCampusDisplay } from '../related-sync/contracts.js';
+import { distributionCursorScope } from '../cursor.js';
 import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { batchCategoryChildContextAllowed } from '../category-reclassification/child-context.js';
 import { currentCategoryCursorScope } from '../current-category-cursor.js';
@@ -28,7 +31,12 @@ import type { CommunitySpace } from '../contracts.js';
 import { CommunityPhoneContinuation } from '../phone-continuation.js';
 import { CommunitySearchScopeResolver } from './scope.js';
 import type { ResolvedSearchScope } from './scope.js';
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Optional,
+} from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
 import { IdentityService } from '../../identity/identity.service.js';
@@ -93,6 +101,9 @@ export class SearchService {
     private readonly scopes: CommunitySearchScopeResolver,
     @Inject(CommunityPhoneContinuation)
     private readonly phones: CommunityPhoneContinuation,
+    @Optional()
+    @Inject(CommunityDistributionService)
+    private readonly distribution?: CommunityDistributionService,
   ) {}
 
   /** Test subclasses can compare the unchanged scalar owners without adding a
@@ -111,6 +122,7 @@ export class SearchService {
     read?: SearchReadContext,
   ): Promise<{
     post: StoredPost;
+    distribution: RelatedCampusDisplay | undefined;
     content: StoredPost | StoredComment;
     listing: { subtype: TradingSubtype; urgency: 'normal' | 'urgent' } | null;
   } | null> {
@@ -119,6 +131,11 @@ export class SearchService {
     // A null live overlay may reflect unknown original Review. Let the
     // canonical owner distinguish unknown from a known classification denial.
     if (currentCategory === null) {
+      if (
+        post.publication_envelope_version === 4 ||
+        scope.distribution?.remoteSpaceIds.includes(post.space_id)
+      )
+        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
       await this.access.visible(
         actor,
         post,
@@ -130,9 +147,25 @@ export class SearchService {
     }
     if (post.space_id !== candidate.spaceId)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    let distribution: RelatedCampusDisplay | undefined;
+    if (scope.distribution) {
+      if (!this.distribution)
+        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      const decision = await this.distribution.allows(
+        scope.distribution,
+        post.id,
+        post.space_id,
+        currentCategory,
+        tx,
+      );
+      if (decision.kind === 'unavailable')
+        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      if (decision.kind === 'deny') return null;
+      distribution = decision.value;
+    }
     if (
       ('spaceId' in scope
-        ? post.space_id !== scope.spaceId
+        ? !scope.distribution && post.space_id !== scope.spaceId
         : !(
             (scope.regionalSpaceIds.includes(post.space_id) &&
               categorySchema.safeParse(currentCategory).success) ||
@@ -183,7 +216,8 @@ export class SearchService {
       ))
     )
       return null;
-    if (candidate.kind === 'post') return { post, content: post, listing };
+    if (candidate.kind === 'post')
+      return { post, content: post, listing, distribution };
     const root = await this.repository.comment(
       candidate.rootCommentId!,
       tx,
@@ -194,14 +228,15 @@ export class SearchService {
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     if (!(await this.access.visible(actor, root, tx, 'list_projection', read)))
       return null;
-    if (candidate.kind === 'comment') return { post, content: root, listing };
+    if (candidate.kind === 'comment')
+      return { post, content: root, listing, distribution };
     const reply = await this.repository.reply(candidate.id, tx, true, read);
     if (reply.post_id !== post.id || reply.root_comment_id !== root.id)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     if (!(await this.access.visible(actor, reply, tx, 'list_projection', read)))
       return null;
     // Target reply identities and bodies are deliberately never loaded.
-    return { post, content: reply, listing };
+    return { post, content: reply, listing, distribution };
   }
 
   private validateCandidates(
@@ -220,7 +255,9 @@ export class SearchService {
         (scope.to !== null && candidate.at >= scope.to) ||
         (scope.postId !== null && candidate.postId !== scope.postId) ||
         ('spaceId' in scope
-          ? candidate.spaceId !== scope.spaceId
+          ? !(scope.distribution?.originalSpaceIds ?? [scope.spaceId]).includes(
+              candidate.spaceId,
+            )
           : !scope.regionalSpaceIds.includes(candidate.spaceId) &&
             !scope.globalSpaceIds.includes(candidate.spaceId)) ||
         (previous !== null && !searchAnchorFollows(candidate, previous))
@@ -352,6 +389,7 @@ export class SearchService {
             tx,
           ),
           resolved?.membershipFingerprint ?? null,
+          scope.distribution?.fingerprint ?? null,
         ]);
         if (checkpoint && checkpoint.scopeFingerprint !== scopeFingerprint)
           throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
@@ -410,13 +448,21 @@ export class SearchService {
       throw new BadRequestException('Invalid request');
     const resolved =
       'scope' in query ? await this.scopes.resolve(query.scope, tx) : null;
+    if (explicit?.kind === 'regional' && !this.distribution)
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    const distribution =
+      explicit && this.distribution
+        ? await this.distribution.resolveView(explicit, tx)
+        : undefined;
+    if (distribution?.relatedCampusDistribution === 'unavailable')
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     const scope: SearchStructuralScope = {
       types,
       from: query.from ?? null,
       to: query.to ?? null,
       postId: query.postId ?? null,
       ...(explicit
-        ? { spaceId: explicit.id }
+        ? { spaceId: explicit.id, ...(distribution ? { distribution } : {}) }
         : {
             regionalSpaceIds: resolved!.regionalSpaceIds,
             globalSpaceIds: resolved!.globalSpaceIds,
@@ -540,7 +586,11 @@ export class SearchService {
             const space =
               explicit?.id === candidate.spaceId
                 ? explicit
-                : resolved?.space(candidate.spaceId);
+                : scope.distribution?.originalSpaceIds.includes(
+                      candidate.spaceId,
+                    )
+                  ? await this.repository.space(candidate.spaceId, tx)
+                  : resolved?.space(candidate.spaceId);
             if (!space) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
             projections.set(searchCandidateKey(candidate), () =>
               this.serializer.hit(
@@ -552,6 +602,7 @@ export class SearchService {
                 allowed.listing,
                 tx,
                 'semantic',
+                allowed.distribution,
               ),
             );
           }
@@ -562,6 +613,7 @@ export class SearchService {
               tx,
             ),
             resolved?.membershipFingerprint ?? null,
+            scope.distribution?.fingerprint ?? null,
             eligibility,
           ]);
           const result = await operation(
@@ -686,7 +738,11 @@ export class SearchService {
             const space =
               explicit?.id === candidate.spaceId
                 ? explicit
-                : resolved?.space(candidate.spaceId);
+                : scope.distribution?.originalSpaceIds.includes(
+                      candidate.spaceId,
+                    )
+                  ? await this.repository.space(candidate.spaceId, tx)
+                  : resolved?.space(candidate.spaceId);
             if (!space) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
             projections.set(entry.key, () =>
               this.serializer.hit(
@@ -698,6 +754,7 @@ export class SearchService {
                 allowed.listing,
                 tx,
                 'semantic',
+                allowed.distribution,
               ),
             );
           }
@@ -708,6 +765,7 @@ export class SearchService {
               tx,
             ),
             resolved?.membershipFingerprint ?? null,
+            scope.distribution?.fingerprint ?? null,
             selection.fingerprint,
           ]);
           const result = await operation(
@@ -792,8 +850,15 @@ export class SearchService {
             if (!(await this.phones.verified(actor, tx)))
               throw new ApplicationError('PHONE_VERIFICATION_REQUIRED');
           }
+          const distribution =
+            explicitSpace && this.distribution
+              ? await this.distribution.resolveView(explicitSpace, tx)
+              : undefined;
           const scopeHash = await currentCategoryCursorScope(
-            searchCursorScope(query, session),
+            distributionCursorScope(
+              searchCursorScope(query, session),
+              distribution,
+            ),
             tx,
           );
           const position: SearchPosition | FederatedSearchPosition | null =
@@ -819,7 +884,10 @@ export class SearchService {
             to: query.to ?? null,
             postId: query.postId ?? null,
             ...(explicitSpace
-              ? { spaceId: explicitSpace.id }
+              ? {
+                  spaceId: explicitSpace.id,
+                  ...(distribution ? { distribution } : {}),
+                }
               : {
                   regionalSpaceIds: resolved!.regionalSpaceIds,
                   globalSpaceIds: resolved!.globalSpaceIds,
@@ -829,9 +897,15 @@ export class SearchService {
             excludeUrgentTrading:
               explicitSpace !== null && query.category === undefined,
           };
-          const sourceSpace = (id: string): Readonly<CommunitySpace> => {
+          const sourceSpace = async (
+            id: string,
+          ): Promise<Readonly<CommunitySpace>> => {
             const space =
-              explicitSpace?.id === id ? explicitSpace : resolved?.space(id);
+              explicitSpace?.id === id
+                ? explicitSpace
+                : distribution?.originalSpaceIds.includes(id)
+                  ? await this.repository.space(id, tx)
+                  : resolved?.space(id);
             if (!space) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
             return space;
           };
@@ -890,7 +964,7 @@ export class SearchService {
             );
             if (!allowed || !searchMatches(allowed.content.text, query.q))
               continue;
-            const space = sourceSpace(candidate.spaceId);
+            const space = await sourceSpace(candidate.spaceId);
             items.push(
               await this.serializer.hit(
                 candidate,
@@ -900,6 +974,8 @@ export class SearchService {
                 query.q,
                 allowed.listing,
                 tx,
+                'literal',
+                allowed.distribution,
               ),
             );
             lastVisible = {
@@ -954,16 +1030,25 @@ export class SearchService {
                   tx,
                 )
               : null;
-          const result = searchPageSchema.safeParse({
+          const result: SearchPage = {
+            ...(explicitSpace
+              ? {
+                  relatedCampusDistribution:
+                    distribution?.relatedCampusDistribution ??
+                    (explicitSpace.kind === 'global'
+                      ? 'complete'
+                      : 'unavailable'),
+                }
+              : {}),
             items,
             effectiveTypes,
             nextCursor,
             continuation,
-          });
-          if (!result.success)
+          };
+          if (!searchPageSchema.safeParse(result).success)
             throw new ApplicationError('COMMUNITY_UNAVAILABLE');
           read?.assertCurrent(tx);
-          return result.data;
+          return result;
         } finally {
           read?.close();
         }

@@ -1,3 +1,7 @@
+import {
+  readDistributionBindings,
+  distributionScopeMatches,
+} from '../related-sync/binding.js';
 import type { SearchReadContext } from './search-read-context.js';
 import {
   searchPost,
@@ -42,6 +46,37 @@ export class ContentDefinitionRepository {
     tx: PoolClient,
     read?: SearchReadContext,
   ): Promise<Decision<CurrentContent>> {
+    return this.resolve(kind, id, scope, tx, read);
+  }
+
+  /** Issuance-only reconstruction before the mandatory approval/distribution
+   * bindings. Existing roots and all retained reads must use current(). */
+  async newRelatedRoot(
+    id: string,
+    scope: ContentScopeSnapshot,
+    tx: PoolClient,
+  ): Promise<Decision<CurrentContent>> {
+    if (scope.sync !== 'related') return { kind: 'unavailable' };
+    const own = await tx.query<{ issuing: boolean }>(
+      `SELECT p.publication_envelope_version=4
+       AND p.publication_transaction=pg_current_xact_id()
+       AND NOT EXISTS(SELECT 1 FROM whaleu_community.content_approval_bindings b WHERE b.content_kind='post' AND b.content_id=p.id)
+       AND NOT EXISTS(SELECT 1 FROM whaleu_community.post_distribution_bindings b WHERE b.post_id=p.id) AS issuing
+       FROM whaleu_community.posts p WHERE p.id=$1 FOR SHARE`,
+      [id],
+    );
+    if (own.rows[0]?.issuing !== true) return { kind: 'unavailable' };
+    return this.resolve('post', id, scope, tx, undefined, true);
+  }
+
+  private async resolve(
+    kind: ContentKind,
+    id: string,
+    scope: ContentScopeSnapshot,
+    tx: PoolClient,
+    read?: SearchReadContext,
+    newRelatedRoot = false,
+  ): Promise<Decision<CurrentContent>> {
     let postId = id;
     let rootId: string | null = null;
     if (kind !== 'post') {
@@ -72,6 +107,14 @@ export class ContentDefinitionRepository {
     const postDecision = definitionNodeDecision(post, true);
     if (postDecision.kind !== 'allow') return postDecision;
     if (!post) return { kind: 'unavailable' };
+    if (post.publication_envelope_version === 4 && !newRelatedRoot) {
+      const binding = (await readDistributionBindings([post.id], tx)).get(
+        post.id,
+      );
+      if (!distributionScopeMatches(binding, kind, scope))
+        return { kind: 'unavailable' };
+    } else if (!newRelatedRoot && scope.sync !== 'none')
+      return { kind: 'unavailable' };
     const space = read
       ? await searchSpace(post.space_id, tx, read)
       : (

@@ -1,6 +1,9 @@
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
-import { boundedOwnerProof } from '../../database/required-owner-proof.js';
+import {
+  boundedOwnerProof,
+  ownerFingerprint,
+} from '../../database/required-owner-proof.js';
 import {
   enableRequiredTransactionProof,
   registerRequiredTransactionFact,
@@ -20,6 +23,8 @@ export interface InputFact {
   grantId: string | null;
   target: AdminDiscussionRemovalTarget;
   facts: unknown;
+  viewSpaceId?: string;
+  distribution?: unknown;
   requestId: string | null;
 }
 const code = 'ADMIN_DISCUSSION_REMOVAL_UNAVAILABLE' as const;
@@ -83,14 +88,27 @@ export async function observeAdminDiscussionRemovalInputs(
   tx: PoolClient,
 ): Promise<InputFact> {
   const row = (
-    await tx.query<{ facts: unknown }>(
-      'SELECT whaleu_community.admin_discussion_removal_input_facts($1,$2,$3,$4) facts',
-      [input.actor, input.grantId, input.target.kind, input.target.id],
+    await tx.query<{ facts: unknown; distribution?: unknown }>(
+      input.viewSpaceId
+        ? 'SELECT whaleu_community.admin_discussion_removal_input_facts($1,$2,$3,$4) facts,(SELECT whaleu_community.related_distribution_view_facts(t.post_id,$5) FROM whaleu_community.admin_discussion_removal_target($3,$4) t) distribution'
+        : 'SELECT whaleu_community.admin_discussion_removal_input_facts($1,$2,$3,$4) facts',
+      [
+        input.actor,
+        input.grantId,
+        input.target.kind,
+        input.target.id,
+        ...(input.viewSpaceId ? [input.viewSpaceId] : []),
+      ],
     )
   ).rows[0];
   if (!row) throw new ApplicationError(code);
-  return Object.freeze({ ...input, facts: row.facts });
+  return Object.freeze({
+    ...input,
+    facts: row.facts,
+    ...(input.viewSpaceId ? { distribution: row.distribution } : {}),
+  });
 }
+
 const inputProof: RequiredTransactionProof<InputFact> = {
   maximumFacts: 2,
   failureCode: code,
@@ -113,7 +131,22 @@ const inputProof: RequiredTransactionProof<InputFact> = {
       await read.query(
         'LOCK TABLE whaleu_community.discovery_count_epochs,whaleu_authorization.role_grants,whaleu_verification.account_heads,whaleu_verification.snapshots,whaleu_verification.assertions IN SHARE MODE NOWAIT',
       );
+      if (selected.viewSpaceId)
+        await read.query(
+          'SELECT whaleu_community.related_content_grant_fence()',
+        );
       for (const fact of facts) {
+        if (fact.viewSpaceId) {
+          const current = (
+            await read.query<{ facts: unknown }>(
+              'SELECT whaleu_community.related_distribution_view_facts(t.post_id,$1) facts FROM whaleu_community.admin_discussion_removal_target($2,$3) t',
+              [fact.viewSpaceId, fact.target.kind, fact.target.id],
+            )
+          ).rows[0]?.facts;
+          if (ownerFingerprint(current) !== ownerFingerprint(fact.distribution))
+            throw new ApplicationError(code);
+        }
+
         const result = (
           await read.query<{ current: boolean }>(
             'SELECT whaleu_community.admin_discussion_removal_inputs_current($1,$2,$3,$4,$5,$6) current',
@@ -146,12 +179,15 @@ const inputProof: RequiredTransactionProof<InputFact> = {
           ],
         ],
         [
-          'SELECT EXISTS(SELECT 1 FROM whaleu_community.admin_discussion_removal_target($3,$4) t WHERE whaleu_profile.moderation_grant_allowed($1,$2,t.region_id)) current',
+          selected.viewSpaceId
+            ? "SELECT EXISTS(SELECT 1 FROM whaleu_community.admin_discussion_removal_target($3,$4) t WHERE whaleu_community.related_content_grant_allowed($1,$2,t.post_id,$5,'remove')) current"
+            : 'SELECT EXISTS(SELECT 1 FROM whaleu_community.admin_discussion_removal_target($3,$4) t WHERE whaleu_profile.moderation_grant_allowed($1,$2,t.region_id)) current',
           [
             selected.actor,
             selected.grantId,
             selected.target.kind,
             selected.target.id,
+            ...(selected.viewSpaceId ? [selected.viewSpaceId] : []),
           ],
         ],
       ] as const) {

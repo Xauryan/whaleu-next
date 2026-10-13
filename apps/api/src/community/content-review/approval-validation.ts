@@ -62,7 +62,13 @@ export function validateApprovalRow(
     row.operation !== envelope.purpose
   )
     return { decision: { kind: 'unavailable' }, optionalUntil: null };
-  const result = validateApprovalMetadata(row, consume, now);
+  const result = validateApprovalMetadata(
+    row,
+    consume,
+    now,
+    'POST_NOT_FOUND',
+    envelope.version === 4 ? 'local-related-v1' : 'local-explicit-v1',
+  );
   return {
     optionalUntil: result.optionalUntil,
     decision:

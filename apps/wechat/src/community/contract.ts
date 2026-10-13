@@ -79,7 +79,67 @@ export type Author =
       readonly avatar: MediaView | null;
       readonly isPostAuthor: boolean;
     };
-export interface Post {
+export interface RelatedCampusDisplay {
+  readonly isRelatedCampusSync?: boolean;
+  readonly sourceRegion?: { readonly id: string; readonly name: string };
+}
+export interface RelatedCampusCoverage {
+  readonly relatedCampusDistribution?: 'complete' | 'unavailable';
+}
+/** Public display only. It never grants profile or management authority. */
+export function relatedCampusDisplayKeys(value: unknown): string[] {
+  if (!isRecord(value)) invalid();
+  return ['isRelatedCampusSync', 'sourceRegion'].filter((key) =>
+    Object.prototype.hasOwnProperty.call(value, key),
+  );
+}
+export function decodeRelatedCampusDisplay(
+  value: Record<string, unknown>,
+): RelatedCampusDisplay {
+  const keys = relatedCampusDisplayKeys(value);
+  if (!keys.length) return {};
+  if (typeof value.isRelatedCampusSync !== 'boolean') invalid();
+  if (value.isRelatedCampusSync) {
+    exact(value.sourceRegion, ['id', 'name']);
+    if (
+      !isUuid(value.sourceRegion.id) ||
+      !boundedText(value.sourceRegion.name, 1, 200)
+    )
+      invalid();
+    return Object.freeze({
+      isRelatedCampusSync: true,
+      sourceRegion: Object.freeze({
+        id: value.sourceRegion.id,
+        name: value.sourceRegion.name,
+      }),
+    });
+  }
+  if (keys.includes('sourceRegion')) invalid();
+  return Object.freeze({ isRelatedCampusSync: false });
+}
+export function relatedCampusCoverageKeys(value: unknown): string[] {
+  if (!isRecord(value)) invalid();
+  return Object.prototype.hasOwnProperty.call(
+    value,
+    'relatedCampusDistribution',
+  )
+    ? ['relatedCampusDistribution']
+    : [];
+}
+export function decodeRelatedCampusCoverage(
+  value: Record<string, unknown>,
+): RelatedCampusCoverage {
+  if (!relatedCampusCoverageKeys(value).length) return {};
+  if (
+    value.relatedCampusDistribution !== 'complete' &&
+    value.relatedCampusDistribution !== 'unavailable'
+  )
+    invalid();
+  return Object.freeze({
+    relatedCampusDistribution: value.relatedCampusDistribution,
+  });
+}
+export interface Post extends RelatedCampusDisplay {
   readonly feedback?: FeedbackView;
   /** Missing legacy projection is never an opt-in. */
   readonly allowAnonymousDm?: boolean;
@@ -132,7 +192,7 @@ export interface Comment {
 }
 export type Continuation =
   'available' | 'end' | 'login_required' | 'phone_verification_required';
-export interface Feed {
+export interface Feed extends RelatedCampusCoverage {
   readonly items: readonly Post[];
   readonly nextCursor: string | null;
   readonly continuation: Continuation;
@@ -154,6 +214,12 @@ export interface OwnPublications {
   readonly nextCursor: string | null;
 }
 export interface Capabilities {
+  readonly relatedCampusSync?: {
+    readonly availability: 'allowed' | 'denied' | 'unavailable';
+    readonly reason: string | null;
+    readonly authorModes?: readonly AuthorMode[];
+    readonly canDisableComments?: boolean;
+  };
   readonly publish: {
     readonly availability: 'allowed' | 'denied' | 'unavailable';
     readonly reason: string | null;
@@ -169,6 +235,7 @@ export interface Capabilities {
   };
 }
 export interface PostIntent {
+  readonly syncToRelatedCampuses?: boolean;
   readonly feedback?: FeedbackInput;
   readonly allowAnonymousDm?: boolean;
   readonly trading?: TradingIntent;
@@ -371,6 +438,7 @@ export function decodePost(value: unknown): Post {
   );
   const hasFeedback = Object.prototype.hasOwnProperty.call(value, 'feedback');
   exact(value, [
+    ...relatedCampusDisplayKeys(value),
     ...(hasFeedback ? ['feedback'] : []),
     ...(hasAnonymousDm ? ['allowAnonymousDm'] : []),
     'trading',
@@ -443,7 +511,16 @@ export function decodePost(value: unknown): Post {
   if (component.kind === 'formation')
     checkFormationCreator(component.formation, author);
   if (value.allowAnonymousDm === true && author.kind !== 'named') invalid();
+  const display = decodeRelatedCampusDisplay(value);
+  if (
+    display.isRelatedCampusSync &&
+    (value.space.kind !== 'regional' ||
+      value.category === 'trading' ||
+      value.category === 'feedback')
+  )
+    invalid();
   return Object.freeze({
+    ...display,
     ...(hasAnonymousDm
       ? { allowAnonymousDm: value.allowAnonymousDm === true }
       : {}),
@@ -533,7 +610,12 @@ export function decodeComment(value: unknown): Comment {
   });
 }
 export function decodeFeed(value: unknown): Feed {
-  exact(value, ['items', 'nextCursor', 'continuation']);
+  exact(value, [
+    'items',
+    'nextCursor',
+    'continuation',
+    ...relatedCampusCoverageKeys(value),
+  ]);
   if (
     !Array.isArray(value.items) ||
     value.items.length > 10 ||
@@ -550,6 +632,7 @@ export function decodeFeed(value: unknown): Feed {
   const items = value.items.map(decodePost);
   unique(items);
   return Object.freeze({
+    ...decodeRelatedCampusCoverage(value),
     items: Object.freeze(items),
     nextCursor: value.nextCursor,
     continuation: value.continuation as Continuation,
@@ -616,7 +699,11 @@ export function decodeOwnPublications(value: unknown): OwnPublications {
   });
 }
 export function decodeCapabilities(value: unknown): Capabilities {
+  const hasSync =
+    isRecord(value) &&
+    Object.prototype.hasOwnProperty.call(value, 'relatedCampusSync');
   exact(value, [
+    ...(hasSync ? ['relatedCampusSync'] : []),
     'publish',
     'authorModes',
     'canDisableComments',
@@ -649,7 +736,57 @@ export function decodeCapabilities(value: unknown): Capabilities {
     value.commentRules.ownAnonymousPostForcesAnonymous !== true
   )
     invalid();
+  let relatedCampusSync: Capabilities['relatedCampusSync'];
+  if (hasSync) {
+    const hasModes =
+      isRecord(value.relatedCampusSync) &&
+      Object.prototype.hasOwnProperty.call(
+        value.relatedCampusSync,
+        'authorModes',
+      );
+    const hasCommentControl =
+      isRecord(value.relatedCampusSync) &&
+      Object.prototype.hasOwnProperty.call(
+        value.relatedCampusSync,
+        'canDisableComments',
+      );
+    exact(value.relatedCampusSync, [
+      'availability',
+      'reason',
+      ...(hasModes ? ['authorModes'] : []),
+      ...(hasCommentControl ? ['canDisableComments'] : []),
+    ]);
+    const sync = value.relatedCampusSync;
+    if (
+      !['allowed', 'denied', 'unavailable'].includes(
+        String(sync.availability),
+      ) ||
+      !(sync.reason === null || code(sync.reason)) ||
+      (sync.availability === 'allowed') !== (sync.reason === null) ||
+      ((hasModes || hasCommentControl) && sync.availability !== 'allowed') ||
+      (hasModes &&
+        (!Array.isArray(sync.authorModes) ||
+          !sync.authorModes.length ||
+          !sync.authorModes.every(mode) ||
+          new Set(sync.authorModes).size !== sync.authorModes.length)) ||
+      (hasCommentControl && typeof sync.canDisableComments !== 'boolean')
+    )
+      invalid();
+    relatedCampusSync = Object.freeze({
+      availability: sync.availability as 'allowed' | 'denied' | 'unavailable',
+      reason: sync.reason as string | null,
+      ...(hasModes
+        ? {
+            authorModes: Object.freeze([...(sync.authorModes as AuthorMode[])]),
+          }
+        : {}),
+      ...(hasCommentControl
+        ? { canDisableComments: sync.canDisableComments as boolean }
+        : {}),
+    });
+  }
   return Object.freeze({
+    ...(relatedCampusSync ? { relatedCampusSync } : {}),
     publish: Object.freeze({
       availability: value.publish
         .availability as Capabilities['publish']['availability'],
@@ -723,6 +860,10 @@ function assets(value: unknown, max: number): readonly string[] {
 }
 export function decodePostIntent(value: unknown): PostIntent {
   if (!isRecord(value)) invalid();
+  const hasSync = Object.prototype.hasOwnProperty.call(
+    value,
+    'syncToRelatedCampuses',
+  );
   const hasAnonymousDm = Object.prototype.hasOwnProperty.call(
     value,
     'allowAnonymousDm',
@@ -731,6 +872,7 @@ export function decodePostIntent(value: unknown): PostIntent {
   const hasTrading = Object.prototype.hasOwnProperty.call(value, 'trading');
   const hasComponent = Object.prototype.hasOwnProperty.call(value, 'component');
   exact(value, [
+    ...(hasSync ? ['syncToRelatedCampuses'] : []),
     ...(hasFeedback ? ['feedback'] : []),
     'clientRequestId',
     'spaceId',
@@ -744,6 +886,9 @@ export function decodePostIntent(value: unknown): PostIntent {
     ...(hasAnonymousDm ? ['allowAnonymousDm'] : []),
   ]);
   if (
+    (hasSync && typeof value.syncToRelatedCampuses !== 'boolean') ||
+    (value.syncToRelatedCampuses === true &&
+      (value.category === 'trading' || value.category === 'feedback')) ||
     (hasAnonymousDm &&
       (typeof value.allowAnonymousDm !== 'boolean' ||
         value.authorMode !== 'named')) ||
@@ -786,6 +931,9 @@ export function decodePostIntent(value: unknown): PostIntent {
     imageAssetIds: assets(value.imageAssetIds, 9),
     authorMode: value.authorMode,
     commentsPolicy: value.commentsPolicy,
+    ...(value.syncToRelatedCampuses === true
+      ? { syncToRelatedCampuses: true }
+      : {}),
   });
 }
 export function decodeCommentIntent(value: unknown): CommentIntent {
@@ -808,6 +956,7 @@ export function decodeCommentIntent(value: unknown): CommentIntent {
 }
 
 export interface CommentCapabilities {
+  readonly inheritsRelatedCampusSync?: boolean;
   readonly availability: 'allowed' | 'denied' | 'unavailable';
   readonly reason: string | null;
   readonly authorModes: readonly AuthorMode[];
@@ -815,7 +964,11 @@ export interface CommentCapabilities {
   readonly lastAuthorMode: AuthorMode | null;
 }
 export function decodeCommentCapabilities(value: unknown): CommentCapabilities {
+  const hasInheritedSync =
+    isRecord(value) &&
+    Object.prototype.hasOwnProperty.call(value, 'inheritsRelatedCampusSync');
   exact(value, [
+    ...(hasInheritedSync ? ['inheritsRelatedCampusSync'] : []),
     'availability',
     'reason',
     'authorModes',
@@ -823,6 +976,8 @@ export function decodeCommentCapabilities(value: unknown): CommentCapabilities {
     'lastAuthorMode',
   ]);
   if (
+    (hasInheritedSync &&
+      typeof value.inheritsRelatedCampusSync !== 'boolean') ||
     !['allowed', 'denied', 'unavailable'].includes(
       String(value.availability),
     ) ||
@@ -841,6 +996,11 @@ export function decodeCommentCapabilities(value: unknown): CommentCapabilities {
   )
     invalid();
   return Object.freeze({
+    ...(hasInheritedSync
+      ? {
+          inheritsRelatedCampusSync: value.inheritsRelatedCampusSync as boolean,
+        }
+      : {}),
     availability: value.availability as CommentCapabilities['availability'],
     reason: value.reason,
     authorModes: Object.freeze(value.authorModes),

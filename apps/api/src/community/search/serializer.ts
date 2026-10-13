@@ -1,3 +1,4 @@
+import type { RelatedCampusDisplay } from '../related-sync/contracts.js';
 import { resolvePostCategory } from '../category-reclassification/read-proof.js';
 import { ApplicationError } from '../../http/application-error.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -31,10 +32,20 @@ export class SearchHitSerializer {
     listing: { subtype: TradingSubtype; urgency: 'normal' | 'urgent' } | null,
     tx: PoolClient,
     mode: 'literal' | 'semantic' = 'literal',
+    distribution?: RelatedCampusDisplay,
   ): Promise<SearchHit> {
     const currentCategory = await resolvePostCategory(post.id, tx);
     if (currentCategory === null) throw new ApplicationError('POST_NOT_FOUND');
     const base = {
+      isRelatedCampusSync: distribution?.isRelatedCampusSync ?? false,
+      ...(distribution?.isRelatedCampusSync && distribution.sourceRegion
+        ? {
+            sourceRegion: {
+              id: distribution.sourceRegion.id,
+              name: distribution.sourceRegion.name,
+            },
+          }
+        : {}),
       contentId: candidate.id,
       postId: post.id,
       space: { id: space.id, kind: space.kind, name: space.name },

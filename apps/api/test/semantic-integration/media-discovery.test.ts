@@ -31,6 +31,7 @@ import type { SearchCandidate } from '../../src/community/search/repository.js';
 import { LocalApprovedContentVisibility } from '../../src/community/content-review/local-approved-content-visibility.js';
 import { canonicalEnvelope } from '../../src/community/content-review/contracts.js';
 import { ContentReviewSearchEligibilityFacade } from '../../src/community/content-review/search-eligibility.facade.js';
+import { CommunityDistributionService } from '../../src/community/related-sync/service.js';
 import { CampusContentScopeFacade } from '../../src/campus/content-scope.facade.js';
 import { MediaContentSnapshotFacade } from '../../src/media/content-snapshot.facade.js';
 import { SafetySearchEligibilityFacade } from '../../src/safety/search-eligibility.facade.js';
@@ -236,6 +237,7 @@ for (const imageCount of [1, 9])
           f.app.get(LocalApprovedContentVisibility),
           f.app.get(CampusContentScopeFacade),
           new MediaContentSnapshotFacade(),
+          f.app.get(CommunityDistributionService),
         );
         const corpus = new SemanticCorpusRepository(
           new SafetySearchEligibilityFacade(),

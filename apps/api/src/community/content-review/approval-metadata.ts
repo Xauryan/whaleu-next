@@ -39,6 +39,8 @@ export function validateApprovalMetadata(
   consume: boolean,
   now: number,
   currentDeniedReason: ApplicationErrorCode = 'POST_NOT_FOUND',
+  expectedPolicyKey:
+    'local-explicit-v1' | 'local-related-v1' = 'local-explicit-v1',
 ): { decision: Decision; optionalUntil: number | null } {
   let optionalUntil: number | null = null;
   const retain = (until: number | null) => {
@@ -47,7 +49,7 @@ export function validateApprovalMetadata(
   };
   const evaluate = (): Decision => {
     if (
-      row.policy_key !== 'local-explicit-v1' ||
+      row.policy_key !== expectedPolicyKey ||
       row.policy_version !== 1 ||
       row.coverage !== 'complete' ||
       row.policy_coverage !== 'complete' ||

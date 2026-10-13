@@ -6,7 +6,7 @@
   "scripts": {
     "review:text": "node --import tsx src/community/text-review/cli.ts",
     "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "node --max-old-space-size=3072 ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
     "test": "npm run openapi:build && node --import tsx --test test/*.test.ts",
     "search:install-local": "node --env-file-if-exists=../../.env --import tsx src/community/search/semantic/install-cli.ts install-local",
     "test:semantic:integration": "node --import tsx --test --test-concurrency=1 test/semantic-integration/*.test.ts",

@@ -11,7 +11,7 @@
   },
   "info": {
     "contact": {},
-    "description": "Remove one currently readable native-origin post in its original regional scope with sync:none. Named and anonymous posts remain content targets only; private authors never become public account locators. Exact school-admin or super-admin grant, phone, Safety, Review, source version and current Media remain required. The canonical tombstone closes pins and creates the existing durable bounded cleanup obligation, plus one independent private author notice. Version1 creates no account punishment; explicit version2 may atomically issue Safety mute or suspension for the exact original author. No owner-deletion Experience, jury verdict, role grant or provider is created. Actor-owned recovery and cancellation need only the same active account and current session token.",
+    "description": "Remove one currently readable canonical native post. Legacy v1 and compound v2 retain original-region or super-admin grants, including exact v4 reconstruction; v2 retains protected-target checks. Pure-removal v3 requires explicit viewSpaceId and an exact current destination-region or super-admin grant for current related distribution, and carries no punishment, selection or punishment options. Named and anonymous posts remain content targets only; private authors never become public account locators. Exact school-admin or super-admin grant, phone, Safety, Review, source version and current Media remain required. The canonical tombstone closes pins and creates the existing durable bounded cleanup obligation, plus one independent private author notice. Version1 creates no account punishment; explicit version2 may atomically issue Safety mute or suspension for the exact original author. No owner-deletion Experience, jury verdict, role grant or provider is created. Actor-owned recovery and cancellation need only the same active account and current session token.",
     "title": "WhaleU scoped administrator post removal",
     "version": "1"
   },
@@ -21,12 +21,358 @@
       "post": {
         "operationId": "adminPostRemovalCommand",
         "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "action": {
+                        "enum": ["remove_post"],
+                        "type": "string"
+                      },
+                      "clientRequestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "expectedTargetVersion": {
+                        "pattern": "^[a-f0-9]{64}$",
+                        "type": "string"
+                      },
+                      "target": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["post"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "id"],
+                        "type": "object"
+                      },
+                      "version": {
+                        "enum": [3],
+                        "type": "number"
+                      },
+                      "viewSpaceId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "clientRequestId",
+                      "target",
+                      "expectedTargetVersion",
+                      "action",
+                      "version",
+                      "viewSpaceId"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "action": {
+                        "enum": ["remove_post"],
+                        "type": "string"
+                      },
+                      "clientRequestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "expectedTargetVersion": {
+                        "pattern": "^[a-f0-9]{64}$",
+                        "type": "string"
+                      },
+                      "target": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["post"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "id"],
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "clientRequestId",
+                      "target",
+                      "expectedTargetVersion",
+                      "action"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "action": {
+                        "enum": ["remove_post"],
+                        "type": "string"
+                      },
+                      "clientRequestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "expectedTargetVersion": {
+                        "pattern": "^[a-f0-9]{64}$",
+                        "type": "string"
+                      },
+                      "punishment": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "duration": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "enum": ["permanent"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "enum": ["finite"],
+                                    "type": "string"
+                                  },
+                                  "unit": {
+                                    "enum": ["minutes", "hours", "days"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "exclusiveMinimum": true,
+                                    "maximum": 2147483647,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": ["kind", "unit", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "expectedRevision": {
+                            "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["interaction_mute", "access_suspension"],
+                            "type": "string"
+                          },
+                          "reason": {
+                            "maxLength": 255,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "duration",
+                          "reason",
+                          "expectedRevision"
+                        ],
+                        "type": "object"
+                      },
+                      "target": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["post"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "id"],
+                        "type": "object"
+                      },
+                      "version": {
+                        "enum": [2],
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "clientRequestId",
+                      "target",
+                      "expectedTargetVersion",
+                      "action",
+                      "version",
+                      "punishment"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
                   "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["remove_post"],
+                          "type": "string"
+                        },
+                        "eventId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "expectedTargetVersion": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied"],
+                          "type": "string"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "target": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["post"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "id"],
+                          "type": "object"
+                        },
+                        "version": {
+                          "enum": [3],
+                          "type": "number"
+                        },
+                        "viewSpaceId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "target",
+                        "expectedTargetVersion",
+                        "action",
+                        "outcome",
+                        "eventId",
+                        "recordedAt",
+                        "version",
+                        "viewSpaceId"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["remove_post"],
+                          "type": "string"
+                        },
+                        "code": {
+                          "enum": [
+                            "ADMIN_POST_REMOVAL_STALE",
+                            "ADMIN_POST_REMOVAL_CANCELLED"
+                          ],
+                          "type": "string"
+                        },
+                        "expectedTargetVersion": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "target": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["post"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "id"],
+                          "type": "object"
+                        },
+                        "version": {
+                          "enum": [3],
+                          "type": "number"
+                        },
+                        "viewSpaceId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "target",
+                        "expectedTargetVersion",
+                        "action",
+                        "outcome",
+                        "code",
+                        "version",
+                        "viewSpaceId"
+                      ],
+                      "type": "object"
+                    },
                     {
                       "oneOf": [
                         {
@@ -438,12 +784,358 @@
       "post": {
         "operationId": "adminPostRemovalCancel",
         "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "action": {
+                        "enum": ["remove_post"],
+                        "type": "string"
+                      },
+                      "clientRequestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "expectedTargetVersion": {
+                        "pattern": "^[a-f0-9]{64}$",
+                        "type": "string"
+                      },
+                      "target": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["post"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "id"],
+                        "type": "object"
+                      },
+                      "version": {
+                        "enum": [3],
+                        "type": "number"
+                      },
+                      "viewSpaceId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "clientRequestId",
+                      "target",
+                      "expectedTargetVersion",
+                      "action",
+                      "version",
+                      "viewSpaceId"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "action": {
+                        "enum": ["remove_post"],
+                        "type": "string"
+                      },
+                      "clientRequestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "expectedTargetVersion": {
+                        "pattern": "^[a-f0-9]{64}$",
+                        "type": "string"
+                      },
+                      "target": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["post"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "id"],
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "clientRequestId",
+                      "target",
+                      "expectedTargetVersion",
+                      "action"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "action": {
+                        "enum": ["remove_post"],
+                        "type": "string"
+                      },
+                      "clientRequestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "expectedTargetVersion": {
+                        "pattern": "^[a-f0-9]{64}$",
+                        "type": "string"
+                      },
+                      "punishment": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "duration": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "enum": ["permanent"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "enum": ["finite"],
+                                    "type": "string"
+                                  },
+                                  "unit": {
+                                    "enum": ["minutes", "hours", "days"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "exclusiveMinimum": true,
+                                    "maximum": 2147483647,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": ["kind", "unit", "value"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "expectedRevision": {
+                            "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["interaction_mute", "access_suspension"],
+                            "type": "string"
+                          },
+                          "reason": {
+                            "maxLength": 255,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "duration",
+                          "reason",
+                          "expectedRevision"
+                        ],
+                        "type": "object"
+                      },
+                      "target": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": ["post"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "id"],
+                        "type": "object"
+                      },
+                      "version": {
+                        "enum": [2],
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "clientRequestId",
+                      "target",
+                      "expectedTargetVersion",
+                      "action",
+                      "version",
+                      "punishment"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
                   "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["remove_post"],
+                          "type": "string"
+                        },
+                        "eventId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "expectedTargetVersion": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["applied"],
+                          "type": "string"
+                        },
+                        "recordedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "target": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["post"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "id"],
+                          "type": "object"
+                        },
+                        "version": {
+                          "enum": [3],
+                          "type": "number"
+                        },
+                        "viewSpaceId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "target",
+                        "expectedTargetVersion",
+                        "action",
+                        "outcome",
+                        "eventId",
+                        "recordedAt",
+                        "version",
+                        "viewSpaceId"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["remove_post"],
+                          "type": "string"
+                        },
+                        "code": {
+                          "enum": [
+                            "ADMIN_POST_REMOVAL_STALE",
+                            "ADMIN_POST_REMOVAL_CANCELLED"
+                          ],
+                          "type": "string"
+                        },
+                        "expectedTargetVersion": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["rejected"],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "target": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["post"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "id"],
+                          "type": "object"
+                        },
+                        "version": {
+                          "enum": [3],
+                          "type": "number"
+                        },
+                        "viewSpaceId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "target",
+                        "expectedTargetVersion",
+                        "action",
+                        "outcome",
+                        "code",
+                        "version",
+                        "viewSpaceId"
+                      ],
+                      "type": "object"
+                    },
                     {
                       "oneOf": [
                         {
@@ -854,108 +1546,207 @@
     "/v1/community/admin-post-removal/management": {
       "get": {
         "operationId": "adminPostRemovalManagement",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": ["post"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Omit for legacy pure removal, use 2 for original-scope compound options, or 3 with viewSpaceId for destination-scoped pure removal.",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": ["2"],
+                  "type": "string"
+                },
+                {
+                  "enum": ["3"],
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "description": "Required only with version=3. Forbidden for omitted version or version=2. Never inferred from display metadata.",
+            "in": "query",
+            "name": "viewSpaceId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "canRemove": {
-                      "enum": [true],
-                      "type": "boolean"
-                    },
-                    "punishmentOptions": {
+                  "anyOf": [
+                    {
                       "additionalProperties": false,
                       "properties": {
-                        "access_suspension": {
+                        "canRemove": {
+                          "enum": [true],
+                          "type": "boolean"
+                        },
+                        "punishmentOptions": {
                           "additionalProperties": false,
                           "properties": {
-                            "current": {
+                            "access_suspension": {
                               "additionalProperties": false,
-                              "nullable": true,
                               "properties": {
-                                "endsAt": {
-                                  "format": "date-time",
+                                "current": {
+                                  "additionalProperties": false,
                                   "nullable": true,
-                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
-                                  "type": "string"
+                                  "properties": {
+                                    "endsAt": {
+                                      "format": "date-time",
+                                      "nullable": true,
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                      "type": "string"
+                                    },
+                                    "punishmentId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["punishmentId", "endsAt"],
+                                  "type": "object"
                                 },
-                                "punishmentId": {
-                                  "format": "uuid",
-                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "revision": {
+                                  "pattern": "^(?:0|[1-9][0-9]{0,18})$",
                                   "type": "string"
                                 }
                               },
-                              "required": ["punishmentId", "endsAt"],
+                              "required": ["revision", "current"],
                               "type": "object"
                             },
-                            "revision": {
-                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
-                              "type": "string"
+                            "interaction_mute": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "current": {
+                                  "additionalProperties": false,
+                                  "nullable": true,
+                                  "properties": {
+                                    "endsAt": {
+                                      "format": "date-time",
+                                      "nullable": true,
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                      "type": "string"
+                                    },
+                                    "punishmentId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["punishmentId", "endsAt"],
+                                  "type": "object"
+                                },
+                                "revision": {
+                                  "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["revision", "current"],
+                              "type": "object"
                             }
                           },
-                          "required": ["revision", "current"],
+                          "required": ["interaction_mute", "access_suspension"],
                           "type": "object"
                         },
-                        "interaction_mute": {
+                        "target": {
                           "additionalProperties": false,
                           "properties": {
-                            "current": {
-                              "additionalProperties": false,
-                              "nullable": true,
-                              "properties": {
-                                "endsAt": {
-                                  "format": "date-time",
-                                  "nullable": true,
-                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
-                                  "type": "string"
-                                },
-                                "punishmentId": {
-                                  "format": "uuid",
-                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                                  "type": "string"
-                                }
-                              },
-                              "required": ["punishmentId", "endsAt"],
-                              "type": "object"
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
                             },
-                            "revision": {
-                              "pattern": "^(?:0|[1-9][0-9]{0,18})$",
+                            "kind": {
+                              "enum": ["post"],
                               "type": "string"
                             }
                           },
-                          "required": ["revision", "current"],
+                          "required": ["kind", "id"],
                           "type": "object"
+                        },
+                        "targetVersion": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
                         }
                       },
-                      "required": ["interaction_mute", "access_suspension"],
+                      "required": ["target", "targetVersion", "canRemove"],
                       "type": "object"
                     },
-                    "target": {
+                    {
                       "additionalProperties": false,
                       "properties": {
-                        "id": {
+                        "canRemove": {
+                          "enum": [true],
+                          "type": "boolean"
+                        },
+                        "target": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": ["post"],
+                              "type": "string"
+                            }
+                          },
+                          "required": ["kind", "id"],
+                          "type": "object"
+                        },
+                        "targetVersion": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "version": {
+                          "enum": [3],
+                          "type": "number"
+                        },
+                        "viewSpaceId": {
                           "format": "uuid",
                           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                           "type": "string"
-                        },
-                        "kind": {
-                          "enum": ["post"],
-                          "type": "string"
                         }
                       },
-                      "required": ["kind", "id"],
+                      "required": [
+                        "target",
+                        "targetVersion",
+                        "canRemove",
+                        "version",
+                        "viewSpaceId"
+                      ],
                       "type": "object"
-                    },
-                    "targetVersion": {
-                      "pattern": "^[a-f0-9]{64}$",
-                      "type": "string"
                     }
-                  },
-                  "required": ["target", "targetVersion", "canRemove"],
-                  "type": "object"
+                  ]
                 }
               }
             },
@@ -968,13 +1759,73 @@
           }
         ],
         "summary": "",
-        "tags": ["Scoped administrator post removal"]
+        "tags": ["Scoped administrator post removal"],
+        "x-query-schema": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": ["post"],
+                  "type": "string"
+                },
+                "version": {
+                  "enum": ["2"],
+                  "type": "string"
+                }
+              },
+              "required": ["kind", "id"],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": ["post"],
+                  "type": "string"
+                },
+                "version": {
+                  "enum": ["3"],
+                  "type": "string"
+                },
+                "viewSpaceId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                }
+              },
+              "required": ["kind", "id", "version", "viewSpaceId"],
+              "type": "object"
+            }
+          ]
+        }
       }
     },
     "/v1/community/admin-post-removal/requests/{requestId}": {
       "get": {
         "operationId": "adminPostRemovalRecovery",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -986,6 +1837,140 @@
                       "properties": {
                         "receipt": {
                           "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "action": {
+                                  "enum": ["remove_post"],
+                                  "type": "string"
+                                },
+                                "eventId": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "expectedTargetVersion": {
+                                  "pattern": "^[a-f0-9]{64}$",
+                                  "type": "string"
+                                },
+                                "outcome": {
+                                  "enum": ["applied"],
+                                  "type": "string"
+                                },
+                                "recordedAt": {
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+                                  "type": "string"
+                                },
+                                "requestId": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                                  "type": "string"
+                                },
+                                "target": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "id": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "enum": ["post"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["kind", "id"],
+                                  "type": "object"
+                                },
+                                "version": {
+                                  "enum": [3],
+                                  "type": "number"
+                                },
+                                "viewSpaceId": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "requestId",
+                                "target",
+                                "expectedTargetVersion",
+                                "action",
+                                "outcome",
+                                "eventId",
+                                "recordedAt",
+                                "version",
+                                "viewSpaceId"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "action": {
+                                  "enum": ["remove_post"],
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "enum": [
+                                    "ADMIN_POST_REMOVAL_STALE",
+                                    "ADMIN_POST_REMOVAL_CANCELLED"
+                                  ],
+                                  "type": "string"
+                                },
+                                "expectedTargetVersion": {
+                                  "pattern": "^[a-f0-9]{64}$",
+                                  "type": "string"
+                                },
+                                "outcome": {
+                                  "enum": ["rejected"],
+                                  "type": "string"
+                                },
+                                "requestId": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                                  "type": "string"
+                                },
+                                "target": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "id": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "enum": ["post"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["kind", "id"],
+                                  "type": "object"
+                                },
+                                "version": {
+                                  "enum": [3],
+                                  "type": "number"
+                                },
+                                "viewSpaceId": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "requestId",
+                                "target",
+                                "expectedTargetVersion",
+                                "action",
+                                "outcome",
+                                "code",
+                                "version",
+                                "viewSpaceId"
+                              ],
+                              "type": "object"
+                            },
                             {
                               "oneOf": [
                                 {

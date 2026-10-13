@@ -45,6 +45,9 @@ export async function createScopedPostPinsOpenApiDocument(): Promise<OpenAPIObje
       new DocumentBuilder()
         .setOpenAPIVersion('3.0.3')
         .setTitle('WhaleU scoped post pins')
+        .setDescription(
+          'Unversioned pin commands preserve their original canonical scope. Explicit version 2 binds every pin, read and unpin command to spaceId. Related campuses keep independent slots for the same canonical post; current topology and public visibility are required for projection, pin and read. Exact own-slot unpin remains available after related distribution or Review withdrawal. Developers retain canonical and global scope only, never a new remote-related grant. Optional detail viewSpaceId selects the destination slot and returned spaceId; it is never inferred from display metadata. Receipts and original-key recovery remain unchanged.',
+        )
         .setVersion('1')
         .addSecurity('accessToken', {
           type: 'http',
