@@ -370,7 +370,7 @@ test('scoped avatar clear keeps all eight causal and emitted specs explicitly ow
   );
 });
 
-test('Community administration owns exactly eighteen complete removal specs', () => {
+test('Community administration owns exactly nineteen removal and historical-retention specs', () => {
   const plan = createModulePlan(discoverFiles(), readModules());
   const administration = plan.shards.find(
     (shard) => shard.id === 'community-administration-1',
@@ -399,6 +399,7 @@ test('Community administration owns exactly eighteen complete removal specs', ()
     'test/integration/admin-post-removal-native-roundtrip.test.ts',
     'test/integration/admin-post-removal-notices.test.ts',
     'test/integration/admin-post-removal.test.ts',
+    'test/integration/historical-command-session-retention.test.ts',
   ]);
   assert.ok(
     administration.files.every((file) => !community.files.includes(file)),
@@ -406,7 +407,12 @@ test('Community administration owns exactly eighteen complete removal specs', ()
   assert.deepEqual(
     plan.shards
       .flatMap((shard) => shard.files)
-      .filter((file) => /\/admin-(discussion|post)-removal/.test(file))
+      .filter(
+        (file) =>
+          /\/admin-(discussion|post)-removal/.test(file) ||
+          file ===
+            'test/integration/historical-command-session-retention.test.ts',
+      )
       .sort(),
     administration.files,
   );

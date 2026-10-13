@@ -496,7 +496,8 @@
           "admin-post-removal-delivery.test.ts",
           "admin-post-removal-native-roundtrip.test.ts",
           "admin-post-removal-notices.test.ts",
-          "admin-post-removal.test.ts"
+          "admin-post-removal.test.ts",
+          "historical-command-session-retention.test.ts"
         ]
       ]
     }

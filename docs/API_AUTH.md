@@ -200,6 +200,14 @@ Controls and guarantees:
   until their selected terminal retention has elapsed. After cleanup an old
   credential becomes unknown (401) and its old logout request is no longer
   idempotently accepted; it cannot regain access
+- Migration `0134_historical_command_session_retention.sql` removes only the
+  lifetime session FKs from nickname/avatar moderation and admin post/discussion
+  removal commands. Their immutable command/receipt evidence retains the original
+  session UUID and token hash after credential cleanup. Issuance and finalization
+  still require exact current Identity proof; receipt recovery requires a current
+  active session of the original account, never the removed credential. Account
+  ownership and immutable history constraints remain. This is not a blanket
+  relaxation of session-bound entities or a database-wide retention guarantee.
 - Each batch is one transaction and rolls back on failure. PostgreSQL connection,
   statement and idle-transaction timeouts still apply. The row budget bounds
   mutations, not arbitrary database scan time; the terminal-time and token/session

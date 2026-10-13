@@ -43,7 +43,34 @@ test(
       fileURLToPath(new URL('../../migrations', import.meta.url)),
     );
     await runMigrations(f.pool, migrations, { mode: 'up' });
-    assert.deepEqual(await snapshot(f.pool, tables), before);
+    const after = await snapshot(f.pool, tables);
+    const catalogKey = 'whaleu_experience.title_catalog';
+    const catalog = after[catalogKey] as { row: Record<string, unknown> }[];
+    const additions = catalog.filter(
+      (item) => item.row['title_key'] === 'role_admin',
+    );
+    assert.equal(additions.length, 1);
+    assert.deepEqual(additions[0]!.row, {
+      title_key: 'role_admin',
+      name: '管理员',
+      kind: 'special',
+      unlock_level: null,
+    });
+    assert.equal(catalog.length, (before[catalogKey] as unknown[]).length + 1);
+    after[catalogKey] = catalog.filter((item) => item !== additions[0]);
+    const entitlementsKey = 'whaleu_experience.entitlements';
+    const entitlements = after[entitlementsKey] as {
+      row: Record<string, unknown>;
+    }[];
+    for (const item of entitlements) {
+      assert.equal(item.row['school_admin_actor_id'], null);
+      assert.equal(item.row['school_admin_request_id'], null);
+      delete item.row['school_admin_actor_id'];
+      delete item.row['school_admin_request_id'];
+    }
+    // Assert 0133's exact additive catalog row and null-only historical linkage;
+    // retain every original field of every historical table in the comparison.
+    assert.deepEqual(after, before);
     for (const table of [
       'scoped_source_attestations',
       'scoped_catalogs',

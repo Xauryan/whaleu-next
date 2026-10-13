@@ -42,8 +42,10 @@ export async function syntheticProfileRuntimeFixture(
     sha256: string;
     verdict: 'allow' | 'held' | 'revoked';
   }[],
+  maximumMigration?: number,
 ) {
   const base = await syntheticMediaRuntimeFixture(fixtures, {
+    ...(maximumMigration === undefined ? {} : { maximumMigration }),
     configureTestModule(builder, { storage, ingressStorage }) {
       builder.overrideProvider(PROFILE_AVATAR_RUNTIME).useValue({
         planning: ingressStorage,

@@ -570,11 +570,34 @@ test(
         return result;
       };
       const before = await snapshot();
+      const assertPreservedHistory = async () => {
+        const after = await snapshot();
+        const catalogKey = 'whaleu_experience.title_catalog';
+        const additions = after[catalogKey]!.filter(
+          (bytes) =>
+            (JSON.parse(bytes) as { title_key: string }).title_key ===
+            'role_admin',
+        );
+        assert.equal(additions.length, 1);
+        assert.deepEqual(JSON.parse(additions[0]!), {
+          title_key: 'role_admin',
+          name: '管理员',
+          kind: 'special',
+          unlock_level: null,
+        });
+        assert.equal(after[catalogKey]!.length, before[catalogKey]!.length + 1);
+        // 0133 adds this exact catalog row. Keep every captured preexisting
+        // row/field and XP/notification/rating sequence comparison intact.
+        after[catalogKey] = after[catalogKey]!.filter(
+          (bytes) => bytes !== additions[0],
+        );
+        assert.deepEqual(after, before);
+      };
       await t.test(
         'activation enrolls exact native root/reply once and preserves every original row/field plus XP and notice sequences',
         async () => {
           await runMigrations(pool, migrations, { mode: 'up' });
-          assert.deepEqual(await snapshot(), before);
+          await assertPreservedHistory();
           const enrolled = (
             await pool.query<{
               id: string;
@@ -643,7 +666,7 @@ test(
             ).rows,
             activation,
           );
-          assert.deepEqual(await snapshot(), before);
+          await assertPreservedHistory();
         },
       );
       await t.test(

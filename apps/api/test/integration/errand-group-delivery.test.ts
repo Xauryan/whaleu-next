@@ -8,6 +8,7 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import request from 'supertest';
@@ -23,7 +24,10 @@ import { ErrandAccessService } from '../../src/errands/access.js';
 import { publishErrandSchema } from '../../src/errands/contracts.js';
 import { lockSafetyPolicy } from '../../src/safety/locks.js';
 import { ErrandGroupWorker } from '../../src/notifications/errand-group/worker.js';
-import type { SyntheticAck } from '../../src/notifications/errand-group/contracts.js';
+import type {
+  GroupPermit,
+  SyntheticAck,
+} from '../../src/notifications/errand-group/contracts.js';
 import {
   seedErrandFeature,
   syntheticErrandRestriction,
@@ -242,8 +246,12 @@ interface ForumProgress {
   receipts: number;
   providerReceipt: boolean;
 }
-function forumComplete(p: ForumProgress) {
-  const diagnostic = `Forum dispatch precondition: ${JSON.stringify(p)}`;
+function forumComplete(
+  p: ForumProgress,
+  previousAttempts = 0,
+  phase = 'Forum',
+) {
+  const diagnostic = `${phase} dispatch precondition: ${JSON.stringify(p)}`;
   assert.ok(
     p.identityUnchanged &&
       p.preparationsValid &&
@@ -251,10 +259,10 @@ function forumComplete(p: ForumProgress) {
       p.leaseValid &&
       p.leaseEmpty &&
       p.windowValid &&
-      p.attempts >= 1 &&
+      p.attempts > previousAttempts &&
       p.attempts <= 8 &&
-      p.sourceReads === p.attempts &&
-      p.finalProofs === p.attempts &&
+      p.sourceReads === p.attempts - previousAttempts &&
+      p.finalProofs === p.attempts - previousAttempts &&
       p.reconciliations === 0,
     diagnostic,
   );
@@ -451,6 +459,280 @@ async function confirmForum(
   }
 }
 
+/** The ordinary destination already used one attempt for a proven negative ACK.
+ * Only an observed, committed pre-dispatch expiry may consume its remaining
+ * original budget. This is not reconciliation or a retry of arbitrary failures. */
+async function confirmRestartedErrand(
+  f: Fixture,
+  worker: ErrandGroupWorker,
+  sender: DurableSyntheticGroupSender,
+  firstAck: number,
+  destinationId: string,
+  diagnostic: (message: string) => void,
+) {
+  const read = async () =>
+    (
+      await f.pool
+        .query(`SELECT d.*,p.first_confirmed_at,p.first_confirmed_delivery_id,p.published_at,p.order_id,p.target_region_id,
+      (SELECT count(*)::integer FROM whaleu_notifications.errand_group_receipts r WHERE r.delivery_id=d.id) receipts
+      FROM whaleu_notifications.errand_group_deliveries d JOIN whaleu_notifications.errand_group_publications p USING(event_id)
+      ORDER BY d.stage,d.destination_id`)
+    ).rows;
+  const initial = await read();
+  assert.equal(initial.length, 2);
+  const first = initial.find((r) => r.destination_id === destinationId)!;
+  assert.ok(first);
+  assert.equal(first.stage, 'errand');
+  assert.equal(first.status, 'retryable');
+  assert.equal(first.reason, 'not_accepted');
+  assert.equal(first.attempts, 1);
+  assert.equal(first.reconciliations, 0);
+  assert.equal(first.receipts, 0);
+  assert.equal(first.attempt_id, null);
+  assert.equal(first.lease_until, null);
+  assert.equal(first.first_confirmed_at.getTime(), firstAck);
+  assert.equal(f.runtime.now(), first.published_at.getTime() + 1000);
+  assert.equal(first.next_attempt_at.getTime(), f.runtime.now());
+  const original = f.sender.attempts.filter(
+    (p) => p.key === first.idempotency_key,
+  );
+  assert.equal(original.length, 1);
+  assert.equal(original[0]!.destination.id, destinationId);
+  assert.equal(original[0]!.destination.stage, 'errand');
+  assert.equal(
+    existsSync(join(sender.directory, `${first.idempotency_key}.json`)),
+    false,
+  );
+  assert.equal(sender.attempts.length, 0);
+  assert.equal(sender.reconciled.length, 0);
+  const identity = (r: typeof first) => [
+    r.id,
+    r.event_id,
+    r.stage,
+    r.destination_id,
+    r.idempotency_key,
+    r.first_confirmed_at,
+    r.first_confirmed_delivery_id,
+    r.published_at,
+    r.order_id,
+    r.target_region_id,
+  ];
+  const ledger = async () =>
+    (
+      await f.pool.query(
+        'SELECT id,fence,idempotency_key,operation FROM whaleu_notifications.errand_group_attempts WHERE delivery_id=$1 ORDER BY fence',
+        [first.id],
+      )
+    ).rows;
+  const initialLedger = await ledger();
+  assert.equal(initialLedger.length, 1);
+  assert.equal(initialLedger[0].operation, 'send');
+  assert.equal(initialLedger[0].id, original[0]!.attemptId);
+  assert.equal(initialLedger[0].idempotency_key, first.idempotency_key);
+  assert.equal(initialLedger[0].fence, original[0]!.fence);
+  const prepare = sender.prepare.bind(sender),
+    source = f.source.current.bind(f.source),
+    confirmed = f.records.confirmed.bind(f.records),
+    current = f.records.current.bind(f.records),
+    transaction = f.db.transaction.bind(f.db);
+  let preparations = 0,
+    preparationsValid = true,
+    sourceReads = 0,
+    sourceUnchanged = true,
+    finalProofs = 0,
+    dispatches = 0,
+    acknowledgements = 0,
+    leaseUntil = 0;
+  const permits: GroupPermit[] = [];
+  const expiries: number[] = [];
+  const proof: RequiredTransactionProof<string> = {
+    maximumFacts: 1,
+    failureCode: 'ERRAND_UNAVAILABLE',
+    validate: async () => {
+      finalProofs++;
+    },
+  };
+  // Observe actual return values, without replacing the transaction, proof,
+  // commit, authorization, permit clock or application policy.
+  f.db.transaction = async (operation, options) =>
+    transaction(async (tx) => {
+      const result = await operation(tx);
+      if (
+        result &&
+        typeof result === 'object' &&
+        'attemptId' in result &&
+        'fence' in result &&
+        'key' in result &&
+        'destination' in result &&
+        'expiresAt' in result &&
+        'payload' in result
+      )
+        permits.push(result as GroupPermit);
+      return result;
+    }, options);
+  f.records.current = async (...args) => {
+    leaseUntil = args[0].lease_until.getTime();
+    return current(...args);
+  };
+  f.source.current = async (...args) => {
+    const payload = await source(...args);
+    sourceReads++;
+    sourceUnchanged &&=
+      args[0].eventId === first.event_id &&
+      args[0].orderId === first.order_id &&
+      args[0].targetRegionId === first.target_region_id &&
+      args[0].publishedAt === first.published_at.getTime() &&
+      args[0].firstConfirmedAt === firstAck &&
+      args[1] === 'errand' &&
+      isDeepStrictEqual(payload, original[0]!.payload);
+    enableRequiredTransactionProof(args[2], proof);
+    registerRequiredTransactionFact(args[2], proof, 'restart', 'restart');
+    return payload;
+  };
+  sender.prepare = async (key, destination) => {
+    const prepared = await prepare(key, destination);
+    preparations++;
+    expiries.push(prepared.expiresAt);
+    preparationsValid &&=
+      key === first.idempotency_key &&
+      isDeepStrictEqual(destination, original[0]!.destination) &&
+      prepared.key === key &&
+      prepared.destinationId === destinationId &&
+      Number.isFinite(prepared.expiresAt);
+    return {
+      ...prepared,
+      dispatch: (permit) => {
+        dispatches++;
+        return prepared.dispatch(permit);
+      },
+    };
+  };
+  f.records.confirmed = async (...args) => {
+    acknowledgements++;
+    assert.equal(args[0].id, first.id);
+    return confirmed(...args);
+  };
+  try {
+    for (let attempt = first.attempts + 1; attempt <= 8; attempt++) {
+      assert.equal(await worker.runOne(), true);
+      const rows = await read(),
+        row = rows.find((r) => r.id === first.id)!;
+      const attempts = await ledger();
+      const count = attempt - first.attempts;
+      const permit = permits.at(-1);
+      const observedAt = performance.now();
+      const progress: ForumProgress = {
+        status: row.status,
+        reason: row.reason,
+        attempts: row.attempts,
+        identityUnchanged:
+          isDeepStrictEqual(identity(row), identity(first)) &&
+          rows.length === initial.length &&
+          isDeepStrictEqual(
+            rows.filter((r) => r.id !== first.id),
+            initial.filter((r) => r.id !== first.id),
+          ) &&
+          row.attempts === attempt &&
+          BigInt(row.fence) === BigInt(first.fence) + BigInt(count) &&
+          attempts.length === attempt &&
+          isDeepStrictEqual(attempts.slice(0, first.attempts), initialLedger) &&
+          attempts
+            .slice(first.attempts)
+            .every(
+              (a, i) =>
+                a.operation === 'send' &&
+                a.idempotency_key === first.idempotency_key &&
+                BigInt(a.fence) === BigInt(first.fence) + BigInt(i + 1),
+            ),
+        preparationsValid:
+          preparationsValid &&
+          preparations === count &&
+          permits.length === count &&
+          permits.every(
+            (p, i) =>
+              p.key === first.idempotency_key &&
+              isDeepStrictEqual(p.destination, original[0]!.destination) &&
+              p.attemptId === attempts[first.attempts + i].id &&
+              p.fence === attempts[first.attempts + i].fence &&
+              Number.isFinite(p.expiresAt),
+          ),
+        sourceReads,
+        finalProofs,
+        sourceUnchanged:
+          sourceUnchanged &&
+          permits.every((p) =>
+            isDeepStrictEqual(p.payload, original[0]!.payload),
+          ) &&
+          sender.attempts.every((p) =>
+            isDeepStrictEqual(p.payload, original[0]!.payload),
+          ),
+        leaseValid: leaseUntil > Date.now(),
+        leaseEmpty: row.attempt_id === null && row.lease_until === null,
+        windowValid:
+          row.first_confirmed_at.getTime() === firstAck &&
+          f.runtime.now() >= first.published_at.getTime() &&
+          f.runtime.now() <= first.published_at.getTime() + 960000 &&
+          f.runtime.now() < firstAck + 900000,
+        reconciliations: row.reconciliations + sender.reconciled.length,
+        dispatches,
+        senderAttempts: sender.attempts.length,
+        acknowledgements,
+        receipts: row.receipts,
+        providerReceipt: existsSync(
+          join(sender.directory, `${first.idempotency_key}.json`),
+        ),
+      };
+      diagnostic(
+        JSON.stringify({
+          phase: 'restarted-errand',
+          ...progress,
+          row,
+          permits,
+          preparedExpiries: expiries,
+          observedAt,
+          leaseUntil,
+        }),
+      );
+      if (forumComplete(progress, first.attempts, 'Restarted errand')) {
+        assert.deepEqual(sender.attempts[0], permit);
+        const providerAck = JSON.parse(
+          readFileSync(
+            join(sender.directory, `${first.idempotency_key}.json`),
+            'utf8',
+          ),
+        );
+        assert.equal(providerAck.status, 'confirmed');
+        assert.equal(providerAck.key, first.idempotency_key);
+        assert.equal(providerAck.destinationId, destinationId);
+        assert.equal(providerAck.confirmedAt, f.runtime.now());
+        assert.equal(await worker.runOne(), false);
+        return progress;
+      }
+      assert.ok(
+        permit && observedAt >= Math.min(permit.expiresAt, expiries.at(-1)!),
+        'Restarted errand dispatch precondition: expiry must be observed',
+      );
+      assert.equal(
+        row.next_attempt_at.getTime(),
+        f.runtime.now() + Math.min(60000, 1000 * 2 ** Math.min(attempt - 1, 6)),
+      );
+      assert.ok(
+        row.next_attempt_at.getTime() <=
+          first.published_at.getTime() + 960000 &&
+          row.next_attempt_at.getTime() < firstAck + 900000,
+      );
+      f.setTime(row.next_attempt_at.getTime());
+    }
+    assert.fail('Restarted errand dispatch budget exhausted');
+  } finally {
+    sender.prepare = prepare;
+    f.source.current = source;
+    f.records.confirmed = confirmed;
+    f.records.current = current;
+    f.db.transaction = transaction;
+  }
+}
+
 test('forum precondition rejects uncertain outcomes, changed identity and any side effects', () => {
   const retry: ForumProgress = {
     status: 'retryable',
@@ -483,6 +765,32 @@ test('forum precondition rejects uncertain outcomes, changed identity and any si
     providerReceipt: true,
   };
   assert.equal(forumComplete(complete), true);
+  assert.equal(
+    forumComplete({ ...retry, attempts: 2 }, 1, 'Restarted errand'),
+    false,
+  );
+  assert.equal(
+    forumComplete(
+      { ...complete, attempts: 8, sourceReads: 7, finalProofs: 7 },
+      1,
+      'Restarted errand',
+    ),
+    true,
+  );
+  assert.throws(
+    () =>
+      forumComplete(
+        { ...retry, attempts: 8, sourceReads: 7, finalProofs: 7 },
+        1,
+        'Restarted errand',
+      ),
+    /Restarted errand dispatch precondition:/,
+  );
+  assert.throws(
+    () => forumComplete(retry, 1, 'Restarted errand'),
+    /Restarted errand dispatch precondition:/,
+  );
+
   for (const patch of [
     { reason: 'unavailable' },
     { reason: 'not_accepted' },
@@ -965,11 +1273,22 @@ for (const scenario of [
   'unavailable',
   'lost-ack',
   'changed-source',
+  'restart-expired',
+  'restart-wrong-key',
+  'restart-wrong-destination',
+  'restart-unavailable',
+  'restart-unknown-ack',
+  'restart-lost-ack',
+  'restart-not-accepted',
+  'restart-changed-source',
+  'restart-changed-payload',
 ])
   test(
     scenario === 'normal'
       ? 'E4 partial destination failure, durable restart, exact first ACK forum windows and private allowlist'
-      : `E4 forum precondition operational fixture: ${scenario}`,
+      : scenario.startsWith('restart-')
+        ? `E4 restarted errand precondition operational fixture: ${scenario.slice(8)}`
+        : `E4 forum precondition operational fixture: ${scenario}`,
     { timeout: 120000 },
     async (t) => {
       const f = await errandGroupFixture();
@@ -1010,6 +1329,14 @@ for (const scenario of [
         'exactly two distinct rows are claimed; worker arrival order is immaterial',
       );
       let rows = (await f.rows()).rows;
+      t.diagnostic(
+        JSON.stringify({
+          phase: 'initial-concurrent-claims',
+          scenario,
+          rows,
+          senderAttempts: f.sender.attempts,
+        }),
+      );
       assert.deepEqual(
         rows.map((r) => r.status),
         ['confirmed', 'retryable'],
@@ -1027,38 +1354,222 @@ for (const scenario of [
         ),
         restarted = f.restart({ ...f.runtime, sender: restartedSender });
       await restarted.discover();
-      assert.equal(await restarted.runOne(), true);
-      assert.equal(await restarted.runOne(), false);
+      const restartScenario = scenario.startsWith('restart-')
+        ? scenario.slice(8)
+        : 'normal';
+      const restartPrepare = restartedSender.prepare.bind(restartedSender);
+      const restartSource = f.source.current.bind(f.source);
+      let restartInjected = 0;
+      restartedSender.prepare = async (...args) => {
+        if (restartScenario === 'unavailable') {
+          restartInjected++;
+          throw Error('Injected restart readiness failure');
+        }
+        const prepared = await restartPrepare(...args);
+        if (restartScenario === 'wrong-key') {
+          restartInjected++;
+          return { ...prepared, key: '0'.repeat(64) };
+        }
+        if (restartScenario === 'wrong-destination') {
+          restartInjected++;
+          return { ...prepared, destinationId: 'synthetic:wrong' };
+        }
+        if (restartScenario === 'changed-payload')
+          return {
+            ...prepared,
+            dispatch: (permit) => {
+              restartInjected++;
+              return prepared.dispatch({
+                ...permit,
+                payload: { ...permit.payload, title: 'Changed payload' },
+              });
+            },
+          };
+        if (
+          (restartScenario === 'expired' ||
+            restartScenario === 'changed-source') &&
+          restartInjected++ === 0
+        )
+          return { ...prepared, expiresAt: performance.now() - 1 };
+        return prepared;
+      };
+      if (restartScenario === 'changed-source')
+        f.source.current = async (...args) => ({
+          ...(await restartSource(...args)),
+          title: 'Changed source',
+        });
+      if (restartScenario === 'unknown-ack')
+        restartedSender.actions.set(d.two.id, ['unknown']);
+      if (restartScenario === 'lost-ack')
+        restartedSender.actions.set(d.two.id, ['lose_ack']);
+      if (restartScenario === 'not-accepted')
+        restartedSender.actions.set(d.two.id, ['not_accepted']);
+      const restartDiagnostics: string[] = [];
+      const reportRestart = (message: string) => {
+        restartDiagnostics.push(message);
+        t.diagnostic(message);
+      };
+      if (restartScenario !== 'normal' && restartScenario !== 'expired') {
+        await assert.rejects(
+          confirmRestartedErrand(
+            f,
+            restarted,
+            restartedSender,
+            ack,
+            d.two.id,
+            reportRestart,
+          ),
+          /Restarted errand dispatch precondition:/,
+        );
+        const row = (await f.rows()).rows.find(
+          (r) => r.destination_id === d.two.id,
+        )!;
+        assert.equal(restartedSender.reconciled.length, 0);
+        assert.equal(
+          (await f.rows()).rows.some((r) => r.stage === 'forum'),
+          false,
+          'restart guard must reject before forum enrollment/injection',
+        );
+        const last = JSON.parse(restartDiagnostics.at(-1)!);
+        assert.equal(last.identityUnchanged, true);
+        assert.equal(last.leaseValid, restartScenario !== 'unavailable');
+        if (restartScenario === 'unavailable') {
+          assert.equal(last.sourceReads, 0);
+          assert.equal(last.finalProofs, 0);
+          assert.deepEqual(last.permits, []);
+          assert.deepEqual(last.preparedExpiries, []);
+          assert.equal(
+            last.leaseUntil,
+            0,
+            'readiness fails before the source/lease observation',
+          );
+        }
+        assert.equal(last.leaseEmpty, true);
+        assert.equal(last.windowValid, true);
+        assert.equal(
+          last.sourceUnchanged,
+          !['changed-source', 'changed-payload'].includes(restartScenario),
+        );
+        assert.equal(
+          last.preparationsValid,
+          !['wrong-key', 'wrong-destination', 'unavailable'].includes(
+            restartScenario,
+          ),
+        );
+        if (last.providerReceipt) {
+          const providerAck = JSON.parse(
+            readFileSync(
+              join(f.directory, `${row.idempotency_key}.json`),
+              'utf8',
+            ),
+          );
+          assert.equal(providerAck.status, 'confirmed');
+          assert.equal(providerAck.key, row.idempotency_key);
+          assert.equal(providerAck.destinationId, d.two.id);
+        }
+        if (
+          [
+            'wrong-key',
+            'wrong-destination',
+            'changed-source',
+            'unavailable',
+          ].includes(restartScenario)
+        ) {
+          assert.equal(row.attempts, 2, 'forbidden state must not retry');
+          assert.equal(restartedSender.attempts.length, 0);
+          assert.equal(last.dispatches, 0);
+          assert.equal(last.receipts, 0);
+          assert.equal(last.providerReceipt, false);
+          assert.equal(
+            row.reason,
+            restartScenario === 'unavailable'
+              ? 'unavailable'
+              : 'permit_expired',
+          );
+          assert.equal(restartInjected, 1);
+        } else {
+          assert.ok(row.attempts >= 2 && row.attempts <= 8);
+          assert.equal(restartedSender.attempts.length, 1);
+          assert.equal(last.dispatches, 1);
+          for (const prefix of restartDiagnostics.slice(0, -1)) {
+            const p = JSON.parse(prefix);
+            assert.equal(p.reason, 'permit_expired');
+            assert.equal(p.dispatches, 0);
+            assert.equal(p.providerReceipt, false);
+          }
+          if (restartScenario === 'changed-payload') {
+            assert.equal(row.status, 'confirmed');
+            assert.equal(last.sourceUnchanged, false);
+            assert.equal(restartInjected, 1);
+            assert.equal(last.receipts, 1);
+          } else {
+            assert.equal(
+              row.status,
+              restartScenario === 'not-accepted' ? 'retryable' : 'unknown',
+            );
+            assert.equal(
+              row.reason,
+              restartScenario === 'not-accepted' ? 'not_accepted' : 'unknown',
+            );
+            assert.equal(last.receipts, 0);
+          }
+          assert.equal(
+            last.providerReceipt,
+            restartScenario === 'lost-ack' ||
+              restartScenario === 'changed-payload',
+          );
+        }
+        return;
+      }
+      const restartProgress = await confirmRestartedErrand(
+        f,
+        restarted,
+        restartedSender,
+        ack,
+        d.two.id,
+        reportRestart,
+      );
+      if (restartScenario === 'expired') {
+        assert.ok(restartProgress.attempts >= 3);
+        const forced = JSON.parse(restartDiagnostics[0]!);
+        assert.equal(forced.reason, 'permit_expired');
+        assert.equal(forced.dispatches, 0);
+        assert.equal(forced.providerReceipt, false);
+        assert.ok(forced.observedAt >= forced.preparedExpiries[0]);
+      }
+      restartedSender.prepare = restartPrepare;
+      f.source.current = restartSource;
       assert.equal(restartedSender.attempts.length, 1);
       assert.equal(restartedSender.attempts[0]!.destination.id, d.two.id);
+      const forumScenario = restartScenario === 'expired' ? 'normal' : scenario;
       f.setTime(ack + 900000 - 1);
       await restarted.discover();
       assert.equal(await restarted.runOne(), false);
       f.setTime(ack + 900000);
       await restarted.discover();
-      if (scenario !== 'normal') {
+      if (forumScenario !== 'normal') {
         const prepare = restartedSender.prepare.bind(restartedSender);
         let first = true;
         restartedSender.prepare = async (...args) => {
-          if (scenario === 'unavailable')
+          if (forumScenario === 'unavailable')
             throw Error('Injected readiness failure');
           const prepared = await prepare(...args);
-          if (scenario === 'wrong-key')
+          if (forumScenario === 'wrong-key')
             return { ...prepared, key: '0'.repeat(64) };
-          if (scenario === 'wrong-destination')
+          if (forumScenario === 'wrong-destination')
             return { ...prepared, destinationId: 'synthetic:wrong' };
           if (
             !first ||
-            (scenario !== 'expired' && scenario !== 'changed-source')
+            (forumScenario !== 'expired' && forumScenario !== 'changed-source')
           )
             return prepared;
           first = false;
           return { ...prepared, expiresAt: performance.now() - 1 };
         };
       }
-      if (scenario === 'lost-ack')
+      if (forumScenario === 'lost-ack')
         restartedSender.actions.set(d.forum.id, ['lose_ack']);
-      if (scenario === 'changed-source') {
+      if (forumScenario === 'changed-source') {
         const source = f.source.current.bind(f.source);
         let reads = 0;
         f.source.current = async (...args) => {
@@ -1068,13 +1579,16 @@ for (const scenario of [
             : { ...payload, title: 'Changed source' };
         };
       }
-      if (scenario !== 'normal' && scenario !== 'expired') {
+      if (forumScenario !== 'normal' && forumScenario !== 'expired') {
         await assert.rejects(
           confirmForum(f, restarted, restartedSender, ack),
           /Forum dispatch precondition:/,
         );
         const row = (await f.rows()).rows.find((r) => r.stage === 'forum');
-        if (scenario === 'wrong-key' || scenario === 'wrong-destination') {
+        if (
+          forumScenario === 'wrong-key' ||
+          forumScenario === 'wrong-destination'
+        ) {
           assert.equal(row.reason, 'permit_expired');
           assert.equal(row.attempts, 1, 'identity mismatch must not retry');
           assert.equal(
@@ -1083,7 +1597,7 @@ for (const scenario of [
             'only prior errand dispatch',
           );
         }
-        if (scenario === 'lost-ack') {
+        if (forumScenario === 'lost-ack') {
           assert.equal(row.status, 'unknown');
           assert.ok(row.attempts >= 1 && row.attempts <= 8);
           assert.equal(restartedSender.reconciled.length, 0);
@@ -1114,7 +1628,7 @@ for (const scenario of [
         return;
       }
       const forum = await confirmForum(f, restarted, restartedSender, ack);
-      if (scenario === 'expired') assert.ok(forum.attempts >= 2);
+      if (forumScenario === 'expired') assert.ok(forum.attempts >= 2);
       rows = (await f.rows()).rows;
       assert.deepEqual(
         rows.map((r) => r.status),

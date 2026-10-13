@@ -37,16 +37,20 @@ import type {
 } from '../../src/profile/avatar-moderation/contracts.js';
 import { avatarModerationManagementSchema } from '../../src/profile/avatar-moderation/contracts.js';
 
-export async function profileAvatarModerationFixture(mediaTargets = false) {
+export async function profileAvatarModerationFixture(
+  mediaTargets = false,
+  maximumMigration?: number,
+) {
   const sharp = (await import('sharp')).default;
   const bytes = await sharp({
     create: { width: 24, height: 18, channels: 3, background: '#167ba5' },
   })
     .png()
     .toBuffer();
-  const f = await syntheticProfileRuntimeFixture([
-    { sha256: sha256(bytes), verdict: 'allow' },
-  ]);
+  const f = await syntheticProfileRuntimeFixture(
+    [{ sha256: sha256(bytes), verdict: 'allow' }],
+    maximumMigration,
+  );
   try {
     const ordinary = await f.startOrdinaryRuntime();
     // Explicit synthetic read-only Community Media leaf. Profile avatar runtime
