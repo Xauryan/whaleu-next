@@ -1,3 +1,4 @@
+import { InsertedDiscoveryCursorTransaction } from '../support/inserted-discovery-cursor-transaction.js';
 import assert from 'node:assert/strict';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test } from 'node:test';
@@ -274,28 +275,36 @@ test(
             ).rows[0]!.n;
             let waited = false,
               inserted = false;
-            f.observer.setHook(async (event) => {
-              if (
-                event.sql.includes(
-                  'INSERT INTO whaleu_community.discovery_cursors',
+            const cursorTransaction = new InsertedDiscoveryCursorTransaction();
+            f.observer.setHook(
+              cursorTransaction.hook(async (event, tx) => {
+                if (
+                  event.sql.includes(
+                    'INSERT INTO whaleu_community.discovery_cursors',
+                  )
                 )
-              )
-                inserted = true;
-              if (!waited && event.sql === 'SET CONSTRAINTS ALL IMMEDIATE') {
-                assert.equal(inserted, true);
-                waited = true;
-                await sleep(Math.max(0, expiresAt.getTime() - Date.now()) + 75);
-              }
-            });
+                  inserted = true;
+                if (!waited && cursorTransaction.finalizing(event, tx)) {
+                  assert.equal(inserted, true);
+                  waited = true;
+                  await sleep(
+                    Math.max(0, expiresAt.getTime() - Date.now()) + 75,
+                  );
+                }
+              }),
+            );
             try {
+              const response = await w.hot({ limit: 1 });
+              assert.equal(cursorTransaction.failure, undefined);
               hotFailure(
-                await w.hot({ limit: 1 }),
+                response,
                 deadline === 'phone' ? 403 : 401,
                 deadline === 'phone'
                   ? 'PHONE_VERIFICATION_REQUIRED'
                   : undefined,
               );
               assert.equal(waited, true);
+              cursorTransaction.assertRolledBack();
             } finally {
               f.observer.setHook(null);
             }

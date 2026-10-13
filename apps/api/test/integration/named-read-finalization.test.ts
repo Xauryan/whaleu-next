@@ -61,6 +61,8 @@ type Actor = Awaited<ReturnType<typeof createRuntimeActor>> & {
 };
 interface ReadCase {
   owner: string;
+  /** False only for direct service calls or restricted HTTP envelopes. */
+  entryPolicy?: boolean;
   actor: Actor;
   target: Actor;
   bilateral: boolean;
@@ -561,6 +563,7 @@ test(
           case 'FeedService.comments':
             return {
               ...base,
+              entryPolicy: false,
               run: async () => {
                 try {
                   return {
@@ -691,6 +694,7 @@ test(
             const id = await notice(actor);
             return {
               ...base,
+              entryPolicy: false,
               run: get(actor, '/v1/me/community/updates'),
               expect: [id, 'Protected notice preview', child.nickname],
             };
@@ -786,8 +790,10 @@ test(
         success(baseline.value, read.expect);
         assert.deepEqual(
           baseline.measurement.begins,
-          ['read committed'],
-          'Each emitting owner explicitly selects READ COMMITTED',
+          read.entryPolicy === false
+            ? ['read committed']
+            : ['read committed', 'read committed'],
+          'Entry policy (when present) and emitting owner each explicitly select READ COMMITTED',
         );
         const audits = read.identity ? await auditCount(read.actor) : 0;
         let fired = false,
@@ -1214,21 +1220,81 @@ test(
             [hashToken(actor.accessToken), expiredAt],
           );
           let delayed = false,
-            checked = false;
-          observer!.setHook(async (event) => {
-            if (event.sql.includes(finalRows)) checked = true;
-            if (
-              checked &&
-              event.sql.includes("set_config('statement_timeout'") &&
-              event.values[1] === '0' &&
-              !delayed
-            ) {
-              delayed = true;
-              await sleep(Math.max(0, expiredAt.getTime() - Date.now()) + 25);
+            checked = false,
+            ownerOpen = false,
+            clockExecuted = false,
+            rolledBack = false,
+            finalClockQueries = 0;
+          let owner: PoolClient | undefined;
+          let hookFailure: unknown;
+          observer!.setHook(async (event, tx) => {
+            try {
+              if (event.sql.includes(finalRows)) {
+                assert.ok(event.rows > 0);
+                assert.ok(
+                  (event.values[0] as string[]).includes(actor.accountId),
+                );
+                assert.ok(
+                  (event.values[1] as string[]).includes(read.target.accountId),
+                );
+                checked = true;
+                owner = tx;
+                ownerOpen = true;
+              }
+              if (
+                ownerOpen &&
+                tx === owner &&
+                delayed &&
+                event.sql === 'SELECT clock_timestamp() AS now'
+              )
+                clockExecuted = true;
+              if (
+                tx === owner &&
+                (event.sql === 'COMMIT' || event.sql === 'ROLLBACK')
+              ) {
+                ownerOpen = false;
+                rolledBack = event.sql === 'ROLLBACK';
+              }
+            } catch (error) {
+              hookFailure = error;
+              throw error;
+            }
+          });
+          observer!.setBeforeHook(async (event, tx) => {
+            try {
+              if (
+                ownerOpen &&
+                tx === owner &&
+                event.sql === 'SELECT clock_timestamp() AS now'
+              ) {
+                // Trading contacts' required validators have finished here.
+                // Waiting at Safety's timeout restore leaves other bounded
+                // owner proofs outstanding, so it is not the final-clock seam.
+                assert.equal(checked, true);
+                assert.equal(finalClockQueries++, 0);
+                delayed = true;
+                await sleep(Math.max(0, expiredAt.getTime() - Date.now()) + 25);
+              }
+            } catch (error) {
+              hookFailure = error;
+              throw error;
             }
           });
           try {
             const result = await read.run();
+            assert.equal(
+              hookFailure,
+              undefined,
+              'A hook must not manufacture the response',
+            );
+            assert.equal(finalClockQueries, 1);
+            assert.equal(
+              clockExecuted,
+              true,
+              'The original PostgreSQL clock query must execute',
+            );
+            assert.equal(ownerOpen, false);
+            assert.equal(rolledBack, true);
             assert.equal(
               delayed,
               true,
@@ -1239,6 +1305,7 @@ test(
             for (const value of Object.values(chosen))
               assert.equal(serialized(result.body).includes(value), false);
           } finally {
+            observer!.setBeforeHook(null);
             observer!.setHook(null);
           }
           const fresh = await makeCase(

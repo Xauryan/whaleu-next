@@ -1,3 +1,4 @@
+import { InsertedDiscoveryCursorTransaction } from '../support/inserted-discovery-cursor-transaction.js';
 import {
   checkpointTransactionDeadlines,
   restoreTransactionDeadlines,
@@ -216,35 +217,37 @@ test(
           const before = await count();
           let parentBindings = 0,
             inserted = false;
-          h.observer.setHook(async (event) => {
-            if (
-              event.sql.includes(
-                'SELECT * FROM whaleu_community.content_approval_bindings',
-              ) &&
-              event.values[0] === 'post' &&
-              event.values[1] === post!.id
-            )
-              parentBindings++;
-            if (
-              event.sql.includes(
-                'INSERT INTO whaleu_community.discovery_cursors',
+          const cursorTransaction = new InsertedDiscoveryCursorTransaction();
+          h.observer.setHook(
+            cursorTransaction.hook(async (event, tx) => {
+              if (
+                event.sql.includes(
+                  'SELECT * FROM whaleu_community.content_approval_bindings',
+                ) &&
+                event.values[0] === 'post' &&
+                event.values[1] === post!.id
               )
-            )
-              inserted = true;
-            if (event.sql === 'SET CONSTRAINTS ALL IMMEDIATE') {
-              assert.equal(inserted, true);
-              assert.equal(parentBindings, 1);
-              await sleep(Math.max(0, expiresAt.getTime() - Date.now()) + 50);
-            }
-          });
+                parentBindings++;
+              if (
+                event.sql.includes(
+                  'INSERT INTO whaleu_community.discovery_cursors',
+                )
+              )
+                inserted = true;
+              if (cursorTransaction.finalizing(event, tx)) {
+                assert.equal(inserted, true);
+                assert.equal(parentBindings, 1);
+                await sleep(Math.max(0, expiresAt.getTime() - Date.now()) + 50);
+              }
+            }),
+          );
           try {
-            failure(
-              await w.search({ type: 'reply', limit: '2' }),
-              503,
-              'COMMUNITY_UNAVAILABLE',
-            );
+            const result = await w.search({ type: 'reply', limit: '2' });
+            assert.equal(cursorTransaction.failure, undefined);
+            failure(result, 503, 'COMMUNITY_UNAVAILABLE');
             assert.equal(inserted, true);
             assert.equal(await count(), before);
+            cursorTransaction.assertRolledBack();
           } finally {
             h.observer.setHook(null);
           }

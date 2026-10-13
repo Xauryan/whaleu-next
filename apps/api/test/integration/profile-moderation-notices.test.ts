@@ -218,7 +218,7 @@ test(
     assert.deepEqual(await counts(), { profile: 1, jury: 1, registry: 2 });
 
     await t.test(
-      'equal-time mixed pages and independently constructed v1 cursors keep one total order',
+      'equal-time mixed pages and independently constructed v1–v4 cursors keep one total order',
       async () => {
         const first = await list({ limit: 1 });
         assert.deepEqual(first.items, [
@@ -236,7 +236,7 @@ test(
         const decoded = JSON.parse(
           Buffer.from(first.nextCursor, 'base64url').toString(),
         );
-        assert.equal(decoded.v, 4);
+        assert.equal(decoded.v, 5);
         assert.equal(decoded.kind, 'post_jury_removed');
         const second = await list({ limit: 1, cursor: first.nextCursor });
         assert.deepEqual(second, {
@@ -244,37 +244,40 @@ test(
           nextCursor: null,
           unreadCount: 2,
         });
-        const legacy = Buffer.from(
-          JSON.stringify({
-            v: 1,
-            scope: `system-notices:${createHash('sha256')
-              .update(
-                JSON.stringify([
-                  'system-notices-cursor-v1',
-                  owner.accountId.toLowerCase(),
-                ]),
-              )
-              .digest('hex')}`,
-            limit: 1,
-            at: single.items[0]!.createdAt,
-            id: juryId,
-          }),
-        ).toString('base64url');
-        assert.deepEqual(await list({ limit: 1, cursor: legacy }), second);
-        ok(
-          await get('/v1/me/system-notices', stranger).query({
-            limit: 1,
-            cursor: legacy,
-          }),
-          400,
-        );
-        ok(
-          await get('/v1/me/system-notices').query({
-            limit: 2,
-            cursor: legacy,
-          }),
-          400,
-        );
+        for (const version of [1, 2, 3, 4]) {
+          const legacy = Buffer.from(
+            JSON.stringify({
+              v: version,
+              ...(version >= 2 ? { kind: 'post_jury_removed' } : {}),
+              scope: `system-notices:${createHash('sha256')
+                .update(
+                  JSON.stringify([
+                    'system-notices-cursor-v1',
+                    owner.accountId.toLowerCase(),
+                  ]),
+                )
+                .digest('hex')}`,
+              limit: 1,
+              at: single.items[0]!.createdAt,
+              id: juryId,
+            }),
+          ).toString('base64url');
+          assert.deepEqual(await list({ limit: 1, cursor: legacy }), second);
+          ok(
+            await get('/v1/me/system-notices', stranger).query({
+              limit: 1,
+              cursor: legacy,
+            }),
+            400,
+          );
+          ok(
+            await get('/v1/me/system-notices').query({
+              limit: 2,
+              cursor: legacy,
+            }),
+            400,
+          );
+        }
         const all = await list();
         assert.deepEqual(all.items, [...first.items, ...second.items]);
         assert.equal(all.nextCursor, null);

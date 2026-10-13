@@ -484,6 +484,7 @@
           "account-moderation-migration.test.ts",
           "account-moderation-native-roundtrip.test.ts",
           "account-policy-consumers.test.ts",
+          "account-policy-source-compatibility.test.ts",
           "account-policy-media-delivery.test.ts",
           "account-policy-detached-major-media.test.ts",
           "account-punishment-causal.test.ts",

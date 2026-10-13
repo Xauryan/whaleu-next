@@ -1,3 +1,4 @@
+import { InsertedDiscoveryCursorTransaction } from '../support/inserted-discovery-cursor-transaction.js';
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -1101,7 +1102,11 @@ test(
                     q: direction === 'incoming' ? 'protected' : 'needle',
                   }),
               );
-              assert.deepEqual(measured.measurement.begins, ['read committed']);
+              assert.deepEqual(
+                measured.measurement.begins,
+                ['read committed', 'read committed'],
+                'Entry policy and search owner each explicitly select READ COMMITTED',
+              );
               assert.equal(
                 inserted,
                 true,
@@ -1359,24 +1364,30 @@ test(
             ).rows[0]!.n;
             let waited = false,
               cursorInserted = false;
-            h.observer.setHook(async (event) => {
-              if (
-                event.sql.includes(
-                  'INSERT INTO whaleu_community.discovery_cursors',
+            const cursorTransaction = new InsertedDiscoveryCursorTransaction();
+            h.observer.setHook(
+              cursorTransaction.hook(async (event, tx) => {
+                if (
+                  event.sql.includes(
+                    'INSERT INTO whaleu_community.discovery_cursors',
+                  )
                 )
-              )
-                cursorInserted = true;
-              if (!waited && event.sql === 'SET CONSTRAINTS ALL IMMEDIATE') {
-                assert.equal(cursorInserted, true);
-                waited = true;
-                await sleep(Math.max(0, expiresAt.getTime() - Date.now()) + 75);
-              }
-            });
+                  cursorInserted = true;
+                if (!waited && cursorTransaction.finalizing(event, tx)) {
+                  assert.equal(cursorInserted, true);
+                  waited = true;
+                  await sleep(
+                    Math.max(0, expiresAt.getTime() - Date.now()) + 75,
+                  );
+                }
+              }),
+            );
             try {
               const result = await w.search({
                 limit: '1',
                 q: deadline === 'phone' ? 'needle' : 'need',
               });
+              assert.equal(cursorTransaction.failure, undefined);
               assert.equal(
                 waited,
                 true,
@@ -1397,6 +1408,7 @@ test(
                 ).rows[0]!.n,
                 before,
               );
+              cursorTransaction.assertRolledBack();
             } finally {
               h.observer.setHook(null);
             }

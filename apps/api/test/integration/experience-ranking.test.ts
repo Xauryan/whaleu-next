@@ -353,29 +353,62 @@ test(
                   mutation === 'reactivate'
                     ? await writeBlock(blocker, blocked, max.profileId, false)
                     : undefined;
-                let fired = false;
-                observer!.setHook(async (event) => {
-                  if (
-                    !fired &&
-                    (stage === 'deferred'
-                      ? event.sql === 'SET CONSTRAINTS ALL IMMEDIATE'
-                      : event.sql.startsWith(
-                          'SELECT EXISTS(SELECT 1 FROM whaleu_safety.blocks',
-                        ) && event.values[1] === max.accountId)
-                  ) {
-                    fired = true;
-                    relation = await writeBlock(
-                      blocker,
-                      blocked,
-                      max.profileId,
-                      true,
-                      relation,
-                    );
+                let fired = false,
+                  relationshipTransactionOpen = false,
+                  rolledBack = false;
+                let relationshipTransaction: PoolClient | undefined;
+                let hookFailure: unknown;
+                observer!.setHook(async (event, tx) => {
+                  try {
+                    const scalarRelationship =
+                      event.sql.startsWith(
+                        'SELECT EXISTS(SELECT 1 FROM whaleu_safety.blocks',
+                      ) &&
+                      event.values[0] === viewer.accountId &&
+                      event.values[1] === max.accountId;
+                    if (scalarRelationship) {
+                      assert.equal(event.rows, 1);
+                      relationshipTransaction = tx;
+                      relationshipTransactionOpen = true;
+                    }
+                    // Entry policy finalizes before this relationship exists.
+                    // Race only the live owner transaction that consumed it.
+                    if (
+                      !fired &&
+                      (stage === 'deferred'
+                        ? relationshipTransactionOpen &&
+                          tx === relationshipTransaction &&
+                          event.sql === 'SET CONSTRAINTS ALL IMMEDIATE'
+                        : scalarRelationship)
+                    ) {
+                      fired = true;
+                      relation = await writeBlock(
+                        blocker,
+                        blocked,
+                        max.profileId,
+                        true,
+                        relation,
+                      );
+                    }
+                    if (
+                      tx === relationshipTransaction &&
+                      (event.sql === 'COMMIT' || event.sql === 'ROLLBACK')
+                    ) {
+                      relationshipTransactionOpen = false;
+                      rolledBack = event.sql === 'ROLLBACK';
+                    }
+                  } catch (error) {
+                    hookFailure = error;
+                    throw error;
                   }
                 });
                 try {
-                  noLeak(await read('1', viewer.accessToken));
+                  const response = await read('1', viewer.accessToken);
+                  assert.equal(hookFailure, undefined);
+                  noLeak(response);
                   assert.equal(fired, true);
+                  assert.equal(relationshipTransactionOpen, false);
+                  assert.equal(rolledBack, true);
                 } finally {
                   observer!.setHook(null);
                   if (relation)
@@ -626,16 +659,51 @@ test(
             'UPDATE whaleu_identity.access_tokens SET expires_at=$2 WHERE token_hash=$1',
             [hashToken(viewer.accessToken), expiry],
           );
-          let fired = false;
-          observer!.setHook(async (event) => {
-            if (!fired && event.sql === 'SET CONSTRAINTS ALL IMMEDIATE') {
-              fired = true;
-              await delay(Math.max(0, expiry.getTime() - Date.now()) + 25);
+          let fired = false,
+            ownerOpen = false,
+            rolledBack = false;
+          let owner: PoolClient | undefined;
+          let hookFailure: unknown;
+          observer!.setHook(async (event, tx) => {
+            try {
+              if (
+                event.sql.startsWith(
+                  'SELECT EXISTS(SELECT 1 FROM whaleu_safety.blocks',
+                ) &&
+                event.values[0] === viewer.accountId &&
+                event.values[1] === max.accountId
+              ) {
+                assert.equal(event.rows, 1);
+                owner = tx;
+                ownerOpen = true;
+              }
+              if (
+                !fired &&
+                ownerOpen &&
+                tx === owner &&
+                event.sql === 'SET CONSTRAINTS ALL IMMEDIATE'
+              ) {
+                fired = true;
+                await delay(Math.max(0, expiry.getTime() - Date.now()) + 25);
+              }
+              if (
+                tx === owner &&
+                (event.sql === 'COMMIT' || event.sql === 'ROLLBACK')
+              ) {
+                ownerOpen = false;
+                rolledBack = event.sql === 'ROLLBACK';
+              }
+            } catch (error) {
+              hookFailure = error;
+              throw error;
             }
           });
           try {
             const response = await read('1', viewer.accessToken);
+            assert.equal(hookFailure, undefined);
             assert.equal(fired, true);
+            assert.equal(ownerOpen, false);
+            assert.equal(rolledBack, true);
             assert.equal(response.status, 401, JSON.stringify(response.body));
             assert.equal(response.body.error.code, 'ACCESS_TOKEN_EXPIRED');
           } finally {

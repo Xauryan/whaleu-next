@@ -65,10 +65,13 @@ export class AccountPolicyInterceptor implements NestInterceptor {
       if (phase !== 'entry' || header === undefined) return;
       // A supplied authenticated context is never silently downgraded to guest.
       const token = bearerToken(header);
-      await this.database.transaction(async (tx) => {
-        const session = await this.identity.session(token, tx);
-        await enforceAccountPunishment(session.accountId, action, tx);
-      });
+      await this.database.transaction(
+        async (tx) => {
+          const session = await this.identity.session(token, tx);
+          await enforceAccountPunishment(session.accountId, action, tx);
+        },
+        { isolationLevel: 'read committed' },
+      );
     };
     return new Observable((subscriber) => {
       let subscription: { unsubscribe(): void } | undefined;

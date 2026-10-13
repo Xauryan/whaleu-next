@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 import { SearchService } from '../../src/community/search/service.js';
 import { withScalarCanonicalReads } from '../support/search-scalar-canonical.js';
 import { withScalarSearchSafetyHeads } from '../support/search-scalar-safety.js';
@@ -1316,23 +1317,60 @@ test(
               ).rows[0]!.n;
             const before = await count();
             let inserted = false,
-              waited = false;
-            h.observer.setHook(async (event) => {
-              if (
-                event.sql.includes(
-                  'INSERT INTO whaleu_community.discovery_cursors',
-                )
-              )
-                inserted = true;
-              if (!waited && event.sql === 'SET CONSTRAINTS ALL IMMEDIATE') {
-                assert.equal(inserted, true);
-                waited = true;
-                await sleep(Math.max(0, expiresAt.getTime() - Date.now()) + 75);
+              waited = false,
+              insertionTransactionOpen = false,
+              rolledBack = false;
+            let insertionTransaction: PoolClient | undefined;
+            let hookFailure: unknown;
+            h.observer.setHook(async (event, tx) => {
+              try {
+                if (
+                  event.sql.includes(
+                    'INSERT INTO whaleu_community.discovery_cursors',
+                  )
+                ) {
+                  assert.equal(event.rows, 1);
+                  inserted = true;
+                  insertionTransaction = tx;
+                  insertionTransactionOpen = true;
+                }
+                // Entry policy has its own earlier transaction. Bind the wait
+                // to the real successor insertion's still-live transaction,
+                // not the first deferred check or a mutable read-proof epoch.
+                if (
+                  !waited &&
+                  insertionTransactionOpen &&
+                  tx === insertionTransaction &&
+                  event.sql === 'SET CONSTRAINTS ALL IMMEDIATE'
+                ) {
+                  assert.equal(inserted, true);
+                  waited = true;
+                  await sleep(
+                    Math.max(0, expiresAt.getTime() - Date.now()) + 75,
+                  );
+                }
+                if (
+                  tx === insertionTransaction &&
+                  (event.sql === 'COMMIT' || event.sql === 'ROLLBACK')
+                ) {
+                  insertionTransactionOpen = false;
+                  rolledBack = event.sql === 'ROLLBACK';
+                }
+              } catch (error) {
+                hookFailure = error;
+                throw error;
               }
             });
             try {
+              const response = await w.search({ type: 'reply', limit: '1' });
+              assert.equal(
+                hookFailure,
+                undefined,
+                'The deadline hook must not manufacture an HTTP 500',
+              );
+              assert.equal(inserted, true);
               failure(
-                await w.search({ type: 'reply', limit: '1' }),
+                response,
                 deadline === 'review' ? 503 : deadline === 'phone' ? 403 : 401,
                 deadline === 'review'
                   ? 'COMMUNITY_UNAVAILABLE'
@@ -1341,6 +1379,8 @@ test(
                     : undefined,
               );
               assert.equal(waited, true);
+              assert.equal(insertionTransactionOpen, false);
+              assert.equal(rolledBack, true);
               assert.equal(await count(), before);
             } finally {
               h.observer.setHook(null);

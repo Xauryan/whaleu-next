@@ -7,13 +7,18 @@ export function observeDirectoryQueries(app: INestApplication) {
   const database = app.get(DatabaseService);
   const originalTransaction = database.transaction.bind(database);
   type QueryHook =
-    ((event: { sql: string }, tx: PoolClient) => Promise<void>) | null;
+    | ((
+        event: { sql: string; transactionId: symbol },
+        tx: PoolClient,
+      ) => Promise<void>)
+    | null;
   let hook: QueryHook = null;
   let beforeHook: QueryHook = null;
   database.transaction = async function <T>(
     operation: (tx: PoolClient) => Promise<T>,
     options: TransactionOptions = {},
   ): Promise<T> {
+    const transactionId = Symbol('observed-database-transaction');
     let restore: (() => void) | undefined;
     try {
       return await originalTransaction(async (tx) => {
@@ -22,11 +27,11 @@ export function observeDirectoryQueries(app: INestApplication) {
           tx.query = originalQuery;
         };
         tx.query = (async (sql: string, values?: unknown[]) => {
-          if (beforeHook) await beforeHook({ sql }, tx);
+          if (beforeHook) await beforeHook({ sql, transactionId }, tx);
           const result = await originalQuery(sql, values);
           // PostgreSQL multi-statement SET queries return arrays rather than one
           // QueryResult. Never interpret or replace their ordinary result shape.
-          if (hook) await hook({ sql }, tx);
+          if (hook) await hook({ sql, transactionId }, tx);
           return result;
         }) as typeof tx.query;
         return operation(tx);

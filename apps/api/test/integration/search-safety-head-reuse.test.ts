@@ -1,3 +1,4 @@
+import { InsertedDiscoveryCursorTransaction } from '../support/inserted-discovery-cursor-transaction.js';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -314,53 +315,60 @@ test(
                 inserted = false,
                 readerHeads = 0,
                 relationships = 0;
-              h.observer.setHook(async (event) => {
-                if (
-                  event.sql.includes(headQuery) &&
-                  event.values[0] === w.reader.accountId
-                )
-                  readerHeads++;
-                if (event.sql.includes(relationshipQuery)) relationships++;
-                if (
-                  event.sql.includes(
-                    'INSERT INTO whaleu_community.discovery_cursors',
+              const cursorTransaction =
+                new InsertedDiscoveryCursorTransaction();
+              h.observer.setHook(
+                cursorTransaction.hook(async (event, tx) => {
+                  if (
+                    event.sql.includes(headQuery) &&
+                    event.values[0] === w.reader.accountId
                   )
-                )
-                  inserted = true;
-                const laterNode =
-                  event.sql.includes(
-                    'SELECT * FROM whaleu_community.content_approval_bindings',
-                  ) &&
-                  event.values[0] === 'reply' &&
-                  event.values[1] === replies[1]!.id;
-                if (
-                  !waited &&
-                  (boundary === 'later-candidate'
-                    ? laterNode
-                    : event.sql === 'SET CONSTRAINTS ALL IMMEDIATE')
-                ) {
-                  assert.ok(
-                    relationships >= 3,
-                    'Earlier consumed ancestry must already have reused Safety coverage',
-                  );
-                  if (!useScalar) assert.equal(readerHeads, 1);
-                  if (boundary === 'cursor') assert.equal(inserted, true);
-                  waited = true;
-                  await sleep(
-                    Math.max(0, expiresAt.getTime() - Date.now()) + 40,
-                  );
-                }
-              });
+                    readerHeads++;
+                  if (event.sql.includes(relationshipQuery)) relationships++;
+                  if (
+                    event.sql.includes(
+                      'INSERT INTO whaleu_community.discovery_cursors',
+                    )
+                  )
+                    inserted = true;
+                  const laterNode =
+                    event.sql.includes(
+                      'SELECT * FROM whaleu_community.content_approval_bindings',
+                    ) &&
+                    event.values[0] === 'reply' &&
+                    event.values[1] === replies[1]!.id;
+                  if (
+                    !waited &&
+                    (boundary === 'later-candidate'
+                      ? laterNode
+                      : cursorTransaction.finalizing(event, tx))
+                  ) {
+                    assert.ok(
+                      relationships >= 3,
+                      'Earlier consumed ancestry must already have reused Safety coverage',
+                    );
+                    if (!useScalar) assert.equal(readerHeads, 1);
+                    if (boundary === 'cursor') assert.equal(inserted, true);
+                    waited = true;
+                    await sleep(
+                      Math.max(0, expiresAt.getTime() - Date.now()) + 40,
+                    );
+                  }
+                }),
+              );
               try {
                 const run = async () =>
                   await w.search({ type: 'reply', limit: '2' });
                 const result = await (useScalar ? scalar(run) : run());
+                assert.equal(cursorTransaction.failure, undefined);
                 failure(result, 503, 'COMMUNITY_UNAVAILABLE');
                 errors.push({ ...result.body.error, requestId: null });
                 assert.equal(waited, true);
                 assert.equal(inserted, boundary === 'cursor');
                 assert.equal(await cursorCount(), before);
                 if (!useScalar) assert.equal(readerHeads, 1);
+                if (boundary === 'cursor') cursorTransaction.assertRolledBack();
+                else assert.equal(cursorTransaction.failure, undefined);
               } finally {
                 h.observer.setHook(null);
               }

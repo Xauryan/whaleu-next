@@ -185,6 +185,9 @@ test(
               'whaleu_community.root_comments',
               'whaleu_community.spaces',
               'whaleu_community.trading_listings',
+              'whaleu_safety.account_appeal_decisions',
+              'whaleu_safety.account_appeal_open_cases',
+              'whaleu_safety.account_appeals',
               'whaleu_safety.account_heads',
               'whaleu_safety.blocks',
             ],
@@ -203,9 +206,34 @@ test(
               `Unregistered epoch source owner: ${table.schema}.${table.table}`,
             );
             const before = BigInt(await epoch(owner));
-            await pool.query(
-              `UPDATE ${table.schema}.${table.table} SET ${table.column}=${table.column} WHERE false`,
-            );
+            const relation = `${table.schema}.${table.table}`;
+            const update = `UPDATE ${relation} SET ${table.column}=${table.column} WHERE false`;
+            if (
+              relation === 'whaleu_safety.account_appeals' ||
+              relation === 'whaleu_safety.account_appeal_decisions'
+            ) {
+              // These append-only sources reject even zero-row UPDATE at the
+              // statement boundary. The earlier epoch trigger rolls back too.
+              await assert.rejects(
+                pool.query(update),
+                (error: unknown) =>
+                  sqlCode('23514')(error) &&
+                  typeof error === 'object' &&
+                  error !== null &&
+                  'constraint' in error &&
+                  error.constraint === 'profile_moderation_causal',
+              );
+              assert.equal(BigInt(await epoch(owner)), before, relation);
+              // Their permitted zero-row INSERT still claims the writer slot
+              // and advances the same Safety vector without fabricating rows.
+              await pool.query(
+                `INSERT INTO ${relation} SELECT * FROM ${relation} WHERE false`,
+              );
+            } else {
+              // Includes mutable account_appeal_open_cases: no row means its
+              // causal row guard does not reject the statement-level write.
+              await pool.query(update);
+            }
             assert.equal(BigInt(await epoch(owner)), before + 1n, table.table);
           }
         },

@@ -608,9 +608,10 @@ test(
                 profile.measurement.queries < size,
                 'Actual PostgreSQL calls must be batch-scaled',
               );
-              assert.ok(
-                profile.measurement.begins.every((x) => x === 'read committed'),
-                'Read mode explicitly chosen',
+              assert.deepEqual(
+                profile.measurement.begins,
+                ['read committed', 'read committed'],
+                'Entry policy and profile owner both explicitly select read mode',
               );
               const likes = await observer!.measure(
                 `likes-${size}-${repetition}`,
@@ -1690,8 +1691,10 @@ test(
             );
             emit(result.measurement, result.value.body);
             known(result.value, 'postCount', 4097);
-            assert.ok(
-              result.measurement.begins.every((x) => x === 'read committed'),
+            assert.deepEqual(
+              result.measurement.begins,
+              ['read committed', 'read committed'],
+              'Entry policy and profile owner override the server default',
             );
             known(await getLikes(), 'visibleLikedCount', 4097);
           } finally {

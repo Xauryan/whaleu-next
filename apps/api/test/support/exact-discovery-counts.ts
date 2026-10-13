@@ -168,6 +168,12 @@ export function observeExactQueries(app: INestApplication) {
   const database = app.get(DatabaseService);
   const originalTransaction = database.transaction.bind(database);
   let active: ExactMeasurement | null = null;
+  let beforeHook:
+    | ((
+        event: Pick<ExactQueryObservation, 'sql' | 'values'>,
+        tx: PoolClient,
+      ) => Promise<void>)
+    | null = null;
   let hook:
     ((event: ExactQueryObservation, tx: PoolClient) => Promise<void>) | null =
     null;
@@ -193,6 +199,9 @@ export function observeExactQueries(app: INestApplication) {
           tx.query = originalQuery;
         };
         tx.query = (async (sql: string, values?: unknown[]) => {
+          // Test-only pre-query timing seam; SQL and values still execute once
+          // through the original driver, unchanged, after this hook resolves.
+          if (beforeHook) await beforeHook({ sql, values: values ?? [] }, tx);
           const start = performance.now();
           let result;
           try {
@@ -315,6 +324,9 @@ export function observeExactQueries(app: INestApplication) {
         measurement.heapEnd = process.memoryUsage().heapUsed;
         active = null;
       }
+    },
+    setBeforeHook(value: typeof beforeHook) {
+      beforeHook = value;
     },
     setHook(value: typeof hook) {
       hook = value;

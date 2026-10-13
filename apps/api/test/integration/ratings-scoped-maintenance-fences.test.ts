@@ -124,51 +124,76 @@ test(
             await maintenance.query(
               "SET vacuum_cost_delay='2ms'; SET vacuum_cost_limit=1",
             );
-            vacuum = maintenance
-              .query(`VACUUM (TRUNCATE FALSE) ${qualify(table)}`)
-              .then(
-                () => {
-                  finished = true;
-                  return { error: null };
-                },
-                (error: unknown) => {
-                  finished = true;
-                  return { error };
-                },
-              );
-            await waitFor(
-              async () =>
-                !finished &&
-                (
-                  await f.pool.query(
-                    `SELECT 1 FROM pg_locks WHERE pid=$1 AND relation=$2::regclass AND mode='ShareUpdateExclusiveLock' AND granted`,
-                    [pid, qualify(table)],
-                  )
-                ).rowCount === 1,
-              'The real VACUUM must hold its granted maintenance lock',
-            );
             const proofObserver = observeDirectoryQueries(f.app);
             let overlappedFinal = false;
+            let businessTransaction: symbol | undefined;
+            let maintenanceStarted = false;
+            let overlapError: unknown;
             let result: Awaited<ReturnType<typeof get>>;
             try {
-              proofObserver.setHook(async ({ sql }) => {
+              proofObserver.setHook(async ({ sql, transactionId }) => {
+                if (
+                  sql ===
+                  'SELECT * FROM whaleu_ratings.scoped_contexts WHERE id=$1 AND token_digest=$2'
+                )
+                  businessTransaction = transactionId;
+                if (
+                  !maintenanceStarted &&
+                  transactionId === businessTransaction &&
+                  sql === 'SET CONSTRAINTS ALL IMMEDIATE'
+                ) {
+                  maintenanceStarted = true;
+                  vacuum = maintenance
+                    .query(`VACUUM (TRUNCATE FALSE) ${qualify(table)}`)
+                    .then(
+                      () => {
+                        finished = true;
+                        return { error: null };
+                      },
+                      (error: unknown) => {
+                        finished = true;
+                        return { error };
+                      },
+                    );
+                  await waitFor(
+                    async () =>
+                      !finished &&
+                      (
+                        await f.pool.query(
+                          `SELECT 1 FROM pg_locks WHERE pid=$1 AND relation=$2::regclass AND mode='ShareUpdateExclusiveLock' AND granted`,
+                          [pid, qualify(table)],
+                        )
+                      ).rowCount === 1,
+                    'The real VACUUM must hold its granted maintenance lock',
+                  );
+                }
+
                 if (sql !== rowFences[tables.indexOf(table)]) return;
-                assert.equal(
-                  (
-                    await f.pool.query(
-                      `SELECT 1 FROM pg_locks WHERE pid=$1 AND relation=$2::regclass AND mode='ShareUpdateExclusiveLock' AND granted`,
-                      [pid, qualify(table)],
-                    )
-                  ).rowCount,
-                  1,
-                  'Real maintenance still holds its lock after the actual final row fence',
-                );
+                try {
+                  assert.equal(transactionId, businessTransaction);
+                  assert.equal(
+                    (
+                      await f.pool.query(
+                        `SELECT 1 FROM pg_locks WHERE pid=$1 AND relation=$2::regclass AND mode='ShareUpdateExclusiveLock' AND granted`,
+                        [pid, qualify(table)],
+                      )
+                    ).rowCount,
+                    1,
+                    'Real maintenance still holds its lock after the actual final row fence',
+                  );
+                } catch (error) {
+                  // Retain the original test error outside the owner's error mapper.
+                  overlapError = error;
+                  throw error;
+                }
                 overlappedFinal = true;
               });
               result = await get(context);
             } finally {
               proofObserver.restore();
             }
+            if (overlapError) throw overlapError;
+            assert.equal(maintenanceStarted, true);
             assert.equal(result.status, 200, JSON.stringify(result.body));
             assert.equal(overlappedFinal, true);
             assert.equal(
@@ -188,6 +213,7 @@ test(
             t.diagnostic(
               `${table}: GET 200 while VACUUM still held ShareUpdateExclusive; epochs unchanged`,
             );
+            assert.ok(vacuum, 'The actual maintenance operation must exist');
             const done = await vacuum;
             if (done.error) throw done.error;
             assert.deepEqual(await epochs(), before);
@@ -297,9 +323,21 @@ test(
               before = await epochs();
             const hook = observeDirectoryQueries(f.app);
             let changed = false;
+            let businessTransaction: symbol | undefined;
             try {
-              hook.setHook(async ({ sql }, tx) => {
-                if (changed || sql !== 'SET CONSTRAINTS ALL IMMEDIATE') return;
+              hook.setHook(async ({ sql, transactionId }, tx) => {
+                if (
+                  sql ===
+                  'SELECT * FROM whaleu_ratings.scoped_contexts WHERE id=$1 AND token_digest=$2'
+                )
+                  businessTransaction = transactionId;
+                if (
+                  !businessTransaction ||
+                  transactionId !== businessTransaction ||
+                  changed ||
+                  sql !== 'SET CONSTRAINTS ALL IMMEDIATE'
+                )
+                  return;
                 changed = true;
                 // Corrupt only this failed disposable transaction. All DDL and
                 // original guards return on rollback; never fabricate authority.

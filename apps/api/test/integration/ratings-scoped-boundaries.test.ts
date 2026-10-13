@@ -275,15 +275,30 @@ test(
             let installed = false,
               start = 0;
             const statements: string[] = [];
+            let businessTransaction: symbol | undefined;
             try {
               await holder.query('BEGIN');
               // The first failed NOWAIT query has no successful after-query
               // callback. Observe the attempted SQL without replacing its result.
-              observer.setBeforeHook(async ({ sql }) => {
-                statements.push(sql);
+              observer.setBeforeHook(async ({ sql, transactionId }) => {
+                if (
+                  sql ===
+                  'SELECT * FROM whaleu_ratings.scoped_contexts WHERE id=$1 AND token_digest=$2'
+                )
+                  businessTransaction = transactionId;
+                if (
+                  businessTransaction &&
+                  transactionId === businessTransaction
+                )
+                  statements.push(sql);
               });
-              observer.setHook(async ({ sql }) => {
-                if (!installed && sql === 'SET CONSTRAINTS ALL IMMEDIATE') {
+              observer.setHook(async ({ sql, transactionId }) => {
+                if (
+                  businessTransaction &&
+                  transactionId === businessTransaction &&
+                  !installed &&
+                  sql === 'SET CONSTRAINTS ALL IMMEDIATE'
+                ) {
                   installed = true;
                   await holder.query(
                     // Exact-row owners admit unrelated ROW EXCLUSIVE holders;
@@ -372,9 +387,20 @@ test(
         ).rows;
         const observer = observeDirectoryQueries(f.app);
         let wrote = false;
+        let businessTransaction: symbol | undefined;
         try {
-          observer.setHook(async ({ sql }, tx) => {
-            if (!wrote && sql === 'SET CONSTRAINTS ALL IMMEDIATE') {
+          observer.setHook(async ({ sql, transactionId }, tx) => {
+            if (
+              sql ===
+              'SELECT * FROM whaleu_ratings.scoped_contexts WHERE id=$1 AND token_digest=$2'
+            )
+              businessTransaction = transactionId;
+            if (
+              businessTransaction &&
+              transactionId === businessTransaction &&
+              !wrote &&
+              sql === 'SET CONSTRAINTS ALL IMMEDIATE'
+            ) {
               wrote = true;
               await tx.query(
                 'UPDATE whaleu_ratings.scoped_catalog_heads SET catalog_id=catalog_id WHERE false',

@@ -352,20 +352,41 @@ test(
     );
     assert.equal(committed.status, 200, JSON.stringify(committed.body));
     let held = false;
-    observer.setHook(async ({ sql }, tx) => {
-      if (!held && sql === 'SET CONSTRAINTS ALL IMMEDIATE') {
+    let waitedToDeadline = false;
+    let capturedReviewTransaction: symbol | undefined;
+    observer.setHook(async ({ sql, transactionId }, tx) => {
+      if (
+        sql.includes('WITH ORDINALITY w(category_id,base_revision,ordinal)') &&
+        sql.includes(
+          'LEFT JOIN whaleu_community.rating_category_base_bindings b',
+        )
+      )
+        capturedReviewTransaction = transactionId;
+      if (
+        !held &&
+        transactionId === capturedReviewTransaction &&
+        sql === 'SET CONSTRAINTS ALL IMMEDIATE'
+      ) {
+        assert.ok(
+          capturedReviewTransaction,
+          'Current category Review was captured before its deferred boundary',
+        );
         held = true;
         await tx.query(
           'SELECT pg_sleep(greatest(0,extract(epoch from ($1::timestamptz-clock_timestamp())))+0.02)',
           [until],
         );
+        waitedToDeadline = true;
       }
     });
     const response = await f.auth(
       request(f.http).get('/v1/ratings/categories'),
       owner,
     );
-    assert.ok(held, 'The real deferred boundary was reached');
+    assert.ok(
+      capturedReviewTransaction && held && waitedToDeadline,
+      'The captured Review reached its real deferred boundary',
+    );
     assert.equal(response.status, 503, JSON.stringify(response.body));
     observer.setHook(null);
   },
@@ -397,13 +418,21 @@ test(
     t.after(() => observer.restore());
     let held = false,
       capturedDeadline = false;
-    observer.setHook(async ({ sql }, tx) => {
+    let businessTransaction: symbol | undefined;
+    observer.setHook(async ({ sql, transactionId }, tx) => {
       if (
         sql.includes('WITH ORDINALITY s(region_id,ordinal)') &&
         sql.includes('category_catalog_compat_until')
-      )
+      ) {
         capturedDeadline = true;
-      if (!held && sql === 'SET CONSTRAINTS ALL IMMEDIATE') {
+        businessTransaction = transactionId;
+      }
+      if (
+        businessTransaction &&
+        transactionId === businessTransaction &&
+        !held &&
+        sql === 'SET CONSTRAINTS ALL IMMEDIATE'
+      ) {
         held = true;
         await tx.query(
           'SELECT pg_sleep(greatest(0,extract(epoch from ($1::timestamptz-clock_timestamp())))+0.02)',
