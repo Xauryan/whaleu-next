@@ -8,6 +8,8 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import request from 'supertest';
 import {
   errandGroupFixture,
@@ -220,6 +222,304 @@ async function confirmDiscoveredGroups(
     }
   }
 }
+
+interface ForumProgress {
+  status: string;
+  reason: string | null;
+  attempts: number;
+  identityUnchanged: boolean;
+  preparationsValid: boolean;
+  sourceReads: number;
+  finalProofs: number;
+  sourceUnchanged: boolean;
+  leaseValid: boolean;
+  leaseEmpty: boolean;
+  windowValid: boolean;
+  reconciliations: number;
+  dispatches: number;
+  senderAttempts: number;
+  acknowledgements: number;
+  receipts: number;
+  providerReceipt: boolean;
+}
+function forumComplete(p: ForumProgress) {
+  const diagnostic = `Forum dispatch precondition: ${JSON.stringify(p)}`;
+  assert.ok(
+    p.identityUnchanged &&
+      p.preparationsValid &&
+      p.sourceUnchanged &&
+      p.leaseValid &&
+      p.leaseEmpty &&
+      p.windowValid &&
+      p.attempts >= 1 &&
+      p.attempts <= 8 &&
+      p.sourceReads === p.attempts &&
+      p.finalProofs === p.attempts &&
+      p.reconciliations === 0,
+    diagnostic,
+  );
+  if (p.status === 'confirmed') {
+    assert.ok(
+      p.reason === null &&
+        p.dispatches === 1 &&
+        p.senderAttempts === 1 &&
+        p.acknowledgements === 1 &&
+        p.receipts === 1 &&
+        p.providerReceipt,
+      diagnostic,
+    );
+    return true;
+  }
+  assert.ok(
+    p.status === 'retryable' &&
+      p.reason === 'permit_expired' &&
+      p.attempts < 8 &&
+      p.dispatches === 0 &&
+      p.senderAttempts === 0 &&
+      p.acknowledgements === 0 &&
+      p.receipts === 0 &&
+      !p.providerReceipt,
+    diagnostic,
+  );
+  return false;
+}
+/** Only the forum dispatch precondition may retry, never uncertain acceptance.
+ * This uses the restarted sender and the original durable eight-attempt budget. */
+async function confirmForum(
+  f: Fixture,
+  worker: ErrandGroupWorker,
+  sender: DurableSyntheticGroupSender,
+  firstAck: number,
+) {
+  const read = async () =>
+    (
+      await f.pool.query(
+        `SELECT d.*,p.first_confirmed_at,p.first_confirmed_delivery_id,p.published_at,p.order_id,p.target_region_id,
+      (SELECT count(*)::integer FROM whaleu_notifications.errand_group_receipts r WHERE r.delivery_id=d.id) receipts
+     FROM whaleu_notifications.errand_group_deliveries d JOIN whaleu_notifications.errand_group_publications p USING(event_id)
+     WHERE d.stage='forum'`,
+      )
+    ).rows;
+  const initial = await read();
+  assert.equal(initial.length, 1);
+  const first = initial[0];
+  assert.equal(first.status, 'pending');
+  assert.equal(first.reason, null);
+  assert.equal(first.attempts, 0);
+  assert.equal(f.runtime.now(), firstAck + 900000);
+  const identity = (r: typeof first) =>
+    JSON.stringify([
+      r.id,
+      r.event_id,
+      r.stage,
+      r.destination_id,
+      r.idempotency_key,
+      r.first_confirmed_at,
+      r.first_confirmed_delivery_id,
+      r.published_at,
+      r.order_id,
+      r.target_region_id,
+    ]);
+  const prepare = sender.prepare.bind(sender),
+    source = f.source.current.bind(f.source),
+    confirmed = f.records.confirmed.bind(f.records),
+    current = f.records.current.bind(f.records);
+  const senderBefore = sender.attempts.length,
+    reconciledBefore = sender.reconciled.length;
+  const sources: string[] = [];
+  let preparations = 0,
+    preparationsValid = true,
+    finalProofs = 0,
+    dispatches = 0,
+    acknowledgements = 0,
+    leaseUntil = 0;
+  const proof: RequiredTransactionProof<string> = {
+    maximumFacts: 1,
+    failureCode: 'ERRAND_UNAVAILABLE',
+    validate: async () => {
+      finalProofs++;
+    },
+  };
+  f.records.current = async (...args) => {
+    leaseUntil = args[0].lease_until.getTime();
+    return current(...args);
+  };
+  f.source.current = async (...args) => {
+    const payload = await source(...args);
+    sources.push(JSON.stringify([args[0], args[1], payload]));
+    enableRequiredTransactionProof(args[2], proof);
+    registerRequiredTransactionFact(args[2], proof, 'forum', 'forum');
+    return payload;
+  };
+  sender.prepare = async (key, destination) => {
+    const prepared = await prepare(key, destination);
+    preparations++;
+    preparationsValid &&=
+      key === first.idempotency_key &&
+      destination.id === first.destination_id &&
+      destination.stage === 'forum' &&
+      prepared.key === key &&
+      prepared.destinationId === destination.id &&
+      Number.isFinite(prepared.expiresAt);
+    return {
+      ...prepared,
+      dispatch: (permit) => {
+        dispatches++;
+        return prepared.dispatch(permit);
+      },
+    };
+  };
+  f.records.confirmed = async (...args) => {
+    acknowledgements++;
+    assert.equal(args[0].id, first.id);
+    return confirmed(...args);
+  };
+  try {
+    for (let attempt = 1; attempt <= 8; attempt++) {
+      assert.equal(await worker.runOne(), true);
+      const rows = await read();
+      assert.equal(rows.length, 1);
+      const row = rows[0];
+      const attempts = (
+        await f.pool.query(
+          'SELECT id,fence,idempotency_key,operation FROM whaleu_notifications.errand_group_attempts WHERE delivery_id=$1 ORDER BY fence',
+          [first.id],
+        )
+      ).rows;
+      const progress: ForumProgress = {
+        status: row.status,
+        reason: row.reason,
+        attempts: row.attempts,
+        identityUnchanged:
+          identity(row) === identity(first) &&
+          row.attempts === attempt &&
+          BigInt(row.fence) === BigInt(first.fence) + BigInt(attempt) &&
+          attempts.length === attempt &&
+          attempts.every(
+            (a, i) =>
+              a.operation === 'send' &&
+              a.idempotency_key === first.idempotency_key &&
+              BigInt(a.fence) === BigInt(first.fence) + BigInt(i + 1),
+          ),
+        preparationsValid: preparationsValid && preparations === attempt,
+        sourceReads: sources.length,
+        finalProofs,
+        sourceUnchanged: sources.every((s) => s === sources[0]),
+        leaseValid: leaseUntil > Date.now(),
+        leaseEmpty: row.attempt_id === null && row.lease_until === null,
+        windowValid:
+          row.first_confirmed_at.getTime() === firstAck &&
+          f.runtime.now() >= firstAck + 900000 &&
+          f.runtime.now() <= firstAck + 1800000,
+        reconciliations:
+          row.reconciliations + sender.reconciled.length - reconciledBefore,
+        dispatches,
+        senderAttempts: sender.attempts.length - senderBefore,
+        acknowledgements,
+        receipts: row.receipts,
+        providerReceipt: existsSync(
+          join(sender.directory, `${first.idempotency_key}.json`),
+        ),
+      };
+      if (forumComplete(progress)) {
+        const permit = sender.attempts.at(-1)!;
+        assert.equal(permit.key, first.idempotency_key);
+        assert.equal(permit.destination.id, first.destination_id);
+        assert.equal(permit.attemptId, attempts.at(-1)!.id);
+        assert.equal(permit.fence, row.fence);
+        assert.equal(await worker.runOne(), false);
+        return progress;
+      }
+      assert.equal(
+        row.next_attempt_at.getTime(),
+        f.runtime.now() + Math.min(60000, 1000 * 2 ** Math.min(attempt - 1, 6)),
+        JSON.stringify(progress),
+      );
+      assert.ok(
+        row.next_attempt_at.getTime() <= firstAck + 1800000,
+        JSON.stringify(progress),
+      );
+      // Persisted due time only; real authorization/permit clocks remain intact.
+      f.setTime(row.next_attempt_at.getTime());
+    }
+    assert.fail('Forum dispatch budget exhausted');
+  } finally {
+    sender.prepare = prepare;
+    f.source.current = source;
+    f.records.confirmed = confirmed;
+    f.records.current = current;
+  }
+}
+
+test('forum precondition rejects uncertain outcomes, changed identity and any side effects', () => {
+  const retry: ForumProgress = {
+    status: 'retryable',
+    reason: 'permit_expired',
+    attempts: 1,
+    identityUnchanged: true,
+    preparationsValid: true,
+    sourceReads: 1,
+    finalProofs: 1,
+    sourceUnchanged: true,
+    leaseValid: true,
+    leaseEmpty: true,
+    windowValid: true,
+    reconciliations: 0,
+    dispatches: 0,
+    senderAttempts: 0,
+    acknowledgements: 0,
+    receipts: 0,
+    providerReceipt: false,
+  };
+  assert.equal(forumComplete(retry), false);
+  const complete = {
+    ...retry,
+    status: 'confirmed',
+    reason: null,
+    dispatches: 1,
+    senderAttempts: 1,
+    acknowledgements: 1,
+    receipts: 1,
+    providerReceipt: true,
+  };
+  assert.equal(forumComplete(complete), true);
+  for (const patch of [
+    { reason: 'unavailable' },
+    { reason: 'not_accepted' },
+    { status: 'unknown', reason: 'unknown' },
+    { attempts: 8, sourceReads: 8, finalProofs: 8 },
+    { identityUnchanged: false },
+    { preparationsValid: false },
+    { sourceUnchanged: false },
+    { sourceReads: 0 },
+    { finalProofs: 0 },
+    { leaseValid: false },
+    { leaseEmpty: false },
+    { windowValid: false },
+    { reconciliations: 1 },
+    { dispatches: 1 },
+    { senderAttempts: 1 },
+    { acknowledgements: 1 },
+    { receipts: 1 },
+    { providerReceipt: true },
+  ])
+    assert.throws(
+      () => forumComplete({ ...retry, ...patch }),
+      /Forum dispatch precondition:/,
+    );
+  for (const patch of [
+    { dispatches: 0 },
+    { senderAttempts: 0 },
+    { acknowledgements: 0 },
+    { receipts: 0 },
+    { providerReceipt: false },
+    { reason: 'unknown' },
+  ])
+    assert.throws(
+      () => forumComplete({ ...complete, ...patch }),
+      /Forum dispatch precondition:/,
+    );
+});
 
 interface MalformedAckProgress {
   variant: string;
@@ -657,117 +957,206 @@ test('malformed ACK precondition rejects unproven outcomes and preserves the eig
     );
 });
 
-test(
-  'E4 partial destination failure, durable restart, exact first ACK forum windows and private allowlist',
-  { timeout: 120000 },
-  async (t) => {
-    const f = await errandGroupFixture();
-    t.after(() => f.close());
-    const d = destinations(f),
-      p = await publish(f);
-    const http = f.app.getHttpServer(),
-      auth = `Bearer ${p.actor.accessToken}`;
-    const profile = await request(http)
-      .get('/v1/me/profile')
-      .set('Authorization', auth);
-    const preference = await request(http)
-      .patch('/v1/me/preferences')
-      .set('Authorization', auth)
-      .send({
-        expectedRevision: profile.body.revision,
-        preferences: { showErrandGroupNotice: false },
-      });
-    assert.equal(preference.status, 200, JSON.stringify(preference.body));
-    const browse = await request(http)
-      .put('/v1/me/campus')
-      .set('Authorization', auth)
-      .send({
-        expectedRevision: preference.body.revision,
-        campusId: f.scope.foreign.campusId,
-      });
-    assert.equal(browse.status, 200, JSON.stringify(browse.body));
-    f.sender.actions.set(d.two.id, ['not_accepted']);
-    await f.groups.discover();
-    const concurrentClaims = await Promise.all([
-      f.groups.runOne(),
-      f.restart().runOne(),
-      f.restart().runOne(),
-    ]);
-    assert.equal(
-      concurrentClaims.filter(Boolean).length,
-      2,
-      'exactly two distinct rows are claimed; worker arrival order is immaterial',
-    );
-    let rows = (await f.rows()).rows;
-    assert.deepEqual(
-      rows.map((r) => r.status),
-      ['confirmed', 'retryable'],
-    );
-    const ack = (
-      await f.pool.query(
-        'SELECT first_confirmed_at FROM whaleu_notifications.errand_group_publications',
-      )
-    ).rows[0].first_confirmed_at.getTime();
-    f.authority.groups.set(d.one.id, { ...d.one, revision: 'r2' });
-    f.setTime(p.publishedAt + 1000);
-    const restartedSender = new DurableSyntheticGroupSender(
-        f.directory,
-        f.runtime.now,
-      ),
-      restarted = f.restart({ ...f.runtime, sender: restartedSender });
-    await restarted.discover();
-    assert.equal(await restarted.runOne(), true);
-    assert.equal(await restarted.runOne(), false);
-    assert.equal(restartedSender.attempts.length, 1);
-    assert.equal(restartedSender.attempts[0]!.destination.id, d.two.id);
-    f.setTime(ack + 900000 - 1);
-    await restarted.discover();
-    assert.equal(await restarted.runOne(), false);
-    f.setTime(ack + 900000);
-    await restarted.discover();
-    assert.equal(await restarted.runOne(), true);
-    rows = (await f.rows()).rows;
-    assert.deepEqual(
-      rows.map((r) => r.status),
-      ['confirmed', 'confirmed', 'confirmed'],
-    );
-    const payloads = [...f.sender.attempts, ...restartedSender.attempts].map(
-      (p) => p.payload,
-    );
-    assert.equal(payloads[0]!.reward, '12.35');
-    assert.equal(payloads[0]!.sourceLabel?.startsWith('跨地区：'), true);
-    assert.equal(payloads.at(-1)!.expectedTime, undefined);
-    const serialized = JSON.stringify(payloads);
-    for (const secret of [
-      'SECRET',
-      'Never transmit',
-      '12345678901',
-      'publicText',
-      'privateText',
-      'publisherContacts',
-      'publicMedia',
-      'privateMedia',
-    ])
-      assert.equal(serialized.includes(secret), false, secret);
-    const reader = await f.actor();
-    const native = payloads[0]!.locator;
-    assert.equal(native, `pages/errand-detail/errand-detail?orderId=${p.id}`);
-    const detail = await request(f.app.getHttpServer())
-      .get(`/v1/errands/${p.id}`)
-      .set('Authorization', `Bearer ${reader.accessToken}`);
-    assert.equal(detail.status, 200);
-    assert.equal(detail.body.privateText, undefined);
-    assert.equal(detail.body.oppositeContact, undefined);
-    assert.equal(
-      (
+for (const scenario of [
+  'normal',
+  'expired',
+  'wrong-key',
+  'wrong-destination',
+  'unavailable',
+  'lost-ack',
+  'changed-source',
+])
+  test(
+    scenario === 'normal'
+      ? 'E4 partial destination failure, durable restart, exact first ACK forum windows and private allowlist'
+      : `E4 forum precondition operational fixture: ${scenario}`,
+    { timeout: 120000 },
+    async (t) => {
+      const f = await errandGroupFixture();
+      t.after(() => f.close());
+      const d = destinations(f),
+        p = await publish(f);
+      const http = f.app.getHttpServer(),
+        auth = `Bearer ${p.actor.accessToken}`;
+      const profile = await request(http)
+        .get('/v1/me/profile')
+        .set('Authorization', auth);
+      const preference = await request(http)
+        .patch('/v1/me/preferences')
+        .set('Authorization', auth)
+        .send({
+          expectedRevision: profile.body.revision,
+          preferences: { showErrandGroupNotice: false },
+        });
+      assert.equal(preference.status, 200, JSON.stringify(preference.body));
+      const browse = await request(http)
+        .put('/v1/me/campus')
+        .set('Authorization', auth)
+        .send({
+          expectedRevision: preference.body.revision,
+          campusId: f.scope.foreign.campusId,
+        });
+      assert.equal(browse.status, 200, JSON.stringify(browse.body));
+      f.sender.actions.set(d.two.id, ['not_accepted']);
+      await f.groups.discover();
+      const concurrentClaims = await Promise.all([
+        f.groups.runOne(),
+        f.restart().runOne(),
+        f.restart().runOne(),
+      ]);
+      assert.equal(
+        concurrentClaims.filter(Boolean).length,
+        2,
+        'exactly two distinct rows are claimed; worker arrival order is immaterial',
+      );
+      let rows = (await f.rows()).rows;
+      assert.deepEqual(
+        rows.map((r) => r.status),
+        ['confirmed', 'retryable'],
+      );
+      const ack = (
         await f.pool.query(
-          'SELECT 1 FROM whaleu_notifications.errand_group_receipts',
+          'SELECT first_confirmed_at FROM whaleu_notifications.errand_group_publications',
         )
-      ).rowCount,
-      3,
-    );
-  },
-);
+      ).rows[0].first_confirmed_at.getTime();
+      f.authority.groups.set(d.one.id, { ...d.one, revision: 'r2' });
+      f.setTime(p.publishedAt + 1000);
+      const restartedSender = new DurableSyntheticGroupSender(
+          f.directory,
+          f.runtime.now,
+        ),
+        restarted = f.restart({ ...f.runtime, sender: restartedSender });
+      await restarted.discover();
+      assert.equal(await restarted.runOne(), true);
+      assert.equal(await restarted.runOne(), false);
+      assert.equal(restartedSender.attempts.length, 1);
+      assert.equal(restartedSender.attempts[0]!.destination.id, d.two.id);
+      f.setTime(ack + 900000 - 1);
+      await restarted.discover();
+      assert.equal(await restarted.runOne(), false);
+      f.setTime(ack + 900000);
+      await restarted.discover();
+      if (scenario !== 'normal') {
+        const prepare = restartedSender.prepare.bind(restartedSender);
+        let first = true;
+        restartedSender.prepare = async (...args) => {
+          if (scenario === 'unavailable')
+            throw Error('Injected readiness failure');
+          const prepared = await prepare(...args);
+          if (scenario === 'wrong-key')
+            return { ...prepared, key: '0'.repeat(64) };
+          if (scenario === 'wrong-destination')
+            return { ...prepared, destinationId: 'synthetic:wrong' };
+          if (
+            !first ||
+            (scenario !== 'expired' && scenario !== 'changed-source')
+          )
+            return prepared;
+          first = false;
+          return { ...prepared, expiresAt: performance.now() - 1 };
+        };
+      }
+      if (scenario === 'lost-ack')
+        restartedSender.actions.set(d.forum.id, ['lose_ack']);
+      if (scenario === 'changed-source') {
+        const source = f.source.current.bind(f.source);
+        let reads = 0;
+        f.source.current = async (...args) => {
+          const payload = await source(...args);
+          return ++reads === 1
+            ? payload
+            : { ...payload, title: 'Changed source' };
+        };
+      }
+      if (scenario !== 'normal' && scenario !== 'expired') {
+        await assert.rejects(
+          confirmForum(f, restarted, restartedSender, ack),
+          /Forum dispatch precondition:/,
+        );
+        const row = (await f.rows()).rows.find((r) => r.stage === 'forum');
+        if (scenario === 'wrong-key' || scenario === 'wrong-destination') {
+          assert.equal(row.reason, 'permit_expired');
+          assert.equal(row.attempts, 1, 'identity mismatch must not retry');
+          assert.equal(
+            restartedSender.attempts.length,
+            1,
+            'only prior errand dispatch',
+          );
+        }
+        if (scenario === 'lost-ack') {
+          assert.equal(row.status, 'unknown');
+          assert.ok(row.attempts >= 1 && row.attempts <= 8);
+          assert.equal(restartedSender.reconciled.length, 0);
+          assert.equal(
+            (
+              await f.pool.query(
+                'SELECT 1 FROM whaleu_notifications.errand_group_receipts WHERE delivery_id=$1',
+                [row.id],
+              )
+            ).rowCount,
+            0,
+          );
+          const providerAck = JSON.parse(
+            readFileSync(
+              join(f.directory, `${row.idempotency_key}.json`),
+              'utf8',
+            ),
+          );
+          assert.equal(providerAck.status, 'confirmed');
+          assert.equal(providerAck.key, row.idempotency_key);
+          assert.equal(providerAck.destinationId, row.destination_id);
+          assert.equal(restartedSender.attempts.length, 2);
+          assert.equal(
+            existsSync(join(f.directory, `${row.idempotency_key}.json`)),
+            true,
+          );
+        }
+        return;
+      }
+      const forum = await confirmForum(f, restarted, restartedSender, ack);
+      if (scenario === 'expired') assert.ok(forum.attempts >= 2);
+      rows = (await f.rows()).rows;
+      assert.deepEqual(
+        rows.map((r) => r.status),
+        ['confirmed', 'confirmed', 'confirmed'],
+      );
+      const payloads = [...f.sender.attempts, ...restartedSender.attempts].map(
+        (p) => p.payload,
+      );
+      assert.equal(payloads[0]!.reward, '12.35');
+      assert.equal(payloads[0]!.sourceLabel?.startsWith('跨地区：'), true);
+      assert.equal(payloads.at(-1)!.expectedTime, undefined);
+      const serialized = JSON.stringify(payloads);
+      for (const secret of [
+        'SECRET',
+        'Never transmit',
+        '12345678901',
+        'publicText',
+        'privateText',
+        'publisherContacts',
+        'publicMedia',
+        'privateMedia',
+      ])
+        assert.equal(serialized.includes(secret), false, secret);
+      const reader = await f.actor();
+      const native = payloads[0]!.locator;
+      assert.equal(native, `pages/errand-detail/errand-detail?orderId=${p.id}`);
+      const detail = await request(f.app.getHttpServer())
+        .get(`/v1/errands/${p.id}`)
+        .set('Authorization', `Bearer ${reader.accessToken}`);
+      assert.equal(detail.status, 200);
+      assert.equal(detail.body.privateText, undefined);
+      assert.equal(detail.body.oppositeContact, undefined);
+      assert.equal(
+        (
+          await f.pool.query(
+            'SELECT 1 FROM whaleu_notifications.errand_group_receipts',
+          )
+        ).rowCount,
+        3,
+      );
+    },
+  );
 
 test(
   'ACK loss and lost receipt transaction remain unknown; same-key reconciliation does not resend',
