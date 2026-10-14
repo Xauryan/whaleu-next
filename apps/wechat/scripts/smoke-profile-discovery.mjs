@@ -77,6 +77,7 @@ export async function smokeProfileDiscovery({
     avatar: null,
     affiliation: null,
     publicUid: null,
+    schoolUidStatus: 'unavailable',
     experienceDisplay: author.experienceDisplay,
     totalInteractions: null,
     totalInteractionsStatus: 'unavailable',

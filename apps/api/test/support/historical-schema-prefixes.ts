@@ -22,4 +22,5 @@ export const historicalPrefixes = new Map<number, string>([
   [132, 'historical-command-session-retention predecessor'],
   [134, 'historical-command-session-retention exact terminal boundary'],
   [137, 'related-sync native predecessor and additive replay upgrade'],
+  [140, 'school-uid native prefeature student approval and lazy completion'],
 ]);

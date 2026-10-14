@@ -1196,6 +1196,7 @@ test(
               authorization: async () => ({
                 role: 'developer',
                 schoolAdminManagement: false,
+                schoolIdentityManagement: false,
                 management: { global: true, operatingRegionIds: [] },
                 identityView: { allowed: true, maxBatchSize: 20 },
               }),

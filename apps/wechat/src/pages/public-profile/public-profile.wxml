@@ -3,6 +3,8 @@
 <import src="../../community/block-recovery.wxml" />
 <import src="../../community/trading-summary.wxml" />
 <view class="screen">
+  <navigator wx:if="{{loaded &amp;&amp; !busy &amp;&amp; profile.status === 'available'}}" class="link" url="/pages/school-identity-management/school-identity-management?targetProfileId={{profile.profileId}}">核验此主页的学校归属管理权限 →</navigator>
+  <view wx:if="{{loaded &amp;&amp; !busy &amp;&amp; profile.status === 'available' &amp;&amp; profile.schoolUidStatus === 'assigned'}}" class="card">{{profile.affiliation.schoolName}} · {{profile.publicUid.formatted}}</view>
   <navigator wx:if="{{loaded &amp;&amp; !busy &amp;&amp; profile.status === 'available'}}" class="link" url="/pages/school-admin-management/school-admin-management?targetProfileId={{profile.profileId}}">核验此公开主页的学校管理员管理权限 →</navigator><button wx:if="{{loaded &amp;&amp; profile.status === 'available' &amp;&amp; !profile.isOwn}}" bindtap="onPrivateMessage" disabled="{{busy || block.busy || block.frozen}}">以公开身份私信</button>
   <view class="eyebrow">WHALEU · 公开主页</view><view class="title">校园里的你</view>
   <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>

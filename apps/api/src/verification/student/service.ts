@@ -1,4 +1,10 @@
 import {
+  SchoolUidLedger,
+  requireUidCauseCurrent,
+} from '../../school-uid/ledger.js';
+import { SchoolUidCoverageFacade } from '../../school-uid/coverage.facade.js';
+import { SchoolIdentityVerificationFacade } from '../school-identity.facade.js';
+import {
   AccountPolicy,
   AccountPolicyFor,
 } from '../../safety/account-policy/decorator.js';
@@ -27,6 +33,11 @@ import type {
 @Injectable()
 export class StudentVerificationService {
   constructor(
+    @Inject(SchoolUidLedger) readonly schoolUids: SchoolUidLedger,
+    @Inject(SchoolUidCoverageFacade)
+    readonly uidCoverage: SchoolUidCoverageFacade,
+    @Inject(SchoolIdentityVerificationFacade)
+    readonly uidVerification: SchoolIdentityVerificationFacade,
     @Inject(StudentVerificationNotices)
     readonly notices: StudentVerificationNotices,
     @Inject(DatabaseService) readonly db: DatabaseService,
@@ -552,6 +563,14 @@ export class StudentVerificationService {
         throw new ApplicationError('STUDENT_VERIFICATION_NOT_FOUND');
       if (row.account_id === actor.session.accountId)
         throw new ApplicationError('STUDENT_VERIFICATION_SELF_REVIEW');
+      const uidGeneration =
+        input.decision === 'approved'
+          ? await this.uidVerification.observeGeneration(tx, row.account_id)
+          : null;
+      const uidAbsence =
+        input.decision === 'approved'
+          ? await this.uidCoverage.observeNativeAbsence(row.account_id, tx)
+          : null;
       await lockStudentAccount(row.account_id, tx);
       row = await this.access.row(id, tx, true);
       if (row.state !== 'pending' || row.revision !== input.expectedRevision)
@@ -586,6 +605,42 @@ export class StudentVerificationService {
           locked.head.revision + 1,
         ],
       );
+      const uidCause = assertion ? randomUUID() : null;
+      const uidEvent = assertion ? randomUUID() : null;
+      if (assertion && uidCause && uidAbsence && uidGeneration) {
+        const uidLocked = await this.schoolUids.lockAccount(row.account_id, tx);
+        await this.schoolUids.lockInstitutions(
+          [
+            ...new Set([
+              row.institution_id,
+              ...(uidLocked.head ? [uidLocked.head.institution_id] : []),
+            ]),
+          ],
+          tx,
+        );
+        await this.schoolUids.registerCause(
+          {
+            id: uidCause,
+            kind: 'student_approval',
+            account: row.account_id,
+            actor: actor.session.accountId,
+            sourceId: decision,
+            institutionId: row.institution_id,
+            assertionId: assertion,
+            snapshotId: ids.snapshot,
+            verificationEventId: ids.event,
+            oldSnapshotId: locked.head.snapshot_id!,
+            oldRevision: locked.head.revision,
+            coverageObservationId: uidAbsence.id,
+          },
+          tx,
+        );
+        await this.uidVerification.registerGeneration(
+          uidCause,
+          uidGeneration,
+          tx,
+        );
+      }
       if (assertion)
         await tx.query(
           `INSERT INTO whaleu_verification.assertions(id,account_id,fact_kind,assertion_state,coverage_state,provenance_state,method,source_reference,policy_reference,source_account_id,issuer_institution_id,source_issuer_institution_id,origin_region_id,verified_at,expiry_kind,previous_assertion_id) SELECT assertion_id,account_id,'affiliation','verified','complete','accepted','document_review','student_decision:'||id::text,policy_reference,account_id,institution_id,institution_id,region_id,decided_at,'policy_exempt',$2 FROM whaleu_verification.student_decisions WHERE id=$1`,
@@ -610,6 +665,18 @@ export class StudentVerificationService {
         },
         tx,
       );
+      if (uidCause && uidEvent) {
+        await this.schoolUids.produce(
+          {
+            causeId: uidCause,
+            eventId: uidEvent,
+            coverageObservation: uidAbsence,
+          },
+          tx,
+        );
+        await this.schoolUids.recordApprovedDecision(uidCause, uidEvent, tx);
+        await requireUidCauseCurrent(uidCause, tx);
+      }
       await this.notices.record(updated, tx);
       await requireStudentCurrent(id, actor.session.accountId, tx);
       await requireStudentCurrent(id, row.account_id, tx);

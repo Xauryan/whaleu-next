@@ -1,3 +1,7 @@
+import {
+  OwnSchoolUidController,
+  initialOwnSchoolUidView,
+} from '../../school-uid/controller';
 import type { SessionTicket } from '../../auth/session';
 import {
   initialAvatarEditView,
@@ -19,6 +23,7 @@ import { initialProfileView, ProfileController } from './controller';
 Page({
   data: {
     ...initialProfileView(),
+    schoolUidView: initialOwnSchoolUidView(),
     privateMessages: initialUnreadView(),
     avatar: initialAvatarEditView(),
     avatarRead: initialAvatarReadView(),
@@ -29,7 +34,17 @@ Page({
   avatarReader: undefined as AvatarReadController | undefined,
   messagingUnread: undefined as MessagingUnreadController | undefined,
   controller: undefined as ProfileController | undefined,
+  schoolUidController: undefined as OwnSchoolUidController | undefined,
   onShow() {
+    this.schoolUidController?.dispose();
+    const schoolUidRuntime = getApp<WhaleuApp>().community;
+    if (schoolUidRuntime) {
+      this.schoolUidController = new OwnSchoolUidController(
+        schoolUidRuntime,
+        (view) => this.setData({ schoolUidView: view }),
+      );
+      void this.schoolUidController.load();
+    }
     const generation = ++this.avatarPageGeneration;
     this.deactivateAvatar();
     this.setData({ ...initialProfileView() });
@@ -236,6 +251,7 @@ Page({
     await this.controller?.savePreferences();
   },
   onReload() {
+    void this.schoolUidController?.load();
     void this.controller?.load();
   },
   onCancelEdits() {
@@ -245,6 +261,8 @@ Page({
     this.controller?.cancelOperation();
   },
   onHide() {
+    this.schoolUidController?.dispose();
+    this.schoolUidController = undefined;
     this.avatarPageGeneration++;
     this.deactivateAvatar();
     this.setData({ ...initialProfileView() });
@@ -254,6 +272,8 @@ Page({
     this.controller = undefined;
   },
   onUnload() {
+    this.schoolUidController?.dispose();
+    this.schoolUidController = undefined;
     this.avatarPageGeneration++;
     this.deactivateAvatar();
     this.setData({ ...initialProfileView() });

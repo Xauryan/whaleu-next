@@ -1,3 +1,8 @@
+import {
+  OwnSchoolUidController,
+  initialOwnSchoolUidView,
+  type OwnSchoolUidView,
+} from '../school-uid/controller';
 import type { WhaleuApp } from '../app';
 import { clientConfiguration } from '../config';
 import { WechatStorage } from '../platform/wechat';
@@ -10,12 +15,16 @@ import {
 import type { StudentView } from './student-controller';
 interface StudentNativePage {
   controller: StudentVerificationController | undefined;
+  schoolUidController: OwnSchoolUidController | undefined;
   route: { applicationId?: string; regionId?: string };
-  setData(value: Partial<StudentView>): void;
+  setData(
+    value: Partial<StudentView> & { schoolUidView?: OwnSchoolUidView },
+  ): void;
 }
 export function studentPage(mode: 'own' | 'review' | 'notices') {
   const definition: Record<string, unknown> & ThisType<StudentNativePage> = {
-    data: { ...initialStudentView() },
+    data: { ...initialStudentView(), schoolUidView: initialOwnSchoolUidView() },
+    schoolUidController: undefined as OwnSchoolUidController | undefined,
     controller: undefined as StudentVerificationController | undefined,
     route: {} as { applicationId?: string; regionId?: string },
     onLoad(query: { applicationId?: string; regionId?: string }) {
@@ -27,6 +36,14 @@ export function studentPage(mode: 'own' | 'review' | 'notices') {
     onShow() {
       this.controller?.dispose();
       const app = getApp<WhaleuApp>();
+      this.schoolUidController?.dispose();
+      if (mode === 'own' && app.community) {
+        this.schoolUidController = new OwnSchoolUidController(
+          app.community,
+          (view) => this.setData({ schoolUidView: view }),
+        );
+        void this.schoolUidController.load();
+      }
       if (
         !app.identity?.api ||
         !app.community?.profiles ||
@@ -59,6 +76,7 @@ export function studentPage(mode: 'own' | 'review' | 'notices') {
       void this.controller.load();
     },
     onReload() {
+      void this.schoolUidController?.load();
       void this.controller?.load();
     },
     onSearchInput(e: { detail: { value: string } }) {
@@ -144,10 +162,14 @@ export function studentPage(mode: 'own' | 'review' | 'notices') {
       void this.controller?.readNotice(e.currentTarget.dataset.id);
     },
     onHide() {
+      this.schoolUidController?.dispose();
+      this.schoolUidController = undefined;
       this.controller?.dispose();
       this.controller = undefined;
     },
     onUnload() {
+      this.schoolUidController?.dispose();
+      this.schoolUidController = undefined;
       this.controller?.dispose();
       this.controller = undefined;
     },

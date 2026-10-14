@@ -42,8 +42,9 @@ export type PublicProfile =
       displayName: string;
       bio: string;
       avatar: null;
-      affiliation: null;
-      publicUid: null;
+      affiliation: { schoolCode: string; schoolName: string } | null;
+      publicUid: { value: string; formatted: string } | null;
+      schoolUidStatus: 'assigned' | 'unassigned' | 'unavailable';
       experienceDisplay: PublicExperienceDisplay;
       totalInteractions: null;
       totalInteractionsStatus: 'unavailable';
@@ -64,3 +65,86 @@ export type PublicProfilePage =
       continuation: 'more' | 'scan_pending' | 'end';
       nextCursor: string | null;
     };
+
+/** Public wire schema; school and UID are one optional, atomically cleared fact. */
+const publicId = z.uuid().refine((value) => value === value.toLowerCase());
+const unavailableCosmetic = z.strictObject({
+  status: z.literal('unavailable'),
+  value: z.null(),
+});
+const experienceDisplaySchema = z.strictObject({
+  title: z.union([
+    unavailableCosmetic,
+    z.strictObject({
+      status: z.literal('known'),
+      value: z
+        .strictObject({ key: z.string().min(1), name: z.string().min(1) })
+        .nullable(),
+    }),
+  ]),
+  color: z.union([
+    unavailableCosmetic,
+    z.strictObject({
+      status: z.literal('known'),
+      value: z.number().int().min(0).max(25).nullable(),
+    }),
+  ]),
+  level: z.union([
+    unavailableCosmetic,
+    z.strictObject({
+      status: z.literal('known'),
+      value: z.number().int().min(0),
+    }),
+  ]),
+});
+export const publicProfileSchema = z.union([
+  z.strictObject({ status: z.literal('unavailable'), profileId: publicId }),
+  z.strictObject({
+    status: z.literal('blocked_by_you'),
+    profileId: publicId,
+    relationship: z.strictObject({
+      relationshipId: publicId,
+      blocked: z.literal(true),
+      revision: z.string().regex(/^[1-9][0-9]{0,18}$/),
+    }),
+  }),
+  z
+    .strictObject({
+      status: z.literal('available'),
+      profileId: publicId,
+      isOwn: z.boolean(),
+      displayName: z.string().min(1).max(100),
+      bio: z.string(),
+      avatar: z.null(),
+      affiliation: z
+        .strictObject({
+          schoolCode: z.string().regex(/^[0-9]{5}$/),
+          schoolName: z.string().min(1).max(200),
+        })
+        .nullable(),
+      publicUid: z
+        .strictObject({
+          value: z.string().regex(/^[1-9][0-9]{0,18}$/),
+          formatted: z.string(),
+        })
+        .nullable(),
+      schoolUidStatus: z.enum(['assigned', 'unassigned', 'unavailable']),
+      experienceDisplay: experienceDisplaySchema,
+      totalInteractions: z.null(),
+      totalInteractionsStatus: z.literal('unavailable'),
+      postsHidden: z.boolean(),
+      postCount: z.number().int().min(0).nullable(),
+      postCountStatus: z.enum(['known', 'unavailable']),
+      tradeCount: z.number().int().min(0).nullable(),
+      tradeCountStatus: z.enum(['known', 'unavailable']),
+    })
+    .refine((value) =>
+      value.schoolUidStatus === 'assigned'
+        ? value.affiliation !== null &&
+          value.publicUid !== null &&
+          /^[1-9][0-9]{0,18}$/.test(value.publicUid.value) &&
+          BigInt(value.publicUid.value) <= 9223372036854775807n &&
+          value.publicUid.formatted === value.publicUid.value.padStart(6, '0')
+        : value.affiliation === null && value.publicUid === null,
+    ),
+]);

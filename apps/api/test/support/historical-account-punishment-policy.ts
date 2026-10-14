@@ -108,9 +108,16 @@ export async function configureHistoricalAccountPolicy(
   prefix?: number,
 ): Promise<void> {
   if (prefix === undefined) return;
-  builder
-    .overrideProvider(CommunityDistributionService)
-    .useValue(await historicalCommunityDistribution(config, prefix));
+  assert.ok(
+    historicalPrefixes.has(prefix),
+    `Unregistered historical prefix ${prefix}`,
+  );
+  // Boundaries at or after 0138 retain the real distribution owner. The
+  // historical adapter remains restricted to its exact pre-0138 registry.
+  if (prefix < 138)
+    builder
+      .overrideProvider(CommunityDistributionService)
+      .useValue(await historicalCommunityDistribution(config, prefix));
   if (prefix < 135)
     builder
       .overrideProvider(AccountPunishmentPolicy)

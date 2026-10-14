@@ -50,6 +50,7 @@ export async function smokeErrandAdmin({ app, dist, flush }) {
       global: ['developer', 'super_admin'].includes(state.role),
       operatingRegionIds: state.role === 'member' ? [] : state.regions,
     },
+    schoolIdentityManagement: state.role === 'super_admin',
     schoolAdminManagement: state.role === 'super_admin',
     identityView: { allowed: state.role === 'developer', maxBatchSize: 20 },
   });

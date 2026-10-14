@@ -1,4 +1,12 @@
 <view class="screen">
+  <view wx:if="{{schoolUidView.error}}" class="notice">校内 UID 查询未完成：{{schoolUidView.error}}</view>
+  <view wx:if="{{schoolUidView.loaded}}" class="card">
+    <view class="card-title">当前校内 UID</view>
+    <view wx:if="{{schoolUidView.schoolUid.status === 'assigned'}}">{{schoolUidView.schoolUid.school.name}} · {{schoolUidView.schoolUid.formattedUid}}</view>
+    <view wx:elif="{{schoolUidView.schoolUid.status === 'unassigned'}}">当前没有校内 UID</view>
+    <view wx:else>{{(application ? application.state === 'approved' : false) ? '认证已通过，校内 UID 暂不可用' : '校内 UID 暂不可用，请以独立的认证结果确认学校归属状态'}}</view>
+  </view>
+
  <view class="eyebrow">WHALEU · 学生归属申请</view>
  <view class="title">提交学校归属材料</view>
  <view class="intro">选择一张校园卡或录取通知书，只需足以判断学校归属，可遮盖无关信息。无需另填真实姓名、身份证号或学号。材料不会公开，也不会写入个人资料。</view>
@@ -7,7 +15,7 @@
  <view wx:if="{{application}}" class="card">
   <view class="card-title">{{stateLabel}}</view><view>{{application.campusName}}</view><view wx:if="{{application.reason}}">拒绝原因：{{application.reason}}</view>
   <view wx:if="{{application.evidenceExpiresAt}}">材料访问截止：{{application.evidenceExpiresAt}}</view>
-  <view wx:if="{{application.state==='approved'}}">归属与学号分别验证。此结果不发行学号或旧版数字UID。如需换校、续期或处理撤销，请联系学校管理员。</view>
+  <view wx:if="{{application.state==='approved'}}">归属与学号分别验证，校内 UID 状态单独查询。学校更正需由超级管理员处理；续期或撤销请联系学校管理员。</view>
   <block wx:if="{{application.state==='draft'}}"><button bindtap="onChooseEvidence" disabled="{{busy||pending}}">选择一张材料图片</button><button bindtap="onRecoverEvidence" disabled="{{busy||pending}}">恢复原材料上传</button><view>{{evidenceMessage}}</view><button bindtap="onSubmit" disabled="{{busy||pending||!evidenceReady}}">提交审核</button></block>
   <button wx:if="{{application.state==='draft'||application.state==='pending'}}" bindtap="onWithdraw" disabled="{{busy||pending}}">取消本次申请</button>
   <button wx:if="{{application.evidenceAvailable}}" bindtap="onPreview" disabled="{{busy}}">私密查看本次材料</button>

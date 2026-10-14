@@ -1,3 +1,5 @@
+import { SchoolUidModule } from '../school-uid/module.js';
+import { SchoolIdentityVerificationFacade } from './school-identity.facade.js';
 import { AuthorizationModule } from '../authorization/authorization.module.js';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PostgresRequestThrottlingModule } from '../request-throttling/module.js';
@@ -63,6 +65,7 @@ export class VerificationController {
 @Module({
   imports: [
     DatabaseModule,
+    SchoolUidModule,
     IdentityModule,
     AuthorizationModule,
     CampusModule,
@@ -90,6 +93,7 @@ export class VerificationController {
     ...verificationEvidenceControllers,
   ],
   providers: [
+    SchoolIdentityVerificationFacade,
     StudentVerificationNotices,
     StudentVerificationAccess,
     StudentVerificationService,
@@ -115,6 +119,7 @@ export class VerificationController {
     LocalSafetyPhoneSource,
   ],
   exports: [
+    SchoolIdentityVerificationFacade,
     DmVerificationFacade,
     RatingVerificationFacade,
     LocalErrandBaseEligibilitySource,

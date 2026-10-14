@@ -280,3 +280,18 @@ super_admin grant; developer never substitutes. Authority/content epochs, strict
 causal receipts and final fences fail closed. Root visibility suppresses all
 descendants while reply removal only suppresses itself. There is no restore/edit,
 physical purge, retention TTL, media protocol or production source import.
+
+`0141_school_uid_ledger.sql` owns immutable institution UID admissions, reservations,
+allocations, covered native/imported absence, exact producing causes and reciprocal
+student approval outcomes. Unknown floors remain unavailable. Only explicit
+controlled synthetic packages can be applied; no real inventory is activated.
+
+`0142_school_identity_verification.sql` adds affiliation-only administrator correction
+provenance, exact source statement/row generation capture and reverse Verification
+closure. It replaces all six live affiliation method consumers without weakening
+any other branch or changing the accepted 0138 writer-slot protocol.
+
+`0143_school_identity_commands.sql` binds explicit super-admin correction/completion,
+immutable full-intent cancellation and actor-owned recovery to current authority,
+source CAS and UID effects. Public projection keeps school and UID jointly current.
+See [School UID](../../../docs/SCHOOL_UID.md).

@@ -35,6 +35,7 @@ export const publicProfile = (
   avatar: null,
   affiliation: null,
   publicUid: null,
+  schoolUidStatus: 'unavailable',
   experienceDisplay: publicExperienceDisplay(),
   totalInteractions: null,
   totalInteractionsStatus: 'unavailable',

@@ -1981,6 +1981,7 @@ app.community.identityPrivacy = {
   authorization: async () => ({
     role: 'developer',
     management: { global: true, operatingRegionIds: [] },
+    schoolIdentityManagement: false,
     schoolAdminManagement: false,
     identityView: { allowed: true, maxBatchSize: 20 },
   }),
@@ -2269,6 +2270,7 @@ app.community.identityPrivacy = {
   authorization: async () => ({
     role: 'developer',
     management: { global: true, operatingRegionIds: [] },
+    schoolIdentityManagement: false,
     schoolAdminManagement: false,
     identityView: { allowed: true, maxBatchSize: 20 },
   }),
@@ -2423,6 +2425,7 @@ app.community.identityPrivacy = {
   authorization: async () => ({
     role: 'developer',
     management: { global: true, operatingRegionIds: [] },
+    schoolIdentityManagement: false,
     schoolAdminManagement: false,
     identityView: { allowed: true, maxBatchSize: 20 },
   }),

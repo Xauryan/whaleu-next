@@ -42,6 +42,21 @@ export function assertionStatus(
     return 'unavailable';
   if (record.issuer_institution_id !== record.source_issuer_institution_id)
     return 'unavailable';
+  if (
+    record.method === 'administrator_correction' ||
+    record.policy_reference === 'verified-school-correction/v1' ||
+    record.source_reference.startsWith('school_identity_correction:')
+  ) {
+    if (
+      kind !== 'affiliation' ||
+      record.method !== 'administrator_correction' ||
+      record.policy_reference !== 'verified-school-correction/v1' ||
+      !/^school_identity_correction:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(
+        record.source_reference,
+      )
+    )
+      return 'unavailable';
+  }
   // Identity-created covered absence is not an authentication/provider proof.
   // It can never confer a verified/revoked/expired fact or carry private values.
   if (record.method === 'native_enrollment')
@@ -66,6 +81,7 @@ export function assertionStatus(
         ? ['institutional_sso', 'reconciled_import'].includes(record.method)
         : [
             'document_review',
+            'administrator_correction',
             'institutional_email',
             'institutional_sso',
             'reconciled_import',

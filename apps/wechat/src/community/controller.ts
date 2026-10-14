@@ -96,6 +96,15 @@ export const reasonMessage = (code: string | null): string =>
     VERIFICATION_UNAVAILABLE: '手机号或所属机构认证状态暂不可用，请稍后重试',
     AUTHORIZATION_REQUIRED:
       '当前账号没有此管理操作所需权限；原请求仍可继续查询回执',
+    SCHOOL_UID_UNAVAILABLE: '校内 UID 来源暂不可确认；原请求仍需查询回执',
+    SCHOOL_UID_EXHAUSTED: '该学校 UID 号码空间已用尽，本次操作未完成',
+    SCHOOL_IDENTITY_UNAVAILABLE:
+      '学校归属管理状态暂不可确认，请查询原请求或重新核验',
+    SCHOOL_IDENTITY_TARGET_NOT_ALLOWED: '此主页当前不能用于学校归属管理',
+    SCHOOL_IDENTITY_REQUEST_CONFLICT:
+      '原请求编号与当前内容不一致，请保留原请求并查询回执',
+    SCHOOL_IDENTITY_STALE: '学校或 UID 状态已变化，请重新核验并确认',
+    SCHOOL_IDENTITY_CANCELLED: '原学校归属管理请求已取消',
     SCHOOL_ADMIN_MANAGEMENT_UNAVAILABLE:
       '当前不能确认学校管理员管理状态；待确认的原请求请继续查询回执',
     SCHOOL_ADMIN_MANAGEMENT_TARGET_NOT_ALLOWED:

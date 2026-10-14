@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 import { APP_CONFIG } from '../../src/config/config.js';
 import type { RuntimeConfig } from '../../src/config/config.js';
 import { IDENTITY_PROVIDER } from '../../src/identity/contracts.js';
@@ -47,6 +48,7 @@ export async function studentEvidenceFixture(
     cleanupEnabled: true,
   },
   options: {
+    maximumMigration?: number;
     phoneProvider?: PhoneProvider;
     configureTestModule?: (
       builder: TestingModuleBuilder,
@@ -114,6 +116,9 @@ export async function studentEvidenceFixture(
     throw new Error('Synthetic WeChat transport refuses unregistered route');
   };
   const base = await syntheticMediaRuntimeFixture(fixtures, {
+    ...(options.maximumMigration === undefined
+      ? {}
+      : { maximumMigration: options.maximumMigration }),
     configureTestModule(builder, { storage, ingressStorage, runtimeConfig }) {
       const config: RuntimeConfig = {
         ...runtimeConfig,
@@ -143,8 +148,7 @@ export async function studentEvidenceFixture(
       options.configureTestModule?.(builder, config);
     },
   });
-  return {
-    ...base,
+  return extendLiveFixture(base, {
     providerExchanges: () => ({ ...exchanges }),
     // The ordinary Identity endpoint appends native-enrollment unverified facts.
     // Never use base.actor/certify or mutate a verification head in this fixture.
@@ -155,8 +159,10 @@ export async function studentEvidenceFixture(
       verificationEvidenceMediaOk(response);
       return response.body as SessionCredentials;
     },
-    evidence: base.app.get(VerificationEvidenceMediaService),
-  };
+    get evidence() {
+      return base.app.get(VerificationEvidenceMediaService);
+    },
+  });
 }
 export type StudentEvidenceFixture = Awaited<
   ReturnType<typeof studentEvidenceFixture>

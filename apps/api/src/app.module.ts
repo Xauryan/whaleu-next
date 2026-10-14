@@ -1,3 +1,5 @@
+import { SchoolIdentityModule } from './school-identity/module.js';
+import { SchoolUidModule } from './school-uid/module.js';
 import { AccountPolicyModule } from './safety/account-policy/module.js';
 import { SchoolAdminManagementModule } from './authorization/school-admin-management/module.js';
 import { ProfileAvatarModerationModule } from './profile/avatar-moderation/module.js';
@@ -68,6 +70,8 @@ export class AppModule {
         ProfileModule,
         ProfileModerationModule,
         SchoolAdminManagementModule,
+        SchoolIdentityModule,
+        SchoolUidModule,
         ProfileAvatarModerationModule,
         ProfileDiscoveryModule,
         CommunityModule,

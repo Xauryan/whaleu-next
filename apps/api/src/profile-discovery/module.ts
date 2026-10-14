@@ -1,3 +1,4 @@
+import { SchoolUidModule } from '../school-uid/module.js';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.js';
 import { IdentityModule } from '../identity/identity.module.js';
@@ -12,6 +13,7 @@ import { ProfileDiscoveryService } from './service.js';
 
 @Module({
   imports: [
+    SchoolUidModule,
     DatabaseModule,
     IdentityModule,
     ProfileModule,

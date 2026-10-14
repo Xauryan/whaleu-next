@@ -17,6 +17,7 @@ export interface ActiveGrant {
 export interface AuthorizationCapabilities {
   readonly role: EffectiveRole;
   readonly schoolAdminManagement: boolean;
+  readonly schoolIdentityManagement: boolean;
   readonly management: {
     readonly global: boolean;
     readonly operatingRegionIds: string[];
@@ -45,6 +46,10 @@ export function capabilitiesFromGrants(
   const global = role === 'developer' || role === 'super_admin';
   return {
     role,
+    schoolIdentityManagement: grants.some(
+      (grant) =>
+        grant.role === 'super_admin' && grant.operatingRegionId === null,
+    ),
     schoolAdminManagement: grants.some(
       (grant) =>
         grant.role === 'super_admin' && grant.operatingRegionId === null,

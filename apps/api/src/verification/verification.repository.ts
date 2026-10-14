@@ -196,7 +196,10 @@ export class VerificationRepository {
       numberStatus === 'verified' &&
       affiliation!.issuer_institution_id !== number!.issuer_institution_id
     ) {
-      affiliationStatus = 'unavailable';
+      if (affiliation!.method !== 'administrator_correction')
+        affiliationStatus = 'unavailable';
+      // An explicit correction preserves the old number proof without giving
+      // that old issuer authority over the newly corrected affiliation.
       numberStatus = 'unavailable';
     }
     return {

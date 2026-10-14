@@ -1,6 +1,6 @@
 # Native student document verification
 
-This increment restores the local student-material application and school-review loop. It does not enable real WeChat/COS providers, import old students, issue student numbers or create the old numeric campus UID. Production evidence adapters remain closed until an explicit private storage, processing and retention configuration is supplied.
+This increment restores the local student-material application and school-review loop. It does not enable real WeChat/COS providers, import old students, issue student numbers or activate real school UID inventory. Production evidence adapters remain closed until an explicit private storage, processing and retention configuration is supplied.
 
 ## Preserved behavior and explicit new rules
 
@@ -9,7 +9,7 @@ Legacy evidence is fixed at `WhaleUCampus/WhaleU@57cf169c11123acf249909a1a7215b8
 - Logged-in active accounts can apply without phone/student-number verification. Ordinary publication retains its own phone requirement.
 - Pending and approved applications cannot be duplicated. Rejected attempts can immediately create a new attempt with new evidence; old decisions are immutable. Approved history, including a later revoked affiliation, requires school-admin assistance rather than a new self-service renewal/change-school flow.
 - School admins have exactly one fixed current region; a true global super admin must explicitly choose the target. Developer grants and cosmetic roles do not qualify. Self-review is an explicit new minimum safety rule.
-- Only an authorized immutable decision issues a complete/accepted document-review affiliation assertion. Submission, Safety image allowance and rejection issue no verified fact. Student-number and phone pointers are preserved. Public `profileId` is the existing account display reference; the old numeric campus UID remains a separate migration/issuance decision.
+- Only an authorized immutable decision issues a complete/accepted document-review affiliation assertion. Submission, Safety image allowance and rejection issue no verified fact. Student-number and phone pointers are preserved. Public `profileId` is the existing account display reference; School UID is recorded independently in the same approved transaction, with an explicit unavailable decision when inventory/history is unknown. See [School UID](SCHOOL_UID.md).
 - Affiliation uses an explicit `policy_exempt` expiry policy to preserve the observed no-expiry behavior, independently of short-lived evidence retention. Missing/unknown old verification coverage is not repaired or relabeled by this workflow.
 - Withdrawal, original-key cancellation fencing and evidence expiration are new recovery/retention infrastructure. Withdrawal wins atomically against review and never revokes an already-issued affiliation.
 

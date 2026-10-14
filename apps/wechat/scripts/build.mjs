@@ -63,6 +63,7 @@ for (const relative of [
   'profile-avatar-moderation/contract.js',
   'admin-post-removal/contract.js',
   'school-admin-management/contract.js',
+  'school-identity/contract.js',
   'account-moderation/contract.js',
   'admin-discussion-removal/contract.js',
   'media/upload-runtime.js',
@@ -144,4 +145,12 @@ execFileSync(
   process.execPath,
   [path.join(root, 'test/school-services-emitted-smoke.mjs')],
   { stdio: 'inherit', cwd: root },
+);
+
+execFileSync(
+  process.execPath,
+  [path.join(root, 'scripts/smoke-school-uid.mjs')],
+  {
+    stdio: 'inherit',
+  },
 );

@@ -3,6 +3,34 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  SCHOOL_UID_UNAVAILABLE: {
+    status: 503,
+    message: 'School UID source is unavailable',
+  },
+  SCHOOL_UID_EXHAUSTED: {
+    status: 409,
+    message: 'School UID namespace is exhausted',
+  },
+  SCHOOL_IDENTITY_UNAVAILABLE: {
+    status: 503,
+    message: 'School identity proof is unavailable',
+  },
+  SCHOOL_IDENTITY_TARGET_NOT_ALLOWED: {
+    status: 403,
+    message: 'School identity target is unavailable',
+  },
+  SCHOOL_IDENTITY_REQUEST_CONFLICT: {
+    status: 409,
+    message: 'School identity request intent conflicts',
+  },
+  SCHOOL_IDENTITY_STALE: {
+    status: 409,
+    message: 'School identity changed; refresh the preview',
+  },
+  SCHOOL_IDENTITY_CANCELLED: {
+    status: 409,
+    message: 'School identity request was cancelled',
+  },
   SAFETY_ACCESS_SUSPENDED: {
     status: 403,
     message:

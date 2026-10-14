@@ -51,6 +51,7 @@ const capability = (
   role: Authorization['role'] = 'super_admin',
 ): Authorization => ({
   role,
+  schoolIdentityManagement: allowed,
   schoolAdminManagement: allowed,
   management: {
     global: role === 'super_admin' || role === 'developer',

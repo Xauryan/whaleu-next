@@ -1,3 +1,4 @@
+import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 import {
   Body,
   Controller,
@@ -11,6 +12,7 @@ import {
 import { SchemaValidationPipe } from '../http/validation.js';
 import { bearerToken } from '../identity/tokens.js';
 import {
+  publicProfileSchema,
   emptyBodySchema,
   emptyQuerySchema,
   profileIdSchema,
@@ -28,6 +30,8 @@ export class PublicProfileController {
   ) {}
 
   @Get(':profileId')
+  @ApiOperation({ operationId: 'publicProfile' })
+  @ApiOkResponse({ standardSchema: publicProfileSchema })
   @Header('Cache-Control', 'no-store')
   @Header('Vary', 'Authorization')
   profile(

@@ -565,6 +565,7 @@ test('identity overlays clear by account before content reload; stale identity r
     authorization: async () => ({
       role: 'developer',
       management: { global: true, operatingRegionIds: [] },
+      schoolIdentityManagement: false,
       schoolAdminManagement: false,
       identityView: { allowed: true, maxBatchSize: 20 },
     }),

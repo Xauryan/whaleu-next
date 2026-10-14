@@ -754,6 +754,7 @@ test(
               color: { status: 'known', value: null },
               level: { status: 'known', value: 1 },
             });
+            assert.equal(profile.schoolUidStatus, 'unavailable');
             for (const field of [
               'avatar',
               'affiliation',

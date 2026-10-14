@@ -1,3 +1,4 @@
+import { SchoolUidProjectionFacade } from '../school-uid/projection.facade.js';
 import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -31,6 +32,8 @@ type AvailableTarget = {
 @Injectable()
 export class ProfileDiscoveryService {
   constructor(
+    @Inject(SchoolUidProjectionFacade)
+    private readonly schoolUids: SchoolUidProjectionFacade,
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(IdentityService) private readonly identity: IdentityService,
     @Inject(PublicProfileFacade) private readonly profiles: PublicProfileFacade,
@@ -114,6 +117,7 @@ export class ProfileDiscoveryService {
           avatar: null,
           affiliation: null,
           publicUid: null,
+          schoolUidStatus: 'unavailable',
           experienceDisplay,
           totalInteractions: null,
           totalInteractionsStatus: 'unavailable',
@@ -123,6 +127,17 @@ export class ProfileDiscoveryService {
           tradeCount: tradeCount.value,
           tradeCountStatus: tradeCount.status,
         };
+        await this.schoolUids.optional(target.record.accountId, tx, (uid) => {
+          result.schoolUidStatus = uid.status;
+          result.affiliation =
+            uid.status === 'assigned'
+              ? { schoolCode: uid.school.code, schoolName: uid.school.name }
+              : null;
+          result.publicUid =
+            uid.status === 'assigned'
+              ? { value: uid.uid, formatted: uid.formattedUid }
+              : null;
+        });
         bindDiscoveryCount(tx, postCount, () => {
           result.postCount = null;
           result.postCountStatus = 'unavailable';

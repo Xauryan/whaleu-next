@@ -236,6 +236,7 @@ export async function smokeNamedBlocks({
     authorization: async () => ({
       role: 'member',
       management: { global: false, operatingRegionIds: [] },
+      schoolIdentityManagement: false,
       schoolAdminManagement: false,
       identityView: { allowed: false, maxBatchSize: 20 },
     }),

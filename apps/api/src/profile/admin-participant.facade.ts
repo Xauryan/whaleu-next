@@ -27,6 +27,21 @@ export type ResolvedAdminParticipant = z.infer<typeof participantSchema>;
  * exact-reference resolver retains its existing row through transaction end. */
 @Injectable()
 export class ProfileAdminParticipantFacade {
+  /** Pre-wait identity observation only; callers must compare again under owner locks. */
+  async observe(
+    profileId: string,
+    tx: PoolClient,
+  ): Promise<ResolvedAdminParticipant | null> {
+    idSchema.parse(profileId);
+    const rows = (
+      await tx.query<ResolvedAdminParticipant>(
+        `SELECT account_id AS "accountId",public_id AS "profileId",coalesce(nickname,'鲸鱼用户') AS "displayName" FROM whaleu_profile.profiles WHERE public_id=$1`,
+        [profileId],
+      )
+    ).rows;
+    if (rows.length > 1) throw new ApplicationError('ERRAND_UNAVAILABLE');
+    return rows[0] ? participantSchema.parse(rows[0]) : null;
+  }
   /** Resolve existing public references under a stable owner row lock during
    * ordinary work, before final proofs. Missing references never create rows. */
   async resolve(

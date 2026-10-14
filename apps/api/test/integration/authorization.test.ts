@@ -234,6 +234,7 @@ test(
             assert.deepEqual(response.body, {
               role: 'member',
               schoolAdminManagement: false,
+              schoolIdentityManagement: false,
               management: { global: false, operatingRegionIds: [] },
               identityView: { allowed: false, maxBatchSize: 20 },
             });

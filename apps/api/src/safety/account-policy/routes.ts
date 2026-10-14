@@ -13,6 +13,55 @@ export type AccountRoutePolicy = readonly [
  * Check with node scripts/check-account-policy-routes.mjs. */
 export const accountRoutePolicies = [
   [
+    'SchoolUidController.own',
+    'GET',
+    '/v1/me/school-uid',
+    'private_self_service',
+    'entry',
+    'apps/api/src/school-uid/controller.ts',
+  ],
+  [
+    'SchoolUidLookupController.lookup',
+    'GET',
+    '/v1/admin/school-uids/lookup',
+    'privileged_read',
+    'entry',
+    'apps/api/src/school-identity/controller.ts',
+  ],
+  [
+    'SchoolIdentityController.management',
+    'GET',
+    '/v1/admin/school-identities/management',
+    'privileged_read',
+    'entry',
+    'apps/api/src/school-identity/controller.ts',
+  ],
+  [
+    'SchoolIdentityController.command',
+    'POST',
+    '/v1/admin/school-identities/commands',
+    'noncontent_management',
+    'owner_after_recovery',
+    'apps/api/src/school-identity/controller.ts',
+  ],
+  [
+    'SchoolIdentityController.cancel',
+    'POST',
+    '/v1/admin/school-identities/commands/cancel',
+    'restricted_self_service',
+    'restricted',
+    'apps/api/src/school-identity/controller.ts',
+  ],
+  [
+    'SchoolIdentityController.recovery',
+    'GET',
+    '/v1/admin/school-identities/requests/:requestId',
+    'restricted_self_service',
+    'restricted',
+    'apps/api/src/school-identity/controller.ts',
+  ],
+
+  [
     'ActivitiesController.context',
     'GET',
     '/v1/activities/context',

@@ -313,6 +313,7 @@ export async function smokePublicExperience({
     avatar: null,
     affiliation: null,
     publicUid: null,
+    schoolUidStatus: 'unavailable',
     experienceDisplay: display,
     totalInteractions: null,
     totalInteractionsStatus: 'unavailable',

@@ -50,6 +50,7 @@ export async function smokeSchoolAdminManagement({ dist }) {
       if (url.pathname === '/v1/me/authorization')
         body = {
           role: 'developer',
+          schoolIdentityManagement: allowed,
           schoolAdminManagement: allowed,
           management: { global: true, operatingRegionIds: [] },
           identityView: { allowed: true, maxBatchSize: 20 },

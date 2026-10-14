@@ -80,4 +80,5 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/announcement-native-roundtrip.test.ts \
   test/integration/student-verification.test.ts \
   test/integration/student-verification-evidence.test.ts \
+  test/integration/school-identity-native-roundtrip.test.ts \
   test/integration/student-verification-native-roundtrip.test.ts

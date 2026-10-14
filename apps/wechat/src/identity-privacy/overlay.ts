@@ -19,6 +19,7 @@ export interface DisplayTarget extends IdentityTarget {
 }
 export interface Authorization {
   readonly schoolAdminManagement: boolean;
+  readonly schoolIdentityManagement: boolean;
   readonly role: 'member' | 'school_admin' | 'super_admin' | 'developer';
   readonly management: {
     readonly global: boolean;
@@ -45,13 +46,23 @@ export type IdentityItem =
     }
   | { readonly target: IdentityTarget; readonly status: 'unavailable' };
 export function decodeAuthorization(value: unknown): Authorization {
-  exact(value, ['role', 'management', 'identityView', 'schoolAdminManagement']);
+  exact(value, [
+    'role',
+    'management',
+    'identityView',
+    'schoolAdminManagement',
+    'schoolIdentityManagement',
+  ]);
   exact(value.management, ['global', 'operatingRegionIds']);
   exact(value.identityView, ['allowed', 'maxBatchSize']);
   if (
     !['member', 'school_admin', 'super_admin', 'developer'].includes(
       String(value.role),
     ) ||
+    typeof value.schoolIdentityManagement !== 'boolean' ||
+    (value.schoolIdentityManagement &&
+      value.role !== 'super_admin' &&
+      value.role !== 'developer') ||
     typeof value.schoolAdminManagement !== 'boolean' ||
     (value.schoolAdminManagement &&
       value.role !== 'super_admin' &&
@@ -72,6 +83,7 @@ export function decodeAuthorization(value: unknown): Authorization {
   return Object.freeze({
     role: value.role as Authorization['role'],
     schoolAdminManagement: value.schoolAdminManagement,
+    schoolIdentityManagement: value.schoolIdentityManagement,
     management: Object.freeze({
       global: value.management.global,
       operatingRegionIds: Object.freeze([

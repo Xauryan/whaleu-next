@@ -20,6 +20,7 @@ export interface AssertionRecord {
   readonly provenance_state: 'accepted' | 'unknown' | 'conflict';
   readonly method:
     | 'document_review'
+    | 'administrator_correction'
     | 'institutional_email'
     | 'institutional_sso'
     | 'phone_provider'

@@ -1,3 +1,4 @@
+import { decodeSchoolUid, type SchoolUidSchool } from '../school-uid/contract';
 import { isRecord } from '../api/errors';
 import { decodeBlockState, type BlockState } from '../community/block-contract';
 import {
@@ -36,8 +37,15 @@ export interface AvailableProfile {
   readonly displayName: string;
   readonly bio: string;
   readonly avatar: null;
-  readonly affiliation: null;
-  readonly publicUid: null;
+  readonly affiliation: {
+    readonly schoolCode: string;
+    readonly schoolName: string;
+  } | null;
+  readonly publicUid: {
+    readonly value: string;
+    readonly formatted: string;
+  } | null;
+  readonly schoolUidStatus: 'assigned' | 'unassigned' | 'unavailable';
   readonly experienceDisplay: PublicExperienceDisplay;
   readonly totalInteractions: null;
   readonly totalInteractionsStatus: 'unavailable';
@@ -127,6 +135,7 @@ export function decodePublicProfile(value: unknown): PublicProfile {
     'avatar',
     'affiliation',
     'publicUid',
+    'schoolUidStatus',
     'experienceDisplay',
     'totalInteractions',
     'totalInteractionsStatus',
@@ -143,8 +152,6 @@ export function decodePublicProfile(value: unknown): PublicProfile {
     typeof value.bio !== 'string' ||
     !!bioError(value.bio) ||
     value.avatar !== null ||
-    value.affiliation !== null ||
-    value.publicUid !== null ||
     value.totalInteractions !== null ||
     value.totalInteractionsStatus !== 'unavailable' ||
     typeof value.postsHidden !== 'boolean' ||
@@ -154,8 +161,34 @@ export function decodePublicProfile(value: unknown): PublicProfile {
       (value.isOwn || value.postCount !== 0 || value.tradeCount !== 0))
   )
     invalid();
+  let school: SchoolUidSchool | null = null;
+  if (value.schoolUidStatus === 'assigned') {
+    exact(value.affiliation, ['schoolCode', 'schoolName']);
+    exact(value.publicUid, ['value', 'formatted']);
+    const joint = decodeSchoolUid({
+      status: 'assigned',
+      school: {
+        code: value.affiliation.schoolCode,
+        name: value.affiliation.schoolName,
+      },
+      uid: value.publicUid.value,
+      formattedUid: value.publicUid.formatted,
+    });
+    if (joint.status !== 'assigned') invalid();
+    school = joint.school;
+  } else {
+    decodeSchoolUid({ status: value.schoolUidStatus });
+    if (value.affiliation !== null || value.publicUid !== null) invalid();
+  }
   return Object.freeze({
     ...value,
+    affiliation: school
+      ? Object.freeze({ schoolCode: school.code, schoolName: school.name })
+      : null,
+    publicUid:
+      value.publicUid === null
+        ? null
+        : Object.freeze({ ...(value.publicUid as Record<string, unknown>) }),
     experienceDisplay: decodePublicExperienceDisplay(value.experienceDisplay),
   }) as unknown as AvailableProfile;
 }
