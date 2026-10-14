@@ -89,7 +89,7 @@ test(
     };
     await phone();
     await select(f.home.campusId);
-    // A real independent, synthetic institutional-number assertion before transfer.
+    // An independent, synthetic reconciled-import number assertion before transfer.
     // Its issuer/pointer stays immutable and cannot confer B-school number authority.
     await withCommunityScopeWriter(f.pool, async (tx) => {
       const h = (
@@ -101,7 +101,7 @@ test(
       const number = randomUUID(),
         snapshot = randomUUID();
       await tx.query(
-        `INSERT INTO whaleu_verification.assertions(id,account_id,fact_kind,assertion_state,coverage_state,provenance_state,method,source_reference,policy_reference,source_account_id,issuer_institution_id,source_issuer_institution_id,verified_at,expiry_kind,student_number) VALUES($1,$2,'student_number','verified','complete','accepted','institutional_sso','synthetic-independent-number','synthetic-number/v1',$2,$3,$3,clock_timestamp(),'policy_exempt','000004721')`,
+        `INSERT INTO whaleu_verification.assertions(id,account_id,fact_kind,assertion_state,coverage_state,provenance_state,method,source_reference,policy_reference,source_account_id,issuer_institution_id,source_issuer_institution_id,verified_at,expiry_kind,student_number) VALUES($1,$2,'student_number','verified','complete','accepted','reconciled_import','synthetic-independent-number','synthetic-number/v1',$2,$3,$3,clock_timestamp(),'policy_exempt','000004721')`,
         [number, owner.accountId, f.home.institutionId],
       );
       await tx.query(

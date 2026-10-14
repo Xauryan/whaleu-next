@@ -387,7 +387,15 @@
           "student-verification-evidence.test.ts",
           "student-verification-native-roundtrip.test.ts",
           "student-verification.test.ts",
-          "verification.test.ts"
+          "verification.test.ts",
+          "institutional-sso.test.ts",
+          "institutional-sso-races.test.ts",
+          "institutional-sso-native-roundtrip.test.ts",
+          "institutional-sso-expiry.test.ts",
+          "institutional-sso-recipes.test.ts",
+          "institutional-sso-causality.test.ts",
+          "institutional-sso-history.test.ts",
+          "institutional-sso-authority.test.ts"
         ]
       ]
     },

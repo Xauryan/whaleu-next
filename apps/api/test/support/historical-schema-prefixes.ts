@@ -23,4 +23,8 @@ export const historicalPrefixes = new Map<number, string>([
   [134, 'historical-command-session-retention exact terminal boundary'],
   [137, 'related-sync native predecessor and additive replay upgrade'],
   [140, 'school-uid native prefeature student approval and lazy completion'],
+  [
+    144,
+    'institutional-sso historical exact descendants before additive admission',
+  ],
 ]);

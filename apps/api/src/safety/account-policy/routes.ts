@@ -13,6 +13,47 @@ export type AccountRoutePolicy = readonly [
  * Check with node scripts/check-account-policy-routes.mjs. */
 export const accountRoutePolicies = [
   [
+    'InstitutionalSsoController.capability',
+    'GET',
+    '/v1/me/institutional-sso/capability',
+    'restricted_self_service',
+    'restricted',
+    'apps/api/src/verification/institutional/controller.ts',
+  ],
+  [
+    'InstitutionalSsoController.prepare',
+    'POST',
+    '/v1/me/institutional-sso/requests',
+    'private_self_service',
+    'owner_after_recovery',
+    'apps/api/src/verification/institutional/controller.ts',
+  ],
+  [
+    'InstitutionalSsoController.read',
+    'GET',
+    '/v1/me/institutional-sso/requests/:requestId',
+    'restricted_self_service',
+    'restricted',
+    'apps/api/src/verification/institutional/controller.ts',
+  ],
+  [
+    'InstitutionalSsoController.complete',
+    'POST',
+    '/v1/me/institutional-sso/requests/:requestId/complete',
+    'private_self_service',
+    'owner_after_recovery',
+    'apps/api/src/verification/institutional/controller.ts',
+  ],
+  [
+    'InstitutionalSsoController.close',
+    'POST',
+    '/v1/me/institutional-sso/requests/:requestId/close',
+    'restricted_self_service',
+    'restricted',
+    'apps/api/src/verification/institutional/controller.ts',
+  ],
+
+  [
     'CampusToolsController.hub',
     'GET',
     '/v1/campuses/:campusId/tools',

@@ -3,6 +3,18 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  INSTITUTIONAL_SSO_UNAVAILABLE: {
+    status: 503,
+    message: 'Institutional verification is unavailable.',
+  },
+  INSTITUTIONAL_SSO_CONFLICT: {
+    status: 409,
+    message: 'The original institutional verification request conflicts.',
+  },
+  INSTITUTIONAL_SSO_INVALID: {
+    status: 400,
+    message: 'Invalid institutional verification request.',
+  },
   CAMPUS_TOOLS_UNAVAILABLE: {
     status: 503,
     message: 'Campus tools are temporarily unavailable.',

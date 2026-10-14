@@ -26,6 +26,7 @@
     </view>
     <view class="footnote">以上是本次查询结果。认证状态不代表操作权限，实际操作仍由服务端实时校验。选择浏览校园、账号编号或管理角色均不构成学生认证。</view>
   </block>
+  <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/institutional-verification/institutional-verification">学校授权认证与原请求恢复 →</navigator>
   <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/student-verification/student-verification">办理学生归属申请与查看结果 →</navigator>
   <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/student-verification-review/student-verification-review">校方学生申请审核 →</navigator>
   <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/student-verification-notices/student-verification-notices">认证站内消息 →</navigator>

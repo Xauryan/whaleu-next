@@ -104,7 +104,8 @@
     "pages/campus-tools-map/campus-tools-map",
     "pages/campus-tools-shuttle/campus-tools-shuttle",
     "pages/campus-tools-research/campus-tools-research",
-    "pages/campus-tools-webview/campus-tools-webview"
+    "pages/campus-tools-webview/campus-tools-webview",
+    "pages/institutional-verification/institutional-verification"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

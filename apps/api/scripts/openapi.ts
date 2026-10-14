@@ -1,3 +1,4 @@
+import { writeInstitutionalSsoOpenApi } from './institutional-sso-openapi-document.js';
 import { writeCampusToolsOpenApi } from './campus-tools-openapi-document.js';
 import { writeSchoolIdentityOpenApi } from './school-identity-openapi-document.js';
 import { writeRelatedCampusSyncOpenApi } from './related-campus-sync-openapi-document.js';
@@ -350,3 +351,5 @@ await writeRelatedCampusSyncOpenApi(args[0] === '--check');
 await writeSchoolIdentityOpenApi(args[0] === '--check');
 
 await writeCampusToolsOpenApi(args[0] === '--check');
+
+await writeInstitutionalSsoOpenApi(args[0] === '--check');

@@ -429,6 +429,14 @@ if (!configured) {
 }
 const config = JSON.parse(readFileSync(path.join(dist, 'app.json'), 'utf8'));
 assert.equal(config.pages[0], 'pages/login/login');
+function assertColdInstitutional(current) {
+  assert.equal(current.data.busy, false);
+  assert.equal(current.data.frozen, false);
+  assert.equal(current.data.requestId, '');
+  assert.equal(current.data.capability, null);
+  assert.equal(current.controller, undefined);
+}
+
 for (const route of config.pages) {
   for (const extension of ['js', 'json', 'wxml', 'wxss'])
     assert.ok(statSync(path.join(dist, `${route}.${extension}`)).size > 0);
@@ -869,7 +877,9 @@ for (const route of config.pages.filter(
       assert.equal(current.data.frozen, false);
     } else assert.equal(current.data.unreadCount, null);
   }
-  if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
+  if (route === 'pages/institutional-verification/institutional-verification')
+    assertColdInstitutional(current);
+  else if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
   else if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
   else if (route === 'pages/rating-category-create/rating-category-create')
@@ -917,7 +927,9 @@ for (const route of config.pages.filter(
       assert.equal(current.data.imageCount, 0);
     }
   }
-  if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
+  if (route === 'pages/institutional-verification/institutional-verification')
+    assertColdInstitutional(current);
+  else if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
   else if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
   else if (route === 'pages/rating-category-create/rating-category-create')
@@ -934,7 +946,9 @@ for (const route of config.pages.filter(
     assert.equal(current.phone, undefined);
   } else assert.equal(current.data.loaded, false);
   current.onShow();
-  if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
+  if (route === 'pages/institutional-verification/institutional-verification')
+    assertColdInstitutional(current);
+  else if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
   else if (route === 'pages/phone-binding/phone-binding')
     assert.equal(current.phone, undefined);
   else if (route === 'pages/school-posting-policy/school-posting-policy') {
@@ -1012,7 +1026,9 @@ for (const route of config.pages.filter(
     assert.ok(current.data.error);
   } else assert.ok(current.controller);
   current.onUnload();
-  if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
+  if (route === 'pages/institutional-verification/institutional-verification')
+    assertColdInstitutional(current);
+  else if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
   if (route === 'pages/rating-create/rating-create') {
     assertColdRatingCreation(current);
     assert.equal(current.controller, undefined);

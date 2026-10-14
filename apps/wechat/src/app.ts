@@ -1,3 +1,5 @@
+import { createInstitutionalRuntime } from './verification/institutional-runtime';
+import type { InstitutionalRuntime } from './verification/institutional-controller';
 import {
   createCampusToolsRuntime,
   type CampusToolsRuntime,
@@ -58,6 +60,7 @@ import {
 } from './verification/runtime';
 
 export interface WhaleuApp {
+  institutionalSso?: InstitutionalRuntime;
   campusTools?: CampusToolsRuntime;
   errandMedia?: ErrandMediaRuntime;
   errandPublication?: ReturnType<typeof createErrandPublicationRuntime>;
@@ -115,6 +118,14 @@ App<WhaleuApp>({
       wx,
       clientConfiguration.apiOrigin,
     );
+    const institutionalSso = createInstitutionalRuntime(
+      this.identity,
+      this.community,
+      this.verification,
+      new WechatStorage(wx),
+      clientConfiguration.apiOrigin,
+    );
+    if (institutionalSso) this.institutionalSso = institutionalSso;
     // One process-wide ledger for Ratings uploads/gallery and every other
     // admitted media owner. Never allocate a new budget for each page/account.
     const nativeFiles = new WechatNativeMediaFiles(wx, systemClock);

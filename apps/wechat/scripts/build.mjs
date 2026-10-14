@@ -36,6 +36,7 @@ for (const relative of [
   'major-discussion/media-contract.js',
   'window-discussion/v2-contract.js',
   'window-discussion/media-contract.js',
+  'verification/institutional-contract.js',
   'verification/evidence-contract.js',
   'verification/evidence-pending.js',
   'verification/student-contract.js',
@@ -158,5 +159,11 @@ execFileSync(
 execFileSync(
   process.execPath,
   ['--import', 'tsx', path.join(root, 'test/campus-tools-emitted-smoke.mjs')],
+  { stdio: 'inherit', cwd: root },
+);
+
+execFileSync(
+  process.execPath,
+  [path.join(root, 'scripts/smoke-institutional-sso.mjs')],
   { stdio: 'inherit', cwd: root },
 );

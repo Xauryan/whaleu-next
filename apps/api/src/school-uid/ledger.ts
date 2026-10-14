@@ -13,7 +13,11 @@ import type { NativeAbsenceObservation } from './coverage.facade.js';
 
 export const SCHOOL_UID_MAX = 9223372036854775807n;
 export type UidCauseKind =
-  'student_approval' | 'correct_school' | 'complete_uid' | 'unchanged';
+  | 'student_approval'
+  | 'institutional_sso'
+  | 'correct_school'
+  | 'complete_uid'
+  | 'unchanged';
 export interface UidCauseInput {
   id: string;
   kind: UidCauseKind;
@@ -221,7 +225,10 @@ export class SchoolUidLedger {
       allocationId = old.allocation.id;
       uid = old.allocation.uid;
     } else if (!coverage) {
-      if (c.kind !== 'student_approval' || old.allocation)
+      if (
+        !['student_approval', 'institutional_sso'].includes(c.kind) ||
+        old.allocation
+      )
         throw new ApplicationError('SCHOOL_UID_UNAVAILABLE');
       outcome = 'deferred_unavailable';
       unavailableReason = 'account_history_unknown';
@@ -245,7 +252,10 @@ export class SchoolUidLedger {
       ).rows;
       const admission = rows.find((a) => a.institution_id === c.institution_id);
       if (!admission || !admission.issuance_available) {
-        if (c.kind !== 'student_approval' || old.allocation)
+        if (
+          !['student_approval', 'institutional_sso'].includes(c.kind) ||
+          old.allocation
+        )
           throw new ApplicationError('SCHOOL_UID_UNAVAILABLE');
         outcome = 'deferred_unavailable';
         unavailableReason = 'inventory_unknown';
@@ -324,6 +334,22 @@ export class SchoolUidLedger {
       allocationId,
       uid,
     };
+  }
+
+  async recordInstitutionalResult(
+    causeId: string,
+    eventId: string,
+    tx: PoolClient,
+  ): Promise<void> {
+    const inserted = await tx.query(
+      `INSERT INTO whaleu_verification.institutional_uid_results(completion_id,cause_id,event_id,outcome,unavailable_reason)
+       SELECT c.source_id,c.id,e.id,e.outcome,e.unavailable_reason FROM whaleu_school_uid.producing_causes c
+       JOIN whaleu_school_uid.assignment_events e ON e.cause_id=c.id AND e.id=$2
+       WHERE c.id=$1 AND c.kind='institutional_sso' AND c.creation_transaction=pg_current_xact_id()`,
+      [causeId, eventId],
+    );
+    if (inserted.rowCount !== 1)
+      throw new ApplicationError('SCHOOL_UID_UNAVAILABLE');
   }
 
   async recordApprovedDecision(

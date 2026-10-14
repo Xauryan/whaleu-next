@@ -1,3 +1,9 @@
+import { InstitutionalSsoController } from './institutional/controller.js';
+import { InstitutionalSsoService } from './institutional/service.js';
+import {
+  INSTITUTIONAL_PROVIDER,
+  UnavailableInstitutionalProvider,
+} from './institutional/provider.js';
 import { SchoolUidModule } from '../school-uid/module.js';
 import { SchoolIdentityVerificationFacade } from './school-identity.facade.js';
 import { AuthorizationModule } from '../authorization/authorization.module.js';
@@ -87,6 +93,7 @@ export class VerificationController {
   ],
   controllers: [
     VerificationController,
+    InstitutionalSsoController,
     PhoneBindingController,
     OwnStudentVerificationController,
     StudentVerificationReviewController,
@@ -94,6 +101,11 @@ export class VerificationController {
   ],
   providers: [
     SchoolIdentityVerificationFacade,
+    InstitutionalSsoService,
+    {
+      provide: INSTITUTIONAL_PROVIDER,
+      useClass: UnavailableInstitutionalProvider,
+    },
     StudentVerificationNotices,
     StudentVerificationAccess,
     StudentVerificationService,

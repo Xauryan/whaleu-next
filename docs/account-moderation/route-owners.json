@@ -3783,6 +3783,95 @@
     ]
   },
   {
+    "handler": "InstitutionalSsoController.capability",
+    "method": "GET",
+    "path": "/v1/me/institutional-sso/capability",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/verification/institutional/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "InstitutionalSsoService",
+        "method": "capability",
+        "file": "apps/api/src/verification/institutional/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "InstitutionalSsoController.close",
+    "method": "POST",
+    "path": "/v1/me/institutional-sso/requests/:requestId/close",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/verification/institutional/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "InstitutionalSsoService",
+        "method": "close",
+        "file": "apps/api/src/verification/institutional/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "InstitutionalSsoController.complete",
+    "method": "POST",
+    "path": "/v1/me/institutional-sso/requests/:requestId/complete",
+    "action": "private_self_service",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/verification/institutional/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "InstitutionalSsoService",
+        "method": "complete",
+        "file": "apps/api/src/verification/institutional/service.ts",
+        "policy": [
+          "AccountPolicy('private_self_service', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "InstitutionalSsoController.prepare",
+    "method": "POST",
+    "path": "/v1/me/institutional-sso/requests",
+    "action": "private_self_service",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/verification/institutional/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "InstitutionalSsoService",
+        "method": "prepare",
+        "file": "apps/api/src/verification/institutional/service.ts",
+        "policy": [
+          "AccountPolicy('private_self_service', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "InstitutionalSsoController.read",
+    "method": "GET",
+    "path": "/v1/me/institutional-sso/requests/:requestId",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/verification/institutional/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "InstitutionalSsoService",
+        "method": "read",
+        "file": "apps/api/src/verification/institutional/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
     "handler": "LikedHistoryController.list",
     "method": "GET",
     "path": "/v1/me/community/liked",

@@ -1,0 +1,1271 @@
+{
+  "components": {
+    "schemas": {
+      "SafeErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              }
+            },
+            "required": ["code", "message", "requestId"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "accessToken": {
+        "description": "Current opaque WhaleU access token. Status and cancellation remain restricted self-service; new issuance requires current private self-service authority. Campus selection never authenticates affiliation.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "Actor-owned original institutional verification requests, one-use opaque response admission, independent facts and distinct UID outcomes. The shipping institutional provider/native binding is unavailable; synthetic composition does not activate a real provider.",
+    "title": "WhaleU private institutional verification",
+    "version": "1"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/v1/me/institutional-sso/capability": {
+      "get": {
+        "description": "Current safe capability; this read is not authorization.",
+        "operationId": "institutionalSsoCapability",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "campusId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "campusId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "capabilityVersion": {
+                      "nullable": true,
+                      "pattern": "^[a-f0-9]{64}$",
+                      "type": "string"
+                    },
+                    "consent": {
+                      "enum": ["institutional-verification-link/v1"],
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "enum": ["institutional_verification"],
+                      "type": "string"
+                    },
+                    "schoolName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "eligible",
+                        "not_applicable",
+                        "provider_unconfigured",
+                        "provider_unavailable",
+                        "account_restricted",
+                        "verification_conflict"
+                      ],
+                      "type": "string"
+                    },
+                    "supportedFacts": {
+                      "items": {
+                        "enum": ["affiliation", "student_number"],
+                        "type": "string"
+                      },
+                      "maxItems": 2,
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "campusId",
+                    "state",
+                    "schoolName",
+                    "capabilityVersion",
+                    "consent",
+                    "purpose",
+                    "supportedFacts"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict bounded JSON and explicit consent are required."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current owner authentication is required."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "The original request identity conflicts."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Institutional verification is unavailable. No real provider is configured by default."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Institutional verification"]
+      }
+    },
+    "/v1/me/institutional-sso/requests": {
+      "post": {
+        "description": "Freeze an original actor-owned institutional verification intent.",
+        "operationId": "institutionalSsoPrepare",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "campusId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  "capabilityVersion": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "consent": {
+                    "enum": ["institutional-verification-link/v1"],
+                    "type": "string"
+                  },
+                  "requestId": {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "requestId",
+                  "campusId",
+                  "capabilityVersion",
+                  "consent"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "context": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "campusId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "capabilityVersion": {
+                              "pattern": "^[a-f0-9]{64}$",
+                              "type": "string"
+                            },
+                            "consent": {
+                              "enum": ["institutional-verification-link/v1"],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "campusId",
+                            "capabilityVersion",
+                            "consent"
+                          ],
+                          "type": "object"
+                        },
+                        "expiresAt": {
+                          "type": "string"
+                        },
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["prepared"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "requestHash",
+                        "state",
+                        "context",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "changedFacts": {
+                          "items": {
+                            "enum": ["affiliation", "student_number"],
+                            "type": "string"
+                          },
+                          "maxItems": 2,
+                          "type": "array"
+                        },
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["completed"],
+                          "type": "string"
+                        },
+                        "uidOutcome": {
+                          "enum": [
+                            "issued",
+                            "retained",
+                            "deferred_unavailable"
+                          ],
+                          "type": "string"
+                        },
+                        "uidReason": {
+                          "enum": [
+                            "inventory_unknown",
+                            "account_history_unknown"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "requestHash",
+                        "state",
+                        "changedFacts",
+                        "uidOutcome",
+                        "uidReason"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "processing",
+                            "outcome_unknown",
+                            "ready_to_finalize",
+                            "cancelled",
+                            "expired",
+                            "rejected",
+                            "challenge_required",
+                            "provider_unavailable",
+                            "conflict",
+                            "stale"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId", "requestHash", "state"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "requestHash": {
+                          "enum": [null],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["not_recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId", "requestHash", "state"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict bounded JSON and explicit consent are required."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current owner authentication is required."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "The original request identity conflicts."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Institutional verification is unavailable. No real provider is configured by default."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Institutional verification"]
+      }
+    },
+    "/v1/me/institutional-sso/requests/{requestId}": {
+      "get": {
+        "description": "Recover only the current actor’s original request; never repeats provider verification.",
+        "operationId": "institutionalSsoRead",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "context": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "campusId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "capabilityVersion": {
+                              "pattern": "^[a-f0-9]{64}$",
+                              "type": "string"
+                            },
+                            "consent": {
+                              "enum": ["institutional-verification-link/v1"],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "campusId",
+                            "capabilityVersion",
+                            "consent"
+                          ],
+                          "type": "object"
+                        },
+                        "expiresAt": {
+                          "type": "string"
+                        },
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["prepared"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "requestHash",
+                        "state",
+                        "context",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "changedFacts": {
+                          "items": {
+                            "enum": ["affiliation", "student_number"],
+                            "type": "string"
+                          },
+                          "maxItems": 2,
+                          "type": "array"
+                        },
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["completed"],
+                          "type": "string"
+                        },
+                        "uidOutcome": {
+                          "enum": [
+                            "issued",
+                            "retained",
+                            "deferred_unavailable"
+                          ],
+                          "type": "string"
+                        },
+                        "uidReason": {
+                          "enum": [
+                            "inventory_unknown",
+                            "account_history_unknown"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "requestHash",
+                        "state",
+                        "changedFacts",
+                        "uidOutcome",
+                        "uidReason"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "processing",
+                            "outcome_unknown",
+                            "ready_to_finalize",
+                            "cancelled",
+                            "expired",
+                            "rejected",
+                            "challenge_required",
+                            "provider_unavailable",
+                            "conflict",
+                            "stale"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId", "requestHash", "state"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "requestHash": {
+                          "enum": [null],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["not_recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId", "requestHash", "state"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict bounded JSON and explicit consent are required."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current owner authentication is required."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "The original request identity conflicts."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Institutional verification is unavailable. No real provider is configured by default."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Institutional verification"]
+      }
+    },
+    "/v1/me/institutional-sso/requests/{requestId}/close": {
+      "post": {
+        "description": "Cancel the exact original operation, including an absent-key fence. Completion that committed first remains historical success.",
+        "operationId": "institutionalSsoClose",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "requestHash": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  }
+                },
+                "required": ["requestHash"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "context": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "campusId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "capabilityVersion": {
+                              "pattern": "^[a-f0-9]{64}$",
+                              "type": "string"
+                            },
+                            "consent": {
+                              "enum": ["institutional-verification-link/v1"],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "campusId",
+                            "capabilityVersion",
+                            "consent"
+                          ],
+                          "type": "object"
+                        },
+                        "expiresAt": {
+                          "type": "string"
+                        },
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["prepared"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "requestHash",
+                        "state",
+                        "context",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "changedFacts": {
+                          "items": {
+                            "enum": ["affiliation", "student_number"],
+                            "type": "string"
+                          },
+                          "maxItems": 2,
+                          "type": "array"
+                        },
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["completed"],
+                          "type": "string"
+                        },
+                        "uidOutcome": {
+                          "enum": [
+                            "issued",
+                            "retained",
+                            "deferred_unavailable"
+                          ],
+                          "type": "string"
+                        },
+                        "uidReason": {
+                          "enum": [
+                            "inventory_unknown",
+                            "account_history_unknown"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "requestHash",
+                        "state",
+                        "changedFacts",
+                        "uidOutcome",
+                        "uidReason"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "processing",
+                            "outcome_unknown",
+                            "ready_to_finalize",
+                            "cancelled",
+                            "expired",
+                            "rejected",
+                            "challenge_required",
+                            "provider_unavailable",
+                            "conflict",
+                            "stale"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId", "requestHash", "state"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "requestHash": {
+                          "enum": [null],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["not_recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId", "requestHash", "state"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict bounded JSON and explicit consent are required."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current owner authentication is required."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "The original request identity conflicts."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Institutional verification is unavailable. No real provider is configured by default."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Institutional verification"]
+      }
+    },
+    "/v1/me/institutional-sso/requests/{requestId}/complete": {
+      "post": {
+        "description": "Submit one opaque response once, or locally recover a durable admitted proof without provider replay.",
+        "operationId": "institutionalSsoComplete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "authorizationResponse": {
+                        "maxLength": 4096,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "mode": {
+                        "enum": ["authorize"],
+                        "type": "string"
+                      },
+                      "requestHash": {
+                        "pattern": "^[a-f0-9]{64}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "mode",
+                      "requestHash",
+                      "authorizationResponse"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "mode": {
+                        "enum": ["recover"],
+                        "type": "string"
+                      },
+                      "requestHash": {
+                        "pattern": "^[a-f0-9]{64}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["mode", "requestHash"],
+                    "type": "object"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "context": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "campusId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "capabilityVersion": {
+                              "pattern": "^[a-f0-9]{64}$",
+                              "type": "string"
+                            },
+                            "consent": {
+                              "enum": ["institutional-verification-link/v1"],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "campusId",
+                            "capabilityVersion",
+                            "consent"
+                          ],
+                          "type": "object"
+                        },
+                        "expiresAt": {
+                          "type": "string"
+                        },
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["prepared"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "requestHash",
+                        "state",
+                        "context",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "changedFacts": {
+                          "items": {
+                            "enum": ["affiliation", "student_number"],
+                            "type": "string"
+                          },
+                          "maxItems": 2,
+                          "type": "array"
+                        },
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["completed"],
+                          "type": "string"
+                        },
+                        "uidOutcome": {
+                          "enum": [
+                            "issued",
+                            "retained",
+                            "deferred_unavailable"
+                          ],
+                          "type": "string"
+                        },
+                        "uidReason": {
+                          "enum": [
+                            "inventory_unknown",
+                            "account_history_unknown"
+                          ],
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "requestHash",
+                        "state",
+                        "changedFacts",
+                        "uidOutcome",
+                        "uidReason"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "requestHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "processing",
+                            "outcome_unknown",
+                            "ready_to_finalize",
+                            "cancelled",
+                            "expired",
+                            "rejected",
+                            "challenge_required",
+                            "provider_unavailable",
+                            "conflict",
+                            "stale"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId", "requestHash", "state"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "requestHash": {
+                          "enum": [null],
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["not_recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId", "requestHash", "state"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict bounded JSON and explicit consent are required."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Current owner authentication is required."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "The original request identity conflicts."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Institutional verification is unavailable. No real provider is configured by default."
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Institutional verification"]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

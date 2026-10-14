@@ -681,3 +681,29 @@ Destination pins and pure removal preserve the original view and original-key
 recovery. Profile/avatar/category changes of related targets remain explicitly
 unavailable. See [native contracts and validation entrypoints](docs/related-campus-sync.md).
 Synthetic checks do not establish production policy/provider or device acceptance.
+
+## Institutional verification synthetic journey
+
+The registered `institutional-verification` page is linked from My Verification.
+It offers independent current Verification and School UID reads, explicit consent,
+and actor/API-origin-scoped original-request recovery. It never renders or stores
+authorization responses, private school numbers, subjects, or provider errors.
+
+The production native port is deliberately unavailable. There is no school password
+field, generic webview, provider request, fixture switch, or guessed institution
+protocol. Test composition alone injects a synthetic native port. Passing synthetic
+checks does not establish real-provider, physical-device, or production acceptance.
+
+The versioned journal is durably written and read back before prepare, native
+handoff (`authorize_pending`), and single HTTP submission (`submit_pending`). A
+started or uncertain journal never repeats the handoff, even if the server still
+reports `prepared`. Original-key cancellation is durable before close; absent,
+corrupt, mismatched, and uncertain results never unlock a new request. Completion
+refreshes independent current summaries rather than treating its receipt as live
+permission. JavaScript reference dropping is best effort, not verified byte erasure.
+
+`test/institutional-sso.test.ts` covers contracts, storage boundaries, interrupted
+phases, cancellation, original-key recovery, session/context invalidation, and
+transport non-replay. `scripts/smoke-institutional-sso.mjs` is included in the native
+build and exercises emitted registered Page/WXML handlers with a synthetic transport.
+The separate API integration journey owns actual HTTP/AppModule/PostgreSQL evidence.
