@@ -1,3 +1,4 @@
+import { verifyOfficialSandboxHelper } from './official-browser-sandbox.mjs';
 import { createRequire } from 'node:module';
 import { readFileSync, createReadStream } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -35,3 +36,6 @@ console.log(
     sha256: hash.digest('hex'),
   }),
 );
+
+if (process.env.CI || process.env.WHALEU_OFFICIAL_SANDBOX_HELPER)
+  await verifyOfficialSandboxHelper();

@@ -32,17 +32,23 @@ export async function restoreOfficialFixture(
       Awaited<ReturnType<typeof startOfficialRestorePostgres>> | undefined,
     app: INestApplication | undefined,
     pool: Pool | undefined;
+  const closeRuntime = async () => {
+    const currentApp = app,
+      currentPool = pool;
+    app = undefined;
+    pool = undefined;
+    try {
+      await currentApp?.close();
+    } finally {
+      await currentPool?.end();
+    }
+  };
   const cleanup = async () => {
     try {
-      await app?.close();
+      await closeRuntime();
     } finally {
-      try {
-        await pool?.end();
-      } finally {
-        await cluster?.close();
-        if (!preserveFiles)
-          await rm(directory, { recursive: true, force: true });
-      }
+      await cluster?.close();
+      if (!preserveFiles) await rm(directory, { recursive: true, force: true });
     }
   };
   const run = async (
@@ -120,18 +126,26 @@ export async function restoreOfficialFixture(
     );
     await cluster.verify();
     const config = { ...original, DATABASE_URL: targetUrl.href };
-    pool = new Pool(poolOptions(config));
-    const module = await Test.createTestingModule({
-      imports: [AppModule.register(config)],
-    }).compile();
-    app = module.createNestApplication({ logger: false });
-    configureHttp(app);
-    await app.listen(0, '127.0.0.1');
-    const bound = bindOfficialFixtureRuntime(
-      app,
-      adapter,
-      source.runtime.fixtureEpoch,
-    );
+    const connectRuntime = async () => {
+      pool = new Pool(poolOptions(config));
+      const module = await Test.createTestingModule({
+        imports: [AppModule.register(config)],
+      }).compile();
+      app = module.createNestApplication({ logger: false });
+      configureHttp(app);
+      await app.listen(0, '127.0.0.1');
+      return {
+        ...bindOfficialFixtureRuntime(
+          app,
+          adapter,
+          source.runtime.fixtureEpoch,
+        ),
+        app,
+        pool,
+        directory: adapter,
+      };
+    };
+    const connected = await connectRuntime();
     const snapshotBytes = await readFile(dump);
     process.stdout.write(
       JSON.stringify({
@@ -144,7 +158,26 @@ export async function restoreOfficialFixture(
         separateLoopbackPort: targetUrl.port,
       }) + '\n',
     );
-    return { ...bound, app, pool, directory: adapter, close: cleanup };
+    const restored = {
+      ...connected,
+      close: cleanup,
+      restart: async () => {
+        try {
+          await closeRuntime();
+          // Only this owned secondary cluster is restarted, after every application
+          // and direct fixture pool has closed. Data and adapter files stay intact.
+          await cluster!.restart();
+          Object.assign(restored, await connectRuntime());
+        } catch (error) {
+          preserveFiles = true;
+          process.stderr.write(
+            `Official restart failure files preserved: ${directory}\n`,
+          );
+          throw error;
+        }
+      },
+    };
+    return restored;
   } catch (error) {
     preserveFiles = true;
     process.stderr.write(

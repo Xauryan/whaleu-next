@@ -72,6 +72,14 @@ interface Packet {
 }
 export async function officialBrowser() {
   const selected = await runtime();
+  let helper: string | undefined;
+  if (process.env['CI'] || process.env['WHALEU_OFFICIAL_SANDBOX_HELPER']) {
+    const verifier =
+      require('../../../../scripts/official-browser-sandbox.mjs') as {
+        verifyOfficialSandboxHelper(): Promise<string>;
+      };
+    helper = await verifier.verifyOfficialSandboxHelper();
+  }
   const directory = await mkdtemp(join(tmpdir(), 'official-browser-'));
   const child = spawn(
     selected.binary,
@@ -89,7 +97,12 @@ export async function officialBrowser() {
       `--user-data-dir=${directory}`,
       'about:blank',
     ],
-    { stdio: ['ignore', 'ignore', 'pipe', 'pipe', 'pipe'] },
+    {
+      stdio: ['ignore', 'ignore', 'pipe', 'pipe', 'pipe'],
+      env: helper
+        ? { ...process.env, CHROME_DEVEL_SANDBOX: helper }
+        : process.env,
+    },
   );
   // Do not disable Chromium's sandbox. The dedicated CI job needs a supported
   // non-root user / sandbox setup, not a silent --no-sandbox fallback.

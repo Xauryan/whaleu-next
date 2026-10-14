@@ -11,9 +11,27 @@ import { HotScoreMaterializer } from '../../src/community/hot-score/materializer
 
 test(
   'ten thousand native publications converge incrementally and prove bounded exact prefixes',
-  { timeout: 1800000 },
+  // Two separately enforced test phases; production transaction/round limits
+  // are unchanged. This does not claim the former 30-minute aggregate passed.
+  { timeout: 3600000 },
   async () => {
+    const phaseLimitMs = 1800000;
+    let phase: 'setup' | 'maintenance' = 'setup';
+    let phaseStarted = performance.now();
+    let phaseExpired = false;
+    let phaseTimer = setTimeout(() => {
+      phaseExpired = true;
+    }, phaseLimitMs);
+    phaseTimer.unref();
+    const requirePhaseTime = () => {
+      assert.ok(
+        !phaseExpired && performance.now() - phaseStarted <= phaseLimitMs,
+        `${phase} exceeded its independent 30-minute test deadline`,
+      );
+    };
     const f = await officialAccountFixture();
+    let sampleTimer: ReturnType<typeof setInterval> | undefined;
+    let sampleInFlight: Promise<void> | undefined;
     try {
       // Actual canonical publication receipts + all four native enrollment owners +
       // original Review binding and original exact-score materializer. Never seed ready.
@@ -49,7 +67,71 @@ test(
       };
       let safetyCalls = 0,
         safetyMaxMs = 0;
-      f.observer.setHook(async ({ sql, durationMs }) => {
+      const recentOwnerQueries: {
+        sql: string;
+        durationMs: number;
+        finishedAt: number;
+      }[] = [];
+      let currentOwnerQuery: { sql: string; startedAt: number } | null = null;
+      f.observer.setBeforeHook(async ({ sql }) => {
+        // Fail the next bounded operation on expiry, while always allowing rollback
+        // and final fixture cleanup. No timed owner SQL is added or relaxed.
+        if (sql !== 'ROLLBACK' && !sql.startsWith('ROLLBACK TO '))
+          requirePhaseTime();
+        currentOwnerQuery = {
+          sql: sql.slice(0, 220),
+          startedAt: performance.now(),
+        };
+      });
+      let tracing = false;
+      let transactionStarted = 0;
+      let transactionNumber = 0;
+      let finalizing = false;
+      let phases: Record<
+        string,
+        { queries: number; ms: number; rows: number }
+      > = {};
+      f.observer.setHook(async ({ sql, durationMs, rows }) => {
+        recentOwnerQueries.push({
+          sql: sql.slice(0, 220),
+          durationMs,
+          finishedAt: performance.now(),
+        });
+        if (recentOwnerQueries.length > 64) recentOwnerQueries.shift();
+        currentOwnerQuery = null;
+        if (tracing) {
+          if (sql.startsWith('SET LOCAL statement_timeout')) {
+            transactionStarted = performance.now();
+            transactionNumber++;
+            phases = {};
+            finalizing = false;
+          }
+          if (sql === 'SET CONSTRAINTS ALL IMMEDIATE') finalizing = true;
+          const phase = finalizing
+            ? 'final_proofs'
+            : /pending_causes|cause_conversions|INSERT INTO whaleu_official.(source_events|dependency_events)|head=head\+1/.test(
+                  sql,
+                )
+              ? 'inbox_conversion'
+              : /source_ranks|source_dirty/.test(sql)
+                ? 'rank_and_dirty'
+                : /whaleu_official/.test(sql)
+                  ? 'coverage_metadata'
+                  : 'canonical_owners';
+          const group = (phases[phase] ??= { queries: 0, ms: 0, rows: 0 });
+          group.queries++;
+          group.ms += durationMs;
+          group.rows += rows;
+          if (sql === 'COMMIT' || sql === 'ROLLBACK')
+            console.log(
+              'official-10k-transaction-profile',
+              JSON.stringify({
+                transactionNumber,
+                wallMs: performance.now() - transactionStarted,
+                phases,
+              }),
+            );
+        }
         if (sql.includes('account_punishment_policy_observation')) {
           safetyCalls++;
           safetyMaxMs = Math.max(safetyMaxMs, durationMs);
@@ -60,7 +142,13 @@ test(
       f.observer.setFailureHook(async ({ sql, code }) => {
         console.error(
           'official-10k-owner-sql-failure',
-          JSON.stringify({ enrolled: ids.length, sql, code }),
+          JSON.stringify({
+            enrolled: ids.length,
+            sql,
+            code,
+            transactionNumber,
+            phases,
+          }),
         );
         try {
           await safetyPlan('after-owner-failure');
@@ -68,16 +156,48 @@ test(
           console.error('official-safety-plan-unavailable', String(diagnostic));
         }
       });
-      for (let i = 0; i < 10000; i++) {
-        const post = await f.world.dated(
-          new Date(
-            Date.now() - (i < 5000 ? 48 * 3600000 : 3600000) + i,
-          ).toISOString(),
+      try {
+        for (let i = 0; i < 10000; i++) {
+          requirePhaseTime();
+          const post = await f.world.dated(
+            new Date(
+              Date.now() - (i < 5000 ? 48 * 3600000 : 3600000) + i,
+            ).toISOString(),
+          );
+          await f.eligibility(post.id);
+          ids.push(post.id);
+          if (ids.length % 1000 === 0)
+            console.log('official-native-enrolled', ids.length);
+        }
+      } catch (error) {
+        console.error(
+          'official-10k-enrollment-owner-failure',
+          JSON.stringify({
+            enrolled: ids.length,
+            failedAt: performance.now(),
+            error: String(error),
+            currentOwnerQuery,
+            recentOwnerQueries,
+          }),
         );
-        await f.eligibility(post.id);
-        ids.push(post.id);
-        if (ids.length % 1000 === 0)
-          console.log('official-native-enrolled', ids.length);
+        console.log(
+          'official-10k-owner-failure-domain',
+          JSON.stringify(
+            (
+              await f.pool.query(
+                `SELECT pg_backend_pid() diagnostic_pid,
+             whaleu_official.current_capture_domain() capture_domain,
+             (SELECT jsonb_agg(jsonb_build_object('pid',pid,'state',state,
+               'waitType',wait_event_type,'wait',wait_event,
+               'transactionMs',EXTRACT(EPOCH FROM clock_timestamp()-xact_start)*1000,
+               'query',left(query,160))) FROM pg_stat_activity
+               WHERE datname=current_database() AND pid<>pg_backend_pid()) clients`,
+              )
+            ).rows,
+          ),
+        );
+        await safetyPlan('after-enrollment-owner-failure');
+        throw error;
       }
       await safetyPlan('after-10000-enrollment');
       console.log('official-10k-safety-observation', {
@@ -92,7 +212,57 @@ test(
         )
       ).rows;
       assert.equal(native.length, 10000);
+      await f.pool.query('ANALYZE whaleu_official.pending_causes');
+      const pendingPlan = await f.pool.query(
+        `EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT *,source_xid::text FROM whaleu_official.pending_causes WHERE kind='source' AND space_id=$1 ORDER BY id LIMIT 32 FOR UPDATE SKIP LOCKED`,
+        [f.world.scope.home.spaceId],
+      );
+      console.log(
+        'official-source-inbox-prefix-plan',
+        JSON.stringify(pendingPlan.rows),
+      );
+      assert.match(
+        JSON.stringify(pendingPlan.rows),
+        /"Index Name":"official_pending_source"/,
+      );
+      requirePhaseTime();
+      console.log('official-10k-phase-complete', {
+        phase,
+        wallMs: performance.now() - phaseStarted,
+      });
+      clearTimeout(phaseTimer);
+      phase = 'maintenance';
+      phaseStarted = performance.now();
+      phaseExpired = false;
+      phaseTimer = setTimeout(() => {
+        phaseExpired = true;
+        f.maintain.stopAdmission();
+      }, phaseLimitMs);
+      phaseTimer.unref();
       // Bootstrap must keep its finite high-water mark while real traffic arrives.
+      tracing = true;
+      // One independent nonlocking observation per second; never add a query to
+      // the timed owner transaction, and never overlap samples.
+      sampleTimer = setInterval(() => {
+        if (sampleInFlight) return;
+        sampleInFlight = (async () => {
+          const waits = await f.pool.query(
+            `SELECT pid,wait_event_type,wait_event,left(query,160) query,
+              EXTRACT(EPOCH FROM clock_timestamp()-xact_start)*1000 transaction_ms
+             FROM pg_stat_activity WHERE datname=current_database()
+               AND pid<>pg_backend_pid() AND xact_start IS NOT NULL
+               AND wait_event_type='Lock' LIMIT 8`,
+          );
+          if (waits.rows.length)
+            console.log('official-10k-lock-sample', JSON.stringify(waits.rows));
+        })()
+          .catch((error: unknown) => {
+            console.log('official-10k-sample-unavailable', String(error));
+          })
+          .finally(() => {
+            sampleInFlight = undefined;
+          });
+      }, 1000);
       const firstBatch = await f.maintain.runCycle({ programId: f.programId });
       assert.equal(firstBatch.more, true);
       const captured = (
@@ -199,6 +369,19 @@ test(
       );
       console.log('official-daily-frontier-plan', JSON.stringify(plan.rows));
       assert.match(JSON.stringify(plan.rows), /official_rank_frontier/);
+      const identityPlan = await f.pool.query(
+        'EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT space_id FROM whaleu_official.source_ranks WHERE post_id=$1',
+        [ids.at(-1)],
+      );
+      console.log(
+        'official-source-rank-identity-plan',
+        JSON.stringify(identityPlan.rows),
+      );
+      assert.match(
+        JSON.stringify(identityPlan.rows),
+        /official_rank_post_identity/,
+      );
+
       // A missing low-score certificate must not disappear beneath LIMIT/top-k.
       await f.pool.query(
         'DELETE FROM whaleu_post_hotness.scores WHERE post_id=$1',
@@ -214,7 +397,18 @@ test(
         [f.world.scope.home.spaceId],
       );
       assert.match(JSON.stringify(plans.rows), /Index/);
+      requirePhaseTime();
+      console.log('official-10k-phase-complete', {
+        phase,
+        wallMs: performance.now() - phaseStarted,
+      });
     } finally {
+      clearTimeout(phaseTimer);
+      if (sampleTimer) clearInterval(sampleTimer);
+      await sampleInFlight;
+      f.observer.setBeforeHook(null);
+      f.observer.setHook(null);
+      f.observer.setFailureHook(null);
       await f.close();
     }
   },

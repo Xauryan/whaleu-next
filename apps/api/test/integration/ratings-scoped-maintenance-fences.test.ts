@@ -93,8 +93,72 @@ test(
           // maintenance; this actual VACUUM still runs. TRUNCATE is excluded
           // because truncation legitimately needs AccessExclusive.
           await withCommunityScopeWriter(f.pool, async (tx) => {
-            await tx.query(
-              `DO $$BEGIN FOR i IN 1..5000 LOOP UPDATE whaleu_ratings.scope_protocol_versions SET id=id WHERE false; END LOOP;END$$`,
+            const readSetupEpochs = async () =>
+              (
+                await tx.query<{ kind: string; epoch: string }>(
+                  `SELECT 'source' kind,epoch::text FROM whaleu_ratings.scoped_source_epoch
+                 UNION ALL SELECT 'protocol',epoch::text FROM whaleu_ratings.scope_protocol_epoch ORDER BY kind`,
+                )
+              ).rows;
+            const beforeSetup = await readSetupEpochs();
+            assert.deepEqual(
+              beforeSetup.map((row) => row.kind),
+              ['protocol', 'source'],
+            );
+            const transaction = (
+              await tx.query<{ xid: string; statement_timeout: string }>(
+                "SELECT pg_current_xact_id()::text xid,current_setting('statement_timeout') statement_timeout",
+              )
+            ).rows[0]!;
+            const started = performance.now();
+            // Fixture work, not a larger production statement allowance. Keep
+            // all 5000 genuine writes in the original transaction with one
+            // final commit; no trigger, source guard or timeout is changed.
+            // Four Ratings epoch triggers now also invalidate linked Community
+            // proofs, so one monolithic DO needlessly shares one 15s timeout.
+            for (let batch = 0; batch < 50; batch++) {
+              const batchStarted = performance.now();
+              await tx.query(
+                `DO $$BEGIN FOR i IN 1..100 LOOP UPDATE whaleu_ratings.scope_protocol_versions SET id=id WHERE false; END LOOP;END$$`,
+              );
+              t.diagnostic(
+                JSON.stringify({
+                  phase: 'real-maintenance-fixture-batch',
+                  table,
+                  batch: batch + 1,
+                  writes: 100,
+                  elapsedMs: performance.now() - batchStarted,
+                }),
+              );
+            }
+            const afterSetup = await readSetupEpochs();
+            assert.deepEqual(
+              afterSetup.map((row) => row.kind),
+              ['protocol', 'source'],
+            );
+            for (let index = 0; index < beforeSetup.length; index++)
+              assert.equal(
+                BigInt(afterSetup[index]!.epoch) -
+                  BigInt(beforeSetup[index]!.epoch),
+                5000n,
+              );
+            const afterTransaction = (
+              await tx.query<{ xid: string; statement_timeout: string }>(
+                "SELECT pg_current_xact_id()::text xid,current_setting('statement_timeout') statement_timeout",
+              )
+            ).rows[0]!;
+            assert.deepEqual(afterTransaction, transaction);
+            t.diagnostic(
+              JSON.stringify({
+                phase: 'real-maintenance-fixture-complete',
+                table,
+                batches: 50,
+                writes: 5000,
+                beforeSetup,
+                afterSetup,
+                transaction,
+                elapsedMs: performance.now() - started,
+              }),
             );
           });
           const context = await f.scopedContext(f.creator),

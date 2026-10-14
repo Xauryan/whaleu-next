@@ -566,6 +566,8 @@
       "shards": [
         [
           "official-account-authority.test.ts",
+          "official-account-inbox.test.ts",
+          "official-account-inbox-manual.test.ts",
           "official-account-selection.test.ts",
           "official-account-source-withdrawal.test.ts",
           "official-account-ledger.test.ts",

@@ -137,6 +137,8 @@ jobs:
       - name: Verify official-operator browser version and binary digest
         if: matrix.module == 'official-account-operations'
         run: node scripts/verify-official-browser.mjs
+        env:
+          WHALEU_OFFICIAL_SANDBOX_HELPER: /opt/google/chrome/chrome-sandbox
       - name: Verify shard manifest before database creation
         run: node scripts/run-integration-module.mjs --module "$CI_MODULE" --shard "$CI_SHARD" --list
       - name: Download only the successful native build artifact
@@ -177,7 +179,11 @@ jobs:
           NODE_ENV: test
           TEST_DATABASE_URL: postgresql://whaleu_test:local_ci_only@127.0.0.1:5432/whaleu_test
       - name: Real PostgreSQL integration tests
-        run: timeout 7200 node scripts/run-integration-module.mjs --module "$CI_MODULE" --shard "$CI_SHARD"
+        run: |
+          if [[ "$CI_MODULE" == official-account-operations ]]; then
+            export WHALEU_OFFICIAL_SANDBOX_HELPER=/opt/google/chrome/chrome-sandbox
+          fi
+          timeout 7200 node scripts/run-integration-module.mjs --module "$CI_MODULE" --shard "$CI_SHARD"
         env:
           NODE_ENV: test
           WHALEU_RATINGS_CI_DIAGNOSTICS: '1'
