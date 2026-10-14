@@ -268,7 +268,7 @@ process.once('message', async (input) => {
     feed.tap('onPinOpen');
     assert.equal(
       navigation.at(-1),
-      `/pages/community-detail/community-detail?postId=${input.postId}`,
+      `/pages/community-detail/community-detail?postId=${input.postId}&viewSpaceId=${input.viewSpaceId}`,
     );
     close(feed);
     const readsBeforePresentation = commands.filter(

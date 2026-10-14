@@ -38,6 +38,7 @@ const expectLightweight = (hit: SearchHit) => {
     'category',
     'contentId',
     'createdAt',
+    'isRelatedCampusSync',
     'kind',
     'postId',
     'postSummary',
@@ -49,6 +50,7 @@ const expectLightweight = (hit: SearchHit) => {
     'tradingSubtype',
     'tradingUrgency',
   ]);
+  assert.equal(hit.isRelatedCampusSync, false);
   assert.ok([...hit.postSummary].length <= 80);
   assert.ok([...textOfSnippet(hit)].length <= 240);
   assert.ok(hit.snippet.segments.some((segment) => segment.matched));

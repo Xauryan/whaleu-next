@@ -127,6 +127,7 @@ test(
           admin: credentials(admin),
           reader: credentials(reader),
           postId: post.id,
+          viewSpaceId: f.scope.home.spaceId,
           feedbackPostId: feedback.id,
           feedbackPinId: feedbackPin.body.pinId,
         });
