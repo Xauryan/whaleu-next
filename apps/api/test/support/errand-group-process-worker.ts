@@ -1,3 +1,7 @@
+import { observeGroupPreparation } from './errand-group-preparation.js';
+import { DatabaseService } from '../../src/database/database.js';
+import { ErrandGroupRepository } from '../../src/notifications/errand-group/repository.js';
+import { ErrandGroupSource } from '../../src/errands/group-source.js';
 /** Disposable restarted worker process; only synthetic recipient/provider ports.
  * AppModule, PostgreSQL, Errands source, Safety, Review and Media proofs are real. */
 import 'reflect-metadata';
@@ -28,6 +32,7 @@ process.once('message', (raw: unknown) => {
       destinations: unknown;
       now: number;
       discover: boolean;
+      expirePreparation: boolean;
     };
     assert.equal(process.env['NODE_ENV'], 'test');
     assert.equal(process.env['WHALEU_TEST_MAINTENANCE'], 'controlled');
@@ -46,6 +51,11 @@ process.once('message', (raw: unknown) => {
       input.directory,
       () => input.now,
     );
+    assert.equal(typeof input.expirePreparation, 'boolean');
+    // Only the controlled synthetic child's first preparation is expired.
+    // The real worker still obtains every current owner proof and its unchanged permit.
+    if (input.expirePreparation)
+      sender.preparedExpiresAt = performance.now() - 1;
     const runtime: ErrandGroupRuntime = {
       mode: 'synthetic-only',
       authority,
@@ -71,9 +81,20 @@ process.once('message', (raw: unknown) => {
       await app.init();
       const worker = app.get(ErrandGroupWorker);
       if (input.discover) await worker.discover();
-      const claimed = await worker.runOne();
+      const preparation = observeGroupPreparation({
+        db: app.get(DatabaseService),
+        records: app.get(ErrandGroupRepository),
+        source: app.get(ErrandGroupSource),
+        sender,
+        runtime,
+      });
+      const trace = await preparation
+        .run(worker)
+        .finally(() => preparation.restore());
+      const claimed = trace.claimed;
       await send({
         event: 'done',
+        trace,
         pid: process.pid,
         claimed,
         attempts: sender.attempts.map((p) => ({

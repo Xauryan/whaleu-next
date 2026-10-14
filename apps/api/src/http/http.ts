@@ -14,6 +14,7 @@ import type {
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
+import { raw } from 'express';
 import { AppLogger } from '../observability/logger.js';
 import {
   ApplicationError,
@@ -114,6 +115,14 @@ export function configureHttp(app: INestApplication): void {
     next();
   });
   const expressApp = app as NestExpressApplication;
+  app.use(
+    '/v1/official-account-callbacks',
+    raw({ type: () => true, limit: '64kb', inflate: false }),
+  );
+  app.use(
+    '/v1/me/official-account-operations',
+    raw({ type: () => true, limit: '256kb', inflate: false }),
+  );
   expressApp.useBodyParser('json', { limit: '64kb' });
   expressApp.useBodyParser('urlencoded', { extended: false, limit: '64kb' });
   // Body-parser exposes typed operational failures outside Nest's HttpException

@@ -137,31 +137,46 @@ export class CommunitySerializer {
     });
   }
 
-  async post(
-    post: StoredPost,
-    space: CommunitySpace,
-    viewer: string | null,
-    authority: Authority | null,
+  /** Community-owned anonymous export allowlist. Native signed image URLs and
+   * author/persona projections are not part of an external article. Callers must
+   * separately obtain the exact current Media export proof for every image. */
+  async publicExport(
+    postId: string,
     tx: PoolClient,
-    purpose: MediaReadPurpose = 'list-projection',
-    distribution?: RelatedCampusDisplay,
-  ): Promise<PostView> {
-    const currentCategory = await resolvePostCategory(post.id, tx);
-    if (currentCategory === null) throw new ApplicationError('POST_NOT_FOUND');
-    const publicEligible = await ownerPostVisibilityAllowed(
+  ): Promise<{
+    text: string;
+    likeCount: number;
+    discussionCount: number;
+    saveCount: number;
+  }> {
+    const { post } = await this.access.projectionPost(postId, null, tx);
+    const { likes, commentCount, replyCount } = await this.readPublicCounts(
       post.id,
-      post.account_id,
-      viewer,
-      'list_projection',
+      null,
       tx,
+      'list-projection',
     );
+    const saved = await this.saved.projection(post.id, null, tx);
+    return {
+      text: post.text,
+      likeCount: likes.rows[0]!.count,
+      discussionCount: commentCount + replyCount,
+      saveCount: saved.saveCount,
+    };
+  }
+  private async readPublicCounts(
+    postId: string,
+    viewer: string | null,
+    tx: PoolClient,
+    purpose: MediaReadPurpose,
+  ) {
     const likes = await tx.query<{ count: number; liked: boolean }>(
       'SELECT count(*)::integer AS count,coalesce(bool_or(account_id=$2::uuid),false) AS liked FROM whaleu_community.post_likes WHERE post_id=$1',
-      [post.id, viewer],
+      [postId, viewer],
     );
     const comments = await tx.query<StoredComment>(
       "SELECT * FROM whaleu_community.root_comments WHERE post_id=$1 AND visibility='approved' AND deleted_at IS NULL LIMIT 1025 FOR SHARE",
-      [post.id],
+      [postId],
     );
     if (comments.rows.length > 1024)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
@@ -200,6 +215,33 @@ export class CommunitySerializer {
         if (replyCount > 1024)
           throw new ApplicationError('COMMUNITY_UNAVAILABLE');
       }
+    return { likes, commentCount, replyCount };
+  }
+
+  async post(
+    post: StoredPost,
+    space: CommunitySpace,
+    viewer: string | null,
+    authority: Authority | null,
+    tx: PoolClient,
+    purpose: MediaReadPurpose = 'list-projection',
+    distribution?: RelatedCampusDisplay,
+  ): Promise<PostView> {
+    const currentCategory = await resolvePostCategory(post.id, tx);
+    if (currentCategory === null) throw new ApplicationError('POST_NOT_FOUND');
+    const publicEligible = await ownerPostVisibilityAllowed(
+      post.id,
+      post.account_id,
+      viewer,
+      'list_projection',
+      tx,
+    );
+    const { likes, commentCount, replyCount } = await this.readPublicCounts(
+      post.id,
+      viewer,
+      tx,
+      purpose,
+    );
     let canComment = false;
     const reviewAvailable =
       authority?.runtime &&

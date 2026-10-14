@@ -429,6 +429,17 @@ if (!configured) {
 }
 const config = JSON.parse(readFileSync(path.join(dist, 'app.json'), 'utf8'));
 assert.equal(config.pages[0], 'pages/login/login');
+function assertColdOfficial(current) {
+  assert.equal(current.data.busy, false);
+  assert.equal(current.data.pending, false);
+  assert.equal(current.data.capabilities, null);
+  assert.equal(current.data.config, null);
+  assert.equal(current.data.preview, null);
+  assert.equal(current.data.status, null);
+  assert.equal(current.data.author, '');
+  assert.equal(current.data.requestId, '');
+  assert.equal(current.controller, undefined);
+}
 function assertColdInstitutional(current) {
   assert.equal(current.data.busy, false);
   assert.equal(current.data.frozen, false);
@@ -877,7 +888,11 @@ for (const route of config.pages.filter(
       assert.equal(current.data.frozen, false);
     } else assert.equal(current.data.unreadCount, null);
   }
-  if (route === 'pages/institutional-verification/institutional-verification')
+  if (route === 'pages/official-account-operations/official-account-operations')
+    assertColdOfficial(current);
+  else if (
+    route === 'pages/institutional-verification/institutional-verification'
+  )
     assertColdInstitutional(current);
   else if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
   else if (route === 'pages/rating-create/rating-create')
@@ -927,7 +942,11 @@ for (const route of config.pages.filter(
       assert.equal(current.data.imageCount, 0);
     }
   }
-  if (route === 'pages/institutional-verification/institutional-verification')
+  if (route === 'pages/official-account-operations/official-account-operations')
+    assertColdOfficial(current);
+  else if (
+    route === 'pages/institutional-verification/institutional-verification'
+  )
     assertColdInstitutional(current);
   else if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
   else if (route === 'pages/rating-create/rating-create')
@@ -946,7 +965,11 @@ for (const route of config.pages.filter(
     assert.equal(current.phone, undefined);
   } else assert.equal(current.data.loaded, false);
   current.onShow();
-  if (route === 'pages/institutional-verification/institutional-verification')
+  if (route === 'pages/official-account-operations/official-account-operations')
+    assertColdOfficial(current);
+  else if (
+    route === 'pages/institutional-verification/institutional-verification'
+  )
     assertColdInstitutional(current);
   else if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
   else if (route === 'pages/phone-binding/phone-binding')
@@ -1026,7 +1049,11 @@ for (const route of config.pages.filter(
     assert.ok(current.data.error);
   } else assert.ok(current.controller);
   current.onUnload();
-  if (route === 'pages/institutional-verification/institutional-verification')
+  if (route === 'pages/official-account-operations/official-account-operations')
+    assertColdOfficial(current);
+  else if (
+    route === 'pages/institutional-verification/institutional-verification'
+  )
     assertColdInstitutional(current);
   else if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
   if (route === 'pages/rating-create/rating-create') {

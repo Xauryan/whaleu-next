@@ -1,3 +1,4 @@
+import { OfficialAccountOperationsModule } from './official-account-operations/module.js';
 import { CampusToolsModule } from './campus-tools/module.js';
 import { SchoolIdentityModule } from './school-identity/module.js';
 import { SchoolUidModule } from './school-uid/module.js';
@@ -68,6 +69,7 @@ export class AppModule {
         IdentityModule,
         CampusModule,
         CampusToolsModule,
+        OfficialAccountOperationsModule,
         IdentityCampusModule,
         ProfileModule,
         ProfileModerationModule,

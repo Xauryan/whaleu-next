@@ -1,0 +1,63 @@
+# Official account operations: synthetic owner candidate
+
+This additive owner implements the reviewed `synthetic-official-v1` contract. It is a development candidate, not production activation or passing acceptance evidence. Ordinary AppModule binds both operation and callback runtimes to null. No environment variable enables them. No cron, real provider, browser login bridge, credentials, template transport, or group-link campaign is shipped.
+
+## Distinct outcomes and authority
+
+Daily/test commands have only material and draft-create effects. They cannot have a publish edge. Manual publication requires an owned confirmed manual draft, a new current exact-content confirmation, and a separate original request. Submitted publication remains submitted until independent evidence confirms publication.
+
+Contract clarification: configuration receipt/status is `config_applied`, not a confirmed draft. It attests only the exact configuration CAS. Native save success and later test failure are independent.
+
+Cancellation binds the canonical strict original DTO hash even if the preview is expired or absent. An existing command additionally binds its immutable operation. Test/manual creation is selected from the server-owned preview kind; no caller operation flag grants authority. A cancelled pre-admission original key cannot be reused by another route. Same-account active Identity permits metadata recovery after fresh privileges are revoked.
+
+## Source coverage
+
+Manual selection seeks immutable `(published_at,id)` prefixes, excludes future rows on every page, defaults to ten, and stops at the kth proven eligible post. It never counts the older suffix or adopts daily ranking/window rules.
+
+Daily selection consumes the original exact unified-score certificates. School/city scope and 26-hour filtering remain separate from score calculation. Per-space roots, immutable event sequences and deduplicated dirty identities support finite high-water bootstrap and retained progress. Ordinary changes settle affected identities rather than resetting all ranks. Shared account/Review/Media/topology dependency frontiers avoid synchronous per-program mutation fanout. Current proof deadlines also invalidate expired rank coverage.
+
+Maintenance is explicit, one program, at most four batches of 32 entries, 128 entries and twenty seconds per invocation. A shared database lease serializes maintainers; every transaction retains existing five-second and stricter final-proof limits. Preview never materializes scores or repairs coverage. The large native-history and interleaved traffic suite must pass before this owner is considered complete.
+
+Public counts come from the Community public projection, not internal hot inputs. Only allowlisted fields reach the article. Artwork reuse requires separate synthetic purpose admission and current underlying Community/Media proof; it does not mutate source retention or grant arbitrary file access. Real provisioning and a dedicated production artwork-upload owner remain activation decisions.
+
+## Synthetic effects and retention
+
+Each effect has a stable original identity; dispatch attempts and accepted evidence are immutable. Unknown outcomes reconcile the same key and do not resend. A synchronous isolated filesystem adapter persists exact fences/receipts across processes; the database and adapter epoch must agree. This is not a real provider idempotency claim. No network call occurs at the adapter boundary.
+
+Preview/article payloads use test-only explicitly injected encryption storage. Public test keys are not production secrets. Metadata recovery does not return bodies. A bounded explicit purge removes ciphertext/nonce/tag but retains command/effect/slot/event tombstones. Manual publication reconstructs current readable immutable source text plus frozen counters, and rejects a different original render hash.
+
+## Browser test runtime and CI
+
+The operator shell is public/data-free, CSP restricted and no-store. Its optional synthetic authentication bridge is memory-only; without it all actions are disabled. No token entry, cookie issuer, URL credential or token persistence exists.
+
+The official-account PostgreSQL shard alone installs Chromium using exact `playwright-core@1.58.2`, with package-lock integrity from the official npm registry. Browser revision and browserVersion are taken from that pinned package's `browsers.json`. Cache key includes OS, architecture, exact package version and complete lockfile hash, without broad restore keys. Installation uses the pinned local CLI and `--with-deps chromium`; no npx fallback fetch is permitted. A separate verifier checks the exact browser version and records its executable SHA-256. Missing browser, sandbox, binary version or installation is an error, never a skipped test.
+
+Local source-only development found an installed Chromium 154.0.8037.57. That explicitly named local profile is separate from the CI package-managed runtime and does not establish hosted CI readiness. Browser sandbox remains enabled. Actual browser/native execution, frozen aggregate checks, controlled PostgreSQL and independent review are still required.
+
+## Evidence status
+
+At source preparation time, only syntax parsing and formatting of selected TS/MJS files were performed. The initial formatter invocation included SQL files unsupported by the installed formatter and returned exit 2; SQL was not rewritten. No passing compile, unit, PostgreSQL, 10,000-row, emitted-native, browser, hosted CI or real-provider result is claimed here. Acceptance must use the final frozen source/emitted manifests and logs, not this design description or test source alone.
+
+## Source-review corrections awaiting execution
+
+Daily rank lookup now uses a derived active-window partial score index. Separate bounded partial time indexes detect expired active rows, future ingress, owner-proof expiry, and active unknown retry obligations. Every maintenance batch changes the derived generation; a ready result requires all applicable time/dirty/event frontiers and active unknown obligations to be resolved. Old/future inventory retains structural unknown rows without pretending the owner granted export. Unknown current facts retry no sooner than five seconds, never become zero or a denial. Program enrollment creates only empty roots, so manual empty-prefix proof does not require daily bootstrap.
+
+Cancellation before command admission has a separate strict `{state:'cancelled_before_admission',requestId,intentHash}` tombstone. Native and operator recover the exact tombstone after lost acknowledgements and clear only the matching journal. No account/program receipt is invented. Different payload reuse of a cancelled key conflicts. Cancellation locks and suppresses preparation-only states; recorded dispatch uncertainty remains recoverable. Session replacement requires explicit same-account original-key resume.
+
+Service commands freeze both their original principal and accepted service authority digest. Attempts and effect transitions are database-fenced; original receipt identity is not a mutable session attachment. The fixed 100 ms synchronous permit must fit every captured deadline, including article freshness and the daily source window. Shutdown stops new admission and drains at most ten seconds.
+
+`OfficialWithdrawalMaintainer.runCycle(commandRefs)` is an explicit internal synthetic entrypoint, at most ten original commands with a twenty-second admission budget and existing five-second transactions. It rechecks protected nontext source/asset references, retains unknown outcomes, erases local payload bytes on proven withdrawal, and records `retraction_needed` only for independently confirmed published effects. It never sends a remote deletion. It is not an automatic production watcher.
+
+The real Media representative test uses the existing synthetic multipart ingress, seal/process/review and native publication owners, then passes their immutable storage and exact binding through official material preparation. Its source covers accepted material followed by cancellation, material→draft ordering, preparation withdrawal and delayed final-owner proof. These cases, the 10,000-row scale test, browser/native journeys and all other acceptance tests are still unexecuted at this source-only checkpoint.
+
+The current unpublished migration reservation is **0151–0154** after the preceding institutional correction reserved 0146, AI reserved 0147–0149, and its append-only Media retirement compatibility correction reserved 0150. Earlier archived source candidates keep their original filenames and are superseded, not edited. No applied migration SQL has changed.
+
+Second source-review corrections bind active regional school and separately accepted global source spaces into authority and its final fence. Settlement compares the complete authenticated effect identity with its immutable database row and updates only that database-owned parent. Withdrawal checks exact current export/Media tombstones before broader readability that those tombstones may already deny. It suppresses preparing-only work under the same database fence; unknown remains unknown. Submitted publication does not imply publication and uses local-withdrawn/remote-unverified until independently confirmed publication evidence justifies retraction-needed.
+
+Every derived rank insert, update or delete now emits its own exact space/post dirty event. Rank identities cannot be re-keyed. The maintainer advances only its expected root by the actual affected-row count of its own writes, clears only those bounded identities, and still compares the final root against that expected predecessor. A concurrent event before the first derived write is not adopted as a new trusted head. No receipt bypass or session flag grants coverage. Source tests cover raw low-rank mutation, inserted derived membership, bounded recovery and a concurrent external write that must roll back the current batch.
+
+The isolated restore acceptance source now snapshots the complete disposable test database with its matching PostgreSQL client and copies the quiescent file adapter, restores both into a second loopback-only controlled cluster whose database is still `whaleu_test`, plus a new adapter directory, and rebinds runtime without seeding ledger or coverage. It replays original admission/slot/callback identity, checks retained cancellation/unknown/revocation, and reconciles the copied acceptance without a new dispatch. CI uses the already available pinned PostgreSQL 18.6 image without a pull to start the second bounded disposable container, and each container's matching dump/restore binary. Local validation reuses the controlled PostgreSQL wrapper on a separately reserved loopback port and its matching PATH. The original database-name, loopback and test-only owner guards remain unchanged. Both startup and shutdown are bounded; no scale fixture is snapshotted. Missing tools or failed restore fail the test. Local attempts and a narrowly reviewed retry are blocked at private Unix-socket creation by the execution platform (EPERM); no restore result is claimed. The hosted owner job must execute this physical restore case without skipping it. This is not a production recovery system.
+
+Restore writes are bound to a private Unix socket, not the reusable loopback TCP port checked during startup. Docker uses the verified target container's own socket; the local controlled wrapper has an explicit test-only opt-in (default remains off). Only its random 0700 short IPC directory lives in `/tmp` to respect Unix path limits, and it is removed only after confirmed cluster shutdown. PostgreSQL data/logs and snapshots remain under workspace TMPDIR. UUID container labels and server markers, or the local owned data directory, remain checked before and after restore.
+
+The exact pinned Chromium 145 installation is mandatory in the hosted owner job. Local official-CDN installation failed, and an explicitly labeled system Chromium 154 diagnostic also encountered the platform Unix-socket restriction with the sandbox intact. Neither is passing browser evidence. The test fails on missing tools, startup failure or version drift; there is no skip or sandbox-disable fallback.

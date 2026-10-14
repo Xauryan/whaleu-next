@@ -39,14 +39,14 @@ const mutate = (fn) => {
 test('real module inventory equals the old complete glob exactly once, with shared owners', () => {
   const inventory = discoverFiles();
   const plan = createModulePlan(inventory, readModules());
-  assert.equal(plan.totalShards, 11);
+  assert.equal(plan.totalShards, 12);
   assert.equal(plan.totalFiles, inventory.length);
   assert.equal(plan.filesSha256, createShardPlan(inventory, 4).filesSha256);
   assert.deepEqual(
     plan.shards.flatMap((shard) => shard.files).sort(),
     inventory,
   );
-  assert.equal(new Set(plan.shards.map((shard) => shard.id)).size, 11);
+  assert.equal(new Set(plan.shards.map((shard) => shard.id)).size, 12);
   assert.ok(
     plan.shards.find((shard) => shard.module === 'shared-foundation').owners
       .length > 1,
@@ -66,7 +66,7 @@ test('scoped category SQL and emitted journey retain explicit Community ownershi
     assert.ok(community.files.includes(`test/integration/${name}`));
 });
 
-test('eleven-job matrix preserves the first eight jobs and inserts administration ninth', () => {
+test('official-account job extends the existing eleven-job owner matrix', () => {
   const plan = createModulePlan(discoverFiles(), readModules());
   assert.deepEqual(
     plan.shards.map((shard) => shard.id),
@@ -82,6 +82,7 @@ test('eleven-job matrix preserves the first eight jobs and inserts administratio
       'community-administration-1',
       'campus-services-2',
       'media-runtime-1',
+      'official-account-operations-1',
     ],
   );
   const campus = ['campus-services-1', 'campus-services-2'].map((id) =>

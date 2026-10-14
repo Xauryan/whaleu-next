@@ -1,3 +1,8 @@
+import {
+  observeGroupPreparation,
+  preparationRows,
+  recoverUnsentPreparation,
+} from '../support/errand-group-preparation.js';
 import { ErrandGroupEnrollment } from '../../src/notifications/errand-group/enrollment.js';
 import {
   enableRequiredTransactionProof,
@@ -1267,6 +1272,7 @@ test('malformed ACK precondition rejects unproven outcomes and preserves the eig
 
 for (const scenario of [
   'normal',
+  'initial-expired',
   'expired',
   'wrong-key',
   'wrong-destination',
@@ -1284,11 +1290,13 @@ for (const scenario of [
   'restart-changed-payload',
 ])
   test(
-    scenario === 'normal'
-      ? 'E4 partial destination failure, durable restart, exact first ACK forum windows and private allowlist'
-      : scenario.startsWith('restart-')
-        ? `E4 restarted errand precondition operational fixture: ${scenario.slice(8)}`
-        : `E4 forum precondition operational fixture: ${scenario}`,
+    scenario === 'initial-expired'
+      ? 'E4 initial concurrent preparation recovers only the exact unsent destination'
+      : scenario === 'normal'
+        ? 'E4 partial destination failure, durable restart, exact first ACK forum windows and private allowlist'
+        : scenario.startsWith('restart-')
+          ? `E4 restarted errand precondition operational fixture: ${scenario.slice(8)}`
+          : `E4 forum precondition operational fixture: ${scenario}`,
     { timeout: 120000 },
     async (t) => {
       const f = await errandGroupFixture();
@@ -1318,16 +1326,55 @@ for (const scenario of [
       assert.equal(browse.status, 200, JSON.stringify(browse.body));
       f.sender.actions.set(d.two.id, ['not_accepted']);
       await f.groups.discover();
-      const concurrentClaims = await Promise.all([
-        f.groups.runOne(),
-        f.restart().runOne(),
-        f.restart().runOne(),
-      ]);
-      assert.equal(
-        concurrentClaims.filter(Boolean).length,
-        2,
-        'exactly two distinct rows are claimed; worker arrival order is immaterial',
-      );
+      const originalPreparation = f.sender.prepare.bind(f.sender);
+      let initialExpiries = 0;
+      if (scenario === 'initial-expired')
+        f.sender.prepare = async (...args) => {
+          const prepared = await originalPreparation(...args);
+          if (args[1].id === d.one.id && initialExpiries++ === 0)
+            return { ...prepared, expiresAt: performance.now() - 1 };
+          return prepared;
+        };
+      const preparation = observeGroupPreparation(f);
+      try {
+        const concurrentTraces = await Promise.all([
+          preparation.run(f.groups),
+          preparation.run(f.restart()),
+          preparation.run(f.restart()),
+        ]);
+        assert.equal(
+          concurrentTraces.filter((trace) => trace.claimed).length,
+          2,
+          'exactly two distinct rows are claimed; worker arrival order is immaterial',
+        );
+        const row = (await preparationRows(f.pool)).find(
+          (r) => r.destination_id === d.one.id,
+        )!;
+        if (row.status !== 'confirmed') {
+          const trace = concurrentTraces.find(
+            (value) => value.permit?.key === row.idempotency_key,
+          );
+          assert.ok(trace, JSON.stringify({ row, concurrentTraces }));
+          await recoverUnsentPreparation({
+            pool: f.pool,
+            directory: f.directory,
+            row,
+            trace,
+            senderAttempts: [...f.sender.attempts],
+            latestBusinessTime: p.publishedAt + 1000,
+            setTime: f.setTime,
+            run: async () => ({
+              trace: await preparation.run(f.restart()),
+              senderAttempts: [...f.sender.attempts],
+            }),
+            diagnostic: (message) => t.diagnostic(message),
+          });
+        }
+      } finally {
+        preparation.restore();
+        f.sender.prepare = originalPreparation;
+      }
+      if (scenario === 'initial-expired') assert.equal(initialExpiries, 2);
       let rows = (await f.rows()).rows;
       t.diagnostic(
         JSON.stringify({
@@ -1541,7 +1588,10 @@ for (const scenario of [
       f.source.current = restartSource;
       assert.equal(restartedSender.attempts.length, 1);
       assert.equal(restartedSender.attempts[0]!.destination.id, d.two.id);
-      const forumScenario = restartScenario === 'expired' ? 'normal' : scenario;
+      const forumScenario =
+        restartScenario === 'expired' || scenario === 'initial-expired'
+          ? 'normal'
+          : scenario;
       f.setTime(ack + 900000 - 1);
       await restarted.discover();
       assert.equal(await restarted.runOne(), false);
@@ -2047,7 +2097,50 @@ test(
       'lost fence prevents stale prepared egress',
     );
     f.setTime(p.publishedAt + 4000);
-    await f.restart().runOne();
+    const restartStarted = performance.now();
+    const preparation = observeGroupPreparation(f);
+    let preparationRetries = 0;
+    let restartClaimed: boolean;
+    try {
+      const trace = await preparation.run(f.restart());
+      restartClaimed = trace.claimed;
+      const row = (await preparationRows(f.pool))[0]!;
+      if (row.status !== 'confirmed') {
+        await recoverUnsentPreparation({
+          pool: f.pool,
+          directory: f.directory,
+          row,
+          trace,
+          senderAttempts: [...f.sender.attempts],
+          latestBusinessTime: p.publishedAt + 960000,
+          setTime: f.setTime,
+          run: async () => ({
+            trace: await preparation.run(f.restart()),
+            senderAttempts: [...f.sender.attempts],
+          }),
+          diagnostic: (message) => t.diagnostic(message),
+        });
+        preparationRetries++;
+      }
+    } finally {
+      preparation.restore();
+    }
+    const restartElapsedMs = performance.now() - restartStarted;
+    t.diagnostic(
+      JSON.stringify({
+        phase: 'lease-fencing-restart-final-send',
+        claimed: restartClaimed,
+        elapsedMs: restartElapsedMs,
+        businessNow: f.runtime.now(),
+        rows: (await f.rows()).rows,
+        attempts: (
+          await f.pool.query(
+            'SELECT * FROM whaleu_notifications.errand_group_attempts ORDER BY fence',
+          )
+        ).rows,
+        senderAttempts: f.sender.attempts,
+      }),
+    );
     assert.equal(f.sender.attempts.length, 1);
     assert.equal((await f.rows()).rows[0].status, 'confirmed');
     const attempts = (
@@ -2057,7 +2150,12 @@ test(
     ).rows;
     assert.deepEqual(
       attempts.map((r) => r.operation),
-      ['send', 'reconcile', 'send'],
+      [
+        'send',
+        'reconcile',
+        'send',
+        ...Array<string>(preparationRetries).fill('send'),
+      ],
     );
     assert.equal(new Set(attempts.map((r) => r.idempotency_key)).size, 1);
   },
@@ -2113,7 +2211,56 @@ test(
     assert.equal(row.status, 'retryable');
     assert.equal(f.sender.attempts.length, 1);
     f.setTime(p3.publishedAt + 1000);
-    await f.restart().runOne();
+    const beforeRecovery = await preparationRows(f.pool);
+    const observation = observeGroupPreparation(f);
+    let recoveryTrace;
+    try {
+      recoveryTrace = await observation.run(f.restart());
+      assert.equal(recoveryTrace.claimed, true);
+      assert.equal(
+        recoveryTrace.publication?.orderId,
+        p3.id,
+        'Only the exact third publication may be recovered',
+      );
+      assert.equal(recoveryTrace.permit?.key, row.idempotency_key);
+      if (Number(f.sender.attempts.length) !== 2) {
+        const current = (await preparationRows(f.pool)).find(
+          (r) => r.id === row.id,
+        )!;
+        await recoverUnsentPreparation({
+          pool: f.pool,
+          directory: f.directory,
+          row: current,
+          trace: recoveryTrace,
+          senderAttempts: [...f.sender.attempts],
+          latestBusinessTime: p3.publishedAt + 960000,
+          setTime: f.setTime,
+          run: async () => ({
+            trace: await observation.run(f.restart()),
+            senderAttempts: [...f.sender.attempts],
+          }),
+          diagnostic: (message) => t.diagnostic(message),
+        });
+      }
+    } finally {
+      observation.restore();
+    }
+    t.diagnostic(
+      JSON.stringify({
+        phase: 'shortlink-final-recovery',
+        expectedOrder: p3.id,
+        businessNow: f.runtime.now(),
+        before: beforeRecovery,
+        after: await preparationRows(f.pool),
+        trace: recoveryTrace,
+        senderAttempts: f.sender.attempts,
+        ledger: (
+          await f.pool.query(
+            'SELECT * FROM whaleu_notifications.errand_group_attempts ORDER BY delivery_id,fence',
+          )
+        ).rows,
+      }),
+    );
     assert.equal(f.sender.attempts.length, 2);
   },
 );
@@ -2809,5 +2956,112 @@ test(
         sourceReads,
       }),
     );
+  },
+);
+
+test(
+  'preparation recovery proves one unsent expiry and rejects actual unknown/not-accepted sends',
+  { timeout: 120000 },
+  async (t) => {
+    const f = await errandGroupFixture();
+    t.after(() => f.close());
+    const destination = f.authority.add(
+      f.scope.related.regionId,
+      'errand',
+      'preparation:expired',
+    );
+    const p = await publish(f);
+    await f.groups.discover();
+    const source = f.source.current.bind(f.source);
+    let delayOnce = true;
+    const slowProof: RequiredTransactionProof<string> = {
+      maximumFacts: 1,
+      failureCode: 'ERRAND_UNAVAILABLE',
+      validate: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      },
+    };
+    f.source.current = async (...args) => {
+      const payload = await source(...args);
+      if (delayOnce) {
+        delayOnce = false;
+        enableRequiredTransactionProof(args[2], slowProof);
+        registerRequiredTransactionFact(
+          args[2],
+          slowProof,
+          'controlled-expiry',
+          'controlled-expiry',
+        );
+      }
+      return payload;
+    };
+    const observation = observeGroupPreparation(f);
+    try {
+      const trace = await observation.run(f.groups);
+      const row = (await preparationRows(f.pool))[0]!;
+      assert.equal(row.destination_id, destination.id);
+      assert.equal(row.reason, 'permit_expired');
+      assert.equal(f.sender.attempts.length, 0);
+      await recoverUnsentPreparation({
+        pool: f.pool,
+        directory: f.directory,
+        row,
+        trace,
+        senderAttempts: [...f.sender.attempts],
+        latestBusinessTime: p.publishedAt + 960000,
+        setTime: f.setTime,
+        run: async () => ({
+          trace: await observation.run(f.restart()),
+          senderAttempts: [...f.sender.attempts],
+        }),
+        diagnostic: (message) => t.diagnostic(message),
+      });
+      assert.equal(f.sender.attempts.length, 1);
+      for (const action of ['not_accepted', 'unknown'] as const) {
+        const denied = f.authority.add(
+          f.scope.related.regionId,
+          'errand',
+          `preparation:${action}`,
+        );
+        f.sender.actions.set(denied.id, [action]);
+        await f.groups.discover();
+        const deniedTrace = await observation.run(f.groups);
+        const deniedRow = (await preparationRows(f.pool)).find(
+          (r) => r.destination_id === denied.id,
+        )!;
+        assert.equal(deniedRow.reason, action);
+        assert.equal(deniedTrace.dispatches, 1);
+        let reran = false;
+        const before = await preparationRows(f.pool);
+        await assert.rejects(
+          recoverUnsentPreparation({
+            pool: f.pool,
+            directory: f.directory,
+            row: deniedRow,
+            trace: deniedTrace,
+            senderAttempts: [...f.sender.attempts],
+            latestBusinessTime: p.publishedAt + 960000,
+            setTime: f.setTime,
+            run: async () => {
+              reran = true;
+              throw Error('Forbidden recovery');
+            },
+            diagnostic: (message) => t.diagnostic(message),
+          }),
+          /Unsent preparation expiry/,
+        );
+        assert.equal(reran, false);
+        assert.deepEqual(await preparationRows(f.pool), before);
+        assert.equal(
+          f.sender.attempts.filter(
+            (value) => value.key === deniedRow.idempotency_key,
+          ).length,
+          1,
+        );
+      }
+    } finally {
+      observation.restore();
+      f.source.current = source;
+    }
   },
 );

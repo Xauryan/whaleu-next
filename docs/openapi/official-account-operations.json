@@ -1,0 +1,3076 @@
+{
+  "components": {
+    "schemas": {},
+    "securitySchemes": {
+      "accessToken": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "Default disabled. Daily and test create drafts only. Manual publish requires an independently confirmed owned draft. Callback profile is fictitious JSON/HMAC, not a WeChat protocol.",
+    "title": "Synthetic official account operations",
+    "version": "1"
+  },
+  "openapi": "3.0.0",
+  "paths": {
+    "/v1/me/official-account-operations/capabilities": {
+      "get": {
+        "operationId": "officialCapabilities",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "canManage": {
+                      "type": "boolean"
+                    },
+                    "canManualCreate": {
+                      "type": "boolean"
+                    },
+                    "canPreview": {
+                      "type": "boolean"
+                    },
+                    "canPublish": {
+                      "type": "boolean"
+                    },
+                    "canTest": {
+                      "type": "boolean"
+                    },
+                    "mode": {
+                      "enum": ["disabled", "synthetic"],
+                      "type": "string"
+                    },
+                    "programId": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "reason": {
+                      "enum": [
+                        "ready",
+                        "disabled",
+                        "scope_unavailable",
+                        "authority_required"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "programId",
+                    "canManage",
+                    "canPreview",
+                    "canTest",
+                    "canManualCreate",
+                    "canPublish",
+                    "reason"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/me/official-account-operations/config-commands": {
+      "post": {
+        "operationId": "officialSaveConfig",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "author": {
+                    "type": "string"
+                  },
+                  "cover": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "action": {
+                            "enum": ["keep"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["action"],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "action": {
+                            "enum": ["clear"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["action"],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "action": {
+                            "enum": ["replace"],
+                            "type": "string"
+                          },
+                          "appearanceId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": ["action", "appearanceId"],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "expectedRevision": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "programId": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "requestId": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "title": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "action": {
+                            "enum": ["keep"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["action"],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "action": {
+                            "enum": ["clear"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["action"],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "action": {
+                            "enum": ["replace"],
+                            "type": "string"
+                          },
+                          "appearanceId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": ["action", "appearanceId"],
+                        "type": "object"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "requestId",
+                  "programId",
+                  "expectedRevision",
+                  "author",
+                  "cover",
+                  "title"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "receipt": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "accountRef": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "configRevision": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "intentHash": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "config_save",
+                            "test_draft",
+                            "manual_draft",
+                            "manual_publish"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["admitted", "config_applied"],
+                          "type": "string"
+                        },
+                        "programId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "intentHash",
+                        "operation",
+                        "programId",
+                        "accountRef",
+                        "acceptedAt",
+                        "outcome",
+                        "configRevision"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedMaterialCount": {
+                          "maximum": 32,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "cancelRequested": {
+                          "type": "boolean"
+                        },
+                        "draftRef": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "nextAction": {
+                          "enum": [
+                            "wait",
+                            "recover_same_key",
+                            "resume_same_key",
+                            "new_preview",
+                            "none"
+                          ],
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "config_applied",
+                            "pending",
+                            "preparing",
+                            "dispatch_unknown",
+                            "parked_unknown",
+                            "draft_confirmed",
+                            "publish_submitted",
+                            "published_confirmed",
+                            "rejected",
+                            "suppressed",
+                            "expired",
+                            "cancelled"
+                          ],
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "withdrawal": {
+                          "enum": [
+                            "none",
+                            "local_withdrawn_remote_unverified",
+                            "retraction_needed"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "cancelRequested",
+                        "acceptedMaterialCount",
+                        "draftRef",
+                        "withdrawal",
+                        "nextAction",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["receipt", "status"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/me/official-account-operations/operator/draft-commands": {
+      "post": {
+        "operationId": "officialManualDraft",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "acknowledgement": {
+                    "enum": ["synthetic_draft_only"],
+                    "type": "string"
+                  },
+                  "expectedConfigRevision": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "manifestHash": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "previewId": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "programId": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "requestId": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "requestId",
+                  "programId",
+                  "previewId",
+                  "manifestHash",
+                  "expectedConfigRevision",
+                  "acknowledgement"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "receipt": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "accountRef": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "configRevision": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "intentHash": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "config_save",
+                            "test_draft",
+                            "manual_draft",
+                            "manual_publish"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["admitted", "config_applied"],
+                          "type": "string"
+                        },
+                        "programId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "intentHash",
+                        "operation",
+                        "programId",
+                        "accountRef",
+                        "acceptedAt",
+                        "outcome",
+                        "configRevision"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedMaterialCount": {
+                          "maximum": 32,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "cancelRequested": {
+                          "type": "boolean"
+                        },
+                        "draftRef": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "nextAction": {
+                          "enum": [
+                            "wait",
+                            "recover_same_key",
+                            "resume_same_key",
+                            "new_preview",
+                            "none"
+                          ],
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "config_applied",
+                            "pending",
+                            "preparing",
+                            "dispatch_unknown",
+                            "parked_unknown",
+                            "draft_confirmed",
+                            "publish_submitted",
+                            "published_confirmed",
+                            "rejected",
+                            "suppressed",
+                            "expired",
+                            "cancelled"
+                          ],
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "withdrawal": {
+                          "enum": [
+                            "none",
+                            "local_withdrawn_remote_unverified",
+                            "retraction_needed"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "cancelRequested",
+                        "acceptedMaterialCount",
+                        "draftRef",
+                        "withdrawal",
+                        "nextAction",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["receipt", "status"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "receipt": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "accountRef": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "configRevision": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "intentHash": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "config_save",
+                            "test_draft",
+                            "manual_draft",
+                            "manual_publish"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["admitted", "config_applied"],
+                          "type": "string"
+                        },
+                        "programId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "intentHash",
+                        "operation",
+                        "programId",
+                        "accountRef",
+                        "acceptedAt",
+                        "outcome",
+                        "configRevision"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedMaterialCount": {
+                          "maximum": 32,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "cancelRequested": {
+                          "type": "boolean"
+                        },
+                        "draftRef": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "nextAction": {
+                          "enum": [
+                            "wait",
+                            "recover_same_key",
+                            "resume_same_key",
+                            "new_preview",
+                            "none"
+                          ],
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "config_applied",
+                            "pending",
+                            "preparing",
+                            "dispatch_unknown",
+                            "parked_unknown",
+                            "draft_confirmed",
+                            "publish_submitted",
+                            "published_confirmed",
+                            "rejected",
+                            "suppressed",
+                            "expired",
+                            "cancelled"
+                          ],
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "withdrawal": {
+                          "enum": [
+                            "none",
+                            "local_withdrawn_remote_unverified",
+                            "retraction_needed"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "cancelRequested",
+                        "acceptedMaterialCount",
+                        "draftRef",
+                        "withdrawal",
+                        "nextAction",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["receipt", "status"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/me/official-account-operations/operator/previews": {
+      "post": {
+        "operationId": "officialManualPreview",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "expectedConfigRevision": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "limit": {
+                    "maximum": 10,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "programId": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": ["programId", "expectedConfigRevision"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "accountLabel": {
+                      "type": "string"
+                    },
+                    "accountRef": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "actions": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "createDraft": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["createDraft"],
+                      "type": "object"
+                    },
+                    "article": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "author": {
+                          "type": "string"
+                        },
+                        "coverAppearanceId": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "items": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "excerpt": {
+                                "type": "string"
+                              },
+                              "locator": {
+                                "pattern": "^pages\\/community-detail\\/community-detail\\?postId=[0-9a-f-]{36}$",
+                                "type": "string"
+                              },
+                              "mediaAppearanceRefs": {
+                                "items": {
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "maxItems": 32,
+                                "type": "array"
+                              },
+                              "publicCounts": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "comments": {
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "type": "string"
+                                  },
+                                  "likes": {
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "type": "string"
+                                  },
+                                  "subscriptions": {
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "likes",
+                                  "comments",
+                                  "subscriptions"
+                                ],
+                                "type": "object"
+                              },
+                              "publishedAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "excerpt",
+                              "publishedAt",
+                              "publicCounts",
+                              "locator",
+                              "mediaAppearanceRefs"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 30,
+                          "type": "array"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "titleAppearanceId": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "title",
+                        "author",
+                        "items",
+                        "coverAppearanceId",
+                        "titleAppearanceId"
+                      ],
+                      "type": "object"
+                    },
+                    "configRevision": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "eligibleCount": {
+                      "maximum": 30,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "expiresAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": ["daily_hot", "test", "manual_newest"],
+                      "type": "string"
+                    },
+                    "manifestHash": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "mode": {
+                      "enum": ["synthetic"],
+                      "type": "string"
+                    },
+                    "previewId": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "programId": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "selectionAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    "sourceState": {
+                      "enum": ["complete", "known_empty"],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "previewId",
+                    "programId",
+                    "accountRef",
+                    "accountLabel",
+                    "kind",
+                    "selectionAt",
+                    "expiresAt",
+                    "configRevision",
+                    "manifestHash",
+                    "eligibleCount",
+                    "mode",
+                    "article",
+                    "actions",
+                    "sourceState"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/me/official-account-operations/operator/publish-commands": {
+      "post": {
+        "operationId": "officialPublish",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "acknowledgement": {
+                    "enum": ["publish_exact_synthetic_article"],
+                    "type": "string"
+                  },
+                  "confirmationId": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "confirmationRevision": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "draftRef": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "manifestHash": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "requestId": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "requestId",
+                  "draftRef",
+                  "confirmationId",
+                  "confirmationRevision",
+                  "manifestHash",
+                  "acknowledgement"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "receipt": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "accountRef": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "configRevision": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "intentHash": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "config_save",
+                            "test_draft",
+                            "manual_draft",
+                            "manual_publish"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["admitted", "config_applied"],
+                          "type": "string"
+                        },
+                        "programId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "intentHash",
+                        "operation",
+                        "programId",
+                        "accountRef",
+                        "acceptedAt",
+                        "outcome",
+                        "configRevision"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedMaterialCount": {
+                          "maximum": 32,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "cancelRequested": {
+                          "type": "boolean"
+                        },
+                        "draftRef": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "nextAction": {
+                          "enum": [
+                            "wait",
+                            "recover_same_key",
+                            "resume_same_key",
+                            "new_preview",
+                            "none"
+                          ],
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "config_applied",
+                            "pending",
+                            "preparing",
+                            "dispatch_unknown",
+                            "parked_unknown",
+                            "draft_confirmed",
+                            "publish_submitted",
+                            "published_confirmed",
+                            "rejected",
+                            "suppressed",
+                            "expired",
+                            "cancelled"
+                          ],
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "withdrawal": {
+                          "enum": [
+                            "none",
+                            "local_withdrawn_remote_unverified",
+                            "retraction_needed"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "cancelRequested",
+                        "acceptedMaterialCount",
+                        "draftRef",
+                        "withdrawal",
+                        "nextAction",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["receipt", "status"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "receipt": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "accountRef": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "configRevision": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "intentHash": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "config_save",
+                            "test_draft",
+                            "manual_draft",
+                            "manual_publish"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["admitted", "config_applied"],
+                          "type": "string"
+                        },
+                        "programId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "intentHash",
+                        "operation",
+                        "programId",
+                        "accountRef",
+                        "acceptedAt",
+                        "outcome",
+                        "configRevision"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedMaterialCount": {
+                          "maximum": 32,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "cancelRequested": {
+                          "type": "boolean"
+                        },
+                        "draftRef": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "nextAction": {
+                          "enum": [
+                            "wait",
+                            "recover_same_key",
+                            "resume_same_key",
+                            "new_preview",
+                            "none"
+                          ],
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "config_applied",
+                            "pending",
+                            "preparing",
+                            "dispatch_unknown",
+                            "parked_unknown",
+                            "draft_confirmed",
+                            "publish_submitted",
+                            "published_confirmed",
+                            "rejected",
+                            "suppressed",
+                            "expired",
+                            "cancelled"
+                          ],
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "withdrawal": {
+                          "enum": [
+                            "none",
+                            "local_withdrawn_remote_unverified",
+                            "retraction_needed"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "cancelRequested",
+                        "acceptedMaterialCount",
+                        "draftRef",
+                        "withdrawal",
+                        "nextAction",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["receipt", "status"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/me/official-account-operations/operator/publish-previews": {
+      "post": {
+        "operationId": "officialPublishPreview",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "draftRef": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": ["draftRef"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "accountLabel": {
+                      "type": "string"
+                    },
+                    "accountRef": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "action": {
+                      "enum": ["publish_exact_synthetic_article"],
+                      "type": "string"
+                    },
+                    "confirmationId": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "draftRef": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    "manifestHash": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "mode": {
+                      "enum": ["synthetic"],
+                      "type": "string"
+                    },
+                    "postCount": {
+                      "maximum": 10,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "programId": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "revision": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "confirmationId",
+                    "revision",
+                    "draftRef",
+                    "programId",
+                    "accountRef",
+                    "accountLabel",
+                    "manifestHash",
+                    "title",
+                    "postCount",
+                    "mode",
+                    "expiresAt",
+                    "action"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/me/official-account-operations/previews": {
+      "post": {
+        "operationId": "officialPreview",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "expectedConfigRevision": {
+                        "pattern": "^[0-9a-f]{64}$",
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": ["daily_hot"],
+                        "type": "string"
+                      },
+                      "limit": {
+                        "maximum": 30,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "programId": {
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["programId", "kind", "expectedConfigRevision"],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "expectedConfigRevision": {
+                        "pattern": "^[0-9a-f]{64}$",
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": ["test"],
+                        "type": "string"
+                      },
+                      "programId": {
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["programId", "kind", "expectedConfigRevision"],
+                    "type": "object"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "accountLabel": {
+                      "type": "string"
+                    },
+                    "accountRef": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "actions": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "createDraft": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["createDraft"],
+                      "type": "object"
+                    },
+                    "article": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "author": {
+                          "type": "string"
+                        },
+                        "coverAppearanceId": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "items": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "excerpt": {
+                                "type": "string"
+                              },
+                              "locator": {
+                                "pattern": "^pages\\/community-detail\\/community-detail\\?postId=[0-9a-f-]{36}$",
+                                "type": "string"
+                              },
+                              "mediaAppearanceRefs": {
+                                "items": {
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "maxItems": 32,
+                                "type": "array"
+                              },
+                              "publicCounts": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "comments": {
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "type": "string"
+                                  },
+                                  "likes": {
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "type": "string"
+                                  },
+                                  "subscriptions": {
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "likes",
+                                  "comments",
+                                  "subscriptions"
+                                ],
+                                "type": "object"
+                              },
+                              "publishedAt": {
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "excerpt",
+                              "publishedAt",
+                              "publicCounts",
+                              "locator",
+                              "mediaAppearanceRefs"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 30,
+                          "type": "array"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "titleAppearanceId": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "title",
+                        "author",
+                        "items",
+                        "coverAppearanceId",
+                        "titleAppearanceId"
+                      ],
+                      "type": "object"
+                    },
+                    "configRevision": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "eligibleCount": {
+                      "maximum": 30,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "expiresAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": ["daily_hot", "test", "manual_newest"],
+                      "type": "string"
+                    },
+                    "manifestHash": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "mode": {
+                      "enum": ["synthetic"],
+                      "type": "string"
+                    },
+                    "previewId": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "programId": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "selectionAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    "sourceState": {
+                      "enum": ["complete", "known_empty"],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "previewId",
+                    "programId",
+                    "accountRef",
+                    "accountLabel",
+                    "kind",
+                    "selectionAt",
+                    "expiresAt",
+                    "configRevision",
+                    "manifestHash",
+                    "eligibleCount",
+                    "mode",
+                    "article",
+                    "actions",
+                    "sourceState"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/me/official-account-operations/programs/{programId}/config": {
+      "get": {
+        "operationId": "officialConfig",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "programId",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "accountLabel": {
+                      "type": "string"
+                    },
+                    "accountRef": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "string"
+                    },
+                    "coverAppearanceId": {
+                      "nullable": true,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "programId": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "readiness": {
+                      "enum": ["disabled", "unavailable", "synthetic_ready"],
+                      "type": "string"
+                    },
+                    "revision": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "schedule": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "automatic": {
+                          "enum": [false],
+                          "type": "boolean"
+                        },
+                        "slotTime": {
+                          "enum": ["00:00:00"],
+                          "type": "string"
+                        },
+                        "zone": {
+                          "enum": ["Etc/UTC"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["zone", "slotTime", "automatic"],
+                      "type": "object"
+                    },
+                    "titleAppearanceId": {
+                      "nullable": true,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "programId",
+                    "accountRef",
+                    "accountLabel",
+                    "revision",
+                    "author",
+                    "coverAppearanceId",
+                    "titleAppearanceId",
+                    "readiness",
+                    "schedule"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/me/official-account-operations/programs/{programId}/slots/{slotId}": {
+      "get": {
+        "operationId": "officialSlotStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "programId",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slotId",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/me/official-account-operations/requests/{requestId}": {
+      "get": {
+        "operationId": "officialRequestStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "state": {
+                          "enum": ["not_recorded"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "intentHash": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["cancelled_before_admission"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "requestId", "intentHash"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "receipt": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "acceptedAt": {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "type": "string"
+                            },
+                            "accountRef": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            "configRevision": {
+                              "nullable": true,
+                              "pattern": "^[0-9a-f]{64}$",
+                              "type": "string"
+                            },
+                            "intentHash": {
+                              "pattern": "^[0-9a-f]{64}$",
+                              "type": "string"
+                            },
+                            "operation": {
+                              "enum": [
+                                "config_save",
+                                "test_draft",
+                                "manual_draft",
+                                "manual_publish"
+                              ],
+                              "type": "string"
+                            },
+                            "outcome": {
+                              "enum": ["admitted", "config_applied"],
+                              "type": "string"
+                            },
+                            "programId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "requestId",
+                            "intentHash",
+                            "operation",
+                            "programId",
+                            "accountRef",
+                            "acceptedAt",
+                            "outcome",
+                            "configRevision"
+                          ],
+                          "type": "object"
+                        },
+                        "state": {
+                          "enum": ["recorded"],
+                          "type": "string"
+                        },
+                        "status": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "acceptedMaterialCount": {
+                              "maximum": 32,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "cancelRequested": {
+                              "type": "boolean"
+                            },
+                            "draftRef": {
+                              "nullable": true,
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            "nextAction": {
+                              "enum": [
+                                "wait",
+                                "recover_same_key",
+                                "resume_same_key",
+                                "new_preview",
+                                "none"
+                              ],
+                              "type": "string"
+                            },
+                            "state": {
+                              "enum": [
+                                "config_applied",
+                                "pending",
+                                "preparing",
+                                "dispatch_unknown",
+                                "parked_unknown",
+                                "draft_confirmed",
+                                "publish_submitted",
+                                "published_confirmed",
+                                "rejected",
+                                "suppressed",
+                                "expired",
+                                "cancelled"
+                              ],
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "type": "string"
+                            },
+                            "withdrawal": {
+                              "enum": [
+                                "none",
+                                "local_withdrawn_remote_unverified",
+                                "retraction_needed"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "cancelRequested",
+                            "acceptedMaterialCount",
+                            "draftRef",
+                            "withdrawal",
+                            "nextAction",
+                            "updatedAt"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": ["state", "receipt", "status"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/me/official-account-operations/requests/{requestId}/cancel": {
+      "post": {
+        "operationId": "officialCancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "intent": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "author": {
+                            "type": "string"
+                          },
+                          "cover": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["keep"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["action"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["clear"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["action"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["replace"],
+                                    "type": "string"
+                                  },
+                                  "appearanceId": {
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["action", "appearanceId"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "expectedRevision": {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          },
+                          "programId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "title": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["keep"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["action"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["clear"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["action"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["replace"],
+                                    "type": "string"
+                                  },
+                                  "appearanceId": {
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["action", "appearanceId"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "requestId",
+                          "programId",
+                          "expectedRevision",
+                          "author",
+                          "cover",
+                          "title"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "acknowledgement": {
+                            "enum": ["synthetic_draft_only"],
+                            "type": "string"
+                          },
+                          "expectedConfigRevision": {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          },
+                          "manifestHash": {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          },
+                          "previewId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "programId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "requestId",
+                          "programId",
+                          "previewId",
+                          "manifestHash",
+                          "expectedConfigRevision",
+                          "acknowledgement"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "acknowledgement": {
+                            "enum": ["publish_exact_synthetic_article"],
+                            "type": "string"
+                          },
+                          "confirmationId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "confirmationRevision": {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          },
+                          "draftRef": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "manifestHash": {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "requestId",
+                          "draftRef",
+                          "confirmationId",
+                          "confirmationRevision",
+                          "manifestHash",
+                          "acknowledgement"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  }
+                },
+                "required": ["intent"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "receipt": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "acceptedAt": {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "type": "string"
+                            },
+                            "accountRef": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            "configRevision": {
+                              "nullable": true,
+                              "pattern": "^[0-9a-f]{64}$",
+                              "type": "string"
+                            },
+                            "intentHash": {
+                              "pattern": "^[0-9a-f]{64}$",
+                              "type": "string"
+                            },
+                            "operation": {
+                              "enum": [
+                                "config_save",
+                                "test_draft",
+                                "manual_draft",
+                                "manual_publish"
+                              ],
+                              "type": "string"
+                            },
+                            "outcome": {
+                              "enum": ["admitted", "config_applied"],
+                              "type": "string"
+                            },
+                            "programId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "requestId",
+                            "intentHash",
+                            "operation",
+                            "programId",
+                            "accountRef",
+                            "acceptedAt",
+                            "outcome",
+                            "configRevision"
+                          ],
+                          "type": "object"
+                        },
+                        "status": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "acceptedMaterialCount": {
+                              "maximum": 32,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "cancelRequested": {
+                              "type": "boolean"
+                            },
+                            "draftRef": {
+                              "nullable": true,
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            "nextAction": {
+                              "enum": [
+                                "wait",
+                                "recover_same_key",
+                                "resume_same_key",
+                                "new_preview",
+                                "none"
+                              ],
+                              "type": "string"
+                            },
+                            "state": {
+                              "enum": [
+                                "config_applied",
+                                "pending",
+                                "preparing",
+                                "dispatch_unknown",
+                                "parked_unknown",
+                                "draft_confirmed",
+                                "publish_submitted",
+                                "published_confirmed",
+                                "rejected",
+                                "suppressed",
+                                "expired",
+                                "cancelled"
+                              ],
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "type": "string"
+                            },
+                            "withdrawal": {
+                              "enum": [
+                                "none",
+                                "local_withdrawn_remote_unverified",
+                                "retraction_needed"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "cancelRequested",
+                            "acceptedMaterialCount",
+                            "draftRef",
+                            "withdrawal",
+                            "nextAction",
+                            "updatedAt"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": ["receipt", "status"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "intentHash": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["cancelled_before_admission"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "requestId", "intentHash"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/me/official-account-operations/requests/{requestId}/resume": {
+      "post": {
+        "operationId": "officialResume",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "intent": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "author": {
+                            "type": "string"
+                          },
+                          "cover": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["keep"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["action"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["clear"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["action"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["replace"],
+                                    "type": "string"
+                                  },
+                                  "appearanceId": {
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["action", "appearanceId"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "expectedRevision": {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          },
+                          "programId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "title": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["keep"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["action"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["clear"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["action"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["replace"],
+                                    "type": "string"
+                                  },
+                                  "appearanceId": {
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["action", "appearanceId"],
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "requestId",
+                          "programId",
+                          "expectedRevision",
+                          "author",
+                          "cover",
+                          "title"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "acknowledgement": {
+                            "enum": ["synthetic_draft_only"],
+                            "type": "string"
+                          },
+                          "expectedConfigRevision": {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          },
+                          "manifestHash": {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          },
+                          "previewId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "programId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "requestId",
+                          "programId",
+                          "previewId",
+                          "manifestHash",
+                          "expectedConfigRevision",
+                          "acknowledgement"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "acknowledgement": {
+                            "enum": ["publish_exact_synthetic_article"],
+                            "type": "string"
+                          },
+                          "confirmationId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "confirmationRevision": {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          },
+                          "draftRef": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          "manifestHash": {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "requestId",
+                          "draftRef",
+                          "confirmationId",
+                          "confirmationRevision",
+                          "manifestHash",
+                          "acknowledgement"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  }
+                },
+                "required": ["intent"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "receipt": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "accountRef": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "configRevision": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "intentHash": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "config_save",
+                            "test_draft",
+                            "manual_draft",
+                            "manual_publish"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["admitted", "config_applied"],
+                          "type": "string"
+                        },
+                        "programId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "intentHash",
+                        "operation",
+                        "programId",
+                        "accountRef",
+                        "acceptedAt",
+                        "outcome",
+                        "configRevision"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedMaterialCount": {
+                          "maximum": 32,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "cancelRequested": {
+                          "type": "boolean"
+                        },
+                        "draftRef": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "nextAction": {
+                          "enum": [
+                            "wait",
+                            "recover_same_key",
+                            "resume_same_key",
+                            "new_preview",
+                            "none"
+                          ],
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "config_applied",
+                            "pending",
+                            "preparing",
+                            "dispatch_unknown",
+                            "parked_unknown",
+                            "draft_confirmed",
+                            "publish_submitted",
+                            "published_confirmed",
+                            "rejected",
+                            "suppressed",
+                            "expired",
+                            "cancelled"
+                          ],
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "withdrawal": {
+                          "enum": [
+                            "none",
+                            "local_withdrawn_remote_unverified",
+                            "retraction_needed"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "cancelRequested",
+                        "acceptedMaterialCount",
+                        "draftRef",
+                        "withdrawal",
+                        "nextAction",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["receipt", "status"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/me/official-account-operations/test-commands": {
+      "post": {
+        "operationId": "officialTestDraft",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "acknowledgement": {
+                    "enum": ["synthetic_draft_only"],
+                    "type": "string"
+                  },
+                  "expectedConfigRevision": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "manifestHash": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "previewId": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "programId": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "requestId": {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "requestId",
+                  "programId",
+                  "previewId",
+                  "manifestHash",
+                  "expectedConfigRevision",
+                  "acknowledgement"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "receipt": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "accountRef": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "configRevision": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "intentHash": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "config_save",
+                            "test_draft",
+                            "manual_draft",
+                            "manual_publish"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["admitted", "config_applied"],
+                          "type": "string"
+                        },
+                        "programId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "intentHash",
+                        "operation",
+                        "programId",
+                        "accountRef",
+                        "acceptedAt",
+                        "outcome",
+                        "configRevision"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedMaterialCount": {
+                          "maximum": 32,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "cancelRequested": {
+                          "type": "boolean"
+                        },
+                        "draftRef": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "nextAction": {
+                          "enum": [
+                            "wait",
+                            "recover_same_key",
+                            "resume_same_key",
+                            "new_preview",
+                            "none"
+                          ],
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "config_applied",
+                            "pending",
+                            "preparing",
+                            "dispatch_unknown",
+                            "parked_unknown",
+                            "draft_confirmed",
+                            "publish_submitted",
+                            "published_confirmed",
+                            "rejected",
+                            "suppressed",
+                            "expired",
+                            "cancelled"
+                          ],
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "withdrawal": {
+                          "enum": [
+                            "none",
+                            "local_withdrawn_remote_unverified",
+                            "retraction_needed"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "cancelRequested",
+                        "acceptedMaterialCount",
+                        "draftRef",
+                        "withdrawal",
+                        "nextAction",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["receipt", "status"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "receipt": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "accountRef": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "configRevision": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "intentHash": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "operation": {
+                          "enum": [
+                            "config_save",
+                            "test_draft",
+                            "manual_draft",
+                            "manual_publish"
+                          ],
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "enum": ["admitted", "config_applied"],
+                          "type": "string"
+                        },
+                        "programId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "requestId",
+                        "intentHash",
+                        "operation",
+                        "programId",
+                        "accountRef",
+                        "acceptedAt",
+                        "outcome",
+                        "configRevision"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptedMaterialCount": {
+                          "maximum": 32,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "cancelRequested": {
+                          "type": "boolean"
+                        },
+                        "draftRef": {
+                          "nullable": true,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "nextAction": {
+                          "enum": [
+                            "wait",
+                            "recover_same_key",
+                            "resume_same_key",
+                            "new_preview",
+                            "none"
+                          ],
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "config_applied",
+                            "pending",
+                            "preparing",
+                            "dispatch_unknown",
+                            "parked_unknown",
+                            "draft_confirmed",
+                            "publish_submitted",
+                            "published_confirmed",
+                            "rejected",
+                            "suppressed",
+                            "expired",
+                            "cancelled"
+                          ],
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "withdrawal": {
+                          "enum": [
+                            "none",
+                            "local_withdrawn_remote_unverified",
+                            "retraction_needed"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "cancelRequested",
+                        "acceptedMaterialCount",
+                        "draftRef",
+                        "withdrawal",
+                        "nextAction",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["receipt", "status"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Official account operations"]
+      }
+    },
+    "/v1/official-account-callbacks/{registrationId}": {
+      "get": {
+        "operationId": "officialCallbackChallenge",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": ["Synthetic official callback"]
+      },
+      "post": {
+        "operationId": "officialCallbackReceive",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": ["Synthetic official callback"]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

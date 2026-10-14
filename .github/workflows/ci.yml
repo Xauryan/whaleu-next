@@ -125,6 +125,18 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-ci
+      - name: Cache pinned official-operator Chromium only
+        if: matrix.module == 'official-account-operations'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: official-operator-${{ runner.os }}-${{ runner.arch }}-playwright-core-1.58.2-${{ hashFiles('package-lock.json') }}
+      - name: Install pinned official-operator browser and system dependencies
+        if: matrix.module == 'official-account-operations'
+        run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - name: Verify official-operator browser version and binary digest
+        if: matrix.module == 'official-account-operations'
+        run: node scripts/verify-official-browser.mjs
       - name: Verify shard manifest before database creation
         run: node scripts/run-integration-module.mjs --module "$CI_MODULE" --shard "$CI_SHARD" --list
       - name: Download only the successful native build artifact

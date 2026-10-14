@@ -5630,6 +5630,298 @@
     ]
   },
   {
+    "handler": "OfficialAccountCallbackController.challenge",
+    "method": "GET",
+    "path": "/v1/official-account-callbacks/:registrationId",
+    "action": "guest",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialCallbackBoundary",
+        "method": "challenge",
+        "file": "apps/api/src/official-account-operations/callback-ledger.ts",
+        "policy": [],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountCallbackController.receive",
+    "method": "POST",
+    "path": "/v1/official-account-callbacks/:registrationId",
+    "action": "guest",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialCallbackBoundary",
+        "method": "receive",
+        "file": "apps/api/src/official-account-operations/callback-ledger.ts",
+        "policy": [],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.cancel",
+    "method": "POST",
+    "path": "/v1/me/official-account-operations/requests/:requestId/cancel",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "cancel",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.capabilities",
+    "method": "GET",
+    "path": "/v1/me/official-account-operations/capabilities",
+    "action": "privileged_read",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "capabilities",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": ["AccountPolicy('privileged_read', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.config",
+    "method": "GET",
+    "path": "/v1/me/official-account-operations/programs/:programId/config",
+    "action": "privileged_read",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "config",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": ["AccountPolicy('privileged_read', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.manualDraft",
+    "method": "POST",
+    "path": "/v1/me/official-account-operations/operator/draft-commands",
+    "action": "content_management",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "createDraft",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": [
+          "AccountPolicy('content_management', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.manualPreview",
+    "method": "POST",
+    "path": "/v1/me/official-account-operations/operator/previews",
+    "action": "privileged_read",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "preview",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": ["AccountPolicy('privileged_read', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.preview",
+    "method": "POST",
+    "path": "/v1/me/official-account-operations/previews",
+    "action": "privileged_read",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "preview",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": ["AccountPolicy('privileged_read', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.publish",
+    "method": "POST",
+    "path": "/v1/me/official-account-operations/operator/publish-commands",
+    "action": "content_management",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "publish",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": [
+          "AccountPolicy('content_management', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.publishPreview",
+    "method": "POST",
+    "path": "/v1/me/official-account-operations/operator/publish-previews",
+    "action": "privileged_read",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "publishPreview",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": ["AccountPolicy('privileged_read', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.resume",
+    "method": "POST",
+    "path": "/v1/me/official-account-operations/requests/:requestId/resume",
+    "action": "content_management",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "resume",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": [
+          "AccountPolicy('content_management', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.save",
+    "method": "POST",
+    "path": "/v1/me/official-account-operations/config-commands",
+    "action": "noncontent_management",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "save",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": [
+          "AccountPolicy('noncontent_management', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.slot",
+    "method": "GET",
+    "path": "/v1/me/official-account-operations/programs/:programId/slots/:slotId",
+    "action": "privileged_read",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "slot",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": ["AccountPolicy('privileged_read', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.status",
+    "method": "GET",
+    "path": "/v1/me/official-account-operations/requests/:requestId",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "status",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialAccountOperationsController.test",
+    "method": "POST",
+    "path": "/v1/me/official-account-operations/test-commands",
+    "action": "content_management",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/official-account-operations/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "OfficialAccountOperationsService",
+        "method": "createDraft",
+        "file": "apps/api/src/official-account-operations/service.ts",
+        "policy": [
+          "AccountPolicy('content_management', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "OfficialArticleOperatorController.script",
+    "method": "GET",
+    "path": "/operator/official-articles/app.js",
+    "action": "guest",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/official-account-operations/operator-controller.ts",
+    "ownerCalls": []
+  },
+  {
+    "handler": "OfficialArticleOperatorController.shell",
+    "method": "GET",
+    "path": "/operator/official-articles",
+    "action": "guest",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/official-account-operations/operator-controller.ts",
+    "ownerCalls": []
+  },
+  {
+    "handler": "OfficialArticleOperatorController.style",
+    "method": "GET",
+    "path": "/operator/official-articles/app.css",
+    "action": "guest",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/official-account-operations/operator-controller.ts",
+    "ownerCalls": []
+  },
+  {
     "handler": "OperatingRegionController.list",
     "method": "GET",
     "path": "/v1/operating-regions",

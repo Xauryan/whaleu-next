@@ -4,6 +4,8 @@
  * that suite has claimed ownership. Keep suite-specific fixture schemas local.
  */
 export const migrationSchemaNames = [
+  'whaleu_official_callbacks',
+  'whaleu_official',
   'whaleu_campus_tools',
   'whaleu_school_uid',
   'whaleu_school_configuration',

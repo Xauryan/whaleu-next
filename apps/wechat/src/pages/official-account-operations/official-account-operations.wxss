@@ -1,0 +1,28 @@
+.page {
+  padding: 32rpx;
+}
+.title {
+  font-size: 38rpx;
+  font-weight: 600;
+}
+.hint {
+  color: #526272;
+  margin: 18rpx 0;
+}
+.card {
+  padding: 24rpx;
+  margin: 24rpx 0;
+  background: #f4f7fa;
+  border-radius: 16rpx;
+}
+.error {
+  color: #ad2424;
+}
+input {
+  padding: 16rpx;
+  background: #fff;
+  margin: 12rpx 0;
+}
+button {
+  margin: 12rpx 0;
+}

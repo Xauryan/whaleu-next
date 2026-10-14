@@ -27,6 +27,58 @@ const conditions = {
     status: 404,
     message: 'Rating suggestion request is unavailable.',
   },
+  OFFICIAL_REQUEST_INVALID: {
+    status: 400,
+    message: 'Official account operation request invalid.',
+  },
+  OFFICIAL_AUTHORITY_REQUIRED: {
+    status: 403,
+    message: 'Official account operation authority required.',
+  },
+  OFFICIAL_REFERENCE_NOT_FOUND: {
+    status: 404,
+    message: 'Official account operation reference not found.',
+  },
+  OFFICIAL_REQUEST_CONFLICT: {
+    status: 409,
+    message: 'Official account operation request conflict.',
+  },
+  OFFICIAL_PREVIEW_STALE: {
+    status: 409,
+    message: 'Official account operation preview stale.',
+  },
+  OFFICIAL_CONFIG_STALE: {
+    status: 409,
+    message: 'Official account operation config stale.',
+  },
+  OFFICIAL_SOURCE_WITHDRAWN: {
+    status: 409,
+    message: 'Official account operation source withdrawn.',
+  },
+  OFFICIAL_SLOT_POLICY_CONFLICT: {
+    status: 409,
+    message: 'Official account operation slot policy conflict.',
+  },
+  OFFICIAL_EFFECT_NOT_RESUMABLE: {
+    status: 409,
+    message: 'Official account operation effect not resumable.',
+  },
+  OFFICIAL_RUNTIME_DISABLED: {
+    status: 503,
+    message: 'Official account operation runtime disabled.',
+  },
+  OFFICIAL_SOURCE_UNAVAILABLE: {
+    status: 503,
+    message: 'Official account operation source unavailable.',
+  },
+  OFFICIAL_ACCOUNT_UNAVAILABLE: {
+    status: 503,
+    message: 'Official account operation account unavailable.',
+  },
+  OFFICIAL_CAPACITY: {
+    status: 429,
+    message: 'Official account operation capacity.',
+  },
   CAMPUS_TOOLS_UNAVAILABLE: {
     status: 503,
     message: 'Campus tools are temporarily unavailable.',

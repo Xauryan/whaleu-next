@@ -14,6 +14,8 @@ cd apps/api
 # Timeout stays inside the cluster wrapper, so normal cleanup also runs on expiry.
 bash ../../scripts/run-controlled-test-postgres.sh \
   timeout 1800 node --import tsx --test --test-concurrency=1 \
+  test/integration/official-account-native-roundtrip.test.ts \
+  test/integration/official-account-operator-roundtrip.test.ts \
   test/integration/private-message-images-native-roundtrip.test.ts \
   test/integration/course-ratings.test.ts \
   test/integration/course-ratings-native-roundtrip.test.ts \

@@ -1,3 +1,7 @@
+import {
+  preparationRows,
+  recoverUnsentPreparation,
+} from '../support/errand-group-preparation.js';
 import { runRestartedGroupProcess } from '../support/errand-group-process.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
@@ -130,13 +134,66 @@ test(
               await f.groups.runOne();
               assert.equal(f.sender.attempts.length - before, 2);
               f.setTime(created + 1000);
-              const restarted = await runRestartedGroupProcess(
+              let restarted = await runRestartedGroupProcess(
                 f.directory,
                 [...f.authority.groups.values()],
                 f.runtime.now(),
+                false,
+                m['version'] === 2,
+              );
+              if (m['version'] === 2) {
+                assert.equal(restarted.attempts.length, 0);
+                assert.equal(restarted.trace.dispatches, 0);
+                assert.ok(
+                  restarted.trace.observedAt >=
+                    restarted.trace.prepared!.expiresAt,
+                );
+              }
+              t.diagnostic(
+                JSON.stringify({
+                  phase: 'native-restarted-partial-ack',
+                  businessNow: f.runtime.now(),
+                  restarted,
+                  rows: (await f.rows()).rows,
+                  deliveryAttempts: (
+                    await f.pool.query(
+                      'SELECT * FROM whaleu_notifications.errand_group_attempts ORDER BY delivery_id, fence',
+                    )
+                  ).rows,
+                }),
               );
               assert.notEqual(restarted.pid, process.pid);
               assert.equal(restarted.claimed, true);
+              if (restarted.attempts.length !== 1) {
+                const row = (await preparationRows(f.pool)).find(
+                  (r) =>
+                    r.event_id === p.event_id && r.destination_id === two.id,
+                )!;
+                await recoverUnsentPreparation({
+                  pool: f.pool,
+                  directory: f.directory,
+                  row,
+                  trace: restarted.trace,
+                  senderAttempts: restarted.attempts,
+                  latestBusinessTime: created + 960000,
+                  setTime: f.setTime,
+                  run: async () => {
+                    const previousPid = restarted.pid;
+                    restarted = await runRestartedGroupProcess(
+                      f.directory,
+                      [...f.authority.groups.values()],
+                      f.runtime.now(),
+                    );
+                    assert.notEqual(restarted.pid, previousPid);
+                    assert.notEqual(restarted.pid, process.pid);
+                    return {
+                      trace: restarted.trace,
+                      senderAttempts: restarted.attempts,
+                    };
+                  },
+                  diagnostic: (message) => t.diagnostic(message),
+                });
+              }
               assert.equal(restarted.attempts.length, 1);
               assert.equal(restarted.attempts[0]!.destination.id, two.id);
               f.setTime(created + 900000);

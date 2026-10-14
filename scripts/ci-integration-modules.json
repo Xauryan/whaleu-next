@@ -11,7 +11,8 @@
     "campus-services-1",
     "community-administration-1",
     "campus-services-2",
-    "media-runtime-1"
+    "media-runtime-1",
+    "official-account-operations-1"
   ],
   "groups": [
     {
@@ -549,6 +550,33 @@
           "historical-account-punishment-policy.test.ts",
           "historical-command-session-retention.test.ts",
           "profile-self-edit-causality.test.ts"
+        ]
+      ]
+    },
+    {
+      "id": "official-account-operations",
+      "label": "Official account drafts and callbacks",
+      "owners": [
+        "official-account-operations",
+        "community",
+        "media",
+        "identity",
+        "notifications"
+      ],
+      "shards": [
+        [
+          "official-account-authority.test.ts",
+          "official-account-selection.test.ts",
+          "official-account-source-withdrawal.test.ts",
+          "official-account-ledger.test.ts",
+          "official-account-provider-recovery.test.ts",
+          "official-account-callback-ledger.test.ts",
+          "official-account-notification-boundary.test.ts",
+          "official-account-manual-article.test.ts",
+          "official-account-native-roundtrip.test.ts",
+          "official-account-operator-roundtrip.test.ts",
+          "official-account-migration-privacy.test.ts",
+          "official-account-default-runtime.test.ts"
         ]
       ]
     }

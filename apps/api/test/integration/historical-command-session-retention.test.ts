@@ -6,6 +6,8 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import request from 'supertest';
+import { ProfileAvatarModerationService } from '../../src/profile/avatar-moderation/service.js';
+import { ProfileAvatarModerationService as HistoricalAvatarModerationService } from '../support/historical-avatar-moderation/service.js';
 import { DatabaseService } from '../../src/database/database.js';
 import {
   readMigrations,
@@ -47,6 +49,11 @@ test(
   async (t) => {
     const f = await profileAvatarModerationFixture(false, 132);
     t.after(() => f.close());
+    assert.ok(
+      f.moderationApp.get(ProfileAvatarModerationService) instanceof
+        HistoricalAvatarModerationService,
+      'Pre-upgrade HTTP commands use the exact signed predecessor owner',
+    );
     const identityService = () => f.app.get(IdentityService);
     const maintenance = () =>
       new IdentityMaintenance(f.moderationApp.get(DatabaseService));
@@ -217,7 +224,26 @@ test(
       ),
       { mode: 'up' },
     );
+    await assert.rejects(
+      f.moderationApp
+        .get(ProfileAvatarModerationService)
+        .recovery(
+          records[1]!.actor.accessToken,
+          String(records[1]!.body['clientRequestId']),
+        ),
+      /Historical avatar owner cannot cross an upgrade/,
+    );
     await f.restartApp();
+    assert.ok(
+      f.moderationApp.get(ProfileAvatarModerationService) instanceof
+        ProfileAvatarModerationService,
+    );
+    assert.equal(
+      f.moderationApp.get(ProfileAvatarModerationService) instanceof
+        HistoricalAvatarModerationService,
+      false,
+      'Upgrade restart restores the current owner without a historical adapter',
+    );
     for (const { schemaname, tablename, columns } of auditTables) {
       const added = (
         await f.pool.query<{ column_name: string }>(

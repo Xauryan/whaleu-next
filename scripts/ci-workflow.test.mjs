@@ -234,3 +234,28 @@ test('CI preserves read-only permissions, pinned actions and download-only lockf
       /^(\.\/\.github\/actions\/setup-ci|actions\/[a-z-]+@[a-f0-9]{40})$/,
     );
 });
+
+test('official-operator browser is pinned and installed only for its owner shard', () => {
+  assert.ok(
+    workflow.includes("if: matrix.module == 'official-account-operations'"),
+  );
+  assert.ok(
+    workflow.includes(
+      'node node_modules/playwright-core/cli.js install --with-deps chromium',
+    ),
+  );
+  assert.ok(workflow.includes('node scripts/verify-official-browser.mjs'));
+  assert.ok(
+    workflow.includes(
+      "playwright-core-1.58.2-${{ hashFiles('package-lock.json') }}",
+    ),
+  );
+  const api = JSON.parse(read('apps/api/package.json'));
+  assert.equal(api.devDependencies['playwright-core'], '1.58.2');
+  const lock = JSON.parse(read('package-lock.json'));
+  assert.equal(lock.packages['node_modules/playwright-core'].version, '1.58.2');
+  assert.equal(
+    lock.packages['node_modules/playwright-core'].integrity,
+    'sha512-yZkEtftgwS8CsfYo7nm0KE8jsvm6i/PTgVtB8DL726wNf6H2IMsDuxCpJj59KDaxCtSnrWan2AeDqM7JBaultg==',
+  );
+});

@@ -1,0 +1,18 @@
+[
+  {
+    "source": "apps/api/src/profile/avatar-moderation/service.ts",
+    "commit": "ff2f553f586b20c25231c70c2b137d4f172220e1",
+    "blob": "139c56ecd1910a50c8ba3fa5cf54bb5938aeb004",
+    "sourceSha256": "a9f2780384c400b956a74fa4877191c354fbe0060456de0e6bead7097634207b",
+    "snapshot": "apps/api/test/support/historical-avatar-moderation/service.ts",
+    "adaptation": "Only relative imports relocated; service ./proof.js retains this paired exact historical snapshot."
+  },
+  {
+    "source": "apps/api/src/profile/avatar-moderation/proof.ts",
+    "commit": "ff2f553f586b20c25231c70c2b137d4f172220e1",
+    "blob": "7d0d54159ebb1989cbebeee1b51a70fb10342770",
+    "sourceSha256": "e9346b25d54be406eacbc9b5de5af72c3f3877df2adf2fb33840480edba0626e",
+    "snapshot": "apps/api/test/support/historical-avatar-moderation/proof.ts",
+    "adaptation": "Only relative imports relocated; service ./proof.js retains this paired exact historical snapshot."
+  }
+]

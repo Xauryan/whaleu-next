@@ -1,0 +1,15 @@
+<view class="page">
+ <view class="title">公众号草稿配置</view>
+ <view class="hint">开发合成模式 · 无真实公众号连接 · 不会自动发布</view>
+ <view class="hint">关闭或返回不会取消服务端原请求。</view>
+ <view class="error" wx:if="{{error}}">{{error}}</view><view>{{message}}</view>
+ <label>已获授权的学校项目引用</label><input value="{{programInput}}" bindinput="onProgram" placeholder="学校项目 UUID" maxlength="36" />
+ <button bindtap="onLoadProgram" disabled="{{busy}}">读取当前权限与配置</button>
+ <view wx:if="{{pending}}" class="card"><view>原请求 {{requestId}}</view><button bindtap="onRecover" disabled="{{busy}}">恢复原请求结果</button><button bindtap="onRetry" disabled="{{busy}}">查询并重试同一原请求</button><button bindtap="onCancel" disabled="{{busy}}">取消尚未执行的步骤</button><button wx:if="{{status && status.nextAction === 'resume_same_key'}}" bindtap="onResume" disabled="{{busy}}">以当前登录恢复原请求</button></view>
+ <view wx:if="{{config}}" class="card"><view>{{config.accountLabel}}</view><view>就绪状态：{{config.readiness}}</view><view>合成时段：Etc/UTC 00:00，自动执行关闭</view><label>作者</label><input value="{{author}}" bindinput="onAuthor" maxlength="64" disabled="{{busy || pending}}" />
+ <view>封面：{{config.coverAppearanceId || '未设置'}}</view><button data-purpose="cover" data-action="keep" bindtap="onArtwork" disabled="{{busy || pending}}">保留封面</button><button data-purpose="cover" data-action="clear" bindtap="onArtwork" disabled="{{busy || pending}}">清除封面</button><input data-purpose="cover" value="{{coverAppearanceId}}" bindinput="onAppearance" placeholder="替换为已授权封面 Media 引用" maxlength="36" disabled="{{busy || pending}}" />
+ <view>标题图：{{config.titleAppearanceId || '未设置'}}</view><button data-purpose="title" data-action="keep" bindtap="onArtwork" disabled="{{busy || pending}}">保留标题图</button><button data-purpose="title" data-action="clear" bindtap="onArtwork" disabled="{{busy || pending}}">清除标题图</button><input data-purpose="title" value="{{titleAppearanceId}}" bindinput="onAppearance" placeholder="替换为已授权标题图 Media 引用" maxlength="36" disabled="{{busy || pending}}" />
+ <button bindtap="onSave" disabled="{{busy || pending || !capabilities.canManage}}">单独保存配置</button><button bindtap="onPreview" disabled="{{busy || pending || !capabilities.canPreview}}">预览每日热门草稿</button><button bindtap="onTestPreview" disabled="{{busy || pending || !capabilities.canTest}}">预览单条合成测试</button></view>
+ <view wx:if="{{preview}}" class="card"><view>合成预览 · {{preview.accountLabel}}</view><view>{{preview.selectionAt}} · {{preview.eligibleCount}} 条</view><view>{{preview.article.title}}</view><view wx:for="{{preview.article.items}}" wx:key="locator">{{item.excerpt}}</view><view>预览有效期至 {{preview.expiresAt}}</view><button wx:if="{{preview.kind === 'test'}}" bindtap="onCreateTest" disabled="{{busy || pending || !preview.actions.createDraft}}">确认创建合成测试草稿（未发布）</button></view>
+ <view wx:if="{{status}}">已接受素材 {{status.acceptedMaterialCount}} · {{status.withdrawal}}</view>
+</view>

@@ -42,6 +42,7 @@ for (const relative of [
   'verification/student-contract.js',
   'verification/student-pending.js',
   'school-configuration/contract.js',
+  'official-account-operations/contracts.js',
   'organizations/contract.js',
   'organizations/media-contract.js',
   'organizations/media-runtime.js',
@@ -178,5 +179,10 @@ execFileSync(
     'tsx',
     path.join(root, 'test/ratings-assistance-emitted.smoke.ts'),
   ],
+  { stdio: 'inherit', cwd: root },
+);
+execFileSync(
+  process.execPath,
+  [path.join(root, 'scripts/smoke-official-account-operations.mjs')],
   { stdio: 'inherit', cwd: root },
 );

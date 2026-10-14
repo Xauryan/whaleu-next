@@ -1,3 +1,4 @@
+import type { PreparationTrace } from './errand-group-preparation.js';
 import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type {
@@ -7,6 +8,7 @@ import type {
 export interface RestartedGroupResult {
   pid: number;
   claimed: boolean;
+  trace: PreparationTrace;
   attempts: {
     destination: GroupDestination;
     key: string;
@@ -18,6 +20,7 @@ export function runRestartedGroupProcess(
   destinations: readonly GroupDestination[],
   now: number,
   discover = false,
+  expirePreparation = false,
 ): Promise<RestartedGroupResult> {
   return new Promise((resolve, reject) => {
     const child = fork(
@@ -58,6 +61,6 @@ export function runRestartedGroupProcess(
         reject(Error(`Restarted worker ${code}: ${logs}`));
       else resolve(result);
     });
-    child.send({ directory, destinations, now, discover });
+    child.send({ directory, destinations, now, discover, expirePreparation });
   });
 }

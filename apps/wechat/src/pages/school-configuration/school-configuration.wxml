@@ -1,4 +1,5 @@
 <view class="page">
+  <navigator url="/pages/official-account-operations/official-account-operations">公众号草稿配置与合成测试</navigator>
   <view wx:if="{{management !== 'none' &amp;&amp; !busy &amp;&amp; !pending}}">
     <navigator wx:if="{{regionId}}" url="/pages/school-posting-policy/school-posting-policy?regionId={{regionId}}">管理学校发帖权限</navigator>
     <navigator wx:else url="/pages/school-posting-policy/school-posting-policy">管理学校发帖权限</navigator>
