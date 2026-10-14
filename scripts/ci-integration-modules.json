@@ -395,7 +395,8 @@
           "institutional-sso-recipes.test.ts",
           "institutional-sso-causality.test.ts",
           "institutional-sso-history.test.ts",
-          "institutional-sso-authority.test.ts"
+          "institutional-sso-authority.test.ts",
+          "institutional-sso-continuity-checkpoint.test.ts"
         ]
       ]
     },
