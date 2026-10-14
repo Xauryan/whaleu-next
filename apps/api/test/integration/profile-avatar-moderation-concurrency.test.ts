@@ -655,8 +655,91 @@ test(
             if (clearFirst) {
               assert.equal(cleared.body.outcome, 'applied');
               if (field === 'nickname-moderation') {
-                profileOk(edited);
-                assert.equal(edited.body.code, 'PROFILE_MODERATION_STALE');
+                // This different transaction observed Community before waiting.
+                // The clear's real derived epoch invalidates that original proof;
+                // it cannot borrow the avatar command's private compensation.
+                assert.equal(edited.status, 503, JSON.stringify(edited.body));
+                assert.equal(
+                  edited.body.error.code,
+                  'PROFILE_MODERATION_UNAVAILABLE',
+                );
+                const nicknameEffects = async () =>
+                  (
+                    await f.pool.query(
+                      `SELECT
+                   (SELECT count(*)::int FROM whaleu_profile.moderation_commands WHERE actor_id=$1 AND request_id=$2) commands,
+                   (SELECT count(*)::int FROM whaleu_profile.moderation_transitions WHERE actor_id=$1 AND request_id=$2) transitions,
+                   (SELECT count(*)::int FROM whaleu_profile.moderation_events WHERE actor_id=$1 AND request_id=$2) events,
+                   (SELECT count(*)::int FROM whaleu_notifications.profile_moderation_notices n JOIN whaleu_profile.moderation_events e ON e.id=n.event_id WHERE e.actor_id=$1 AND e.request_id=$2) notices`,
+                      [s.admin.accountId, nicknameCommand.clientRequestId],
+                    )
+                  ).rows[0];
+                assert.deepEqual(await nicknameEffects(), {
+                  commands: 0,
+                  transitions: 0,
+                  events: 0,
+                  notices: 0,
+                });
+                const stableAvatar = await avatarSnapshot(
+                  f,
+                  s.subject.accountId,
+                );
+                const mediaEpoch = async () =>
+                  (
+                    await f.pool.query(
+                      'SELECT whaleu_profile.avatar_moderation_media_epoch_hash() value',
+                    )
+                  ).rows[0]!.value;
+                const stableMedia = await mediaEpoch();
+                const unauthorized = await request(selfHttp)
+                  .post('/v1/community/profile-moderation/commands')
+                  .set('Authorization', `Bearer ${s.subject.accessToken}`)
+                  .send(nicknameCommand);
+                assert.equal(
+                  unauthorized.status,
+                  403,
+                  JSON.stringify(unauthorized.body),
+                );
+                assert.equal(
+                  unauthorized.body.error.code,
+                  'AUTHORIZATION_REQUIRED',
+                );
+                assert.equal(
+                  (
+                    await f.pool.query(
+                      'SELECT count(*)::int n FROM whaleu_profile.moderation_commands WHERE actor_id=$1 AND request_id=$2',
+                      [s.subject.accountId, nicknameCommand.clientRequestId],
+                    )
+                  ).rows[0]!.n,
+                  0,
+                );
+                const retried = await edit();
+                profileOk(retried);
+                assert.equal(retried.body.outcome, 'rejected');
+                assert.equal(retried.body.code, 'PROFILE_MODERATION_STALE');
+                assert.equal(
+                  retried.body.requestId,
+                  nicknameCommand.clientRequestId,
+                );
+                assert.deepEqual(await nicknameEffects(), {
+                  commands: 1,
+                  transitions: 0,
+                  events: 0,
+                  notices: 0,
+                });
+                const replay = await edit();
+                profileOk(replay);
+                assert.deepEqual(replay.body, retried.body);
+                assert.deepEqual(
+                  await avatarSnapshot(f, s.subject.accountId),
+                  stableAvatar,
+                );
+                assert.equal(await mediaEpoch(), stableMedia);
+                const stableProfile = await request(selfHttp)
+                  .get('/v1/me/profile')
+                  .set('Authorization', `Bearer ${s.subject.accessToken}`);
+                profileOk(stableProfile);
+                assert.deepEqual(stableProfile.body, after.body);
               } else {
                 assert.equal(edited.status, 409, JSON.stringify(edited.body));
                 assert.equal(

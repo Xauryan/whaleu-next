@@ -22,6 +22,17 @@ const causal = (error: unknown) =>
   ['23514', '23503', '23505', '23502', '22P02', '55P03'].includes(
     String(error.code),
   );
+const exactFailure =
+  (constraint: string, message?: string) => (error: unknown) =>
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === '23514' &&
+    'constraint' in error &&
+    error.constraint === constraint &&
+    (message === undefined ||
+      ('message' in error && error.message === message));
+const avatarFailure = exactFailure('profile_avatar_moderation_causal');
 type Step =
   'profile' | 'definition' | 'pointer' | 'retirement' | 'event' | 'notice';
 interface Fault {
@@ -31,6 +42,8 @@ interface Fault {
   definition?: 'wrong_subject' | 'wrong_appearance' | 'self_authority';
   retirement?:
     'wrong_binding' | 'wrong_locator' | 'early_cleanup' | 'omit_detach';
+  beforeRetirement?: (tx: PoolClient) => Promise<unknown>;
+  beforeFinal?: (tx: PoolClient) => Promise<unknown>;
   after?: (tx: PoolClient) => Promise<unknown>;
 }
 
@@ -104,6 +117,7 @@ test(
     'events',(SELECT count(*) FROM whaleu_profile.avatar_moderation_events),
     'statements',(SELECT count(*) FROM whaleu_profile.avatar_moderation_media_statements),
     'epochs',(SELECT count(*) FROM whaleu_profile.avatar_moderation_media_epochs),
+    'derivedEpochs',(SELECT count(*) FROM whaleu_profile.avatar_moderation_rating_epochs),
     'notices',(SELECT count(*) FROM whaleu_notifications.profile_avatar_moderation_notices),
     'registry',(SELECT count(*) FROM whaleu_notifications.system_notice_ids),
     'bindings',(SELECT jsonb_agg(to_jsonb(b) ORDER BY id) FROM whaleu_media.bindings b),
@@ -236,6 +250,7 @@ test(
             );
           }
         }
+        if (fault.beforeRetirement) await fault.beforeRetirement(tx);
         if (fault.omit !== 'retirement') {
           // Same precise retirement protocol as the owner, expressed as raw SQL so
           // this gate does not rely on application required-proof registration.
@@ -299,14 +314,19 @@ test(
               receipt.recordedAt,
             ],
           );
+        if (fault.beforeFinal) await fault.beforeFinal(tx);
         await tx.query('SET CONSTRAINTS ALL IMMEDIATE');
         if (fault.after) await fault.after(tx);
         return { receipt, appearanceId: cause.appearance_id };
       });
-    const rejectsWithoutEffects = async (name: string, fault: Fault) => {
+    const rejectsWithoutEffects = async (
+      name: string,
+      fault: Fault,
+      expected: (error: unknown) => boolean = causal,
+    ) => {
       const before = await snapshot(),
         body = await command();
-      await assert.rejects(raw(body, fault), causal, name);
+      await assert.rejects(raw(body, fault), expected, name);
       assert.deepEqual(
         await snapshot(),
         before,
@@ -581,11 +601,195 @@ test(
     );
 
     await t.test(
+      'rating-derived receipts never absorb unrelated zero-row writers before or after final closure',
+      async () => {
+        for (const relation of [
+          'whaleu_ratings.navigation_epoch',
+          'whaleu_community.rating_target_link_generation',
+          'whaleu_community.post_rating_target_links',
+        ]) {
+          const column = relation.endsWith('post_rating_target_links')
+            ? 'post_id'
+            : 'singleton';
+          const mutate = (tx: PoolClient) =>
+            tx.query(`UPDATE ${relation} SET ${column}=${column} WHERE false`);
+          await rejectsWithoutEffects(
+            `pre-chain unrelated ${relation}`,
+            { beforeRetirement: mutate },
+            avatarFailure,
+          );
+          await rejectsWithoutEffects(
+            `early unrelated ${relation}`,
+            {
+              beforeFinal: mutate,
+            },
+            avatarFailure,
+          );
+          await rejectsWithoutEffects(
+            `late unrelated ${relation}`,
+            {
+              after: mutate,
+            },
+            avatarFailure,
+          );
+        }
+      },
+    );
+    await t.test(
+      'an admitted generation writer without a visible epoch change blocks final avatar proof',
+      async () => {
+        const blocker = await f.pool.connect();
+        try {
+          await blocker.query('BEGIN');
+          await blocker.query(
+            'LOCK TABLE whaleu_community.rating_target_link_generation IN ROW EXCLUSIVE MODE',
+          );
+          let reachedFinal = false;
+          await rejectsWithoutEffects(
+            'in-flight generation source',
+            {
+              beforeFinal: async () => {
+                reachedFinal = true;
+              },
+            },
+            (error: unknown) =>
+              reachedFinal &&
+              typeof error === 'object' &&
+              error !== null &&
+              'code' in error &&
+              error.code === '55P03' &&
+              'where' in error &&
+              typeof error.where === 'string' &&
+              error.where.includes('avatar_moderation_assert_complete') &&
+              error.where.includes(
+                'LOCK TABLE whaleu_community.rating_target_link_generation',
+              ),
+          );
+          assert.equal(
+            reachedFinal,
+            true,
+            'The complete lawful retirement reached final proof',
+          );
+        } finally {
+          await blocker.query('ROLLBACK');
+          blocker.release();
+        }
+      },
+    );
+    await t.test(
+      'derived receipt omission, duplication, foreign attribution and mutation roll back the complete clear',
+      async () => {
+        await rejectsWithoutEffects(
+          'omitted derivative receipt',
+          {
+            beforeRetirement: (tx) =>
+              tx.query(`
+            CREATE FUNCTION whaleu_profile.test_suppress_avatar_rating_receipt() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NULL;END$$;
+            CREATE TRIGGER zz_test_suppress_avatar_rating_receipt BEFORE INSERT ON whaleu_profile.avatar_moderation_rating_epochs FOR EACH ROW EXECUTE FUNCTION whaleu_profile.test_suppress_avatar_rating_receipt()`),
+          },
+          exactFailure(
+            'profile_avatar_moderation_causal',
+            'Unconsumed avatar Media epoch required',
+          ),
+        );
+        for (const sql of [
+          'UPDATE whaleu_profile.avatar_moderation_rating_epochs SET after_generation=gen_random_uuid() WHERE true',
+          'UPDATE whaleu_profile.avatar_moderation_rating_epochs SET after_generation=after_generation WHERE false',
+          'DELETE FROM whaleu_profile.avatar_moderation_rating_epochs',
+          'TRUNCATE whaleu_profile.avatar_moderation_rating_epochs',
+          'INSERT INTO whaleu_profile.avatar_moderation_rating_epochs SELECT * FROM whaleu_profile.avatar_moderation_rating_epochs LIMIT 1',
+          `INSERT INTO whaleu_profile.avatar_moderation_rating_epochs(actor_id,request_id,statement_sequence,slot,version,before_epoch,after_epoch,before_hash,after_hash,before_generation,after_generation,mutation_transaction)
+           SELECT gen_random_uuid(),request_id,statement_sequence,slot,version,before_epoch,after_epoch,before_hash,after_hash,before_generation,after_generation,mutation_transaction FROM whaleu_profile.avatar_moderation_rating_epochs LIMIT 1`,
+        ])
+          await rejectsWithoutEffects(
+            sql,
+            {
+              [sql.startsWith('TRUNCATE') ? 'after' : 'beforeFinal']: (
+                tx: PoolClient,
+              ) => tx.query(sql),
+            },
+            sql.startsWith('INSERT')
+              ? exactFailure(
+                  'profile_avatar_moderation_causal',
+                  'Exact avatar-owned rating generation transition required',
+                )
+              : exactFailure(
+                  'profile_moderation_causal',
+                  'Profile moderation evidence is immutable',
+                ),
+          );
+      },
+    );
+
+    await t.test(
       'raw complete cause commits, immutable history cannot be replayed and old receipts do not restore bytes',
       async () => {
         const body = await command();
         const originalAppearance = body.expectedAppearanceId;
-        const applied = await raw(body);
+        const applied = await raw(body, {
+          after: async (tx) => {
+            const proof = (
+              await tx.query<{
+                current: boolean;
+                media: number;
+                derived: number;
+                inventory: boolean;
+              }>(
+                `
+              SELECT whaleu_profile.avatar_moderation_rating_inputs_current(q) current,
+              (SELECT count(*)::int FROM whaleu_profile.avatar_moderation_media_epochs e WHERE(e.actor_id,e.request_id)=(q.actor_id,q.request_id)) media,
+              (SELECT count(*)::int FROM whaleu_profile.avatar_moderation_rating_epochs e WHERE(e.actor_id,e.request_id)=(q.actor_id,q.request_id)) derived,
+              whaleu_profile.avatar_moderation_rating_epoch_inventory_current() inventory
+              FROM whaleu_profile.avatar_moderation_commands q WHERE(actor_id,request_id)=($1,$2)`,
+                [admin.accountId, body.clientRequestId],
+              )
+            ).rows[0]!;
+            assert.equal(proof.current, true);
+            assert.equal(proof.inventory, true);
+            assert.ok(proof.media > 0 && proof.media <= 7);
+            assert.equal(proof.derived, proof.media);
+            const bridge = (
+              await tx.query<{
+                valid: boolean;
+                wrong_actor: unknown;
+                wrong_request: unknown;
+                wrong_target: unknown;
+              }>(
+                `SELECT whaleu_profile.avatar_moderation_command_community($1,$2,$3,$4) IS NOT NULL valid,
+               whaleu_profile.avatar_moderation_command_community(gen_random_uuid(),$2,$3,$4) wrong_actor,
+               whaleu_profile.avatar_moderation_command_community($1,gen_random_uuid(),$3,$4) wrong_request,
+               whaleu_profile.avatar_moderation_command_community($1,$2,$3,gen_random_uuid()) wrong_target`,
+                [
+                  admin.accountId,
+                  body.clientRequestId,
+                  body.target.kind,
+                  body.target.id,
+                ],
+              )
+            ).rows[0]!;
+            assert.deepEqual(bridge, {
+              valid: true,
+              wrong_actor: null,
+              wrong_request: null,
+              wrong_target: null,
+            });
+          },
+        });
+        assert.equal(
+          (
+            await f.pool.query(
+              'SELECT whaleu_profile.avatar_moderation_command_community($1,$2,$3,$4) value',
+              [
+                admin.accountId,
+                body.clientRequestId,
+                body.target.kind,
+                body.target.id,
+              ],
+            )
+          ).rows[0]!.value,
+          null,
+          'historical receipt cannot normalize a new transaction',
+        );
         assert.equal((await state()).appearance_id, applied.appearanceId);
         assert.equal(
           (await state()).revision,
@@ -723,6 +927,7 @@ test(
           'avatar_moderation_pointer_transitions',
           'avatar_moderation_events',
           'avatar_moderation_media_statements',
+          'avatar_moderation_rating_epochs',
         ])
           await assert.rejects(
             f.pool.query(

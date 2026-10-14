@@ -1,3 +1,4 @@
+import { retainAvatarCommandCommunity } from './avatar-moderation-command-proof.js';
 import { requireContentDistributionGrant } from '../authorization/content-distribution-grant.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -93,12 +94,30 @@ export class ProfileModerationTargetFacade {
     actor: string,
     tx: PoolClient,
   ): Promise<ProfileModerationTarget> {
+    return this.resolveCurrent(target, actor, tx);
+  }
+  async resolveAvatarCommand(
+    target: ModerationTarget,
+    actor: string,
+    requestId: string,
+    tx: PoolClient,
+  ): Promise<ProfileModerationTarget> {
+    return this.resolveCurrent(target, actor, tx, requestId);
+  }
+  private async resolveCurrent(
+    target: ModerationTarget,
+    actor: string,
+    tx: PoolClient,
+    avatarRequestId?: string,
+  ): Promise<ProfileModerationTarget> {
     await lockSafetyPolicy(tx);
     // This new management boundary promises one exact current target. Existing
     // public display reads do not acquire these extra mandatory owner proofs.
     await campusProof(tx);
     await safetyProof(tx);
-    await communityProof(tx);
+    if (avatarRequestId !== undefined)
+      await retainAvatarCommandCommunity(actor, target, avatarRequestId, tx);
+    else await communityProof(tx);
     const resolved =
       target.kind === 'post'
         ? await this.access

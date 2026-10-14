@@ -179,8 +179,10 @@ test(
               'whaleu_community.post_images',
               'whaleu_community.post_likes',
               'whaleu_community.post_owner_visibility',
+              'whaleu_community.post_rating_target_links',
               'whaleu_community.posts',
               'whaleu_community.publication_requests',
+              'whaleu_community.rating_target_link_generation',
               'whaleu_community.related_sync_policies',
               'whaleu_community.related_sync_policy_heads',
               'whaleu_community.replies',
@@ -239,7 +241,18 @@ test(
               // causal row guard does not reject the statement-level write.
               await pool.query(update);
             }
-            assert.equal(BigInt(await epoch(owner)), before + 1n, table.table);
+            // A link write also advances its required derived generation. Both
+            // source statements claim the same owner slot and remain visible.
+            const advances =
+              relation === 'whaleu_community.post_rating_target_links' ||
+              relation === 'whaleu_community.content_approval_policies'
+                ? 2n
+                : 1n;
+            assert.equal(
+              BigInt(await epoch(owner)),
+              before + advances,
+              table.table,
+            );
           }
         },
       );

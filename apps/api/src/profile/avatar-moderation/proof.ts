@@ -19,6 +19,7 @@ export interface InputFact {
   grantId: string | null;
   target: AvatarModerationTarget;
   fingerprint: string;
+  requestId?: string;
 }
 export interface ProfileFact {
   subject: string;
@@ -107,7 +108,8 @@ const inputProof: RequiredTransactionProof<InputFact> = {
         !selected ||
         initial.actor !== selected.actor ||
         initial.target.kind !== selected.target.kind ||
-        initial.target.id !== selected.target.id
+        initial.target.id !== selected.target.id ||
+        initial.requestId !== selected.requestId
       )
         throw new ApplicationError(code);
       await read.query(
@@ -116,12 +118,33 @@ const inputProof: RequiredTransactionProof<InputFact> = {
       // Keep the original 100ms per-statement / 500ms whole-owner budget. Small
       // statements avoid repeatedly planning the combined source/phone closure;
       // every check remains mandatory under the same retained owner fences.
-      for (const fact of facts)
-        if (
-          (await observeAvatarModerationInputs(fact, read)).fingerprint !==
-          fact.fingerprint
-        )
-          throw new ApplicationError(code);
+      if (initial.requestId)
+        await read.query(
+          'LOCK TABLE whaleu_community.rating_target_link_generation IN SHARE MODE NOWAIT',
+        );
+      for (const fact of facts) {
+        const fingerprint = fact.requestId
+          ? (
+              await read.query<{ fingerprint: string | null }>(
+                `WITH v AS MATERIALIZED (SELECT whaleu_profile.avatar_moderation_command_community($1,$5,$3,$4) value)
+               SELECT CASE WHEN q.grant_id=$6::uuid AND v.value IS NOT NULL
+               THEN whaleu_profile.moderation_hash(jsonb_set(whaleu_profile.avatar_moderation_input_facts($1,$2,$3,$4),ARRAY['community'],v.value,false)) END fingerprint
+               FROM whaleu_profile.avatar_moderation_commands q
+               CROSS JOIN v
+               WHERE q.actor_id=$1 AND q.request_id=$5 AND q.mutation_transaction=pg_current_xact_id()`,
+                [
+                  fact.actor,
+                  fact.grantId,
+                  fact.target.kind,
+                  fact.target.id,
+                  fact.requestId,
+                  selected.grantId,
+                ],
+              )
+            ).rows[0]?.fingerprint
+          : (await observeAvatarModerationInputs(fact, read)).fingerprint;
+        if (fingerprint !== fact.fingerprint) throw new ApplicationError(code);
+      }
       for (const [sql, values] of [
         [
           'SELECT whaleu_profile.moderation_actor_current($1,clock_timestamp()) current',

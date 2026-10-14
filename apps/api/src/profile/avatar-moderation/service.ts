@@ -308,7 +308,13 @@ export class ProfileAvatarModerationService {
         const resolved = await avatarModerationTargetAuthorization(
           tx,
           command.target,
-          () => this.targets.resolve(command.target, actor, tx),
+          () =>
+            this.targets.resolveAvatarCommand(
+              command.target,
+              actor,
+              command.clientRequestId,
+              tx,
+            ),
         );
         const selected = await this.grant(
           actor,
@@ -316,8 +322,14 @@ export class ProfileAvatarModerationService {
           command.target,
           tx,
         );
-        await retainAvatarModerationInputs(initial, tx);
-        await retainAvatarModerationInputs(selected, tx);
+        await retainAvatarModerationInputs(
+          { ...initial, requestId: command.clientRequestId },
+          tx,
+        );
+        await retainAvatarModerationInputs(
+          { ...selected, requestId: command.clientRequestId },
+          tx,
+        );
         const subject = resolved.subjectId,
           profile = await this.profile(subject, tx, true);
         const initialProfile: ProfileFact = {

@@ -212,6 +212,7 @@ test(
       (SELECT count(*) FROM whaleu_profile.avatar_moderation_pointer_transitions),
       (SELECT count(*) FROM whaleu_profile.avatar_moderation_media_statements),
       (SELECT count(*) FROM whaleu_profile.avatar_moderation_media_epochs),
+      (SELECT count(*) FROM whaleu_profile.avatar_moderation_rating_epochs),
       (SELECT count(*) FROM whaleu_profile.avatar_definitions),
       (SELECT count(*) FROM whaleu_notifications.profile_avatar_moderation_notices),
       (SELECT count(*) FROM whaleu_notifications.system_notice_ids),
