@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { fixtureSessionCallback } from '../support/browser-test-fixtures.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
@@ -534,7 +535,7 @@ test(
       `http://127.0.0.1:${f.port}/operator/official-articles`,
     );
     await browser.evaluate(
-      `(async()=>{const {mountOfficialOperator}=await import('/operator/official-articles/app.js');mountOfficialOperator({session:()=>${JSON.stringify({ accountId: actor.accountId, bearer: actor.accessToken })},subscribe:()=>()=>{}})})()`,
+      `(async()=>{const {mountOfficialOperator}=await import('/operator/official-articles/app.js');mountOfficialOperator({session:${fixtureSessionCallback({ accountId: actor.accountId, bearer: actor.accessToken })},subscribe:()=>()=>{}})})()`,
     );
     await browser.until(
       "!document.getElementById('load').disabled",
