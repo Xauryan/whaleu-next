@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { closeBrowserResources } from '../support/browser-test-diagnostics.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { AddressInfo } from 'node:net';
@@ -16,15 +17,25 @@ test(
   'rating promotion emitted operator recovers original opaque intent through real browser HTTP/PG and preserves exact normal/test audiences',
   { timeout: 240000 },
   async (t) => {
+    console.log('[browser-fixture] rating: acquiring');
     const f = await createPromotionFixture({ emittedOperator: true });
-    t.after(() => f.close());
+    console.log('[browser-fixture] rating: acquired');
+    let ownedBrowser:
+      Awaited<ReturnType<typeof startPromotionBrowser>> | undefined;
+    t.after(() =>
+      closeBrowserResources([
+        ...(ownedBrowser
+          ? [['rating-browser', ownedBrowser.close] as const]
+          : []),
+        ['rating-fixture', () => f.close()],
+      ]),
+    );
     await f.app.listen(0, '127.0.0.1');
     const address = f.app.getHttpServer().address() as AddressInfo;
     const origin = `http://127.0.0.1:${address.port}`;
     const url = `${origin}/operator/rating-group-promotion?programId=${f.programId}`;
     const journalKey = `rating-group-promotion:v1:${encodeURIComponent(origin)}:${f.actorId}:${f.programId}`;
-    const browser = await startPromotionBrowser();
-    t.after(() => browser.close());
+    const browser = (ownedBrowser = await startPromotionBrowser());
     let script = await browser.command(
       'Page.addScriptToEvaluateOnNewDocument',
       {

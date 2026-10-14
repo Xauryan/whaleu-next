@@ -149,7 +149,11 @@ export function main(
       shards: [shard],
     }),
   );
-  return options.list ? 0 : run(shard.files);
+  return options.list
+    ? 0
+    : shard.module === 'official-account-browser'
+      ? run(shard.files, undefined, { reporter: 'tap' })
+      : run(shard.files);
 }
 
 if (

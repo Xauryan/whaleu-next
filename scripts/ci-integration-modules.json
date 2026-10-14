@@ -1,6 +1,8 @@
 {
   "version": 1,
   "matrixOrder": [
+    "official-account-browser-1",
+    "official-account-browser-2",
     "community-media-1",
     "ratings-discussion-1",
     "ratings-targets-effects-1",
@@ -13,7 +15,6 @@
     "campus-services-2",
     "media-runtime-1",
     "official-account-operations-1",
-    "official-account-browser-1",
     "rating-group-promotion-1"
   ],
   "groups": [
@@ -588,10 +589,8 @@
       "label": "Sandboxed operator browsers",
       "owners": ["official-account-operations", "rating-group-promotion"],
       "shards": [
-        [
-          "official-account-operator-roundtrip.test.ts",
-          "rating-group-operator-roundtrip.test.ts"
-        ]
+        ["official-account-operator-roundtrip.test.ts"],
+        ["rating-group-operator-roundtrip.test.ts"]
       ]
     },
     {

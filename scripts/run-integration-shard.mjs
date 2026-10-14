@@ -91,11 +91,20 @@ export function createShardPlan(inputFiles, total) {
   };
 }
 
-export function runTests(files, spawn = spawnSync) {
+export function runTests(files, spawn = spawnSync, { reporter } = {}) {
   if (files.length === 0) throw new Error('Refusing to run an empty shard');
+  if (reporter !== undefined && reporter !== 'tap')
+    throw new Error('Unsupported integration reporter');
   const result = spawn(
     process.execPath,
-    ['--import', 'tsx', '--test', '--test-concurrency=1', ...files],
+    [
+      '--import',
+      'tsx',
+      '--test',
+      '--test-concurrency=1',
+      ...(reporter ? [`--test-reporter=${reporter}`] : []),
+      ...files,
+    ],
     { cwd: apiDirectory, stdio: 'inherit' },
   );
   if (result.error) throw result.error;

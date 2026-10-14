@@ -3,8 +3,17 @@ import {
   OFFICIAL_USERNS_RETIRE_BEFORE,
 } from './official-browser-sandbox.mjs';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { globSync, readFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import {
+  globSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
@@ -118,6 +127,125 @@ test('matrix is derived from exact inventory with bounded parallel independent d
     assert.match(jobs[job], /node scripts\/verify-test-postgres\.mjs/);
     assert.match(jobs[job], /if: always\(\)/);
     assert.match(jobs[job], /docker rm --force --volumes/);
+  }
+});
+
+test('browser-only deadline fails closed and kills only its own unresponsive process group', async () => {
+  const step = jobs['main-integration']
+    .split('      - name: Real PostgreSQL integration tests\n')[1]
+    .split('      - name:')[0];
+  const commands = step
+    .split('        run: |\n')[1]
+    .split('        env:')[0]
+    .split('\n')
+    .map((line) => line.replace(/^ {10}/, ''))
+    .join('\n');
+  assert.match(
+    commands,
+    /timeout --verbose --kill-after=10s 900s node scripts\/run-integration-module\.mjs/,
+  );
+  assert.match(
+    commands,
+    /else\n {2}timeout 7200 node scripts\/run-integration-module\.mjs/,
+  );
+  assert.doesNotMatch(
+    commands,
+    /--foreground|--preserve-status|--test-force-exit|\|\|/,
+  );
+  assert.match(
+    jobs['main-integration'],
+    /name: Remove disposable database container\n {8}if: always\(\)/,
+  );
+
+  const directory = mkdtempSync(join(tmpdir(), 'browser-deadline-'));
+  const sentinel = spawn(
+    process.execPath,
+    ['-e', "process.on('message', () => process.send('alive'));"],
+    { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] },
+  );
+  const sentinelExit = once(sentinel, 'exit');
+  try {
+    await once(sentinel, 'spawn');
+    // The real workflow shell is exercised unchanged except for test duration.
+    // This fake executable replaces Node, never the real browser E2E assertions.
+    writeFileSync(
+      join(directory, 'node'),
+      `#!${process.execPath}
+const mode = process.env.DEADLINE_TEST_MODE;
+if (mode !== 'hang') process.exit(Number(mode));
+const descendant = process.argv.includes('--descendant');
+// Test-only fail-safe: exit 97 can never satisfy the expected KILL result.
+setTimeout(() => {require('node:fs').writeSync(1, descendant ? 'FAILSAFE_DESCENDANT' : 'FAILSAFE_PARENT');process.exit(97);}, 4000);
+process.on('SIGTERM', () => console.log(descendant ? 'DESCENDANT_TERM_SEEN' : 'PARENT_TERM_SEEN'));
+console.log(descendant ? 'DESCENDANT_READY' : 'PARENT_READY');
+if (!descendant) require('node:child_process').spawn(process.execPath, [__filename, '--descendant'], {stdio:'inherit'});
+setInterval(() => {}, 1000);
+`,
+      { mode: 0o755 },
+    );
+    const shortened = commands.replace(
+      '--kill-after=10s 900s',
+      '--kill-after=0.2s 1s',
+    );
+    const run = (mode, module = 'official-account-browser') =>
+      spawnSync('bash', ['-e', '-c', shortened], {
+        env: {
+          ...process.env,
+          PATH: `${directory}:${process.env.PATH}`,
+          CI_MODULE: module,
+          CI_SHARD: '1/1',
+          DEADLINE_TEST_MODE: mode,
+          LC_ALL: 'C',
+        },
+        encoding: 'utf8',
+        timeout: 5000,
+        killSignal: 'SIGKILL',
+      });
+    for (const module of [
+      'official-account-browser',
+      'rating-group-promotion',
+    ]) {
+      for (const status of [0, 17]) {
+        const result = run(String(status), module);
+        assert.equal(result.error, undefined);
+        assert.equal(result.signal, null);
+        assert.equal(result.status, status);
+      }
+    }
+    const hung = run('hang');
+    assert.equal(
+      hung.error,
+      undefined,
+      'Outer watchdog must not be the terminating mechanism',
+    );
+    for (const role of ['PARENT', 'DESCENDANT']) {
+      assert.ok(hung.stdout.includes(`${role}_READY`));
+      assert.ok(hung.stdout.includes(`${role}_TERM_SEEN`));
+    }
+    assert.doesNotMatch(hung.stdout, /FAILSAFE_/);
+    assert.match(hung.stderr, /sending signal TERM/);
+    assert.match(hung.stderr, /sending signal KILL/);
+    assert.ok(
+      hung.status === 137 || hung.signal === 'SIGKILL',
+      JSON.stringify(hung),
+    );
+    const alive = once(sentinel, 'message', {
+      signal: AbortSignal.timeout(1000),
+    });
+    sentinel.send('ping');
+    assert.deepEqual(await alive, ['alive', undefined]);
+    assert.equal(
+      sentinel.exitCode,
+      null,
+      'Unrelated sibling must remain running',
+    );
+    assert.equal(sentinel.signalCode, null);
+    assert.equal(process.kill(sentinel.pid, 0), true);
+  } finally {
+    // Only this test's independently spawned sentinel is stopped here.
+    sentinel.kill('SIGKILL');
+    await sentinelExit;
+    rmSync(directory, { recursive: true, force: true });
   }
 });
 

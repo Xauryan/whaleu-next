@@ -187,8 +187,12 @@ jobs:
         run: |
           if [[ "$CI_MODULE" == official-account-browser ]]; then
             export WHALEU_OFFICIAL_BROWSER_SANDBOX=ubuntu22-userns-v1
+            # Bound test hooks and leaked handles as well as the 540s of body deadlines.
+            # Preserve failure and let GNU timeout terminate only its own process group.
+            timeout --verbose --kill-after=10s 900s node scripts/run-integration-module.mjs --module "$CI_MODULE" --shard "$CI_SHARD"
+          else
+            timeout 7200 node scripts/run-integration-module.mjs --module "$CI_MODULE" --shard "$CI_SHARD"
           fi
-          timeout 7200 node scripts/run-integration-module.mjs --module "$CI_MODULE" --shard "$CI_SHARD"
         env:
           NODE_ENV: test
           WHALEU_RATINGS_CI_DIAGNOSTICS: '1'

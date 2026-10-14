@@ -11,6 +11,8 @@ import {
   officialBrowserVersion,
 } from '../support/official-account-browser.js';
 
+import { closeBrowserResources } from '../support/browser-test-diagnostics.js';
+
 const B = '/v1/me/official-account-operations';
 const journal = `JSON.parse(Object.entries(localStorage).find(([k])=>k.startsWith('whaleu.official-operator.v1:'))?.[1] || 'null')`;
 
@@ -20,9 +22,16 @@ test(
   async (t) => {
     // Missing official runtime is a failed/not-run prerequisite, never a skip.
     const browser = await officialBrowser();
-    t.after(() => browser.close());
-    const f = await officialAccountFixture();
-    t.after(() => f.close());
+    let fixture: Awaited<ReturnType<typeof officialAccountFixture>> | undefined;
+    t.after(() =>
+      closeBrowserResources([
+        ['official-browser', () => browser.close()],
+        ...(fixture ? [['official-fixture', fixture.close] as const] : []),
+      ]),
+    );
+    console.log('[browser-fixture] official: acquiring');
+    const f = (fixture = await officialAccountFixture());
+    console.log('[browser-fixture] official: acquired');
     await f.app.listen(0, '127.0.0.1');
     const origin = await f.app.getUrl();
     const url = `${origin}/operator/official-articles`;
@@ -509,9 +518,17 @@ test(
   { timeout: 120000 },
   async (t) => {
     const browser = await officialBrowser();
-    t.after(() => browser.close());
-    const f = await directoryRuntimeFixture();
-    t.after(() => f.close());
+    let fixture:
+      Awaited<ReturnType<typeof directoryRuntimeFixture>> | undefined;
+    t.after(() =>
+      closeBrowserResources([
+        ['default-browser', () => browser.close()],
+        ...(fixture ? [['default-fixture', fixture.close] as const] : []),
+      ]),
+    );
+    console.log('[browser-fixture] default: acquiring');
+    const f = (fixture = await directoryRuntimeFixture());
+    console.log('[browser-fixture] default: acquired');
     const actor = await createRuntimeActor(f.app);
     await browser.navigate(
       `http://127.0.0.1:${f.port}/operator/official-articles`,

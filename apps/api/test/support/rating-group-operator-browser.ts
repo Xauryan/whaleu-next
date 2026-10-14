@@ -3,6 +3,7 @@
  * metadata only; this file does not claim independently verified provenance.
  */
 import { spawn, execFile } from 'node:child_process';
+import { browserDiagnostics } from './browser-test-diagnostics.js';
 import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
@@ -27,6 +28,7 @@ export interface PromotionBrowser {
 }
 
 export async function startPromotionBrowser(): Promise<PromotionBrowser> {
+  const diagnostics = browserDiagnostics();
   const require = createRequire(import.meta.url);
   const root = dirname(require.resolve('playwright-core/package.json'));
   const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
@@ -95,6 +97,7 @@ export async function startPromotionBrowser(): Promise<PromotionBrowser> {
   async function close() {
     if (closed) return;
     closed = true;
+    diagnostics.flush('cleanup');
     socket?.close();
     if (!exited) child.kill('SIGTERM');
     if (!exited) await Promise.race([exit, delay(2000)]);
@@ -189,6 +192,7 @@ export async function startPromotionBrowser(): Promise<PromotionBrowser> {
         method?: string;
         params?: Json;
       };
+      diagnostics.record(message);
       if (message.id !== undefined) {
         const waiting = pending.get(message.id);
         if (!waiting) return;
@@ -213,6 +217,7 @@ export async function startPromotionBrowser(): Promise<PromotionBrowser> {
         const id = ++sequence;
         const timer = setTimeout(() => {
           pending.delete(id);
+          diagnostics.flush('command-timeout');
           reject(new Error(`CDP ${method} timed out.`));
         }, 10000);
         pending.set(id, { resolve, reject, timer });
@@ -252,6 +257,7 @@ export async function startPromotionBrowser(): Promise<PromotionBrowser> {
         if (await evaluate<boolean>(expression)) return;
         await delay(25);
       } while (performance.now() < deadline);
+      diagnostics.flush('condition-timeout');
       throw new Error('Operator browser condition timed out.');
     }
     await command('Page.enable');

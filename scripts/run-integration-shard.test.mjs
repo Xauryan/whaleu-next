@@ -234,3 +234,62 @@ test('CLI dry-run works without tsx or a database; invalid arguments exit nonzer
     assert.equal(rejected.stdout, '');
   }
 });
+
+test('TAP diagnostics are opt-in and preserve the exact integration command and failure status', () => {
+  const files = [
+    'test/integration/official-account-operator-roundtrip.test.ts',
+  ];
+  const status = runTests(
+    files,
+    (command, args, options) => {
+      assert.equal(command, process.execPath);
+      assert.deepEqual(args, [
+        '--import',
+        'tsx',
+        '--test',
+        '--test-concurrency=1',
+        '--test-reporter=tap',
+        ...files,
+      ]);
+      assert.deepEqual(options, { cwd: apiDirectory, stdio: 'inherit' });
+      return { status: 1 };
+    },
+    { reporter: 'tap' },
+  );
+  assert.equal(status, 1);
+  assert.throws(
+    () =>
+      runTests(files, () => assert.fail('must reject'), {
+        reporter: 'unknown',
+      }),
+    /Unsupported/,
+  );
+});
+
+test('TAP reports the original failure stack before a leaked test handle can prevent final summary', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'browser-tap-live-'));
+  try {
+    const fixture = join(directory, 'leak.mjs');
+    writeFileSync(
+      fixture,
+      `import test from 'node:test';
+setInterval(()=>{},1000);
+setTimeout(()=>process.exit(97),4000);
+test('failure before leaked handle',()=>{throw Error('IMMEDIATE_BROWSER_DIAGNOSTIC')});
+`,
+    );
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(
+      process.execPath,
+      ['--test', '--test-reporter=tap', fixture],
+      { encoding: 'utf8', timeout: 1500, killSignal: 'SIGKILL', env },
+    );
+    assert.equal(result.error?.code, 'ETIMEDOUT');
+    assert.match(result.stdout, /not ok 1 - failure before leaked handle/);
+    assert.match(result.stdout, /error: 'IMMEDIATE_BROWSER_DIAGNOSTIC'/);
+    assert.match(result.stdout, /stack: \|-/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

@@ -3,6 +3,7 @@
  * this gate (never a skipped successful journey). Installation is not done here.
  */
 import assert from 'node:assert/strict';
+import { browserDiagnostics } from './browser-test-diagnostics.js';
 import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -71,6 +72,7 @@ interface Packet {
   sessionId?: string;
 }
 export async function officialBrowser() {
+  const diagnostics = browserDiagnostics();
   const selected = await runtime();
   let helper: string | undefined;
   if (
@@ -140,7 +142,11 @@ export async function officialBrowser() {
     stopped = true;
     fail(new Error('Pinned Chromium unavailable: operator journey NOT RUN'));
   });
-  child.on('exit', () => {
+  child.on('exit', (code, signal) => {
+    console.log(
+      '[browser-cleanup] chromium-exit',
+      JSON.stringify({ code, signal }),
+    );
     stopped = true;
     fail(new Error('Chromium exited before CDP completed'));
   });
@@ -154,6 +160,7 @@ export async function officialBrowser() {
         end = buffer.indexOf('\0')
       ) {
         const packet = JSON.parse(buffer.slice(0, end)) as Packet;
+        diagnostics.record(packet);
         buffer = buffer.slice(end + 1);
         if (packet.id !== undefined) {
           const item = waiting.get(packet.id);
@@ -174,6 +181,7 @@ export async function officialBrowser() {
       const id = ++serial;
       const timer = setTimeout(() => {
         waiting.delete(id);
+        diagnostics.flush('command-timeout');
         reject(new Error(`CDP timeout: ${method}`));
       }, 15000);
       waiting.set(id, {
@@ -191,8 +199,10 @@ export async function officialBrowser() {
       );
     });
   const close = async () => {
+    diagnostics.flush('cleanup');
     fail(new Error('Browser closed'));
     if (!stopped) {
+      console.log('[browser-cleanup] chromium-exit: waiting');
       const exited = new Promise<void>((resolve) =>
         child.once('exit', () => resolve()),
       );
@@ -201,7 +211,20 @@ export async function officialBrowser() {
       await exited;
       clearTimeout(timeout);
     }
-    await rm(directory, { recursive: true, force: true });
+    console.log('[browser-cleanup] profile-remove: begin');
+    try {
+      await rm(directory, { recursive: true, force: true });
+      console.log('[browser-cleanup] profile-remove: done');
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      console.log(
+        '[browser-cleanup] profile-remove: failed',
+        typeof code === 'string' && /^[A-Z_]{1,32}$/.test(code)
+          ? code
+          : 'UNKNOWN',
+      );
+      throw error;
+    }
   };
   try {
     const version = await command<{ product: string }>('Browser.getVersion');
@@ -243,6 +266,7 @@ export async function officialBrowser() {
     const until = async (expression: string, label: string) => {
       const deadline = Date.now() + 15000;
       while (!(await evaluate<boolean>(expression))) {
+        if (Date.now() >= deadline) diagnostics.flush('condition-timeout');
         assert.ok(
           Date.now() < deadline,
           `Browser condition timed out: ${label}`,

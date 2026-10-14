@@ -39,14 +39,14 @@ const mutate = (fn) => {
 test('real module inventory equals the old complete glob exactly once, with shared owners', () => {
   const inventory = discoverFiles();
   const plan = createModulePlan(inventory, readModules());
-  assert.equal(plan.totalShards, 14);
+  assert.equal(plan.totalShards, 15);
   assert.equal(plan.totalFiles, inventory.length);
   assert.equal(plan.filesSha256, createShardPlan(inventory, 4).filesSha256);
   assert.deepEqual(
     plan.shards.flatMap((shard) => shard.files).sort(),
     inventory,
   );
-  assert.equal(new Set(plan.shards.map((shard) => shard.id)).size, 14);
+  assert.equal(new Set(plan.shards.map((shard) => shard.id)).size, 15);
   assert.ok(
     plan.shards.find((shard) => shard.module === 'shared-foundation').owners
       .length > 1,
@@ -71,6 +71,8 @@ test('official-account browser is isolated from the original owner matrix', () =
   assert.deepEqual(
     plan.shards.map((shard) => shard.id),
     [
+      'official-account-browser-1',
+      'official-account-browser-2',
       'community-media-1',
       'ratings-discussion-1',
       'ratings-targets-effects-1',
@@ -83,7 +85,6 @@ test('official-account browser is isolated from the original owner matrix', () =
       'campus-services-2',
       'media-runtime-1',
       'official-account-operations-1',
-      'official-account-browser-1',
       'rating-group-promotion-1',
     ],
   );
@@ -92,8 +93,14 @@ test('official-account browser is isolated from the original owner matrix', () =
   );
   assert.deepEqual(browser.files, [
     'test/integration/official-account-operator-roundtrip.test.ts',
+  ]);
+  const ratingBrowser = plan.shards.find(
+    (shard) => shard.id === 'official-account-browser-2',
+  );
+  assert.deepEqual(ratingBrowser.files, [
     'test/integration/rating-group-operator-roundtrip.test.ts',
   ]);
+  assert.deepEqual([browser.shard, ratingBrowser.shard], ['1/2', '2/2']);
   const official = plan.shards.find(
     (shard) => shard.id === 'official-account-operations-1',
   );
@@ -519,7 +526,11 @@ test('real scheduling permutation preserves full inventory and every stable shar
   const flattened = createModulePlan(discoverFiles(), manifest);
   assert.equal(scheduled.filesSha256, flattened.filesSha256);
   assert.equal(scheduled.totalFiles, flattened.totalFiles);
-  assert.deepEqual(scheduled.shards.slice(0, 8), flattened.shards.slice(0, 8));
+  assert.deepEqual(
+    scheduled.shards.slice(0, 2).map((shard) => shard.id),
+    ['official-account-browser-1', 'official-account-browser-2'],
+  );
+  assert.deepEqual(scheduled.shards.slice(2, 8), flattened.shards.slice(0, 6));
   for (const shard of scheduled.shards) {
     assert.deepEqual(
       shard,
@@ -557,5 +568,28 @@ test('matrixOrder rejects incomplete, duplicate, extra and invalid IDs or types'
         ),
       /matrixOrder/,
     );
+  }
+});
+
+test('only browser module requests immediate TAP failure diagnostics', () => {
+  const plan = createModulePlan(discoverFiles(), readModules());
+  for (const shard of plan.shards) {
+    let called = false;
+    main(['--module', shard.module, '--shard', shard.shard], {
+      write: () => {},
+      run: (selected, spawn, options) => {
+        called = true;
+        assert.deepEqual(selected, shard.files);
+        assert.equal(spawn, undefined);
+        assert.deepEqual(
+          options,
+          shard.module === 'official-account-browser'
+            ? { reporter: 'tap' }
+            : undefined,
+        );
+        return 0;
+      },
+    });
+    assert.equal(called, true);
   }
 });
