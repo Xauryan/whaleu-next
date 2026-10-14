@@ -99,7 +99,12 @@
     "pages/major-discussion/major-discussion",
     "pages/major-discussion-thread/major-discussion-thread",
     "pages/major-discussion-recovery/major-discussion-recovery",
-    "pages/major-discussion-notices/major-discussion-notices"
+    "pages/major-discussion-notices/major-discussion-notices",
+    "pages/campus-tools/campus-tools",
+    "pages/campus-tools-map/campus-tools-map",
+    "pages/campus-tools-shuttle/campus-tools-shuttle",
+    "pages/campus-tools-research/campus-tools-research",
+    "pages/campus-tools-webview/campus-tools-webview"
   ],
   "window": {
     "navigationBarTitleText": "WhaleU 开发构建",

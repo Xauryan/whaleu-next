@@ -1,0 +1,23 @@
+<view class="page">
+  <view class="title">校园工具</view>
+  <view class="hint">选择的是浏览校区，不代表学生身份或管理权限。</view>
+  <view wx:if="{{campusId}}" class="subtitle">{{campusName}}</view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{authRecovery}}" class="card"><navigator url="/pages/login/login">重新登录</navigator><button bindtap="onContinueGuest">明确以访客继续</button></view>
+  <button bindtap="onChooseCampus" disabled="{{busy}}">{{needsCampus ? '选择浏览校区' : '切换浏览校区'}}</button>
+  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新当前资料</button>
+  <view wx:if="{{choosing}}" class="card">
+    <input value="{{query}}" placeholder="搜索校园名称" maxlength="100" bindinput="onQuery" />
+    <button bindtap="onSearch" disabled="{{busy}}">搜索</button>
+    <button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bindtap="onSelectCampus" disabled="{{busy || !item.isActive}}">{{item.fullName}}</button>
+    <view wx:if="{{!busy &amp;&amp; !campuses.length}}" class="hint">没有匹配的校园</view>
+    <view class="row"><button bindtap="onPrevious" disabled="{{busy || !hasPrevious}}">上一页</button><text>第 {{campusPage}} 页</text><button bindtap="onNext" disabled="{{busy || !hasNext}}">下一页</button></view>
+  </view>
+  <view wx:for="{{entries}}" wx:key="id" class="card">
+    <view class="subtitle">{{item.title}}</view>
+    <view wx:if="{{item.state !== 'enabled'}}" class="hint">{{item.state === 'withdrawn' ? '已撤回' : '已停用'}}</view>
+    <button data-id="{{item.id}}" bindtap="onOpen" disabled="{{busy || item.state !== 'enabled'}}">查看工具</button>
+  </view>
+  <view wx:if="{{provenance}}" class="hint">资料维护：{{provenance.maintainer}} · {{provenance.attribution}}<view>发布时间：{{provenance.publishedAt}}</view><view wx:if="{{provenance.validity.kind === 'finite'}}">有效期至：{{provenance.validity.expiresAt}}</view></view>
+</view>

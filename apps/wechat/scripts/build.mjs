@@ -154,3 +154,9 @@ execFileSync(
     stdio: 'inherit',
   },
 );
+
+execFileSync(
+  process.execPath,
+  ['--import', 'tsx', path.join(root, 'test/campus-tools-emitted-smoke.mjs')],
+  { stdio: 'inherit', cwd: root },
+);

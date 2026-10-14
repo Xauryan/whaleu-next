@@ -23,7 +23,11 @@ const jobs = Object.fromEntries(
 test('independent foundation jobs preserve every operation of npm check and every scripted workspace', () => {
   assert.equal(
     packageJson.scripts.check,
-    'npm run lint && npm run typecheck && npm run stats:test && npm run search:eval:test && npm run openapi:check && npm test && npm run build',
+    'npm run account-policy:inventory:check && npm run lint && npm run typecheck && npm run stats:test && npm run search:eval:test && npm run openapi:check && npm test && npm run build',
+  );
+  assert.equal(
+    packageJson.scripts['account-policy:inventory:check'],
+    'node scripts/check-account-policy-routes.mjs',
   );
   for (const operation of ['typecheck', 'test', 'build']) {
     assert.equal(
@@ -49,6 +53,7 @@ test('independent foundation jobs preserve every operation of npm check and ever
       assert.ok(jobs[job].includes(`run: npm run ${operation} -w ${name}\n`));
   }
   for (const command of [
+    'account-policy:inventory:check',
     'lint',
     'format:check',
     'stats:test',
@@ -104,6 +109,23 @@ test('matrix is derived from exact inventory with bounded parallel independent d
     assert.match(jobs[job], /node scripts\/verify-test-postgres\.mjs/);
     assert.match(jobs[job], /if: always\(\)/);
     assert.match(jobs[job], /docker rm --force --volumes/);
+  }
+});
+
+test('actual database test steps explicitly retain the synthetic test-runtime boundary', () => {
+  for (const [job, name] of [
+    ['main-integration', 'Real PostgreSQL integration tests'],
+    ['semantic-integration', 'Optional semantic PostgreSQL integration tests'],
+  ]) {
+    const step = jobs[job]
+      .split(`      - name: ${name}\n`)[1]
+      ?.split('      - name:')[0];
+    assert.ok(step, `${job} test step must exist`);
+    assert.match(step, /^ {8}env:\n(?: {10}[^\n]+\n)*? {10}NODE_ENV: test$/m);
+    assert.match(
+      step,
+      /TEST_DATABASE_URL: postgresql:\/\/whaleu_test:local_ci_only@127\.0\.0\.1:/,
+    );
   }
 });
 

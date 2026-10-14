@@ -1238,6 +1238,91 @@
     ]
   },
   {
+    "handler": "CampusToolsController.detail",
+    "method": "GET",
+    "path": "/v1/campuses/:campusId/tools/:entryId",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/campus-tools/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "CampusToolsService",
+        "method": "detail",
+        "file": "apps/api/src/campus-tools/service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "CampusToolsController.hub",
+    "method": "GET",
+    "path": "/v1/campuses/:campusId/tools",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/campus-tools/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "CampusToolsService",
+        "method": "hub",
+        "file": "apps/api/src/campus-tools/service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "CampusToolsController.link",
+    "method": "GET",
+    "path": "/v1/campuses/:campusId/tools/:entryId/link",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/campus-tools/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "CampusToolsService",
+        "method": "link",
+        "file": "apps/api/src/campus-tools/service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "CampusToolsMediaController.descriptor",
+    "method": "GET",
+    "path": "/v3/media/campus-tools/:campusId/:catalogId/:entryId/:bindingId",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/campus-tools/media/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "CampusToolsMediaService",
+        "method": "descriptor",
+        "file": "apps/api/src/campus-tools/media/service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "CampusToolsMediaController.open",
+    "method": "GET",
+    "path": "/v3/media/campus-tools/:campusId/:catalogId/:entryId/:bindingId/:variant",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/campus-tools/media/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "CampusToolsMediaService",
+        "method": "open",
+        "file": "apps/api/src/campus-tools/media/service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
     "handler": "CategoryIconMediaController.cancel",
     "method": "POST",
     "path": "/v3/media/ratings-category-icon/upload-scopes/:id/cancel",
@@ -10896,6 +10981,78 @@
     ]
   },
   {
+    "handler": "SchoolIdentityController.cancel",
+    "method": "POST",
+    "path": "/v1/admin/school-identities/commands/cancel",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/school-identity/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "SchoolIdentityService",
+        "method": "command",
+        "file": "apps/api/src/school-identity/service.ts",
+        "policy": [
+          "AccountPolicy('noncontent_management', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "SchoolIdentityController.command",
+    "method": "POST",
+    "path": "/v1/admin/school-identities/commands",
+    "action": "noncontent_management",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/school-identity/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "SchoolIdentityService",
+        "method": "command",
+        "file": "apps/api/src/school-identity/service.ts",
+        "policy": [
+          "AccountPolicy('noncontent_management', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "SchoolIdentityController.management",
+    "method": "GET",
+    "path": "/v1/admin/school-identities/management",
+    "action": "privileged_read",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/school-identity/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "SchoolIdentityService",
+        "method": "management",
+        "file": "apps/api/src/school-identity/service.ts",
+        "policy": ["AccountPolicy('privileged_read', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "SchoolIdentityController.recovery",
+    "method": "GET",
+    "path": "/v1/admin/school-identities/requests/:requestId",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/school-identity/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "SchoolIdentityService",
+        "method": "recovery",
+        "file": "apps/api/src/school-identity/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
     "handler": "SchoolPostingPolicyController.cancel",
     "method": "POST",
     "path": "/v1/me/school-posting-policy/requests/:requestId/cancel",
@@ -11223,6 +11380,40 @@
         "method": "public",
         "file": "apps/api/src/school-configuration/service.ts",
         "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "SchoolUidController.own",
+    "method": "GET",
+    "path": "/v1/me/school-uid",
+    "action": "private_self_service",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/school-uid/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "SchoolUidService",
+        "method": "own",
+        "file": "apps/api/src/school-uid/service.ts",
+        "policy": ["AccountPolicy('private_self_service', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "SchoolUidLookupController.lookup",
+    "method": "GET",
+    "path": "/v1/admin/school-uids/lookup",
+    "action": "privileged_read",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/school-identity/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "SchoolIdentityService",
+        "method": "lookup",
+        "file": "apps/api/src/school-identity/service.ts",
+        "policy": ["AccountPolicy('privileged_read', 'entry')"],
         "resolution": "concrete"
       }
     ]

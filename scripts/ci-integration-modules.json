@@ -402,7 +402,8 @@
         "ratings/courses",
         "ratings/windows",
         "ratings/dishes",
-        "majors"
+        "majors",
+        "campus-tools"
       ],
       "shards": [
         [
@@ -449,6 +450,9 @@
           "organization-media.test.ts"
         ],
         [
+          "campus-tools-current-proof.test.ts",
+          "campus-tools-native-roundtrip.test.ts",
+          "campus-tools.test.ts",
           "canteen-floor-score-proofs.test.ts",
           "canteen-floor-scores-native-roundtrip.test.ts",
           "canteen-floor-scores.test.ts",

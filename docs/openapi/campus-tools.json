@@ -1,0 +1,1931 @@
+{
+  "components": {
+    "schemas": {},
+    "securitySchemes": {
+      "accessToken": {
+        "description": "Optional current opaque WhaleU access token. Public guest reads are allowed, but a supplied invalid, expired, revoked, or restricted credential never silently downgrades to guest. Campus selection grants no affiliation, UID, or administrative authority.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "Current accepted physical-campus catalogs, exact catalog-bound details and copy/webview actions, and dedicated immutable Media reads. Missing evidence is distinct from known-empty and not-applicable. Production source, location, and embedded-platform activation remain separate gates; no historical source is seeded.",
+    "title": "WhaleU accepted campus tools",
+    "version": "1"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/v1/campuses/{campusId}/tools": {
+      "get": {
+        "description": "Current accepted physical-campus tools. Guest browse never downgrades a supplied invalid credential. No historic source is seeded.",
+        "operationId": "readCampusTools",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campusId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "campusId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "catalogId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "digest": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "entries": {
+                          "items": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "id": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "enum": [
+                                      "map",
+                                      "shuttle",
+                                      "research",
+                                      "web-link"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "ordinal": {
+                                    "maximum": 31,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "revision": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "sourceId": {
+                                    "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "enum": ["disabled", "withdrawn"],
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "maxLength": 160,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "sourceId",
+                                  "ordinal",
+                                  "revision",
+                                  "title",
+                                  "state",
+                                  "kind"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "center": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "latitude": {
+                                        "maximum": 90,
+                                        "minimum": -90,
+                                        "type": "number"
+                                      },
+                                      "longitude": {
+                                        "maximum": 180,
+                                        "minimum": -180,
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": ["latitude", "longitude"],
+                                    "type": "object"
+                                  },
+                                  "coordinateSystem": {
+                                    "enum": ["gcj02"],
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "enum": ["map"],
+                                    "type": "string"
+                                  },
+                                  "markers": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "category": {
+                                          "maxLength": 80,
+                                          "minLength": 1,
+                                          "type": "string"
+                                        },
+                                        "details": {
+                                          "maxLength": 2000,
+                                          "minLength": 1,
+                                          "type": "string"
+                                        },
+                                        "id": {
+                                          "maximum": 2147483647,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        "position": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "latitude": {
+                                              "maximum": 90,
+                                              "minimum": -90,
+                                              "type": "number"
+                                            },
+                                            "longitude": {
+                                              "maximum": 180,
+                                              "minimum": -180,
+                                              "type": "number"
+                                            }
+                                          },
+                                          "required": ["latitude", "longitude"],
+                                          "type": "object"
+                                        },
+                                        "sourceId": {
+                                          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                          "type": "string"
+                                        },
+                                        "title": {
+                                          "maxLength": 160,
+                                          "minLength": 1,
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "sourceId",
+                                        "title",
+                                        "category",
+                                        "details",
+                                        "position"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 128,
+                                    "type": "array"
+                                  },
+                                  "ordinal": {
+                                    "maximum": 31,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "revision": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "sourceId": {
+                                    "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "enum": ["enabled"],
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "maxLength": 160,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  },
+                                  "zoom": {
+                                    "maximum": 20,
+                                    "minimum": 3,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "sourceId",
+                                  "ordinal",
+                                  "revision",
+                                  "title",
+                                  "state",
+                                  "kind",
+                                  "coordinateSystem",
+                                  "center",
+                                  "zoom",
+                                  "markers"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "groups": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "id": {
+                                          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                          "type": "string"
+                                        },
+                                        "slots": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "alt": {
+                                                "maxLength": 300,
+                                                "minLength": 1,
+                                                "type": "string"
+                                              },
+                                              "assetId": {
+                                                "format": "uuid",
+                                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                                "type": "string"
+                                              },
+                                              "bindingId": {
+                                                "format": "uuid",
+                                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                                "type": "string"
+                                              },
+                                              "id": {
+                                                "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                                "type": "string"
+                                              },
+                                              "manifestDigest": {
+                                                "pattern": "^[a-f0-9]{64}$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "id",
+                                              "bindingId",
+                                              "assetId",
+                                              "manifestDigest",
+                                              "alt"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 8,
+                                          "type": "array"
+                                        },
+                                        "title": {
+                                          "maxLength": 160,
+                                          "minLength": 1,
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["id", "title", "slots"],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 4,
+                                    "type": "array"
+                                  },
+                                  "id": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "enum": ["shuttle"],
+                                    "type": "string"
+                                  },
+                                  "ordinal": {
+                                    "maximum": 31,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "revision": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "sourceId": {
+                                    "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "enum": ["enabled"],
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "maxLength": 160,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "sourceId",
+                                  "ordinal",
+                                  "revision",
+                                  "title",
+                                  "state",
+                                  "kind",
+                                  "groups"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "compatibility": {
+                                    "maxLength": 400,
+                                    "minLength": 1,
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "maxLength": 4000,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "image": {
+                                    "additionalProperties": false,
+                                    "nullable": true,
+                                    "properties": {
+                                      "alt": {
+                                        "maxLength": 300,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "assetId": {
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                        "type": "string"
+                                      },
+                                      "bindingId": {
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                        "type": "string"
+                                      },
+                                      "id": {
+                                        "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                        "type": "string"
+                                      },
+                                      "manifestDigest": {
+                                        "pattern": "^[a-f0-9]{64}$",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "bindingId",
+                                      "assetId",
+                                      "manifestDigest",
+                                      "alt"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "kind": {
+                                    "enum": ["research"],
+                                    "type": "string"
+                                  },
+                                  "link": {
+                                    "additionalProperties": false,
+                                    "nullable": true,
+                                    "properties": {
+                                      "action": {
+                                        "enum": ["copy"],
+                                        "type": "string"
+                                      },
+                                      "state": {
+                                        "enum": ["available"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["action", "state"],
+                                    "type": "object"
+                                  },
+                                  "ordinal": {
+                                    "maximum": 31,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "revision": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "sourceId": {
+                                    "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "enum": ["enabled"],
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "maxLength": 160,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "sourceId",
+                                  "ordinal",
+                                  "revision",
+                                  "title",
+                                  "state",
+                                  "kind",
+                                  "description",
+                                  "compatibility",
+                                  "image",
+                                  "link"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "id": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "enum": ["web-link"],
+                                    "type": "string"
+                                  },
+                                  "link": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "action": {
+                                        "enum": ["webview"],
+                                        "type": "string"
+                                      },
+                                      "state": {
+                                        "enum": [
+                                          "available",
+                                          "webview_unconfigured"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["action", "state"],
+                                    "type": "object"
+                                  },
+                                  "ordinal": {
+                                    "maximum": 31,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "revision": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "sourceId": {
+                                    "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "enum": ["enabled"],
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "maxLength": 160,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "sourceId",
+                                  "ordinal",
+                                  "revision",
+                                  "title",
+                                  "state",
+                                  "kind",
+                                  "link"
+                                ],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "maxItems": 32,
+                          "minItems": 1,
+                          "type": "array"
+                        },
+                        "provenance": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "attribution": {
+                              "maxLength": 300,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "maintainer": {
+                              "maxLength": 160,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "observedAt": {
+                              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                              "type": "string"
+                            },
+                            "publishedAt": {
+                              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                              "type": "string"
+                            },
+                            "validity": {
+                              "oneOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "effectiveAt": {
+                                      "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                                      "type": "string"
+                                    },
+                                    "expiresAt": {
+                                      "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "enum": ["finite"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "effectiveAt",
+                                    "expiresAt"
+                                  ],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "effectiveAt": {
+                                      "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                                      "type": "string"
+                                    },
+                                    "exemptionReference": {
+                                      "maxLength": 300,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "enum": ["policy_exempt"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "effectiveAt",
+                                    "exemptionReference"
+                                  ],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "maintainer",
+                            "attribution",
+                            "observedAt",
+                            "publishedAt",
+                            "validity"
+                          ],
+                          "type": "object"
+                        },
+                        "state": {
+                          "enum": ["ready"],
+                          "type": "string"
+                        },
+                        "version": {
+                          "enum": ["campus-tools-canonical-v1"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "campusId",
+                        "catalogId",
+                        "digest",
+                        "version",
+                        "provenance",
+                        "state",
+                        "entries"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "campusId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "catalogId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "digest": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "entries": {
+                          "items": {
+                            "anyOf": []
+                          },
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "provenance": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "attribution": {
+                              "maxLength": 300,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "maintainer": {
+                              "maxLength": 160,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "observedAt": {
+                              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                              "type": "string"
+                            },
+                            "publishedAt": {
+                              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                              "type": "string"
+                            },
+                            "validity": {
+                              "oneOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "effectiveAt": {
+                                      "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                                      "type": "string"
+                                    },
+                                    "expiresAt": {
+                                      "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "enum": ["finite"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "effectiveAt",
+                                    "expiresAt"
+                                  ],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "effectiveAt": {
+                                      "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                                      "type": "string"
+                                    },
+                                    "exemptionReference": {
+                                      "maxLength": 300,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "enum": ["policy_exempt"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "effectiveAt",
+                                    "exemptionReference"
+                                  ],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "maintainer",
+                            "attribution",
+                            "observedAt",
+                            "publishedAt",
+                            "validity"
+                          ],
+                          "type": "object"
+                        },
+                        "state": {
+                          "enum": ["known_empty", "not_applicable"],
+                          "type": "string"
+                        },
+                        "version": {
+                          "enum": ["campus-tools-canonical-v1"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "campusId",
+                        "catalogId",
+                        "digest",
+                        "version",
+                        "provenance",
+                        "state",
+                        "entries"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "campusId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reason": {
+                          "maxLength": 100,
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["unknown", "expired", "unavailable"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "campusId", "reason"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {},
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Campus tools"]
+      }
+    },
+    "/v1/campuses/{campusId}/tools/{entryId}": {
+      "get": {
+        "operationId": "readCampusTool",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campusId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "catalogId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "campusId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "catalogId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "digest": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "entry": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "id": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": [
+                                    "map",
+                                    "shuttle",
+                                    "research",
+                                    "web-link"
+                                  ],
+                                  "type": "string"
+                                },
+                                "ordinal": {
+                                  "maximum": 31,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                "revision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "sourceId": {
+                                  "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "enum": ["disabled", "withdrawn"],
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "maxLength": 160,
+                                  "minLength": 1,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "sourceId",
+                                "ordinal",
+                                "revision",
+                                "title",
+                                "state",
+                                "kind"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "center": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "latitude": {
+                                      "maximum": 90,
+                                      "minimum": -90,
+                                      "type": "number"
+                                    },
+                                    "longitude": {
+                                      "maximum": 180,
+                                      "minimum": -180,
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": ["latitude", "longitude"],
+                                  "type": "object"
+                                },
+                                "coordinateSystem": {
+                                  "enum": ["gcj02"],
+                                  "type": "string"
+                                },
+                                "id": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": ["map"],
+                                  "type": "string"
+                                },
+                                "markers": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "category": {
+                                        "maxLength": 80,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "details": {
+                                        "maxLength": 2000,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "id": {
+                                        "maximum": 2147483647,
+                                        "minimum": 0,
+                                        "type": "integer"
+                                      },
+                                      "position": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "latitude": {
+                                            "maximum": 90,
+                                            "minimum": -90,
+                                            "type": "number"
+                                          },
+                                          "longitude": {
+                                            "maximum": 180,
+                                            "minimum": -180,
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": ["latitude", "longitude"],
+                                        "type": "object"
+                                      },
+                                      "sourceId": {
+                                        "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "maxLength": 160,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "sourceId",
+                                      "title",
+                                      "category",
+                                      "details",
+                                      "position"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "maxItems": 128,
+                                  "type": "array"
+                                },
+                                "ordinal": {
+                                  "maximum": 31,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                "revision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "sourceId": {
+                                  "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "enum": ["enabled"],
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "maxLength": 160,
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "zoom": {
+                                  "maximum": 20,
+                                  "minimum": 3,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "sourceId",
+                                "ordinal",
+                                "revision",
+                                "title",
+                                "state",
+                                "kind",
+                                "coordinateSystem",
+                                "center",
+                                "zoom",
+                                "markers"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "groups": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "id": {
+                                        "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                        "type": "string"
+                                      },
+                                      "slots": {
+                                        "items": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "alt": {
+                                              "maxLength": 300,
+                                              "minLength": 1,
+                                              "type": "string"
+                                            },
+                                            "assetId": {
+                                              "format": "uuid",
+                                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                              "type": "string"
+                                            },
+                                            "bindingId": {
+                                              "format": "uuid",
+                                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                              "type": "string"
+                                            },
+                                            "id": {
+                                              "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                              "type": "string"
+                                            },
+                                            "manifestDigest": {
+                                              "pattern": "^[a-f0-9]{64}$",
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "bindingId",
+                                            "assetId",
+                                            "manifestDigest",
+                                            "alt"
+                                          ],
+                                          "type": "object"
+                                        },
+                                        "maxItems": 8,
+                                        "type": "array"
+                                      },
+                                      "title": {
+                                        "maxLength": 160,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["id", "title", "slots"],
+                                    "type": "object"
+                                  },
+                                  "maxItems": 4,
+                                  "type": "array"
+                                },
+                                "id": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": ["shuttle"],
+                                  "type": "string"
+                                },
+                                "ordinal": {
+                                  "maximum": 31,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                "revision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "sourceId": {
+                                  "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "enum": ["enabled"],
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "maxLength": 160,
+                                  "minLength": 1,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "sourceId",
+                                "ordinal",
+                                "revision",
+                                "title",
+                                "state",
+                                "kind",
+                                "groups"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "compatibility": {
+                                  "maxLength": 400,
+                                  "minLength": 1,
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "maxLength": 4000,
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "id": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "image": {
+                                  "additionalProperties": false,
+                                  "nullable": true,
+                                  "properties": {
+                                    "alt": {
+                                      "maxLength": 300,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    },
+                                    "assetId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    "bindingId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    "id": {
+                                      "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                      "type": "string"
+                                    },
+                                    "manifestDigest": {
+                                      "pattern": "^[a-f0-9]{64}$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "bindingId",
+                                    "assetId",
+                                    "manifestDigest",
+                                    "alt"
+                                  ],
+                                  "type": "object"
+                                },
+                                "kind": {
+                                  "enum": ["research"],
+                                  "type": "string"
+                                },
+                                "link": {
+                                  "additionalProperties": false,
+                                  "nullable": true,
+                                  "properties": {
+                                    "action": {
+                                      "enum": ["copy"],
+                                      "type": "string"
+                                    },
+                                    "state": {
+                                      "enum": ["available"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["action", "state"],
+                                  "type": "object"
+                                },
+                                "ordinal": {
+                                  "maximum": 31,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                "revision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "sourceId": {
+                                  "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "enum": ["enabled"],
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "maxLength": 160,
+                                  "minLength": 1,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "sourceId",
+                                "ordinal",
+                                "revision",
+                                "title",
+                                "state",
+                                "kind",
+                                "description",
+                                "compatibility",
+                                "image",
+                                "link"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "id": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": ["web-link"],
+                                  "type": "string"
+                                },
+                                "link": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "action": {
+                                      "enum": ["webview"],
+                                      "type": "string"
+                                    },
+                                    "state": {
+                                      "enum": [
+                                        "available",
+                                        "webview_unconfigured"
+                                      ],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["action", "state"],
+                                  "type": "object"
+                                },
+                                "ordinal": {
+                                  "maximum": 31,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                "revision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "sourceId": {
+                                  "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "enum": ["enabled"],
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "maxLength": 160,
+                                  "minLength": 1,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "sourceId",
+                                "ordinal",
+                                "revision",
+                                "title",
+                                "state",
+                                "kind",
+                                "link"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "provenance": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "attribution": {
+                              "maxLength": 300,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "maintainer": {
+                              "maxLength": 160,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "observedAt": {
+                              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                              "type": "string"
+                            },
+                            "publishedAt": {
+                              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                              "type": "string"
+                            },
+                            "validity": {
+                              "oneOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "effectiveAt": {
+                                      "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                                      "type": "string"
+                                    },
+                                    "expiresAt": {
+                                      "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "enum": ["finite"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "effectiveAt",
+                                    "expiresAt"
+                                  ],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "effectiveAt": {
+                                      "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,6})?Z$",
+                                      "type": "string"
+                                    },
+                                    "exemptionReference": {
+                                      "maxLength": 300,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "enum": ["policy_exempt"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "effectiveAt",
+                                    "exemptionReference"
+                                  ],
+                                  "type": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "maintainer",
+                            "attribution",
+                            "observedAt",
+                            "publishedAt",
+                            "validity"
+                          ],
+                          "type": "object"
+                        },
+                        "state": {
+                          "enum": ["ready"],
+                          "type": "string"
+                        },
+                        "version": {
+                          "enum": ["campus-tools-canonical-v1"],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "campusId",
+                        "catalogId",
+                        "digest",
+                        "version",
+                        "provenance",
+                        "state",
+                        "entry"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "campusId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reason": {
+                          "maxLength": 100,
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["unknown", "expired", "unavailable"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "campusId", "reason"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {},
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Campus tools"]
+      }
+    },
+    "/v1/campuses/{campusId}/tools/{entryId}/link": {
+      "get": {
+        "description": "Explicit exact current catalog action. Copy authority never grants webview embedding. No arbitrary destination parameter.",
+        "operationId": "resolveCampusToolLink",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campusId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "catalogId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "enum": ["copy", "webview"],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "enum": ["copy", "webview"],
+                          "type": "string"
+                        },
+                        "campusId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "catalogId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "digest": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "entryId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "entryRevision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "policy": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "rules": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "action": {
+                                    "enum": ["copy", "webview"],
+                                    "type": "string"
+                                  },
+                                  "host": {
+                                    "maxLength": 253,
+                                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*(?:\\.[a-z0-9]+(?:-[a-z0-9]+)*)+$",
+                                    "type": "string"
+                                  },
+                                  "path": {
+                                    "maxLength": 512,
+                                    "pattern": "^\\/[A-Za-z0-9_./~-]*$",
+                                    "type": "string"
+                                  },
+                                  "query": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "key": {
+                                          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                                          "type": "string"
+                                        },
+                                        "value": {
+                                          "pattern": "^[A-Za-z0-9_~-]{1,128}$",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["key", "value"],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 8,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": ["action", "host", "path", "query"],
+                                "type": "object"
+                              },
+                              "maxItems": 16,
+                              "type": "array"
+                            },
+                            "version": {
+                              "enum": [1],
+                              "type": "number"
+                            }
+                          },
+                          "required": ["id", "version", "rules"],
+                          "type": "object"
+                        },
+                        "state": {
+                          "enum": ["ready"],
+                          "type": "string"
+                        },
+                        "url": {
+                          "maxLength": 2048,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "campusId",
+                        "catalogId",
+                        "digest",
+                        "entryId",
+                        "entryRevision",
+                        "action",
+                        "url",
+                        "policy"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "campusId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "reason": {
+                          "maxLength": 100,
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": ["unavailable"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["state", "campusId", "reason"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {},
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Campus tools"]
+      }
+    },
+    "/v3/media/campus-tools/{campusId}/{catalogId}/{entryId}/{bindingId}": {
+      "get": {
+        "operationId": "readCampusToolMediaDescriptor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campusId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "catalogId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bindingId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "assetId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "bindingId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "campusId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "catalogId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "entryId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "entryRevision": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "height": {
+                      "exclusiveMinimum": true,
+                      "maximum": 2048,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "kind": {
+                      "enum": ["campus-tool"],
+                      "type": "string"
+                    },
+                    "manifestDigest": {
+                      "pattern": "^[a-f0-9]{64}$",
+                      "type": "string"
+                    },
+                    "protocol": {
+                      "enum": ["campus-tools-media-v1"],
+                      "type": "string"
+                    },
+                    "variants": {
+                      "items": {
+                        "anyOf": [
+                          {
+                            "enum": ["thumb-v1"],
+                            "type": "string"
+                          },
+                          {
+                            "enum": ["display-v1"],
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "type": "array"
+                    },
+                    "width": {
+                      "exclusiveMinimum": true,
+                      "maximum": 2048,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "campusId",
+                    "catalogId",
+                    "entryId",
+                    "bindingId",
+                    "entryRevision",
+                    "assetId",
+                    "manifestDigest",
+                    "protocol",
+                    "kind",
+                    "width",
+                    "height",
+                    "variants"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {},
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Campus tools Media"]
+      }
+    },
+    "/v3/media/campus-tools/{campusId}/{catalogId}/{entryId}/{bindingId}/{variant}": {
+      "get": {
+        "description": "Dedicated campus-tools owner, exact immutable measured variant, current authority before and after storage; no raw URL.",
+        "operationId": "readCampusToolMediaVariant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campusId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "catalogId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bindingId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "variant",
+            "required": true,
+            "schema": {
+              "enum": ["thumb-v1", "display-v1"],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {},
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Campus tools Media"]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

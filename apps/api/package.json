@@ -29,7 +29,8 @@
     "hot-score:compute": "node --env-file-if-exists=../../.env --import tsx src/community/hot-score/compute-score.ts",
     "hot-feed:process": "node --env-file-if-exists=../../.env --import tsx src/community/hot-score/process-hot-feed.ts",
     "ratings:updates:process": "node --env-file-if-exists=../../.env --import tsx src/commands/process-rating-updates.ts",
-    "ratings:subscriptions:process": "node --env-file-if-exists=../../.env --import tsx src/commands/process-rating-subscriptions.ts"
+    "ratings:subscriptions:process": "node --env-file-if-exists=../../.env --import tsx src/commands/process-rating-subscriptions.ts",
+    "campus-tools": "node --import tsx src/campus-tools/cli.ts"
   },
   "dependencies": {
     "@nestjs/common": "12.1.2",

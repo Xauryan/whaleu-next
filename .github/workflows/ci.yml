@@ -47,6 +47,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-ci
+      - run: npm run account-policy:inventory:check
       - run: npm run lint
       - run: npm run format:check
       - run: npm run stats:test
@@ -166,6 +167,7 @@ jobs:
       - name: Real PostgreSQL integration tests
         run: timeout 7200 node scripts/run-integration-module.mjs --module "$CI_MODULE" --shard "$CI_SHARD"
         env:
+          NODE_ENV: test
           WHALEU_RATINGS_CI_DIAGNOSTICS: '1'
           WHALEU_SCALABLE_PROFILE_CI_DIAGNOSTICS: '1'
           TEST_DATABASE_URL: postgresql://whaleu_test:local_ci_only@127.0.0.1:5432/whaleu_test
@@ -255,6 +257,7 @@ jobs:
       - name: Optional semantic PostgreSQL integration tests
         run: npm run test:semantic:integration -w @whaleu/api
         env:
+          NODE_ENV: test
           TEST_DATABASE_URL: postgresql://whaleu_test:local_ci_only@127.0.0.1:55433/whaleu_test
       - name: Show optional database diagnostics on failure
         if: failure()

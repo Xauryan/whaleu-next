@@ -13,6 +13,46 @@ export type AccountRoutePolicy = readonly [
  * Check with node scripts/check-account-policy-routes.mjs. */
 export const accountRoutePolicies = [
   [
+    'CampusToolsController.hub',
+    'GET',
+    '/v1/campuses/:campusId/tools',
+    'browse',
+    'entry',
+    'apps/api/src/campus-tools/controller.ts',
+  ],
+  [
+    'CampusToolsController.detail',
+    'GET',
+    '/v1/campuses/:campusId/tools/:entryId',
+    'browse',
+    'entry',
+    'apps/api/src/campus-tools/controller.ts',
+  ],
+  [
+    'CampusToolsController.link',
+    'GET',
+    '/v1/campuses/:campusId/tools/:entryId/link',
+    'browse',
+    'entry',
+    'apps/api/src/campus-tools/controller.ts',
+  ],
+  [
+    'CampusToolsMediaController.descriptor',
+    'GET',
+    '/v3/media/campus-tools/:campusId/:catalogId/:entryId/:bindingId',
+    'browse',
+    'entry',
+    'apps/api/src/campus-tools/media/controller.ts',
+  ],
+  [
+    'CampusToolsMediaController.open',
+    'GET',
+    '/v3/media/campus-tools/:campusId/:catalogId/:entryId/:bindingId/:variant',
+    'browse',
+    'entry',
+    'apps/api/src/campus-tools/media/controller.ts',
+  ],
+  [
     'SchoolUidController.own',
     'GET',
     '/v1/me/school-uid',

@@ -1,0 +1,17 @@
+<view class="page">
+  <view class="title">{{entry ? entry.title : '校园工具'}}</view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{authRecovery}}" class="card"><navigator url="/pages/login/login">重新登录</navigator><button bindtap="onContinueGuest">明确以访客继续</button></view>
+  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新当前工具</button>
+  <view wx:if="{{entry &amp;&amp; entry.state === 'enabled' &amp;&amp; center}}">
+    <map id="campus-tools-map" class="campus-map" latitude="{{center.latitude}}" longitude="{{center.longitude}}" scale="{{zoom}}" markers="{{markers}}" show-location="{{located}}" bindmarkertap="onMarker" />
+    <view class="row"><button bindtap="onLocate" disabled="{{!locateEnabled || locating}}" loading="{{locating}}">定位到我</button><button bindtap="onReset">回到校区默认位置</button></view>
+    <view wx:if="{{!locateEnabled}}" class="hint">此环境尚未启用真实定位。地图与地点列表可正常浏览。</view>
+    <view wx:for="{{entry.markers}}" wx:key="id" class="card"><button data-id="{{item.id}}" bindtap="onMarker">{{item.title}} · {{item.category}}</button></view>
+    <view wx:if="{{marker}}" class="card"><view class="subtitle">{{marker.title}}</view><view>{{marker.category}}</view><view class="description">{{marker.details}}</view><button bindtap="onCloseMarker">关闭地点详情</button></view>
+  </view>
+  <view wx:if="{{provenance}}" class="hint">资料维护：{{provenance.maintainer}} · {{provenance.attribution}}<view>发布时间：{{provenance.publishedAt}}</view><view wx:if="{{provenance.validity.kind === 'finite'}}">有效期至：{{provenance.validity.expiresAt}}</view></view>
+  <button bindtap="onBack">返回</button>
+  <navigator class="link" url="/pages/campus-tools/campus-tools" open-type="reLaunch">返回校园工具首页</navigator>
+</view>

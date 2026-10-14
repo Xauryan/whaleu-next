@@ -21,6 +21,16 @@ export interface WxIntersectionObserver {
   disconnect(): void;
 }
 export interface WxApi extends WxMediaApi {
+  navigateBack?(options: {
+    delta: number;
+    success(): void;
+    fail(error: unknown): void;
+  }): void;
+  reLaunch?(options: {
+    url: string;
+    success(): void;
+    fail(error: unknown): void;
+  }): void;
   showModal?(options: {
     title: string;
     content: string;

@@ -95,6 +95,7 @@ export class NativeMediaReadBridge {
       | 'major-discussions'
       | 'community'
       | 'school-configuration'
+      | 'campus-tools'
       | 'organizations'
       | 'activities'
       | 'errands'
@@ -109,6 +110,7 @@ export class NativeMediaReadBridge {
       | 'major-discussions'
       | 'community'
       | 'school-configuration'
+      | 'campus-tools'
       | 'organizations'
       | 'activities'
       | 'errands'
@@ -165,27 +167,38 @@ export class NativeMediaReadBridge {
     assert.equal(url.origin, nativeOrigin);
     assert.match(
       url.pathname,
-      this.owner === 'major-discussions'
-        ? /^\/v3\/media\/major-discussions\/majors\/[a-f0-9-]{36}\/comments\/[a-f0-9-]{36}\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-        : this.owner === 'window-discussions'
-          ? /^\/v3\/media\/window-discussions\/windows\/[a-f0-9-]{36}\/comments\/[a-f0-9-]{36}\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-          : this.owner === 'private-messages'
-            ? /^\/v3\/media\/private-messages\/conversations\/[^/]+\/messages\/[^/]+\/bindings\/[^/]+\/(thumb-v1|display-v1)$/
-            : this.owner === 'errands'
-              ? /^\/v3\/media\/errands\/orders\/[a-f0-9-]{36}\/(public[0-2]|private[0-2])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-              : this.owner === 'verification-evidence'
-                ? /^\/v3\/media\/verification-evidence\/applications\/[a-f0-9-]{36}\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-                : this.owner === 'announcements'
-                  ? /^\/v3\/media\/announcements\/(public|management)\/announcements\/[a-f0-9-]{36}\/slots\/gallery[0-8]\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-                  : this.owner === 'activities'
-                    ? /^\/v3\/media\/activities\/(public|management)\/activities\/[a-f0-9-]{36}\/slots\/(cover|gallery[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-                    : this.owner === 'organizations'
-                      ? /^\/v3\/media\/organizations\/(public|management)\/organizations\/[a-f0-9-]{36}\/slots\/(avatar|mainQr|managerContact|linkedOfficialQr|introImage[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-                      : this.owner === 'school-configuration'
-                        ? /^\/v3\/media\/school-configuration\/(entries\/(treehole|trading|errand|official_account|admin)|errands\/[a-f0-9-]{36})\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
-                        : /^\/v1\/media\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i,
+      this.owner === 'campus-tools'
+        ? /^\/v3\/media\/campus-tools\/[a-f0-9-]{36}\/[a-f0-9-]{36}\/[a-f0-9-]{36}\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+        : this.owner === 'major-discussions'
+          ? /^\/v3\/media\/major-discussions\/majors\/[a-f0-9-]{36}\/comments\/[a-f0-9-]{36}\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+          : this.owner === 'window-discussions'
+            ? /^\/v3\/media\/window-discussions\/windows\/[a-f0-9-]{36}\/comments\/[a-f0-9-]{36}\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+            : this.owner === 'private-messages'
+              ? /^\/v3\/media\/private-messages\/conversations\/[^/]+\/messages\/[^/]+\/bindings\/[^/]+\/(thumb-v1|display-v1)$/
+              : this.owner === 'errands'
+                ? /^\/v3\/media\/errands\/orders\/[a-f0-9-]{36}\/(public[0-2]|private[0-2])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+                : this.owner === 'verification-evidence'
+                  ? /^\/v3\/media\/verification-evidence\/applications\/[a-f0-9-]{36}\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+                  : this.owner === 'announcements'
+                    ? /^\/v3\/media\/announcements\/(public|management)\/announcements\/[a-f0-9-]{36}\/slots\/gallery[0-8]\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+                    : this.owner === 'activities'
+                      ? /^\/v3\/media\/activities\/(public|management)\/activities\/[a-f0-9-]{36}\/slots\/(cover|gallery[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+                      : this.owner === 'organizations'
+                        ? /^\/v3\/media\/organizations\/(public|management)\/organizations\/[a-f0-9-]{36}\/slots\/(avatar|mainQr|managerContact|linkedOfficialQr|introImage[0-8])\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+                        : this.owner === 'school-configuration'
+                          ? /^\/v3\/media\/school-configuration\/(entries\/(treehole|trading|errand|official_account|admin)|errands\/[a-f0-9-]{36})\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i
+                          : /^\/v1\/media\/bindings\/[a-f0-9-]{36}\/(display-v1|thumb-v1)$/i,
     );
-    if (
+    if (this.owner === 'campus-tools') {
+      assert.deepEqual([...url.searchParams.keys()], []);
+      const keys = Object.keys(input.header);
+      assert.ok(
+        keys.length === 0 ||
+          (keys.length === 1 &&
+            keys[0] === 'Authorization' &&
+            !!input.header['Authorization']),
+      );
+    } else if (
       this.owner === 'window-discussions' ||
       this.owner === 'major-discussions'
     ) {

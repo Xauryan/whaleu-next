@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "policy": {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "version": 1,
+    "rules": [
+      {
+        "action": "copy",
+        "host": "tools.example.com",
+        "path": "/resource",
+        "query": []
+      },
+      {
+        "action": "webview",
+        "host": "tools.example.com",
+        "path": "/controlled",
+        "query": []
+      },
+      {
+        "action": "copy",
+        "host": "tools.example.com",
+        "path": "/query",
+        "query": [
+          {
+            "key": "item",
+            "value": "safe"
+          }
+        ]
+      }
+    ]
+  },
+  "accepted": [
+    {
+      "url": "https://tools.example.com/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/controlled",
+      "action": "webview"
+    },
+    {
+      "url": "https://tools.example.com/query?item=safe",
+      "action": "copy"
+    }
+  ],
+  "rejected": [
+    {
+      "url": "http://tools.example.com/resource",
+      "action": "copy"
+    },
+    {
+      "url": "//tools.example.com/resource",
+      "action": "copy"
+    },
+    {
+      "url": "javascript:alert(1)",
+      "action": "copy"
+    },
+    {
+      "url": "data:text/plain,hello",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com.attacker.com/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://a.tools.example.com/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://evil@tools.example.com/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com:443/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com:444/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com./resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://TOOLS.example.com/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/resource#fragment",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/resource?next=x",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/../resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/%2e%2e/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/%252fresource",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/%0a",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/%",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/\\resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://127.0.0.1/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://127.1/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://[::1]/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://localhost/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://xn--e1afmkfd.com/resource",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/资源",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/resource\n",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/query?item=%2573afe",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/query?item=safe&redirect=https://evil.org",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/query?item=safe&item=safe",
+      "action": "copy"
+    },
+    {
+      "url": "https://tools.example.com/resource",
+      "action": "webview"
+    },
+    {
+      "url": "https://tools.example.com/controlled",
+      "action": "copy"
+    }
+  ]
+}

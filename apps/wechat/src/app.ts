@@ -1,3 +1,7 @@
+import {
+  createCampusToolsRuntime,
+  type CampusToolsRuntime,
+} from './campus-tools/runtime';
 import { createMajorDiscussionImageRuntime } from './major-discussion/image-runtime';
 import { createWindowDiscussionImageRuntime } from './window-discussion/image-runtime';
 import { connectPrivateMessageImages } from './messaging/image-runtime';
@@ -54,6 +58,7 @@ import {
 } from './verification/runtime';
 
 export interface WhaleuApp {
+  campusTools?: CampusToolsRuntime;
   errandMedia?: ErrandMediaRuntime;
   errandPublication?: ReturnType<typeof createErrandPublicationRuntime>;
   studentEvidence?: ReturnType<typeof createVerificationEvidenceRuntime>;
@@ -86,6 +91,7 @@ App<WhaleuApp>({
     void this.community?.views?.foreground();
   },
   onHide() {
+    this.campusTools?.hide();
     this.community?.windowDiscussionImages?.hide();
     this.community?.majorDiscussionImages?.hide();
     this.errandMedia?.hide();
@@ -114,6 +120,18 @@ App<WhaleuApp>({
     const nativeFiles = new WechatNativeMediaFiles(wx, systemClock);
     const registry = new MediaLocalFiles(nativeFiles);
     this.mediaLocalFiles = registry;
+    if (this.identity.api && this.identity.auth)
+      this.campusTools = createCampusToolsRuntime({
+        authRecoveryRequired: Boolean(this.identity.startupError),
+        api: this.identity.api,
+        sessions: this.identity.sessions,
+        origin: clientConfiguration.apiOrigin,
+        clock: systemClock,
+        wx,
+        files: nativeFiles,
+        registry,
+        auth: this.identity.auth,
+      });
     if (this.identity.api && this.identity.auth && this.community.messaging)
       connectPrivateMessageImages(this.community.messaging, {
         api: this.identity.api,

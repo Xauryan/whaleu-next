@@ -1,3 +1,4 @@
+import { CampusToolsModule } from './campus-tools/module.js';
 import { SchoolIdentityModule } from './school-identity/module.js';
 import { SchoolUidModule } from './school-uid/module.js';
 import { AccountPolicyModule } from './safety/account-policy/module.js';
@@ -66,6 +67,7 @@ export class AppModule {
         HealthModule,
         IdentityModule,
         CampusModule,
+        CampusToolsModule,
         IdentityCampusModule,
         ProfileModule,
         ProfileModerationModule,

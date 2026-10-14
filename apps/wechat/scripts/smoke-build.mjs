@@ -545,6 +545,61 @@ function assertColdRatingDiscussionMedia(current) {
   assert.equal(current.data.gallery.open, false);
   assert.equal(current.data.gallery.localSrc, '');
 }
+const campusToolsRoutes = new Set([
+  'pages/campus-tools/campus-tools',
+  'pages/campus-tools-map/campus-tools-map',
+  'pages/campus-tools-shuttle/campus-tools-shuttle',
+  'pages/campus-tools-research/campus-tools-research',
+  'pages/campus-tools-webview/campus-tools-webview',
+]);
+// Campus tools use explicit source states, not a generic loaded flag. The cold
+// build must expose no catalog, coordinates, local image or webview capability.
+function assertColdCampusTools(current, route) {
+  assert.equal(current.controller, undefined, `${route}: no cold controller`);
+  assert.equal(current.data.busy, false);
+  assert.equal(current.data.authRecovery, false);
+  assert.equal(current.data.state, '');
+  assert.equal(current.data.provenance, null);
+  assert.ok(current.data.error);
+  if (route === 'pages/campus-tools/campus-tools') {
+    assert.equal(current.invalid, false);
+    assert.equal(current.navigator, undefined);
+    assert.equal(current.data.campusId, '');
+    assert.equal(current.data.choosing, false);
+    assert.equal(current.data.needsCampus, false);
+    assert.deepEqual(current.data.entries, []);
+    assert.deepEqual(current.data.campuses, []);
+  } else {
+    assert.ok(current.route, `${route}: valid identity-only deep link`);
+    assert.equal(current.reader, undefined);
+    assert.equal(current.data.entry, null);
+    assert.equal(current.data.center, null);
+    assert.equal(current.data.marker, null);
+    assert.deepEqual(current.data.markers, []);
+    assert.deepEqual(current.data.expandedGroups, {});
+    for (const key of ['located', 'locating', 'locateEnabled', 'webviewLoaded'])
+      assert.equal(current.data[key], false, `${route}: ${key}`);
+    for (const key of ['webviewSrc', 'webviewViewId', 'externalHost'])
+      assert.equal(current.data[key], '', `${route}: ${key}`);
+    assert.deepEqual(current.data.image, {
+      status: 'idle',
+      src: '',
+      viewId: '',
+      alt: '',
+      selected: 0,
+      total: 0,
+      expanded: false,
+      message: '',
+      bindingId: '',
+    });
+    for (const handler of [
+      'onWebviewLoad',
+      'onWebviewError',
+      'onWebviewMessage',
+    ])
+      assert.equal(typeof current[handler], 'function', `${route}: ${handler}`);
+  }
+}
 for (const route of config.pages.filter(
   (route) => !['pages/login/login', 'pages/status/status'].includes(route),
 )) {
@@ -618,81 +673,92 @@ for (const route of config.pages.filter(
       current.onHide();
     }
   }
-  current.onLoad?.(
-    [
-      'pages/major-detail/major-detail',
-      'pages/major-discussion/major-discussion',
-    ].includes(route)
-      ? { majorId: '11111111-1111-4111-8111-111111111111' }
-      : route === 'pages/major-discussion-thread/major-discussion-thread'
-        ? {
-            majorId: '11111111-1111-4111-8111-111111111111',
-            rootId: '22222222-2222-4222-8222-222222222222',
-          }
-        : [
-              'pages/major-directory/major-directory',
-              'pages/major-discussion-recovery/major-discussion-recovery',
-              'pages/major-discussion-notices/major-discussion-notices',
-            ].includes(route)
-          ? {}
+  if (campusToolsRoutes.has(route))
+    current.onLoad?.(
+      route === 'pages/campus-tools/campus-tools'
+        ? { campusId: '11111111-1111-4111-8111-111111111111' }
+        : {
+            campusId: '11111111-1111-4111-8111-111111111111',
+            catalogId: '22222222-2222-4222-8222-222222222222',
+            entryId: '33333333-3333-4333-8333-333333333333',
+          },
+    );
+  else
+    current.onLoad?.(
+      [
+        'pages/major-detail/major-detail',
+        'pages/major-discussion/major-discussion',
+      ].includes(route)
+        ? { majorId: '11111111-1111-4111-8111-111111111111' }
+        : route === 'pages/major-discussion-thread/major-discussion-thread'
+          ? {
+              majorId: '11111111-1111-4111-8111-111111111111',
+              rootId: '22222222-2222-4222-8222-222222222222',
+            }
           : [
-                'pages/window-rating-detail/window-rating-detail',
-                'pages/window-dishes/window-dishes',
-                'pages/window-discussion/window-discussion',
+                'pages/major-directory/major-directory',
+                'pages/major-discussion-recovery/major-discussion-recovery',
+                'pages/major-discussion-notices/major-discussion-notices',
               ].includes(route)
-            ? { windowId: '11111111-1111-4111-8111-111111111111' }
-            : route ===
-                'pages/window-discussion-thread/window-discussion-thread'
-              ? {
-                  windowId: '11111111-1111-4111-8111-111111111111',
-                  rootId: '22222222-2222-4222-8222-222222222222',
-                }
+            ? {}
+            : [
+                  'pages/window-rating-detail/window-rating-detail',
+                  'pages/window-dishes/window-dishes',
+                  'pages/window-discussion/window-discussion',
+                ].includes(route)
+              ? { windowId: '11111111-1111-4111-8111-111111111111' }
               : route ===
-                  'pages/canteen-floor-score-detail/canteen-floor-score-detail'
-                ? { floorId: '11111111-1111-4111-8111-111111111111' }
-                : route === 'pages/course-rating-detail/course-rating-detail'
-                  ? { courseId: '11111111-1111-4111-8111-111111111111' }
-                  : [
-                        'pages/window-ratings/window-ratings',
-                        'pages/window-discussion-recovery/window-discussion-recovery',
-                        'pages/window-discussion-notices/window-discussion-notices',
+                  'pages/window-discussion-thread/window-discussion-thread'
+                ? {
+                    windowId: '11111111-1111-4111-8111-111111111111',
+                    rootId: '22222222-2222-4222-8222-222222222222',
+                  }
+                : route ===
+                    'pages/canteen-floor-score-detail/canteen-floor-score-detail'
+                  ? { floorId: '11111111-1111-4111-8111-111111111111' }
+                  : route === 'pages/course-rating-detail/course-rating-detail'
+                    ? { courseId: '11111111-1111-4111-8111-111111111111' }
+                    : [
+                          'pages/window-ratings/window-ratings',
+                          'pages/window-discussion-recovery/window-discussion-recovery',
+                          'pages/window-discussion-notices/window-discussion-notices',
 
-                        'pages/canteen-floor-scores/canteen-floor-scores',
-                        'pages/course-ratings/course-ratings',
-                        'pages/course-comments/course-comments',
-                        'pages/activity-list/activity-list',
-                        'pages/activity-publish/activity-publish',
-                        'pages/announcement-edit/announcement-edit',
-                        'pages/announcement-manage/announcement-manage',
-                        'pages/activity-native/activity-native',
-                        'pages/activity-native-detail/activity-native-detail',
-                        'pages/rating-updates/rating-updates',
-                        'pages/school-services/school-services',
-                        'pages/school-configuration/school-configuration',
-                        'pages/school-posting-policy/school-posting-policy',
-                        'pages/organizations/organizations',
-                        'pages/organization-editor/organization-editor',
-                      ].includes(route)
-                    ? {}
-                    : {
-                        postId: '66666666-6666-4666-8666-666666666666',
-                        spaceId: '55555555-5555-4555-8555-555555555555',
-                        category: 'discussion',
-                        ...(route.endsWith('community-thread')
-                          ? {
-                              rootCommentId:
-                                '88888888-8888-4888-8888-888888888888',
-                            }
-                          : {}),
-                        ...(route ===
-                        'pages/private-message-detail/private-message-detail'
-                          ? {
-                              conversationId:
-                                '77777777-7777-4777-8777-777777777777',
-                            }
-                          : {}),
-                      },
-  );
+                          'pages/canteen-floor-scores/canteen-floor-scores',
+                          'pages/course-ratings/course-ratings',
+                          'pages/course-comments/course-comments',
+                          'pages/activity-list/activity-list',
+                          'pages/activity-publish/activity-publish',
+                          'pages/announcement-edit/announcement-edit',
+                          'pages/announcement-manage/announcement-manage',
+                          'pages/activity-native/activity-native',
+                          'pages/activity-native-detail/activity-native-detail',
+                          'pages/rating-updates/rating-updates',
+                          'pages/school-services/school-services',
+                          'pages/school-configuration/school-configuration',
+                          'pages/school-posting-policy/school-posting-policy',
+                          'pages/organizations/organizations',
+                          'pages/organization-editor/organization-editor',
+                        ].includes(route)
+                      ? {}
+                      : {
+                          postId: '66666666-6666-4666-8666-666666666666',
+                          spaceId: '55555555-5555-4555-8555-555555555555',
+                          category: 'discussion',
+                          ...(route.endsWith('community-thread')
+                            ? {
+                                rootCommentId:
+                                  '88888888-8888-4888-8888-888888888888',
+                              }
+                            : {}),
+                          ...(route ===
+                          'pages/private-message-detail/private-message-detail'
+                            ? {
+                                conversationId:
+                                  '77777777-7777-4777-8777-777777777777',
+                              }
+                            : {}),
+                        },
+    );
   current.onShow();
   if (route.startsWith('pages/major-')) {
     assert.equal(current.validRoute, true, `${route}: valid Major route`);
@@ -803,7 +869,8 @@ for (const route of config.pages.filter(
       assert.equal(current.data.frozen, false);
     } else assert.equal(current.data.unreadCount, null);
   }
-  if (route === 'pages/rating-create/rating-create')
+  if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
+  else if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
   else if (route === 'pages/rating-category-create/rating-category-create')
     assertColdRatingCategoryCreation(current);
@@ -850,7 +917,8 @@ for (const route of config.pages.filter(
       assert.equal(current.data.imageCount, 0);
     }
   }
-  if (route === 'pages/rating-create/rating-create')
+  if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
+  else if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
   else if (route === 'pages/rating-category-create/rating-category-create')
     assertColdRatingCategoryCreation(current);
@@ -866,7 +934,8 @@ for (const route of config.pages.filter(
     assert.equal(current.phone, undefined);
   } else assert.equal(current.data.loaded, false);
   current.onShow();
-  if (route === 'pages/phone-binding/phone-binding')
+  if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
+  else if (route === 'pages/phone-binding/phone-binding')
     assert.equal(current.phone, undefined);
   else if (route === 'pages/school-posting-policy/school-posting-policy') {
     assert.equal(current.controller, undefined);
@@ -943,6 +1012,7 @@ for (const route of config.pages.filter(
     assert.ok(current.data.error);
   } else assert.ok(current.controller);
   current.onUnload();
+  if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
   if (route === 'pages/rating-create/rating-create') {
     assertColdRatingCreation(current);
     assert.equal(current.controller, undefined);

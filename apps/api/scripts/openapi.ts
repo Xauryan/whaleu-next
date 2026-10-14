@@ -1,3 +1,4 @@
+import { writeCampusToolsOpenApi } from './campus-tools-openapi-document.js';
 import { writeSchoolIdentityOpenApi } from './school-identity-openapi-document.js';
 import { writeRelatedCampusSyncOpenApi } from './related-campus-sync-openapi-document.js';
 import { writeAccountModerationOpenApi } from './account-moderation-openapi-document.js';
@@ -347,3 +348,5 @@ await writeAccountModerationOpenApi(args[0] === '--check');
 await writeRelatedCampusSyncOpenApi(args[0] === '--check');
 
 await writeSchoolIdentityOpenApi(args[0] === '--check');
+
+await writeCampusToolsOpenApi(args[0] === '--check');
