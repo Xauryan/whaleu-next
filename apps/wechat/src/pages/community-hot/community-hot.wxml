@@ -1,3 +1,4 @@
+<import src="../../community/rating-link-card.wxml" />
 <import src="../../experience/public-display.wxml" />
 <import src="../../community/trading-summary.wxml" />
 <view class="screen"><view wx:if="{{relatedCampusDistribution === 'unavailable'}}" class="notice">关联学校展示范围暂不可确认，当前仅展示已核验内容，不能据此判断关联学校没有帖子。请稍后刷新。</view>
@@ -23,7 +24,7 @@
   <view wx:for="{{posts}}" wx:key="id" id="view-{{item.id}}" class="card">
     <view class="author"><text wx:if="{{item.author.kind === 'named'}}" class="link" data-id="{{item.id}}" bindtap="onAuthor">{{item.author.displayName}} →</text><text wx:else>{{item.author.displayName}}</text><template wx:if="{{item.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.author.experienceDisplay,colors:experienceColorStyles}}" /><text class="badge">{{item.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text><text wx:if="{{item.viewer.isSelf}}" class="badge">我</text></view>
     <view class="meta">{{item.space.name}} · {{item.publishedAt}}</view>
-    <view wx:if="{{item.isRelatedCampusSync}}" class="badge">来自 {{item.sourceRegion.name}} · 关联学校同步</view><view class="body">{{item.text}}</view>
+    <view wx:if="{{item.isRelatedCampusSync}}" class="badge">来自 {{item.sourceRegion.name}} · 关联学校同步</view><view class="body">{{item.text}}</view><template is="rating-target-link-card" data="{{component:item.component,postId:item.id,busy}}" />
     <template wx:if="{{item.trading}}" is="trading-summary" data="{{listing:item.trading,tradingLabels}}" />
     <view wx:if="{{item.component.kind === 'poll'}}" class="scope">投票 · {{item.component.poll.selectionMode === 'single' ? '单选' : '多选'}} · {{item.component.poll.question}}<view class="meta">{{item.component.poll.expired ? '已结束' : '进入帖子参与'}}</view></view>
     <view wx:if="{{item.component.kind === 'formation'}}" class="notice">组队：{{item.component.formation.theme}} · {{item.component.formation.memberCount}} / {{item.component.formation.capacity}} 人 · {{item.component.formation.status === 'full' ? '已满员' : '进入帖子查看'}}</view>

@@ -1,3 +1,4 @@
+import { dependencyRows } from '../../database/dependency-read-budget.js';
 import {
   collectRatingsMediaMutationRead,
   ratingsMediaMutationActive,
@@ -270,7 +271,7 @@ async function readRows<T>(
   values: unknown[],
   maximum: number,
 ): Promise<T[]> {
-  const rows = (await tx.query(sql, values)).rows as T[];
+  const rows = (await dependencyRows(tx, sql, values, maximum)) as T[];
   retainRatingReadBytes(tx, rows);
   if (rows.length > maximum) unavailable();
   return rows;

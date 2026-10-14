@@ -96,12 +96,22 @@ export async function setRatingReviewState(
   pool: Pool,
   id: string,
   state: 'allow' | 'held' | 'revoked',
+  options: { boundedLockWait?: boolean; provenanceReference?: string } = {},
 ) {
   return withCommunityScopeWriter(pool, async (tx) => {
+    if (options.boundedLockWait) {
+      await tx.query("SET LOCAL lock_timeout='1000ms'");
+      await tx.query("SET LOCAL statement_timeout='3000ms'");
+    }
     const eventId = randomUUID();
     await tx.query(
-      `INSERT INTO whaleu_community.rating_approval_events(id,decision_id,state,coverage,provenance,issuer,provenance_ref,occurred_at) VALUES($1,$2,$3,'complete','accepted','synthetic-rating-review','synthetic-rating-state',clock_timestamp())`,
-      [eventId, id, state],
+      `INSERT INTO whaleu_community.rating_approval_events(id,decision_id,state,coverage,provenance,issuer,provenance_ref,occurred_at) VALUES($1,$2,$3,'complete','accepted','synthetic-rating-review',$4,clock_timestamp())`,
+      [
+        eventId,
+        id,
+        state,
+        options.provenanceReference ?? 'synthetic-rating-state',
+      ],
     );
     await tx.query(
       'UPDATE whaleu_community.rating_approval_heads SET event_id=$2 WHERE decision_id=$1',
@@ -110,8 +120,11 @@ export async function setRatingReviewState(
     return eventId;
   });
 }
-export async function ratingRuntimeFixture(maximumMigration?: number) {
-  const f = await directoryRuntimeFixture(maximumMigration);
+export async function ratingRuntimeFixture(
+  maximumMigration?: number,
+  appOptions?: Parameters<typeof directoryRuntimeFixture>[1],
+) {
+  const f = await directoryRuntimeFixture(maximumMigration, appOptions);
   type Actor = Awaited<ReturnType<typeof f.actor>>;
   const auth = (r: request.Test, a: Actor) =>
     r.set('Authorization', `Bearer ${a.accessToken}`);
@@ -122,6 +135,11 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
       count?: number;
       baseline?: boolean;
       depth?: 1 | 2 | 3;
+      /** Pre-activation trusted source fixtures; ordinary catalogs keep one leaf. */
+      distinctTargetLeaves?: boolean;
+      rootSystemKey?: 'course' | 'canteen';
+      ordinalOffset?: number;
+      namePrefix?: string;
       categoryIds?: readonly string[];
       sharedTargets?: readonly { id: string; categoryId: string }[];
       validUntil?: Date;
@@ -130,6 +148,16 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
     } = {},
   ) =>
     withCommunityScopeWriter(f.pool, async (tx) => {
+      if (options.distinctTargetLeaves || options.rootSystemKey)
+        assert.equal(
+          (
+            await tx.query(
+              "SELECT 1 FROM whaleu_ratings.scope_protocol_versions WHERE phase='adopted' LIMIT 1",
+            )
+          ).rowCount,
+          0,
+          'Bulk trusted catalog ingress must precede scoped activation',
+        );
       const catalogId = randomUUID(),
         regionId = options.regionId ?? null,
         rootId = options.categoryIds?.[0] ?? randomUUID(),
@@ -139,23 +167,29 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
         `INSERT INTO whaleu_ratings.catalogs(id,region_id,coverage,provenance,source_reference,policy_reference,effective_at,valid_until) VALUES($1,$2,'complete','accepted','synthetic-rating-catalog','synthetic-effective-override-policy',clock_timestamp()-interval '1 second',$3)`,
         [catalogId, regionId, options.validUntil ?? null],
       );
-      for (let i = 0; i < (options.depth ?? 1); i++) {
+      const depth = options.depth ?? 1,
+        leafCount = options.distinctTargetLeaves ? (options.count ?? 1) : 1;
+      assert.ok(!options.distinctTargetLeaves || (depth > 1 && leafCount > 0));
+      for (let i = 0; i < depth - 1 + leafCount; i++) {
         if (i) {
           categoryIds.push(options.categoryIds?.[i] ?? randomUUID());
           categoryRevisions.push(randomUUID());
         }
+        const level = Math.min(i + 1, depth),
+          systemKey = i === 0 ? (options.rootSystemKey ?? null) : null;
         await tx.query(
-          `INSERT INTO whaleu_ratings.categories(catalog_id,id,revision,parent_id,level,origin_kind,kind,system_key,name,description,active,hidden,ordinal) VALUES($1,$2,$3,$4,$5,$6,'general',NULL,$7,'Synthetic description',true,$8,$9)`,
+          `INSERT INTO whaleu_ratings.categories(catalog_id,id,revision,parent_id,level,origin_kind,kind,system_key,name,description,active,hidden,ordinal) VALUES($1,$2,$3,$4,$5,$6,'general',$10,$7,'Synthetic description',true,$8,$9)`,
           [
             catalogId,
             categoryIds[i],
             categoryRevisions[i],
-            i ? categoryIds[i - 1] : null,
-            i + 1,
-            regionId ? 'regional' : 'global',
-            `Synthetic category ${i + 1}`,
+            level > 1 ? categoryIds[level - 2] : null,
+            level,
+            systemKey ? 'system' : regionId ? 'regional' : 'global',
+            `${options.namePrefix ?? 'Synthetic'} category ${i + 1}`,
             options.hidden ?? false,
-            i,
+            (options.ordinalOffset ?? 0) + i,
+            systemKey,
           ],
         );
       }
@@ -166,7 +200,13 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
         const id = randomUUID(),
           revision = randomUUID(),
           source = randomUUID(),
-          name = `Synthetic target ${i + 1}`;
+          name = `${options.namePrefix ?? 'Synthetic'} target ${i + 1}`,
+          targetCategoryId = options.distinctTargetLeaves
+            ? categoryIds[depth - 1 + i]!
+            : categoryId,
+          targetCategoryRevision = options.distinctTargetLeaves
+            ? categoryRevisions[depth - 1 + i]!
+            : categoryRevision;
         const envelope = canonicalRatingEnvelope({
           version: 1,
           accountId: a.accountId,
@@ -174,8 +214,8 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
           clientRequestId: randomUUID(),
           targetId: id,
           targetRevision: revision,
-          categoryId,
-          categoryRevision,
+          categoryId: targetCategoryId,
+          categoryRevision: targetCategoryRevision,
           catalogRevision: catalogId,
           scope: { regionId },
           assetIds: [],
@@ -200,7 +240,7 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
           [
             id,
             revision,
-            categoryId,
+            targetCategoryId,
             a.accountId,
             regionId,
             source,
@@ -226,7 +266,7 @@ export async function ratingRuntimeFixture(maximumMigration?: number) {
         );
         await tx.query(
           'INSERT INTO whaleu_ratings.target_memberships(catalog_id,target_id,category_id,ordinal) VALUES($1,$2,$3,$4)',
-          [catalogId, id, categoryId, i],
+          [catalogId, id, targetCategoryId, i],
         );
         targets.push({ id, revision, approval });
       }

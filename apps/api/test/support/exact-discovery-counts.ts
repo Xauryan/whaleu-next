@@ -140,12 +140,92 @@ export async function seedExactLikes(
   }
 }
 
+export interface ExactBudgetObservation {
+  kind: 'snapshot' | 'dependency';
+  requestedRows: number;
+  rowLimit: number;
+  /** The SQL aggregate may use remaining + 1 as an oversized-row sentinel. */
+  requestedBytes: number;
+  remainingBytes: number;
+  rejected: boolean;
+}
+/** Observe only numeric guard metadata, never copy a body/envelope into diagnostics.
+ * Malformed or unrelated results stay with the original owner validator. */
+function exactBudgetObservation(
+  sql: string,
+  rows: readonly unknown[],
+): ExactBudgetObservation | undefined {
+  const dependency = sql.startsWith('WITH dependency_source AS MATERIALIZED (')
+    ? sql.match(
+        /m\.__dependency_count::bigint<=(\d+)\s+AND m\.__dependency_bytes::bigint<=(\d+)/,
+      )
+    : null;
+  const snapshot = sql.startsWith(
+    'WITH count_snapshot_source AS MATERIALIZED (',
+  )
+    ? sql.match(/SELECT CASE WHEN n<=(\d+) AND bytes<=(\d+)/)
+    : null;
+  const limits = dependency ?? snapshot;
+  if (!limits) return undefined;
+  const first = rows[0];
+  if (
+    first !== undefined &&
+    (typeof first !== 'object' || first === null || Array.isArray(first))
+  )
+    return undefined;
+  const numeric = (value: unknown): number | undefined => {
+    if (
+      typeof value !== 'number' &&
+      (typeof value !== 'string' || !/^\d+$/.test(value))
+    )
+      return undefined;
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : undefined;
+  };
+  const row = first as Record<string, unknown> | undefined;
+  const requestedRows = dependency
+      ? numeric(row?.['__dependency_count'])
+      : rows.length,
+    requestedBytes = numeric(
+      row?.[dependency ? '__dependency_bytes' : 'bytes'] ??
+        (snapshot && rows.length === 0 ? 0 : undefined),
+    ),
+    rowLimit = numeric(limits[1]),
+    remainingBytes = numeric(limits[2]);
+  if (
+    requestedRows === undefined ||
+    requestedBytes === undefined ||
+    rowLimit === undefined ||
+    remainingBytes === undefined
+  )
+    return undefined;
+  return {
+    kind: dependency ? 'dependency' : 'snapshot',
+    requestedRows,
+    requestedBytes,
+    rowLimit,
+    remainingBytes,
+    rejected:
+      requestedRows > rowLimit ||
+      requestedBytes > remainingBytes ||
+      (!!snapshot &&
+        rows.some(
+          (item) =>
+            typeof item === 'object' &&
+            item !== null &&
+            'data' in item &&
+            item.data === null,
+        )),
+  };
+}
+
 export interface ExactQueryObservation {
   sql: string;
   values: unknown[];
   rows: number;
   bytes: number;
   durationMs: number;
+  budget?: ExactBudgetObservation;
 }
 export interface ExactMeasurement {
   label: string;
@@ -228,6 +308,7 @@ export function observeExactQueries(app: INestApplication) {
             ? result.flatMap((part) => part.rows)
             : result.rows;
           const bytes = Buffer.byteLength(JSON.stringify(rows));
+          const budget = exactBudgetObservation(sql, rows);
           if (measurement) {
             measurement.queries++;
             measurement.resultBytes += bytes;
@@ -280,6 +361,7 @@ export function observeExactQueries(app: INestApplication) {
                 rows: rows.length,
                 bytes,
                 durationMs: performance.now() - start,
+                ...(budget ? { budget } : {}),
               },
               tx,
             );

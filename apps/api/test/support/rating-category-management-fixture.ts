@@ -276,6 +276,9 @@ async function parallelBase(
 }
 export async function ratingCategoryManagementFixture(
   options: {
+    systemKeys?: readonly ('course' | 'canteen')[];
+    /** Trusted fixture ingress before the single normal compiler activation. */
+    beforeActivation?: (fixture: RatingScopedFixture) => Promise<void>;
     policy?: 'enabled' | 'disabled' | 'missing';
     adversarialCatalog?: boolean;
     legacyLifecycles?: boolean;
@@ -284,9 +287,13 @@ export async function ratingCategoryManagementFixture(
     legacyBridge?: boolean;
     reviewPreview?: boolean;
     maximumMigration?: number;
+    appOptions?: Parameters<typeof ratingScopedFixture>[1];
   } = {},
 ) {
-  const f = await ratingScopedFixture(options.maximumMigration);
+  const f = await ratingScopedFixture(
+    options.maximumMigration,
+    options.appOptions,
+  );
   try {
     const admin = f.creator;
     await f.grant(admin, 'super_admin');
@@ -470,6 +477,22 @@ export async function ratingCategoryManagementFixture(
             operations: [...ratingCategoryScopedOperations],
           },
         });
+      for (const systemKey of options.systemKeys ?? [])
+        await seedCategoryManagementSource(tx, {
+          kind: 'scoped_category_system_registry',
+          key: `synthetic-assistance-${systemKey}`,
+          scopeKeys: f.scopeKeys,
+          payload: {
+            enabled: true,
+            systemKey,
+            kind: 'general',
+            consumer: 'ratings_general_v1',
+            maximumDepth: 3,
+            allowChildren: true,
+            allowDisable: true,
+            allowCampusOverride: true,
+          },
+        });
       await seedCategoryManagementSource(tx, {
         kind: 'scoped_category_system_registry',
         key: 'synthetic-known-registry',
@@ -524,6 +547,7 @@ export async function ratingCategoryManagementFixture(
             },
           });
     });
+    await options.beforeActivation?.(f);
     await f.publish({ activate: true });
     type Actor = Awaited<ReturnType<typeof f.actor>>;
     const post = (actor: Actor, route: string, body: object) =>

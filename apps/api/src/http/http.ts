@@ -93,6 +93,7 @@ export function configureHttp(app: INestApplication): void {
       /^\/v1\/(?:me\/)?(?:announcements|errands|errand-notices|errand-requests|ratings|media|institutional-sso)(?:\/|$)/.test(
         request.path,
       ) ||
+      /^\/v2\/ratings\/assistance(?:\/|$)/.test(request.path) ||
       /^\/v1\/admin\/errands(?:\/|$)/.test(request.path) ||
       /^\/v[23]\/media(?:\/|$)/.test(request.path)
     )

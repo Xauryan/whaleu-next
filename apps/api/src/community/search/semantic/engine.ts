@@ -198,6 +198,8 @@ export class SemanticSearchEngine {
               candidate,
               this.provider.profile,
               tx,
+              undefined,
+              scope.viewerAccountId ?? null,
             );
             if (evidence.decision === 'unknown' || !evidence.certificate)
               throw unavailable();

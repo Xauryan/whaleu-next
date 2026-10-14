@@ -1,3 +1,4 @@
+import { ratingTargetLinkCapabilitySchema } from '../community/rating-target-link/contracts.js';
 import { z } from 'zod';
 export const ratingIdSchema = z.uuid().transform((s) => s.toLowerCase());
 export const ratingPublicIdSchema = z
@@ -116,6 +117,7 @@ export const ratingCategorySchema = z
   })
   .refine((c) => (c.level === 1) === (c.parentId === null));
 export const ratingTargetSchema = z.strictObject({
+  ratingTargetLink: ratingTargetLinkCapabilitySchema.optional(),
   id: ratingPublicIdSchema,
   categoryId: ratingPublicIdSchema,
   name: outputText(100),

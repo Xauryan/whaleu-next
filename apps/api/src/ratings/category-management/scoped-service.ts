@@ -470,6 +470,91 @@ export class RatingCategoryScopedManagementService {
       expiresAt: p.valid_until.toISOString(),
     });
   }
+  /** Read-only assistance qualification through the exact existing planner.
+   * No preparation, claim, source, Review, category or publication is written. */
+  async qualifyAssistance(
+    token: string,
+    request: import('../assistance/contracts.js').CategoryAssistanceRequest,
+    tx: PoolClient,
+  ) {
+    const p = request.payload;
+    const common = {
+      clientRequestId: request.requestId,
+      expectedSnapshot: p.expectedSnapshot,
+      placement: p.placement,
+    };
+    const intent = C.ratingCategoryScopedIntentSchema.parse({
+      protocolVersion: 2,
+      context: request.context,
+      operation: p.operation,
+      payload:
+        p.operation === 'create_categories_scoped'
+          ? {
+              ...common,
+              parentId: null,
+              nodes: [
+                {
+                  key: p.draftNodeKey,
+                  parentKey: null,
+                  name: p.name,
+                  description: '',
+                },
+              ],
+            }
+          : {
+              ...common,
+              systemKey: p.systemKey,
+              levelCount: p.levelCount,
+              name: p.name,
+              description: '',
+            },
+    });
+    const s = await this.load(
+      token,
+      {
+        contextId: request.context.id,
+        contextToken: request.context.token,
+      },
+      tx,
+    );
+    this.intentContext(intent, s);
+    // An empty description is draft-only input to the planner. Its output is
+    // never persisted and cannot serve as a category publication approval.
+    const plan = planCategoryManagement(
+      s.session.accountId,
+      intent,
+      C.ratingCategoryScopedIntentHash(intent),
+      s.snapshot,
+    );
+    this.authority.require(
+      s.authority,
+      plan.affectedScopeKeys
+        .filter((k) => k !== 'global')
+        .map((k) => k.slice(7)),
+      plan.globalRequired,
+      tx,
+    );
+    await this.access.resolveAccount(s.session.accountId, null, tx, {
+      phone: true,
+    });
+    await retain(plan.affectedScopeKeys, tx);
+    registerTransactionDeadline(
+      tx,
+      Math.min(s.row.valid_until.getTime(), Date.parse(plan.validUntil)),
+      'RATING_SCOPED_CONTEXT_CHANGED',
+    );
+    await this.access.recheck(token, tx);
+    return {
+      accountId: s.session.accountId,
+      sessionId: s.session.sessionId,
+      input: { name: p.name, context: 'rating_category' as const },
+      sourceRevision: ratingScopedDigest('assistance-category-source', {
+        contextRecord: s.row.record_digest,
+        payload: request.payload,
+      }),
+      sourceBinding: null,
+    };
+  }
   @AccountPolicy('content_management', 'owner_after_recovery')
   prepare(token: string, raw: C.RatingCategoryScopedIntent) {
     const i = C.ratingCategoryScopedIntentSchema.parse(raw);

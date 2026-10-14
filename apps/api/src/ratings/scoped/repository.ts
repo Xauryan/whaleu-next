@@ -1,3 +1,5 @@
+import { dependencyRows } from '../../database/dependency-read-budget.js';
+import type { Decision } from '../../community/community-policy.js';
 import {
   currentCategoryIcons,
   hasCurrentCategoryIconExtension,
@@ -97,6 +99,7 @@ interface Source {
   id: string;
   revision: string;
   source_kind: string;
+  issuer?: string;
   payload: Record<string, unknown>;
   current: boolean;
 }
@@ -363,7 +366,11 @@ export class RatingScopedRepository {
     scope: ResolvedRatingReadScope,
     id: string,
     tx: PoolClient,
-  ): Promise<{ leaf: CategoryRow | null; allowed: boolean }> {
+  ): Promise<{
+    leaf: CategoryRow | null;
+    allowed: boolean;
+    path: readonly CategoryRow[];
+  }> {
     assertResolvedRatingScope(scope, tx, true);
     const rows = (
       await tx.query<CategoryRead>(
@@ -376,7 +383,7 @@ export class RatingScopedRepository {
       )
     ).rows;
     retainRatingReadBytes(tx, rows);
-    if (!rows.length) return { leaf: null, allowed: false };
+    if (!rows.length) return { leaf: null, allowed: false, path: [] };
     const leaf = rows.at(-1)!;
     if (
       leaf.id !== id ||
@@ -450,7 +457,20 @@ export class RatingScopedRepository {
     }
     const icons = await currentCategoryIcons(scope, rows, tx);
     if (icons.some((decision) => decision === 'deny')) allowed = false;
-    return { leaf, allowed };
+    return { leaf, allowed, path: rows };
+  }
+  /** The complete, current Review-qualified path, never a client path string. */
+  async qualifiedPath(
+    scope: ResolvedRatingReadScope,
+    id: string,
+    tx: PoolClient,
+  ): Promise<readonly CategoryRow[]> {
+    assertResolvedRatingScope(scope, tx);
+    await this.navigation(tx);
+    const evidence = await this.categoryEvidence(scope, id, tx);
+    if (!evidence.leaf || !evidence.allowed)
+      throw new ApplicationError('RATING_NOT_FOUND');
+    return evidence.path;
   }
   /** A saved text preparation is not current Category-media authority. This
    * conditional recheck leaves unmarked heads and pre-extension schemas on
@@ -612,6 +632,400 @@ export class RatingScopedRepository {
         throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
       if (d.kind === 'allow') result.set(row.id, row);
     }
+    return result;
+  }
+  /** One complete ancestry vector (256 leaves / 768 nodes), with Review
+   * decisions qualified in owner-sized chunks instead of a leaf SQL loop. */
+  private async categoryLinkPaths(
+    scope: ResolvedRatingReadScope,
+    ids: readonly string[],
+    tx: PoolClient,
+  ): Promise<ReadonlyMap<string, Decision<readonly CategoryRow[]>>> {
+    if (ids.length > 256) unavailable();
+    const rows = await dependencyRows<CategoryRead & { leaf_id: string }>(
+      tx,
+      `WITH RECURSIVE path AS (
+      SELECT c.category_id,c.parent_id,c.category_id leaf_id,1 depth FROM whaleu_ratings.scoped_categories c WHERE c.catalog_id=$1 AND c.category_id=ANY($3::uuid[])
+      UNION ALL SELECT c.category_id,c.parent_id,p.leaf_id,p.depth+1 FROM whaleu_ratings.scoped_categories c JOIN path p ON c.category_id=p.parent_id WHERE c.catalog_id=$1 AND p.depth<3)
+      SELECT p.leaf_id,${categoryColumns} FROM whaleu_ratings.scoped_categories c JOIN path p ON p.category_id=c.category_id ${categoryJoins}
+      WHERE c.catalog_id=$1 ORDER BY p.leaf_id,c.level FOR SHARE OF c`,
+      [scope.catalog.id, scope.catalog.scopeKey, ids],
+      768,
+    );
+    if (rows.length > 768) unavailable();
+    retainRatingReadBytes(tx, rows);
+    const unique = [...new Map(rows.map((row) => [row.id, row])).values()];
+    const sources = [
+      ...new Map(
+        unique.flatMap((row) =>
+          [row.base, row.override]
+            .filter((source): source is Source => source !== null)
+            .map((source) => [
+              source.id + ':' + source.revision,
+              { source, categoryId: row.id },
+            ]),
+        ),
+      ).values(),
+    ];
+    const review = new Map<string, 'allow' | 'deny' | 'unknown'>();
+    const resolved = sources.map((entry) => ({
+      ...entry,
+      original: entry.source.id + ':' + entry.source.revision,
+    }));
+    const adoptions = resolved.filter(
+      (entry) => entry.source.source_kind === 'legacy_adoption',
+    );
+    if (adoptions.length) {
+      const refs = adoptions.flatMap((entry) => {
+        const ref = entry.source.payload['reviewSource'] as
+          Record<string, unknown> | undefined;
+        return ref?.['kind'] === 'scoped_category_v5' &&
+          scopedId.safeParse(ref['sourceId']).success &&
+          scopedId.safeParse(ref['sourceRevision']).success
+          ? [
+              {
+                original: entry.original,
+                id: ref['sourceId'],
+                revision: ref['sourceRevision'],
+              },
+            ]
+          : [];
+      });
+      const aliases = await dependencyRows<Source & { original: string }>(
+        tx,
+        `SELECT w.original,s.*,whaleu_ratings.scoped_source_current(s.id,s.revision,clock_timestamp()) current FROM jsonb_to_recordset($1::jsonb) w(original text,id uuid,revision uuid) JOIN whaleu_ratings.scoped_source_attestations s ON (s.id,s.revision)=(w.id,w.revision) WHERE s.source_kind='scoped_category_base'`,
+        [JSON.stringify(refs)],
+        1536,
+      );
+      retainRatingReadBytes(tx, aliases);
+      const byOriginal = new Map(aliases.map((row) => [row.original, row]));
+      for (const entry of adoptions) {
+        const source = byOriginal.get(entry.original);
+        if (source && entry.source.current) entry.source = source;
+      }
+    }
+    const scoped: {
+      original: string;
+      source: ReturnType<typeof canonicalRatingScopedCategorySource>;
+    }[] = [];
+    const legacy = resolved.filter(
+      (entry) =>
+        entry.source.current &&
+        entry.source.source_kind === 'm3a_native_bridge',
+    );
+    for (const entry of resolved) {
+      review.set(entry.original, 'unknown');
+      const source = entry.source;
+      if (!source.current) continue;
+      if (
+        source.source_kind === 'scoped_category_override' &&
+        source.payload['action'] === 'inherit'
+      ) {
+        if (
+          source.issuer === 'ratings-category-management' &&
+          source.payload['categoryId'] === entry.categoryId &&
+          canonicalEqual(source.payload['modes'], {
+            name: { mode: 'inherit' },
+            description: { mode: 'inherit' },
+          }) &&
+          !Object.hasOwn(source.payload, 'reviewEnvelope')
+        )
+          review.set(entry.original, 'allow');
+      } else if (
+        source.source_kind === 'scoped_category_base' ||
+        source.source_kind === 'scoped_category_override'
+      ) {
+        try {
+          scoped.push({
+            original: entry.original,
+            source: canonicalRatingScopedCategorySource({
+              sourceId: source.id,
+              sourceRevision: source.revision,
+              categoryId: entry.categoryId,
+              envelope: source.payload['reviewEnvelope'],
+            }),
+          });
+        } catch {
+          /* This source stays unknown. */
+        }
+      }
+    }
+    for (let offset = 0; offset < scoped.length; offset += 128) {
+      const chunk = scoped.slice(offset, offset + 128),
+        decisions = await this.scopedReview.currentBatch(
+          chunk.map(({ source }) => ({ kind: 'category' as const, source })),
+          tx,
+        );
+      chunk.forEach((entry, index) =>
+        review.set(
+          entry.original,
+          decisions[index]?.kind === 'unavailable'
+            ? 'unknown'
+            : (decisions[index]?.kind ?? 'unknown'),
+        ),
+      );
+    }
+    if (legacy.length) {
+      const refs = legacy.flatMap((entry) => {
+        const catalog =
+          entry.source.payload['legacyCatalogId'] ??
+          entry.source.payload['legacyAfterCatalogId'];
+        return entry.source.payload['categoryId'] === entry.categoryId &&
+          scopedId.safeParse(catalog).success &&
+          scopedId.safeParse(entry.source.payload['categoryRevision']).success
+          ? [
+              {
+                original: entry.original,
+                catalog,
+                category: entry.categoryId,
+                revision: entry.source.payload['categoryRevision'],
+              },
+            ]
+          : [];
+      });
+      const bases = await dependencyRows<{
+        original: string;
+        category_id: string;
+        revision: string;
+        envelope: unknown;
+      }>(
+        tx,
+        `SELECT w.original,b.category_id,b.revision,b.envelope FROM jsonb_to_recordset($1::jsonb) w(original text,catalog uuid,category uuid,revision uuid) JOIN whaleu_ratings.catalog_category_lineage l ON (l.catalog_id,l.category_id,l.effective_revision)=(w.catalog,w.category,w.revision) JOIN whaleu_ratings.category_base_versions b ON (b.category_id,b.revision)=(l.category_id,l.base_revision) WHERE l.source_kind='native'`,
+        [JSON.stringify(refs)],
+        1536,
+      );
+      retainRatingReadBytes(tx, bases);
+      for (let offset = 0; offset < bases.length; offset += 512) {
+        const chunk = bases.slice(offset, offset + 512);
+        const decisions = await this.categoryReview.currentBatch(
+          chunk.map((row) =>
+            canonicalRatingCategoryBase({
+              categoryId: row.category_id,
+              baseRevision: row.revision,
+              envelope: row.envelope as never,
+            }),
+          ),
+          tx,
+        );
+        chunk.forEach((row, index) =>
+          review.set(
+            row.original,
+            decisions[index]?.kind === 'unavailable'
+              ? 'unknown'
+              : (decisions[index]?.kind ?? 'unknown'),
+          ),
+        );
+      }
+    }
+    const nodeDecisions = new Map<string, 'allow' | 'deny' | 'unknown'>();
+    for (const row of unique) {
+      let state: 'allow' | 'deny' | 'unknown' = 'allow';
+      const base = row.base
+        ? review.get(row.base.id + ':' + row.base.revision)
+        : undefined;
+      const override = row.override
+        ? review.get(row.override.id + ':' + row.override.revision)
+        : 'allow';
+      if (base === 'deny' || override === 'deny') state = 'deny';
+      else if (
+        base !== 'allow' ||
+        override !== 'allow' ||
+        !row.placement_revision
+      )
+        state = 'unknown';
+      else
+        try {
+          const expected = scopedExpectedCategorySchema.parse(row.expected),
+            saved = scopedExpectedCategorySchema.parse(row.proof);
+          if (
+            !canonicalEqual(expected, saved) ||
+            row.effective_digest !==
+              ratingScopedDigest('effective', expected) ||
+            expected.placementRevision !== row.placement_revision ||
+            !canonicalEqual(
+              {
+                id: row.id,
+                parentId: row.parent_id,
+                level: row.level,
+                kind: row.kind,
+                systemKey: row.system_key,
+                name: row.name,
+                description: row.description,
+                active: row.active,
+                hidden: row.hidden,
+                ordinal: row.ordinal,
+              },
+              {
+                id: expected.body.id,
+                parentId: expected.body.parentId,
+                level: expected.body.level,
+                kind: expected.body.kind,
+                systemKey: expected.body.systemKey,
+                name: expected.body.name,
+                description: expected.body.description,
+                active: expected.body.active,
+                hidden: expected.body.hidden,
+                ordinal: expected.body.ordinal,
+              },
+            )
+          )
+            state = 'unknown';
+          else {
+            ratingCategorySchema.parse({
+              id: row.id,
+              parentId: row.parent_id,
+              level: row.level,
+              kind: row.kind,
+              systemKey: row.system_key,
+              name: row.name,
+              description: row.description,
+              revision: row.revision,
+            });
+            if (!row.active || row.hidden) state = 'deny';
+          }
+        } catch {
+          state = 'unknown';
+        }
+      nodeDecisions.set(row.id, state);
+    }
+    const validNodes = unique.filter(
+      (row) => nodeDecisions.get(row.id) === 'allow',
+    );
+    if (validNodes.length) {
+      const icons = await currentCategoryIcons(scope, validNodes, tx);
+      validNodes.forEach((row, index) => {
+        if (icons[index] === 'deny') nodeDecisions.set(row.id, 'deny');
+      });
+    }
+    const result = new Map<string, Decision<readonly CategoryRow[]>>();
+    for (const id of ids) {
+      const path = rows.filter((row) => row.leaf_id === id),
+        leaf = path.at(-1);
+      if (
+        !leaf ||
+        leaf.id !== id ||
+        path.length !== leaf.level ||
+        path.some(
+          (row, index) =>
+            row.level !== index + 1 ||
+            row.parent_id !== (index ? path[index - 1]!.id : null),
+        )
+      ) {
+        result.set(id, { kind: 'unavailable' });
+        continue;
+      }
+      // Missing evidence has precedence over a different denied ancestor.
+      const decision = path.some(
+        (row) => nodeDecisions.get(row.id) === 'unknown',
+      )
+        ? 'unavailable'
+        : path.some((row) => nodeDecisions.get(row.id) === 'deny')
+          ? 'deny'
+          : 'allow';
+      result.set(
+        id,
+        decision === 'allow'
+          ? { kind: 'allow', value: path }
+          : decision === 'deny'
+            ? { kind: 'deny', reason: 'POST_NOT_FOUND' }
+            : { kind: 'unavailable' },
+      );
+    }
+    return result;
+  }
+  /** Required current target dependency vector for Community cards. Known
+   * denial is per target; a denied category never turns unrelated rows to zero. */
+  async targetLinkBatch(
+    scope: ResolvedRatingReadScope,
+    ids: readonly string[],
+    tx: PoolClient,
+  ): Promise<
+    ReadonlyMap<
+      string,
+      Decision<{ row: CurrentTargetRow; path: readonly CategoryRow[] }>
+    >
+  > {
+    assertResolvedRatingScope(scope, tx);
+    if (ids.length > 256 || new Set(ids).size !== ids.length) unavailable();
+    await this.navigation(tx);
+    const result = new Map<
+      string,
+      Decision<{ row: CurrentTargetRow; path: readonly CategoryRow[] }>
+    >();
+    if (!ids.length) return result;
+    const rows = await dependencyRows<MembershipRead>(
+      tx,
+      `SELECT ${ratingCurrentTargetColumns},m.category_id membership_category,m.placement_revision,
+      coalesce(p.target_id=t.id AND $3=ANY(p.scope_keys) AND whaleu_ratings.scoped_source_current(p.source_id,p.source_revision,clock_timestamp()),false) placement_valid
+      FROM whaleu_ratings.scoped_target_memberships m JOIN whaleu_ratings.targets t ON t.id=m.target_id
+      LEFT JOIN whaleu_ratings.target_scope_placements p ON (p.placement_revision,p.target_id)=(m.placement_revision,m.target_id)
+      ${ratingCurrentTargetDefinitionJoins} WHERE m.catalog_id=$1 AND m.target_id=ANY($2::uuid[]) ORDER BY t.id FOR SHARE OF t`,
+      [scope.catalog.id, ids, scope.catalog.scopeKey],
+      256,
+    );
+    retainRatingReadBytes(tx, rows);
+    for (const id of ids)
+      result.set(id, { kind: 'deny', reason: 'POST_NOT_FOUND' });
+    const categories = await this.categoryLinkPaths(
+      scope,
+      [
+        ...new Set(
+          rows
+            .filter((row) => row.active && !row.owner_deleted)
+            .map((row) => row.category_id),
+        ),
+      ],
+      tx,
+    );
+    const pending: { row: CurrentTargetRow; path: readonly CategoryRow[] }[] =
+      [];
+    for (const raw of rows) {
+      if (!raw.active || raw.owner_deleted) continue;
+      if (!raw.placement_valid || raw.membership_category !== raw.category_id) {
+        result.set(raw.id, { kind: 'unavailable' });
+        continue;
+      }
+      try {
+        const path = categories.get(raw.category_id);
+        if (!path || path.kind === 'unavailable') {
+          result.set(raw.id, { kind: 'unavailable' });
+          continue;
+        }
+        if (path.kind === 'deny') continue;
+        pending.push({ row: currentRatingTargetRow(raw), path: path.value });
+      } catch (error) {
+        if (!(error instanceof ApplicationError)) throw error;
+        result.set(raw.id, { kind: 'unavailable' });
+      }
+    }
+    await requireCurrentTargetCoverScope(
+      scope,
+      pending.map((value) => value.row.definition),
+      tx,
+    );
+    const decisions: Awaited<
+      ReturnType<RatingContentReviewFacade['currentDefinitionBatch']>
+    >[number][] = [];
+    for (let offset = 0; offset < pending.length; offset += 128)
+      decisions.push(
+        ...(await this.review.currentDefinitionBatch(
+          pending
+            .slice(offset, offset + 128)
+            .map((value) => value.row.definition),
+          tx,
+        )),
+      );
+    pending.forEach((value, index) => {
+      const decision = decisions[index];
+      result.set(
+        value.row.id,
+        decision?.kind === 'allow'
+          ? { kind: 'allow', value }
+          : decision?.kind === 'deny'
+            ? { kind: 'deny', reason: 'POST_NOT_FOUND' }
+            : { kind: 'unavailable' },
+      );
+    });
     return result;
   }
   async targets(

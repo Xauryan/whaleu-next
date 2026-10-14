@@ -97,6 +97,11 @@ export async function postApprovalEnvelope(
   input: PublishPost,
 ): Promise<EffectiveContentEnvelope> {
   const body = publishPostSchema.parse(input);
+  const component = body.component;
+  if (component?.kind === 'rating_target_link')
+    throw new Error(
+      'Historical approval fixture cannot issue a v5 card; use actual local Review',
+    );
   // Keep the legacy pool argument for caller compatibility; the application
   // owns both the connection and its transaction-scoped policy provider. An
   // unmanaged fixture pool cannot borrow that provider, even for the same DB.
@@ -129,7 +134,7 @@ export async function postApprovalEnvelope(
       targetReplyId: null,
       text: body.text,
       images: [],
-      component: body.component ?? { kind: 'none' },
+      component: component ?? { kind: 'none' },
       trading: body.trading ?? null,
       scope: authority.publicationScope,
     };

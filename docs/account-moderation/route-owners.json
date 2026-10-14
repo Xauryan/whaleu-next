@@ -7452,6 +7452,74 @@
     ]
   },
   {
+    "handler": "RatingAssistanceController.cancel",
+    "method": "POST",
+    "path": "/v2/ratings/assistance/requests/:requestId/cancel",
+    "action": "protective_cleanup",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/ratings/assistance/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingAssistanceService",
+        "method": "cancel",
+        "file": "apps/api/src/ratings/assistance/service.ts",
+        "policy": ["AccountPolicy('protective_cleanup', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingAssistanceController.create",
+    "method": "POST",
+    "path": "/v2/ratings/assistance/requests",
+    "action": "interaction",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/ratings/assistance/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingAssistanceService",
+        "method": "create",
+        "file": "apps/api/src/ratings/assistance/service.ts",
+        "policy": ["AccountPolicy('interaction', 'owner_after_recovery')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingAssistanceController.result",
+    "method": "GET",
+    "path": "/v2/ratings/assistance/requests/:requestId/result",
+    "action": "interaction",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/ratings/assistance/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingAssistanceService",
+        "method": "result",
+        "file": "apps/api/src/ratings/assistance/service.ts",
+        "policy": ["AccountPolicy('interaction', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingAssistanceController.status",
+    "method": "GET",
+    "path": "/v2/ratings/assistance/requests/:requestId",
+    "action": "private_self_service",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/ratings/assistance/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingAssistanceService",
+        "method": "status",
+        "file": "apps/api/src/ratings/assistance/service.ts",
+        "policy": ["AccountPolicy('private_self_service', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
     "handler": "RatingCategoryIconManagementController.cancel",
     "method": "POST",
     "path": "/v5/ratings/category-management/cancel",

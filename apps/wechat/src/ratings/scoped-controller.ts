@@ -71,6 +71,7 @@ import {
   type RatingScopedCommandPurpose,
 } from './scoped-context';
 import {
+  canonicalRatingScopedJson,
   decodeRatingNavigationSelector,
   ratingNavigationKey,
   decodeRatingScopedIntent,
@@ -2493,6 +2494,49 @@ export class RatingScopedController extends CommunityController<RatingScopedView
       (error) => this.update({ error: ratingScopedError(error) }),
     );
     return this.inactive ? null : path;
+  }
+  async ratingLinkComposePath(): Promise<string | null> {
+    if (
+      !this.canDraft() ||
+      !this.view.detail?.ratingTargetLink ||
+      !this.runtime.gateway
+    )
+      return null;
+    const target = this.view.detail,
+      capability = target.ratingTargetLink!,
+      accountId = this.accountId();
+    let path: string | null = null;
+    await this.run(
+      async (cancel) => {
+        const context = this.lease.current();
+        if (
+          !accountId ||
+          context.actorId !== accountId ||
+          context.purpose !== 'read' ||
+          context.mode !== 'public' ||
+          canonicalRatingScopedJson(context.selector) !==
+            canonicalRatingScopedJson(capability.selector)
+        )
+          invalidRating();
+        const campusId =
+          capability.selector.kind === 'campus'
+            ? capability.selector.campusId
+            : context.identityCampusId;
+        if (!campusId)
+          throw new ClientError('business', 'Identity campus required', {
+            serverCode: 'IDENTITY_CAMPUS_REQUIRED',
+          });
+        const spaces = await this.runtime.gateway!.spaces(campusId, cancel);
+        this.assertRead(cancel, context);
+        if (!spaces.regional?.isActive || this.view.detail?.id !== target.id)
+          invalidRating();
+        return `/pages/community-compose/community-compose?spaceId=${spaces.regional.id}&category=discussion&ratingActorId=${accountId}&ratingTargetId=${target.id}&ratingScope=${capability.selector.kind}${capability.selector.kind === 'campus' ? `&ratingCampusId=${capability.selector.campusId}` : ''}&ratingDestinationCampusId=${campusId}`;
+      },
+      (value) => {
+        path = value;
+      },
+    );
+    return path;
   }
   navigationPath(mode: RatingScopedMode, id?: string): string | null {
     if (!this.canDraft()) return null;

@@ -332,7 +332,9 @@ const postComponentBody = (component: NonNullable<PostIntent['component']>) =>
     ? { ...component, options: [...component.options] }
     : component.kind === 'formation'
       ? { ...component, contacts: { ...component.contacts } }
-      : { kind: 'none' as const };
+      : component.kind === 'rating_target_link'
+        ? { ...component, selector: { ...component.selector } }
+        : { kind: 'none' as const };
 export class HttpCommunityGateway implements CommunityGateway {
   constructor(private readonly api: ApiClient) {}
   async feedbackTopic(

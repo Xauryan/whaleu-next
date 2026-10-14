@@ -58,6 +58,13 @@
           "polls.test.ts",
           "profile-avatar-moderation-native-roundtrip.test.ts",
           "profile-moderation-native-roundtrip.test.ts",
+          "rating-target-link-budget.test.ts",
+          "rating-target-link-corrected-destination.test.ts",
+          "rating-target-link-edge-consumers.test.ts",
+          "rating-target-link-final-races.test.ts",
+          "rating-target-link-consumers-races.test.ts",
+          "rating-target-link.test.ts",
+          "rating-target-link-upgrade.test.ts",
           "related-sync-actor-proof.test.ts",
           "related-sync-discovery.test.ts",
           "related-sync-management.test.ts",
@@ -202,6 +209,8 @@
       "owners": ["ratings/category-management", "media"],
       "shards": [
         [
+          "rating-assistance.test.ts",
+          "rating-assistance-native-roundtrip.test.ts",
           "rating-category-causality.test.ts",
           "rating-category-icon-budget-bytes.test.ts",
           "rating-category-icon-deferred-delivery.test.ts",

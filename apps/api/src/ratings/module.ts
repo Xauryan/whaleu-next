@@ -1,3 +1,8 @@
+import { RatingAssistanceController } from './assistance/controller.js';
+import { RatingAssistanceService } from './assistance/service.js';
+import { RatingAssistanceRepository } from './assistance/repository.js';
+import { RatingAssistanceQualification } from './assistance/qualification.js';
+import { ASSISTANCE_RUNTIME } from './assistance/contracts.js';
 import { FloorRatingsModule } from './canteen-floors/module.js';
 import { WindowRatingsModule } from './windows/module.js';
 import { CourseRatingsModule } from './courses/module.js';
@@ -153,6 +158,7 @@ import { RatingsCursors } from './cursor.js';
     RatingRequestThrottlingModule,
   ],
   controllers: [
+    RatingAssistanceController,
     RatingCategoryIconManagementController,
     RatingCategoryIconRequestController,
     RatingCategoryIconPublicController,
@@ -176,6 +182,10 @@ import { RatingsCursors } from './cursor.js';
     RatingLikesController,
   ],
   providers: [
+    RatingAssistanceService,
+    RatingAssistanceRepository,
+    RatingAssistanceQualification,
+    { provide: ASSISTANCE_RUNTIME, useValue: null },
     RatingCategoryIconRetirementOwner,
     RatingCategoryIconRepository,
     RatingCategoryIconAuthority,

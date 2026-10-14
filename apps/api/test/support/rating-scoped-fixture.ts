@@ -46,6 +46,7 @@ export type RatingScopedSyntheticSourceKind =
   | 'scope_absence'
   | 'scope_capabilities'
   | 'native_scoped_create'
+  | 'scoped_category_system_registry'
   | 'native_v1_compat_write'
   | 'm3a_native_bridge';
 export interface RatingScopedSyntheticSource {
@@ -206,8 +207,11 @@ export async function writeRatingScopedApproval(
   };
 }
 
-export async function ratingScopedFixture(maximumMigration?: number) {
-  const f = await ratingCategoryFixture(maximumMigration);
+export async function ratingScopedFixture(
+  maximumMigration?: number,
+  appOptions?: Parameters<typeof ratingCategoryFixture>[1],
+) {
+  const f = await ratingCategoryFixture(maximumMigration, appOptions);
   try {
     const campusA = f.scope.home.campusId,
       campusB = randomUUID(),

@@ -1,3 +1,4 @@
+import { ratingTargetLinkComponentSchema } from '../rating-target-link/contracts.js';
 import { formationComponentSchema } from '../formation/contracts.js';
 import { z } from 'zod';
 import type { ApplicationErrorCode } from '../../http/application-error.js';
@@ -24,6 +25,7 @@ export const postComponentSchema = z.union([
   z.strictObject({ kind: z.literal('none') }),
   pollComponentSchema,
   formationComponentSchema,
+  ratingTargetLinkComponentSchema,
 ]);
 export type PollComponent = z.infer<typeof pollComponentSchema>;
 export const emptyPollQuerySchema = z.strictObject({});

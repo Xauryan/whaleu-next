@@ -1,3 +1,4 @@
+import { ratingLinkPublicationHash } from '../community/rating-link-contract';
 import { sha256 } from 'js-sha256';
 import { decodeCommentIntent } from '../community/contract';
 import { decodeReplyIntent } from '../community/discussion-contract';
@@ -12,6 +13,15 @@ import { mediaPublicationReference } from './upload-runtime';
 export function batchPublicationReference(
   attempt: PendingAttempt,
 ): PublicationReference {
+  if (
+    attempt.operation === 'publish_post' &&
+    attempt.payload.component?.kind === 'rating_target_link'
+  )
+    return {
+      clientRequestId: attempt.payload.clientRequestId,
+      operation: 'publish_post',
+      intentHash: ratingLinkPublicationHash(attempt.payload),
+    };
   if (attempt.operation === 'publish_post')
     return mediaPublicationReference(attempt);
   const body =

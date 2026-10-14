@@ -10,8 +10,11 @@ import {
 import { canonicalRatingEnvelope } from '../../src/community/content-review/rating-contracts.js';
 import { createRatingReplySchema } from '../../src/ratings/discussion-contracts.js';
 import type { CreateRatingReply } from '../../src/ratings/discussion-contracts.js';
-export async function ratingDiscussionFixture(maximumMigration?: number) {
-  const f = await ratingRuntimeFixture(maximumMigration);
+export async function ratingDiscussionFixture(
+  maximumMigration?: number,
+  appOptions?: Parameters<typeof ratingRuntimeFixture>[1],
+) {
+  const f = await ratingRuntimeFixture(maximumMigration, appOptions);
   type Actor = Awaited<ReturnType<typeof f.actor>>;
   type Catalog = Awaited<ReturnType<typeof f.catalog>>;
   type Target = Catalog['targets'][number];

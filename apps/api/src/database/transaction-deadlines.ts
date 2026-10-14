@@ -134,6 +134,21 @@ export function registerTransactionExactDeadline(
   if (!registry.some((f) => f.until === until && f.code === code))
     registry.push({ until, code });
 }
+/** Conservative transport expiry for literal private previews. This does not
+ * authorize a cache or replace final proof checking; sub-millisecond SQL facts
+ * are rounded down so a client never receives a later expiry than an owner. */
+export function transactionResultExpiry(
+  tx: PoolClient,
+  ceiling: number,
+): number {
+  const values = [ceiling, ...(deadlines.get(tx)?.values() ?? [])];
+  for (const fact of exactDeadlines.get(tx) ?? [])
+    values.push(Date.parse(fact.until));
+  const result = Math.floor(Math.min(...values));
+  if (!Number.isSafeInteger(result) || result < 0)
+    throw new Error('Invalid private result expiry');
+  return result;
+}
 export async function checkTransactionDeadlines(tx: PoolClient) {
   const current = deadlines.get(tx);
   const exact = exactDeadlines.get(tx) ?? [];

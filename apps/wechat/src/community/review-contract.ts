@@ -62,6 +62,19 @@ export function supportsTextReview(attempt: PendingAttempt): boolean {
   const payload = attempt.payload;
   if (
     attempt.operation === 'publish_post' &&
+    attempt.payload.component?.kind === 'rating_target_link'
+  )
+    return (
+      attempt.version === 5 &&
+      attempt.payload.category === 'discussion' &&
+      payload.imageAssetIds.length === 0 &&
+      attempt.payload.syncToRelatedCampuses !== true &&
+      attempt.payload.allowAnonymousDm === undefined &&
+      !attempt.payload.feedback &&
+      !attempt.payload.trading
+    );
+  if (
+    attempt.operation === 'publish_post' &&
     attempt.payload.syncToRelatedCampuses === true
   )
     return true;

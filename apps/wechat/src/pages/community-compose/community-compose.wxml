@@ -10,7 +10,22 @@
   <view class="notice">显示身份选项不代表已取得发布资格或内容已获审核。可另行确认身份校区。开发环境启用文字审核后，需等待明确审核结果，再主动确认发布原请求；发布不可用时，仍可查询本账号的原请求回执。</view>
   <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
   <navigator wx:if="{{hasSession &amp;&amp; !busy &amp;&amp; canOpenIdentityCampus}}" class="link" url="/pages/identity-campus/identity-campus">查看身份校区状态与可选校区（返回后需再次点击发送）→</navigator>
-  <view wx:if="{{hasSession}}" class="card"><view wx:if="{{recoveryOperation}}" class="meta">待确认类型：{{recoveryOperation}}</view><view wx:if="{{replyTargetName}}" class="scope">回复：{{replyTargetName}}</view><view class="label">正文 · 最多 {{maxText}} 字</view><textarea value="{{text}}" bindinput="onText" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="说说你想分享的事…" />
+  <view wx:if="{{hasSession}}" class="card"><view wx:if="{{recoveryOperation}}" class="meta">待确认类型：{{recoveryOperation}}</view><view wx:if="{{replyTargetName}}" class="scope">回复：{{replyTargetName}}</view><view class="label">正文 · 最多 {{maxText}} 字</view><view wx:if="{{hasRatingLink}}" class="card">
+    <view class="section-title">评分对象卡片</view><view wx:if="{{ratingLinkName}}">{{ratingLinkName}}</view>
+    <view wx:else class="notice">显示名称需重新核验；原标签不代替当前对象资料</view>
+    <input value="{{ratingLinkLabel}}" bindinput="onRatingLabel" maxlength="-1" disabled="{{frozen || busy}}" placeholder="卡片标签（1–12 字）" />
+    <view class="notice">标签与帖子正文独立；支持本地区普通文字讨论。</view>
+    <button bindtap="onGenerateRatingLabel" wx:if="{{!frozen}}" disabled="{{busy || assistance.busy}}">生成标签建议</button>
+    <button bindtap="onRemoveRatingLink" wx:if="{{!frozen}}" disabled="{{busy}}">移除评分卡片</button>
+  </view>
+  <view wx:if="{{assistance.requestId || assistance.status}}" class="card">
+    <view>{{assistance.status}}</view><view wx:if="{{assistance.preview}}">{{assistance.preview}}</view>
+    <button wx:if="{{assistance.canAdopt}}" bindtap="onAdoptRatingLabel" disabled="{{frozen || busy || assistance.busy}}">采用此标签</button>
+    <button wx:if="{{assistance.canRecover}}" bindtap="onRecoverAssistance" disabled="{{assistance.busy}}">查询原建议请求</button>
+    <button wx:if="{{assistance.canCancel}}" bindtap="onCancelAssistance" disabled="{{assistance.busy}}">取消原建议请求</button>
+    <button wx:if="{{assistance.canDismiss}}" bindtap="onDismissAssistance" disabled="{{assistance.busy}}">关闭此建议</button>
+  </view>
+  <textarea value="{{text}}" bindinput="onText" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="说说你想分享的事…" />
     <view class="scope">发送时展示：{{effectiveIdentity || '请等待当前身份权限检查'}}</view><view wx:if="{{!frozen &amp;&amp; !identityForced}}" class="chips"><view class="chip {{authorMode === 'named' ? 'active' : ''}}" data-mode="named" bindtap="onMode">公开身份</view><view class="chip {{authorMode === 'anonymous' ? 'active' : ''}}" data-mode="anonymous" bindtap="onMode">匿名</view></view>
     <view wx:if="{{canChooseRelatedCampusSync || syncToRelatedCampuses}}" class="row"><text>同步到关联学校</text><switch checked="{{syncToRelatedCampuses}}" bindchange="onRelatedCampusSync" disabled="{{frozen || busy || !loaded || !canChooseRelatedCampusSync}}" /></view>
     <view wx:if="{{relatedCampusSyncNotice}}" class="notice">{{relatedCampusSyncNotice}}</view>

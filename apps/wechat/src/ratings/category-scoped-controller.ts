@@ -1,3 +1,9 @@
+import {
+  AssistanceController,
+  initialAssistanceView,
+  type AssistanceView,
+} from './assistance-controller';
+import type { AssistanceInput } from './assistance-contract';
 import { CategoryIconCoordinator } from './category-icon-coordinator';
 import {
   CategoryIconReader,
@@ -195,6 +201,7 @@ interface IconRetirementView {
   readonly canNext: boolean;
 }
 export interface RatingCategoryScopedView extends CommunityView {
+  readonly assistance: AssistanceView;
   readonly iconEnabled: boolean;
   readonly iconFrozen: boolean;
   readonly iconProgress: number;
@@ -303,6 +310,7 @@ export interface RatingCategoryScopedView extends CommunityView {
 export const initialRatingCategoryScopedView =
   (): RatingCategoryScopedView => ({
     ...initialCommunityView(),
+    assistance: initialAssistanceView(),
     iconEnabled: false,
     iconFrozen: false,
     iconProgress: 0,
@@ -423,6 +431,8 @@ const sortCategories = (
 /** Private contexts and full mutation sets never enter native page data. The shared
  * journal precedes every current read; late callbacks cannot publish drafts across owners. */
 export class RatingCategoryScopedController extends CommunityController<RatingCategoryScopedView> {
+  private readonly assistance: AssistanceController;
+  private assistanceNodeKey: string | null = null;
   private route: RatingCategoryScopedRoute | null = null;
   private context:
     RatingCategoryScopedContext | RatingCategoryIconContext | null = null;
@@ -461,6 +471,12 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
       () => ({ ...initialRatingCategoryScopedView(), editorPage }),
       render,
     );
+    this.assistance = new AssistanceController(
+      runtime,
+      (assistance) => this.update({ assistance }),
+      () => this.editable(),
+      clock,
+    );
     this.iconCoordinator = new CategoryIconCoordinator(runtime, clock, (view) =>
       this.update({
         iconProgress: view.progress,
@@ -486,6 +502,98 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     ].filter((v): v is () => void => !!v);
     this.update({ editorPage, configured: this.configured() });
   }
+  protected override update(patch: Partial<RatingCategoryScopedView>): void {
+    const changing = [
+      'name',
+      'description',
+      'nodes',
+      'scopeKind',
+      'placementCampuses',
+      'systemKey',
+      'levelCount',
+      'operation',
+      'frozen',
+      'iconFrozen',
+    ] as const;
+    if (
+      this.assistance &&
+      changing.some(
+        (key) =>
+          key in patch &&
+          JSON.stringify(patch[key]) !== JSON.stringify(this.view[key]),
+      )
+    ) {
+      this.assistance.invalidate();
+      this.assistanceNodeKey = null;
+    }
+    super.update(patch);
+  }
+  async generateDescription(nodeKey?: string): Promise<void> {
+    if (!this.editable() || !this.context || this.detail) return;
+    const operation = this.view.operation;
+    if (
+      operation !== 'create_categories_scoped' &&
+      operation !== 'create_system_category_scoped'
+    )
+      return;
+    const node =
+      operation === 'create_categories_scoped'
+        ? this.view.nodes.find(
+            (item) =>
+              item.key === nodeKey &&
+              item.parentKey === null &&
+              item.level === 1,
+          )
+        : null;
+    if (operation === 'create_categories_scoped' && !node) return;
+    const name =
+      operation === 'create_system_category_scoped'
+        ? this.view.name
+        : node!.name;
+    try {
+      const common = {
+        draftNodeKey: node?.key ?? 'system_root',
+        name: canonicalRatingText(name, 100),
+        placement: this.placement(),
+        expectedSnapshot: this.context.snapshotRevision,
+      };
+      const input: AssistanceInput = {
+        purpose: 'category_description',
+        selector: this.context.commandContext.selector,
+        context: this.context.commandContext,
+        payload:
+          operation === 'create_categories_scoped'
+            ? { ...common, operation, parentId: null }
+            : {
+                ...common,
+                operation,
+                systemKey: this.view.systemKey,
+                levelCount: this.view.levelCount,
+              },
+      };
+      this.assistanceNodeKey = node?.key ?? null;
+      await this.assistance.generate(input);
+    } catch (error) {
+      this.failure(error);
+    }
+  }
+  async adoptDescription(): Promise<void> {
+    const nodeKey = this.assistanceNodeKey;
+    await this.assistance.adopt((text) => {
+      if (this.view.operation === 'create_system_category_scoped')
+        this.setText('description', text);
+      else if (nodeKey) this.setNodeText(nodeKey, 'description', text);
+    });
+  }
+  recoverAssistance(): Promise<void> {
+    return this.assistance.recover();
+  }
+  cancelAssistance(): Promise<void> {
+    return this.assistance.cancel();
+  }
+  dismissAssistance(): void {
+    this.assistance.dismiss();
+  }
   private configured(): boolean {
     return !!this.runtime.ratingCategoryScoped && !!this.runtime.pendingRatings;
   }
@@ -502,6 +610,8 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     return true;
   }
   protected override resetPrivate(): void {
+    this.assistance?.invalidate();
+    this.assistanceNodeKey = null;
     this.iconCoordinator?.hide();
     this.iconReader?.clear();
     this.iconChoices?.clear();
@@ -623,8 +733,10 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
       configured: this.configured(),
       hasSession: !!this.accountId(),
     });
+    this.assistance.refresh();
     // Recovery deliberately precedes route and current authority/source validation.
     if (!this.journal()) return;
+    this.assistance.refresh();
     if (this.pending || this.view.iconFrozen) {
       await this.recover();
       return;
@@ -1934,6 +2046,7 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
     });
   }
   async prepare(): Promise<void> {
+    this.assistance.invalidate();
     if (this.view.iconEnabled) {
       await this.prepareIconDraft();
       return;
@@ -2517,6 +2630,7 @@ export class RatingCategoryScopedController extends CommunityController<RatingCa
   override dispose(): void {
     if (this.inactive) return;
     this.inactive = true;
+    this.assistance.dispose();
     this.iconCoordinator.dispose();
     this.iconReader.dispose();
     for (const unsubscribe of this.unsubscriptions) unsubscribe();

@@ -52,6 +52,38 @@ export const accountRoutePolicies = [
     'restricted',
     'apps/api/src/verification/institutional/controller.ts',
   ],
+  [
+    'RatingAssistanceController.create',
+    'POST',
+    '/v2/ratings/assistance/requests',
+    'interaction',
+    'owner_after_recovery',
+    'apps/api/src/ratings/assistance/controller.ts',
+  ],
+  [
+    'RatingAssistanceController.status',
+    'GET',
+    '/v2/ratings/assistance/requests/:requestId',
+    'private_self_service',
+    'entry',
+    'apps/api/src/ratings/assistance/controller.ts',
+  ],
+  [
+    'RatingAssistanceController.result',
+    'GET',
+    '/v2/ratings/assistance/requests/:requestId/result',
+    'interaction',
+    'entry',
+    'apps/api/src/ratings/assistance/controller.ts',
+  ],
+  [
+    'RatingAssistanceController.cancel',
+    'POST',
+    '/v2/ratings/assistance/requests/:requestId/cancel',
+    'protective_cleanup',
+    'entry',
+    'apps/api/src/ratings/assistance/controller.ts',
+  ],
 
   [
     'CampusToolsController.hub',

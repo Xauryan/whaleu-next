@@ -1,3 +1,5 @@
+import type { ReviewedRatingTargetLink } from '../rating-target-link/contracts.js';
+import { CurrentRatingLinkDependency } from '../rating-target-link/dependency.js';
 import { resolvePostCategory } from '../category-reclassification/read-proof.js';
 import { batchCategoryChildContextAllowed } from '../category-reclassification/child-context.js';
 import type { CategoryChildTarget } from '../category-reclassification/child-context.js';
@@ -19,8 +21,9 @@ type CanonicalProof = Pick<
   ownerHidden: boolean;
   postId: string;
   categoryChildren: readonly CategoryChildTarget[];
+  ratingLink: ReviewedRatingTargetLink | null;
 };
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import type {
   CommunityVisibilityPort,
@@ -40,6 +43,9 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
     private readonly definitions: ContentDefinitionRepository,
     @Inject(CONTENT_MEDIA_PROOF)
     private readonly media: ContentMediaProof = new UnavailableContentMediaProof(),
+    @Optional()
+    @Inject(CurrentRatingLinkDependency)
+    private readonly targetLinks: CurrentRatingLinkDependency = new CurrentRatingLinkDependency(),
   ) {}
   private async visible(
     kind: ContentKind,
@@ -153,12 +159,20 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
       )
     )
       return { kind: 'unavailable' };
+    // Retain only immutable source data in the shared canonical proof. Current
+    // target qualification belongs to the viewer and is checked on every outer
+    // call, including when a descendant reuses this canonical parent chain.
+    let ratingLink =
+      stored.value.envelope.version === 5
+        ? stored.value.envelope.component
+        : null;
     for (const parent of stored.value.parents) {
       // A post reached again via its root retains its exact owner overlay too.
       const prior = visited.get(`${parent.kind}:${parent.id}`);
       if (prior) {
         postOwner = prior.postOwner;
         ownerHidden = prior.ownerHidden;
+        ratingLink = prior.ratingLink;
         for (const child of prior.categoryChildren)
           categoryChildren.set(`${child.kind}:${child.id}`, child);
         continue;
@@ -176,6 +190,7 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
       if (decision.kind !== 'allow') return decision;
       postOwner = decision.value.postOwner;
       ownerHidden = decision.value.ownerHidden;
+      ratingLink = decision.value.ratingLink;
       for (const child of decision.value.categoryChildren)
         categoryChildren.set(`${child.kind}:${child.id}`, child);
     }
@@ -188,6 +203,7 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
         postOwner,
         ownerHidden,
         postId,
+        ratingLink,
         categoryChildren: Object.freeze(
           [...categoryChildren.values()].map((child) => Object.freeze(child)),
         ),
@@ -224,6 +240,14 @@ export class LocalApprovedContentVisibility implements CommunityVisibilityPort {
         currentMediaAllowed,
       );
       if (result.kind !== 'allow') return result;
+      if (result.value.ratingLink) {
+        const target = await this.targetLinks.current(
+          viewer,
+          result.value.ratingLink,
+          tx,
+        );
+        if (target.kind !== 'allow') return target;
+      }
       const binding = read
         ? result.value
         : await this.approvals.binding(

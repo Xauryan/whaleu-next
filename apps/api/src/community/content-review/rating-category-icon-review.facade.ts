@@ -1,3 +1,4 @@
+import { dependencyRows } from '../../database/dependency-read-budget.js';
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -283,9 +284,9 @@ export class RatingCategoryIconReviewFacade {
       return Object.freeze(raw.map(() => ({ kind: 'unavailable' as const })));
     }
     await this.navigation(tx);
-    const rows = (
-      await tx.query<BoundRow>(
-        `
+    const rows = await dependencyRows<BoundRow>(
+      tx,
+      `
       WITH instant AS MATERIALIZED (SELECT clock_timestamp() now),wanted AS MATERIALIZED (
         SELECT * FROM unnest($1::uuid[],$2::uuid[]) WITH ORDINALITY w(definition_id,account_id,ordinal)),
       anchors AS MATERIALIZED (SELECT id FROM whaleu_identity.accounts WHERE id IN (SELECT account_id FROM wanted) ORDER BY id FOR SHARE)
@@ -298,12 +299,12 @@ export class RatingCategoryIconReviewFacade {
       LEFT JOIN whaleu_community.content_approval_policies p ON p.id=d.policy_revision_id
       LEFT JOIN whaleu_community.rating_approval_heads h ON h.decision_id=d.id
       LEFT JOIN whaleu_community.rating_approval_events e ON e.id=h.event_id AND e.decision_id=d.id ORDER BY w.ordinal`,
-        [
-          definitions.map((d) => d.definitionId),
-          definitions.map((d) => d.envelope.accountId),
-        ],
-      )
-    ).rows;
+      [
+        definitions.map((d) => d.definitionId),
+        definitions.map((d) => d.envelope.accountId),
+      ],
+      128,
+    );
     retainRatingReadBytes(tx, rows);
     if (rows.length !== definitions.length) unavailable();
     return Object.freeze(

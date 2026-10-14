@@ -1,3 +1,9 @@
+import { canonicalRatingText, outputText } from './text-contract';
+export { canonicalRatingText } from './text-contract';
+import {
+  decodeRatingTargetLinkCapability,
+  type RatingTargetLinkCapability,
+} from '../community/rating-link-contract';
 import { ClientError, isRecord } from '../api/errors';
 import { activityTimestamp } from '../activities/contract';
 import { exact } from '../community/contract';
@@ -19,34 +25,6 @@ const score = (value: unknown): value is number =>
   integer(value, 5) && value >= 1;
 const timestamp = (value: unknown): value is string =>
   activityTimestamp(value) && /Z$/.test(value);
-export function canonicalRatingText(
-  value: unknown,
-  maximum = 500,
-  required = true,
-): string {
-  if (typeof value !== 'string' || value.length > maximum * 2 + 100)
-    invalidRating();
-  const text = value.replace(/\r\n/g, '\n').trim();
-  if (
-    (required && text.length === 0) ||
-    [...text].length > maximum ||
-    [...text].some((c) => {
-      const n = c.codePointAt(0)!;
-      return !(
-        n === 9 ||
-        n === 10 ||
-        (n >= 32 && !(n >= 127 && n <= 159) && !(n >= 0xd800 && n <= 0xdfff))
-      );
-    })
-  )
-    invalidRating();
-  return text;
-}
-function outputText(value: unknown, maximum: number, required = true): string {
-  const text = canonicalRatingText(value, maximum, required);
-  if (text !== value) invalidRating();
-  return text;
-}
 export type RatingAuthorMode = 'named' | 'anonymous';
 export interface RatingRegion {
   readonly id: string;
@@ -133,6 +111,7 @@ export function decodeRatingCategory(value: unknown): RatingCategory {
   });
 }
 export interface RatingTarget {
+  readonly ratingTargetLink?: RatingTargetLinkCapability;
   readonly id: string;
   readonly categoryId: string;
   readonly name: string;
@@ -145,7 +124,10 @@ export interface RatingTarget {
   };
 }
 export function decodeRatingTarget(value: unknown): RatingTarget {
+  const hasLink =
+    typeof value === 'object' && value !== null && 'ratingTargetLink' in value;
   exact(value, [
+    ...(hasLink ? ['ratingTargetLink'] : []),
     'id',
     'categoryId',
     'name',
@@ -171,7 +153,17 @@ export function decodeRatingTarget(value: unknown): RatingTarget {
     new Set(actions.authorModes).size !== actions.authorModes.length
   )
     invalidRating();
+  const ratingTargetLink = hasLink
+    ? decodeRatingTargetLinkCapability(value.ratingTargetLink)
+    : undefined;
+  if (
+    ratingTargetLink &&
+    (ratingTargetLink.targetId !== value.id ||
+      ratingTargetLink.expectedTargetRevision !== value.revision)
+  )
+    invalidRating();
   return Object.freeze({
+    ...(ratingTargetLink ? { ratingTargetLink } : {}),
     id: value.id,
     categoryId: value.categoryId,
     name: outputText(value.name, 100),

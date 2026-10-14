@@ -1,3 +1,4 @@
+import { RatingTargetLinkFacade } from '../target-link/facade.js';
 import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { currentCategoryIconDescriptor } from '../category-management/icon-current.js';
 import {
@@ -11,7 +12,7 @@ import { canonicalRatingDiscussionMediaEnvelope } from '../../community/content-
 import { requireTargetCoverRead } from './target-cover-capability.js';
 import { currentRatingTargetCoverDescriptor } from '../target-cover-current.js';
 import { ratingsMediaDescriptorSchema } from '../../media/contracts-ratings.js';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { z, ZodError } from 'zod';
 import type { PoolClient } from 'pg';
 import { DatabaseService } from '../../database/database.js';
@@ -258,6 +259,9 @@ export class RatingScopedReadService {
     private readonly likes: RatingLikesRepository,
     @Inject(RatingSubscriptionsRepository)
     private readonly subscriptions: RatingSubscriptionsRepository,
+    @Optional()
+    @Inject(RatingTargetLinkFacade)
+    private readonly targetLinks?: RatingTargetLinkFacade,
   ) {}
   private async run<T>(
     token: string,
@@ -526,7 +530,10 @@ export class RatingScopedReadService {
       async (scope, tx) => {
         const row = (await this.targetRow(scope, id, tx)).row;
         requireTargetCoverRead(scope, row.definition);
-        const target = await this.projection.target(row, this.actor(scope), tx);
+        const target = {
+          ...(await this.projection.target(row, this.actor(scope), tx)),
+          ratingTargetLink: await this.targetLinks?.capability(scope, row, tx),
+        };
         if (!includeCover) return target;
         const cover = currentRatingTargetCoverDescriptor(
           row.definition,

@@ -23947,6 +23947,75 @@
                             "name": {
                               "type": "string"
                             },
+                            "ratingTargetLink": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "expectedCategoryRevision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "expectedSourceRevision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "expectedTargetRevision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "selector": {
+                                  "oneOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "kind": {
+                                          "enum": ["global"],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["kind"],
+                                      "type": "object"
+                                    },
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "campusId": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "kind": {
+                                          "enum": ["campus"],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["kind", "campusId"],
+                                      "type": "object"
+                                    }
+                                  ]
+                                },
+                                "systemKey": {
+                                  "enum": ["course", "canteen"],
+                                  "type": "string"
+                                },
+                                "targetId": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "targetId",
+                                "selector",
+                                "expectedTargetRevision",
+                                "expectedCategoryRevision",
+                                "expectedSourceRevision",
+                                "systemKey"
+                              ],
+                              "type": "object"
+                            },
                             "revision": {
                               "format": "uuid",
                               "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -28737,6 +28806,75 @@
                           "name": {
                             "type": "string"
                           },
+                          "ratingTargetLink": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "expectedCategoryRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "expectedSourceRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "expectedTargetRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "selector": {
+                                "oneOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "kind": {
+                                        "enum": ["global"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind"],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "campusId": {
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "enum": ["campus"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind", "campusId"],
+                                    "type": "object"
+                                  }
+                                ]
+                              },
+                              "systemKey": {
+                                "enum": ["course", "canteen"],
+                                "type": "string"
+                              },
+                              "targetId": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "targetId",
+                              "selector",
+                              "expectedTargetRevision",
+                              "expectedCategoryRevision",
+                              "expectedSourceRevision",
+                              "systemKey"
+                            ],
+                            "type": "object"
+                          },
                           "revision": {
                             "format": "uuid",
                             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -29112,6 +29250,75 @@
                     },
                     "name": {
                       "type": "string"
+                    },
+                    "ratingTargetLink": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expectedCategoryRevision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "expectedSourceRevision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "expectedTargetRevision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "selector": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": ["global"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "campusId": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": ["campus"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind", "campusId"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "systemKey": {
+                          "enum": ["course", "canteen"],
+                          "type": "string"
+                        },
+                        "targetId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "targetId",
+                        "selector",
+                        "expectedTargetRevision",
+                        "expectedCategoryRevision",
+                        "expectedSourceRevision",
+                        "systemKey"
+                      ],
+                      "type": "object"
                     },
                     "revision": {
                       "format": "uuid",
@@ -40325,6 +40532,1946 @@
         ],
         "summary": "",
         "tags": ["Scoped rating updates"]
+      }
+    },
+    "/v2/ratings/assistance/requests": {
+      "post": {
+        "description": "Admit an exact private suggestion. Synthetic-only and disabled by default; never publishes or approves content.",
+        "operationId": "ratingAssistanceCreate",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "context": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "catalogRevision": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "headRevision": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "protocolGeneration": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "scopeRevision": {
+                            "pattern": "^[a-f0-9]{64}$",
+                            "type": "string"
+                          },
+                          "selector": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "enum": ["global"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "campusId": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "enum": ["campus"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["kind", "campusId"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "sourceDigest": {
+                            "pattern": "^[a-f0-9]{64}$",
+                            "type": "string"
+                          },
+                          "token": {
+                            "pattern": "^[A-Za-z0-9_-]{43}$",
+                            "type": "string"
+                          },
+                          "tokenDigest": {
+                            "pattern": "^[a-f0-9]{64}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "tokenDigest",
+                          "token",
+                          "selector",
+                          "scopeRevision",
+                          "protocolGeneration",
+                          "catalogRevision",
+                          "headRevision",
+                          "sourceDigest"
+                        ],
+                        "type": "object"
+                      },
+                      "draftId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "inputRevision": {
+                        "maximum": 2147483647,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "payload": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "draftNodeKey": {
+                                "pattern": "^[a-z][a-z0-9_]{0,31}$",
+                                "type": "string"
+                              },
+                              "expectedSnapshot": {
+                                "pattern": "^[a-f0-9]{64}$",
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "operation": {
+                                "enum": ["create_categories_scoped"],
+                                "type": "string"
+                              },
+                              "parentId": {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "placement": {
+                                "oneOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "kind": {
+                                        "enum": ["global"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind"],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "campusIds": {
+                                        "items": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "maxItems": 1000,
+                                        "minItems": 1,
+                                        "type": "array"
+                                      },
+                                      "kind": {
+                                        "enum": ["campuses"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind", "campusIds"],
+                                    "type": "object"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "draftNodeKey",
+                              "name",
+                              "placement",
+                              "expectedSnapshot",
+                              "operation",
+                              "parentId"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "draftNodeKey": {
+                                "pattern": "^[a-z][a-z0-9_]{0,31}$",
+                                "type": "string"
+                              },
+                              "expectedSnapshot": {
+                                "pattern": "^[a-f0-9]{64}$",
+                                "type": "string"
+                              },
+                              "levelCount": {
+                                "maximum": 3,
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "operation": {
+                                "enum": ["create_system_category_scoped"],
+                                "type": "string"
+                              },
+                              "placement": {
+                                "oneOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "kind": {
+                                        "enum": ["global"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind"],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "campusIds": {
+                                        "items": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "maxItems": 1000,
+                                        "minItems": 1,
+                                        "type": "array"
+                                      },
+                                      "kind": {
+                                        "enum": ["campuses"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind", "campusIds"],
+                                    "type": "object"
+                                  }
+                                ]
+                              },
+                              "systemKey": {
+                                "pattern": "^[a-z][a-z0-9_]{1,48}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "draftNodeKey",
+                              "name",
+                              "placement",
+                              "expectedSnapshot",
+                              "operation",
+                              "systemKey",
+                              "levelCount"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "purpose": {
+                        "enum": ["category_description"],
+                        "type": "string"
+                      },
+                      "requestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "selector": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "kind": {
+                                "enum": ["global"],
+                                "type": "string"
+                              }
+                            },
+                            "required": ["kind"],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "campusId": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "kind": {
+                                "enum": ["campus"],
+                                "type": "string"
+                              }
+                            },
+                            "required": ["kind", "campusId"],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "version": {
+                        "enum": [1],
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "requestId",
+                      "draftId",
+                      "inputRevision",
+                      "selector",
+                      "context",
+                      "purpose",
+                      "payload"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "context": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "catalogRevision": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "headRevision": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "protocolGeneration": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "scopeRevision": {
+                            "pattern": "^[a-f0-9]{64}$",
+                            "type": "string"
+                          },
+                          "selector": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "enum": ["global"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "campusId": {
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "enum": ["campus"],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["kind", "campusId"],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "sourceDigest": {
+                            "pattern": "^[a-f0-9]{64}$",
+                            "type": "string"
+                          },
+                          "token": {
+                            "pattern": "^[A-Za-z0-9_-]{43}$",
+                            "type": "string"
+                          },
+                          "tokenDigest": {
+                            "pattern": "^[a-f0-9]{64}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "tokenDigest",
+                          "token",
+                          "selector",
+                          "scopeRevision",
+                          "protocolGeneration",
+                          "catalogRevision",
+                          "headRevision",
+                          "sourceDigest"
+                        ],
+                        "type": "object"
+                      },
+                      "draftId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "inputRevision": {
+                        "maximum": 2147483647,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "payload": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "destination": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "authorMode": {
+                                "enum": ["named", "anonymous"],
+                                "type": "string"
+                              },
+                              "category": {
+                                "enum": ["discussion"],
+                                "type": "string"
+                              },
+                              "spaceId": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              }
+                            },
+                            "required": ["spaceId", "category", "authorMode"],
+                            "type": "object"
+                          },
+                          "expectedCategoryRevision": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "expectedSourceRevision": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "expectedTargetRevision": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "targetId": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "targetId",
+                          "expectedTargetRevision",
+                          "expectedCategoryRevision",
+                          "expectedSourceRevision",
+                          "destination"
+                        ],
+                        "type": "object"
+                      },
+                      "purpose": {
+                        "enum": ["rating_publish_title"],
+                        "type": "string"
+                      },
+                      "requestId": {
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                        "type": "string"
+                      },
+                      "selector": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "kind": {
+                                "enum": ["global"],
+                                "type": "string"
+                              }
+                            },
+                            "required": ["kind"],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "campusId": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "kind": {
+                                "enum": ["campus"],
+                                "type": "string"
+                              }
+                            },
+                            "required": ["kind", "campusId"],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "version": {
+                        "enum": [1],
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "requestId",
+                      "draftId",
+                      "inputRevision",
+                      "selector",
+                      "context",
+                      "purpose",
+                      "payload"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "intentHash": {
+                      "pattern": "^[a-f0-9]{64}$",
+                      "type": "string"
+                    },
+                    "outcome": {
+                      "enum": [
+                        "queued",
+                        "claimed",
+                        "dispatch_admitted",
+                        "generated",
+                        "unavailable",
+                        "rejected",
+                        "cancelled",
+                        "expired",
+                        "outcome_unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "enum": ["category_description", "rating_publish_title"],
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                      "type": "string"
+                    },
+                    "version": {
+                      "enum": [1],
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "requestId",
+                    "purpose",
+                    "intentHash",
+                    "outcome"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private rating assistance"]
+      }
+    },
+    "/v2/ratings/assistance/requests/{requestId}": {
+      "get": {
+        "description": "Original-owner metadata only; does not dispatch or return cached plaintext.",
+        "operationId": "ratingAssistanceStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "intentHash": {
+                      "pattern": "^[a-f0-9]{64}$",
+                      "type": "string"
+                    },
+                    "outcome": {
+                      "enum": [
+                        "queued",
+                        "claimed",
+                        "dispatch_admitted",
+                        "generated",
+                        "unavailable",
+                        "rejected",
+                        "cancelled",
+                        "expired",
+                        "outcome_unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "enum": ["category_description", "rating_publish_title"],
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                      "type": "string"
+                    },
+                    "version": {
+                      "enum": [1],
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "requestId",
+                    "purpose",
+                    "intentHash",
+                    "outcome"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private rating assistance"]
+      }
+    },
+    "/v2/ratings/assistance/requests/{requestId}/cancel": {
+      "post": {
+        "description": "Fence the original key, including a request not yet received. Provider accounting is independent.",
+        "operationId": "ratingAssistanceCancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "intentHash": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "purpose": {
+                    "enum": ["category_description", "rating_publish_title"],
+                    "type": "string"
+                  }
+                },
+                "required": ["purpose", "intentHash"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "intentHash": {
+                      "pattern": "^[a-f0-9]{64}$",
+                      "type": "string"
+                    },
+                    "outcome": {
+                      "enum": [
+                        "queued",
+                        "claimed",
+                        "dispatch_admitted",
+                        "generated",
+                        "unavailable",
+                        "rejected",
+                        "cancelled",
+                        "expired",
+                        "outcome_unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "enum": ["category_description", "rating_publish_title"],
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                      "type": "string"
+                    },
+                    "version": {
+                      "enum": [1],
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "requestId",
+                    "purpose",
+                    "intentHash",
+                    "outcome"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private rating assistance"]
+      }
+    },
+    "/v2/ratings/assistance/requests/{requestId}/result": {
+      "get": {
+        "description": "Freshly qualified short-lived literal suggestion. Never dispatches or retries a provider.",
+        "operationId": "ratingAssistanceResult",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "status": {
+                          "enum": ["unavailable"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["status"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "actorId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "draftId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "inputDigest": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "inputRevision": {
+                          "maximum": 2147483647,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "intentHash": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "outputContract": {
+                          "enum": [1],
+                          "type": "number"
+                        },
+                        "profileRevision": {
+                          "enum": ["synthetic-rating-suggestion-v1"],
+                          "type": "string"
+                        },
+                        "purpose": {
+                          "enum": [
+                            "category_description",
+                            "rating_publish_title"
+                          ],
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "resultDigest": {
+                          "pattern": "^[a-f0-9]{64}$",
+                          "type": "string"
+                        },
+                        "resultId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+                          "type": "string"
+                        },
+                        "status": {
+                          "enum": ["available"],
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "enum": [1],
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "version",
+                        "actorId",
+                        "requestId",
+                        "purpose",
+                        "draftId",
+                        "inputRevision",
+                        "intentHash",
+                        "inputDigest",
+                        "resultId",
+                        "resultDigest",
+                        "profileRevision",
+                        "outputContract",
+                        "text",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "retry-after": {
+                "schema": {
+                  "enum": ["60"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            },
+            "description": "Strict, current-authorized, sanitized error. Unknown review/verification/feature facts fail closed. Receipts never disclose current private fields.",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "vary": {
+                "schema": {
+                  "enum": ["Authorization"],
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "",
+        "tags": ["Private rating assistance"]
       }
     },
     "/v2/ratings/categories": {
@@ -60854,6 +63001,75 @@
                             "name": {
                               "type": "string"
                             },
+                            "ratingTargetLink": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "expectedCategoryRevision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "expectedSourceRevision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "expectedTargetRevision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "selector": {
+                                  "oneOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "kind": {
+                                          "enum": ["global"],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["kind"],
+                                      "type": "object"
+                                    },
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "campusId": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "kind": {
+                                          "enum": ["campus"],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["kind", "campusId"],
+                                      "type": "object"
+                                    }
+                                  ]
+                                },
+                                "systemKey": {
+                                  "enum": ["course", "canteen"],
+                                  "type": "string"
+                                },
+                                "targetId": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "targetId",
+                                "selector",
+                                "expectedTargetRevision",
+                                "expectedCategoryRevision",
+                                "expectedSourceRevision",
+                                "systemKey"
+                              ],
+                              "type": "object"
+                            },
                             "revision": {
                               "format": "uuid",
                               "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -64672,6 +66888,75 @@
                           "name": {
                             "type": "string"
                           },
+                          "ratingTargetLink": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "expectedCategoryRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "expectedSourceRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "expectedTargetRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "selector": {
+                                "oneOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "kind": {
+                                        "enum": ["global"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind"],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "campusId": {
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "enum": ["campus"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind", "campusId"],
+                                    "type": "object"
+                                  }
+                                ]
+                              },
+                              "systemKey": {
+                                "enum": ["course", "canteen"],
+                                "type": "string"
+                              },
+                              "targetId": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "targetId",
+                              "selector",
+                              "expectedTargetRevision",
+                              "expectedCategoryRevision",
+                              "expectedSourceRevision",
+                              "systemKey"
+                            ],
+                            "type": "object"
+                          },
                           "revision": {
                             "format": "uuid",
                             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -65155,6 +67440,75 @@
                           "name": {
                             "type": "string"
                           },
+                          "ratingTargetLink": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "expectedCategoryRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "expectedSourceRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "expectedTargetRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "selector": {
+                                "oneOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "kind": {
+                                        "enum": ["global"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind"],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "campusId": {
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "enum": ["campus"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind", "campusId"],
+                                    "type": "object"
+                                  }
+                                ]
+                              },
+                              "systemKey": {
+                                "enum": ["course", "canteen"],
+                                "type": "string"
+                              },
+                              "targetId": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "targetId",
+                              "selector",
+                              "expectedTargetRevision",
+                              "expectedCategoryRevision",
+                              "expectedSourceRevision",
+                              "systemKey"
+                            ],
+                            "type": "object"
+                          },
                           "revision": {
                             "format": "uuid",
                             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -65539,6 +67893,75 @@
                     },
                     "name": {
                       "type": "string"
+                    },
+                    "ratingTargetLink": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expectedCategoryRevision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "expectedSourceRevision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "expectedTargetRevision": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "selector": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": ["global"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind"],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "campusId": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": ["campus"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["kind", "campusId"],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "systemKey": {
+                          "enum": ["course", "canteen"],
+                          "type": "string"
+                        },
+                        "targetId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "targetId",
+                        "selector",
+                        "expectedTargetRevision",
+                        "expectedCategoryRevision",
+                        "expectedSourceRevision",
+                        "systemKey"
+                      ],
+                      "type": "object"
                     },
                     "revision": {
                       "format": "uuid",
@@ -73345,6 +75768,75 @@
                             "name": {
                               "type": "string"
                             },
+                            "ratingTargetLink": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "expectedCategoryRevision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "expectedSourceRevision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "expectedTargetRevision": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                },
+                                "selector": {
+                                  "oneOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "kind": {
+                                          "enum": ["global"],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["kind"],
+                                      "type": "object"
+                                    },
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "campusId": {
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                          "type": "string"
+                                        },
+                                        "kind": {
+                                          "enum": ["campus"],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["kind", "campusId"],
+                                      "type": "object"
+                                    }
+                                  ]
+                                },
+                                "systemKey": {
+                                  "enum": ["course", "canteen"],
+                                  "type": "string"
+                                },
+                                "targetId": {
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "targetId",
+                                "selector",
+                                "expectedTargetRevision",
+                                "expectedCategoryRevision",
+                                "expectedSourceRevision",
+                                "systemKey"
+                              ],
+                              "type": "object"
+                            },
                             "revision": {
                               "format": "uuid",
                               "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -74286,6 +76778,75 @@
                           "name": {
                             "type": "string"
                           },
+                          "ratingTargetLink": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "expectedCategoryRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "expectedSourceRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "expectedTargetRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "selector": {
+                                "oneOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "kind": {
+                                        "enum": ["global"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind"],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "campusId": {
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "enum": ["campus"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind", "campusId"],
+                                    "type": "object"
+                                  }
+                                ]
+                              },
+                              "systemKey": {
+                                "enum": ["course", "canteen"],
+                                "type": "string"
+                              },
+                              "targetId": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "targetId",
+                              "selector",
+                              "expectedTargetRevision",
+                              "expectedCategoryRevision",
+                              "expectedSourceRevision",
+                              "systemKey"
+                            ],
+                            "type": "object"
+                          },
                           "revision": {
                             "format": "uuid",
                             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -74849,6 +77410,75 @@
                           "name": {
                             "type": "string"
                           },
+                          "ratingTargetLink": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "expectedCategoryRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "expectedSourceRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "expectedTargetRevision": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              },
+                              "selector": {
+                                "oneOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "kind": {
+                                        "enum": ["global"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind"],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "campusId": {
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "enum": ["campus"],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["kind", "campusId"],
+                                    "type": "object"
+                                  }
+                                ]
+                              },
+                              "systemKey": {
+                                "enum": ["course", "canteen"],
+                                "type": "string"
+                              },
+                              "targetId": {
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "targetId",
+                              "selector",
+                              "expectedTargetRevision",
+                              "expectedCategoryRevision",
+                              "expectedSourceRevision",
+                              "systemKey"
+                            ],
+                            "type": "object"
+                          },
                           "revision": {
                             "format": "uuid",
                             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -75380,6 +78010,75 @@
                         },
                         "name": {
                           "type": "string"
+                        },
+                        "ratingTargetLink": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "expectedCategoryRevision": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "expectedSourceRevision": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "expectedTargetRevision": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "selector": {
+                              "oneOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": ["global"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["kind"],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "campusId": {
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                      "type": "string"
+                                    },
+                                    "kind": {
+                                      "enum": ["campus"],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["kind", "campusId"],
+                                  "type": "object"
+                                }
+                              ]
+                            },
+                            "systemKey": {
+                              "enum": ["course", "canteen"],
+                              "type": "string"
+                            },
+                            "targetId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "targetId",
+                            "selector",
+                            "expectedTargetRevision",
+                            "expectedCategoryRevision",
+                            "expectedSourceRevision",
+                            "systemKey"
+                          ],
+                          "type": "object"
                         },
                         "revision": {
                           "format": "uuid",

@@ -1,3 +1,4 @@
+import type { PendingRatingLinkAttempt } from './rating-link-pending';
 import { decodeFeedbackDraft, type FeedbackDraft } from './feedback-contract';
 import {
   decodeTradingContacts,
@@ -23,7 +24,9 @@ import {
   type PostIntent,
   type Receipt,
 } from './contract';
-export type PendingAttempt = { readonly viewSpaceId?: string } & (
+export type PendingAttempt =
+  HistoricalPendingAttempt | PendingRatingLinkAttempt;
+type HistoricalPendingAttempt = { readonly viewSpaceId?: string } & (
   | {
       readonly version: 1;
       readonly accountId: string;
@@ -97,12 +100,14 @@ function decodeAttempt(value: unknown, accountId: string): PendingAttempt {
       !isUuid(accountId)
     )
       invalid();
+    const payload = decodePostIntent(value.payload);
+    if (payload.component?.kind === 'rating_target_link') invalid();
     return Object.freeze({
       ...viewContext,
       version: 1,
       accountId,
       operation: 'publish_post',
-      payload: decodePostIntent(value.payload),
+      payload,
     });
   }
   exact(value, [

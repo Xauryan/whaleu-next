@@ -15,6 +15,18 @@ const conditions = {
     status: 400,
     message: 'Invalid institutional verification request.',
   },
+  RATING_ASSISTANCE_RATE_LIMITED: {
+    status: 429,
+    message: 'Rating suggestion budget is temporarily exhausted.',
+  },
+  RATING_ASSISTANCE_UNAVAILABLE: {
+    status: 503,
+    message: 'Rating suggestion is unavailable.',
+  },
+  RATING_ASSISTANCE_NOT_FOUND: {
+    status: 404,
+    message: 'Rating suggestion request is unavailable.',
+  },
   CAMPUS_TOOLS_UNAVAILABLE: {
     status: 503,
     message: 'Campus tools are temporarily unavailable.',

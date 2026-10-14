@@ -8,8 +8,10 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import type { PoolClient } from 'pg';
+import type { ModuleRef } from '@nestjs/core';
 import type { CampusService } from '../src/campus/campus.service.js';
 import type {
+  Decision,
   VisibilityPurpose,
   VisibilitySubject,
 } from '../src/community/community-policy.js';
@@ -26,12 +28,18 @@ import { ContentDefinitionRepository } from '../src/community/content-review/con
 import {
   approvalDigest,
   canonicalEnvelope,
+  canonicalJson,
   operationForKind,
 } from '../src/community/content-review/contracts.js';
 import type { ContentKind } from '../src/community/content-review/contracts.js';
 import type { DefinitionPost } from '../src/community/content-review/definition-validation.js';
 import { LocalApprovedContentVisibility } from '../src/community/content-review/local-approved-content-visibility.js';
 import { SearchReadContext } from '../src/community/content-review/search-read-context.js';
+import { reviewedRatingTargetLinkSchema } from '../src/community/rating-target-link/contracts.js';
+import type { RatingTargetBinding } from '../src/community/rating-target-link/contracts.js';
+import { CurrentRatingLinkDependency } from '../src/community/rating-target-link/dependency.js';
+import { RatingTargetLinkFacade } from '../src/ratings/target-link/facade.js';
+import type { CurrentRatingTargetLink } from '../src/ratings/target-link/facade.js';
 import {
   searchPost,
   searchReply,
@@ -349,12 +357,45 @@ test('nested and concurrent different-key loads preserve all same-owner entries'
   }
 });
 
-function fixture(collision = false) {
+function fixture(collision = false, options: { ratingLink?: boolean } = {}) {
   const author = randomUUID(),
     viewer = randomUUID(),
     spaceId = randomUUID(),
     regionId = randomUUID();
   const now = Date.parse('2026-10-07T12:00:00Z');
+  const targetId = randomUUID(),
+    ancestry = Array.from({ length: 3 }, () => ({
+      categoryId: randomUUID(),
+      revision: randomUUID(),
+    }));
+  const ratingLink = options.ratingLink
+    ? reviewedRatingTargetLinkSchema.parse({
+        kind: 'rating_target_link',
+        targetId,
+        label: '课程讨论',
+        binding: {
+          version: 1,
+          targetId,
+          categoryId: ancestry[2]!.categoryId,
+          targetRevision: randomUUID(),
+          definitionRevision: randomUUID(),
+          contentVersion: 1,
+          originSourceId: randomUUID(),
+          sourceId: randomUUID(),
+          sourceRevision: randomUUID(),
+          placementRevision: randomUUID(),
+          categoryRevision: ancestry[2]!.revision,
+          catalogId: randomUUID(),
+          headRevision: randomUUID(),
+          protocolGeneration: randomUUID(),
+          sourceDigest: 'a'.repeat(64),
+          selector: { kind: 'global' },
+          originRegionId: null,
+          systemKey: 'course',
+          ancestry,
+        },
+      })
+    : null;
   const post: DefinitionPost = {
     id: randomUUID(),
     space_id: spaceId,
@@ -367,6 +408,7 @@ function fixture(collision = false) {
     deleted_at: null,
     published_at: new Date(now - 10000),
     publication_state: 'published',
+    ...(ratingLink ? { publication_envelope_version: 5 as const } : {}),
   };
   const root: StoredComment = {
     id: collision ? post.id : randomUUID(),
@@ -407,8 +449,9 @@ function fixture(collision = false) {
     approvals = new Map<string, ApprovalRow>();
   const key = (kind: ContentKind, id: string) => `${kind}:${id}`;
   for (const { kind, node } of nodes) {
+    const ownLink = kind === 'post' ? ratingLink : null;
     const envelope = canonicalEnvelope({
-      version: 1,
+      version: ownLink ? 5 : 1,
       accountId: node.account_id,
       purpose: operationForKind(kind),
       spaceId,
@@ -420,7 +463,7 @@ function fixture(collision = false) {
       targetReplyId: null,
       text: node.text,
       images: [],
-      component: { kind: 'none' },
+      component: ownLink ?? { kind: 'none' },
       trading: null,
       scope: {
         originalSpaceId: spaceId,
@@ -435,7 +478,7 @@ function fixture(collision = false) {
       id: randomUUID(),
       account_id: node.account_id,
       operation: envelope.purpose,
-      envelope_version: 1,
+      envelope_version: envelope.version,
       digest: approvalDigest(envelope),
       envelope,
       policy_revision_id: randomUUID(),
@@ -470,7 +513,7 @@ function fixture(collision = false) {
       decision_id: row.id,
       account_id: node.account_id,
       operation: envelope.purpose,
-      envelope_version: 1,
+      envelope_version: envelope.version,
       digest: row.digest,
       envelope,
       scope: envelope.scope,
@@ -525,6 +568,12 @@ function fixture(collision = false) {
               }
             : undefined,
         );
+      if (sql.includes('whaleu_community.post_rating_target_links'))
+        return one(
+          ratingLink && (args[0] as string[]).includes(post.id)
+            ? { post_id: post.id, component: ratingLink }
+            : undefined,
+        );
       if (sql.includes('whaleu_community.posts'))
         return one(args[0] === post.id ? post : undefined);
       if (sql.includes('whaleu_community.spaces'))
@@ -571,9 +620,52 @@ function fixture(collision = false) {
     },
   } as unknown as CampusService;
   const definitions = new ContentDefinitionRepository(campuses);
+  // Only the Ratings owner is doubled: real dependency lookup, stored-link
+  // parsing, approval validation and definition reconstruction remain intact.
+  const targetCalls: { viewer: string | null }[] = [];
+  const targetQualifications = new Map<
+    string | null,
+    Decision<CurrentRatingTargetLink>['kind']
+  >();
+  const targetOwner = {
+    currentBatch: async (
+      currentViewer: string | null,
+      bindings: readonly RatingTargetBinding[],
+      client: PoolClient,
+    ): Promise<ReadonlyMap<string, Decision<CurrentRatingTargetLink>>> => {
+      assert.equal(client, tx);
+      assert.ok(ratingLink, 'Legacy content has no Ratings dependency');
+      assert.deepEqual(bindings, [ratingLink.binding]);
+      targetCalls.push({ viewer: currentViewer });
+      const kind = targetQualifications.get(currentViewer) ?? 'allow';
+      const decision: Decision<CurrentRatingTargetLink> =
+        kind === 'allow'
+          ? {
+              kind,
+              value: {
+                name: 'Current qualified course',
+                generation: ratingLink.binding.headRevision,
+                selector: ratingLink.binding.selector,
+                validUntil: now + 60000,
+              },
+            }
+          : kind === 'deny'
+            ? { kind, reason: 'POST_NOT_FOUND' }
+            : { kind };
+      return new Map([[canonicalJson(ratingLink.binding), decision]]);
+    },
+  } satisfies Pick<RatingTargetLinkFacade, 'currentBatch'>;
+  const modules = {
+    get: (token: unknown) => {
+      assert.equal(token, RatingTargetLinkFacade);
+      return targetOwner;
+    },
+  } as unknown as ModuleRef;
   const base = new LocalApprovedContentVisibility(
     new ApprovalRepository(),
     definitions,
+    undefined,
+    new CurrentRatingLinkDependency(modules),
   );
   const subject = (
     kind: ContentKind,
@@ -606,6 +698,14 @@ function fixture(collision = false) {
     root,
     reply,
     sibling,
+    ratingLink,
+    targetCalls,
+    setTargetQualification: (
+      currentViewer: string | null,
+      kind: Decision<CurrentRatingTargetLink>['kind'],
+    ) => {
+      targetQualifications.set(currentViewer, kind);
+    },
     nodes,
     calls,
     bindings,
@@ -1063,5 +1163,198 @@ test('Safety decisions stay viewer- and purpose-specific and are never reused wi
   } finally {
     read.close();
     clearTransactionDeadlines(f.tx);
+  }
+});
+
+test('v5 canonical facts are shared across viewer and purpose while target qualification stays per call in either order', async () => {
+  for (const deniedViewer of [randomUUID(), null]) {
+    for (const reverse of [false, true]) {
+      const f = fixture(false, { ratingLink: true });
+      f.setTargetQualification(deniedViewer, 'deny');
+      const read = new SearchReadContext(f.tx);
+      const sequence: {
+        viewer: string | null;
+        purpose: VisibilityPurpose;
+        expected: 'allow' | 'deny';
+      }[] = [
+        { viewer: f.viewer, purpose: 'list_projection', expected: 'allow' },
+        { viewer: deniedViewer, purpose: 'direct_post', expected: 'deny' },
+        { viewer: f.viewer, purpose: 'detail_projection', expected: 'allow' },
+        { viewer: deniedViewer, purpose: 'list_projection', expected: 'deny' },
+        { viewer: f.viewer, purpose: 'named_interaction', expected: 'allow' },
+        {
+          viewer: deniedViewer,
+          purpose: 'detail_projection',
+          expected: 'deny',
+        },
+      ];
+      if (reverse) sequence.reverse();
+      try {
+        for (const [
+          index,
+          { viewer, purpose, expected },
+        ] of sequence.entries()) {
+          assert.deepEqual(
+            await f.base.check(
+              viewer,
+              f.subject('post', f.post),
+              f.tx,
+              purpose,
+              read,
+            ),
+            expected === 'allow'
+              ? { kind: 'allow', value: undefined }
+              : { kind: 'deny', reason: 'POST_NOT_FOUND' },
+          );
+          assert.equal(f.targetCalls.length, index + 1);
+          assert.equal(f.targetCalls[index]!.viewer, viewer);
+        }
+        assert.equal(f.count('content_approval_bindings'), 1);
+        assert.equal(f.count('content_approval_decisions'), 1);
+        assert.equal(f.count('whaleu_community.post_rating_target_links'), 1);
+        assert.equal(f.count('whaleu_community.posts'), 1);
+      } finally {
+        read.close();
+        clearTransactionDeadlines(f.tx);
+      }
+    }
+  }
+});
+
+test('v5 target qualification changes for the same viewer and purpose never reuse a previous allow or denial', async () => {
+  const f = fixture(false, { ratingLink: true });
+  const read = new SearchReadContext(f.tx);
+  const purposes: VisibilityPurpose[] = [
+    'list_projection',
+    'direct_post',
+    'detail_projection',
+    'named_interaction',
+  ];
+  let checks = 0;
+  try {
+    for (const purpose of purposes) {
+      for (const kind of [
+        'allow',
+        'deny',
+        'allow',
+        'unavailable',
+        'allow',
+      ] as const) {
+        f.setTargetQualification(f.viewer, kind);
+        assert.deepEqual(
+          await f.base.check(
+            f.viewer,
+            f.subject('post', f.post),
+            f.tx,
+            purpose,
+            read,
+          ),
+          kind === 'allow'
+            ? { kind, value: undefined }
+            : kind === 'deny'
+              ? { kind, reason: 'POST_NOT_FOUND' }
+              : { kind },
+        );
+        assert.equal(f.targetCalls.length, ++checks);
+      }
+    }
+    assert.equal(f.count('content_approval_bindings'), 1);
+    assert.equal(f.count('content_approval_decisions'), 1);
+    assert.equal(f.count('whaleu_community.post_rating_target_links'), 1);
+  } finally {
+    read.close();
+    clearTransactionDeadlines(f.tx);
+  }
+});
+
+test('v5 immutable link propagates through cached post, root and reply proofs in ancestor-first and descendant-first order', async () => {
+  for (const descendantFirst of [false, true]) {
+    const f = fixture(false, { ratingLink: true });
+    const read = new SearchReadContext(f.tx);
+    const sequence = descendantFirst
+      ? [f.nodes[2], f.nodes[3], f.nodes[1], f.nodes[0]]
+      : [...f.nodes];
+    let checks = 0;
+    try {
+      for (const kind of [
+        'deny',
+        'allow',
+        'unavailable',
+        'deny',
+        'allow',
+      ] as const) {
+        f.setTargetQualification(f.viewer, kind);
+        for (const { kind: contentKind, node } of sequence) {
+          assert.deepEqual(
+            await f.base.check(
+              f.viewer,
+              f.subject(contentKind, node),
+              f.tx,
+              'list_projection',
+              read,
+            ),
+            kind === 'allow'
+              ? { kind, value: undefined }
+              : kind === 'deny'
+                ? { kind, reason: 'POST_NOT_FOUND' }
+                : { kind },
+            `${contentKind}: ${kind}; descendantFirst=${descendantFirst}`,
+          );
+          assert.equal(
+            f.targetCalls.length,
+            ++checks,
+            'One current target proof per outer check, including cached descendants',
+          );
+        }
+      }
+      for (const { kind, node } of f.nodes) {
+        const binding = f.bindings.get(f.key(kind, node.id))!;
+        assert.equal(f.count('content_approval_bindings', node.id), 1);
+        assert.equal(
+          f.count('content_approval_decisions', binding.decision_id),
+          1,
+        );
+        assert.equal(binding.envelope_version, kind === 'post' ? 5 : 1);
+      }
+      assert.equal(f.count('whaleu_community.post_rating_target_links'), 1);
+    } finally {
+      read.close();
+      clearTransactionDeadlines(f.tx);
+    }
+  }
+});
+
+test('v5 current target qualification cannot authorize malformed canonical approval or a changed persisted card label', async () => {
+  for (const damage of ['approval_digest', 'stored_label'] as const) {
+    const f = fixture(false, { ratingLink: true });
+    if (damage === 'approval_digest') {
+      const binding = f.bindings.get(f.key('post', f.post.id))!;
+      f.approvals.get(binding.decision_id)!.digest = '0'.repeat(64);
+    } else {
+      f.ratingLink!.label = 'Unreviewed';
+    }
+    const read = new SearchReadContext(f.tx);
+    try {
+      for (const { kind, node } of f.nodes) {
+        assert.deepEqual(
+          await f.base.check(
+            f.viewer,
+            f.subject(kind, node),
+            f.tx,
+            'list_projection',
+            read,
+          ),
+          { kind: 'unavailable' },
+        );
+      }
+      assert.equal(
+        f.targetCalls.length,
+        0,
+        'Canonical validation must finish before target qualification',
+      );
+    } finally {
+      read.close();
+      clearTransactionDeadlines(f.tx);
+    }
   }
 });

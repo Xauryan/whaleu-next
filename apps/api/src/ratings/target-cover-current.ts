@@ -1,3 +1,4 @@
+import { observeDependencyReadBytes } from '../database/dependency-read-budget.js';
 import {
   ratingsMediaMutationActive,
   collectRatingsMediaMutationRead,
@@ -19,6 +20,7 @@ import { ratingsMediaDescriptorSchema } from '../media/contracts-ratings.js';
 import type { RatingsMediaContentFact } from '../media/ratings-content-snapshot.facade.js';
 import { RATING_SCOPED_BYTE_LIMIT } from './scoped/constants.js';
 
+export { withDependencyReadBudget as withRatingReadBudget } from '../database/dependency-read-budget.js';
 const ledgers = new WeakMap<PoolClient, { epoch: object; bytes: number }>();
 /** One transaction ledger for cover metadata AND the complete Ratings pool. */
 export function retainRatingReadBytes(tx: PoolClient, value: unknown): void {
@@ -37,6 +39,7 @@ export function retainRatingReadByteCount(tx: PoolClient, bytes: number): void {
   }
   if (!Number.isSafeInteger(bytes) || bytes < 0)
     throw new ApplicationError('RATING_UNAVAILABLE');
+  observeDependencyReadBytes(tx, bytes);
   ledger.bytes += bytes;
   if (ledger.bytes > RATING_SCOPED_BYTE_LIMIT)
     throw new ApplicationError('RATING_UNAVAILABLE');

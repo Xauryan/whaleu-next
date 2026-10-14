@@ -516,6 +516,10 @@ export async function renderErrandsOpenApiDocument(): Promise<string> {
 
 /** Tooling-only rating routes. No live database, issuer or provider. */
 export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
+  const { RatingAssistanceController } =
+    await import('../src/ratings/assistance/controller.js');
+  const { RatingAssistanceService } =
+    await import('../src/ratings/assistance/service.js');
   const { DishRecommendationsController } =
     await import('../src/ratings/windows/dishes/controller.js');
   const { DishRecommendationsService } =
@@ -720,6 +724,18 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       throw new Error(
         'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
       );
+  for (const method of ['create', 'status', 'result', 'cancel']) {
+    if (
+      !Reflect.hasMetadata(
+        PARAMTYPES_METADATA,
+        RatingAssistanceController.prototype,
+        method,
+      )
+    )
+      throw new Error(
+        'OpenAPI requires TypeScript decorator metadata; use npm run openapi:build.',
+      );
+  }
   const fail = () => {
     throw new Error('OpenAPI must not execute application work');
   };
@@ -740,6 +756,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       RatingManagementController,
       RatingCategoryManagementController,
       RatingCategoryScopedManagementController,
+      RatingAssistanceController,
       RatingTargetOwnerDeletionController,
       RatingTargetEditController,
       RatingDeletionController,
@@ -789,6 +806,7 @@ export async function createRatingsOpenApiDocument(): Promise<OpenAPIObject> {
       { provide: RatingManagementService, useValue: {} },
       { provide: RatingCategoryManagementService, useValue: {} },
       { provide: RatingCategoryScopedManagementService, useValue: {} },
+      { provide: RatingAssistanceService, useValue: {} },
       { provide: RatingTargetOwnerDeletionService, useValue: {} },
       { provide: RatingTargetEditService, useValue: {} },
       { provide: RatingDeletionService, useValue: {} },

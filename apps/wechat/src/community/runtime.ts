@@ -1,3 +1,9 @@
+import { PendingRatingLinkStore } from './rating-link-pending';
+import {
+  HttpAssistanceGateway,
+  type AssistanceGateway,
+} from '../ratings/assistance-gateway';
+import { PendingAssistanceStore } from '../ratings/assistance-pending';
 import {
   HttpSchoolIdentityGateway,
   type SchoolIdentityGateway,
@@ -269,6 +275,9 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly pendingRatingLinks?: PendingRatingLinkStore;
+  readonly assistance?: AssistanceGateway;
+  readonly pendingAssistance?: PendingAssistanceStore;
   readonly accountModeration?: ModerationGateway;
   readonly pendingAccountModeration?: PendingModerationStore;
   readonly schoolIdentity?: SchoolIdentityGateway;
@@ -411,6 +420,16 @@ export function createCommunityRuntime(
   const browsingScopeChanges = new PrivateViewLifecycle();
   const runtime: CommunityRuntime = {
     sessions: identity.sessions,
+    pendingAssistance: new PendingAssistanceStore(storage, origin),
+    pendingRatingLinks: new PendingRatingLinkStore(storage, origin),
+    ...(identity.api
+      ? {
+          assistance: new HttpAssistanceGateway(
+            identity.api,
+            identity.sessions,
+          ),
+        }
+      : {}),
     pendingRatingCategoryIcon,
     ...(identity.api
       ? {

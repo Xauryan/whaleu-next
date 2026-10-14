@@ -1,3 +1,5 @@
+import { CurrentRatingLinkDependency } from './rating-target-link/dependency.js';
+import { readRatingTargetLinks } from './rating-target-link/binding.js';
 import type { RelatedCampusDisplay } from './related-sync/contracts.js';
 import { batchCategoryChildContextAllowed } from './category-reclassification/child-context.js';
 import { resolvePostCategory } from './category-reclassification/read-proof.js';
@@ -65,6 +67,9 @@ export class CommunitySerializer {
     @Optional()
     @Inject(FeedbackProjectionService)
     private readonly feedbackProjection?: FeedbackProjectionService,
+    @Optional()
+    @Inject(CurrentRatingLinkDependency)
+    private readonly targetLinks: CurrentRatingLinkDependency = new CurrentRatingLinkDependency(),
   ) {}
   async author(
     content: StoredPost | StoredComment,
@@ -263,6 +268,15 @@ export class CommunitySerializer {
       authority,
       tx,
     );
+    const link =
+      post.publication_envelope_version === 5
+        ? (await readRatingTargetLinks([post.id], tx)).get(post.id)
+        : undefined;
+    if (post.publication_envelope_version === 5 && !link)
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    const ratingLink = link
+      ? await this.targetLinks.view(viewer, link, tx)
+      : undefined;
     const feedback =
       post.category === 'feedback'
         ? await this.feedbackProjection?.project(post, space, tx)
@@ -282,11 +296,13 @@ export class CommunitySerializer {
       ...(feedback ? { feedback } : {}),
       saveCount: saved.saveCount,
       trading: await this.trading.project(post, viewer, authority, tx),
-      component: poll
-        ? { kind: 'poll', poll }
-        : formation
-          ? { kind: 'formation', formation }
-          : { kind: 'none' },
+      component:
+        ratingLink ??
+        (poll
+          ? { kind: 'poll', poll }
+          : formation
+            ? { kind: 'formation', formation }
+            : { kind: 'none' }),
       id: post.id,
       space: { id: space.id, kind: space.kind, name: space.name },
       category: currentCategory,

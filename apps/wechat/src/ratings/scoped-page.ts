@@ -154,6 +154,14 @@ export function registerRatingScopedPage(): void {
         event.currentTarget.dataset.id ?? null,
       );
     },
+    async onRatingLinkCompose() {
+      const controller = this.controller,
+        navigator = this.navigator;
+      if (!controller || !navigator) return;
+      const path = await controller.ratingLinkComposePath();
+      if (this.controller === controller && this.navigator === navigator)
+        navigator.open(path);
+    },
     onNavigate(event: Tap) {
       const mode = event.currentTarget.dataset.mode;
       if (

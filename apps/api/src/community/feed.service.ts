@@ -150,6 +150,18 @@ export class FeedService {
         result.authorModes.includes('named') &&
         !!this.reviews &&
         (await this.reviews.available(space, tx, category));
+      if (category === 'discussion' && space.kind === 'regional')
+        result.ratingTargetLink = {
+          availability:
+            reviewAvailable && result.authorModes.length
+              ? 'allowed'
+              : 'unavailable',
+          reason:
+            reviewAvailable && result.authorModes.length
+              ? null
+              : 'CONTENT_REVIEW_UNAVAILABLE',
+          authorModes: reviewAvailable ? [...result.authorModes] : [],
+        };
       if (decision.value.runtime && reviewAvailable && category !== 'feedback')
         result.authorModes = ['named'];
       if (result.authorModes.length)

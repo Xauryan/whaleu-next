@@ -1,3 +1,4 @@
+import { CurrentRatingLinkDependency } from '../rating-target-link/dependency.js';
 import { CommunityDistributionService } from '../related-sync/service.js';
 import { MajorDiscussionMediaReviewFacade } from './major-discussion-media-review.facade.js';
 import { WindowDiscussionMediaReviewFacade } from './window-discussion-media-review.facade.js';
@@ -32,6 +33,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
 @Module({
   imports: [CampusModule],
   providers: [
+    CurrentRatingLinkDependency,
     CommunityDistributionService,
     WindowDiscussionReviewFacade,
     WindowDiscussionMediaReviewFacade,
@@ -59,6 +61,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
     LocalApprovedContentVisibility,
   ],
   exports: [
+    CurrentRatingLinkDependency,
     CommunityDistributionService,
     WindowDiscussionReviewFacade,
     WindowDiscussionMediaReviewFacade,

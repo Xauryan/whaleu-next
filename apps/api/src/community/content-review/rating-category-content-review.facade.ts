@@ -1,3 +1,7 @@
+import {
+  observeDependencyRead,
+  dependencyRows,
+} from '../../database/dependency-read-budget.js';
 import { RatingScopedContentReviewFacade } from './rating-scoped-content-review.facade.js';
 import type { RatingScopedCategorySourceDescriptor } from './rating-scoped-contracts.js';
 import { Injectable } from '@nestjs/common';
@@ -235,9 +239,9 @@ export class RatingCategoryContentReviewFacade {
         inputs.map(() => ({ kind: 'unavailable' as const })),
       );
     }
-    const rows = (
-      await tx.query<BoundRow>(
-        `WITH instant AS MATERIALIZED (SELECT clock_timestamp() now),wanted AS (
+    const rows = await dependencyRows<BoundRow>(
+      tx,
+      `WITH instant AS MATERIALIZED (SELECT clock_timestamp() now),wanted AS (
       SELECT * FROM unnest($1::uuid[],$2::uuid[]) WITH ORDINALITY w(category_id,base_revision,ordinal))
       SELECT w.ordinal::integer ordinal,to_jsonb(b) binding,a.id IS NOT NULL account_exists,
       coalesce(isfinite(b.bound_at) AND b.bound_at>=d.evaluated_at AND b.bound_at<=instant.now,false) bound_time,
@@ -249,12 +253,13 @@ export class RatingCategoryContentReviewFacade {
       LEFT JOIN whaleu_community.content_approval_policies p ON p.id=d.policy_revision_id
       LEFT JOIN whaleu_community.rating_approval_heads h ON h.decision_id=d.id
       LEFT JOIN whaleu_community.rating_approval_events e ON e.id=h.event_id AND e.decision_id=d.id ORDER BY w.ordinal`,
-        [
-          descriptors.map((item) => item.categoryId),
-          descriptors.map((item) => item.baseRevision),
-        ],
-      )
-    ).rows;
+      [
+        descriptors.map((item) => item.categoryId),
+        descriptors.map((item) => item.baseRevision),
+      ],
+      512,
+    );
+    observeDependencyRead(tx, rows);
     if (rows.length !== descriptors.length)
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     return Object.freeze(

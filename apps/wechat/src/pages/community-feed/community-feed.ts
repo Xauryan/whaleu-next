@@ -1,3 +1,4 @@
+import { RatingLinkNavigator } from '../../community/rating-link-navigation';
 import {
   PinFeedController,
   PinDetailController,
@@ -46,6 +47,7 @@ import { systemClock } from '../../platform/clock';
 import type { WhaleuApp } from '../../app';
 import { FeedController, initialFeedView } from './controller';
 Page({
+  ratingLinkNavigator: undefined as RatingLinkNavigator | undefined,
   data: {
     postPin: initialPinFeedView(),
     postPinManagement: initialPinDetailView(),
@@ -154,6 +156,13 @@ Page({
     this.pinController?.closeDismiss();
   },
   onShow() {
+    this.ratingLinkNavigator?.dispose();
+    const linkRuntime = getApp<WhaleuApp>().community;
+    this.ratingLinkNavigator = linkRuntime
+      ? new RatingLinkNavigator(wx, linkRuntime.sessions, () =>
+          this.setData({ error: '暂不能打开评分对象，请重试' }),
+        )
+      : undefined;
     this.pinManager?.dispose();
     this.pinManager = undefined;
     this.pinController?.dispose();
@@ -493,7 +502,21 @@ Page({
   onPageScroll() {
     this.namedAvatarController?.clear();
   },
+  onRatingTargetLink(event: { currentTarget: { dataset: { id?: string } } }) {
+    if (this.data.busy) return;
+    const pinnedPost = this.data.postPin.item?.post;
+    this.ratingLinkNavigator?.open(
+      this.data.posts.find(
+        (post) => post.id === event.currentTarget.dataset.id,
+      ) ??
+        (pinnedPost && pinnedPost.id === event.currentTarget.dataset.id
+          ? pinnedPost
+          : null),
+    );
+  },
   onHide() {
+    this.ratingLinkNavigator?.dispose();
+    this.ratingLinkNavigator = undefined;
     this.pinRenderRevision++;
     this.pinRenderedId = '';
     this.ordinaryPosts = [];
@@ -528,6 +551,8 @@ Page({
     this.identityOverlay = undefined;
   },
   onUnload() {
+    this.ratingLinkNavigator?.dispose();
+    this.ratingLinkNavigator = undefined;
     this.pinRenderRevision++;
     this.pinRenderedId = '';
     this.ordinaryPosts = [];

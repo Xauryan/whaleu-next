@@ -1,3 +1,4 @@
+import { readRatingTargetLinks } from '../rating-target-link/binding.js';
 import { readDistributionBindings } from '../related-sync/binding.js';
 import { readPostCategorySnapshot } from '../category-reclassification/read-proof.js';
 import { batchCategoryChildContextSnapshot } from '../category-reclassification/child-context.js';
@@ -47,6 +48,14 @@ function grouped<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
  * decompression/record construction can still allocate before that precheck. */
 export class SnapshotReadBudget {
   private remaining = COUNT_SNAPSHOT_BYTES;
+  remainingBytes(): number {
+    return this.remaining;
+  }
+  consume(bytes: number): void {
+    if (!Number.isSafeInteger(bytes) || bytes < 0 || bytes > this.remaining)
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    this.remaining -= bytes;
+  }
   async rows<T>(
     tx: PoolClient,
     sql: string,
@@ -125,6 +134,13 @@ export class ContentReviewCountRepository {
         postIds.length,
         ['deleted_at', 'published_at'],
       ),
+    );
+    const ratingTargetLinks = await readRatingTargetLinks(
+      [...posts.values()]
+        .filter((post) => post.publication_envelope_version === 5)
+        .map((post) => post.id),
+      tx,
+      budget,
     );
     const relatedPostIds = [...posts.values()]
       .filter((post) => post.publication_envelope_version === 4)
@@ -286,6 +302,7 @@ export class ContentReviewCountRepository {
       ).rows[0]?.now.getTime() ?? NaN;
     return {
       posts,
+      ...(ratingTargetLinks.size ? { ratingTargetLinks } : {}),
       ...(distributionBindings ? { distributionBindings } : {}),
       roots,
       replies,

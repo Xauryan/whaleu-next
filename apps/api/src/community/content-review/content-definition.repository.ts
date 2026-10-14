@@ -1,3 +1,4 @@
+import { readRatingTargetLinks } from '../rating-target-link/binding.js';
 import {
   readDistributionBindings,
   distributionScopeMatches,
@@ -201,6 +202,10 @@ export class ContentDefinitionRepository {
     if (images.some((image, position) => image.position !== position))
       return { kind: 'unavailable' };
     if (kind === 'post') {
+      if (post.publication_envelope_version === 5)
+        facts.ratingTargetLink = (await readRatingTargetLinks([id], tx)).get(
+          id,
+        );
       const poll = (
         await tx.query<{
           id: string;

@@ -1,3 +1,4 @@
+import { RatingTargetLinkFacade } from './target-link/facade.js';
 import { RatingScopedContextService } from './scoped/context.service.js';
 import { RatingScopedRepository } from './scoped/repository.js';
 import { RatingScopedProjection } from './scoped/projection.js';
@@ -29,6 +30,7 @@ import { RatingDiscussionProjection } from './discussion-projection.js';
     ContentReviewModule,
   ],
   providers: [
+    RatingTargetLinkFacade,
     RatingScopedContextService,
     RatingScopedRepository,
     RatingScopedProjection,
@@ -42,6 +44,7 @@ import { RatingDiscussionProjection } from './discussion-projection.js';
     RatingDiscussionProjection,
   ],
   exports: [
+    RatingTargetLinkFacade,
     RatingScopedContextService,
     RatingScopedRepository,
     RatingScopedProjection,

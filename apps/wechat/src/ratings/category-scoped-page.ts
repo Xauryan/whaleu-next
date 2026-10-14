@@ -275,6 +275,23 @@ export function registerRatingCategoryScopedPage(editorPage = false): void {
         Number(event.currentTarget.dataset.direction),
       );
     },
+    onGenerateDescription(event: Event) {
+      void this.controller?.generateDescription(
+        event.currentTarget.dataset.key,
+      );
+    },
+    onAdoptDescription() {
+      void this.controller?.adoptDescription();
+    },
+    onRecoverAssistance() {
+      void this.controller?.recoverAssistance();
+    },
+    onCancelAssistance() {
+      void this.controller?.cancelAssistance();
+    },
+    onDismissAssistance() {
+      this.controller?.dismissAssistance();
+    },
     onPrepare() {
       void this.controller?.prepare();
     },

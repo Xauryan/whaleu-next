@@ -62,6 +62,45 @@ export async function installSemanticSearch(
     );
     return true;
   };
+  const linkSql = await readFile(
+    new URL(
+      '../../../../optional-migrations/semantic-search/0003_rating_target_link_generations.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  const linkChecksum = createHash('sha256').update(linkSql).digest('hex');
+  const installLinks = async (
+    tx: import('pg').PoolClient,
+  ): Promise<boolean> => {
+    const present = (
+      await tx.query<{ present: boolean }>(
+        "SELECT to_regclass('whaleu_semantic.rating_link_installation') IS NOT NULL present",
+      )
+    ).rows[0]?.present;
+    if (present) {
+      const rows = (
+        await tx.query<{ version: number; checksum: string }>(
+          'SELECT version,checksum FROM whaleu_semantic.rating_link_installation',
+        )
+      ).rows;
+      if (
+        rows.length !== 1 ||
+        rows[0]?.version !== 3 ||
+        rows[0]?.checksum !== linkChecksum
+      )
+        throw new Error(
+          'Optional semantic rating-link installation history mismatch',
+        );
+      return false;
+    }
+    await tx.query(linkSql);
+    await tx.query(
+      'INSERT INTO whaleu_semantic.rating_link_installation(version,checksum) VALUES(3,$1)',
+      [linkChecksum],
+    );
+    return true;
+  };
   const base = await readMigrations(
     fileURLToPath(new URL('../../../../migrations/', import.meta.url)),
   );
@@ -131,7 +170,9 @@ export async function installSemanticSearch(
         !extension?.valid
       )
         throw new Error('Optional semantic installation history mismatch');
-      const upgraded = await installMedia(tx);
+      const mediaUpgraded = await installMedia(tx);
+      const linkUpgraded = await installLinks(tx);
+      const upgraded = mediaUpgraded || linkUpgraded;
       await tx.query('COMMIT');
       begun = false;
       return upgraded ? 'installed' : 'already_installed';
@@ -150,6 +191,7 @@ export async function installSemanticSearch(
       [checksum],
     );
     await installMedia(tx);
+    await installLinks(tx);
     await tx.query('COMMIT');
     begun = false;
     return 'installed';

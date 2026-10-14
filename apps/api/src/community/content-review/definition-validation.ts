@@ -1,3 +1,4 @@
+import type { ReviewedRatingTargetLink } from '../rating-target-link/contracts.js';
 import type { Decision } from '../community-policy.js';
 import type {
   StoredComment,
@@ -70,6 +71,7 @@ export interface DefinitionListing {
   resolution?: string;
 }
 export interface DefinitionPayload {
+  ratingTargetLink?: ReviewedRatingTargetLink | undefined;
   images: DefinitionImage[];
   poll?: DefinitionPoll | undefined;
   options: DefinitionOption[];
@@ -120,14 +122,23 @@ export function reconstructDefinition(
   parents: CurrentContent['parents'],
   facts: DefinitionPayload,
 ): Decision<CurrentContent> {
-  const { images, poll, options, formation, creators, listing } = facts;
+  const {
+    images,
+    poll,
+    options,
+    formation,
+    creators,
+    listing,
+    ratingTargetLink,
+  } = facts;
   if (images.some((image, position) => image.position !== position))
     return { kind: 'unavailable' };
   let component: EffectiveContentEnvelope['component'] = { kind: 'none' };
   let trading: EffectiveContentEnvelope['trading'] = null;
   if (kind === 'post') {
-    if ([poll, formation, listing].filter(Boolean).length > 1)
+    if ([poll, formation, listing, ratingTargetLink].filter(Boolean).length > 1)
       return { kind: 'unavailable' };
+    if (ratingTargetLink) component = ratingTargetLink;
     if (poll) {
       if (
         poll.deadline !== null ||
@@ -188,6 +199,15 @@ export function reconstructDefinition(
       : scope.sync === 'inherited_related'
         ? 4
         : 1;
+  if (
+    kind === 'post' &&
+    ((version === 5) !== !!ratingTargetLink ||
+      (version === 5 &&
+        (images.length !== 0 ||
+          scope.sync !== 'none' ||
+          post.allow_anonymous_dm != null)))
+  )
+    return { kind: 'unavailable' };
   if (
     (post.publication_envelope_version === 4) !== (version === 4) ||
     (version === 4 &&

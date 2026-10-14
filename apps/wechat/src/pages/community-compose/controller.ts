@@ -1,3 +1,21 @@
+import { systemClock } from '../../platform/clock';
+import {
+  AssistanceController,
+  initialAssistanceView,
+  type AssistanceView,
+} from '../../ratings/assistance-controller';
+import {
+  decodeRatingScopedCommandContext,
+  canonicalRatingScopedJson,
+  type RatingScopedContext,
+} from '../../ratings/scoped-contract';
+import {
+  decodeRatingTargetLinkComponent,
+  ratingLinkFallback,
+  ratingLinkLabel,
+  type RatingTargetLinkCapability,
+  type RatingLinkHandoff,
+} from '../../community/rating-link-contract';
 import {
   emptyFeedbackDraft,
   feedbackDraftInput,
@@ -72,6 +90,7 @@ export type ComposeTarget = { readonly viewSpaceId?: string } & (
       readonly operation: 'publish_post';
       readonly spaceId: string;
       readonly category: Category;
+      readonly ratingLink?: RatingLinkHandoff;
     }
   | { readonly operation: 'publish_comment'; readonly postId: string }
   | {
@@ -82,6 +101,10 @@ export type ComposeTarget = { readonly viewSpaceId?: string } & (
     }
 );
 export interface ComposeView extends CommunityView {
+  readonly assistance: AssistanceView;
+  readonly ratingLinkName: string;
+  readonly ratingLinkLabel: string;
+  readonly hasRatingLink: boolean;
   readonly syncToRelatedCampuses: boolean;
   readonly canChooseRelatedCampusSync: boolean;
   readonly relatedCampusSyncNotice: string;
@@ -132,6 +155,10 @@ export interface ComposeView extends CommunityView {
 }
 export const initialComposeView = (): ComposeView => ({
   ...initialCommunityView(),
+  assistance: initialAssistanceView(),
+  ratingLinkName: '',
+  ratingLinkLabel: '',
+  hasRatingLink: false,
   syncToRelatedCampuses: false,
   canChooseRelatedCampusSync: false,
   relatedCampusSyncNotice: '',
@@ -232,6 +259,11 @@ const attemptTarget = (attempt: PendingAttempt): ComposeTarget =>
           targetReplyId: attempt.payload.targetReplyId,
         };
 export class ComposeController extends CommunityController<ComposeView> {
+  private readonly assistance: AssistanceController;
+  private ratingLink: RatingTargetLinkCapability | null = null;
+  private ratingLinkContext: RatingScopedContext | null = null;
+  private linkExpiry: (() => void) | null = null;
+  private readonly linkUnsubscriptions: readonly (() => void)[];
   private readonly uploader: MediaUploadController | undefined;
   private readonly batcher: MediaBatchController | undefined;
   private mediaMode: 'legacy' | 'batch' | 'conflict' = 'legacy';
@@ -255,6 +287,32 @@ export class ComposeController extends CommunityController<ComposeView> {
     } | null = null,
   ) {
     super(runtime, initialComposeView, render);
+    this.assistance = new AssistanceController(
+      runtime,
+      (assistance) => this.update({ assistance }),
+      () => this.editable(),
+    );
+    const invalidateLink = () => {
+      if (!this.ratingLink && !this.isRatingLinkJourney()) return;
+      this.stop();
+      this.assistance.invalidate();
+      this.ratingLink = null;
+      this.ratingLinkContext = null;
+      this.update({
+        ratingLinkName: '',
+        ratingLinkLabel: '',
+        hasRatingLink: false,
+        text: '',
+        loaded: false,
+        canSubmit: false,
+        error: '评分对象、身份或范围已变化，请重新加载；原发布请求仍受保护',
+      });
+    };
+    this.linkUnsubscriptions = [
+      runtime.ratingTargetChanges?.subscribe(invalidateLink),
+      runtime.ratingCatalogChanges?.subscribe(invalidateLink),
+      runtime.browsingScopeChanges?.subscribe(invalidateLink),
+    ].filter((v): v is () => void => !!v);
     try {
       this.mediaMode =
         runtime.mediaBatch && this.accountId()
@@ -264,7 +322,12 @@ export class ComposeController extends CommunityController<ComposeView> {
       this.mediaMode = 'conflict';
     }
     this.batcher = runtime.mediaBatch?.create((view) => {
-      if (this.mediaDisposed || this.mediaMode === 'legacy') return;
+      if (
+        this.mediaDisposed ||
+        this.isRatingLinkJourney() ||
+        this.mediaMode === 'legacy'
+      )
+        return;
       this.update({
         batchMode: true,
         mediaStatus: view.status,
@@ -281,7 +344,12 @@ export class ComposeController extends CommunityController<ComposeView> {
       this.recompute();
     }, this.target?.operation);
     this.uploader = runtime.mediaUpload?.create((view) => {
-      if (this.mediaDisposed || this.mediaMode !== 'legacy') return;
+      if (
+        this.mediaDisposed ||
+        this.isRatingLinkJourney() ||
+        this.mediaMode !== 'legacy'
+      )
+        return;
       this.update({
         mediaStatus: view.status,
         mediaProgress: view.progress,
@@ -291,12 +359,139 @@ export class ComposeController extends CommunityController<ComposeView> {
       this.recompute();
     });
   }
+  private isRatingLinkJourney(): boolean {
+    // A pre-existing historical command always wins over a new rating-card route.
+    return this.pending
+      ? this.pending.version === 5
+      : this.target?.operation === 'publish_post' && !!this.target.ratingLink;
+  }
+  protected override update(patch: Partial<ComposeView>): void {
+    const keys = [
+      'text',
+      'authorMode',
+      'commentsPolicy',
+      'ratingLinkLabel',
+      'ratingLinkName',
+      'hasRatingLink',
+      'frozen',
+      'syncToRelatedCampuses',
+    ] as const;
+    if (
+      this.assistance &&
+      keys.some((key) => key in patch && patch[key] !== this.view[key])
+    )
+      this.assistance.invalidate();
+    super.update(patch);
+  }
+  private loadPending(accountId: string): PendingAttempt | null {
+    const legacy = this.runtime.pending.load(accountId),
+      link = this.runtime.pendingRatingLinks?.load(accountId) ?? null;
+    if (legacy && link)
+      throw new ClientError(
+        'storage',
+        'Conflicting publication journals require original-key recovery',
+      );
+    return legacy ?? link;
+  }
+  setRatingLinkLabel(value: string): void {
+    if (!this.editable() || !this.ratingLink) return;
+    this.update({ ratingLinkLabel: value });
+    this.recompute();
+  }
+  removeRatingLink(): void {
+    if (!this.editable()) return;
+    try {
+      if (
+        this.target &&
+        this.runtime.drafts.load(this.accountId()!, targetKey(this.target))
+      ) {
+        this.update({
+          error:
+            '此范围已有普通草稿，请先从普通发帖入口处理；不会用评分卡片草稿覆盖它',
+        });
+        return;
+      }
+    } catch (error) {
+      this.update({ error: communityError(error) });
+      return;
+    }
+    this.assistance.invalidate();
+    this.ratingLink = null;
+    this.ratingLinkContext = null;
+    this.update({
+      hasRatingLink: false,
+      ratingLinkName: '',
+      ratingLinkLabel: '',
+    });
+    this.recompute();
+  }
+  async generateRatingLabel(): Promise<void> {
+    const link = this.ratingLink,
+      context = this.ratingLinkContext,
+      target = this.target;
+    if (
+      !this.editable() ||
+      !link ||
+      !context ||
+      this.capabilities?.ratingTargetLink?.availability !== 'allowed' ||
+      !this.capabilities.ratingTargetLink.authorModes.includes(
+        this.view.authorMode,
+      ) ||
+      target?.operation !== 'publish_post' ||
+      context.purpose !== 'read' ||
+      context.mode !== 'public' ||
+      context.heads.length !== 1
+    )
+      return;
+    await this.assistance.generate({
+      purpose: 'rating_publish_title',
+      selector: link.selector,
+      context: decodeRatingScopedCommandContext({
+        id: context.id,
+        token: context.token,
+        tokenDigest: context.tokenDigest,
+        selector: context.selector,
+        scopeRevision: context.scopeRevision,
+        protocolGeneration: context.protocolGeneration,
+        catalogRevision: context.heads[0]!.catalogRevision,
+        headRevision: context.heads[0]!.headRevision,
+        sourceDigest: context.sourceDigest,
+      }),
+      payload: {
+        targetId: link.targetId,
+        expectedTargetRevision: link.expectedTargetRevision,
+        expectedCategoryRevision: link.expectedCategoryRevision,
+        expectedSourceRevision: link.expectedSourceRevision,
+        destination: {
+          spaceId: target.spaceId,
+          category: 'discussion',
+          authorMode: this.view.authorMode,
+        },
+      },
+    });
+  }
+  adoptRatingLabel(): Promise<void> {
+    return this.assistance.adopt((text) => this.setRatingLinkLabel(text));
+  }
+  recoverAssistance(): Promise<void> {
+    return this.assistance.recover();
+  }
+  cancelAssistance(): Promise<void> {
+    return this.assistance.cancel();
+  }
+  dismissAssistance(): void {
+    this.assistance.dismiss();
+  }
   private useBatch(): boolean {
-    return this.mediaMode === 'batch' && !!this.batcher;
+    return (
+      !this.isRatingLinkJourney() &&
+      this.mediaMode === 'batch' &&
+      !!this.batcher
+    );
   }
   private activeUploader():
     MediaBatchController | MediaUploadController | undefined {
-    return this.mediaMode === 'conflict'
+    return this.isRatingLinkJourney() || this.mediaMode === 'conflict'
       ? undefined
       : this.useBatch()
         ? this.batcher
@@ -329,6 +524,11 @@ export class ComposeController extends CommunityController<ComposeView> {
     }
   }
   protected override resetPrivate(): void {
+    this.assistance?.invalidate();
+    this.ratingLink = null;
+    this.ratingLinkContext = null;
+    this.linkExpiry?.();
+    this.linkExpiry = null;
     this.mediaGeneration++;
     this.mediaAction = null;
     this.uploader?.hide();
@@ -359,7 +559,7 @@ export class ComposeController extends CommunityController<ComposeView> {
       void this.recoverImage();
     }
     try {
-      const pending = this.runtime.pending.load(accountId);
+      const pending = this.loadPending(accountId);
       if (pending) {
         this.showPending(pending);
         return;
@@ -382,6 +582,18 @@ export class ComposeController extends CommunityController<ComposeView> {
     }
     if (!this.runtime.profiles) return;
     const target = this.target;
+    if (
+      target.operation === 'publish_post' &&
+      target.ratingLink?.actorId !== undefined &&
+      target.ratingLink.actorId !== accountId
+    ) {
+      this.update({
+        loaded: false,
+        error: '此评分卡片入口属于另一登录账号，请从当前评分对象重新进入',
+      });
+      return;
+    }
+    this.assistance.refresh();
     await this.run(
       async (cancel) => {
         const [profile, post] = await Promise.all([
@@ -411,6 +623,57 @@ export class ComposeController extends CommunityController<ComposeView> {
                 cancel,
               )
             : null;
+        let linkRead: {
+          capability: RatingTargetLinkCapability;
+          context: RatingScopedContext;
+          name: string;
+        } | null = null;
+        if (target.operation === 'publish_post' && target.ratingLink) {
+          if (
+            target.category !== 'discussion' ||
+            !this.runtime.ratingScoped ||
+            !this.runtime.pendingRatingLinks
+          )
+            throw new ClientError(
+              'configuration',
+              'Rating link owner unavailable',
+            );
+          const handoff = target.ratingLink,
+            context = await this.runtime.ratingScoped.context(
+              { purpose: 'read', mode: 'public', selector: handoff.selector },
+              cancel,
+            );
+          if (
+            Date.parse(context.expiresAt) <= systemClock.now() ||
+            context.actorId !== accountId ||
+            context.mode !== 'public' ||
+            context.purpose !== 'read' ||
+            context.heads.length !== 1 ||
+            canonicalRatingScopedJson(context.selector) !==
+              canonicalRatingScopedJson(handoff.selector)
+          )
+            throw new ClientError('protocol', 'Rating link context mismatch');
+          const [rating, spaces] = await Promise.all([
+            this.runtime.ratingScoped.detail(context, handoff.targetId, cancel),
+            this.runtime.gateway!.spaces(handoff.destinationCampusId, cancel),
+          ]);
+          const capability = rating.ratingTargetLink;
+          if (
+            !capability ||
+            rating.id !== handoff.targetId ||
+            capability.targetId !== rating.id ||
+            capability.expectedTargetRevision !== rating.revision ||
+            canonicalRatingScopedJson(capability.selector) !==
+              canonicalRatingScopedJson(handoff.selector) ||
+            !spaces.regional?.isActive ||
+            spaces.regional.id !== target.spaceId
+          )
+            throw new ClientError(
+              'business',
+              'Current rating target or destination unavailable',
+            );
+          linkRead = { capability, context, name: rating.name };
+        }
         let replyTargetName = '';
         if (target.operation === 'publish_reply') {
           const root = await this.runtime.gateway!.comment(
@@ -472,11 +735,12 @@ export class ComposeController extends CommunityController<ComposeView> {
           commentCapability,
           replyTargetName,
           copiedText,
+          linkRead,
         };
       },
       (result) => {
         // Another page may have frozen a request while profile/capabilities were loading.
-        const pending = this.runtime.pending.load(accountId);
+        const pending = this.loadPending(accountId);
         if (pending) {
           this.showPending(pending);
           return;
@@ -496,7 +760,36 @@ export class ComposeController extends CommunityController<ComposeView> {
             throw error;
           }
         }
-        const draft = this.runtime.drafts.load(accountId, targetKey(target));
+        this.ratingLink = result.linkRead?.capability ?? null;
+        this.ratingLinkContext = result.linkRead?.context ?? null;
+        this.linkExpiry?.();
+        this.linkExpiry = null;
+        if (result.linkRead)
+          this.linkExpiry = systemClock.schedule(
+            () => {
+              this.assistance.invalidate();
+              this.ratingLink = null;
+              this.ratingLinkContext = null;
+              if (this.pending) {
+                this.update({ ratingLinkName: '' });
+                return;
+              }
+              this.stop();
+              this.update({
+                text: '',
+                ratingLinkLabel: '',
+                ratingLinkName: '',
+                hasRatingLink: false,
+                loaded: false,
+                canSubmit: false,
+                error: '评分对象查看凭据已过期，请重新加载',
+              });
+            },
+            Date.parse(result.linkRead.context.expiresAt) - systemClock.now(),
+          );
+        const draft = this.isRatingLinkJourney()
+          ? null
+          : this.runtime.drafts.load(accountId, targetKey(target));
         const forced =
           result.commentCapability?.forcedAuthorMode === 'anonymous' ||
           (result.post?.viewer.isSelf === true &&
@@ -539,6 +832,18 @@ export class ComposeController extends CommunityController<ComposeView> {
         this.identityConflict = chosen.conflict;
         this.update({
           loaded: true,
+          hasRatingLink: !!result.linkRead,
+          ratingLinkName: result.linkRead?.name ?? '',
+          ratingLinkLabel: result.linkRead
+            ? ratingLinkFallback(result.linkRead.name)
+            : '',
+          ...(result.linkRead
+            ? {
+                canSelectImage: false,
+                mediaNotice:
+                  '评分卡片仅支持本地区普通文字讨论；正文与卡片标签分别填写',
+              }
+            : {}),
           viewSpaceQuery: target.viewSpaceId
             ? `&viewSpaceId=${encodeURIComponent(target.viewSpaceId)}`
             : '',
@@ -550,6 +855,7 @@ export class ComposeController extends CommunityController<ComposeView> {
             target.operation === 'publish_post' &&
             !trading &&
             !feedback &&
+            !result.linkRead &&
             result.capability?.relatedCampusSync?.availability === 'allowed',
           relatedCampusSyncNotice:
             target.operation === 'publish_post' && !trading && !feedback
@@ -572,20 +878,29 @@ export class ComposeController extends CommunityController<ComposeView> {
               ? (draft?.poll ?? emptyPollDraft())
               : emptyPollDraft(),
           canAddPoll:
-            target.operation === 'publish_post' && !trading && !feedback,
+            target.operation === 'publish_post' &&
+            !trading &&
+            !feedback &&
+            !result.linkRead,
           formationDraft:
             target.operation === 'publish_post' && !trading && !feedback
               ? (draft?.formation ?? emptyFormationDraft())
               : emptyFormationDraft(),
           canAddFormation:
-            target.operation === 'publish_post' && !trading && !feedback,
+            target.operation === 'publish_post' &&
+            !trading &&
+            !feedback &&
+            !result.linkRead,
           authorMode: chosen.mode,
           canChooseAnonymousDm:
-            target.operation === 'publish_post' && !feedback,
-          allowAnonymousDm:
-            draft?.allowAnonymousDm ??
-            result.profile.preferences.defaultAllowAnonymousDm ??
-            false,
+            target.operation === 'publish_post' &&
+            !feedback &&
+            !result.linkRead,
+          allowAnonymousDm: result.linkRead
+            ? false
+            : (draft?.allowAnonymousDm ??
+              result.profile.preferences.defaultAllowAnonymousDm ??
+              false),
           commentsPolicy: draft?.commentsPolicy ?? 'open',
           identityForced: forced || trading,
           canDisableComments:
@@ -612,8 +927,21 @@ export class ComposeController extends CommunityController<ComposeView> {
     );
   }
   private showPending(pending: PendingAttempt): void {
+    this.assistance.invalidate();
+    this.ratingLink = null;
+    this.ratingLinkContext = null;
     this.pending = pending;
     this.update({
+      hasRatingLink: pending.version === 5,
+      ratingLinkName: '',
+      // Original-owner recovery never releases target-identifying text before fresh public proof.
+      ratingLinkLabel: '',
+      ...(pending.version === 5
+        ? {
+            canSelectImage: false,
+            mediaNotice: '原评分卡片与正文已冻结；显示名称需要发布后重新核验',
+          }
+        : {}),
       canCancelReview:
         supportsTextReview(pending) && !!this.runtime.gateway?.cancelReview,
       reviewStatus: '',
@@ -635,7 +963,7 @@ export class ComposeController extends CommunityController<ComposeView> {
           : '',
       frozen: true,
       canSubmit: false,
-      text: pending.payload.text,
+      text: pending.version === 5 ? '' : pending.payload.text,
       maxImages: pending.operation === 'publish_post' ? 9 : 3,
       isFeedback:
         pending.operation === 'publish_post' &&
@@ -713,7 +1041,7 @@ export class ComposeController extends CommunityController<ComposeView> {
     )
       return false;
     try {
-      const pending = this.runtime.pending.load(this.accountId()!);
+      const pending = this.loadPending(this.accountId()!);
       if (pending) {
         this.showPending(pending);
         return false;
@@ -942,6 +1270,10 @@ export class ComposeController extends CommunityController<ComposeView> {
   private persistDraft(): void {
     const accountId = this.accountId();
     if (!accountId || !this.target) return;
+    if (this.isRatingLinkJourney()) {
+      this.draftSaved = true;
+      return;
+    }
     try {
       this.runtime.drafts.save(accountId, targetKey(this.target), {
         version: 1,
@@ -981,14 +1313,18 @@ export class ComposeController extends CommunityController<ComposeView> {
       isComment = !!this.target && this.target.operation !== 'publish_post',
       publication = isComment
         ? this.commentCapabilities
-        : this.view.syncToRelatedCampuses
-          ? cap?.relatedCampusSync
-          : cap?.publish,
+        : this.ratingLink
+          ? cap?.ratingTargetLink
+          : this.view.syncToRelatedCampuses
+            ? cap?.relatedCampusSync
+            : cap?.publish,
       modes = isComment
         ? this.commentCapabilities?.authorModes
-        : this.view.syncToRelatedCampuses
-          ? (cap?.relatedCampusSync?.authorModes ?? cap?.authorModes)
-          : cap?.authorModes,
+        : this.ratingLink
+          ? cap?.ratingTargetLink?.authorModes
+          : this.view.syncToRelatedCampuses
+            ? (cap?.relatedCampusSync?.authorModes ?? cap?.authorModes)
+            : cap?.authorModes,
       canDisableComments =
         !isComment &&
         (this.view.syncToRelatedCampuses
@@ -1097,6 +1433,22 @@ export class ComposeController extends CommunityController<ComposeView> {
       this.view.mediaReady !== this.view.mediaSelected
     )
       blocker = '全部所选图片确认就绪后才能发布；失败或未知图片需明确移除';
+    if (
+      !blocker &&
+      this.ratingLink &&
+      !ratingLinkLabel(this.view.ratingLinkLabel)
+    )
+      blocker = '评分卡片标签需为 1–12 个有效字符';
+    if (
+      !blocker &&
+      this.ratingLink &&
+      (this.view.syncToRelatedCampuses ||
+        this.view.allowAnonymousDm ||
+        this.view.pollDraft.enabled ||
+        this.view.formationDraft.enabled ||
+        this.view.mediaSelected > 0)
+    )
+      blocker = '评分卡片不能与同步、图片、投票、组队或匿名私信同时发布';
     if (!blocker && this.view.mediaBusy) blocker = '请先等待当前图片操作完成';
     if (
       !blocker &&
@@ -1129,9 +1481,20 @@ export class ComposeController extends CommunityController<ComposeView> {
     const target = this.target,
       accountId = this.accountId()!,
       owner = this.runtime.sessions.snapshot();
-    const component = this.view.formationDraft.enabled
-      ? formationDraftComponent(this.view.formationDraft)
-      : pollDraftComponent(this.view.pollDraft);
+    this.assistance.invalidate();
+    const component = this.ratingLink
+      ? decodeRatingTargetLinkComponent({
+          kind: 'rating_target_link',
+          targetId: this.ratingLink.targetId,
+          label: this.view.ratingLinkLabel,
+          selector: this.ratingLink.selector,
+          expectedTargetRevision: this.ratingLink.expectedTargetRevision,
+          expectedCategoryRevision: this.ratingLink.expectedCategoryRevision,
+          expectedSourceRevision: this.ratingLink.expectedSourceRevision,
+        })
+      : this.view.formationDraft.enabled
+        ? formationDraftComponent(this.view.formationDraft)
+        : pollDraftComponent(this.view.pollDraft);
     const trading = this.view.isTrading
       ? tradingDraftIntent(this.view.tradingDraft)
       : undefined;
@@ -1150,15 +1513,17 @@ export class ComposeController extends CommunityController<ComposeView> {
     await this.run(
       async (cancel) => {
         const imageTarget = this.mediaTarget('');
-        const imageAssetIds = this.useBatch()
-          ? await this.batcher!.publicationAssets(
-              imageTarget.spaceId,
-              cancel,
-              imageTarget.target,
-            )
-          : target.operation === 'publish_post' && this.uploader
-            ? await this.uploader.publicationAssets(target.spaceId, cancel)
-            : [];
+        const imageAssetIds = this.isRatingLinkJourney()
+          ? []
+          : this.useBatch()
+            ? await this.batcher!.publicationAssets(
+                imageTarget.spaceId,
+                cancel,
+                imageTarget.target,
+              )
+            : target.operation === 'publish_post' && this.uploader
+              ? await this.uploader.publicationAssets(target.spaceId, cancel)
+              : [];
         const requestId = await this.runtime.newRequestId();
         this.runtime.sessions.assertCurrent(owner);
         if (cancel.isCancelled)
@@ -1166,7 +1531,12 @@ export class ComposeController extends CommunityController<ComposeView> {
         const attempt: PendingAttempt =
           target.operation === 'publish_post'
             ? {
-                version: 1,
+                ...(component.kind === 'rating_target_link'
+                  ? {
+                      version: 5 as const,
+                      kind: 'community_rating_target_link_v5' as const,
+                    }
+                  : { version: 1 as const }),
                 accountId,
                 operation: 'publish_post',
                 ...(target.viewSpaceId
@@ -1183,7 +1553,9 @@ export class ComposeController extends CommunityController<ComposeView> {
                   authorMode: draft.authorMode,
                   commentsPolicy: draft.commentsPolicy,
                   imageAssetIds,
-                  ...(draft.authorMode === 'named' && !draft.feedback
+                  ...(draft.authorMode === 'named' &&
+                  !draft.feedback &&
+                  component.kind !== 'rating_target_link'
                     ? { allowAnonymousDm: draft.allowAnonymousDm }
                     : {}),
                   ...(draft.syncToRelatedCampuses
@@ -1224,12 +1596,32 @@ export class ComposeController extends CommunityController<ComposeView> {
                     imageAssetIds,
                   }),
                 };
-        // Reserve metadata first; Community remains the only owner of body bytes.
-        if (this.useBatch())
+        if (
+          this.isRatingLinkJourney() &&
+          attempt.version !== 5 &&
+          this.runtime.drafts.load(accountId, targetKey(target))
+        )
+          throw new ClientError(
+            'storage',
+            'An existing ordinary draft must be handled first',
+          );
+        // Text-only links still honor existing image cancellation barriers without attaching media.
+        if (
+          this.useBatch() ||
+          (this.isRatingLinkJourney() && this.runtime.mediaBatch)
+        )
           this.runtime.mediaBatch!.reservePublication(attempt);
         let frozen: PendingAttempt;
         try {
-          frozen = this.runtime.pending.freeze(attempt);
+          if (this.loadPending(accountId))
+            throw new ClientError(
+              'storage',
+              'Original publication is unresolved',
+            );
+          frozen =
+            attempt.version === 5
+              ? this.runtime.pendingRatingLinks!.freeze(attempt)
+              : this.runtime.pending.freeze(attempt);
         } catch (error) {
           // A reserved Media WAL may already exist. Storage failure must not let
           // editing create a second key or dispatch before the cross-key link.
@@ -1282,12 +1674,17 @@ export class ComposeController extends CommunityController<ComposeView> {
               cancel,
             )
             .then((current) =>
-              attempt.payload.syncToRelatedCampuses === true
-                ? (current.relatedCampusSync ?? {
+              attempt.payload.component?.kind === 'rating_target_link'
+                ? (current.ratingTargetLink ?? {
                     availability: 'unavailable' as const,
                     reason: 'COMMUNITY_UNAVAILABLE',
                   })
-                : current.publish,
+                : attempt.payload.syncToRelatedCampuses === true
+                  ? (current.relatedCampusSync ?? {
+                      availability: 'unavailable' as const,
+                      reason: 'COMMUNITY_UNAVAILABLE',
+                    })
+                  : current.publish,
             )
         : await this.runtime.gateway!.commentCapabilities(
             attempt.postId,
@@ -1311,7 +1708,7 @@ export class ComposeController extends CommunityController<ComposeView> {
     if (attempt.accountId !== this.accountId())
       throw new ClientError('stale-session', 'Account changed');
     if (
-      JSON.stringify(this.runtime.pending.load(attempt.accountId)) !==
+      JSON.stringify(this.loadPending(attempt.accountId)) !==
       JSON.stringify(attempt)
     )
       throw new ClientError('storage', 'Pending request changed');
@@ -1431,7 +1828,7 @@ export class ComposeController extends CommunityController<ComposeView> {
     if (this.view.busy || !this.available()) return;
     let attempt: PendingAttempt | null;
     try {
-      attempt = this.runtime.pending.load(this.accountId()!);
+      attempt = this.loadPending(this.accountId()!);
       if (
         !attempt ||
         !supportsTextReview(attempt) ||
@@ -1467,11 +1864,14 @@ export class ComposeController extends CommunityController<ComposeView> {
     const result = matchReviewCancellation(attempt, raw);
     if (result.outcome !== 'cancelled')
       throw new ClientError('protocol', 'Missing cancellation fence');
-    this.runtime.pending.settleCancelled(
-      attempt,
-      result,
-      batchPublicationReference(attempt).intentHash,
-    );
+    if (attempt.version === 5)
+      this.runtime.pendingRatingLinks!.settleCancelled(attempt, result);
+    else
+      this.runtime.pending.settleCancelled(
+        attempt,
+        result,
+        batchPublicationReference(attempt).intentHash,
+      );
     this.pending = null;
     this.update({
       frozen: false,
@@ -1480,7 +1880,10 @@ export class ComposeController extends CommunityController<ComposeView> {
       canCancelReview: false,
       reviewStatus: '',
       receiptStatus: '服务器已确认取消，原请求不能再发布',
-      status: '原请求已取消，草稿已保留',
+      status:
+        attempt.version === 5
+          ? '原评分卡片发布请求已取消；重新加载后可填写新草稿'
+          : '原请求已取消，草稿已保留',
       blocker: '重新加载草稿，检查并明确提交后才会建立新请求',
       recoveryOperation: '',
       error: '',
@@ -1492,12 +1895,13 @@ export class ComposeController extends CommunityController<ComposeView> {
   ): Promise<Receipt> {
     if (attempt.accountId !== this.accountId())
       throw new ClientError('stale-session', 'Account changed');
-    const stored = this.runtime.pending.load(attempt.accountId);
+    const stored = this.loadPending(attempt.accountId);
     if (JSON.stringify(stored) !== JSON.stringify(attempt))
       throw new ClientError('storage', 'Pending request changed');
-    if (this.useBatch())
+    if (this.useBatch() || (attempt.version === 5 && this.runtime.mediaBatch))
       await this.runtime.mediaBatch!.beforePublication(attempt, cancel);
-    else this.runtime.mediaUpload?.beforePublication(attempt);
+    else if (attempt.version !== 5)
+      this.runtime.mediaUpload?.beforePublication(attempt);
     return attempt.operation === 'publish_post'
       ? this.runtime.gateway!.publishPost(attempt.payload, cancel)
       : attempt.operation === 'publish_reply'
@@ -1516,7 +1920,7 @@ export class ComposeController extends CommunityController<ComposeView> {
     if (this.view.busy || !this.available() || !this.refreshMediaMode()) return;
     let pending: PendingAttempt | null;
     try {
-      pending = this.runtime.pending.load(this.accountId()!);
+      pending = this.loadPending(this.accountId()!);
       if (!pending) {
         this.update({ error: '未找到本机待确认记录，请重新加载' });
         return;
@@ -1590,12 +1994,14 @@ export class ComposeController extends CommunityController<ComposeView> {
         attempt.payload.trading.contacts,
       );
     // Clear a successful draft before dropping recovery protection; failed local writes keep the request frozen.
-    if (receipt.outcome === 'created')
+    if (receipt.outcome === 'created' && attempt.version !== 5)
       this.runtime.drafts.clear(
         attempt.accountId,
         targetKey(attemptTarget(attempt)),
       );
-    this.runtime.pending.settle(attempt, receipt);
+    if (attempt.version === 5)
+      this.runtime.pendingRatingLinks!.settle(attempt, receipt);
+    else this.runtime.pending.settle(attempt, receipt);
     if (this.useBatch()) this.runtime.mediaBatch!.publicationSettled(attempt);
     this.pending = null;
     this.update({
@@ -1715,7 +2121,7 @@ export class ComposeController extends CommunityController<ComposeView> {
       if (
         this.useBatch() &&
         this.view.frozen &&
-        !this.runtime.pending.load(this.accountId()!)
+        !this.loadPending(this.accountId()!)
       )
         await this.load();
     });
@@ -1811,6 +2217,8 @@ export class ComposeController extends CommunityController<ComposeView> {
     return task;
   }
   override dispose(): void {
+    this.assistance.dispose();
+    for (const unsubscribe of this.linkUnsubscriptions) unsubscribe();
     this.mediaDisposed = true;
     this.mediaGeneration++;
     this.mediaAction = null;

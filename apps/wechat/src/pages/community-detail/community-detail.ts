@@ -1,3 +1,4 @@
+import { RatingLinkNavigator } from '../../community/rating-link-navigation';
 import {
   CategoryReclassificationController,
   initialCategoryReclassificationView,
@@ -83,6 +84,7 @@ import {
   initialPollView,
 } from '../../community/poll-controller';
 Page({
+  ratingLinkNavigator: undefined as RatingLinkNavigator | undefined,
   data: {
     categoryManagement: initialCategoryReclassificationView(),
     reclassificationLabels,
@@ -258,6 +260,13 @@ Page({
     void this.pinController?.confirmCancellation();
   },
   onShow() {
+    this.ratingLinkNavigator?.dispose();
+    const linkRuntime = getApp<WhaleuApp>().community;
+    this.ratingLinkNavigator = linkRuntime
+      ? new RatingLinkNavigator(wx, linkRuntime.sessions, () =>
+          this.setData({ error: '暂不能打开评分对象，请重试' }),
+        )
+      : undefined;
     this.categoryController?.dispose();
     this.categoryController = undefined;
     this.ownerVisibilityController?.dispose();
@@ -1317,7 +1326,13 @@ Page({
   onSavedCancel() {
     this.savedMutations?.cancel();
   },
+  onRatingTargetLink(_event: { currentTarget: { dataset: { id?: string } } }) {
+    if (this.data.busy) return;
+    this.ratingLinkNavigator?.open(this.data.post);
+  },
   onHide() {
+    this.ratingLinkNavigator?.dispose();
+    this.ratingLinkNavigator = undefined;
     this.categoryController?.dispose();
     this.categoryController = undefined;
     this.ownerVisibilityController?.dispose();
@@ -1369,6 +1384,8 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.ratingLinkNavigator?.dispose();
+    this.ratingLinkNavigator = undefined;
     this.categoryController?.dispose();
     this.categoryController = undefined;
     this.ownerVisibilityController?.dispose();

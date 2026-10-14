@@ -1,4 +1,8 @@
 import {
+  decodeRatingTargetLinkComponent,
+  type RatingTargetLinkComponent,
+} from './rating-link-contract';
+import {
   decodeOwnerVisibilityState,
   type OwnerVisibilityState,
 } from '../owner-post-visibility/contract';
@@ -214,6 +218,11 @@ export interface OwnPublications {
   readonly nextCursor: string | null;
 }
 export interface Capabilities {
+  readonly ratingTargetLink?: {
+    readonly availability: 'allowed' | 'denied' | 'unavailable';
+    readonly reason: string | null;
+    readonly authorModes: readonly AuthorMode[];
+  };
   readonly relatedCampusSync?: {
     readonly availability: 'allowed' | 'denied' | 'unavailable';
     readonly reason: string | null;
@@ -239,7 +248,8 @@ export interface PostIntent {
   readonly feedback?: FeedbackInput;
   readonly allowAnonymousDm?: boolean;
   readonly trading?: TradingIntent;
-  readonly component?: PollComponent | FormationComponent;
+  readonly component?:
+    PollComponent | FormationComponent | RatingTargetLinkComponent;
   readonly clientRequestId: string;
   readonly spaceId: string;
   readonly category: Category;
@@ -699,10 +709,14 @@ export function decodeOwnPublications(value: unknown): OwnPublications {
   });
 }
 export function decodeCapabilities(value: unknown): Capabilities {
+  const hasRatingLink =
+    isRecord(value) &&
+    Object.prototype.hasOwnProperty.call(value, 'ratingTargetLink');
   const hasSync =
     isRecord(value) &&
     Object.prototype.hasOwnProperty.call(value, 'relatedCampusSync');
   exact(value, [
+    ...(hasRatingLink ? ['ratingTargetLink'] : []),
     ...(hasSync ? ['relatedCampusSync'] : []),
     'publish',
     'authorModes',
@@ -736,6 +750,30 @@ export function decodeCapabilities(value: unknown): Capabilities {
     value.commentRules.ownAnonymousPostForcesAnonymous !== true
   )
     invalid();
+  let ratingTargetLink: Capabilities['ratingTargetLink'];
+  if (hasRatingLink) {
+    exact(value.ratingTargetLink, ['availability', 'reason', 'authorModes']);
+    const link = value.ratingTargetLink;
+    if (
+      !['allowed', 'denied', 'unavailable'].includes(
+        String(link.availability),
+      ) ||
+      !(link.reason === null || code(link.reason)) ||
+      (link.availability === 'allowed') !== (link.reason === null) ||
+      !Array.isArray(link.authorModes) ||
+      !link.authorModes.every(mode) ||
+      new Set(link.authorModes).size !== link.authorModes.length ||
+      (link.availability === 'allowed'
+        ? !link.authorModes.length
+        : link.authorModes.length !== 0)
+    )
+      invalid();
+    ratingTargetLink = Object.freeze({
+      availability: link.availability as 'allowed' | 'denied' | 'unavailable',
+      reason: link.reason as string | null,
+      authorModes: Object.freeze([...link.authorModes] as AuthorMode[]),
+    });
+  }
   let relatedCampusSync: Capabilities['relatedCampusSync'];
   if (hasSync) {
     const hasModes =
@@ -786,6 +824,7 @@ export function decodeCapabilities(value: unknown): Capabilities {
     });
   }
   return Object.freeze({
+    ...(ratingTargetLink ? { ratingTargetLink } : {}),
     ...(relatedCampusSync ? { relatedCampusSync } : {}),
     publish: Object.freeze({
       availability: value.publish
@@ -903,10 +942,23 @@ export function decodePostIntent(value: unknown): PostIntent {
   )
     invalid();
   const component = hasComponent
-    ? isRecord(value.component) && value.component.kind === 'formation'
-      ? decodeFormationComponent(value.component)
-      : decodePollComponent(value.component)
+    ? isRecord(value.component) && value.component.kind === 'rating_target_link'
+      ? decodeRatingTargetLinkComponent(value.component)
+      : isRecord(value.component) && value.component.kind === 'formation'
+        ? decodeFormationComponent(value.component)
+        : decodePollComponent(value.component)
     : undefined;
+  if (
+    component?.kind === 'rating_target_link' &&
+    (value.category !== 'discussion' ||
+      hasTrading ||
+      hasFeedback ||
+      hasAnonymousDm ||
+      value.syncToRelatedCampuses === true ||
+      !Array.isArray(value.imageAssetIds) ||
+      value.imageAssetIds.length !== 0)
+  )
+    invalid();
   if (
     (value.category === 'feedback') !== hasFeedback ||
     (hasFeedback &&

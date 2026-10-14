@@ -570,6 +570,7 @@ export class SearchService {
             eligibility.push([candidate, 'allow', fingerprint]);
             // Image-only comments are known non-text sources, not index failures.
             const source = Object.freeze({
+              viewerAccountId: actor,
               candidate: Object.freeze({ ...candidate }),
               revision,
               fingerprint,
@@ -619,6 +620,7 @@ export class SearchService {
           const result = await operation(
             {
               fingerprint,
+              viewerAccountId: actor,
               sources: Object.freeze(sources),
               nonTextSources: Object.freeze(nonTextSources),
               deniedSources: Object.freeze(deniedSources),
@@ -676,7 +678,7 @@ export class SearchService {
         try {
           const { session, actor, explicit, resolved, scope } =
             await this.semanticContext(token, query, tx);
-          const relation = await content.prepare(scope, profile, tx);
+          const relation = await content.prepare(scope, profile, tx, actor);
           const selection = await corpus.select(
             relation,
             actor,
@@ -771,6 +773,7 @@ export class SearchService {
           const result = await operation(
             {
               fingerprint,
+              viewerAccountId: actor,
               sources: Object.freeze(sources),
               corpus: 'full',
               ranks: selection.candidates.map(({ key, distance }) => ({

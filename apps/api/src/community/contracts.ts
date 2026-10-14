@@ -1,3 +1,4 @@
+import type { RatingTargetLinkView } from './rating-target-link/contracts.js';
 import { feedbackInputSchema } from './feedback/contracts.js';
 import type { FeedbackView } from './feedback/contracts.js';
 import type { FormationView } from './formation/contracts.js';
@@ -51,6 +52,17 @@ export const publishPostSchema = z
     trading: tradingInputSchema.optional(),
     feedback: feedbackInputSchema.optional(),
   })
+  .refine(
+    (body) =>
+      body.component?.kind !== 'rating_target_link' ||
+      (body.category === 'discussion' &&
+        body.imageAssetIds.length === 0 &&
+        body.syncToRelatedCampuses !== true &&
+        body.allowAnonymousDm === undefined &&
+        body.trading === undefined &&
+        body.feedback === undefined),
+    'Rating target cards require one text-only regional discussion without synchronization',
+  )
   .refine((body) =>
     body.category === 'feedback'
       ? !!body.feedback &&
@@ -155,7 +167,8 @@ export interface PostView {
   component:
     | { kind: 'none' }
     | { kind: 'poll'; poll: PollView }
-    | { kind: 'formation'; formation: FormationView };
+    | { kind: 'formation'; formation: FormationView }
+    | RatingTargetLinkView;
   id: string;
   space: Pick<CommunitySpace, 'id' | 'kind' | 'name'>;
   category: Category;
@@ -234,6 +247,11 @@ export type PublicationReceipt =
       code: ApplicationErrorCode;
     };
 export interface Capabilities {
+  ratingTargetLink?: {
+    availability: 'allowed' | 'denied' | 'unavailable';
+    reason: ApplicationErrorCode | null;
+    authorModes: AuthorMode[];
+  };
   relatedCampusSync?: {
     authorModes?: AuthorMode[];
     canDisableComments?: boolean;

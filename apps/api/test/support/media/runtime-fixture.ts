@@ -47,6 +47,149 @@ import { directoryRuntimeFixture } from '../directory-runtime-fixture.js';
 import { SyntheticMediaStorage } from './synthetic-storage.js';
 import { SyntheticMediaWorker } from './synthetic-worker.js';
 
+/** Reusable test-only wiring for another real AppModule fixture. No owner,
+ * Review, SQL, transport or processing stage is bypassed. */
+export function configureSyntheticCommunityMedia(
+  builder: TestingModuleBuilder,
+  storage: SyntheticMediaStorage,
+  ingressStorage: SyntheticMediaIngressStorage,
+): TestingModuleBuilder {
+  let owner!: CommunityMediaOwner;
+  let owners!: MediaOwnerProofRegistry;
+  let assets!: MediaAssetRepository;
+  let batches!: MediaBatchRepository;
+  let discussionBatches!: MediaBatchRepository;
+  const lifecycle = new MediaLifecycleRepository();
+  return builder
+    .overrideProvider(MediaContentSnapshotFacade)
+    .useClass(MediaContentSnapshotFacade)
+    .overrideProvider(CONTENT_MEDIA_PROOF)
+    .useClass(CurrentContentMediaProof)
+    .overrideProvider(MEDIA_ATTACHMENT)
+    .useFactory({
+      inject: [CommunityAccessService, CommunityRepository],
+      factory: (
+        access: CommunityAccessService,
+        community: CommunityRepository,
+      ) => {
+        owner = new CommunityMediaOwner(access, community);
+        owners = new MediaOwnerProofRegistry([owner]);
+        const scopes = new MediaPrepareScopes(owner);
+        batches = new MediaBatchRepository(
+          scopes,
+          new MediaIntentRepository(scopes),
+          lifecycle,
+          {
+            readyOwned: (actor, intentId, tx) =>
+              assets.readyOwned(actor, intentId, tx),
+          },
+          new CommunityMediaBatchPublicationProof(),
+        );
+        discussionBatches = new MediaBatchRepository(
+          scopes,
+          new MediaIntentRepository(scopes),
+          lifecycle,
+          {
+            readyOwned: (actor, intentId, tx) =>
+              assets.readyOwned(actor, intentId, tx),
+          },
+          new CommunityMediaBatchPublicationProof(),
+          4,
+        );
+        assets = new MediaAssetRepository(owners, batches, discussionBatches);
+        return new CommunityMediaAttachmentAdapter(assets, owner, owners);
+      },
+    })
+    .overrideProvider(MEDIA_INGRESS_STORAGE)
+    .useValue(ingressStorage)
+    .overrideProvider(MEDIA_UPLOAD_APPLICATION_V2)
+    .useFactory({
+      inject: [DatabaseService, CommunityAccessService, MEDIA_ATTACHMENT],
+      factory: (
+        database: DatabaseService,
+        access: CommunityAccessService,
+        _attachment: CommunityMediaAttachmentAdapter,
+      ) => {
+        const scopes = new MediaPrepareScopes(owner);
+        return new CommunityMediaUploadApplicationV2(
+          database,
+          access,
+          scopes,
+          new MediaIntentRepository(scopes),
+          lifecycle,
+          assets,
+          new MediaIngressRepository(ingressStorage),
+        );
+      },
+    })
+    .overrideProvider(MEDIA_BATCH_APPLICATION)
+    .useFactory({
+      inject: [DatabaseService, CommunityAccessService, MEDIA_ATTACHMENT],
+      factory: (
+        database: DatabaseService,
+        access: CommunityAccessService,
+        _attachment: CommunityMediaAttachmentAdapter,
+      ) =>
+        new CommunityMediaBatchApplication(
+          database,
+          access,
+          new MediaPrepareScopes(owner),
+          lifecycle,
+          batches,
+          new MediaIngressRepository(ingressStorage, 3),
+        ),
+    })
+    .overrideProvider(MEDIA_DISCUSSION_BATCH_APPLICATION)
+    .useFactory({
+      inject: [DatabaseService, CommunityAccessService, MEDIA_ATTACHMENT],
+      factory: (
+        database: DatabaseService,
+        access: CommunityAccessService,
+        _attachment: CommunityMediaAttachmentAdapter,
+      ) =>
+        new CommunityMediaBatchApplication(
+          database,
+          access,
+          new MediaPrepareScopes(owner),
+          lifecycle,
+          discussionBatches,
+          new MediaIngressRepository(ingressStorage, 4),
+        ),
+    })
+    .overrideProvider(MEDIA_APPLICATION)
+    .useFactory({
+      inject: [
+        DatabaseService,
+        CommunityAccessService,
+        MEDIA_ATTACHMENT,
+        MediaDeliveryBudgetPool,
+      ],
+      factory: (
+        database: DatabaseService,
+        access: CommunityAccessService,
+        _attachment: CommunityMediaAttachmentAdapter,
+        budget: MediaDeliveryBudgetPool,
+      ) => {
+        const scopes = new MediaPrepareScopes(owner);
+        const delivery = new MediaDeliveryService(
+          database,
+          new CommunityMediaDeliveryAuthorizer(access, assets, owners),
+          storage,
+          budget,
+        );
+        return new CommunityMediaApplication(
+          database,
+          access,
+          scopes,
+          new MediaIntentRepository(scopes),
+          lifecycle,
+          assets,
+          delivery,
+        );
+      },
+    });
+}
+
 export async function syntheticMediaRuntimeFixture(
   fixtures: readonly {
     sha256: string;
@@ -69,152 +212,17 @@ export async function syntheticMediaRuntimeFixture(
   const ingressStorage = new SyntheticMediaIngressStorage(storage);
   let config!: RuntimeConfig;
   const ordinaryApps: INestApplication[] = [];
-  let owner!: CommunityMediaOwner;
-  let owners!: MediaOwnerProofRegistry;
-  let assets!: MediaAssetRepository;
-  let batches!: MediaBatchRepository;
-  let discussionBatches!: MediaBatchRepository;
-  const lifecycle = new MediaLifecycleRepository();
   let closed = false;
   let closeBase: (() => Promise<void>) | undefined;
   try {
     const base = await directoryRuntimeFixture(options.maximumMigration, {
       createApp: async (runtimeConfig, configurePolicy) => {
         config = runtimeConfig;
-        const builder = Test.createTestingModule({
-          imports: [AppModule.register(config)],
-        })
-          .overrideProvider(MediaContentSnapshotFacade)
-          .useClass(MediaContentSnapshotFacade)
-          .overrideProvider(CONTENT_MEDIA_PROOF)
-          .useClass(CurrentContentMediaProof)
-          .overrideProvider(MEDIA_ATTACHMENT)
-          .useFactory({
-            inject: [CommunityAccessService, CommunityRepository],
-            factory: (
-              access: CommunityAccessService,
-              community: CommunityRepository,
-            ) => {
-              owner = new CommunityMediaOwner(access, community);
-              owners = new MediaOwnerProofRegistry([owner]);
-              const scopes = new MediaPrepareScopes(owner);
-              batches = new MediaBatchRepository(
-                scopes,
-                new MediaIntentRepository(scopes),
-                lifecycle,
-                {
-                  readyOwned: (actor, intentId, tx) =>
-                    assets.readyOwned(actor, intentId, tx),
-                },
-                new CommunityMediaBatchPublicationProof(),
-              );
-              discussionBatches = new MediaBatchRepository(
-                scopes,
-                new MediaIntentRepository(scopes),
-                lifecycle,
-                {
-                  readyOwned: (actor, intentId, tx) =>
-                    assets.readyOwned(actor, intentId, tx),
-                },
-                new CommunityMediaBatchPublicationProof(),
-                4,
-              );
-              assets = new MediaAssetRepository(
-                owners,
-                batches,
-                discussionBatches,
-              );
-              return new CommunityMediaAttachmentAdapter(assets, owner, owners);
-            },
-          })
-          .overrideProvider(MEDIA_INGRESS_STORAGE)
-          .useValue(ingressStorage)
-          .overrideProvider(MEDIA_UPLOAD_APPLICATION_V2)
-          .useFactory({
-            inject: [DatabaseService, CommunityAccessService, MEDIA_ATTACHMENT],
-            factory: (
-              database: DatabaseService,
-              access: CommunityAccessService,
-              _attachment: CommunityMediaAttachmentAdapter,
-            ) => {
-              const scopes = new MediaPrepareScopes(owner);
-              return new CommunityMediaUploadApplicationV2(
-                database,
-                access,
-                scopes,
-                new MediaIntentRepository(scopes),
-                lifecycle,
-                assets,
-                new MediaIngressRepository(ingressStorage),
-              );
-            },
-          })
-          .overrideProvider(MEDIA_BATCH_APPLICATION)
-          .useFactory({
-            inject: [DatabaseService, CommunityAccessService, MEDIA_ATTACHMENT],
-            factory: (
-              database: DatabaseService,
-              access: CommunityAccessService,
-              _attachment: CommunityMediaAttachmentAdapter,
-            ) =>
-              new CommunityMediaBatchApplication(
-                database,
-                access,
-                new MediaPrepareScopes(owner),
-                lifecycle,
-                batches,
-                new MediaIngressRepository(ingressStorage, 3),
-              ),
-          })
-          .overrideProvider(MEDIA_DISCUSSION_BATCH_APPLICATION)
-          .useFactory({
-            inject: [DatabaseService, CommunityAccessService, MEDIA_ATTACHMENT],
-            factory: (
-              database: DatabaseService,
-              access: CommunityAccessService,
-              _attachment: CommunityMediaAttachmentAdapter,
-            ) =>
-              new CommunityMediaBatchApplication(
-                database,
-                access,
-                new MediaPrepareScopes(owner),
-                lifecycle,
-                discussionBatches,
-                new MediaIngressRepository(ingressStorage, 4),
-              ),
-          })
-          .overrideProvider(MEDIA_APPLICATION)
-          .useFactory({
-            inject: [
-              DatabaseService,
-              CommunityAccessService,
-              MEDIA_ATTACHMENT,
-              MediaDeliveryBudgetPool,
-            ],
-            factory: (
-              database: DatabaseService,
-              access: CommunityAccessService,
-              _attachment: CommunityMediaAttachmentAdapter,
-              budget: MediaDeliveryBudgetPool,
-            ) => {
-              const scopes = new MediaPrepareScopes(owner);
-              const delivery = new MediaDeliveryService(
-                database,
-                new CommunityMediaDeliveryAuthorizer(access, assets, owners),
-                storage,
-                budget,
-              );
-              return new CommunityMediaApplication(
-                database,
-                access,
-                scopes,
-                new MediaIntentRepository(scopes),
-                lifecycle,
-                assets,
-                delivery,
-              );
-            },
-          });
+        const builder = configureSyntheticCommunityMedia(
+          Test.createTestingModule({ imports: [AppModule.register(config)] }),
+          storage,
+          ingressStorage,
+        );
         if (options.authRateLimit) {
           // Explicit disposable-test opt-in only. Keep the REAL limiter and its
           // database buckets; provider login remains unconfigured/unavailable.

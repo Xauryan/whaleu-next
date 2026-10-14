@@ -1,3 +1,5 @@
+import { CurrentRatingLinkDependency } from './rating-target-link/dependency.js';
+import type { ReviewedRatingTargetLink } from './rating-target-link/contracts.js';
 import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { bindCategoryChildContext } from './category-reclassification/child-context.js';
 import { FeedbackNotificationsFacade } from '../notifications/feedback/facade.js';
@@ -82,6 +84,9 @@ export class PublicationService {
     @Optional()
     @Inject(CommunityDistributionService)
     private readonly distribution?: CommunityDistributionService,
+    @Optional()
+    @Inject(CurrentRatingLinkDependency)
+    private readonly targetLinks: CurrentRatingLinkDependency = new CurrentRatingLinkDependency(),
   ) {}
   async approved(
     actor: string,
@@ -151,7 +156,9 @@ export class PublicationService {
           text,
           images,
           ...(structuredContent ? { structuredContent } : {}),
-          ...(envelope ? { envelope: { ...envelope, images } } : {}),
+          ...(envelope
+            ? { envelope: canonicalEnvelope({ ...envelope, images }) }
+            : {}),
         },
         tx,
       ),
@@ -279,11 +286,38 @@ export class PublicationService {
           throw new ApplicationError('COMMUNITY_ACTION_RESTRICTED');
         if (body.allowAnonymousDm !== undefined && authorMode !== 'named')
           throw new ApplicationError('AUTHOR_MODE_NOT_ALLOWED');
+        let ratingLink: ReviewedRatingTargetLink | undefined;
+        if (body.component?.kind === 'rating_target_link') {
+          if (
+            category !== 'discussion' ||
+            imageAssetIds.length ||
+            body.syncToRelatedCampuses === true ||
+            body.allowAnonymousDm !== undefined ||
+            body.trading ||
+            body.feedback ||
+            space.kind !== 'regional'
+          )
+            throw new ApplicationError('COMMUNITY_ACTION_RESTRICTED');
+          const qualified = await this.targetLinks.publication(
+            actor,
+            body.component,
+            { spaceId, category: 'discussion', authorMode },
+            tx,
+          );
+          ratingLink = {
+            kind: 'rating_target_link',
+            targetId: body.component.targetId,
+            label: body.component.label,
+            binding: qualified.binding,
+          };
+        }
         const relatedScope =
           body.syncToRelatedCampuses === true
             ? await (() => {
                 if (!this.distribution)
                   throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+                if (body.component?.kind === 'rating_target_link')
+                  throw new ApplicationError('COMMUNITY_ACTION_RESTRICTED');
                 return this.distribution.prepare(
                   actor,
                   space,
@@ -340,37 +374,53 @@ export class PublicationService {
             rootCommentId: null,
             targetReplyId: null,
             text,
-            component: body.component ?? { kind: 'none' },
+            component:
+              body.component?.kind === 'rating_target_link'
+                ? { kind: 'none' }
+                : (body.component ?? { kind: 'none' }),
             trading: body.trading ?? null,
-            ...(relatedScope
+            ...(ratingLink
               ? {
-                  version: 4 as const,
+                  version: 5 as const,
+                  category: 'discussion' as const,
                   authorMode,
-                  allowAnonymousDm: body.allowAnonymousDm ?? null,
-                  scope: relatedScope,
-                }
-              : {
+                  trading: null,
+                  component: ratingLink,
                   scope: this.scope(
                     authority,
                     space.id,
                     space.operatingRegionId,
                   ),
-                  ...(body.feedback
-                    ? {
-                        version: 3 as const,
-                        category: 'feedback' as const,
-                        authorMode,
-                        commentsPolicy: 'open' as const,
-                        feedback: body.feedback,
-                      }
-                    : body.allowAnonymousDm === undefined
-                      ? { version: 1 as const, authorMode }
-                      : {
-                          version: 2 as const,
-                          authorMode: 'named' as const,
-                          allowAnonymousDm: body.allowAnonymousDm,
-                        }),
-                }),
+                }
+              : relatedScope
+                ? {
+                    version: 4 as const,
+                    authorMode,
+                    allowAnonymousDm: body.allowAnonymousDm ?? null,
+                    scope: relatedScope,
+                  }
+                : {
+                    scope: this.scope(
+                      authority,
+                      space.id,
+                      space.operatingRegionId,
+                    ),
+                    ...(body.feedback
+                      ? {
+                          version: 3 as const,
+                          category: 'feedback' as const,
+                          authorMode,
+                          commentsPolicy: 'open' as const,
+                          feedback: body.feedback,
+                        }
+                      : body.allowAnonymousDm === undefined
+                        ? { version: 1 as const, authorMode }
+                        : {
+                            version: 2 as const,
+                            authorMode: 'named' as const,
+                            allowAnonymousDm: body.allowAnonymousDm,
+                          }),
+                  }),
           },
           {
             clientRequestId,
@@ -400,13 +450,15 @@ export class PublicationService {
             text,
             authorMode,
             commentsPolicy,
-            relatedScope
-              ? 4
-              : body.feedback
-                ? 3
-                : body.allowAnonymousDm === undefined
-                  ? 1
-                  : 2,
+            ratingLink
+              ? 5
+              : relatedScope
+                ? 4
+                : body.feedback
+                  ? 3
+                  : body.allowAnonymousDm === undefined
+                    ? 1
+                    : 2,
             body.allowAnonymousDm ?? null,
             ...(body.feedback ? [JSON.stringify(body.feedback)] : []),
           ],
@@ -419,6 +471,22 @@ export class PublicationService {
         if (body.trading) await this.trading.create(id, body.trading, tx);
         if (body.component?.kind === 'formation') {
           await this.formations.create(id, actor, body.component, tx);
+        }
+        if (ratingLink) {
+          if (!approval || approval.version !== 5)
+            throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+          await tx.query(
+            `INSERT INTO whaleu_community.post_rating_target_links(post_id,account_id,client_request_id,intent_hash,component,decision_id,digest) VALUES($1,$2,$3,$4,$5::jsonb,$6,$7)`,
+            [
+              id,
+              actor,
+              clientRequestId,
+              publicationHash('publish_post', intent),
+              JSON.stringify(ratingLink),
+              approval.decisionId,
+              approval.digest,
+            ],
+          );
         }
         await this.bind(approval, 'post', id, tx, images);
         if (relatedScope) {

@@ -30,9 +30,9 @@ export interface SyntheticOpaqueCategory {
   revision: string;
   parent_id: string | null;
   level: 1 | 2 | 3;
-  origin_kind: 'global' | 'regional';
+  origin_kind: 'global' | 'regional' | 'system';
   kind: 'general';
-  system_key: null;
+  system_key: null | 'course' | 'canteen';
   name: string;
   description: string;
   active: boolean;
@@ -71,6 +71,7 @@ export async function prepareSyntheticOpaqueAdoption(
   legacyCatalogId: string,
   categoryId: string,
   scopeKeys: readonly string[],
+  registry?: { id: string; revision: string; systemKey: 'course' | 'canteen' },
 ) {
   const category = (
     await f.pool.query<SyntheticOpaqueCategory>(
@@ -80,7 +81,22 @@ export async function prepareSyntheticOpaqueAdoption(
   ).rows[0];
   assert.ok(category, 'A real immutable legacy category is required');
   assert.equal(category.kind, 'general');
-  assert.equal(category.system_key, null);
+  assert.equal(category.system_key, registry?.systemKey ?? null);
+  if (registry) {
+    const accepted = await f.pool.query(
+      `SELECT 1 FROM whaleu_ratings.scoped_source_attestations s
+       WHERE s.id=$1 AND s.revision=$2 AND s.source_kind='scoped_category_system_registry'
+       AND s.payload->>'systemKey'=$3 AND s.payload->>'kind'='general'
+       AND s.payload->>'consumer'='ratings_general_v1' AND s.payload->'enabled'='true'::jsonb
+       AND $4::text[]<@s.scope_keys AND whaleu_ratings.scoped_source_current(s.id,s.revision,clock_timestamp())`,
+      [registry.id, registry.revision, registry.systemKey, keys(scopeKeys)],
+    );
+    assert.equal(
+      accepted.rowCount,
+      1,
+      'System adoption needs exact current registry evidence',
+    );
+  }
   const ids = (
     await f.pool.query<{ source_row_digest: string }>(
       "SELECT whaleu_ratings.scoped_digest('legacy-category',to_jsonb(c)) source_row_digest FROM whaleu_ratings.categories c WHERE catalog_id=$1 AND id=$2",
@@ -186,6 +202,7 @@ export async function prepareSyntheticOpaqueAdoption(
   ];
   return {
     legacyCatalogId,
+    registry,
     category,
     categoryId,
     identityId,
@@ -229,6 +246,12 @@ export async function writeSyntheticOpaqueAdoption(
       manifestId,
       crosswalk,
       placement: input.placement,
+      ...(input.registry
+        ? {
+            registrySourceId: input.registry.id,
+            registrySourceRevision: input.registry.revision,
+          }
+        : {}),
       reviewSource: {
         kind: 'scoped_category_v5',
         sourceId:

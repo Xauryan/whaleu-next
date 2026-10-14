@@ -1,4 +1,8 @@
 import {
+  observeDependencyRead,
+  dependencyRows,
+} from '../../database/dependency-read-budget.js';
+import {
   canonicalRatingTargetCoverEnvelope,
   canonicalRatingTargetCoverDefinition,
   ratingTargetCoverApprovalDigest,
@@ -563,9 +567,9 @@ export class RatingScopedContentReviewFacade {
         | RatingScopedTargetDefinitionBinding
         | null;
     };
-    const rows = (
-      await tx.query<Row>(
-        `WITH instant AS MATERIALIZED (SELECT clock_timestamp() now),wanted AS MATERIALIZED (
+    const rows = await dependencyRows<Row>(
+      tx,
+      `WITH instant AS MATERIALIZED (SELECT clock_timestamp() now),wanted AS MATERIALIZED (
       SELECT * FROM unnest($1::uuid[],$2::integer[],$3::uuid[],$4::integer[],$5::uuid[]) WITH ORDINALITY w(id,content_version,revision,review_version,account_id,ordinal)),
       anchors AS MATERIALIZED (SELECT id FROM whaleu_identity.accounts WHERE id IN (SELECT account_id FROM wanted) ORDER BY id FOR SHARE)
       SELECT w.ordinal::integer ordinal,q.binding,a.id IS NOT NULL account_exists,
@@ -584,15 +588,16 @@ export class RatingScopedContentReviewFacade {
       LEFT JOIN whaleu_community.content_approval_policies p ON p.id=d.policy_revision_id
       LEFT JOIN whaleu_community.rating_approval_heads h ON h.decision_id=d.id
       LEFT JOIN whaleu_community.rating_approval_events e ON e.id=h.event_id AND e.decision_id=d.id ORDER BY w.ordinal`,
-        [
-          descriptors.map((d) => d.targetId),
-          descriptors.map((d) => d.contentVersion),
-          descriptors.map((d) => d.definitionRevision),
-          descriptors.map((d) => d.envelope.version),
-          descriptors.map((d) => d.envelope.accountId),
-        ],
-      )
-    ).rows;
+      [
+        descriptors.map((d) => d.targetId),
+        descriptors.map((d) => d.contentVersion),
+        descriptors.map((d) => d.definitionRevision),
+        descriptors.map((d) => d.envelope.version),
+        descriptors.map((d) => d.envelope.accountId),
+      ],
+      128,
+    );
+    observeDependencyRead(tx, rows);
     if (rows.length !== descriptors.length)
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     return Object.freeze(
@@ -714,9 +719,9 @@ export class RatingScopedContentReviewFacade {
       version: d.kind === 'target' ? d.definition.contentVersion : 1,
       account: envelopeOf(d).accountId,
     }));
-    const rows = (
-      await tx.query<BoundRow>(
-        `WITH instant AS MATERIALIZED (SELECT clock_timestamp() now),wanted AS MATERIALIZED (
+    const rows = await dependencyRows<BoundRow>(
+      tx,
+      `WITH instant AS MATERIALIZED (SELECT clock_timestamp() now),wanted AS MATERIALIZED (
       SELECT * FROM unnest($1::text[],$2::uuid[],$3::uuid[],$4::integer[],$5::uuid[]) WITH ORDINALITY w(kind,id,revision,content_version,account_id,ordinal)),
       anchors AS MATERIALIZED (SELECT id FROM whaleu_identity.accounts WHERE id IN (SELECT account_id FROM wanted) ORDER BY id FOR SHARE)
       SELECT w.ordinal::integer ordinal,q.binding,a.id IS NOT NULL account_exists,
@@ -731,15 +736,16 @@ export class RatingScopedContentReviewFacade {
       LEFT JOIN whaleu_community.content_approval_policies p ON p.id=d.policy_revision_id
       LEFT JOIN whaleu_community.rating_approval_heads h ON h.decision_id=d.id
       LEFT JOIN whaleu_community.rating_approval_events e ON e.id=h.event_id AND e.decision_id=d.id ORDER BY w.ordinal`,
-        [
-          keys.map((k) => k.kind),
-          keys.map((k) => k.id),
-          keys.map((k) => k.revision),
-          keys.map((k) => k.version),
-          keys.map((k) => k.account),
-        ],
-      )
-    ).rows;
+      [
+        keys.map((k) => k.kind),
+        keys.map((k) => k.id),
+        keys.map((k) => k.revision),
+        keys.map((k) => k.version),
+        keys.map((k) => k.account),
+      ],
+      128,
+    );
+    observeDependencyRead(tx, rows);
     if (rows.length !== descriptors.length)
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     return Object.freeze(

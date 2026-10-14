@@ -54,8 +54,20 @@ export function publicationHash(
   operation: PublicationOperation,
   intent: unknown,
 ): string {
+  const card =
+    operation === 'publish_post' &&
+    typeof intent === 'object' &&
+    intent !== null &&
+    'component' in intent &&
+    typeof intent.component === 'object' &&
+    intent.component !== null &&
+    'kind' in intent.component &&
+    intent.component.kind === 'rating_target_link';
   return createHash('sha256')
-    .update(JSON.stringify({ operation, intent }))
+    .update(
+      (card ? 'whaleu-community-rating-target-link:v1\n' : '') +
+        JSON.stringify({ operation, intent }),
+    )
     .digest('hex');
 }
 @Injectable()

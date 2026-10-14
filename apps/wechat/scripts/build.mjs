@@ -72,6 +72,9 @@ for (const relative of [
   'media/discussion-batch-contracts.js',
   'media/batch-publication.js',
   'platform/wechat-upload.js',
+  'ratings/assistance-contract.js',
+  'ratings/assistance-controller.js',
+  'community/rating-link-contract.js',
   'ratings/scoped-contract.js',
   'ratings/category-scoped-contract.js',
   'ratings/category-icon-media-contract.js',
@@ -165,5 +168,15 @@ execFileSync(
 execFileSync(
   process.execPath,
   [path.join(root, 'scripts/smoke-institutional-sso.mjs')],
+  { stdio: 'inherit', cwd: root },
+);
+
+execFileSync(
+  process.execPath,
+  [
+    '--import',
+    'tsx',
+    path.join(root, 'test/ratings-assistance-emitted.smoke.ts'),
+  ],
   { stdio: 'inherit', cwd: root },
 );

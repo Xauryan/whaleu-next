@@ -28,7 +28,7 @@ export const responseOk = (
   status = 200,
 ) => assert.equal(response.status, status, JSON.stringify(response.body));
 export async function readyDiscussionBatch(
-  f: BatchFixture,
+  f: Pick<BatchFixture, 'app' | 'pool' | 'scope' | 'worker'>,
   actor: BatchActor,
   target: import('../../../src/community/discussion/publication-target.js').DiscussionPublicationTarget,
   size: number,
@@ -129,7 +129,7 @@ export async function readyDiscussionBatch(
 }
 
 export async function publishDiscussionPost(
-  f: BatchFixture,
+  f: Pick<BatchFixture, 'app' | 'pool' | 'scope' | 'worker'>,
   actor: BatchActor,
   authorMode: 'named' | 'anonymous' = 'named',
 ) {
@@ -154,7 +154,7 @@ export async function publishDiscussionPost(
   return response.body.resourceId as string;
 }
 export async function sealDiscussionBatch(
-  f: BatchFixture,
+  f: Pick<BatchFixture, 'app' | 'pool' | 'scope' | 'worker'>,
   actor: BatchActor,
   status: MediaBatchStatus,
   text: string,

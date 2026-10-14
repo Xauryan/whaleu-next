@@ -1,3 +1,6 @@
+import { CurrentRatingLinkDependency } from '../rating-target-link/dependency.js';
+import { readRatingTargetLinks } from '../rating-target-link/binding.js';
+import { canonicalJson } from './contracts.js';
 import { CommunityDistributionService } from '../related-sync/service.js';
 import {
   readDistributionBindings,
@@ -126,6 +129,8 @@ export interface SearchContentNode extends ApprovalMetadata {
   images?: readonly { assetId: string; digest: string; position: number }[];
   media_fact?: MediaContentFact;
   exact_time_valid: boolean;
+  current_link_decision?: SearchContentDecision;
+  current_link_generation?: string;
   publication_envelope_version?: number;
   envelope_version?: number;
   distribution_scope?: unknown;
@@ -236,12 +241,17 @@ export function evaluateSearchContentCertificate(
   const finish = (decision: SearchContentDecision): Conditional => ({
     decision,
     validUntil: minimum(until, classificationUntil),
-    ...(certificate?.certificate_version === 2
+    ...(certificate?.certificate_version === 2 ||
+    consumed.some(
+      (entry) => Array.isArray(entry) && entry[0] === 'rating-target-link-v1',
+    )
       ? {
           eligibilityRevision: [
             'semantic-media-eligibility-v2',
-            certificate.source_revision,
-            certificate.media_chain,
+            certificate?.source_revision,
+            certificate?.certificate_version === 2
+              ? certificate.media_chain
+              : null,
             consumed,
             decision,
             until,
@@ -267,6 +277,12 @@ export function evaluateSearchContentCertificate(
     )
       return finish('unknown');
     if (!relatedNodeProofCurrent(node)) return finish('unknown');
+    if (node.publication_envelope_version === 5) {
+      if (node.current_link_decision !== 'allow')
+        return finish(node.current_link_decision ?? 'unknown');
+      if (!node.current_link_generation) return finish('unknown');
+      consumed.push(['rating-target-link-v1', node.current_link_generation]);
+    }
     if (!certified || !certificate) return finish('unknown');
     const revision = certificate.source_revision[index]!;
     consumed.push([
@@ -415,6 +431,7 @@ export class ContentReviewSearchEligibilityFacade {
     private readonly campuses: CampusContentScopeFacade,
     private readonly media: MediaContentSnapshotFacade = new UnavailableMediaContentSnapshotFacade(),
     private readonly distribution?: CommunityDistributionService,
+    private readonly targetLinks: CurrentRatingLinkDependency = new CurrentRatingLinkDependency(),
   ) {}
 
   private async hasV2(tx: PoolClient): Promise<boolean> {
@@ -433,6 +450,7 @@ export class ContentReviewSearchEligibilityFacade {
     indexSpaceKey: string | null = null,
     mediaAware = false,
     activePosts?: ReadonlySet<string>,
+    viewer: string | null = null,
   ): Promise<Map<string, SearchContentNode>> {
     const all = new Map<string, SearchContentNode>();
     for (let offset = 0; offset < candidates.length; offset += 256) {
@@ -453,7 +471,7 @@ export class ContentReviewSearchEligibilityFacade {
              FROM whaleu_community.root_comments s JOIN wanted w ON w.kind='comment' AND w.id=s.id
            UNION ALL SELECT 'reply',s.id,s.post_id,s.root_comment_id,s.account_id,s.author_mode,s.visibility,s.deleted_at,NULL::text
              FROM whaleu_community.replies s JOIN wanted w ON w.kind='reply' AND w.id=s.id
-         ) SELECT s.*,root_post.publication_envelope_version,b.envelope_version,b.scope AS distribution_scope,timing.now AS read_at,g.generation,b.digest,b.decision_id,h.event_id,b.envelope->'images' AS expected_images,
+         ) SELECT s.*,root_post.publication_envelope_version,b.envelope_version,b.scope AS distribution_scope,timing.now AS read_at,CASE WHEN root_post.publication_envelope_version=5 THEN whaleu_community.rating_link_semantic_generation(s.kind,s.id,g.generation) ELSE g.generation END generation,b.digest,b.decision_id,h.event_id,b.envelope->'images' AS expected_images,
          CASE WHEN cert.content_id IS NULL THEN NULL ELSE to_jsonb(cert) END AS stored_certificate,
          ${mediaAware ? 'CASE WHEN cv2.content_id IS NULL THEN NULL ELSE to_jsonb(cv2) END' : 'NULL::jsonb'} AS stored_certificate_v2,
          ${SEARCH_APPROVAL_EXACT_TIME_PREDICATE} AS exact_time_valid,${metadataProjection}
@@ -500,6 +518,35 @@ export class ContentReviewSearchEligibilityFacade {
           3 * ids('comment').length +
           3 * ids('reply').length,
       );
+      const linkedIds = [
+        ...new Set(
+          rows
+            .filter((node) => node.publication_envelope_version === 5)
+            .map((node) => node.post_id),
+        ),
+      ];
+      const linked = await readRatingTargetLinks(linkedIds, tx, budget);
+      const linkFacts = await this.targetLinks.currentBatch(
+        viewer,
+        [...linked.values()].map((link) => link.binding),
+        tx,
+        budget,
+      );
+      for (const node of rows)
+        if (node.publication_envelope_version === 5) {
+          const link = linked.get(node.post_id),
+            fact = link
+              ? linkFacts.get(canonicalJson(link.binding))
+              : undefined;
+          node.current_link_decision =
+            fact?.kind === 'allow'
+              ? 'allow'
+              : fact?.kind === 'deny'
+                ? 'deny'
+                : 'unknown';
+          if (fact?.kind === 'allow')
+            node.current_link_generation = fact.value.generation;
+        }
       const relatedPostIds = [
         ...new Set(
           rows
@@ -643,20 +690,28 @@ export class ContentReviewSearchEligibilityFacade {
     profile: QwenSemanticProfile,
     tx: PoolClient,
     read?: SearchReadContext,
+    viewer: string | null = null,
   ): Promise<{
     decision: SearchContentDecision;
     certificate?: SearchContentCertificate;
   }> {
     await captureSemanticMediaProof(tx);
-    const nodes = await this.nodes([candidate], tx);
+    const nodes = await this.nodes(
+      [candidate],
+      tx,
+      null,
+      false,
+      undefined,
+      viewer,
+    );
     const hasImages = chain(candidate).some(([kind, id]) => {
       const node = nodes.get(`${kind}:${id}`);
       const images = node && exactNodeImages(node);
       return !images || images.length > 0;
     });
     return hasImages
-      ? this.captureEligibilityV2(candidate, profile, tx, read)
-      : this.captureEligibility(candidate, profile, tx, read);
+      ? this.captureEligibilityV2(candidate, profile, tx, read, viewer)
+      : this.captureEligibility(candidate, profile, tx, read, viewer);
   }
 
   async capture(
@@ -676,7 +731,7 @@ export class ContentReviewSearchEligibilityFacade {
       currentMedia
         ? this.captureEligibilityCurrent.bind(this)
         : this.captureEligibility.bind(this)
-    )(source.candidate, profile, tx, read);
+    )(source.candidate, profile, tx, read, source.viewerAccountId ?? null);
     if (
       result.decision !== 'allow' ||
       !result.certificate ||
@@ -700,11 +755,12 @@ export class ContentReviewSearchEligibilityFacade {
     profile: QwenSemanticProfile,
     tx: PoolClient,
     read?: SearchReadContext,
+    viewer: string | null = null,
   ): Promise<{
     decision: SearchContentDecision;
     certificate?: SearchContentCertificate;
   }> {
-    return this.captureVersion(candidate, profile, tx, read, 1);
+    return this.captureVersion(candidate, profile, tx, read, 1, viewer);
   }
 
   async captureEligibilityV2(
@@ -712,13 +768,14 @@ export class ContentReviewSearchEligibilityFacade {
     profile: QwenSemanticProfile,
     tx: PoolClient,
     read?: SearchReadContext,
+    viewer: string | null = null,
   ): Promise<{
     decision: SearchContentDecision;
     certificate?: SearchContentCertificate;
   }> {
     await captureSemanticMediaProof(tx);
     if (!(await this.hasV2(tx))) throw unavailable();
-    return this.captureVersion(candidate, profile, tx, read, 2);
+    return this.captureVersion(candidate, profile, tx, read, 2, viewer);
   }
 
   private async captureVersion(
@@ -727,6 +784,7 @@ export class ContentReviewSearchEligibilityFacade {
     tx: PoolClient,
     read: SearchReadContext | undefined,
     version: 1 | 2,
+    viewer: string | null,
   ): Promise<{
     decision: SearchContentDecision;
     certificate?: SearchContentCertificate;
@@ -779,6 +837,7 @@ export class ContentReviewSearchEligibilityFacade {
       null,
       version === 2,
       new Set([candidate.postId]),
+      viewer,
     );
     let validUntil: number | null = null;
     const ancestors: SearchContentCertificate[] = [];
@@ -795,7 +854,7 @@ export class ContentReviewSearchEligibilityFacade {
       )
         return { decision: 'unknown' };
       const checked = await this.visibility.check(
-        null,
+        viewer,
         {
           contentKind: kind,
           contentId: id,
@@ -1005,6 +1064,7 @@ export class ContentReviewSearchEligibilityFacade {
     scope: SearchStructuralScope,
     profile: QwenSemanticProfile,
     tx: PoolClient,
+    viewer: string | null = null,
   ): Promise<SearchContentEligibilityRelation> {
     requireQwenSemanticProfile(profile);
     if (
@@ -1162,6 +1222,7 @@ export class ContentReviewSearchEligibilityFacade {
       profile.indexSpaceKey,
       v2Installed,
       activePosts,
+      viewer,
     );
     const now = (
       await tx.query<{ now: Date }>('SELECT clock_timestamp() AS now')

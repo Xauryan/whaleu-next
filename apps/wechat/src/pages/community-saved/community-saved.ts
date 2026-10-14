@@ -1,3 +1,4 @@
+import { RatingLinkNavigator } from '../../community/rating-link-navigation';
 import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import { AuthorNavigator } from '../../profile/author-navigation';
 import {
@@ -13,6 +14,7 @@ import {
 import { tradingLabels } from '../../community/trading-contract';
 import { SavedController, initialSavedView } from './controller';
 Page({
+  ratingLinkNavigator: undefined as RatingLinkNavigator | undefined,
   data: {
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     ...initialSavedView(),
@@ -26,6 +28,13 @@ Page({
   savedMutations: undefined as SavedMutationController | undefined,
   authorNavigator: undefined as AuthorNavigator | undefined,
   onShow() {
+    this.ratingLinkNavigator?.dispose();
+    const linkRuntime = getApp<WhaleuApp>().community;
+    this.ratingLinkNavigator = linkRuntime
+      ? new RatingLinkNavigator(wx, linkRuntime.sessions, () =>
+          this.setData({ error: '暂不能打开评分对象，请重试' }),
+        )
+      : undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = new AuthorNavigator(
       wx,
@@ -110,7 +119,17 @@ Page({
   onSavedCancel() {
     this.savedMutations?.cancel();
   },
+  onRatingTargetLink(event: { currentTarget: { dataset: { id?: string } } }) {
+    if (this.data.busy) return;
+    this.ratingLinkNavigator?.open(
+      this.data.items.find(
+        (item) => item.post.id === event.currentTarget.dataset.id,
+      )?.post,
+    );
+  },
   onHide() {
+    this.ratingLinkNavigator?.dispose();
+    this.ratingLinkNavigator = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = undefined;
     this.controller?.dispose();
@@ -122,6 +141,8 @@ Page({
     this.overlayTargets = '';
   },
   onUnload() {
+    this.ratingLinkNavigator?.dispose();
+    this.ratingLinkNavigator = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = undefined;
     this.controller?.dispose();

@@ -1,3 +1,4 @@
+import { ratingTargetLinkViewSchema } from '../rating-target-link/contracts.js';
 import { mediaAttachmentDescriptorSchema } from '../../media/contracts.js';
 import { z } from 'zod';
 import { categorySchema } from '../contracts.js';
@@ -138,6 +139,7 @@ export const hotPostViewSchema = z
       z.strictObject({ kind: z.literal('none') }),
       z.strictObject({ kind: z.literal('poll'), poll }),
       z.strictObject({ kind: z.literal('formation'), formation }),
+      ratingTargetLinkViewSchema,
     ]),
     viewer: z.strictObject({
       isSelf: bool,

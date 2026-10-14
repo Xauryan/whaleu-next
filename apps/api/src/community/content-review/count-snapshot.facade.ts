@@ -1,5 +1,8 @@
+import { CurrentRatingLinkDependency } from '../rating-target-link/dependency.js';
+import { canonicalJson } from './contracts.js';
+import type { CurrentRatingTargetLink } from '../../ratings/target-link/facade.js';
 import { distributionScopeMatches } from '../related-sync/binding.js';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { CampusContentScopeFacade } from '../../campus/content-scope.facade.js';
 import { ApplicationError } from '../../http/application-error.js';
@@ -150,6 +153,10 @@ class SnapshotEvaluator {
     private readonly snapshot: CountReviewSnapshot,
     private readonly regions: Map<string, boolean>,
     private readonly media: ReadonlyMap<string, MediaContentFact> = new Map(),
+    private readonly targetLinks: ReadonlyMap<
+      string,
+      Decision<CurrentRatingTargetLink>
+    > = new Map(),
   ) {}
   private regionActive(post: DefinitionPost): boolean {
     const space = this.snapshot.spaces.get(post.space_id);
@@ -227,6 +234,8 @@ class SnapshotEvaluator {
       kind === 'post' ? this.snapshot.formations.get(id) : undefined;
     return reconstructDefinition(kind, post, content, rootId, scope, parents, {
       images: this.snapshot.images.get(contentKey(kind, id)) ?? [],
+      ratingTargetLink:
+        kind === 'post' ? this.snapshot.ratingTargetLinks?.get(id) : undefined,
       poll,
       formation,
       listing: kind === 'post' ? this.snapshot.listings.get(id) : undefined,
@@ -293,6 +302,17 @@ class SnapshotEvaluator {
                 ? allowed()
                 : unknown(),
             );
+            if (stored.value.envelope.version === 5) {
+              const fact = this.targetLinks.get(
+                canonicalJson(stored.value.envelope.component.binding),
+              );
+              result = then(result, () =>
+                conditional(
+                  fact ?? { kind: 'unavailable' },
+                  fact?.kind === 'allow' ? fact.value.validUntil : null,
+                ),
+              );
+            }
             for (const parent of stored.value.parents)
               result = then(result, () => this.base(parent.kind, parent.id));
           }
@@ -380,6 +400,9 @@ export class ContentReviewCountFacade {
     private readonly safety: SafetyContentVisibilityFacade,
     @Inject(MediaContentSnapshotFacade)
     private readonly media: MediaContentSnapshotFacade = new UnavailableMediaContentSnapshotFacade(),
+    @Optional()
+    @Inject(CurrentRatingLinkDependency)
+    private readonly targetLinks: CurrentRatingLinkDependency = new CurrentRatingLinkDependency(),
   ) {}
   private async prepare(
     snapshot: CountReviewSnapshot,
@@ -397,7 +420,15 @@ export class ContentReviewCountFacade {
       ],
       tx,
     );
-    let evaluator = new SnapshotEvaluator(snapshot, regions);
+    const links = await this.targetLinks.currentBatch(
+      viewer,
+      [...(snapshot.ratingTargetLinks?.values() ?? [])].map(
+        (link) => link.binding,
+      ),
+      managed ?? tx,
+      snapshot.budget,
+    );
+    let evaluator = new SnapshotEvaluator(snapshot, regions, new Map(), links);
     // Probe canonical gates first. Earlier Review/structure denial never gains
     // an artificial Media dependency, and all image requests are batch-local.
     for (const post of snapshot.posts.values())
@@ -436,7 +467,7 @@ export class ContentReviewCountFacade {
           throw new ApplicationError('COMMUNITY_UNAVAILABLE');
         throw error;
       }
-      evaluator = new SnapshotEvaluator(snapshot, regions, media);
+      evaluator = new SnapshotEvaluator(snapshot, regions, media, links);
     }
     const before = new Map<string, ConditionalDecision>();
     const named: string[] = [];

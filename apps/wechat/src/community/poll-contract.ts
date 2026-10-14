@@ -1,3 +1,7 @@
+import {
+  decodeRatingTargetLinkCard,
+  type RatingTargetLinkCard,
+} from './rating-link-contract';
 import { decodeFormation, type Formation } from './formation-contract';
 import { isRecord } from '../api/errors';
 import { isUuid } from '../profile/contract';
@@ -35,6 +39,7 @@ export interface Poll {
   };
 }
 export type PostComponent =
+  | RatingTargetLinkCard
   | { readonly kind: 'none' }
   | { readonly kind: 'poll'; readonly poll: Poll }
   | { readonly kind: 'formation'; readonly formation: Formation };
@@ -250,6 +255,8 @@ export function decodePostComponent(
     exact(value, ['kind']);
     return Object.freeze({ kind: 'none' });
   }
+  if (value.kind === 'rating_target_link')
+    return decodeRatingTargetLinkCard(value);
   if (value.kind === 'formation') {
     exact(value, ['kind', 'formation']);
     const formation = decodeFormation(value.formation);

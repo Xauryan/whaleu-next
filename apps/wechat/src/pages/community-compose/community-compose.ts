@@ -22,8 +22,53 @@ Page({
       targetReplyId?: string;
       copyCommentId?: string;
       copyReplyId?: string;
+      ratingActorId?: string;
+      ratingTargetId?: string;
+      ratingCampusId?: string;
+      ratingDestinationCampusId?: string;
+      ratingScope?: string;
     } = {},
   ) {
+    const hasRating =
+      query.ratingTargetId !== undefined ||
+      query.ratingActorId !== undefined ||
+      query.ratingScope !== undefined ||
+      query.ratingCampusId !== undefined ||
+      query.ratingDestinationCampusId !== undefined;
+    if (hasRating) {
+      this.copySource = null;
+      this.target =
+        isUuid(query.spaceId) &&
+        query.category === 'discussion' &&
+        isUuid(query.ratingActorId) &&
+        isUuid(query.ratingTargetId) &&
+        isUuid(query.ratingDestinationCampusId) &&
+        (query.ratingScope === 'global'
+          ? query.ratingCampusId === undefined
+          : query.ratingScope === 'campus' && isUuid(query.ratingCampusId)) &&
+        query.postId === undefined &&
+        query.rootCommentId === undefined &&
+        query.copyCommentId === undefined &&
+        query.copyReplyId === undefined &&
+        query.targetReplyId === undefined &&
+        (query.viewSpaceId === undefined || query.viewSpaceId === query.spaceId)
+          ? {
+              operation: 'publish_post',
+              spaceId: query.spaceId,
+              category: 'discussion',
+              ratingLink: {
+                actorId: query.ratingActorId,
+                targetId: query.ratingTargetId,
+                destinationCampusId: query.ratingDestinationCampusId,
+                selector:
+                  query.ratingScope === 'global'
+                    ? { kind: 'global' }
+                    : { kind: 'campus', campusId: query.ratingCampusId! },
+              },
+            }
+          : null;
+      return;
+    }
     this.copySource = isUuid(query.copyReplyId)
       ? { kind: 'reply', id: query.copyReplyId }
       : isUuid(query.copyCommentId)
@@ -198,6 +243,27 @@ Page({
   },
   onFormationConsent(event: { detail: { value: boolean } }) {
     this.controller?.setFormationConsent(event.detail.value);
+  },
+  onRatingLabel(event: { detail: { value: string } }) {
+    this.controller?.setRatingLinkLabel(event.detail.value);
+  },
+  onRemoveRatingLink() {
+    this.controller?.removeRatingLink();
+  },
+  onGenerateRatingLabel() {
+    void this.controller?.generateRatingLabel();
+  },
+  onAdoptRatingLabel() {
+    void this.controller?.adoptRatingLabel();
+  },
+  onRecoverAssistance() {
+    void this.controller?.recoverAssistance();
+  },
+  onCancelAssistance() {
+    void this.controller?.cancelAssistance();
+  },
+  onDismissAssistance() {
+    this.controller?.dismissAssistance();
   },
   onSubmit() {
     void this.controller?.submit();

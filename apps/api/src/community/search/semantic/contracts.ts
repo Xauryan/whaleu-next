@@ -26,6 +26,7 @@ export const semanticRevisionSchema = z
   .max(3);
 export type SemanticSourceRevision = z.infer<typeof semanticRevisionSchema>;
 export interface SemanticAuthorizedSource {
+  readonly viewerAccountId?: string | null;
   readonly candidate: Readonly<SearchCandidate>;
   readonly revision: SemanticSourceRevision;
   readonly fingerprint: string;
@@ -36,6 +37,7 @@ export const semanticFingerprint = (value: unknown): string =>
   createHash('sha256').update(canonicalJson(value)).digest('hex');
 
 export interface SemanticScopeSnapshot {
+  readonly viewerAccountId?: string | null;
   readonly fingerprint: string;
   readonly sources: readonly SemanticAuthorizedSource[];
   readonly nonTextSources?: readonly SemanticAuthorizedSource[];

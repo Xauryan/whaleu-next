@@ -1,3 +1,4 @@
+import { CurrentRatingLinkDependency } from '../../rating-target-link/dependency.js';
 import { CommunityDistributionService } from '../../related-sync/service.js';
 import { AccountPolicy } from '../../../safety/account-policy/decorator.js';
 import { MediaContentSnapshotFacade } from '../../../media/content-snapshot.facade.js';
@@ -71,6 +72,9 @@ export class SemanticSearchRuntime {
     @Optional()
     @Inject(CommunityDistributionService)
     distribution?: CommunityDistributionService,
+    @Optional()
+    @Inject(CurrentRatingLinkDependency)
+    targetLinks?: CurrentRatingLinkDependency,
   ) {
     if (!provider || config.COMMUNITY_SEMANTIC_SEARCH === 'disabled') {
       this.engine = null;
@@ -82,6 +86,7 @@ export class SemanticSearchRuntime {
       campuses,
       media,
       distribution,
+      targetLinks,
     );
     const corpus = new SemanticCorpusRepository(safety);
     this.engine = new SemanticSearchEngine(

@@ -1,3 +1,4 @@
+import { CurrentRatingLinkDependency } from '../rating-target-link/dependency.js';
 import { requireFeedbackSpace } from '../feedback/topic.js';
 import { registerTransactionDeadline } from '../../database/transaction-deadlines.js';
 import { Inject, Injectable, Optional } from '@nestjs/common';
@@ -24,6 +25,9 @@ export class TextReviewRuntime {
     @Optional()
     @Inject(CommunityDistributionService)
     private readonly distribution?: CommunityDistributionService,
+    @Optional()
+    @Inject(CurrentRatingLinkDependency)
+    private readonly targetLinks: CurrentRatingLinkDependency = new CurrentRatingLinkDependency(),
   ) {}
   configured(): boolean {
     return (
@@ -139,6 +143,22 @@ export class TextReviewRuntime {
         ).rows[0]
       )
         throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      return;
+    }
+    if (envelope.version === 5) {
+      if (
+        envelope.commentsPolicy !== 'open' ||
+        !(await this.available(
+          {
+            id: envelope.spaceId,
+            operatingRegionId: envelope.scope.originalRegionId,
+          },
+          tx,
+          'discussion',
+        ))
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      await this.targetLinks.requirePublicationEnvelope(envelope, tx);
       return;
     }
     if (

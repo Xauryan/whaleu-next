@@ -1,3 +1,4 @@
+import * as assistance from '../src/ratings/assistance/contracts.js';
 import * as dishes from '../src/ratings/windows/dishes/contracts.js';
 import * as windows from '../src/ratings/windows/contracts.js';
 import * as courseComments from '../src/ratings/courses/comments/contracts.js';
@@ -1010,7 +1011,51 @@ test('legacy, scoped, category management and category icon operations have exac
       windows.windowReceiptSchema,
     ],
   ] as const;
+  const assistanceCases = [
+    [
+      '/v2/ratings/assistance/requests',
+      'post',
+      assistance.assistanceMetadataSchema,
+      'ratingAssistanceCreate',
+    ],
+    [
+      '/v2/ratings/assistance/requests/{requestId}',
+      'get',
+      assistance.assistanceMetadataSchema,
+      'ratingAssistanceStatus',
+    ],
+    [
+      '/v2/ratings/assistance/requests/{requestId}/result',
+      'get',
+      assistance.assistanceResultSchema,
+      'ratingAssistanceResult',
+    ],
+    [
+      '/v2/ratings/assistance/requests/{requestId}/cancel',
+      'post',
+      assistance.assistanceMetadataSchema,
+      'ratingAssistanceCancel',
+    ],
+  ] as const;
+  for (const [path, method, , operationId] of assistanceCases)
+    assert.equal(doc.paths[path]![method]!.operationId, operationId);
+  for (const [path, schema] of [
+    ['/v2/ratings/assistance/requests', assistance.assistanceRequestSchema],
+    [
+      '/v2/ratings/assistance/requests/{requestId}/cancel',
+      assistance.assistanceCancelSchema,
+    ],
+  ] as const) {
+    const body = doc.paths[path]!.post!.requestBody!;
+    assert.ok(!('$ref' in body));
+    assert.equal(body.required, true);
+    assert.deepEqual(
+      body.content['application/json']!.schema,
+      z.toJSONSchema(schema, { target: 'openapi-3.0', io: 'input' }),
+    );
+  }
   const allCases = [
+    ...assistanceCases,
     ...windowCases,
     ['/v1/ratings/windows/{id}/dishes', 'get', dishes.dishPageSchema],
     [

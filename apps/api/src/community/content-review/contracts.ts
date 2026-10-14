@@ -1,3 +1,5 @@
+import { reviewedRatingTargetLinkSchema } from '../rating-target-link/contracts.js';
+import type { ReviewedRatingTargetLink } from '../rating-target-link/contracts.js';
 import { feedbackInputSchema } from '../feedback/contracts.js';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -95,12 +97,25 @@ const contentEnvelopeV4Schema = z.strictObject({
     inheritedRelatedScopeSchema,
   ]),
 });
+const contentEnvelopeV5Schema = z.strictObject({
+  ...contentEnvelopeShape,
+  version: z.literal(5),
+  purpose: z.literal('publish_post'),
+  category: z.literal('discussion'),
+  images: z.tuple([]),
+  component: reviewedRatingTargetLinkSchema,
+  trading: z.null(),
+  scope: legacyContentScopeSchema.refine(
+    (scope) => scope.originalRegionId !== null,
+  ),
+});
 const exactContentEnvelopeSchema = z
   .discriminatedUnion('version', [
     contentEnvelopeV1Schema,
     contentEnvelopeV2Schema,
     contentEnvelopeV3Schema,
     contentEnvelopeV4Schema,
+    contentEnvelopeV5Schema,
   ])
   .superRefine((value, ctx) => {
     const invalid = (message: string) =>
@@ -234,20 +249,34 @@ export interface EffectiveContentEnvelopeV4 extends ContentEnvelopeFields {
   scope: RelatedRootScope | InheritedRelatedScope;
   allowAnonymousDm: boolean | null;
 }
+export interface EffectiveContentEnvelopeV5 extends Omit<
+  ContentEnvelopeFields,
+  'component' | 'images' | 'trading'
+> {
+  version: 5;
+  purpose: 'publish_post';
+  category: 'discussion';
+  images: [];
+  trading: null;
+  component: ReviewedRatingTargetLink;
+  scope: LegacyContentScope;
+}
 export type EffectiveContentEnvelope =
   | EffectiveContentEnvelopeV1
   | EffectiveContentEnvelopeV2
   | EffectiveContentEnvelopeV3
-  | EffectiveContentEnvelopeV4;
+  | EffectiveContentEnvelopeV4
+  | EffectiveContentEnvelopeV5;
 export type EffectiveContentEnvelopeDraft =
   | Omit<EffectiveContentEnvelopeV1, 'images'>
   | Omit<EffectiveContentEnvelopeV2, 'images'>
   | Omit<EffectiveContentEnvelopeV3, 'images'>
-  | Omit<EffectiveContentEnvelopeV4, 'images'>;
+  | Omit<EffectiveContentEnvelopeV4, 'images'>
+  | Omit<EffectiveContentEnvelopeV5, 'images'>;
 export interface AcceptedApproval {
   decisionId: string;
   digest: string;
-  version: 1 | 2 | 3 | 4;
+  version: 1 | 2 | 3 | 4 | 5;
   envelope: EffectiveContentEnvelope;
 }
 export interface ContentApprovalInput {

@@ -1,3 +1,4 @@
+import { RatingLinkNavigator } from '../../community/rating-link-navigation';
 import type { WhaleuApp } from '../../app';
 import {
   decodeHotIntent,
@@ -12,6 +13,7 @@ import { AuthorNavigator } from '../../profile/author-navigation';
 import { HotController, initialHotView } from './controller';
 
 Page({
+  ratingLinkNavigator: undefined as RatingLinkNavigator | undefined,
   data: {
     ...initialHotView(),
     hotRanges,
@@ -60,6 +62,13 @@ Page({
     });
   },
   onShow() {
+    this.ratingLinkNavigator?.dispose();
+    const linkRuntime = getApp<WhaleuApp>().community;
+    this.ratingLinkNavigator = linkRuntime
+      ? new RatingLinkNavigator(wx, linkRuntime.sessions, () =>
+          this.setData({ error: '暂不能打开评分对象，请重试' }),
+        )
+      : undefined;
     const selected = this.controller?.snapshot() ?? this.resume ?? this.route;
     this.viewObserver?.dispose();
     this.viewObserver = undefined;
@@ -124,7 +133,17 @@ Page({
         ?.author,
     );
   },
+  onRatingTargetLink(event: { currentTarget: { dataset: { id?: string } } }) {
+    if (this.data.busy) return;
+    this.ratingLinkNavigator?.open(
+      this.data.posts.find(
+        (post) => post.id === event.currentTarget.dataset.id,
+      ),
+    );
+  },
   onHide() {
+    this.ratingLinkNavigator?.dispose();
+    this.ratingLinkNavigator = undefined;
     this.resume = this.controller?.snapshot() ?? this.resume;
     this.viewObserver?.dispose();
     this.viewObserver = undefined;
@@ -134,6 +153,8 @@ Page({
     this.authorNavigator = undefined;
   },
   onUnload() {
+    this.ratingLinkNavigator?.dispose();
+    this.ratingLinkNavigator = undefined;
     this.viewObserver?.dispose();
     this.viewObserver = undefined;
     this.controller?.dispose();
