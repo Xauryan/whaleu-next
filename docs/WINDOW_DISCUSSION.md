@@ -34,9 +34,10 @@ of an established legacy native page.
   are introduced.
 - This slice accepts exact nonblank, well-formed Unicode text up to 8,000 UTF-8
   bytes, excluding NUL. Whitespace is preserved, and text `0` is valid. These are
-  explicit Next limits, not recovered PHP limits. Images and image-only roots or
-  replies are rejected. The source supports both: typed Window Media + Review
-  publication/delivery and image-only parity remain a separate required follow-on.
+  explicit Next limits, not recovered PHP limits. The original v1 rejects images and image-only roots or
+  replies. The separate [Window v2 image extension](WINDOW_DISCUSSION_IMAGES.md)
+  now implements typed Media + Review publication/delivery, including image-only
+  roots and replies; the original v1 contract remains unchanged.
 
 ## Independent source, history and Review
 

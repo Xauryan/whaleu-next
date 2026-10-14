@@ -77,7 +77,7 @@ worker leases cap concurrent drains at four; expiring a worker/slot lease cannot
 grant a resend. Final proof/dispatch starts only with seven seconds remaining;
 receipt wait is at most five seconds inside the ten-second drain and lease guard.
 
-## Verification status
+## Historical source-preparation verification status
 
 The initial source-only pass added focused contract/operator/native-locator tests
 and nine registered integration files. Builds, typecheck, PostgreSQL, actual
@@ -85,6 +85,8 @@ Chromium DOM/HTTP tests, emitted native roundtrips, aggregate CI and final hoste
 commit gates are separate required acceptance steps. A test file or a default-off
 boot is not a passing synthetic end-to-end implementation. Physical WeChat
 acceptance is not established by a synthetic native harness.
+
+Current accepted software source: `76916f75d1de52e3f425e1ab47bae3dfcc39c54b`. Its complete exact hosted gate, including the real Chromium operator journey, passed. All nine physical promotion files executed: 31 non-browser and 8 browser verdicts passed, with one structural browser parent; the real 10,000-current/100,000-historical receiver snapshot also passed. See the [current parity checkpoint](../FEATURE_PARITY.md#current-usable-flow-checkpoint) for exact Verify/Stats evidence. This acceptance does not pre-approve a later documentation commit's checks. The paragraph above records the initial source-only checkpoint, not a current claim that subsequent checks remain unexecuted. Production scheduling, operator authentication and real transport/model adapters remain separate implementation/qualification work; physical-device acceptance and production activation remain open.
 
 ### Category owner sources
 
@@ -120,10 +122,12 @@ change SQL bodies or establish runtime acceptance.
 
 ## Hosted browser compatibility
 
-The rating operator browser file runs exactly once alongside the official
-operator browser in the isolated `official-account-browser` shard. Only that
-shard selects Ubuntu 22.04 and the explicit `ubuntu22-userns-v1` profile. Its
-read-only host and unprivileged namespace probe must pass before pinned Chromium
+The rating operator and official operator browser files each run exactly once
+in separate singleton shards of the `official-account-browser` module. These two
+shards are ordered first in the 15-shard inventory; only they select Ubuntu 22.04
+and the explicit `ubuntu22-userns-v1` profile. Each runner’s read-only host and
+unprivileged namespace probe must pass before pinned Chromium
 starts with its sandbox intact. The profile expires on 2027-03-01 and must migrate
 before that date. The remaining eight rating PostgreSQL files stay on Ubuntu
-24.04. Hosted browser execution is still required; local EPERM is not a pass.
+24.04. Exact-source hosted browser execution passed on `76916f75`; local EPERM
+remains failed local evidence, not a pass.

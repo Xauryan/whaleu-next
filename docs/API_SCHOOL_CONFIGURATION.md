@@ -31,6 +31,9 @@ or synthetic real-user contacts are seeded.
 Existing unverified/related-region posting policy remains owned by region policy.
 Official-account application IDs, secrets, push configuration and provider tests
 are deliberately absent from all input/output DTOs and tables in this owner.
+The separate [official-account operations owner](OFFICIAL_ACCOUNT_OPERATIONS.md)
+implements scoped synthetic configuration/draft/callback/operator workflows; it
+does not add credentials to these school-configuration DTOs or activate delivery.
 
 ## Authority and publication
 
