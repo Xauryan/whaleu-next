@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import request from 'supertest';
 import type { Response } from 'supertest';
+import { errandNoticesPageSchema } from '../../src/notifications/errand-contracts.js';
 import {
   errandRuntimeFixture,
   seedErrandFeature,
@@ -275,7 +276,7 @@ test(
           );
           const order = await f.publish(p),
             claim = await f.command(r, order.id, order.revision, 'accept', {
-              contacts: { wechat: 'only_saved_here', phone: '987' },
+              contacts: { wechat: 'only_saved_here', phone: '98765432109' },
             });
           assert.equal(claim.body.outcome, 'applied');
           assert.deepEqual(
@@ -287,7 +288,7 @@ test(
             ).body,
             {
               status: 'available',
-              contacts: { wechat: 'only_saved_here', phone: '987' },
+              contacts: { wechat: 'only_saved_here', phone: '98765432109' },
             },
           );
           const notices = await f.auth(
@@ -297,13 +298,95 @@ test(
           assert.equal(notices.body.items.length, 1);
           assert.equal(notices.body.unreadCount, 1);
           assert.equal(notices.body.items[0].kind, 'accepted');
+          const parsed = errandNoticesPageSchema.parse(notices.body);
+          assert.deepEqual(Object.keys(notices.body).sort(), [
+            'items',
+            'nextCursor',
+            'unreadCount',
+          ]);
+          assert.deepEqual(Object.keys(notices.body.items[0]).sort(), [
+            'createdAt',
+            'kind',
+            'noticeId',
+            'orderId',
+            'readAt',
+          ]);
+          const metadata = (
+            await f.pool.query(
+              `SELECT id,kind,order_id,
+               to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') created_at,
+               read_at FROM whaleu_notifications.errand_notices
+             WHERE recipient_account_id=$1 AND order_id=$2`,
+              [p.accountId, order.id],
+            )
+          ).rows;
+          assert.equal(metadata.length, 1);
+          assert.equal(parsed.items[0]!.noticeId, metadata[0].id);
+          assert.equal(parsed.items[0]!.kind, metadata[0].kind);
+          assert.equal(parsed.items[0]!.kind, 'accepted');
+          assert.equal(
+            'orderId' in parsed.items[0]! && parsed.items[0].orderId,
+            order.id,
+          );
+          assert.equal(metadata[0].order_id, order.id);
+          assert.equal(parsed.items[0]!.createdAt, metadata[0].created_at);
+          assert.equal(parsed.items[0]!.readAt, null);
+          assert.equal(metadata[0].read_at, null);
+          assert.equal(parsed.nextCursor, null);
+          assert.equal(parsed.unreadCount, 1);
+          // A three-digit phone is not a sound whole-JSON privacy sentinel:
+          // legitimate IDs/timestamps may contain it. This demonstrates the
+          // assertion defect, not the unobserved original hosted match location.
+          const lawfulMetadata = errandNoticesPageSchema.parse({
+            items: [
+              {
+                noticeId: '00000987-0000-4000-8000-000000000000',
+                orderId: '00000000-0000-4000-8000-000000000001',
+                kind: 'accepted',
+                createdAt: '2026-10-14T00:00:00.987Z',
+                readAt: null,
+              },
+            ],
+            nextCursor: null,
+            unreadCount: 1,
+          });
+          assert.ok(JSON.stringify(lawfulMetadata).includes('987'));
           for (const secret of [
             'only_saved_here',
-            '987',
+            '98765432109',
             order.body.privateText,
             'fixture_publisher',
           ])
-            assert.ok(!JSON.stringify(notices.body).includes(secret));
+            assert.ok(
+              !JSON.stringify(notices.body).includes(secret),
+              JSON.stringify({
+                phase: 'notice-private-substring',
+                secretLabel:
+                  secret === '98765432109'
+                    ? 'accepter-phone'
+                    : secret === 'only_saved_here'
+                      ? 'accepter-wechat'
+                      : secret === 'fixture_publisher'
+                        ? 'publisher-wechat'
+                        : 'private-text',
+                matches: (() => {
+                  const matches: { path: string; type: string }[] = [];
+                  const visit = (value: unknown, path: string) => {
+                    if (value && typeof value === 'object') {
+                      for (const [key, child] of Object.entries(value)) {
+                        if (key.includes(secret))
+                          matches.push({ path: `${path}.[key]`, type: 'key' });
+                        visit(child, `${path}.${key}`);
+                      }
+                    } else if (String(value).includes(secret)) {
+                      matches.push({ path, type: typeof value });
+                    }
+                  };
+                  visit(notices.body, '$');
+                  return matches;
+                })(),
+              }),
+            );
           const id = notices.body.items[0].noticeId;
           denied(
             await f

@@ -7,6 +7,8 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { fork } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { errandGroupFixture } from '../support/errand-group-runtime.js';
@@ -197,13 +199,133 @@ test(
               assert.equal(restarted.attempts.length, 1);
               assert.equal(restarted.attempts[0]!.destination.id, two.id);
               f.setTime(created + 900000);
-              const forum = await runRestartedGroupProcess(
+              let forum = await runRestartedGroupProcess(
                 f.directory,
                 [...f.authority.groups.values()],
                 f.runtime.now(),
                 true,
+                m['version'] === 2,
+              );
+              if (m['version'] === 2) {
+                assert.equal(forum.attempts.length, 0);
+                assert.equal(forum.trace.dispatches, 0);
+                assert.ok(
+                  forum.trace.observedAt >= forum.trace.prepared!.expiresAt,
+                );
+              }
+              t.diagnostic(
+                JSON.stringify({
+                  phase: 'native-forum-precondition',
+                  version: m['version'],
+                  expectedOrder: p.order_id,
+                  eventId: p.event_id,
+                  businessNow: f.runtime.now(),
+                  forum,
+                  rows: await preparationRows(f.pool),
+                  attempts: (
+                    await f.pool.query(
+                      'SELECT * FROM whaleu_notifications.errand_group_attempts ORDER BY delivery_id,fence',
+                    )
+                  ).rows,
+                  receipts: (
+                    await f.pool.query(
+                      'SELECT * FROM whaleu_notifications.errand_group_receipts',
+                    )
+                  ).rows,
+                  providerReceipts: (await preparationRows(f.pool)).map(
+                    (row) => ({
+                      key: row.idempotency_key,
+                      exists: existsSync(
+                        join(f.directory, `${row.idempotency_key}.json`),
+                      ),
+                    }),
+                  ),
+                }),
               );
               assert.notEqual(forum.pid, restarted.pid);
+              assert.equal(forum.claimed, true);
+              assert.equal(forum.trace.publication?.orderId, p.order_id);
+              assert.equal(forum.trace.publication?.eventId, p.event_id);
+              assert.equal(forum.trace.stage, 'forum');
+              assert.equal(forum.trace.permit?.destination.stage, 'forum');
+              const forumRows = (await preparationRows(f.pool)).filter(
+                (row) =>
+                  row.event_id === p.event_id &&
+                  row.stage === 'forum' &&
+                  row.destination_id === forum.trace.permit?.destination.id,
+              );
+              assert.equal(forumRows.length, 1);
+              assert.equal(
+                forumRows[0]!.idempotency_key,
+                forum.trace.permit?.key,
+              );
+              // Defensive handling of a proved unsent forum preparation expiry;
+              // the original hosted zero-attempt cause remains unproven.
+              if (forum.attempts.length !== 1) {
+                const anchor = forum.trace.publication?.firstConfirmedAt;
+                assert.equal(typeof anchor, 'number');
+                assert.ok(Number.isFinite(anchor));
+                const unchangedOwners = async () => ({
+                  publication: (
+                    await f.pool.query(
+                      'SELECT * FROM whaleu_notifications.errand_group_publications WHERE event_id=$1',
+                      [p.event_id],
+                    )
+                  ).rows,
+                  order: (
+                    await f.pool.query(
+                      'SELECT * FROM whaleu_errands.orders WHERE id=$1',
+                      [p.order_id],
+                    )
+                  ).rows,
+                  communityPosts: (
+                    await f.pool.query(
+                      'SELECT id FROM whaleu_community.posts ORDER BY id',
+                    )
+                  ).rows,
+                });
+                const originalOwners = await unchangedOwners();
+                assert.equal(originalOwners.publication.length, 1);
+                assert.equal(originalOwners.order.length, 1);
+                await recoverUnsentPreparation({
+                  pool: f.pool,
+                  directory: f.directory,
+                  row: forumRows[0]!,
+                  trace: forum.trace,
+                  senderAttempts: forum.attempts,
+                  latestBusinessTime: anchor! + 1800000,
+                  setTime: f.setTime,
+                  run: async () => {
+                    const previousPid = forum.pid;
+                    // Re-run only the original delivery; no discovery or new intent.
+                    forum = await runRestartedGroupProcess(
+                      f.directory,
+                      [...f.authority.groups.values()],
+                      f.runtime.now(),
+                      false,
+                      false,
+                    );
+                    assert.notEqual(forum.pid, previousPid);
+                    assert.notEqual(forum.pid, process.pid);
+                    return {
+                      trace: forum.trace,
+                      senderAttempts: forum.attempts,
+                    };
+                  },
+                  diagnostic: (message) => t.diagnostic(message),
+                });
+                assert.deepEqual(await unchangedOwners(), originalOwners);
+                const finalForumRows = (await preparationRows(f.pool)).filter(
+                  (row) => row.event_id === p.event_id && row.stage === 'forum',
+                );
+                assert.equal(finalForumRows.length, 1);
+                assert.equal(finalForumRows[0]!.id, forumRows[0]!.id);
+                assert.equal(
+                  finalForumRows[0]!.idempotency_key,
+                  forumRows[0]!.idempotency_key,
+                );
+                assert.equal(finalForumRows[0]!.receipts, 1);
+              }
               assert.equal(forum.attempts.length, 1);
               assert.equal(forum.attempts[0]!.destination.stage, 'forum');
               const payload = f.sender.attempts[before]!.payload;
