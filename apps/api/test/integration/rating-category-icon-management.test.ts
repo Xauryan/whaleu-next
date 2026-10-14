@@ -909,21 +909,25 @@ test(
     const originalTextHash = categoryIconTextHash(input);
     const assets: string[] = [],
       scopes: string[] = [];
-    let batchStarted = Date.now();
+    let lastUploadCompletedAt = performance.now();
     for (let index = 0; index < 32; index++) {
-      // Respect the unchanged shared Media 10/minute fence. No clock rewrite,
-      // new context, upload-key replacement or rolling scope renewal is used.
+      // Respect the rolling Media 10/minute fence: wait from the last completed
+      // upload, not the batch start, so faster later batches cannot overlap it.
+      // No clock rewrite, context/key replacement or scope renewal is used.
       if (index > 0 && index % 10 === 0) {
         await new Promise((resolve) =>
-          setTimeout(resolve, Math.max(0, 61000 - (Date.now() - batchStarted))),
+          setTimeout(
+            resolve,
+            Math.max(0, 61000 - (performance.now() - lastUploadCompletedAt)),
+          ),
         );
-        batchStarted = Date.now();
       }
       const uploaded = await f.ready(
         input,
         { kind: 'new', key: index === 0 ? 'root' : `node_${index}` },
         png,
       );
+      lastUploadCompletedAt = performance.now();
       input = uploaded.input;
       assert.deepEqual(input.context, originalContext);
       assert.equal(categoryIconTextHash(input), originalTextHash);
