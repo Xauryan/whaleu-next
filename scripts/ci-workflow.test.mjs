@@ -23,8 +23,13 @@ const jobs = Object.fromEntries(
 test('independent foundation jobs preserve every operation of npm check and every scripted workspace', () => {
   assert.equal(
     packageJson.scripts.check,
-    'npm run account-policy:inventory:check && npm run lint && npm run typecheck && npm run stats:test && npm run search:eval:test && npm run openapi:check && npm test && npm run build',
+    'npm run ci:check && npm run account-policy:inventory:check && npm run lint && npm run typecheck && npm run stats:test && npm run search:eval:test && npm run openapi:check && npm test && npm run build',
   );
+  assert.equal(
+    packageJson.scripts['ci:check'],
+    'node --test scripts/run-integration-shard.test.mjs scripts/run-integration-module.test.mjs scripts/ci-native-artifact.test.mjs scripts/ci-workflow.test.mjs',
+  );
+  assert.ok(jobs.plan.includes(`run: ${packageJson.scripts['ci:check']}\n`));
   assert.equal(
     packageJson.scripts['account-policy:inventory:check'],
     'node scripts/check-account-policy-routes.mjs',

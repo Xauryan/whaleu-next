@@ -95,7 +95,7 @@ test('eleven-job matrix preserves the first eight jobs and inserts administratio
   const inventory = discoverFiles();
   for (const [offset, families] of [
     [0, /^(activity|announcement|errand|major|organization)-/],
-    [1, /^(canteen|course|dish|window)-/],
+    [1, /^(campus-tools(?:-|\.test\.ts$)|(?:canteen|course|dish|window)-)/],
   ]) {
     // Assert stable semantic ownership; selection itself uses explicit filenames.
     assert.deepEqual(

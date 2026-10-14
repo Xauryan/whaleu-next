@@ -22,7 +22,7 @@
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "account-policy:inventory:check": "node scripts/check-account-policy-routes.mjs",
-    "check": "npm run account-policy:inventory:check && npm run lint && npm run typecheck && npm run stats:test && npm run search:eval:test && npm run openapi:check && npm test && npm run build",
+    "check": "npm run ci:check && npm run account-policy:inventory:check && npm run lint && npm run typecheck && npm run stats:test && npm run search:eval:test && npm run openapi:check && npm test && npm run build",
     "stats:test": "node --test scripts/code-stats.test.mjs",
     "stats:test:integration": "node --test scripts/code-stats.integration.test.mjs",
     "db:up": "docker compose up -d --wait",
@@ -40,7 +40,8 @@
     "ratings:updates:process": "npm run ratings:updates:process -w @whaleu/api --",
     "ratings:subscriptions:process": "npm run ratings:subscriptions:process -w @whaleu/api --",
     "search:eval:test": "node --test scripts/search-eval.test.mjs",
-    "test:simulated:e2e": "bash scripts/run-simulated-native-e2e.sh"
+    "test:simulated:e2e": "bash scripts/run-simulated-native-e2e.sh",
+    "ci:check": "node --test scripts/run-integration-shard.test.mjs scripts/run-integration-module.test.mjs scripts/ci-native-artifact.test.mjs scripts/ci-workflow.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
