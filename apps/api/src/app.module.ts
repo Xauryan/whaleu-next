@@ -1,4 +1,5 @@
 import { OfficialAccountOperationsModule } from './official-account-operations/module.js';
+import { RatingGroupPromotionModule } from './ratings/group-promotion/module.js';
 import { CampusToolsModule } from './campus-tools/module.js';
 import { SchoolIdentityModule } from './school-identity/module.js';
 import { SchoolUidModule } from './school-uid/module.js';
@@ -85,6 +86,7 @@ export class AppModule {
         ActivityPublicationModule,
         ErrandsModule,
         RatingsModule,
+        RatingGroupPromotionModule,
         MajorsModule,
         MessagingModule,
         SchoolConfigurationModule,

@@ -417,6 +417,21 @@ export class RatingsRepository {
     await this.navigation(tx);
     return this.categoryForMutation(catalog, id, tx);
   }
+  /** Operational exports require current canonical source and Review authority.
+   * Legacy opaque catalog visibility alone is never an export qualification. */
+  async operationalCategory(
+    catalog: RatingCatalog,
+    id: string,
+    tx: PoolClient,
+  ): Promise<CategoryRow> {
+    const category = await this.category(catalog, id, tx);
+    const lineage = await tx.query(
+      `SELECT 1 FROM whaleu_ratings.catalog_category_lineage WHERE catalog_id=$1 AND category_id=$2 AND effective_revision=$3 AND source_kind IN('native','compat_effective') FOR SHARE`,
+      [catalog.id, id, category.revision],
+    );
+    if (!lineage.rows[0]) throw new ApplicationError('RATING_UNAVAILABLE');
+    return category;
+  }
   /** Writer snapshot: identical ancestry/source/Review qualification, without
    * retaining a pre-mutation navigation epoch. The writer must retain its exact
    * final catalog/target tuple and after-state epoch proof. */

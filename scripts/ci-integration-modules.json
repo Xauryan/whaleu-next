@@ -12,7 +12,9 @@
     "community-administration-1",
     "campus-services-2",
     "media-runtime-1",
-    "official-account-operations-1"
+    "official-account-operations-1",
+    "official-account-browser-1",
+    "rating-group-promotion-1"
   ],
   "groups": [
     {
@@ -576,9 +578,36 @@
           "official-account-notification-boundary.test.ts",
           "official-account-manual-article.test.ts",
           "official-account-native-roundtrip.test.ts",
-          "official-account-operator-roundtrip.test.ts",
           "official-account-migration-privacy.test.ts",
           "official-account-default-runtime.test.ts"
+        ]
+      ]
+    },
+    {
+      "id": "official-account-browser",
+      "label": "Sandboxed operator browsers",
+      "owners": ["official-account-operations", "rating-group-promotion"],
+      "shards": [
+        [
+          "official-account-operator-roundtrip.test.ts",
+          "rating-group-operator-roundtrip.test.ts"
+        ]
+      ]
+    },
+    {
+      "id": "rating-group-promotion",
+      "label": "Rating group category-link promotion",
+      "owners": ["ratings", "notifications", "authorization"],
+      "shards": [
+        [
+          "rating-group-authority.test.ts",
+          "rating-group-selection.test.ts",
+          "rating-group-ledger.test.ts",
+          "rating-group-generation-shortlink.test.ts",
+          "rating-group-provider-recovery.test.ts",
+          "rating-group-native-locator-roundtrip.test.ts",
+          "rating-group-default-runtime.test.ts",
+          "rating-group-retention-migration.test.ts"
         ]
       ]
     }

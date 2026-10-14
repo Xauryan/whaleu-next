@@ -79,6 +79,51 @@ const conditions = {
     status: 429,
     message: 'Official account operation capacity.',
   },
+  PROMOTION_INVALID_REQUEST: {
+    status: 400,
+    message: 'Rating group promotion invalid request.',
+  },
+  PROMOTION_FORBIDDEN: {
+    status: 403,
+    message: 'Rating group promotion forbidden.',
+  },
+  PROMOTION_NOT_FOUND: {
+    status: 404,
+    message: 'Rating group promotion not found.',
+  },
+  PROMOTION_REQUEST_CONFLICT: {
+    status: 409,
+    message: 'Rating group promotion request conflict.',
+  },
+  PROMOTION_PREVIEW_STALE: {
+    status: 409,
+    message: 'Rating group promotion preview stale.',
+  },
+  PROMOTION_SOURCE_CHANGED: {
+    status: 409,
+    message: 'Rating group promotion source changed.',
+  },
+  PROMOTION_INTENT_EXPIRED: {
+    status: 410,
+    message: 'Rating group promotion intent expired.',
+  },
+  PROMOTION_RECORD_EXPIRED: {
+    status: 410,
+    message: 'Rating group promotion record expired.',
+  },
+  PROMOTION_TOO_LARGE: {
+    status: 413,
+    message: 'Rating group promotion too large.',
+  },
+  PROMOTION_QUOTA_EXCEEDED: {
+    status: 429,
+    message: 'Rating group promotion quota exceeded.',
+  },
+  PROMOTION_UNAVAILABLE: {
+    status: 503,
+    message: 'Rating group promotion unavailable.',
+  },
+
   CAMPUS_TOOLS_UNAVAILABLE: {
     status: 503,
     message: 'Campus tools are temporarily unavailable.',

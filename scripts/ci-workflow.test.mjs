@@ -1,3 +1,7 @@
+import {
+  assertOfficialUsernsHost,
+  OFFICIAL_USERNS_RETIRE_BEFORE,
+} from './official-browser-sandbox.mjs';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { globSync, readFileSync } from 'node:fs';
@@ -237,7 +241,7 @@ test('CI preserves read-only permissions, pinned actions and download-only lockf
 
 test('official-operator browser is pinned and installed only for its owner shard', () => {
   assert.ok(
-    workflow.includes("if: matrix.module == 'official-account-operations'"),
+    workflow.includes("if: matrix.module == 'official-account-browser'"),
   );
   assert.ok(
     workflow.includes(
@@ -245,6 +249,19 @@ test('official-operator browser is pinned and installed only for its owner shard
     ),
   );
   assert.ok(workflow.includes('node scripts/verify-official-browser.mjs'));
+  assert.ok(
+    workflow.includes(
+      "runs-on: ${{ matrix.module == 'official-account-browser' && 'ubuntu-22.04' || 'ubuntu-24.04' }}",
+    ),
+  );
+  assert.ok(
+    workflow.includes('WHALEU_OFFICIAL_BROWSER_SANDBOX: ubuntu22-userns-v1'),
+  );
+  assert.ok(workflow.includes('2027-03-01'));
+  assert.doesNotMatch(
+    workflow,
+    /CHROME_DEVEL_SANDBOX|WHALEU_OFFICIAL_SANDBOX_HELPER|sysctl\s+-w|--no-sandbox|--disable-namespace-sandbox/,
+  );
   assert.ok(
     workflow.includes(
       "playwright-core-1.58.2-${{ hashFiles('package-lock.json') }}",
@@ -257,5 +274,61 @@ test('official-operator browser is pinned and installed only for its owner shard
   assert.equal(
     lock.packages['node_modules/playwright-core'].integrity,
     'sha512-yZkEtftgwS8CsfYo7nm0KE8jsvm6i/PTgVtB8DL726wNf6H2IMsDuxCpJj59KDaxCtSnrWan2AeDqM7JBaultg==',
+  );
+});
+
+test('temporary browser userns admission rejects wrong host, root, inherited helper and expiry', () => {
+  const host = {
+    platform: 'linux',
+    arch: 'x64',
+    osId: 'ubuntu',
+    osVersion: '22.04',
+    euid: 1001,
+    helperConfigured: false,
+    chromeHelperConfigured: false,
+    now: Date.parse('2026-10-14T00:00:00Z'),
+  };
+  assert.doesNotThrow(() => assertOfficialUsernsHost(host));
+  for (const change of [
+    { platform: 'darwin' },
+    { arch: 'arm64' },
+    { osId: 'debian' },
+    { osVersion: '24.04' },
+    { euid: 0 },
+    { euid: undefined },
+    { helperConfigured: true },
+    { chromeHelperConfigured: true },
+    { now: Date.parse(OFFICIAL_USERNS_RETIRE_BEFORE) },
+  ])
+    assert.throws(() => assertOfficialUsernsHost({ ...host, ...change }));
+  const sandbox = read('scripts/official-browser-sandbox.mjs');
+  assert.ok(sandbox.includes('info.mode & 0o7777'));
+  assert.ok(sandbox.includes('0o4755'));
+  assert.ok(sandbox.includes('info.mode & 0o022'));
+  const launcher = read('apps/api/test/support/official-account-browser.ts');
+  assert.doesNotMatch(
+    launcher,
+    /['"]--(?:no-sandbox|disable-setuid-sandbox|disable-namespace-sandbox|disable-seccomp-filter-sandbox)['"]/,
+  );
+  assert.match(sandbox, /execFileSync\(\s*'\/usr\/bin\/unshare'/);
+});
+
+test('rating promotion emits operator assets before either applicable database shard', () => {
+  const integration = jobs['main-integration'];
+  assert.match(
+    integration,
+    /name: Build emitted rating-promotion operator assets\n\s+if: matrix.module == 'rating-group-promotion' \|\| matrix.module == 'official-account-browser'\n\s+run: node --max-old-space-size=3072 node_modules\/typescript\/bin\/tsc -p apps\/api\/tsconfig.build.json/,
+  );
+  assert.ok(
+    integration.indexOf('Build emitted rating-promotion operator assets') <
+      integration.indexOf('Start fresh controlled-maintenance PostgreSQL'),
+  );
+  const launcher = read(
+    'apps/api/test/support/rating-group-operator-browser.ts',
+  );
+  assert.match(launcher, /verifyOfficialBrowserSandbox/);
+  assert.doesNotMatch(
+    launcher,
+    /['"]--(?:no-sandbox|disable-setuid-sandbox|disable-namespace-sandbox|disable-seccomp-filter-sandbox)['"]/,
   );
 });

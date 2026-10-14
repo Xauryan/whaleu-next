@@ -4,6 +4,7 @@ import {
   startTransactionDeadlines,
   checkTransactionDeadlines,
   clearTransactionDeadlines,
+  transactionReadEpoch,
 } from './transaction-deadlines.js';
 import { Inject, Injectable, Module } from '@nestjs/common';
 import type {
@@ -42,6 +43,79 @@ export function supportedPostgresVersion(version: number): boolean {
   );
 }
 
+declare const finalProofStampBrand: unique symbol;
+/** Internal transaction capability, never a caller-provided timestamp. */
+export interface FinalTransactionProofStamp {
+  readonly [finalProofStampBrand]: true;
+}
+interface ProofStampState {
+  client: PoolClient;
+  epoch: object;
+  binding: string;
+  phase: 'registered' | 'sealed' | 'committed' | 'invalid';
+  at: number | null;
+  consumed: boolean;
+}
+const proofStampLifetimes = new WeakMap<
+  PoolClient,
+  { epoch: object; stamp?: ProofStampState }
+>();
+const proofStamps = new WeakMap<object, ProofStampState>();
+const latestProofStamp = new WeakMap<PoolClient, ProofStampState>();
+export function registerFinalTransactionProofStamp(
+  client: PoolClient,
+  binding: string,
+): FinalTransactionProofStamp {
+  const lifetime = proofStampLifetimes.get(client);
+  if (
+    !lifetime ||
+    lifetime.stamp ||
+    transactionReadEpoch(client) !== lifetime.epoch ||
+    !/^[a-f0-9]{64}$/.test(binding)
+  )
+    throw new Error('Final proof stamp requires one exact managed transaction');
+  const stamp = Object.freeze({}) as FinalTransactionProofStamp;
+  const state: ProofStampState = {
+    client,
+    epoch: lifetime.epoch,
+    binding,
+    phase: 'registered',
+    at: null,
+    consumed: false,
+  };
+  lifetime.stamp = state;
+  proofStamps.set(stamp, state);
+  latestProofStamp.set(client, state);
+  return stamp;
+}
+export function consumeCommittedFinalTransactionProofStamp(
+  stamp: FinalTransactionProofStamp,
+  binding: string,
+): number | null {
+  const state = proofStamps.get(stamp);
+  if (!state || state.consumed) return null;
+  state.consumed = true;
+  if (
+    state.phase !== 'committed' ||
+    state.binding !== binding ||
+    proofStampLifetimes.has(state.client) ||
+    latestProofStamp.get(state.client) !== state
+  )
+    return null;
+  return state.at;
+}
+function sealFinalProofStamp(client: PoolClient): void {
+  const state = proofStampLifetimes.get(client)?.stamp;
+  if (!state) return;
+  if (
+    state.phase !== 'registered' ||
+    state.epoch !== transactionReadEpoch(client)
+  )
+    throw new Error('Final proof stamp transaction lifetime changed');
+  state.at = performance.now();
+  state.phase = 'sealed';
+}
+
 export interface TransactionOptions {
   /** Exact snapshot proofs require this explicit mode regardless of server defaults. */
   isolationLevel?: 'read committed';
@@ -70,16 +144,24 @@ async function runTransaction<T>(
         : 'BEGIN',
     );
     startTransactionDeadlines(client);
+    const previousStamp = latestProofStamp.get(client);
+    if (previousStamp) previousStamp.phase = 'invalid';
+    proofStampLifetimes.set(client, { epoch: transactionReadEpoch(client)! });
     const complete = async () => {
       const result = await operation(client);
       await checkTransactionDeadlines(client);
+      sealFinalProofStamp(client);
       await client.query('COMMIT');
+      const stamp = proofStampLifetimes.get(client)?.stamp;
+      if (stamp) stamp.phase = 'committed';
       return result;
     };
     return policy
       ? await withAccountPunishmentPolicy(client, policy, complete)
       : await complete();
   } catch (error) {
+    const stamp = proofStampLifetimes.get(client)?.stamp;
+    if (stamp) stamp.phase = 'invalid';
     try {
       await client.query('ROLLBACK');
     } catch {
@@ -87,6 +169,7 @@ async function runTransaction<T>(
     }
     throw error;
   } finally {
+    proofStampLifetimes.delete(client);
     clearTransactionDeadlines(client);
     client.release(destroy);
   }

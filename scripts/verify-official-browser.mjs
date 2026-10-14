@@ -1,4 +1,4 @@
-import { verifyOfficialSandboxHelper } from './official-browser-sandbox.mjs';
+import { verifyOfficialBrowserSandbox } from './official-browser-sandbox.mjs';
 import { createRequire } from 'node:module';
 import { readFileSync, createReadStream } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -37,5 +37,9 @@ console.log(
   }),
 );
 
-if (process.env.CI || process.env.WHALEU_OFFICIAL_SANDBOX_HELPER)
-  await verifyOfficialSandboxHelper();
+if (
+  process.env.CI ||
+  process.env.WHALEU_OFFICIAL_SANDBOX_HELPER ||
+  process.env.WHALEU_OFFICIAL_BROWSER_SANDBOX
+)
+  await verifyOfficialBrowserSandbox();

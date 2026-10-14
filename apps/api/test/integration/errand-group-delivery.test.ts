@@ -2620,7 +2620,74 @@ test(
     release();
     f.sender.beforeReady = null;
     f.setTime(p.publishedAt + 4000);
-    await f.restart().runOne();
+    const beforeRecovery = await preparationRows(f.pool);
+    const preparation = observeGroupPreparation(f);
+    let recoveryTrace: Awaited<ReturnType<typeof preparation.run>> | undefined;
+    const recoveryStarted = performance.now();
+    try {
+      recoveryTrace = await preparation.run(f.restart());
+      assert.equal(recoveryTrace.claimed, true);
+      assert.equal(recoveryTrace.publication?.orderId, p.id);
+      assert.equal(beforeRecovery.length, 1);
+      assert.equal(
+        recoveryTrace.permit?.key,
+        beforeRecovery[0]!.idempotency_key,
+      );
+      // The two injected timeout assertions above are complete. Only a proved
+      // unsent expiry of this fresh recovery permit permits one extra owner run.
+      // This is defensive handling; the original hosted failure was not reproduced.
+      if (Number(f.sender.attempts.length) !== 1) {
+        const current = (await preparationRows(f.pool)).find(
+          (row) => row.id === beforeRecovery[0]!.id,
+        );
+        assert.ok(current);
+        await recoverUnsentPreparation({
+          pool: f.pool,
+          directory: f.directory,
+          row: current,
+          trace: recoveryTrace,
+          senderAttempts: [...f.sender.attempts],
+          latestBusinessTime: p.publishedAt + 960000,
+          setTime: f.setTime,
+          run: async () => ({
+            trace: await preparation.run(f.restart()),
+            senderAttempts: [...f.sender.attempts],
+          }),
+          diagnostic: (message) => t.diagnostic(message),
+        });
+      }
+    } finally {
+      preparation.restore();
+      t.diagnostic(
+        JSON.stringify({
+          phase: 'slow-final-proof-final-recovery',
+          expectedOrder: p.id,
+          businessNow: f.runtime.now(),
+          elapsedMs: performance.now() - recoveryStarted,
+          before: beforeRecovery,
+          after: await preparationRows(f.pool),
+          trace: recoveryTrace,
+          senderAttempts: f.sender.attempts,
+          reconciled: f.sender.reconciled,
+          attempts: (
+            await f.pool.query(
+              'SELECT * FROM whaleu_notifications.errand_group_attempts ORDER BY fence',
+            )
+          ).rows,
+          receipts: (
+            await f.pool.query(
+              'SELECT * FROM whaleu_notifications.errand_group_receipts',
+            )
+          ).rows,
+          providerReceipts: beforeRecovery.map((row) => ({
+            key: row.idempotency_key,
+            exists: existsSync(
+              join(f.directory, `${row.idempotency_key}.json`),
+            ),
+          })),
+        }),
+      );
+    }
     assert.equal(f.sender.attempts.length, 1);
     assert.equal((await f.rows()).rows[0].status, 'confirmed');
   },

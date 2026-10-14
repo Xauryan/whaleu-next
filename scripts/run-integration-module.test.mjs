@@ -39,14 +39,14 @@ const mutate = (fn) => {
 test('real module inventory equals the old complete glob exactly once, with shared owners', () => {
   const inventory = discoverFiles();
   const plan = createModulePlan(inventory, readModules());
-  assert.equal(plan.totalShards, 12);
+  assert.equal(plan.totalShards, 14);
   assert.equal(plan.totalFiles, inventory.length);
   assert.equal(plan.filesSha256, createShardPlan(inventory, 4).filesSha256);
   assert.deepEqual(
     plan.shards.flatMap((shard) => shard.files).sort(),
     inventory,
   );
-  assert.equal(new Set(plan.shards.map((shard) => shard.id)).size, 12);
+  assert.equal(new Set(plan.shards.map((shard) => shard.id)).size, 14);
   assert.ok(
     plan.shards.find((shard) => shard.module === 'shared-foundation').owners
       .length > 1,
@@ -66,7 +66,7 @@ test('scoped category SQL and emitted journey retain explicit Community ownershi
     assert.ok(community.files.includes(`test/integration/${name}`));
 });
 
-test('official-account job extends the existing eleven-job owner matrix', () => {
+test('official-account browser is isolated from the original owner matrix', () => {
   const plan = createModulePlan(discoverFiles(), readModules());
   assert.deepEqual(
     plan.shards.map((shard) => shard.id),
@@ -83,7 +83,25 @@ test('official-account job extends the existing eleven-job owner matrix', () => 
       'campus-services-2',
       'media-runtime-1',
       'official-account-operations-1',
+      'official-account-browser-1',
+      'rating-group-promotion-1',
     ],
+  );
+  const browser = plan.shards.find(
+    (shard) => shard.id === 'official-account-browser-1',
+  );
+  assert.deepEqual(browser.files, [
+    'test/integration/official-account-operator-roundtrip.test.ts',
+    'test/integration/rating-group-operator-roundtrip.test.ts',
+  ]);
+  const official = plan.shards.find(
+    (shard) => shard.id === 'official-account-operations-1',
+  );
+  assert.equal(official.files.length, 13);
+  assert.ok(
+    official.files.includes(
+      'test/integration/official-account-migration-privacy.test.ts',
+    ),
   );
   const campus = ['campus-services-1', 'campus-services-2'].map((id) =>
     plan.shards.find((shard) => shard.id === id),

@@ -113,6 +113,28 @@ export class CampusRatingScopeFacade {
       .map(({ id, label }) => ({ id, label, relation: 'managed' as const }));
     return { homeRegion: null, regions, fingerprint: result.fingerprint };
   }
+  /** Promotion's accepted school-scope set is bounded separately from UI
+   * navigation. One indexed all-of read; no 2,000 serial per-school calls. */
+  async requireManagedSet(
+    regionIds: readonly string[],
+    tx: PoolClient,
+  ): Promise<string> {
+    if (regionIds.length > 2000 || new Set(regionIds).size !== regionIds.length)
+      throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
+    const epoch = await navigation(tx);
+    const rows = (
+      await tx.query<{ id: string; label: string; active: boolean }>(
+        `SELECT id,name label,is_active active FROM whaleu_campus.operating_regions WHERE id=ANY($1::uuid[]) ORDER BY id LIMIT 2001 FOR SHARE`,
+        [regionIds],
+      )
+    ).rows;
+    if (
+      rows.length !== regionIds.length ||
+      rows.some((r) => !r.active || !regionSchema.safeParse(r).success)
+    )
+      throw new ApplicationError('RATING_SCOPE_UNAVAILABLE');
+    return ownerFingerprint([epoch, rows]);
+  }
   async requireManaged(regionId: string, tx: PoolClient): Promise<string> {
     return (await this.managed(regionId, tx)).fingerprint;
   }

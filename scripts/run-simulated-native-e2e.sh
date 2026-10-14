@@ -8,6 +8,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 npm run build -w @whaleu/wechat
+npm run build -w @whaleu/api
 cd apps/api
 # The complete manifest includes deliberate 30/60/120-second proof waits.
 # Its aggregate ceiling is 30 minutes; per-file bounds and serial execution remain.
@@ -61,6 +62,8 @@ bash ../../scripts/run-controlled-test-postgres.sh \
   test/integration/errand-media-native-roundtrip.test.ts \
   test/integration/errand-group-delivery.test.ts \
   test/integration/errand-group-native-roundtrip.test.ts \
+  test/integration/rating-group-operator-roundtrip.test.ts \
+  test/integration/rating-group-native-locator-roundtrip.test.ts \
   test/integration/school-posting-policy.test.ts \
   test/integration/school-posting-policy-native-roundtrip.test.ts \
   test/integration/organization-management.test.ts \

@@ -1,3 +1,4 @@
+import { writeRatingGroupPromotionOpenApi } from './rating-group-promotion-openapi-document.js';
 import { writeInstitutionalSsoOpenApi } from './institutional-sso-openapi-document.js';
 import { writeOfficialAccountOpenApi } from './official-account-openapi-document.js';
 import { writeCampusToolsOpenApi } from './campus-tools-openapi-document.js';
@@ -355,3 +356,5 @@ await writeCampusToolsOpenApi(args[0] === '--check');
 
 await writeInstitutionalSsoOpenApi(args[0] === '--check');
 await writeOfficialAccountOpenApi(args[0] === '--check');
+
+await writeRatingGroupPromotionOpenApi(args[0] === '--check');

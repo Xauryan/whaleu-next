@@ -8892,6 +8892,263 @@
     ]
   },
   {
+    "handler": "RatingGroupPromotionController.campaign",
+    "method": "POST",
+    "path": "/v1/rating-group-promotion/programs/:id/campaigns",
+    "action": "content_management",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "campaign",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": [
+          "AccountPolicy('content_management', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionController.cancel",
+    "method": "POST",
+    "path": "/v1/rating-group-promotion/campaigns/:id/cancel",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "cancelCampaign",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionController.capabilities",
+    "method": "GET",
+    "path": "/v1/rating-group-promotion/capabilities",
+    "action": "privileged_read",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "capabilities",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": ["AccountPolicy('privileged_read', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionController.destinations",
+    "method": "GET",
+    "path": "/v1/rating-group-promotion/programs/:id/destinations",
+    "action": "privileged_read",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "destinations",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": ["AccountPolicy('privileged_read', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionController.intent",
+    "method": "POST",
+    "path": "/v1/rating-group-promotion/programs/:id/intents",
+    "action": "content_management",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "intent",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": ["AccountPolicy('content_management', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionController.preview",
+    "method": "POST",
+    "path": "/v1/rating-group-promotion/programs/:id/previews",
+    "action": "content_management",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "preview",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": ["AccountPolicy('content_management', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionController.program",
+    "method": "GET",
+    "path": "/v1/rating-group-promotion/programs/:id",
+    "action": "privileged_read",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "inspectProgram",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": ["AccountPolicy('privileged_read', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionController.recipients",
+    "method": "GET",
+    "path": "/v1/rating-group-promotion/campaigns/:id/recipients",
+    "action": "privileged_read",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "recipients",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": ["AccountPolicy('privileged_read', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionController.reconcile",
+    "method": "POST",
+    "path": "/v1/rating-group-promotion/campaigns/:id/reconcile",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "reconcile",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionController.recoverIntent",
+    "method": "GET",
+    "path": "/v1/rating-group-promotion/programs/:id/intents/:requestId",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "recoverIntent",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionController.request",
+    "method": "GET",
+    "path": "/v1/rating-group-promotion/programs/:id/requests/:requestId",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "request",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionController.seal",
+    "method": "POST",
+    "path": "/v1/rating-group-promotion/programs/:id/requests/:requestId/cancel",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "seal",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionController.status",
+    "method": "GET",
+    "path": "/v1/rating-group-promotion/campaigns/:id",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "RatingGroupPromotionService",
+        "method": "status",
+        "file": "apps/api/src/ratings/group-promotion/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionOperatorController.script",
+    "method": "GET",
+    "path": "/operator/rating-group-promotion/controller.js",
+    "action": "guest",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "typeof defaultRatingGroupOperatorRenderer",
+        "method": "script",
+        "file": null,
+        "policy": [],
+        "resolution": "interface_or_external_owner"
+      }
+    ]
+  },
+  {
+    "handler": "RatingGroupPromotionOperatorController.shell",
+    "method": "GET",
+    "path": "/operator/rating-group-promotion",
+    "action": "guest",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/ratings/group-promotion/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "typeof defaultRatingGroupOperatorRenderer",
+        "method": "shell",
+        "file": null,
+        "policy": [],
+        "resolution": "interface_or_external_owner"
+      }
+    ]
+  },
+  {
     "handler": "RatingLikesController.commentLike",
     "method": "GET",
     "path": "/v1/ratings/comments/:id/like",

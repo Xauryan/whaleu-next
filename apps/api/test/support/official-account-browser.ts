@@ -73,12 +73,16 @@ interface Packet {
 export async function officialBrowser() {
   const selected = await runtime();
   let helper: string | undefined;
-  if (process.env['CI'] || process.env['WHALEU_OFFICIAL_SANDBOX_HELPER']) {
+  if (
+    process.env['CI'] ||
+    process.env['WHALEU_OFFICIAL_SANDBOX_HELPER'] ||
+    process.env['WHALEU_OFFICIAL_BROWSER_SANDBOX']
+  ) {
     const verifier =
       require('../../../../scripts/official-browser-sandbox.mjs') as {
-        verifyOfficialSandboxHelper(): Promise<string>;
+        verifyOfficialBrowserSandbox(): Promise<string | undefined>;
       };
-    helper = await verifier.verifyOfficialSandboxHelper();
+    helper = await verifier.verifyOfficialBrowserSandbox();
   }
   const directory = await mkdtemp(join(tmpdir(), 'official-browser-'));
   const child = spawn(
