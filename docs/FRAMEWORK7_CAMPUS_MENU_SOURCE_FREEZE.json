@@ -1,8 +1,5 @@
 {
-  "scope": [
-    "campus-hub",
-    "account-menu"
-  ],
+  "scope": ["campus-hub", "account-menu"],
   "files": {
     "apps/wechat/scripts/fixtures/framework7-campus-menu-preview.mjs": {
       "sha256": "d28013d6b5468020a4e0833e0d8a630adfa0a44f08b3d927862d6ee0ae9b4496",

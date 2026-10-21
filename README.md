@@ -135,8 +135,12 @@ npm run check
 npm run format:check
 ```
 
-`check` runs lint, strict type checks, unit/HTTP tests, and builds across both
-workspaces. Real PostgreSQL integration tests are a separate required CI step:
+`check` runs lint, strict type checks, builds, and unit/HTTP tests across both
+workspaces. Use `npm run check` for a clean checkout: native emitted-byte tests
+require `apps/wechat/dist` built from the same current source. If running native
+tests separately, run `npm run build -w @whaleu/wechat` before
+`npm run test -w @whaleu/wechat`; do not reuse stale output from another checkout.
+Real PostgreSQL integration tests are a separate required CI step:
 
 ```sh
 TEST_DATABASE_URL=postgresql://TEST_USER:TEST_PASSWORD@127.0.0.1:5432/whaleu_test npm run test:integration

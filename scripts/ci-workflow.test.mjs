@@ -33,10 +33,68 @@ const jobs = Object.fromEntries(
   ].map((match) => [match[1], match[2]]),
 );
 
+function assertNativeBuildPrerequisites(job) {
+  const steps = [
+    ...job.matchAll(/^ {6}- [\s\S]*?(?=^ {6}- |$(?![\s\S]))/gm),
+  ].map((match) => match[0]);
+  const indexOfRun = (command) => {
+    const matches = steps.flatMap((step, index) =>
+      step.match(/^(?: {6}- | {8})run: ([^\n]+)$/m)?.[1] === command
+        ? [index]
+        : [],
+    );
+    assert.equal(matches.length, 1, `${command} must run exactly once`);
+    return matches[0];
+  };
+  const typecheck = indexOfRun('npm run typecheck -w @whaleu/wechat');
+  const build = indexOfRun('npm run build -w @whaleu/wechat');
+  const tests = indexOfRun('npm run test -w @whaleu/wechat');
+  assert.ok(typecheck < build, 'native typecheck must precede build');
+  assert.ok(
+    build < tests,
+    'native build and emitted smoke checks must precede emitted-byte tests',
+  );
+  assert.doesNotMatch(steps[build], /^ {8}if:/m);
+  assert.doesNotMatch(steps[tests], /^ {8}if:/m);
+  const provenance = steps.findIndex((step) =>
+    step.includes('        id: provenance\n'),
+  );
+  const upload = steps.findIndex((step) =>
+    step.includes('        id: upload\n'),
+  );
+  assert.ok(
+    tests < provenance && provenance < upload,
+    'native tests must pass before staging and uploading immutable output',
+  );
+}
+
+function assertLocalCheckPrerequisites(command) {
+  const operations = command.split(' && ');
+  assert.deepEqual(
+    [...operations].sort(),
+    [
+      'npm run ci:check',
+      'npm run account-policy:inventory:check',
+      'npm run lint',
+      'npm run typecheck',
+      'npm run stats:test',
+      'npm run search:eval:test',
+      'npm run openapi:check',
+      'npm run build',
+      'npm test',
+    ].sort(),
+    'local check must retain every existing operation exactly once',
+  );
+  assert.ok(
+    operations.indexOf('npm run build') < operations.indexOf('npm test'),
+    'local check must build before emitted-byte tests',
+  );
+}
+
 test('independent foundation jobs preserve every operation of npm check and every scripted workspace', () => {
   assert.equal(
     packageJson.scripts.check,
-    'npm run ci:check && npm run account-policy:inventory:check && npm run lint && npm run typecheck && npm run stats:test && npm run search:eval:test && npm run openapi:check && npm test && npm run build',
+    'npm run ci:check && npm run account-policy:inventory:check && npm run lint && npm run typecheck && npm run stats:test && npm run search:eval:test && npm run openapi:check && npm run build && npm test',
   );
   assert.equal(
     packageJson.scripts['ci:check'],
@@ -86,6 +144,57 @@ test('independent foundation jobs preserve every operation of npm check and ever
     'semantic-integration',
   ])
     assert.doesNotMatch(jobs[job], /^ {4}needs:/m);
+});
+
+test('native emitted-byte tests require the sole same-job build before tests and artifact publication', () => {
+  assertNativeBuildPrerequisites(jobs['native-checks']);
+  const buildStep =
+    '      - name: Build native artifacts and run emitted smoke checks once\n' +
+    '        run: npm run build -w @whaleu/wechat\n';
+  const testStep = '      - run: npm run test -w @whaleu/wechat\n';
+  const testsBeforeBuild = jobs['native-checks'].replace(
+    buildStep + testStep,
+    testStep + buildStep,
+  );
+  assert.notEqual(testsBeforeBuild, jobs['native-checks']);
+  assert.throws(
+    () => assertNativeBuildPrerequisites(testsBeforeBuild),
+    /native build and emitted smoke checks must precede emitted-byte tests/,
+  );
+  const duplicateBuild = jobs['native-checks'].replace(
+    buildStep,
+    buildStep + buildStep,
+  );
+  assert.throws(
+    () => assertNativeBuildPrerequisites(duplicateBuild),
+    /npm run build -w @whaleu\/wechat must run exactly once/,
+  );
+});
+
+test('local check builds once before emitted-byte tests without dropping operations or hiding a pretest build', () => {
+  assertLocalCheckPrerequisites(packageJson.scripts.check);
+  assert.equal(packageJson.scripts.pretest, undefined);
+  assert.equal(
+    JSON.parse(read('apps/wechat/package.json')).scripts.pretest,
+    undefined,
+  );
+  const testsBeforeBuild = packageJson.scripts.check.replace(
+    'npm run build && npm test',
+    'npm test && npm run build',
+  );
+  assert.notEqual(testsBeforeBuild, packageJson.scripts.check);
+  assert.throws(
+    () => assertLocalCheckPrerequisites(testsBeforeBuild),
+    /local check must build before emitted-byte tests/,
+  );
+  for (const invalid of [
+    packageJson.scripts.check.replace('npm run lint && ', ''),
+    `${packageJson.scripts.check} && npm run build`,
+  ])
+    assert.throws(
+      () => assertLocalCheckPrerequisites(invalid),
+      /local check must retain every existing operation exactly once/,
+    );
 });
 
 test('matrix is derived from exact inventory with bounded parallel independent databases', () => {

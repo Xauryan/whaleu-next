@@ -1707,7 +1707,9 @@ test(
               .get(IdentityService)
               .refresh(actor.refreshToken);
             const blockerPid = (
-              await blocker.query<{ pid: number }>('SELECT pg_backend_pid() pid')
+              await blocker.query<{ pid: number }>(
+                'SELECT pg_backend_pid() pid',
+              )
             ).rows[0]!.pid;
             let waiting = false;
             for (let attempt = 0; attempt < 100; attempt++) {

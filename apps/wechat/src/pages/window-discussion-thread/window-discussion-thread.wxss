@@ -1,2 +1,2 @@
-@import "../../window-discussion/product.wxss";
-@import "../../window-discussion/framework7-product.wxss";
+@import '../../window-discussion/product.wxss';
+@import '../../window-discussion/framework7-product.wxss';

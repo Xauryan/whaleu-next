@@ -86,9 +86,9 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-ci
       - run: npm run typecheck -w @whaleu/wechat
-      - run: npm run test -w @whaleu/wechat
       - name: Build native artifacts and run emitted smoke checks once
         run: npm run build -w @whaleu/wechat
+      - run: npm run test -w @whaleu/wechat
       - name: Stage only native output with exact build provenance
         id: provenance
         run: |

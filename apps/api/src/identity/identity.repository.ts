@@ -72,7 +72,11 @@ interface DmAccountFact {
 async function dmAccountState(accountId: string, tx: PoolClient, lock = false) {
   const row =
     (
-      await tx.query<{ status: string; lifecycle: string; state_version: string }>(
+      await tx.query<{
+        status: string;
+        lifecycle: string;
+        state_version: string;
+      }>(
         `SELECT status,lifecycle,xmin::text state_version FROM whaleu_identity.accounts WHERE id=$1${lock ? ' FOR SHARE' : ''}`,
         [accountId],
       )
@@ -310,20 +314,31 @@ export class IdentityRepository {
       async (client): Promise<SessionView | ApplicationErrorCode> => {
         // Account -> session -> exact refresh token, matching authentication and
         // deletion. A join's row-lock evaluation order is not an order guarantee.
-        const reference = (await client.query<{account_id:string;session_id:string}>(
-          'SELECT s.account_id,r.session_id FROM whaleu_identity.refresh_tokens r JOIN whaleu_identity.sessions s ON s.id=r.session_id WHERE r.token_hash=$1',
-          [refreshHash],
-        )).rows[0];
+        const reference = (
+          await client.query<{ account_id: string; session_id: string }>(
+            'SELECT s.account_id,r.session_id FROM whaleu_identity.refresh_tokens r JOIN whaleu_identity.sessions s ON s.id=r.session_id WHERE r.token_hash=$1',
+            [refreshHash],
+          )
+        ).rows[0];
         if (!reference) return 'AUTHENTICATION_REQUIRED';
-        await client.query('SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE', [reference.account_id]);
-        await client.query('SELECT id FROM whaleu_identity.sessions WHERE id=$1 AND account_id=$2 FOR UPDATE', [reference.session_id,reference.account_id]);
-        await client.query('SELECT token_hash FROM whaleu_identity.refresh_tokens WHERE token_hash=$1 AND session_id=$2 FOR UPDATE', [refreshHash,reference.session_id]);
+        await client.query(
+          'SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE',
+          [reference.account_id],
+        );
+        await client.query(
+          'SELECT id FROM whaleu_identity.sessions WHERE id=$1 AND account_id=$2 FOR UPDATE',
+          [reference.session_id, reference.account_id],
+        );
+        await client.query(
+          'SELECT token_hash FROM whaleu_identity.refresh_tokens WHERE token_hash=$1 AND session_id=$2 FOR UPDATE',
+          [refreshHash, reference.session_id],
+        );
         // Fresh statement AFTER every wait. Never trust the unlocked discovery.
         const result = await client.query<RefreshRow>(
           `SELECT s.*, a.status, a.lifecycle, r.consumed_at
         FROM whaleu_identity.refresh_tokens r JOIN whaleu_identity.sessions s ON s.id=r.session_id
         JOIN whaleu_identity.accounts a ON a.id=s.account_id WHERE r.token_hash=$1 AND s.id=$2 AND a.id=$3`,
-          [refreshHash,reference.session_id,reference.account_id],
+          [refreshHash, reference.session_id, reference.account_id],
         );
         const row = result.rows[0];
         if (!row) return 'AUTHENTICATION_REQUIRED';
@@ -434,7 +449,8 @@ export class IdentityRepository {
       ).rows[0]!.now;
     if (row.revoked_at) throw new ApplicationError('SESSION_REVOKED');
     if (row.status !== 'active') throw new ApplicationError('ACCOUNT_BLOCKED');
-    if (row.lifecycle !== 'active') throw new ApplicationError('SESSION_REVOKED');
+    if (row.lifecycle !== 'active')
+      throw new ApplicationError('SESSION_REVOKED');
     if (row.token_expires_at <= row.now || row.absolute_expires_at <= row.now)
       throw new ApplicationError('ACCESS_TOKEN_EXPIRED');
     if (transaction)

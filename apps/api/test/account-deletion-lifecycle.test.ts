@@ -1,11 +1,82 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { requested, explicitlyCancel, claim, complete, observe } from '../src/account-deletion/state-machine.js';
-import { COOLING_MS,REREGISTRATION_MS,syntheticCancellationPolicy } from '../src/account-deletion/contracts.js';
-const at=Date.parse('2028-02-28T23:59:59.999Z');
-test('seven elapsed UTC days and exact cancellation cutoff cross a leap day',()=>{const state=requested(randomUUID(),at);assert.equal(state.eligibleAt,at+COOLING_MS);assert.equal(explicitlyCancel(state,'1',state.eligibleAt-1,syntheticCancellationPolicy).phase,'cancelled');assert.throws(()=>explicitlyCancel(state,'1',state.eligibleAt,syntheticCancellationPolicy));assert.throws(()=>claim(state,state.eligibleAt-1));assert.equal(claim(state,state.eligibleAt).phase,'erasing');});
-test('alternate explicit policy is tested but not silently promoted',()=>{const state=requested(randomUUID(),at);assert.equal(explicitlyCancel(state,'1',state.eligibleAt+1,{cutoff:'worker-claim',coolingAccess:'read-only'}).phase,'cancelled');assert.throws(()=>explicitlyCancel(claim(state,state.eligibleAt),'2',state.eligibleAt+1,{cutoff:'worker-claim',coolingAccess:'read-only'}));});
-test('polls and login observations never cancel or move cooling timestamps',()=>{let state=requested(randomUUID(),at);const before=structuredClone(state);for(let i=0;i<50;i++)state=observe(state);assert.deepEqual(state,before);assert.throws(()=>explicitlyCancel(state,'0',at,syntheticCancellationPolicy));});
-test('thirty days starts at verified completion, even after ten days of cleanup',()=>{const state=requested(randomUUID(),at),erasing=claim(state,state.eligibleAt),done=complete(erasing,state.eligibleAt+10*86400000);assert.equal(done.reregisterAfter,done.completedAt!+REREGISTRATION_MS);assert.strictEqual(complete(done,done.completedAt!+1000),done);assert.throws(()=>complete(state,at));});
-test('new request after cancellation has independent complete cooling window',()=>{const original=requested(randomUUID(),at),cancelled=explicitlyCancel(original,'1',at+1,syntheticCancellationPolicy),next=requested(randomUUID(),at+500);assert.equal(cancelled.phase,'cancelled');assert.notEqual(next.requestId,original.requestId);assert.equal(next.eligibleAt,at+500+COOLING_MS);});
+import {
+  requested,
+  explicitlyCancel,
+  claim,
+  complete,
+  observe,
+} from '../src/account-deletion/state-machine.js';
+import {
+  COOLING_MS,
+  REREGISTRATION_MS,
+  syntheticCancellationPolicy,
+} from '../src/account-deletion/contracts.js';
+const at = Date.parse('2028-02-28T23:59:59.999Z');
+test('seven elapsed UTC days and exact cancellation cutoff cross a leap day', () => {
+  const state = requested(randomUUID(), at);
+  assert.equal(state.eligibleAt, at + COOLING_MS);
+  assert.equal(
+    explicitlyCancel(
+      state,
+      '1',
+      state.eligibleAt - 1,
+      syntheticCancellationPolicy,
+    ).phase,
+    'cancelled',
+  );
+  assert.throws(() =>
+    explicitlyCancel(state, '1', state.eligibleAt, syntheticCancellationPolicy),
+  );
+  assert.throws(() => claim(state, state.eligibleAt - 1));
+  assert.equal(claim(state, state.eligibleAt).phase, 'erasing');
+});
+test('alternate explicit policy is tested but not silently promoted', () => {
+  const state = requested(randomUUID(), at);
+  assert.equal(
+    explicitlyCancel(state, '1', state.eligibleAt + 1, {
+      cutoff: 'worker-claim',
+      coolingAccess: 'read-only',
+    }).phase,
+    'cancelled',
+  );
+  assert.throws(() =>
+    explicitlyCancel(
+      claim(state, state.eligibleAt),
+      '2',
+      state.eligibleAt + 1,
+      { cutoff: 'worker-claim', coolingAccess: 'read-only' },
+    ),
+  );
+});
+test('polls and login observations never cancel or move cooling timestamps', () => {
+  let state = requested(randomUUID(), at);
+  const before = structuredClone(state);
+  for (let i = 0; i < 50; i++) state = observe(state);
+  assert.deepEqual(state, before);
+  assert.throws(() =>
+    explicitlyCancel(state, '0', at, syntheticCancellationPolicy),
+  );
+});
+test('thirty days starts at verified completion, even after ten days of cleanup', () => {
+  const state = requested(randomUUID(), at),
+    erasing = claim(state, state.eligibleAt),
+    done = complete(erasing, state.eligibleAt + 10 * 86400000);
+  assert.equal(done.reregisterAfter, done.completedAt! + REREGISTRATION_MS);
+  assert.strictEqual(complete(done, done.completedAt! + 1000), done);
+  assert.throws(() => complete(state, at));
+});
+test('new request after cancellation has independent complete cooling window', () => {
+  const original = requested(randomUUID(), at),
+    cancelled = explicitlyCancel(
+      original,
+      '1',
+      at + 1,
+      syntheticCancellationPolicy,
+    ),
+    next = requested(randomUUID(), at + 500);
+  assert.equal(cancelled.phase, 'cancelled');
+  assert.notEqual(next.requestId, original.requestId);
+  assert.equal(next.eligibleAt, at + 500 + COOLING_MS);
+});

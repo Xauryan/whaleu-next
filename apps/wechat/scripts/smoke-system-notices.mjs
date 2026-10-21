@@ -434,7 +434,9 @@ export async function smokeSystemNotices({ app, dist, mountPage, flush }) {
       'Rendered receipts carry their source namespace',
     );
     assert.equal(visibleSystem.includes('postId'), false);
-    for (const match of template.matchAll(/(?:bind|catch):?(?:tap|press)="([^"]+)"/g))
+    for (const match of template.matchAll(
+      /(?:bind|catch):?(?:tap|press)="([^"]+)"/g,
+    ))
       assert.equal(typeof current[match[1]], 'function');
   } finally {
     current?.onUnload();

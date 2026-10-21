@@ -8,15 +8,32 @@ import { ApplicationError } from '../src/http/application-error.js';
 import { IdentityRepository } from '../src/identity/identity.repository.js';
 import { IdentityRateLimiter } from '../src/identity/rate-limit.js';
 
-function fixture(query: (sql: string, values: unknown[]) => unknown[], afterLock?: (sql: string) => void) {
+function fixture(
+  query: (sql: string, values: unknown[]) => unknown[],
+  afterLock?: (sql: string) => void,
+) {
   const statements: string[] = [];
   let commits = 0;
   let rollbacks = 0;
   const client = {
     query: async (sql: string, values: unknown[] = []) => {
       statements.push(sql);
-      if (sql.startsWith('SELECT s.account_id,r.session_id')) return { rows: [{ account_id: row.account_id, session_id: row.id }], rowCount: 1 };
-      if (sql === 'SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE' || sql === 'SELECT id FROM whaleu_identity.sessions WHERE id=$1 AND account_id=$2 FOR UPDATE' || sql === 'SELECT token_hash FROM whaleu_identity.refresh_tokens WHERE token_hash=$1 AND session_id=$2 FOR UPDATE') { afterLock?.(sql); return { rows: [], rowCount: 0 }; }
+      if (sql.startsWith('SELECT s.account_id,r.session_id'))
+        return {
+          rows: [{ account_id: row.account_id, session_id: row.id }],
+          rowCount: 1,
+        };
+      if (
+        sql ===
+          'SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE' ||
+        sql ===
+          'SELECT id FROM whaleu_identity.sessions WHERE id=$1 AND account_id=$2 FOR UPDATE' ||
+        sql ===
+          'SELECT token_hash FROM whaleu_identity.refresh_tokens WHERE token_hash=$1 AND session_id=$2 FOR UPDATE'
+      ) {
+        afterLock?.(sql);
+        return { rows: [], rowCount: 0 };
+      }
       return { rows: query(sql, values), rowCount: 1 };
     },
   } as unknown as PoolClient;
@@ -164,55 +181,130 @@ test('unconfigured risk control fails before touching PostgreSQL', async () => {
   assert.equal(database.commits(), 0);
 });
 
-
 test('refresh locks account then session then token and rechecks lifecycle after waits', async () => {
   const database = fixture((sql) => {
     if (sql.startsWith('SELECT s.*')) return [{ ...row, lifecycle: 'cooling' }];
     if (sql === 'SELECT clock_timestamp() AS now') return [{ now }];
     assert.fail('No credential writes are permitted after lifecycle fence');
   });
-  await assert.rejects(new IdentityRepository(database.database).rotate('c'.repeat(64), hashes), (error) => error instanceof ApplicationError && error.code === 'SESSION_REVOKED');
-  const account = database.statements.findIndex(s => s === 'SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE');
-  const session = database.statements.findIndex(s => s.includes('sessions WHERE id=$1 AND account_id=$2 FOR UPDATE'));
-  const token = database.statements.findIndex(s => s.includes('token_hash=$1 AND session_id=$2 FOR UPDATE'));
-  const fresh = database.statements.findIndex(s => s.startsWith('SELECT s.*'));
-  assert.ok(account >= 0 && account < session && session < token && token < fresh);
-  assert.equal(database.statements.some(s => s.startsWith('INSERT') || s.startsWith('UPDATE')), false);
+  await assert.rejects(
+    new IdentityRepository(database.database).rotate('c'.repeat(64), hashes),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'SESSION_REVOKED',
+  );
+  const account = database.statements.findIndex(
+    (s) =>
+      s === 'SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE',
+  );
+  const session = database.statements.findIndex((s) =>
+    s.includes('sessions WHERE id=$1 AND account_id=$2 FOR UPDATE'),
+  );
+  const token = database.statements.findIndex((s) =>
+    s.includes('token_hash=$1 AND session_id=$2 FOR UPDATE'),
+  );
+  const fresh = database.statements.findIndex((s) =>
+    s.startsWith('SELECT s.*'),
+  );
+  assert.ok(
+    account >= 0 && account < session && session < token && token < fresh,
+  );
+  assert.equal(
+    database.statements.some(
+      (s) => s.startsWith('INSERT') || s.startsWith('UPDATE'),
+    ),
+    false,
+  );
 });
 
 test('refresh uses fresh lifecycle, revocation and actual time after simulated lock waits', async () => {
   for (const scenario of [
-    {phase:'accounts',patch:{lifecycle:'cooling'},at:now,code:'SESSION_REVOKED'},
-    {phase:'sessions',patch:{revoked_at:now},at:now,code:'SESSION_REVOKED'},
-    {phase:'refresh_tokens',patch:{},at:row.absolute_expires_at,code:'REFRESH_TOKEN_EXPIRED'},
+    {
+      phase: 'accounts',
+      patch: { lifecycle: 'cooling' },
+      at: now,
+      code: 'SESSION_REVOKED',
+    },
+    {
+      phase: 'sessions',
+      patch: { revoked_at: now },
+      at: now,
+      code: 'SESSION_REVOKED',
+    },
+    {
+      phase: 'refresh_tokens',
+      patch: {},
+      at: row.absolute_expires_at,
+      code: 'REFRESH_TOKEN_EXPIRED',
+    },
   ]) {
-    let fresh: Omit<typeof row, 'revoked_at'> & { revoked_at: Date | null } = {...row}, clock = now, waited = false;
-    const f = fixture(sql => {
-      if (sql.startsWith('SELECT s.*')) { assert.ok(waited); return [fresh]; }
-      if (sql === 'SELECT clock_timestamp() AS now') return [{now:clock}];
-      assert.fail('Fresh negative authority must prevent every token write');
-    }, sql => {
-      if (sql.includes(`whaleu_identity.${scenario.phase} WHERE`)) {
-        waited = true; fresh = {...fresh,...scenario.patch}; clock = scenario.at;
-      }
-    });
-    await assert.rejects(new IdentityRepository(f.database).rotate('c'.repeat(64),hashes),{code:scenario.code});
-    assert.equal(f.commits(),1); assert.equal(f.rollbacks(),0);
-    assert.equal(f.statements.some(sql=>/^(INSERT|UPDATE)/.test(sql)),false);
+    let fresh: Omit<typeof row, 'revoked_at'> & { revoked_at: Date | null } = {
+        ...row,
+      },
+      clock = now,
+      waited = false;
+    const f = fixture(
+      (sql) => {
+        if (sql.startsWith('SELECT s.*')) {
+          assert.ok(waited);
+          return [fresh];
+        }
+        if (sql === 'SELECT clock_timestamp() AS now') return [{ now: clock }];
+        assert.fail('Fresh negative authority must prevent every token write');
+      },
+      (sql) => {
+        if (sql.includes(`whaleu_identity.${scenario.phase} WHERE`)) {
+          waited = true;
+          fresh = { ...fresh, ...scenario.patch };
+          clock = scenario.at;
+        }
+      },
+    );
+    await assert.rejects(
+      new IdentityRepository(f.database).rotate('c'.repeat(64), hashes),
+      { code: scenario.code },
+    );
+    assert.equal(f.commits(), 1);
+    assert.equal(f.rollbacks(), 0);
+    assert.equal(
+      f.statements.some((sql) => /^(INSERT|UPDATE)/.test(sql)),
+      false,
+    );
   }
 });
 
 test('refresh replay consumed while waiting is freshly reread and committed, never minted', async () => {
-  let consumed:Date|null=null;
-  const f = fixture(sql => {
-    if (sql.startsWith('SELECT s.*')) return [{...row,consumed_at:consumed}];
-    if (sql === 'SELECT clock_timestamp() AS now') return [{now}];
-    if (sql.startsWith('SELECT consumed_at')) {assert.equal(consumed,now);return [{consumed_at:consumed}];}
-    if (sql.startsWith('UPDATE whaleu_identity.sessions')) {assert.match(sql,/refresh_replay/);return [];}
-    assert.fail('Replay must not write replacements');
-  }, sql => {if(sql.includes('refresh_tokens WHERE'))consumed=now;});
-  await assert.rejects(new IdentityRepository(f.database).rotate('c'.repeat(64),hashes),{code:'REFRESH_TOKEN_REUSED'});
-  assert.equal(f.commits(),1); assert.equal(f.rollbacks(),0);
-  assert.equal(f.statements.filter(sql=>sql.startsWith('UPDATE')).length,1);
-  assert.equal(f.statements.some(sql=>sql.startsWith('INSERT')),false);
+  let consumed: Date | null = null;
+  const f = fixture(
+    (sql) => {
+      if (sql.startsWith('SELECT s.*'))
+        return [{ ...row, consumed_at: consumed }];
+      if (sql === 'SELECT clock_timestamp() AS now') return [{ now }];
+      if (sql.startsWith('SELECT consumed_at')) {
+        assert.equal(consumed, now);
+        return [{ consumed_at: consumed }];
+      }
+      if (sql.startsWith('UPDATE whaleu_identity.sessions')) {
+        assert.match(sql, /refresh_replay/);
+        return [];
+      }
+      assert.fail('Replay must not write replacements');
+    },
+    (sql) => {
+      if (sql.includes('refresh_tokens WHERE')) consumed = now;
+    },
+  );
+  await assert.rejects(
+    new IdentityRepository(f.database).rotate('c'.repeat(64), hashes),
+    { code: 'REFRESH_TOKEN_REUSED' },
+  );
+  assert.equal(f.commits(), 1);
+  assert.equal(f.rollbacks(), 0);
+  assert.equal(
+    f.statements.filter((sql) => sql.startsWith('UPDATE')).length,
+    1,
+  );
+  assert.equal(
+    f.statements.some((sql) => sql.startsWith('INSERT')),
+    false,
+  );
 });
